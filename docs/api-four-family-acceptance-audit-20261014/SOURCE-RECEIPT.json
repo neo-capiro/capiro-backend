@@ -1,0 +1,1193 @@
+{
+  "sourceHead": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "sourceTree": "e0592f4137c67740c0b519f9a88f5d15840b0b8f",
+  "publishedPrivateHead": "a65ae3c8a9f1f0cf96d4f7d2ae30aad2fff172ff",
+  "publishedPrivateTree": "b5ff0511a9e35760a4c92f74270e07beba1bf319",
+  "publishedDelta": {
+    "documentationPaths": 29,
+    "sourcePaths": 0,
+    "paths": [
+      "docs/backend-cleanup-receiving-20261014/HANDOFF.md",
+      "docs/backend-cleanup-receiving-20261014/INDEPENDENT-REVIEW.md",
+      "docs/backend-cleanup-receiving-20261014/api-jest.config.cjs",
+      "docs/backend-cleanup-receiving-20261014/check-memo-emission.cjs",
+      "docs/backend-cleanup-receiving-20261014/evidence/SHA256-INDEX.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/attempt0-memo-materialization.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-canonical-type-output.raw.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-canonical-type-receipt.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-core-client-provenance.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-emitted-artifacts.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-emitted-syntax-output.raw.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-emitted-syntax-receipt.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-emitted-syntax-repaired-output.raw.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-emitted-syntax-repaired-receipt.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-failure-disposition.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-jest-output.raw.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-jest-receipt.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-jest-repaired-output.raw.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-jest-repaired-receipt.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-jest-repaired-results.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-jest-results.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-materialization-scope.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/memo-receiving-preservation.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/privacy-review.json",
+      "docs/backend-cleanup-receiving-20261014/evidence/source-hygiene.json",
+      "docs/backend-cleanup-receiving-20261014/excluded-reporting-token.cjs",
+      "docs/backend-cleanup-receiving-20261014/materialize-memo-graph.cjs",
+      "docs/backend-cleanup-receiving-20261014/memo-test-scope.json",
+      "docs/backend-cleanup-receiving-20261014/seal-packet.py"
+    ]
+  },
+  "frontendContract": {
+    "repository": "neo-capiro/capiro-frontend",
+    "ref": "348bf98481268a5f06e26a924f0985b242265cbb",
+    "path": "docs/functional-api-acceptance-20261014/HANDOFF.md",
+    "gitBlob": "79e942b9f5296781f60f68268c86f8b9c70813dd",
+    "retrieval": "Authorized primary GitHub fetch_file; no frontend checkout change"
+  },
+  "frontendContractBytes": 13055,
+  "frontendContractSha256": "351ac8e625d2a8e62fcecebd36c7f4ade28de27f0ee4f27ca01c451151e75581",
+  "status": "SOURCE_INVENTORY_COMPLETE_NO_FOUR_FAMILY_IMPLEMENTATION_GAP_FOUND",
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.ts",
+      "mode": "100644",
+      "gitBlob": "164ed9499affe58530415f8dc37009329c7201f7",
+      "bytes": 2350,
+      "sha256": "fabadba336a195c6b99a8befcf2fa8635dd61ceb584e79f5fd93aa25c7da0fc9"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective.dto.ts",
+      "mode": "100644",
+      "gitBlob": "7df26dd269f79b3f8c70077b4619610306f3450f",
+      "bytes": 1306,
+      "sha256": "1013352f964c133cd25adf1abb4828074e726aec46137ef757b442748ae4d9ce"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.ts",
+      "mode": "100644",
+      "gitBlob": "1bcf7f6e871bb90022ae4b60b90b9acaf9eaf82e",
+      "bytes": 2307,
+      "sha256": "f1607e7ac086c3d999c1ae27198ea4411730827470f82363968b2d99acaa8b8b"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.ts",
+      "mode": "100644",
+      "gitBlob": "cffc4601583c5a0889b0900352a7609635167dea",
+      "bytes": 10934,
+      "sha256": "8603d31c16d9c3e4a2641b2be4d2f98f013ae69762b5703abcb572e4851f3a57"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.module.ts",
+      "mode": "100644",
+      "gitBlob": "cf2cd536c8d14958861416d51d2811bfe11d562a",
+      "bytes": 350,
+      "sha256": "d8585db9ee0fff4fef840faaf5b0d3c5c72778781f8e333dbae89afa0404c2e5"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "mode": "100644",
+      "gitBlob": "8fe1096621c7caa41bfc84284510e536b9957204",
+      "bytes": 910,
+      "sha256": "98e7f4a62e0bf45fc2c5cb3a816bcde805d0140aa609910169d900db5f6bd2d0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "mode": "100644",
+      "gitBlob": "44d3a6cc40fab1e36cb930c92b8edeb8518adde9",
+      "bytes": 5555,
+      "sha256": "a1b99723c2e329066052732ede6f9e2d40593863db10e8c00f69c22a44465c6e"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "mode": "100644",
+      "gitBlob": "9bf217e53d4928f92d6f37d202849f5b34777d5a",
+      "bytes": 8413,
+      "sha256": "034dab78634675d4c895318704ecbbd389894d2df45ea741371c6ca0e4060b04"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "mode": "100644",
+      "gitBlob": "938f1c7cb64041f0f672d419a3b012a73da68df0",
+      "bytes": 18983,
+      "sha256": "6a63a9fea4121b5f76c547d11e39346c54e4f6053252b9e94fa1cc79b09f8fa2"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "mode": "100644",
+      "gitBlob": "51f7da0274f308a5432140313f0ae4a5933337d0",
+      "bytes": 8023,
+      "sha256": "a914270fa8af83b255c11b2f1781c0db45429b2d37fdf4dc67eadeba3d5f4dd6"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "mode": "100644",
+      "gitBlob": "2feac26b819b53fd908554788dbecdc5eb9f04b0",
+      "bytes": 2610,
+      "sha256": "9d3ae7664a810b0e0b69a9714e5eae8efbbe01ca80f553d90bca3f8a86e78f00"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.controller.ts",
+      "mode": "100644",
+      "gitBlob": "39ea1ca92655e14f0a53e8a7a9025003c0314863",
+      "bytes": 951,
+      "sha256": "dbd9e3f21beb9939a122bc596d753ab3f81199353e70bd4cbf3ccbb33d8a571c"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.ts",
+      "mode": "100644",
+      "gitBlob": "f61bb6a9ecc2b37a47d4e25196f63edda08aceac",
+      "bytes": 7349,
+      "sha256": "9c1e0a2c820c536ef0398b901474d7a406211649ab9c5e3e97eaf46892104431"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.access.ts",
+      "mode": "100644",
+      "gitBlob": "c4e7961441e946270f941213abd87b12c1a6db89",
+      "bytes": 2898,
+      "sha256": "bfb22b8cd059ac85fce15550e4eaed900ded23a03c670967420678c4da3b1bd3"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+      "mode": "100644",
+      "gitBlob": "accccdcc31d8a196ddaec6b3f06761076e2e23fc",
+      "bytes": 3794,
+      "sha256": "2cf533aed9126d88c58484ad4e83af390b8275133233e5391d605ec8907be23e"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "mode": "100644",
+      "gitBlob": "5b3820b97abee5dda53ea273a3ec6ada7002cbbb",
+      "bytes": 8402,
+      "sha256": "329bc12b3c02b43bdf76076310c47d7cd504ef1b02a4f15e0da0665b5aab4611"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "mode": "100644",
+      "gitBlob": "50ed560a83937c102e52932c5317bb34326b27dd",
+      "bytes": 9907,
+      "sha256": "86c4abf7213edd4979815aef04b69eb501859b7b18c4de2f0a27333a38b11514"
+    },
+    {
+      "path": "apps/api/src/clients/client-account-owner.service.ts",
+      "mode": "100644",
+      "gitBlob": "80543c87f0a2426c55a854153fc07528a5f90312",
+      "bytes": 3792,
+      "sha256": "2e60c2fc12424f12b77f5d27fa7c6889a21ac62bc1c57f86601a228349d7da32"
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "mode": "100644",
+      "gitBlob": "f34b141a8101cece76c3765ed5d7d340334c5d98",
+      "bytes": 8706,
+      "sha256": "c639d9761e25021321cbf963d0aa87968b4d4cada19c7c62814480a83e62b674"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "mode": "100644",
+      "gitBlob": "b7cf770413db5e5fab3c74ce07f7ed8ff873a993",
+      "bytes": 9137,
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc"
+    },
+    {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "mode": "100644",
+      "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+      "bytes": 7342,
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c"
+    },
+    {
+      "path": "apps/api/src/main.ts",
+      "mode": "100644",
+      "gitBlob": "e8b1a9e47877ba139b1e9c699699c8eadece25c2",
+      "bytes": 1600,
+      "sha256": "58a7473c17e116dfe3c13197f124ed2c5fa1e9bb4ea708aa3092268bb92bbd36"
+    },
+    {
+      "path": "apps/api/src/engagement-api.app.module.ts",
+      "mode": "100644",
+      "gitBlob": "74b1f4400160b5eea810fd5fc946a705c0d0031f",
+      "bytes": 4412,
+      "sha256": "4cbde413677717948e1404ea591df64d41db31e733a7a80dc145d03ef90dd95e"
+    },
+    {
+      "path": "apps/api/src/engagement-main.ts",
+      "mode": "100644",
+      "gitBlob": "f7c05854181f695d7693d72b955e0b1729355e9c",
+      "bytes": 1721,
+      "sha256": "2d6e181d6d1428c9eab35b45a5cc62916d951e0f14481c13052fe548da2e4194"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "mode": "100644",
+      "gitBlob": "73723e049f3a9a23c174b4de3dd50ddc29fe4582",
+      "bytes": 6592,
+      "sha256": "ec969b1289d88aa5aa50ceb461277a9c7c37f780a3616fd135a4990720c54d3f"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+      "mode": "100644",
+      "gitBlob": "ac21e44dcff3daf622d814c853c6354bd59868d8",
+      "bytes": 2623,
+      "sha256": "98be0e09a21b151fbd92e3b70c7e163e56c95218a1a14628fc4a649b2bf30e4f"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.ts",
+      "mode": "100644",
+      "gitBlob": "d299f2ec719dee365eba4959e9aea3d2772f0679",
+      "bytes": 991,
+      "sha256": "2fe67a9c5d5b4b99f5d368900b363695ce26810e493e29b8166747011476edeb"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.spec.ts",
+      "mode": "100644",
+      "gitBlob": "251a716484643097c72ee65e2080f110a5466df5",
+      "bytes": 1608,
+      "sha256": "9b69e88ddb66a9f324e24842657aee9899c6d699f96115f7c5aa4bbe06a2d36f"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "mode": "100644",
+      "gitBlob": "70c009506c25183f38e0eaf16d12e1671e57fc3b",
+      "bytes": 20036,
+      "sha256": "12d0b335cfafac9a20d947ab88d9bf8badc618a6f106c6f07fd2515c6d667a82"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "mode": "100644",
+      "gitBlob": "e5065cb153abb29cb1fe5a2971dfe8614cc4be5e",
+      "bytes": 16506,
+      "sha256": "f4fd0e3bce44183cfa3c8addd6b33c7a7936f4804b4d4595e3c331f931d92e5b"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/persistence/outreach-state.repository.ts",
+      "mode": "100644",
+      "gitBlob": "44ed37514140f99bb777841b0ac81d83576f4dca",
+      "bytes": 25947,
+      "sha256": "5dc7f853d51e532871a8a1568cb871cb8ea82be302a113934650ed8c0323ecad"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime.guard.ts",
+      "mode": "100644",
+      "gitBlob": "e2c052d44ad347837ca99109e4cd3419282a1501",
+      "bytes": 4590,
+      "sha256": "17714352188538219003fafd4ea8e260768ce1116b8cb3d2b09414c0f4c7f890"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts",
+      "mode": "100644",
+      "gitBlob": "104cf85aef102b2d4fd4cc7be61c4af416f2bde3",
+      "bytes": 5752,
+      "sha256": "0e24effe12ea407d7a44650724b86c34324fc81ddbb9a12ec0559e478b317ae5"
+    },
+    {
+      "path": "apps/workspace/src/app.module.ts",
+      "mode": "100644",
+      "gitBlob": "f8510b072d593778a789b5ecc41330eece22f7ab",
+      "bytes": 3192,
+      "sha256": "0b59032e19a24df33bddd32f69d2e04fc65281b8000209abb2d77f1836688800"
+    },
+    {
+      "path": "apps/workspace/src/main.ts",
+      "mode": "100644",
+      "gitBlob": "1949e2913bb4126c4d6c6591fd0fcfa25ace1f14",
+      "bytes": 3544,
+      "sha256": "b807798f1ac421df9b8db8c1c3f317ab3efffcab9b2d73babeb26c9f63dfe952"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "mode": "100644",
+      "gitBlob": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1",
+      "bytes": 2341,
+      "sha256": "7a99f929d14d0fa13771d5436eeb1dd614fddf495938b5e334fc0d52d8686353"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "mode": "100644",
+      "gitBlob": "971f51ec0b8ce8545d4fb1d3281f27be649d8aa5",
+      "bytes": 10625,
+      "sha256": "020d084b58703a32bba091ee8b0a81e57900d8c388fc8414af99afad16a25e60"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "mode": "100644",
+      "gitBlob": "8cb4e78420216fe0045a7c0868c495623d0edfd0",
+      "bytes": 13632,
+      "sha256": "1ccb3a75ed2cf2809d161a5e9c290aa9b008b8f7b2b6660451c49fdbedd84260"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "mode": "100644",
+      "gitBlob": "cd780f1d3505ce402004befd4266b0608f95a33a",
+      "bytes": 9740,
+      "sha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "mode": "100644",
+      "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "bytes": 4318,
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.controller.ts",
+      "mode": "100644",
+      "gitBlob": "c2d99378e71830d2a9c46a098e4bea004690212a",
+      "bytes": 9291,
+      "sha256": "f4291ce94b3ef1288f16ccb48b1281f9a25690dc040898f27976836b3087e8df"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "mode": "100644",
+      "gitBlob": "182e6ccf4af1b70f7902cd5b812f6b2b06413bda",
+      "bytes": 11576,
+      "sha256": "306e9ad090fa3039cf3ae05fc64994ed8418e3c3b9fdb2b314e68a363f2b3c99"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.controller.ts",
+      "mode": "100644",
+      "gitBlob": "1948fefc6a9ad1d1a3f8f17516859846987387f9",
+      "bytes": 2835,
+      "sha256": "f1ae8e61916e334750c7e64d3da89a1ce989cfe0b9787ec823d838cbdf48cb74"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.service.ts",
+      "mode": "100644",
+      "gitBlob": "fe250e0b5bd7d5a4d797afbc9bc238bdc7462fe7",
+      "bytes": 11677,
+      "sha256": "fd84af246bc3f7cd5bbdf27e861418b2cc7fa958cd855431c127646cb9459bc2"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.module.ts",
+      "mode": "100644",
+      "gitBlob": "09047d750d45405eb62409d15b078005a223e8f1",
+      "bytes": 363,
+      "sha256": "35d3164e11f886f444e5b05f7bf9e040bf1c6ac4cc6d9b4803331982de9c0990"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+      "mode": "100644",
+      "gitBlob": "2e4dfe26024dafed7bde7c01c478b9a28da39d34",
+      "bytes": 4118,
+      "sha256": "c11cb3152df0bd98fb3e9dbaa9876135f7f98e83ca75e6dad050a30d79992aeb"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "mode": "100644",
+      "gitBlob": "169b92fe0a8b50e85762008574492c944b66b93b",
+      "bytes": 16535,
+      "sha256": "55ddcf413fa3e4008aaf1561a06b2941ae0d87ee3c5661e0bd3bef4b4c710b85"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "mode": "100644",
+      "gitBlob": "89340848dae27655a0436dff4eda64c276e4c5fb",
+      "bytes": 12641,
+      "sha256": "d1e29f03928029e562e6aefe6162d0a0819ed847efa8e09a7573cc37c610aa43"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "mode": "100644",
+      "gitBlob": "42065a1749144afec30b1aa56ea5d865dac847bf",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/api/prisma/outreach-v3-phase2/schema.prisma",
+      "mode": "100644",
+      "gitBlob": "13a5b61fccb58cfe29bb3b7f34d78e5ccac9eff1",
+      "bytes": 4668,
+      "sha256": "5158c4abb3a637431502dcf5ef3dc33f1732f167a98c68df14e41cebd348ec24"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "mode": "100644",
+      "gitBlob": "e42752de937aa412887878f7e2d15fcf9ea4fc4f",
+      "bytes": 41912,
+      "sha256": "5b42bad2611ae694120746d8f60902d62752f90bac4c65a50f4dae79e798e094"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "mode": "100644",
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "bytes": 3398,
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "mode": "100644",
+      "gitBlob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3",
+      "bytes": 4172,
+      "sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "mode": "100644",
+      "gitBlob": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
+      "bytes": 887,
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260908010000_outreach_v3_campaign_state/migration.sql",
+      "mode": "100644",
+      "gitBlob": "82c07b69432b91b31cf58af97ddd05bd4cb3611d",
+      "bytes": 13020,
+      "sha256": "ef7b97c515abd2d8d82d90a7ee1d3e9e6b8c663af3bb8c22a32c1a8ea867f994"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "mode": "100644",
+      "gitBlob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "bytes": 533,
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4"
+    },
+    {
+      "path": "docs/portfolio-31/objectives-contract.md",
+      "mode": "100644",
+      "gitBlob": "ce1484af28c8a5c05d87c063bcff8113a5314631",
+      "bytes": 3867,
+      "sha256": "56688307e5a4a79f4a54352faefbddff7fafecb7985dca1e090d98584a292b27"
+    },
+    {
+      "path": "docs/ordered-client-owners-20261012/CONTRACT.md",
+      "mode": "100644",
+      "gitBlob": "20e182294562cf8b9d850264ccdbab8d8f903669",
+      "bytes": 5480,
+      "sha256": "af3ced538e0c90878012238017fc92970f5e5c47de4759670582b134dfd8c505"
+    },
+    {
+      "path": "docs/newsletter-staging-20261012/CONTRACT.md",
+      "mode": "100644",
+      "gitBlob": "4bb60ea4967fe12349f1117becc735dd0e5e8f8c",
+      "bytes": 7501,
+      "sha256": "5408dc67cbca3cd96b61355ba72ec06ca0594b012ad7ac8289593373c8aacbeb"
+    },
+    {
+      "path": "docs/newsletter-staging-20261012/INTEGRATION.md",
+      "mode": "100644",
+      "gitBlob": "2b98698db82abffcbc1ceb33c7b3b29b29153687",
+      "bytes": 2630,
+      "sha256": "a84e7435b7993d843627dc1ef2b785a8f354e74cc0e536e9b939ebc63e71bd20"
+    },
+    {
+      "path": "docs/effective-date-calendar-20261012/CONTRACT.md",
+      "mode": "100644",
+      "gitBlob": "ea6ec9291db115cd8412e1ccf398ca66ca028738",
+      "bytes": 8178,
+      "sha256": "18149e858011acc7809f993e30fbe6a5a37dcb262ba52247a5144b0787f0667b"
+    },
+    {
+      "path": "docs/effective-date-calendar-20261012/INTEGRATION.md",
+      "mode": "100644",
+      "gitBlob": "3766b4fdceaed13f14edcd2b8d4905ec63456b63",
+      "bytes": 3543,
+      "sha256": "b7a19dbc6123a933ffd872f47094e408572616cea7248e4ce16dbba242c2044d"
+    }
+  ],
+  "testDeclarationInventory": [
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "line": 61,
+      "declaration": "test('missing context and portal users are refused before service access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "line": 67,
+      "declaration": "test('list and optional Objective selector parse independently', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "line": 80,
+      "declaration": "test('empty draft creation requires a UUID request ID and rejects forged authority', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "line": 104,
+      "declaration": "test('updates reject missing versions and caller-supplied lifecycle fields', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "line": 125,
+      "declaration": "test('transitions expose only the agreed review/ready actions', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 72,
+      "declaration": "test('foreign or archived client refuses all access before Objective lookup', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 79,
+      "declaration": "test('all Objective reads bind tenant, client and nondeleted scope', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 90,
+      "declaration": "test('foreign/inactive owner cannot be assigned', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 99,
+      "declaration": "test('creates an incomplete normalized draft and revision in the same tenant transaction', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 132,
+      "declaration": "test('retrying the same create request returns the stored draft without a second revision', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 145,
+      "declaration": "test('rejects stale versions before writing', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 153,
+      "declaration": "test('concurrent version winner prevents a second write and revision', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 162,
+      "declaration": "test('editing a ready Objective reopens Draft and clears readiness and review timestamps', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 184,
+      "declaration": "test('four fields confirm Ready and a repeated current-version confirmation is inert', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "line": 196,
+      "declaration": "test('missing fields block review and Ready without writes', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 180,
+      "declaration": "test(`${operation.name}: walled client without grant is non-disclosing before Objective/history access`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 186,
+      "declaration": "test(`${operation.name}: exact tenant/client/user grant permits the existing operation`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 198,
+      "declaration": "test(`${operation.name}: unwalled client remains accessible without a grant`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 202,
+      "declaration": "test(`${operation.name}: wrong-tenant grant cannot unlock the wall`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 209,
+      "declaration": "test(`${operation.name}: wrong-user grant cannot unlock the wall`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 216,
+      "declaration": "test(`${operation.name}: wrong-client grant cannot unlock the wall`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 223,
+      "declaration": "test(`${operation.name}: missing, foreign and archived clients share the refusal`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 234,
+      "declaration": "test(`${operation.name}: hard-deleted grant is revoked`, async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 251,
+      "declaration": "test('absent actor cannot unlock a walled client', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 260,
+      "declaration": "test('canonical SQL failure fails closed before Objective access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 273,
+      "declaration": "test('list does not publish rows after grant removal during read', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 282,
+      "declaration": "test('get does not publish row or existence after grant removal during read', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 290,
+      "declaration": "test('missing Objective result is hidden when access closes during read', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 311,
+      "declaration": "test('stale version conflict does not disclose after pending read loses access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 320,
+      "declaration": "test('unchanged update cannot return an Objective after read loses access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 329,
+      "declaration": "test('already-ready transition cannot return an Objective after read loses access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 338,
+      "declaration": "test('create rechecks the wall after pending owner read before any write', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 348,
+      "declaration": "test('invalid owner result does not disclose after pending owner read loses access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 357,
+      "declaration": "test('owner reassignment rechecks access before update', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 366,
+      "declaration": "test('create write receipt loses access before idempotent record lookup or revision', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 376,
+      "declaration": "test('create duplicate receipt loses access before idempotent record lookup', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 385,
+      "declaration": "test('create idempotent record mismatch is hidden after pending lookup loses access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 394,
+      "declaration": "test('matching idempotent create receipt is hidden after pending lookup loses access', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 419,
+      "declaration": "test('updated record receipt is hidden before revision when access closes during readback', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 441,
+      "declaration": "test('archive during pending list is refused even with a retained grant', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 449,
+      "declaration": "test('wall enabled during unwalled pending list refuses ungranted actor', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "line": 459,
+      "declaration": "test('NotFound response contains no Objective or readiness payload', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 51,
+      "declaration": "test('migration is LF-exact and additive: both preexisting clients remain unchanged', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 59,
+      "declaration": "test('composite foreign key rejects a client from another tenant even for the database owner', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 68,
+      "declaration": "test('real SQL allows partial drafts and refuses Ready until exactly four fields exist', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 83,
+      "declaration": "test('runtime role sees only its tenant and cannot write a foreign tenant', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 103,
+      "declaration": "test('revision scope and unique version preserve lineage; runtime role cannot rewrite revisions', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 135,
+      "declaration": "test('creation key deduplicates retries within the same tenant/client', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 148,
+      "declaration": "test('version predicate admits one edit and refuses a competing stale edit', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "line": 164,
+      "declaration": "test('revision failure rolls back its Objective write in the same real transaction', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "line": 20,
+      "declaration": "test('partial and empty drafts remain valid while readiness names missing fields', () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "line": 31,
+      "declaration": "test('the four fields suffice without limits, a cycle forecast, or Meri answers', () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "line": 37,
+      "declaration": "test('normalizes only supplied fields and rejects unknown ask types', () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "line": 47,
+      "declaration": "test('DTO rejects null text and protected/unknown fields instead of silently dropping them', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "line": 57,
+      "declaration": "test('updates require an integer version and bounded text', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+      "line": 41,
+      "declaration": "test('saves/readbacks four ranks and returns typed conflict to the legacy editor', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+      "line": 70,
+      "declaration": "test('rejects unknown body fields despite unknown-type controller boundary', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+      "line": 77,
+      "declaration": "test('legacy successful write changes ranked version and makes an old ranked draft stale', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 14,
+      "declaration": "test('persists four ranks, Primary and audit in one transaction and reads exact order', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 30,
+      "declaration": "test('reorders, removes a middle rank contiguously, and clears all', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 67,
+      "declaration": "test('retains an inactive historical rank as unavailable without promoting Secondary', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 114,
+      "declaration": "test('read is allowed for an active standard_user, write is not', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 120,
+      "declaration": "test('two same-version replacements yield one receipt and one stale conflict', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 139,
+      "declaration": "test('audit failure rolls back ordered rows and compatibility projection', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 147,
+      "declaration": "test('exact versioned no-op does not increment; stale exact retry still conflicts', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 160,
+      "declaration": "test('legacy single-owner writes and clear advance the canonical version', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 174,
+      "declaration": "test('legacy multi-owner exact no-op preserves set, including inactive Primary', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "line": 183,
+      "declaration": "test('maximum version permits a read/no-op but refuses every mutation before a write', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 63,
+      "declaration": "test('retains actor identity and grant locks before a requested-member wait', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 89,
+      "declaration": "test('a second-rank insert failure rolls back deletions and the first insertion', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 108,
+      "declaration": "test('receipt-query failure after audit also rolls back the complete save', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 120,
+      "declaration": "test('lost committed reply is recoverable by GET, while stale identical PUT stays a conflict', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 131,
+      "declaration": "test('mixed-case UUIDs normalize before validation, persistence and receipts', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 152,
+      "declaration": "test('an unavailable historical Primary stays identified on the legacy read', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 168,
+      "declaration": "test('a secondary owner cannot be removed via legacy team removal', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 176,
+      "declaration": "test('team responses preserve every rank, availability flag and explicit free-text role', async () => {"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "line": 199,
+      "declaration": "test('ranked and legacy exhaustion are typed conflicts, with maximum-version no-op still safe', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.spec.ts",
+      "line": 34,
+      "declaration": "it('fails configuration closed on an unknown value', () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.spec.ts",
+      "line": 40,
+      "declaration": "it('returns the same 404 shape as an absent route while disabled', () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.spec.ts",
+      "line": 46,
+      "declaration": "it('permits routing only when the feature is explicitly enabled', () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 77,
+      "declaration": "it('pins saved snapshot and author provenance in the one durable command receipt', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 86,
+      "declaration": "it('keeps selected saved bytes after the live working content changes', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 90,
+      "declaration": "it('returns the same receipt without another state mutation on exact retry', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 94,
+      "declaration": "it('serializes duplicate retries into one state mutation in the synthetic session-lock harness', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 98,
+      "declaration": "it('serializes competing requests and rejects the stale version', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 102,
+      "declaration": "it('rejects changed expected version on the same request identity', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 105,
+      "declaration": "it('cannot upgrade a preexisting generic command result into a saved-revision receipt', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 109,
+      "declaration": "it('rejects a wrong snapshot hash before writing', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 124,
+      "declaration": "it('supports current viewer read/export rights and rechecks revocation before replay', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 128,
+      "declaration": "it('requires the exact current actor, tenant and selected existing session', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 135,
+      "declaration": "it('rejects an actor UUID with another Clerk subject', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 138,
+      "declaration": "it('locks same-client wall and its live grant, then delegates canonical client authorization', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 146,
+      "declaration": "it('refuses cross-client sponsor and refuses a changed live client assignment', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 152,
+      "declaration": "it('refuses firm content into a client sponsor', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 156,
+      "declaration": "it('blocks new archived mutations while permitting authorized receipt recovery', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 165,
+      "declaration": "it('rolls command state and receipt back together when receipt persistence fails', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 169,
+      "declaration": "it('normalizes UUID case and rejects arbitrary injected fields and commands', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 173,
+      "declaration": "it('uses parameter-bound UUIDs and locks each current authority through command commit', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 178,
+      "declaration": "it('canonicalizes snapshot object keys while retaining ordered arrays', () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 192,
+      "declaration": "it('refuses the saved-revision chooser itself when canonical client authority is revoked', async () => {"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "line": 196,
+      "declaration": "it('requires exact version/draft/tenant binding in the Workspace owner seam', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 58,
+      "declaration": "it('binds exact saved version and parent to current Objective revision in one read-only transaction', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 70,
+      "declaration": "it('reads selected saved bytes after working text changes and normalizes UUID case', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 79,
+      "declaration": "it('never fabricates a Core UUID from Workspace Clerk context', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 87,
+      "declaration": "it('uses current viewer read/export rights and rechecks every replay after ACL revocation', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 94,
+      "declaration": "it('retains immutable prospect exclusion', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 97,
+      "declaration": "it('refuses null/free-text source clients before exposing a stale Objective conflict', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 102,
+      "declaration": "it('refuses cross-client query and current/saved reassignment before querying Objective version', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 108,
+      "declaration": "it('returns typed conflict only for an authorized same-client stale current Objective', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 120,
+      "declaration": "it('rejects mismatched parent/version identity', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 124,
+      "declaration": "it('rechecks current Objective authority for repeated opens', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 130,
+      "declaration": "it('keeps mutable locks and plain immutable receipt/revision reads', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 151,
+      "declaration": "it('returns literal owner binding with private no-store caching', async () => {"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "line": 166,
+      "declaration": "it('rejects malformed path identities before owner access', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+      "line": 42,
+      "declaration": "it('retains authenticated standard user role guard', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+      "line": 46,
+      "declaration": "it('projects effective provenance and explicit bounded coverage/pagination', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 57,
+      "declaration": "it('accepts a valid leap date and never substitutes publication or comment dates', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 85,
+      "declaration": "it('suppresses both corrections and corrected originals rather than treating them as verified', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 90,
+      "declaration": "it('refreshes observation without changing revision, and records the corrected transition exactly once', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 108,
+      "declaration": "it('recomputes the source projection checksum rather than trusting the receipt hash', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 113,
+      "declaration": "it('bounds previous snapshots and strips unexpected provenance fields', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 130,
+      "declaration": "it('locks identity before loading and writes evidence and canonical metadata in one transaction', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 151,
+      "declaration": "it('propagates failed evidence persistence instead of reporting successful observation', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 159,
+      "declaration": "it('keeps fresh evidence and exposes date-kind/provenance plus deliberately incomplete coverage', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 170,
+      "declaration": "it('selects latest ingestion and refresh independently without a shared history cutoff', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 188,
+      "declaration": "it('includes exact 48h evidence boundary and suppresses even one millisecond older or future evidence', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 212,
+      "declaration": "it('authorizes the actual handler through controller metadata and current RolesGuard', () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "line": 229,
+      "declaration": "it('persists source-owned coverage stats with partial status instead of advancing success', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 107,
+      "declaration": "it('does not let a partial catalog max skip the unseen older publication tail', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 117,
+      "declaration": "it('does not trust legacy successful receipts or their newer local catalog max', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 122,
+      "declaration": "it('asks the canonical receipt owner for only successful protocol-qualified ordinary windows', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 144,
+      "declaration": "it('uses the newest qualified complete receipt despite later partial/manual/legacy attempts', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 177,
+      "declaration": "it('keeps checkpoint eligibility false when an older page fails after a newer page was persisted', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 184,
+      "declaration": "it('refuses checkpoint read failure before fetching or opening a publication run', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 188,
+      "declaration": "it('never acknowledges an eligible window when the first page fails', async () => {"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "line": 193,
+      "declaration": "it('rejects invalid explicit date before provider requests or receipt queries', async () => {"
+    }
+  ],
+  "testsExecuted": 0,
+  "migrationsExecuted": 0,
+  "nativeAcceptanceClaimed": false,
+  "deployedAvailabilityClaimed": false,
+  "protectedEngagementServiceBodyRead": false,
+  "stageCoreApplicationOwner": false,
+  "stageEngagementApplicationOwner": true,
+  "stageFeatureDefault": "disabled, nondisclosing 404",
+  "migrationNamingDiscrepancy": {
+    "frontendHandoff": "20281012040000_saved_version_immutability",
+    "actualCommittedWorkspacePath": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql"
+  },
+  "readOnlyLookupCorrections": [
+    "Physical sparse source misses were not treated as absent Git source.",
+    "Local frontend Git lacked exact 348; primary exact GitHub file used.",
+    "An initial Python source selector had a delimiter syntax error and was corrected.",
+    "Guessed api/src/http/configure-api-http-app.ts was absent; existing bootstrap path used."
+  ],
+  "limitations": [
+    "No tests were rerun; test declarations are not passing evidence.",
+    "PGlite source tests are not native PostgreSQL acceptance.",
+    "No coordinated migration/data/ingress or deployed feature state was changed.",
+    "Destination resolution is distinct from durable creation or association."
+  ]
+}

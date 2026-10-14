@@ -1,0 +1,300 @@
+{
+  "schema": "private-backend-successor-pins/v1",
+  "observedDate": "2026-10-14",
+  "privateRepository": "neo-capiro/capiro-backend",
+  "planBase": "4e2c4be826205dde8101e854ba079d46a6dd10ca",
+  "reviewedSource": "a65ae3c8a9f1f0cf96d4f7d2ae30aad2fff172ff",
+  "localPins": [
+    {
+      "id": "private-default",
+      "branch": "backend-import",
+      "head": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+      "tree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+      "parents": [
+        "93a5fd5fed531e06dfd78d93f938964f32d62675"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "private-pr1",
+      "branch": "codex/reviewed-backend-receiving-20261013",
+      "head": "6efe59f24b4a711b7991bae4b2a255c667cbbf00",
+      "tree": "5e1812b853811f793b30fe7de0e956f65c28f056",
+      "parents": [
+        "8dfb8d62fe98843979979596da43b2c551ce3952"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "optional-pr2",
+      "branch": "codex/preview-readonly-api-20261013",
+      "head": "111f269d749cae0249c2141779bd6d7deb93f45c",
+      "tree": "719c8292fc0c9cf4e8242b8d58efb2d004ad0a1f",
+      "parents": [
+        "c76f5fc0df6688743afeec274211afd2e67fe8f1"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "optional-pr3",
+      "branch": "codex/preview-readonly-native-20261013",
+      "head": "3509438f7f0c39c6da4db8a94b74c816211491b4",
+      "tree": "d4d01388e9edc69f40ab2e53948a0e9f75051903",
+      "parents": [
+        "96a32150553c423ca182cc3fb345113f5993f016"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "private-pr4",
+      "branch": "codex/backend-cleanup-receiving-20261014",
+      "head": "a65ae3c8a9f1f0cf96d4f7d2ae30aad2fff172ff",
+      "tree": "b5ff0511a9e35760a4c92f74270e07beba1bf319",
+      "parents": [
+        "b36cee83008830a59e304afca4aa6ae1b1c5e0d3"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "product-source",
+      "branch": "source-checkpoint",
+      "head": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+      "tree": "e0592f4137c67740c0b519f9a88f5d15840b0b8f",
+      "parents": [
+        "b417a2610f5224c2a3e85c6a1ebba1a8102233c1",
+        "c049f703d778b55684fd042a731069e73777d30c"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "four-family-audit",
+      "branch": "codex/api-four-family-acceptance-audit-20261014",
+      "head": "4e2c4be826205dde8101e854ba079d46a6dd10ca",
+      "tree": "063214b484bf9955581d3d595bf60c6b4ae6e87c",
+      "parents": [
+        "a65ae3c8a9f1f0cf96d4f7d2ae30aad2fff172ff"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "watchlist-donor",
+      "branch": "capirov2/PR2491",
+      "head": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "tree": "4c6456ea67844bf492fc26f63262007407aae28c",
+      "parents": [
+        "c625fcc4b5fb7c4270e701fe090b9f408d9108fe"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "memo-donor",
+      "branch": "capirov2/PR2492",
+      "head": "c049f703d778b55684fd042a731069e73777d30c",
+      "tree": "4ae26b00f1df0dca7ed7979800dbdee6c6c0f1fa",
+      "parents": [
+        "04137babe95e1a3f9627703239d1b5c4992f0b2b"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "watchlist-composition",
+      "branch": "private/source-checkpoint",
+      "head": "9546d45d2fdf11995e57fee2ebd824d4eaabf3a1",
+      "tree": "2ebd65c35e6a3af1f4c87779c8d043f75ef7da2a",
+      "parents": [
+        "6efe59f24b4a711b7991bae4b2a255c667cbbf00",
+        "04137babe95e1a3f9627703239d1b5c4992f0b2b"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "already-received-donor",
+      "branch": "capirov2/PR2490",
+      "head": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+      "tree": "046ef2faa7ef042c9b9155df65ec04f7484ebcc8",
+      "parents": [
+        "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    },
+    {
+      "id": "previous-reviewed-packet",
+      "branch": "private/docs-checkpoint",
+      "head": "b417a2610f5224c2a3e85c6a1ebba1a8102233c1",
+      "tree": "58abbf7a657b9ed81611b6d7635c451a82255064",
+      "parents": [
+        "9546d45d2fdf11995e57fee2ebd824d4eaabf3a1"
+      ],
+      "verification": "local Git object; branch posture refreshed separately where stated"
+    }
+  ],
+  "externalPointers": [
+    {
+      "id": "production-capirov2",
+      "repository": "neo-capiro/capirov2",
+      "branch": "main",
+      "head": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "qualification": "read-only GitHub refresh; no serving image/source proof"
+    },
+    {
+      "id": "frozen-frontend-pr25",
+      "repository": "neo-capiro/capiro-frontend",
+      "branch": "integration/capiro-functional-preview-20261014",
+      "head": "257cf5b5db673b31c98264f9da33759c68066ba4",
+      "shippingSource": "5ca42049325881782bc9d2ac557450d642eccee8",
+      "qualification": "read-only GitHub head refresh; preserved owner handoff; do not change"
+    },
+    {
+      "id": "frontend-pr26",
+      "repository": "neo-capiro/capiro-frontend",
+      "branch": "repair/capiro-existing-api-feedback-20261014",
+      "head": "348bf98481268a5f06e26a924f0985b242265cbb",
+      "qualification": "preserved separate source contract follow-up"
+    },
+    {
+      "id": "meri-pr71",
+      "repository": "neo-capiro/meri-greenfield",
+      "head": "7e822a7cfe5150b2c8d8fc1d5984fd2348ae4866",
+      "base": "742e57287db5294f84724b6c1878c113bff3bba8",
+      "path": "docs/coordination/reports/CODEX-CAPIRO-BACKEND-INTEGRATION-BOUNDARY-20261014.md",
+      "qualification": "read-only GitHub refresh; immutable source boundary, not live/native acceptance"
+    },
+    {
+      "id": "unpublished-engagement-protected",
+      "repository": "neo-capiro/capirov2",
+      "head": "e01e3b72aa0e26f4d2a9ad65533da1d561920aca",
+      "qualification": "owner-supplied custody pointer only; not inspected/received/production-selected"
+    },
+    {
+      "id": "declared-admitted-core",
+      "head": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "qualification": "reference admission only"
+    },
+    {
+      "id": "declared-intel",
+      "head": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "qualification": "reference declaration only"
+    },
+    {
+      "id": "cleanup-pr2493",
+      "repository": "neo-capiro/capirov2",
+      "head": "243943b0ca6f17b399d9f417e343050cbd3e4185",
+      "path": "docs/backend-cleanup/20261014/canonical-backend-boundary/PLAN.md",
+      "qualification": "reviewed source audit; no private source/startup/live mutation"
+    }
+  ],
+  "selectedSourceBlobs": [
+    {
+      "path": "apps/api/src/main.ts",
+      "blob": "e8b1a9e47877ba139b1e9c699699c8eadece25c2",
+      "bytes": 1600,
+      "sha256": "58a7473c17e116dfe3c13197f124ed2c5fa1e9bb4ea708aa3092268bb92bbd36"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "blob": "b7cf770413db5e5fab3c74ce07f7ed8ff873a993",
+      "bytes": 9137,
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc"
+    },
+    {
+      "path": "apps/api/src/engagement-main.ts",
+      "blob": "f7c05854181f695d7693d72b955e0b1729355e9c",
+      "bytes": 1721,
+      "sha256": "2d6e181d6d1428c9eab35b45a5cc62916d951e0f14481c13052fe548da2e4194"
+    },
+    {
+      "path": "apps/api/src/engagement-api.app.module.ts",
+      "blob": "74b1f4400160b5eea810fd5fc946a705c0d0031f",
+      "bytes": 4412,
+      "sha256": "4cbde413677717948e1404ea591df64d41db31e733a7a80dc145d03ef90dd95e"
+    },
+    {
+      "path": "apps/engagement-api/README.md",
+      "blob": "9fd3fd2cb03f5d6b91a1620345e91058a8d12658",
+      "bytes": 1823,
+      "sha256": "9b01ec5faf3567acbc57bb7606db0897f1f49ccd7f052d9009d8f6c931e57419"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.module.ts",
+      "blob": "43eb9579b57c4ffc4fd8aab69b2a605049609569",
+      "bytes": 12222,
+      "sha256": "3fccedc262de3619749d53c187d401488166858829ea6e78967be66c0f78aea7"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.ts",
+      "blob": "164ed9499affe58530415f8dc37009329c7201f7",
+      "bytes": 2350,
+      "sha256": "fabadba336a195c6b99a8befcf2fa8635dd61ceb584e79f5fd93aa25c7da0fc9"
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "blob": "f34b141a8101cece76c3765ed5d7d340334c5d98",
+      "bytes": 8706,
+      "sha256": "c639d9761e25021321cbf963d0aa87968b4d4cada19c7c62814480a83e62b674"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.controller.ts",
+      "blob": "39ea1ca92655e14f0a53e8a7a9025003c0314863",
+      "bytes": 951,
+      "sha256": "dbd9e3f21beb9939a122bc596d753ab3f81199353e70bd4cbf3ccbb33d8a571c"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "blob": "73723e049f3a9a23c174b4de3dd50ddc29fe4582",
+      "bytes": 6592,
+      "sha256": "ec969b1289d88aa5aa50ceb461277a9c7c37f780a3616fd135a4990720c54d3f"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.ts",
+      "blob": "d299f2ec719dee365eba4959e9aea3d2772f0679",
+      "bytes": 991,
+      "sha256": "2fe67a9c5d5b4b99f5d368900b363695ce26810e493e29b8166747011476edeb"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "blob": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1",
+      "bytes": 2341,
+      "sha256": "7a99f929d14d0fa13771d5436eeb1dd614fddf495938b5e334fc0d52d8686353"
+    },
+    {
+      "path": "apps/workspace/src/app.module.ts",
+      "blob": "f8510b072d593778a789b5ecc41330eece22f7ab",
+      "bytes": 3192,
+      "sha256": "0b59032e19a24df33bddd32f69d2e04fc65281b8000209abb2d77f1836688800"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.controller.ts",
+      "blob": "1948fefc6a9ad1d1a3f8f17516859846987387f9",
+      "bytes": 2835,
+      "sha256": "f1ae8e61916e334750c7e64d3da89a1ce989cfe0b9787ec823d838cbdf48cb74"
+    },
+    {
+      "path": "apps/api/src/users/users.controller.ts",
+      "blob": "1bd5eb81436f3857761f4aec4af05ee7742f5ed6",
+      "bytes": 16950,
+      "sha256": "d7cc8867f6a11f6ca9fc8e4c3dc6c640ecab2c73ce661e51affed17dc7057a20"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "blob": "42065a1749144afec30b1aa56ea5d865dac847bf",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "blob": "8e4ec3ea811f7b2e8895760269e3b297099abea4",
+      "bytes": 12478,
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67"
+    }
+  ],
+  "exclusions": [
+    "protected unpublished Engagement reporting implementation/body/branch",
+    "no deployed image/source or authenticated/native acceptance inferred"
+  ],
+  "publication": {
+    "docsBranch": "codex/backend-successor-plan-20261014",
+    "proposedBaseBranch": "codex/backend-cleanup-receiving-20261014",
+    "functionalBranch": "codex/backend-canonical-boundary-20261014",
+    "selfHeadTree": "Read exact independently reviewed GitHub PR publication receipt; never self-embed containing commit."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "retained-source-lookup-observations/v1",
+  "scope": "Diagnostic excerpts from tool observations, not full test output or runtime evidence",
+  "observations": [
+    {
+      "command": "Initial PIN-MATRIX generation reading optional PR2 object from new shared clone",
+      "exitCode": 1,
+      "stderr": "fatal: ambiguous argument '111f269d749cae0249c2141779bd6d7deb93f45c^{tree}': unknown revision or path not in the working tree.",
+      "correction": "Read-only local fetch of preserved PR2/PR3 HEAD objects; all 12 commit/tree/parent tuples then verified. No optional branch was changed."
+    },
+    {
+      "command": "Initial sparse physical read of audit index",
+      "exitCode": 1,
+      "stderr": "cat: docs/api-four-family-acceptance-audit-20261014/SHA256-INDEX.json: No such file or directory",
+      "correction": "Audit exists in exact Git commit4e2; materialized only owned docs patterns, verified all indexed hashes."
+    },
+    {
+      "command": "Initial frontend layout source lookup in local old checkout",
+      "exitCode": 128,
+      "stderr": "fatal: path 'apps/portfolio-web/src/features/portfolio/layout/api.ts' exists on disk, but not in '5ca42049325881782bc9d2ac557450d642eccee8'\nfatal: unable to resolve revision: a65ae3c8",
+      "correction": "No absence inferred from wrong repo/path. Used exact GitHub PR25 tree and blob699134; backend search rerun in private receiving clone."
+    },
+    {
+      "command": "Independent local Meri report object lookup",
+      "result": "object unavailable",
+      "correction": "Exact remote PR71 report retrieved with gh; lossless envelope verifies size/SHA256/Git blob. Missing local object was not treated as missing work."
+    }
+  ]
+}

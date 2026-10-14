@@ -1,0 +1,17 @@
+[
+  {
+    "path": "MATRIX.md",
+    "bytes": 19523,
+    "sha256": "8edcdd4f4ca7887f2930f3078daf44364467ba1cad3a5a62062eac0dc886349d"
+  },
+  {
+    "path": "SOURCE-RECEIPT.json",
+    "bytes": 52526,
+    "sha256": "a2611e5f3383d2614181f8e921ddb53b066462292a1ed75d1303cc61ca6f7346"
+  },
+  {
+    "path": "frontend-handoff.lossless.json",
+    "bytes": 13426,
+    "sha256": "1b25d601aa2ba7151dffe58ba24af79b27ed6e1a65c96c9dab2bd4e92a8aeffa"
+  }
+]
