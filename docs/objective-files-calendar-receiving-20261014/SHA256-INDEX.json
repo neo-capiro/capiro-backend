@@ -2,9 +2,19 @@
   "algorithm": "sha256",
   "files": [
     {
+      "path": "FINAL-ACCEPTANCE.md",
+      "bytes": 1257,
+      "sha256": "491a779cb0d6874a1e24ad2aa663b74bc9dfa0aa250b4fe6c4688116a1e9e9b8"
+    },
+    {
+      "path": "FINAL-REVIEW.json",
+      "bytes": 2306,
+      "sha256": "614e52418d7b9c23ca83fcdd59ab2dbd4ba23aba7320633ad4872ebb6fa28a74"
+    },
+    {
       "path": "HANDOFF.md",
-      "bytes": 10203,
-      "sha256": "8f541cb4eb2f14cf6a90eb585e1dc9b6b82a048e730d24eaa0c51c2da38b2bfd"
+      "bytes": 11525,
+      "sha256": "6024357603e284abc43140fd12ec50a0bc4196989137ab1cffbf9e6ec2808f55"
     },
     {
       "path": "INDEPENDENT-ADMISSION-REPRO.json",
@@ -15,6 +25,11 @@
       "path": "INDEPENDENT-BLOCKING-FINDINGS.json",
       "bytes": 2330,
       "sha256": "fb47cc89048ed6636d0261b0f7b49d1ebc9b8fa6a3aa59d1dff1607b983e19eb"
+    },
+    {
+      "path": "INDEPENDENT-RUN.json",
+      "bytes": 723,
+      "sha256": "531067b7cad318851073615fbf5082cbc9383e51ef4d8f5fb3fda8bb64b98deb"
     },
     {
       "path": "attempt01-harness.cjs",
