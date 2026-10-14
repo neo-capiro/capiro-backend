@@ -1,0 +1,12 @@
+{
+  "image": "docker.io/library/node:22.23.3-alpine3.24",
+  "indexDigest": "sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+  "arm64Digest": "sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22",
+  "platform": {
+    "architecture": "arm64",
+    "os": "linux",
+    "variant": "v8"
+  },
+  "source": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+  "pnpmLockSha256": "1e3db1a5c55918e9f64c06205c09618de85fa478818cf2277e5e4f692738376f"
+}
