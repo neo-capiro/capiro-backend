@@ -98,16 +98,52 @@ function walkRuntime(imageRoot = '/app') {
   }
   walk(root, 0); return { files, directories: directories.size, symbolicLinks: links };
 }
-function physicalStoreOwners(store) {
+function diagnosticText(value, maximum = 214) {
+  return typeof value === 'string' && value.length <= maximum && /^[A-Za-z0-9@._+!~()=:/-]+$/.test(value) ? value : '<INVALID_OR_OVERSIZED>';
+}
+function diagnosticPath(root, file) {
+  return inside(root, file) ? diagnosticText(path.relative(root, file).split(path.sep).join('/') || '.', 768) : '<OUTSIDE_IMAGE>';
+}
+function diagnosticPlatform(metadata) {
+  return Object.fromEntries(['os', 'cpu', 'libc'].map(field => [field, metadata[field] == null ? null :
+    Array.isArray(metadata[field]) && metadata[field].length <= 8 ? metadata[field].map(v => diagnosticText(v, 32)) : '<INVALID_OR_OVERSIZED>']));
+}
+function diagnosticOwner(owner, imageRoot) {
+  return { relativeImagePath: diagnosticPath(imageRoot, owner.root), manifestSHA256: owner.manifestSHA256,
+    name: diagnosticText(owner.metadata.name), version: diagnosticText(owner.metadata.version, 128), ...diagnosticPlatform(owner.metadata) };
+}
+function diagnosticEvidence(diagnostic) {
+  const evidence = { scope: 'DIAGNOSTIC_ONLY_NOT_ADMISSION', schemaVersion: 1, ...diagnostic.payload,
+    limits: { inventoryRows: 128, physicalSearchRows: 32, serializedBytes: 65536 }, truncated: false };
+  evidence.truncated = evidence.physicalOwnerCount > evidence.physicalOwnerInventory.length || evidence.physicalSearchCount > evidence.physicalSearch.length;
+  evidence.invalidOrOversizedMetadata = JSON.stringify(evidence).includes('<INVALID_OR_OVERSIZED>');
+  while (Buffer.byteLength(JSON.stringify(evidence)) > 65536) {
+    evidence.truncated = true;
+    if (evidence.physicalOwnerInventory.length) evidence.physicalOwnerInventory.pop();
+    else if (evidence.physicalSearch.length) evidence.physicalSearch.pop();
+    else break;
+  }
+  return evidence;
+}
+function physicalStoreOwners(store, diagnostic) {
   const owners = [];
   for (const entry of fs.readdirSync(store, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name === 'node_modules') continue;
     const nodeModules = path.join(store, entry.name, 'node_modules');
     assert(fs.statSync(nodeModules).isDirectory(), 'unexpected physical store directory');
     const append = root => {
+      if (diagnostic) {
+        diagnostic.payload.observedOwner = null;
+        diagnostic.payload.readingPhysicalOwner = diagnosticPath(diagnostic.imageRoot, root);
+      }
       const row = readPackage(root);
+      if (diagnostic) diagnostic.payload.observedOwner = diagnosticOwner(row, diagnostic.imageRoot);
       assert(path.relative(nodeModules, root).split(path.sep).join('/') === row.metadata.name, 'physical package directory/name mismatch');
       owners.push(row);
+      if (diagnostic) {
+        diagnostic.payload.physicalOwnerCount++;
+        if (diagnostic.payload.physicalOwnerInventory.length < 128) diagnostic.payload.physicalOwnerInventory.push(diagnosticOwner(row, diagnostic.imageRoot));
+      }
     };
     for (const child of fs.readdirSync(nodeModules, { withFileTypes: true })) {
       if (!child.isDirectory() || child.name === '.prisma') continue;
@@ -130,7 +166,8 @@ function physicalDependencyLookup(name) {
   return { runtimeSelection: builtin ? 'NODE_BUILTIN' : 'NODE_PACKAGE', runtimeSpecifier: name,
     physicalLookupSpecifier: builtin ? `${name}/package.json` : name, physicalOwnerRequired: true };
 }
-function resolveDependency(parent, name, imageRoot) {
+function resolveDependency(parent, name, imageRoot, diagnostic) {
+  if (diagnostic) { diagnostic.payload.observedOwner = null; diagnostic.payload.dependencyMissing = null; delete diagnostic.payload.readingPhysicalOwner; }
   const resolver = createRequire(parent.manifest), dependencyResolution = physicalDependencyLookup(name);
   // Builtins have no package search paths. A locked dependency with the same
   // name still needs its exact physical npm owner admitted into the closure.
@@ -139,21 +176,32 @@ function resolveDependency(parent, name, imageRoot) {
   const lookup = dependencyResolution.physicalLookupSpecifier;
   for (const dir of resolver.resolve.paths(lookup) || []) {
     const candidate = path.join(dir, name);
-    if (!fs.existsSync(candidate)) continue;
+    const exists = fs.existsSync(candidate);
+    if (diagnostic) {
+      diagnostic.payload.physicalSearchCount++;
+      if (diagnostic.payload.physicalSearch.length < 32) diagnostic.payload.physicalSearch.push({ relativeImagePath: diagnosticPath(imageRoot, candidate), exists });
+    }
+    if (!exists) continue;
     const real = fs.realpathSync(candidate); assert(inside(imageRoot, real), 'resolved dependency escapes image');
-    return { ...readPackage(real), dependencyResolution };
+    if (diagnostic) diagnostic.payload.readingPhysicalOwner = diagnosticPath(imageRoot, real);
+    const observed = readPackage(real);
+    if (diagnostic) { diagnostic.payload.observedOwner = diagnosticOwner(observed, imageRoot); delete diagnostic.payload.readingPhysicalOwner; }
+    return { ...observed, dependencyResolution };
   }
   return null;
 }
-function generatedPrismaOwners(owners, imageRoot) {
+function generatedPrismaOwners(owners, imageRoot, diagnostic) {
   const generated = [];
   for (const owner of owners.filter(o => o.metadata.name === '@prisma/client')) {
+    if (diagnostic) { diagnostic.payload.observedOwner = null; delete diagnostic.payload.readingPhysicalOwner; }
     const nodeModules = path.dirname(path.dirname(owner.root));
     const location = path.join(nodeModules, '.prisma', 'client');
     assert(owner.metadata.version === '5.22.0' && fs.existsSync(location), 'exact generated Prisma companion required');
     const physical = fs.realpathSync(location);
     assert(physical === path.resolve(location) && inside(nodeModules, physical), 'generated Prisma companion escapes exact store location');
+    if (diagnostic) diagnostic.payload.readingPhysicalOwner = diagnosticPath(imageRoot, physical);
     const row = readPackage(physical);
+    if (diagnostic) { diagnostic.payload.observedOwner = diagnosticOwner(row, imageRoot); delete diagnostic.payload.readingPhysicalOwner; }
     assert(row.metadata.version === owner.metadata.version && /^prisma-client-[a-f0-9]{64}$/.test(row.metadata.name), 'generated Prisma identity');
     const schema = readBounded(path.join(imageRoot, 'apps/api/prisma/schema.prisma'), imageRoot, 8 * 1024 * 1024);
     assert(hash(schema) === '6b831443a9a1c6a19d39911ecc886bc23d273d99712fb4226ccf5a0735863368', 'canonical image-local musl Prisma schema');
@@ -162,20 +210,39 @@ function generatedPrismaOwners(owners, imageRoot) {
   }
   return generated;
 }
-function verifyInstalledClosure({ imageRoot = '/app', target = { os: 'linux', cpu: 'arm64', libc: 'musl' }, resolve = resolveDependency, ...options } = {}) {
+function verifyInstalledClosure(options = {}) {
+  const diagnostic = { imageRoot: path.resolve(options.imageRoot || '/app'), payload: { stage: 'INITIAL_VALIDATION', physicalInventoryComplete: false, physicalOwnerCount: 0, physicalOwnerInventory: [], physicalSearchCount: 0, physicalSearch: [] } };
+  try { return verifyInstalledClosureWithDiagnostics(options, diagnostic); }
+  catch (error) { error.evidence = diagnosticEvidence(diagnostic); throw error; }
+}
+function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { os: 'linux', cpu: 'arm64', libc: 'musl' }, resolve = resolveDependency, ...options }, diagnostic) {
   imageRoot = fs.realpathSync(imageRoot); const store = fs.realpathSync(path.join(imageRoot, 'node_modules/.pnpm'));
+  diagnostic.imageRoot = imageRoot;
+  diagnostic.payload.target = Object.fromEntries(['os', 'cpu', 'libc'].map(field => [field, diagnosticText(target[field], 32)]));
   assert(inside(imageRoot, store), 'physical store escapes image');
   // Validate all links before reading any installed package/source input metadata.
-  const traversal = walkRuntime(imageRoot);
-  const graph = readContract({ imageRoot, ...options }), owners = physicalStoreOwners(store);
+  diagnostic.payload.stage = 'CONTAINMENT_PREWALK'; const traversal = walkRuntime(imageRoot);
+  diagnostic.payload.stage = 'FROZEN_CONTRACT'; const graph = readContract({ imageRoot, ...options });
+  diagnostic.payload.stage = 'BOUNDED_PHYSICAL_OWNER_READ'; const owners = physicalStoreOwners(store, diagnostic);
+  diagnostic.payload.physicalInventoryComplete = true;
+  delete diagnostic.payload.readingPhysicalOwner;
   const physical = new Map(owners.map(o => [o.root, o])), assigned = new Map(), queue = [], missingOptional = [], links = [];
   for (const root of graph.contract.roots) {
+    diagnostic.payload.stage = 'WORKSPACE_OWNER_READ';
+    diagnostic.payload.observedOwner = null; diagnostic.payload.readingPhysicalOwner = diagnosticPath(imageRoot, path.join(imageRoot, root.path));
     assert(root.key === `importer:${root.path}` && !root.path.includes('..') && !path.isAbsolute(root.path));
     const owner = readPackage(fs.realpathSync(path.join(imageRoot, root.path)));
+    diagnostic.payload.observedOwner = diagnosticOwner(owner, imageRoot); delete diagnostic.payload.readingPhysicalOwner;
     assert(inside(imageRoot, owner.root)); queue.push({ key: root.key, owner });
   }
   for (let cursor = 0; cursor < queue.length; cursor++) {
-    assert(queue.length < 30000, 'installed graph traversal bound'); const { key, owner } = queue[cursor], node = graph.nodes.get(key);
+    assert(queue.length < 30000, 'installed graph traversal bound'); const { key, owner, relation } = queue[cursor], node = graph.nodes.get(key);
+    for (const field of ['parentSnapshot', 'dependencyName', 'dependencyKind', 'dependencyMissing', 'expectedPlatformCompatible']) delete diagnostic.payload[field];
+    diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
+    if (relation) Object.assign(diagnostic.payload, relation);
+    diagnostic.payload.stage = 'OWNER_ADMISSION'; diagnostic.payload.observedOwner = diagnosticOwner(owner, imageRoot);
+    diagnostic.payload.expectedSnapshot = diagnosticText(key, 768);
+    diagnostic.payload.expectedOwner = { name: diagnosticText(node.name), version: diagnosticText(node.version, 128), ...diagnosticPlatform(node) };
     assert(owner.metadata.name === node.name && owner.metadata.version === node.version, `resolved exact package mismatch: ${key}`);
     if (assigned.has(owner.root)) { assert(assigned.get(owner.root) === key, 'peer-context/physical owner disagreement'); continue; }
     assigned.set(owner.root, key); owner.snapshot = key;
@@ -195,18 +262,35 @@ function verifyInstalledClosure({ imageRoot = '/app', target = { os: 'linux', cp
       assert(edge.kind === kind, `installed required/optional relation differs: ${key} ${name}`);
     }
     for (const edge of expectedEdges) {
-      const next = resolve(owner, edge.dependencyName, imageRoot), expected = graph.nodes.get(edge.to);
+      diagnostic.payload.stage = 'REQUIRED_OR_OPTIONAL_EDGE'; diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
+      diagnostic.payload.observedOwner = null; diagnostic.payload.dependencyMissing = null; delete diagnostic.payload.readingPhysicalOwner;
+      const expected = graph.nodes.get(edge.to);
+      diagnostic.payload.parentSnapshot = diagnosticText(key, 768);
+      diagnostic.payload.dependencyName = diagnosticText(edge.dependencyName); diagnostic.payload.dependencyKind = edge.kind;
+      diagnostic.payload.expectedSnapshot = diagnosticText(edge.to, 768);
+      diagnostic.payload.expectedOwner = { name: diagnosticText(expected.name), version: diagnosticText(expected.version, 128), ...diagnosticPlatform(expected) };
+      const next = resolve(owner, edge.dependencyName, imageRoot, diagnostic);
+      diagnostic.payload.dependencyMissing = !next;
+      diagnostic.payload.observedOwner = next ? diagnosticOwner(next, imageRoot) : null;
+      diagnostic.payload.expectedPlatformCompatible = compatible(expected, target);
       if (!next) {
         assert(edge.kind === 'optionalDependencies' && !compatible(expected, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
         missingOptional.push({ ...edge, reason: 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: { os: expected.os, cpu: expected.cpu, libc: expected.libc } });
       } else {
         links.push({ ...edge, physicalOwner: next.root, ...(next.dependencyResolution ? { dependencyResolution: next.dependencyResolution } : {}) });
-        queue.push({ key: edge.to, owner: next });
+        queue.push({ key: edge.to, owner: next, relation: { parentSnapshot: diagnosticText(key, 768), dependencyName: diagnosticText(edge.dependencyName), dependencyKind: edge.kind, dependencyMissing: false } });
       }
     }
   }
-  for (const owner of owners) assert(assigned.has(owner.root), `unexpected/unreachable physical package owner: ${owner.root}`);
-  const generated = generatedPrismaOwners(owners, imageRoot);
+  diagnostic.payload.stage = 'CLOSED_WORLD_PHYSICAL_OWNERS';
+  for (const field of ['parentSnapshot', 'dependencyName', 'dependencyKind', 'dependencyMissing', 'expectedPlatformCompatible', 'expectedSnapshot', 'expectedOwner']) delete diagnostic.payload[field];
+  diagnostic.payload.observedOwner = null; diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
+  for (const owner of owners) {
+    diagnostic.payload.observedOwner = diagnosticOwner(owner, imageRoot);
+    assert(assigned.has(owner.root), `unexpected/unreachable physical package owner: ${owner.root}`);
+  }
+  diagnostic.payload.stage = 'GENERATED_PRISMA_OWNERS'; diagnostic.payload.observedOwner = null;
+  const generated = generatedPrismaOwners(owners, imageRoot, diagnostic);
   const knownManifests = new Set([...owners, ...generated].map(o => o.manifest));
   for (const file of traversal.files) {
     const relative = path.relative(imageRoot, file).split(path.sep).join('/');
