@@ -46,4 +46,30 @@ for (const attempt of ['18-jest', '19-types']) {
 }
 const cases = JSON.parse(fs.readFileSync(path.join(packet, 'CASE-COMPARISON.json')));
 if (cases.originalCount !== 75 || cases.preserved.length !== 75 || cases.missing.length || cases.finalCount !== 110 || cases.added.length !== 35) throw new Error('case custody mismatch');
-console.log(JSON.stringify({ passed: true, payloads: index.files.length, lossless: raw, sourcePaths: receipt.source.paths.length, cases: 110, preserved: 75 }));
+const combined = JSON.parse(fs.readFileSync(path.join(packet, 'COMBINED-RECEIPT.json')));
+git('merge-base', '--is-ancestor', combined.combined.head, 'HEAD');
+if (git('rev-parse', `${combined.combined.head}^{tree}`).toString().trim() !== combined.combined.tree) throw new Error('combined tree mismatch');
+if (git('show', '-s', '--format=%P', combined.combined.head).toString().trim() !== combined.combined.parents.join(' ')) throw new Error('combined parents mismatch');
+if (combined.sourceUnion.overlap.length || combined.sourceUnion.outsideUnion.length || combined.sourceUnion.missing.length || !combined.sourceUnion.allBlobsAndModesExact) throw new Error('source union rejected');
+for (const item of combined.sourceUnion.paths) {
+  const expected = `${item.mode} ${item.type} ${item.blob}`;
+  for (const head of [item.acceptedHead, combined.combined.head, 'HEAD']) {
+    const tuple = git('ls-tree', head, '--', item.path).toString().split('\t')[0];
+    if (tuple !== expected) throw new Error(`union mode/blob mismatch: ${item.path}`);
+  }
+  if (hash(git('show', `${combined.combined.head}:${item.path}`)) !== item.sha256) throw new Error(`union source hash mismatch: ${item.path}`);
+}
+const changedSources = git('diff', '--name-only', combined.base.head, 'HEAD').toString().trim().split('\n').filter(file => file && !file.startsWith('docs/')).sort();
+if (JSON.stringify(changedSources) !== JSON.stringify(combined.sourceUnion.paths.map(item => item.path).sort())) throw new Error('outside union source changes');
+for (const attempt of ['20-jest', '21-types']) {
+  const check = JSON.parse(fs.readFileSync(path.join(__dirname, `${attempt}-receipt.json`)));
+  if (check.source.head !== combined.combined.head || check.exitCode !== 0 || !check.sourceDeltaUnchanged || !check.boundSourcesUnchanged) throw new Error(`combined check not qualified: ${attempt}`);
+  for (const item of check.source.bindings) if (hash(git('show', `${combined.combined.head}:${item.path}`)) !== item.sha256) throw new Error(`combined uncommitted binding: ${item.path}`);
+}
+const identities = file => JSON.parse(fs.readFileSync(path.join(__dirname, file))).testResults.flatMap(suite => suite.assertionResults.map(row => [row.fullName, row.status])).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+if (JSON.stringify(identities('18-jest-result.json')) !== JSON.stringify(identities('20-jest-result.json'))) throw new Error('combined case identity/multiplicity mismatch');
+const unionReview = JSON.parse(fs.readFileSync(path.join(packet, 'COMBINED-UNION-REVIEW.json')));
+if (unionReview.result !== 'exact_source_union_pass' || unionReview.mergedHead !== combined.combined.head || unionReview.mergedTree !== combined.combined.tree || !unionReview.allMergedModesTypesObjectsEqualOrdinaryUnion) throw new Error('independent union review rejected');
+// Only re-parse preserved observations; no Core fixture/runtime/test is invoked.
+require('./derive-core-admission.cjs');
+console.log(JSON.stringify({ passed: true, payloads: index.files.length, lossless: raw, sourcePaths: receipt.source.paths.length, combinedSourcePaths: combined.sourceUnion.pathCount, cases: 110, preserved: 75 }));
