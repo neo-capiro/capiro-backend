@@ -1,0 +1,12 @@
+Γ£ö existing database proposal rejects values, tag images, production hosts and late rules (1.2694ms)
+Γ£ö Core-only template borrows database/access and changes no production service (1606.6018ms)
+Γ£ö canonical Core runtime policy admits preview posture without background ownership (49.7693ms)
+Γ£ö canonical completion worker does not sweep with the proposed control (11.0619ms)
+Γä╣ tests 4
+Γä╣ suites 0
+Γä╣ pass 4
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 2092.9176

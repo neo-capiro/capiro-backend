@@ -1,0 +1,51 @@
+infra\cdk\lib\preview\network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet0 (DatabaseSubnet0) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+infra\cdk\lib\preview\network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet1 (DatabaseSubnet1) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+A copy of this report can be found in: C:\Users\neoma\AppData\Local\Packages\sandbox.{ae2af6d5-2f23-4f1d-ad74-d67cebb16d9e}\AC\Temp\capiro-preview-backends-synthetic-synth-35328\validation-report.json
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Γ£ö preview refuses production/default/extra resource configuration before allocation (7.3367ms)
+Γ£ö held service templates use new DB/asset owners, preserve proxy routing and add no Meri worker (8549.166ms)
+Γ£ö CLI help/missing/unknown modes never allocate output (4.0513ms)
+Γ£û CLI refuses a dangling output symlink before assembly allocation (5.8574ms)
+Γ£ö existing database proposal rejects values, tag images, production hosts and late rules (4.93ms)
+Γ£ö Core-only template borrows database/access and changes no production service (6636.0671ms)
+Γ£ö canonical Core runtime policy admits preview posture without background ownership (158.3418ms)
+Γ£ö canonical completion worker does not sweep with the proposed control (34.999ms)
+Γä╣ tests 8
+Γä╣ suites 0
+Γä╣ pass 7
+Γä╣ fail 1
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 10139.1252
+
+Γ£û failing tests:
+
+test at infra\cdk\test\preview-backends.spec.ts:248:22
+Γ£û CLI refuses a dangling output symlink before assembly allocation (5.8574ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\neoma\AppData\Local\Packages\sandbox.{ae2af6d5-2f23-4f1d-ad74-d67cebb16d9e}\AC\Temp\capiro-preview-output-target-35328' -> 'C:\Users\neoma\AppData\Local\Packages\sandbox.{ae2af6d5-2f23-4f1d-ad74-d67cebb16d9e}\AC\Temp\capiro-preview-output-link-35328'
+      at Object.symlinkSync (node:fs:1938:11)
+      at Object.symlinkSync (C:\Users\neoma\Documents\Codex\2026-10-14\task\preview-check-deps\node_modules\aws-cdk-lib\core\lib\private\perf.js:1:778)
+      at TestContext.<anonymous> (C:\Users\neoma\Documents\Codex\2026-10-14\task\core-preview-definitions\infra\cdk\test\preview-backends.spec.ts:290:6)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\neoma\\AppData\\Local\\Packages\\sandbox.{ae2af6d5-2f23-4f1d-ad74-d67cebb16d9e}\\AC\\Temp\\capiro-preview-output-target-35328',
+    dest: 'C:\\Users\\neoma\\AppData\\Local\\Packages\\sandbox.{ae2af6d5-2f23-4f1d-ad74-d67cebb16d9e}\\AC\\Temp\\capiro-preview-output-link-35328'
+  }

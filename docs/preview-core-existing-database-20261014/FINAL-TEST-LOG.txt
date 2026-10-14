@@ -1,0 +1,31 @@
+infra\cdk\lib\preview\network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet0 (DatabaseSubnet0) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+infra\cdk\lib\preview\network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet1 (DatabaseSubnet1) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+A copy of this report can be found in: C:\Users\neoma\AppData\Local\Temp\capiro-preview-backends-synthetic-synth-30636\validation-report.json
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Preview rendering refused; invalid bindings, output or source configuration
+Γ£ö preview refuses production/default/extra resource configuration before allocation (5.514ms)
+Γ£ö held service templates use new DB/asset owners, preserve proxy routing and add no Meri worker (6708.4145ms)
+Γ£ö CLI help/missing/unknown modes never allocate output (4.2442ms)
+Γ£ö CLI refuses a dangling output symlink before assembly allocation (10.2252ms)
+Γ£ö existing database proposal rejects values, tag images, production hosts and late rules (5.9445ms)
+Γ£ö Core-only template borrows database/access and changes no production service (5779.1764ms)
+Γ£ö canonical Core runtime policy admits preview posture without background ownership (144.5817ms)
+Γ£ö canonical completion worker does not sweep with the proposed control (34.9751ms)
+Γä╣ tests 8
+Γä╣ suites 0
+Γä╣ pass 8
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 8108.4887

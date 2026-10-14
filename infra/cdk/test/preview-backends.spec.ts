@@ -2,6 +2,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { Template } from 'aws-cdk-lib/assertions';
 import { previewBackendApplication } from '../lib/preview/application';
 import { previewBindings } from '../lib/preview/bindings';
@@ -11,7 +12,7 @@ import { main } from '../bin/preview-backends';
 const fixture = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../fixtures/preview-backends.synthetic.json'), 'utf8'),
 );
-const output = `/tmp/capiro-preview-backends-synthetic-synth-${process.pid}`;
+const output = path.join(os.tmpdir(), `capiro-preview-backends-synthetic-synth-${process.pid}`);
 assert.equal(fs.existsSync(output), false);
 after(() => {
   if (fs.existsSync(output)) {
@@ -102,6 +103,12 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
   const resources = Object.values(services.Resources) as any[];
   const tasks = resources.filter((r) => r.Type === 'AWS::ECS::TaskDefinition');
   assert.equal(tasks.length, 3);
+  const coreTask = tasks.find((r) => r.Properties.ContainerDefinitions[0].Name === 'core');
+  assert.equal(coreTask.Properties.RuntimePlatform.CpuArchitecture, 'ARM64');
+  const coreTarget = resources.find(
+    (r) => r.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup' && r.Properties.Port === 4000,
+  );
+  assert.equal(coreTarget?.Properties.HealthCheckPath, '/health');
   for (const task of tasks) {
     const container = task.Properties.ContainerDefinitions[0];
     assert.deepEqual(container.Command, ['serve']);
@@ -116,6 +123,7 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
     assert.equal(env.DB_NAME, 'capiro');
     assert.deepEqual(container.Secrets.map((r: any) => r.Name).sort(), [
       'CLERK_SECRET_KEY',
+      ...(container.Name === 'core' ? ['CLERK_WEBHOOK_SIGNING_SECRET'] : []),
       'DB_PASSWORD',
       'DB_USER',
     ]);
@@ -272,11 +280,15 @@ test('CLI help/missing/unknown modes never allocate output', () => {
 });
 
 test('CLI refuses a dangling output symlink before assembly allocation', () => {
-  const link = `/tmp/capiro-preview-output-link-${process.pid}`;
-  const target = `/tmp/capiro-preview-output-target-${process.pid}`;
+  const link = path.join(os.tmpdir(), `capiro-preview-output-link-${process.pid}`);
+  const target = path.join(os.tmpdir(), `capiro-preview-output-target-${process.pid}`);
   assert.equal(fs.lstatSync(link, { throwIfNoEntry: false }), undefined);
   assert.equal(fs.lstatSync(target, { throwIfNoEntry: false }), undefined);
-  fs.symlinkSync(target, link, 'dir');
+  // Windows requires the junction target to exist at creation; remove the
+  // newly owned empty directory immediately to retain the dangling-link case.
+  if (process.platform === 'win32') fs.mkdirSync(target);
+  fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+  if (process.platform === 'win32') fs.rmdirSync(target);
   try {
     assert.equal(
       main(['--render', path.join(__dirname, '../fixtures/preview-backends.synthetic.json'), link]),
@@ -284,7 +296,7 @@ test('CLI refuses a dangling output symlink before assembly allocation', () => {
     );
     assert.equal(fs.lstatSync(target, { throwIfNoEntry: false }), undefined);
   } finally {
-    assert.equal(fs.readlinkSync(link), target);
+    assert.equal(path.resolve(fs.readlinkSync(link)), path.resolve(target));
     fs.unlinkSync(link);
   }
 });

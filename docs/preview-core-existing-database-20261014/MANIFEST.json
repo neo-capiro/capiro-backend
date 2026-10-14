@@ -1,0 +1,114 @@
+{
+  "base": "2875afa0cf65053b5faa2b29e742c81cba446931",
+  "basis": "Git index blobs; manifest excludes itself",
+  "files": [
+    {
+      "path": "docs/preview-core-existing-database-20261014/ACTIVATION-APPROVAL-PROPOSAL.md",
+      "gitBlob": "a96cfec886e45e0649f2da820abb56964697c99c",
+      "bytes": 7666,
+      "sha256": "3fd8c850d575d1730b117183c56c40e7ffd1111cdad09102ed6d2732fe134d96"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/ATTEMPT-3-TEST-LOG.txt",
+      "gitBlob": "aee8e403d2630dc46a1f4a5377b82d6fbf565439",
+      "bytes": 3573,
+      "sha256": "56fae9eabd98d6e4834c380a08c2b88a1724ae7b0a05a527bb6d5718628a5dfe"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/FINAL-TEST-LOG.txt",
+      "gitBlob": "f5e006d8cdbdaac8b4c6f173dcd3fab50932c4d5",
+      "bytes": 2010,
+      "sha256": "59aaf5ac76b21d8857f0e0ee2ac1b3336622cda89f9814714d5b620b01a2c451"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/HANDOFF.md",
+      "gitBlob": "9fdb6eac9a3d358c70be3f9240cefe22661e373c",
+      "bytes": 9261,
+      "sha256": "88c415cbe0cd4a503424f397e5045a70313b00145fe6ff67ff3e33ad2ba559d7"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/HOSTNAME-DELTA-TEST-LOG.txt",
+      "gitBlob": "6711d2c963db8d9fcb7a9b7ddee911fbe190eca2",
+      "bytes": 538,
+      "sha256": "d22b84918f48afe7c4531badb34eac05287959b962d189dec6e75332fcce32e1"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/OBJECTIVES-LAYOUT-READINESS.md",
+      "gitBlob": "f6101d44acb2ea382910001ff8db3efd0462e659",
+      "bytes": 7157,
+      "sha256": "836725cfe2ecbbbe8fa2245d750d3380d439124b98695e358331e6002e80aa9c"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/PLAN.md",
+      "gitBlob": "2fa1417dcffb9b555b3d5a41eef488dae25aa4f4",
+      "bytes": 1581,
+      "sha256": "d12f89a3f027f926ee930117edc263a433094b81274762fb0812d9854426a7fb"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/SCHEMA-EFFECT-READ.sql",
+      "gitBlob": "abb94720b28f28f626f4c7ab99e28412bc16849a",
+      "bytes": 3110,
+      "sha256": "bb9cd9b3769fc16f0732b32636c4ba5225f4ddcf5089a8a276f5ec9647bd0e36"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/VERIFICATION.json",
+      "gitBlob": "2ca13c5159cbb97d748e9c3a2cae8b38f54ff0e2",
+      "bytes": 2740,
+      "sha256": "49c18b7f6cb5550ab6a86f245ab45f3e12764ed066a832c82599faa229dff538"
+    },
+    {
+      "path": "infra/cdk/fixtures/preview-backends.synthetic.json",
+      "gitBlob": "55cca3670422b059783286b9446cef4700e29093",
+      "bytes": 2193,
+      "sha256": "a5ce3db8bedb0acc60b153e46be5252b32fffb8eb94a98284979e19591673d43"
+    },
+    {
+      "path": "infra/cdk/fixtures/preview-core-existing.synthetic.json",
+      "gitBlob": "31995aea8f815d14906bb459cd7d2a6a08a847c2",
+      "bytes": 1620,
+      "sha256": "56d2e9983d1ae02512d48a136232a5d4a8f196c069280c91340f64d337a86a95"
+    },
+    {
+      "path": "infra/cdk/lib/preview/bindings.ts",
+      "gitBlob": "f2055005710b6f1548cdc9480606e05a3ce39ef4",
+      "bytes": 5015,
+      "sha256": "aef17bf9d6ff27e9550cc2a7a1b663109003fa915729d8f1c6ee53ff5401cc22"
+    },
+    {
+      "path": "infra/cdk/lib/preview/core-runtime-environment.ts",
+      "gitBlob": "10be4b7fa8d6a8c8b1399cd9f1f6720cf5ca2c1a",
+      "bytes": 1012,
+      "sha256": "d4fddbbc08249b423bea57dd59eee0d9475cea0858a2ff5466314e235e471b3f"
+    },
+    {
+      "path": "infra/cdk/lib/preview/existing-core-application.ts",
+      "gitBlob": "dc28d9a594270e87192ccefc4d0fd6309f542b81",
+      "bytes": 4132,
+      "sha256": "47ce99ee6c38b8a1a25da0dcb720874c98472e540943fe1cf5843abddee76cc7"
+    },
+    {
+      "path": "infra/cdk/lib/preview/existing-core-bindings.ts",
+      "gitBlob": "a139c38fc9011f005e93a0ec9ea5fb26f681e935",
+      "bytes": 4315,
+      "sha256": "deeebb54917a7f76fbab34f2e5641772a59b26f66b23d6d758f238e375a15037"
+    },
+    {
+      "path": "infra/cdk/lib/preview/services-stack.ts",
+      "gitBlob": "8eaade6f7103c2e865ba8062bb6d827d1cebac13",
+      "bytes": 11241,
+      "sha256": "ac9657207cb4a23d2f6f9a8708d311de6f4c5a016ede2f4bcdcb4141e60d5764"
+    },
+    {
+      "path": "infra/cdk/test/preview-backends.spec.ts",
+      "gitBlob": "d330bd120d8fdd020221f75b4ad1ada23df7d236",
+      "bytes": 11876,
+      "sha256": "b1ed5d2867c113c84d3f90ad7463fee2c3931168b85ed527de4f6152523b66a9"
+    },
+    {
+      "path": "infra/cdk/test/preview-core-existing.spec.ts",
+      "gitBlob": "ec4655c6370579e59945139daa0e515bcee014da",
+      "bytes": 6055,
+      "sha256": "f170678cd7a613d305a82b064bbabcd55163b087b439e3acac44585ccc459e82"
+    }
+  ]
+}
