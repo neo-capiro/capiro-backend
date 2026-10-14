@@ -1,0 +1,9 @@
+{
+  "result": "FAIL",
+  "error": "assertion expected 74 disabled files under .github instead of actual docs quarantine",
+  "source_deltas_mismatched": 0,
+  "merge_committed_after_assertion_because_initial_shell_wrapper_did_not_short_circuit": true,
+  "correction": "verify exact 74 docs/backend-repository-split-preparation-20261013/quarantine entries and absence of active .github paths",
+  "final_result": "PASS",
+  "independent_verification": "30 exact donor entries and 27268 unrelated entries preserved"
+}

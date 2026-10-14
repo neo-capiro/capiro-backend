@@ -1,0 +1,184 @@
+{
+  "finite_exclusions": [
+    "docs/backend-cleanup-receiving-20261014/evidence/SHA256-INDEX.json",
+    "docs/backend-cleanup-receiving-20261014/evidence/privacy-review.json"
+  ],
+  "reason": "index cannot hash itself and privacy report is derived",
+  "rows": [
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/HANDOFF.md",
+      "bytes": 4667,
+      "sha256": "486afb5c0a480138b5c7afc4325e63102e440212d63ac2ee61aedc6d1d987e33"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/INDEPENDENT-REVIEW.md",
+      "bytes": 3563,
+      "sha256": "691e48a9b1a7e70ede68c2cce4885fd87402425da6377450efadda2d2917a6ad"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/api-jest.config.cjs",
+      "bytes": 442,
+      "sha256": "fc1db23c7ddcdbc92331e77c0806c46325a605989b42378944a64cada7e56426"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/check-emitted-watchlist.cjs",
+      "bytes": 1358,
+      "sha256": "7d3ce2c82dc2a66c8c4f91986c00d6e2292bb2874e0a1874b131b016ebc7b967"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/api-jest-output.raw.json",
+      "bytes": 609,
+      "sha256": "17cee85eca80c8e3c6b0b26275ba01ce539edb4cc331a501c0f581bfb290b385"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/api-jest-receipt.json",
+      "bytes": 1721,
+      "sha256": "caa69c27490d35f374dec9376e05fc97f8eb69cc62cf34c55b6437435b047c61"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/api-jest-repaired-output.raw.json",
+      "bytes": 1177,
+      "sha256": "b2a072171f0d677f828f435a0c16d8c106403133714c0b9ec738b495da54fbfd"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/api-jest-repaired-receipt.json",
+      "bytes": 1731,
+      "sha256": "c90372f6e2e9ee6beee024edeb7c7f8df931d44384c95c03af0707ae90accb9e"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/api-jest-results.json",
+      "bytes": 4676,
+      "sha256": "5d0c07ec6f306f912260d6957a497cacfdec628aa806a84ed400e8c6fe5aa632"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/attempt0-checkout-retirement.json.gz",
+      "bytes": 26779,
+      "sha256": "60434efd225b9a3d5b602383e137bbf11f66a423aa4e5e9fafdbae1775fbcfe0"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/attempt0-quarantine-assertion.json",
+      "bytes": 511,
+      "sha256": "00c5b08158d7d2a69ae4a638bcbb2d3d57c3ae5a3b38bc69931a0167a02437cf"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/dependency-provenance.json",
+      "bytes": 25372,
+      "sha256": "24d62cc78c099fc1f4994914408bb1d512905c779b3eaea77850d50180fc80c4"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/emitted-watchlist-artifacts.json",
+      "bytes": 7939,
+      "sha256": "45a658e708213f3724d3c7c014e61c34d0b84b2484dba1eb2bfe02001e38b08d"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-build-output.raw.json",
+      "bytes": 187,
+      "sha256": "9905b0c46abbe5e7a91dc7f9d660b1a63c1693dd864db55ee6a49b5edd842165"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-build-receipt.json",
+      "bytes": 1318,
+      "sha256": "f0ecf7748e65dd642b43d26b69e9168c1138733420a045beac0f682384ebd100"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-emitted-syntax-output.raw.json",
+      "bytes": 260,
+      "sha256": "964ecc1338734e2285dae3bdcc7e72366c6562caa13cfb55bf620eb7b715ea8d"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-emitted-syntax-receipt.json",
+      "bytes": 1296,
+      "sha256": "aa05989adfe01598f7a38d508ab0b14699871e044709377142d86220076fd190"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-jest-output.raw.json",
+      "bytes": 17859,
+      "sha256": "0eee9d86aed2b824d1b1b3a2ee343ed3ae75be702bdc54f48b349dd66c3b68ae"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-jest-receipt.json",
+      "bytes": 3265,
+      "sha256": "967507344e98241cf28ae27c33446f564cab5f93de8c4049a07405707e1ab0a0"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-jest-results.json",
+      "bytes": 191542,
+      "sha256": "d5ce09fdf8976710a034d355cd055b73850ece3d4c64bdf1ec3e0bd051c4f270"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-type-output.raw.json",
+      "bytes": 187,
+      "sha256": "9905b0c46abbe5e7a91dc7f9d660b1a63c1693dd864db55ee6a49b5edd842165"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/intel-type-receipt.json",
+      "bytes": 1365,
+      "sha256": "2cadaa99d0cae9d31a7fbe3d107159b3d933847c17a745a9ff7da944981f73be"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/receiving-preservation.json",
+      "bytes": 21942,
+      "sha256": "4a36a075cf1bc7ef9efd9371ce17a697211663f06272b97cf289e2d88ad720f8"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/shared-build-output.raw.json",
+      "bytes": 187,
+      "sha256": "9905b0c46abbe5e7a91dc7f9d660b1a63c1693dd864db55ee6a49b5edd842165"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/shared-build-receipt.json",
+      "bytes": 1317,
+      "sha256": "32722b7f9216dabc958047ad0a6f82261daff3cc6b1953f718926d2cedbfcb0c"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/source-hygiene.json",
+      "bytes": 1386,
+      "sha256": "7e6a183bbc21d8dfd9ea620d475ae57c15a645cf5a2ba80b9115ac995156ed8a"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/tracker-fixture-type-output.raw.json",
+      "bytes": 187,
+      "sha256": "9905b0c46abbe5e7a91dc7f9d660b1a63c1693dd864db55ee6a49b5edd842165"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/tracker-fixture-type-receipt.json",
+      "bytes": 1364,
+      "sha256": "5db703f96ca6526c9eebf50f5fe75f49ab600379e5a1cd0f411a36a2d043192f"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/watchlist-fixture-type-output.raw.json",
+      "bytes": 187,
+      "sha256": "9905b0c46abbe5e7a91dc7f9d660b1a63c1693dd864db55ee6a49b5edd842165"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/evidence/watchlist-fixture-type-receipt.json",
+      "bytes": 1371,
+      "sha256": "83d5fd4818875645ec8270e0b667a357af3b6c6bdb51f74ff622ff7aca3ef483"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/intel-api-jest.config.cjs",
+      "bytes": 483,
+      "sha256": "6f248cf298014ef4448a748a4e621ef56575078eeb4cecefbc66af297e07d90a"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/run-check.py",
+      "bytes": 1777,
+      "sha256": "6fc9b9ffd0876da6154515318bc357945179384eac32edb5f2945d2a2797e542"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/seal-packet.py",
+      "bytes": 5839,
+      "sha256": "e71188cbdb3c2c7b3e8e4e2241d0de021933b5340d2d6f208a2eed2cde723a10"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+      "bytes": 942,
+      "sha256": "facbfc7caad6a9c2180235ce876d815bb24591f0976082c2ebd6b286d20749c5"
+    },
+    {
+      "path": "docs/backend-cleanup-receiving-20261014/test-scope.json",
+      "bytes": 2064,
+      "sha256": "68a8242ce0d864d1d9da8c7e6c7dd7e2898d285917e88b707030922f7e9375ef"
+    }
+  ]
+}

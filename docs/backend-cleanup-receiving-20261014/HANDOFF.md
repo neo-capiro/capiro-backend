@@ -1,0 +1,23 @@
+# Reviewed backend cleanup receiving
+
+This dedicated private-backend branch starts at reviewed PR1 `6efe59f24b4a711b7991bae4b2a255c667cbbf00`, tree `5e1812b853811f793b30fe7de0e956f65c28f056`. PR2490 `c625fcc4b5fb7c4270e701fe090b9f408d9108fe` was already an ancestor, with the reviewed Shared-barrel union and receiving guard pin; it was not picked again. Ordinary merge `9546d45d2fdf11995e57fee2ebd824d4eaabf3a1`, tree `2ebd65c35e6a3af1f4c87779c8d043f75ef7da2a`, receives PR2491 `04137babe95e1a3f9627703239d1b5c4992f0b2b` without conflicts. All 30 donor entries match exact modes/blobs, 27,268 unrelated entries remain exact, all 74 archived automations stay disabled, and active automation remains absent.
+
+The ten Watchlist production owners preserve all fifteen facade method contracts, its one Prisma dependency and current receiver/private overrides. Client/admin proofs, tenant predicates, preference phone verification/row lock, write order and post-commit attribution retain their original ownership. The targeting version check still reads then upserts without a row lock or database conditional compare-and-swap; this decomposition does not establish stronger concurrent-writer correctness.
+
+Fresh receiving qualification at that exact source passes 481 cases across 37 suites: 472 Intel cases/35 suites and nine API parity/ownership cases/two suites, zero failures or skips. Fresh Shared build, full Intel typecheck, actual Intel Nest build, and both strict Watchlist/Tracker fixture typechecks pass. Ten actual emitted Watchlist modules pass syntax checks, with all forty emitted JS/map/declaration artifacts hash-bound. The first API test invocation stopped on a missing sparse native Jest environment; exact canonical environment/config files were materialized and the rerun passed. No assertion or case was removed. The API wrapper omits its unrelated DB-worker/global setup for these two pure source/type guards; Intel retains canonical setup. Existing donor before/after coverage and full API qualification are separate evidence, not new receiving claims.
+
+The source-check runner uses a finite credential-free environment and JavaScript network/sensitive-file guards. These are test controls, not an OS sandbox or a product/auth layer. Selected I/O ports are inert; no live database/provider/customer operation occurred. The existing cached Intel client schema differs only in formatting: all 24,378 lexer tokens, including comments and strings, match the receiving schema. Artifact hashes and 121 owned shallow dependency links are recorded; no install, client generation, engine download, checksum bypass or borrowed-target mutation occurred. Type/mocked/WASM evidence does not establish native PostgreSQL/RLS, image ABI, bootstrap, deployed-source or global Cleanup acceptance.
+
+| Owner / dependency | Receiving disposition |
+| --- | --- |
+| private PR1 `6efe59f` | exact reviewed starting point; historical evidence preserved |
+| PR2490 `c625fcc` | already received ancestor; Shared union and guard adaptation preserved |
+| PR2491 `04137ba` | ordinary merge `9546d45`; all 30 entries exact; focused checks pass |
+| PR2492 `c049f70` | reviewed bounded memo parser donor; compatible preflight, not yet received in this checkpoint |
+| private PR2 `111f269` and PR3 `3509438` | separate preview evidence branches, untouched; optional for current frontend mode |
+| production capirov2 / backend-import | refs unchanged; no main merge or deployment |
+| protected EngagementService owner | no body/branch read or alteration; no native/reporting acceptance claim |
+
+Neo's ordinary frontend preview uses existing APIs/login/tenant permissions and has no dependency on this cleanup. Earlier PR1 preview restrictions are historical evidence superseded by the current ordinary-mode finding in private PR3; they do not gate shipping. No AWS, provider send, paid model, upload, credentials/permission change, migration/database execution or security/network change occurred. Original donor/rebuild branches and all prior candidates remain preserved. Cleanup closure remains bounded; no additional original requirement group or global acceptance is claimed.
+
+All actual failed and passing source/test observations are retained under `evidence/`. The initial new-clone full checkout exhausted capacity; only its newly materialized files were retired with a finite inventory, Git objects preserved, and sparse checkout restored. An initial preservation assertion used the former `.github` location instead of the archived quarantine; the corrected exact-entry check passes. Final publication hashes cover a finite packet and losslessly decoded raw observations.
