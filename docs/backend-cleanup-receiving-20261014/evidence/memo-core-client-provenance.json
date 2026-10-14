@@ -1,0 +1,76 @@
+{
+  "rejected_default_client_target": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client",
+  "rejected_default_schema_sha256": "69ced004c4582ef9a4b611f6d97f4768fd014ac69d98290b2d30b07f07d4c700",
+  "exact_cached_receiving_schema_sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "replacement_is_owned_link_only": "apps/api/node_modules/@prisma/client",
+  "borrowed_client_target": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+  "existing_client_artifacts": [
+    {
+      "path": "schema.prisma",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "bytes": 14149792,
+      "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+    },
+    {
+      "path": "libquery_engine-debian-openssl-3.0.x.so.node",
+      "bytes": 16161048,
+      "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2601,
+      "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24"
+    },
+    {
+      "path": "wasm.js",
+      "bytes": 256888,
+      "sha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff"
+    },
+    {
+      "path": "edge.js",
+      "bytes": 3814853,
+      "sha256": "9a0e1ec2921b766ed73b69cadb29e02d5918c887fadf499f8abdd311391991a8"
+    },
+    {
+      "path": "wasm.d.ts",
+      "bytes": 23,
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "edge.d.ts",
+      "bytes": 25,
+      "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+    },
+    {
+      "path": "index-browser.js",
+      "bytes": 256888,
+      "sha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff"
+    },
+    {
+      "path": "default.js",
+      "bytes": 36,
+      "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+    },
+    {
+      "path": "default.d.ts",
+      "bytes": 23,
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "index.d.ts",
+      "bytes": 54570016,
+      "sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6"
+    },
+    {
+      "path": "index.js",
+      "bytes": 3815948,
+      "sha256": "fb6e22a71beb71c70dde87d3e637bec514ec4a174c89388537ef46016753e85a"
+    }
+  ],
+  "no_generation_download_or_native_connection": true,
+  "first_memo_run_retained": "memo-jest-receipt.json"
+}

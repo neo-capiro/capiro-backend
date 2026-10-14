@@ -1,0 +1,206 @@
+{
+  "syntax_checks": 10,
+  "artifacts": [
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-compiled.js",
+      "bytes": 2446,
+      "sha256": "2d4e900540ddddd1a0e767a20d581cc2653bf64792f489e41d7d802427138bfd"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-compiled.js.map",
+      "bytes": 1564,
+      "sha256": "4913befbb8dc4c2f3efab933d0f9e82994e1248ad88bee55504a7df402b93449"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-compiled.d.ts",
+      "bytes": 541,
+      "sha256": "67de4b43e01b086d1c8eb75d094762fb6f63f9a0493d5de2711a71bb0eb3bfaa"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-compiled.d.ts.map",
+      "bytes": 540,
+      "sha256": "91b89be2f29ab9fdeaf3746ddb1db40c1e945df54ebe55f028f478e8951e5975"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-input.js",
+      "bytes": 3324,
+      "sha256": "5a97f3f2b8f85e4d1f4867198ef052784b79e9473c4803ff0134cacca47e10e2"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-input.js.map",
+      "bytes": 2927,
+      "sha256": "ec3d3cbe19e45a272cf9a69871dbaf286a3c1a65fab19917d7cfec07bf3dae30"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-input.d.ts",
+      "bytes": 534,
+      "sha256": "71f8b045af28f3aa3e6bb517b20fdc376aba4de018735b1ab9bff1bb2be3b45a"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-input.d.ts.map",
+      "bytes": 493,
+      "sha256": "a760cdd00cfa2d1f8f9509e070742f27a4bf2a1ea9ed7ffed8e7a59b096fd15d"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-preferences.js",
+      "bytes": 5096,
+      "sha256": "391ddb5009191f2c0241b7f56f6438e53dbb855faa59207b8c84e45042a31af1"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-preferences.js.map",
+      "bytes": 3243,
+      "sha256": "c124892c573d2d8da709c38ea896759d2412e223d2e838901d17bc32439dc3fa"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-preferences.d.ts",
+      "bytes": 2666,
+      "sha256": "d12f5984aa0536ac12dee353c7586047dfec3d7664eca93c3ffc282fed3bb4f2"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-preferences.d.ts.map",
+      "bytes": 799,
+      "sha256": "7b830b71f706f6e35aa7602093b894011228a46435bd0d90cc7541fdf5180e4d"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-read.js",
+      "bytes": 10478,
+      "sha256": "a8fbdfe23183ca6d311109d4ac747a5915db8a6bec446ce02ac86841e2c97d38"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-read.js.map",
+      "bytes": 7004,
+      "sha256": "de8370a88250f5d6b5edcc4593dbc7896b09aaf8a0e05823ae3e35564fa48479"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-read.d.ts",
+      "bytes": 2934,
+      "sha256": "da7d6046393632c6a99af92600f4b8a3773ec8ca63675a47b32dd9dca2216443"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-read.d.ts.map",
+      "bytes": 1049,
+      "sha256": "f572f7c6fa22bd6c51f586c9cce472e9e5578699bba0cad591ddb57cab4c93aa"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-finish.js",
+      "bytes": 2499,
+      "sha256": "ed0a3801eddc5b481e138e37a2a4d284125637a9e78393bd2510cd20aed07d27"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-finish.js.map",
+      "bytes": 2308,
+      "sha256": "cd09b2f844c2fff08bb88bb26a68af5d2f483e86053b0d6d1d814f1858d6f432"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-finish.d.ts",
+      "bytes": 450,
+      "sha256": "322b1e0d441e98cdf124dedb8593baa53f906a5920d86ea1666316087070e6ce"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-finish.d.ts.map",
+      "bytes": 476,
+      "sha256": "40e494ae825ca7c23a8088f77e37f37098e9853323ed7e01f446d20e07fe5c4f"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-head.js",
+      "bytes": 3219,
+      "sha256": "1e55f007c6258556bf4e7ccfc93ade5e9059754e36bf45ccf848b4718e04c8d9"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-head.js.map",
+      "bytes": 2500,
+      "sha256": "d198ac3c97f4488295aeec4d486607996ca68dc6d26246510afd957bbb49c19a"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-head.d.ts",
+      "bytes": 1535,
+      "sha256": "e347af27cdd1af05ba0bc2d94d5b5c401ce2a0f702845f9a87487ed7bca6673c"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-head.d.ts.map",
+      "bytes": 998,
+      "sha256": "eae00e9743129770c1f642bfa68607256fb10c35040ccf05afaa64f751c4c53d"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-topics.js",
+      "bytes": 5633,
+      "sha256": "eccecff5d22ccfc0132fa243469b4e9693a184db17df790c3f545845ee93ce02"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-topics.js.map",
+      "bytes": 4150,
+      "sha256": "1def7ecee0106e8c40dd3cf9ad682b1d8154e0efe26c83c04563a4097f87660a"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-topics.d.ts",
+      "bytes": 861,
+      "sha256": "a0fb1ab07dc30200791b9b2d05231b51cc3bbc74bf9b513ac03063c5bbd2233e"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-reconcile-topics.d.ts.map",
+      "bytes": 731,
+      "sha256": "4d94c5ad4c8c2c3bf5293d191e33fa02b429cdc8347005b0513c9f5886b46c72"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-write.js",
+      "bytes": 6030,
+      "sha256": "2dc6221dd143c27e2b672c82be5111d6d5c9274ff165873f73716daec7c0ea09"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-write.js.map",
+      "bytes": 2536,
+      "sha256": "b166a62d8e2910c2166ec372c763aa40c50b3ac156b4ab93263dc256c79d848a"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-write.d.ts",
+      "bytes": 1660,
+      "sha256": "c010a1a40f3ce79cf49ff4daa268cd757779311d1794f333919f4539be072512"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist-write.d.ts.map",
+      "bytes": 526,
+      "sha256": "273378bbfe54f16aeda1e1732ee18c386cfd353e1ed79f7cb6e996d6c1ce2e33"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.contracts.js",
+      "bytes": 132,
+      "sha256": "4247ada7ffed66c4fb8f242d091073811c23de04e18afb46e84773f6334707d2"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.contracts.js.map",
+      "bytes": 157,
+      "sha256": "0b1b9787f3ef31230fe9911b940ad5ad45ec3d3052865dbfb2176429cee593bc"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.contracts.d.ts",
+      "bytes": 6894,
+      "sha256": "723fbc2d0fabb2caf1ac900f82d2697d4bb2214825b21894f905d12176c2c63b"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.contracts.d.ts.map",
+      "bytes": 3943,
+      "sha256": "82c5973f3e4c53a41328b1329eab07156e1718709fa60e7c5757e8058b89ae16"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.service.js",
+      "bytes": 18052,
+      "sha256": "39ca6810fdd5eefdcf0da3c87cbc19c5e51df96c4e1df9566b4be305c1f9bc80"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.service.js.map",
+      "bytes": 5169,
+      "sha256": "3c09be7a330bec1ffbc9a0d1e32a1276884fed6053a173db5e9ce824ef04a73f"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.service.d.ts",
+      "bytes": 13064,
+      "sha256": "e1d294b13979faa25fbf6a9b99cdcef64e221b78309f26d933f2ba45730b9ba8"
+    },
+    {
+      "path": "apps/intel-api/dist/tracker/tracker-watchlist.service.d.ts.map",
+      "bytes": 2265,
+      "sha256": "32c3f00beb6ebad56e41dfb94c031391be9f8d96f99dcf0ec81a5aab06caef9e"
+    }
+  ],
+  "bootstrap_or_native_execution": false
+}

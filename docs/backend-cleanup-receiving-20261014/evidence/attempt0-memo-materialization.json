@@ -1,0 +1,11 @@
+{
+  "result": "FAIL",
+  "exit_code": 1,
+  "error": "spawnSync git ENOBUFS",
+  "action": "Git ls-tree metadata only",
+  "default_buffer_limit_bytes": 1048576,
+  "partial_metadata_bytes": 1052672,
+  "source_bodies_materialized_before_failure": 0,
+  "correction": "limit tree scope to apps/packages and explicit bounded 8MiB metadata buffer",
+  "credential_or_protected_body_read": false
+}

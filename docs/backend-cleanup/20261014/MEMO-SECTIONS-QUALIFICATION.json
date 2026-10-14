@@ -1,0 +1,589 @@
+{
+  "schema": "memo-sections-canonical-owner-qualification/v1",
+  "sourceOnly": true,
+  "sourceBase": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+  "sourceBaseTree": "4c6456ea67844bf492fc26f63262007407aae28c",
+  "branch": "codex/backend-memo-sections-20261014",
+  "receivingDependency": {
+    "sourcePR": "https://github.com/neo-capiro/capirov2/pull/2491",
+    "exactParent": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+    "incorporatedSourcePR2490": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+    "receivingRepositoryEdited": false,
+    "composedReceivingHead": "OWNED_BY_PARENT_NOT_SUPPLIED_TO_SOURCE_OWNER",
+    "handoff": "Receive only the canonical parser/type and two import adoptions on current caller versions; preserve unrelated caller changes and revalidate the local source guards against the composed tree. Do not replace entire services or reset receiving work.",
+    "frontendPreviewPrerequisite": false
+  },
+  "sourceAdmission": {
+    "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "declaredIntel": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "bothOriginalCallerFilesByteExactToBothDeclaredSources": true,
+    "actualLiveImageBuildUsedTree": "UNESTABLISHED",
+    "mainAssumedProduction": false,
+    "consumerClosure": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-watchlist-20261014/consumers/MEMO-CONSUMER-CLOSURE.json",
+      "sha256": "c91fe4dcfeedef3cac34731ccaa7951812d6ca3ac851273e0ae4e4717181ecdb"
+    },
+    "currentRootAdmission": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-watchlist-20261014/consumers/CANDIDATE-ROOT-WORKTREE-ADMISSION.json",
+      "sha256": "200b649fc2ad2e3283d6cc2863b985bf528fa2130c862cd28e1a4d70cc29d957"
+    },
+    "foreignCandidateCustody": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-watchlist-20261014/consumers/FOREIGN-CANDIDATE-CUSTODY.json",
+      "sha256": "511e65b72c4d02d64f1d5f7e7bb165d0b9ec19786f68251bc44a8f25d3531dd0"
+    },
+    "foreignWorkspacesUnchanged": true,
+    "universalWorkspaceCleanClaimed": false,
+    "unresolvedParserVariant": false
+  },
+  "canonicalOwnership": {
+    "owner": "apps/api/src/intelligence/alert-memo/memo-sections.ts",
+    "parser": "parseSections",
+    "sectionType": "GenSection",
+    "parserImplementationsBefore": 2,
+    "parserImplementationsAfter": 1,
+    "sectionTypeOwnersBefore": 2,
+    "sectionTypeOwnersAfter": 1,
+    "directExistingCallerAdoptions": 2,
+    "originalParserDeclarationSHA256": "bb4bbcc479cd6137a25388ff36b164949f499e2aa09e5830716809213e25dc38",
+    "originalParserDeclarationPhysicalLines": 36,
+    "canonicalFileNonblankLines": 41,
+    "canonicalMaximumFunctionPhysicalLines": 36,
+    "canonicalRuntimeImports": 0,
+    "bothEntireOriginalServiceClassesByteExact": true,
+    "allOtherSourceBytesReconstructOriginalExceptExplicitStaleCommentCorrection": true,
+    "bothGroundingPromptClaimsGovernanceFilingAuthoritiesRetained": true,
+    "publicExportsConstructorsReceiverDefaultsPreserved": true,
+    "buildCiDeploymentPackageSchemaMigrationsUnchanged": true,
+    "oversizedEnclosingServicesAndTwoRailDetectorOutsideClaim": true,
+    "sourceProof": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/source-drafts/SOURCE-EQUIVALENCE-PROOF.json",
+      "sha256": "459580035dc324857f2369b1213273f30fcdbf76b2ef3fe672bb7fabde89e371"
+    },
+    "sourceFreeze": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/source-drafts/SOURCE-FREEZE.json",
+      "sha256": "16b6fa4ac25740d89356ffd5ed65c61fc672ef3190d8ba3678eb5684848ef92d"
+    }
+  },
+  "productionAssets": [
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "sha256": "030c52989302cbda55e24b4182e649eaa95105ec60eb5fe5d9a3f285e6c5b6bc"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "sha256": "ebaf97ed75f67338c57d03d10b4c31a02f21395b9c2789717782b2fb314c95eb"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections.ts",
+      "sha256": "017c11283f46fd8777edb440c846bd15317e4413bba1086921063a80da143385"
+    }
+  ],
+  "characterizationAssets": [
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections-characterization.spec.ts",
+      "sha256": "e2e3bb9bb63952de2e9c2cf505e9ceb51a9870774d86bb28f00acc7e1cf3dfbb"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/cases.ts",
+      "sha256": "e21831e1266e7517b9607de0975f9761414855ae2a16fdfea58941eca148abd2"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/dependencies.ts",
+      "sha256": "b16a66091b4c87838561e1a8243840ddbb8f31af89fb0427df29cb36156cbde1"
+    }
+  ],
+  "ownershipGuardAssets": [
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections-ownership.contract.spec.ts",
+      "sha256": "f43dc0d4dff817572e43f03f3cf3aada75d0f6681d9ce405e92820a980df4e83"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/pins.ts",
+      "sha256": "90f6672609c588f12d17495fbbc7a3f44c12e88ed7b9291a50d374ac45faec90"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/semantic.ts",
+      "sha256": "37ffd0c118364b33425977a9371910be4b4a657ea57c6e4bc15b6aacea695d18"
+    }
+  ],
+  "strictFixtureConfig": {
+    "path": "/tmp/capirov2-backend-memo-sections-20261014/apps/api/tsconfig.memo-sections.json",
+    "sha256": "9fbc1732549697cdc256a60ef4d0c525cde91efb55e41c8bddcef8b22eddb54a"
+  },
+  "nativeCases": {
+    "retainedBeforeAfter": 127,
+    "retainedSuites": 11,
+    "newBeforeAfter": 30,
+    "newSuites": 1,
+    "matchingBeforeAfter": 157,
+    "matchingSuites": 12,
+    "afterOnlyOwnershipGuards": 4,
+    "afterOnlyGuardSuites": 1,
+    "totalAfter": 161,
+    "totalAfterSuites": 13,
+    "skipped": 0,
+    "fullCaseNamePathStatusAssertionCountMultiplicityPreserved": true,
+    "originalScope": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-watchlist-20261014/behavior/ORIGINAL-BEFORE-SCOPE.json",
+      "sha256": "16a292a6a669d8484f8da9f8085a3c9a76f97d8ff6fd80aeeafdd76e29ea6da9"
+    },
+    "fixtureFreeze": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/characterization/AUTHOR-CHARACTERIZATION-PINS-v2.json",
+      "sha256": "075722f1135b55f5835cb64fb5c2e97ff0887f7b6a40788cdf9925a48951422b"
+    },
+    "beforeUsedV1AfterUsedV2": "Only two erased non-null assertions after existing length assertions; six CJS/ESNext emits prove unchanged runtime and justify reusing ORIGINAL BEFORE results.",
+    "erasureProof": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/characterization/AUTHOR-ERASED-ASSERTIONS-EMISSION-PROOF-v2.json",
+      "sha256": "dc2a33f9e466e2dd669ce4fe8a703667b87ae88a93e33cc8f67096dda512dc84"
+    }
+  },
+  "coverage": {
+    "perLaneNonParserStatements": 596,
+    "perLaneNonParserFunctions": 100,
+    "perLaneNonParserDecisions": 280,
+    "perLaneNonParserArms": 475,
+    "eachNonParserCounterExactBeforeAfter": true,
+    "canonicalParserStatements": 30,
+    "canonicalParserFunctions": 4,
+    "canonicalParserDecisions": 12,
+    "canonicalParserArms": 19,
+    "eachCanonicalCounterEqualsSumOfBothOriginalCopies": true,
+    "newImportExportPublicationStatementsSeparatelyAccounted": 3,
+    "retainedParserEntryCounts": {
+      "originalMemo": 45,
+      "originalBrief": 14,
+      "canonical": 59
+    },
+    "newParserEntryCounts": {
+      "originalMemo": 13,
+      "originalBrief": 13,
+      "canonical": 26
+    },
+    "rawPercentageGainClaimed": false,
+    "historicalCoverageFloorAccepted": false,
+    "comparison": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/coverage-review/COVERAGE-COMPARISON.json",
+      "sha256": "2759411990968a627766acb7096782eca2d55112718b188f472c4049cdcfab5f"
+    },
+    "manifest": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/coverage-review/COVERAGE-REVIEW-MANIFEST.json",
+      "sha256": "f02d26a87416ef11e5d7413c3eb2c1e3c1fea22d7ac41b9ee01ff25768dfad54"
+    }
+  },
+  "ownershipRatchet": {
+    "localCases": 4,
+    "rejectedRealMutations": 12,
+    "originalDerivedPins": true,
+    "centralReservedRegistryAssetsChanged": false,
+    "freeze": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-watchlist-20261014/consumers/LOCAL-GUARD-SOURCE-FREEZE.json",
+      "sha256": "64beb008d56500c66c5a3915e2abef19665ba1b42cdfe6f3fdd7a65828b6c5b0"
+    },
+    "mutationProof": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-watchlist-20261014/consumers/LOCAL-GUARD-MUTATION-QUALIFICATION.json",
+      "sha256": "edde9d106c8131414d6a83f34d06ea521ff63d35ffe9e642bec5275326b7dc3b"
+    }
+  },
+  "nativeGates": [
+    {
+      "name": "BEFORE-api-retained",
+      "exitCode": 0,
+      "durationSeconds": 10.931,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-api-retained.json",
+        "sha256": "e2a89745a4390b4e135f5a59e98bcc16a3a407364fe25475e9f1294e8d5cda08"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-api-retained.stdout",
+        "sha256": "e1da7caff5a89d2a6bed1b083e35b8de65bcb9831f3d45a0ee9ac69885f40bda"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-api-retained.stderr",
+        "sha256": "8a188ab600de747f17f977cf828421d68fad2d4c9cb83b105aaced3753fbc62b"
+      }
+    },
+    {
+      "name": "BEFORE-api-new-characterization",
+      "exitCode": 0,
+      "durationSeconds": 7.056,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-api-new-characterization.json",
+        "sha256": "81e00d5d2b16e94c04d377709b1de4b54a7d7c2f870233302da2939869d551b2"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-api-new-characterization.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-api-new-characterization.stderr",
+        "sha256": "b6e74da799bd4d91bc5aa7fe45fa2a630c453b777302ca26725755fa337bffaf"
+      }
+    },
+    {
+      "name": "BEFORE-char-fixture-semantic-final",
+      "exitCode": 0,
+      "durationSeconds": 13.599,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-char-fixture-semantic-final.json",
+        "sha256": "3434a3c5567698646c98613a58d782228d30c5450074831793883f4038de829f"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-char-fixture-semantic-final.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-char-fixture-semantic-final.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-api-retained",
+      "exitCode": 0,
+      "durationSeconds": 11.631,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-retained.json",
+        "sha256": "8e94e43b4321429ae4a961ac9706bd962ed0099723c9d649af4119f8c3107ae4"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-retained.stdout",
+        "sha256": "bff708767fecb03870fff97c21d68ce07299bc68fb66be4de37cc98d60b46aff"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-retained.stderr",
+        "sha256": "9e3d37a88a00e76107108097a99a97c3ad468444ddde11bcaf6442575366a56c"
+      }
+    },
+    {
+      "name": "AFTER-api-new-characterization",
+      "exitCode": 0,
+      "durationSeconds": 7.68,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-new-characterization.json",
+        "sha256": "3d3c76ae8d527879461ae4270ad67b383073f1a87086b19ec23ee2cff5806cc3"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-new-characterization.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-new-characterization.stderr",
+        "sha256": "041a7cea9ba271166f50a5e7caa99229f44c49f08128486f364fb46533846c90"
+      }
+    },
+    {
+      "name": "AFTER-parser-ownership-guard",
+      "exitCode": 0,
+      "durationSeconds": 3.928,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-parser-ownership-guard.json",
+        "sha256": "16708a4f6f2d9ca4d2682b61df46dfeed5344c709a8cfac97608163cc2ed1457"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-parser-ownership-guard.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-parser-ownership-guard.stderr",
+        "sha256": "ab1d888d453c88a97f723269f2b0fa9330f6efc7a26e5b6773ff505c108d1812"
+      }
+    },
+    {
+      "name": "AFTER-fixture-semantic",
+      "exitCode": 0,
+      "durationSeconds": 14.867,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-fixture-semantic.json",
+        "sha256": "3044b3129bc3a3341a1c0ab858290fadbcfc9712477da576a6bcd0a2ad36b662"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-fixture-semantic.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-fixture-semantic.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-api-typecheck-full",
+      "exitCode": 0,
+      "durationSeconds": 213.849,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-typecheck-full.json",
+        "sha256": "4df5515d4046ea18fbcd1557d99fc284ba0b4bb3cfcd3f27c8722122131bdb58"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-typecheck-full.stdout",
+        "sha256": "d955a7ac8d91d4b9c611768e194862a22c0fe1131cdc13d6116c1beebe71b27b"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-typecheck-full.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-api-build",
+      "exitCode": 0,
+      "durationSeconds": 55.565,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-build.json",
+        "sha256": "76cce9a11f59c02fdc3c16afd2d43c4fa690bf79e39909ca31e1d7a33903ea4d"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-build.stdout",
+        "sha256": "fd5a45428e1400e9d1496040962fbeb752b8bbf6498913a227e69d1ea5ff6e0e"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-api-build.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-context-plane-guard",
+      "exitCode": 0,
+      "durationSeconds": 0.516,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-context-plane-guard.json",
+        "sha256": "38651aa6e0bb547fb134874ce9598f67db570d2790ddc2a99764116e5bb9ee24"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-context-plane-guard.stdout",
+        "sha256": "e8f8e6acc94cec4e315a4ad828758315ebff8c7bb0fcb0f2fdd7a2ea8bdf2e33"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-context-plane-guard.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-evaluation-guard",
+      "exitCode": 0,
+      "durationSeconds": 0.825,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-evaluation-guard.json",
+        "sha256": "2c56516c76bcdf69a9a7d880d4af89de4a44e60f00ed8b547551bf1d704717d4"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-evaluation-guard.stdout",
+        "sha256": "4bcdb6f9c5e556014c97aa1ef28473c0271a143597b5198b65758c401f8c32bb"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-evaluation-guard.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-learning-guard",
+      "exitCode": 0,
+      "durationSeconds": 0.566,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-learning-guard.json",
+        "sha256": "fbcf80088e67e01f1fdce298ffc1918aea71dcc261752ab01e14175fa96e394c"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-learning-guard.stdout",
+        "sha256": "06a0510284f8b2058334eb4276737a0885ec0137f984e27c2ddf8ad6d20b73f0"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-learning-guard.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-quality-telemetry-guard",
+      "exitCode": 0,
+      "durationSeconds": 0.565,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-quality-telemetry-guard.json",
+        "sha256": "341ff99925a55bacbc521257e83aedc976b52c0a5e8e7b8831981e99a7c4e89e"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-quality-telemetry-guard.stdout",
+        "sha256": "21ffb3beaed9e61aec50b83312c574f406e2fec64b1457b71793e03798fd1223"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-quality-telemetry-guard.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-duplicate-helper-guard",
+      "exitCode": 0,
+      "durationSeconds": 9.138,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-duplicate-helper-guard.json",
+        "sha256": "eb4f716c6e9932ef9e27cbd972efe2891eccd0baefc8eef00f74d0eb01b72ac8"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-duplicate-helper-guard.stdout",
+        "sha256": "bcc73d3703923b7d4720fbd8645a8a9d5c5f395ae76069d99832cbe939375567"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-duplicate-helper-guard.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-registry-ownership-guard",
+      "exitCode": 0,
+      "durationSeconds": 9.442,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-registry-ownership-guard.json",
+        "sha256": "db1bc05a10cffb08890be0131b3d12785f14099f9a5eea4df3786457baf80b06"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-registry-ownership-guard.stdout",
+        "sha256": "4d9a77c52af3441dec0bd9956d84a8ecd5d57d9e68255d592f6e747d124b7b0c"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-registry-ownership-guard.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "AFTER-ethical-wall-guard",
+      "exitCode": 0,
+      "durationSeconds": 0.415,
+      "sourceHead": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+      "trackedDiffSha256": "ade46ce13f97be81c5446a11ce87c655af57a66eb3cbb466ef9b8a36380d0c7a",
+      "receipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-ethical-wall-guard.json",
+        "sha256": "d9253490c5e89f6b9e16381d92a6ed9c1f3560944026ba467d79a4bd299463f9"
+      },
+      "stdout": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-ethical-wall-guard.stdout",
+        "sha256": "1bc54a1204da9369ee19627ad8525b31e02226792ce4a53230973a8a48211f5e"
+      },
+      "stderr": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/AFTER-ethical-wall-guard.stderr",
+        "sha256": "1ed4d222784f99c54392230f7b252cc650758b3ffd28bcbda0cbe63b277d44b0"
+      }
+    }
+  ],
+  "independentReviews": [
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/PRIVATE-SOURCE-INDEPENDENT-REVIEW.json",
+      "sha256": "b8bc68d9f8ad2d27b777efb6fd58b4c8ffbb3bb928f14bf9213627b72e8b4c3c"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/ORIGINAL-NATIVE-INDEPENDENT-REVIEW.json",
+      "sha256": "da12f84a21d2cfff344052ef6dacde832bd25a72e2c4b84ebd0f49208f457595"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/CONSUMER-CUSTODY-INDEPENDENT-REVIEW.json",
+      "sha256": "e12d713f5d0f69329efff78455950a5e4b28f8ab492b5ac0553c84a47a838842"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/ERASED-FIXTURE-INDEPENDENT-REVIEW.json",
+      "sha256": "ed6d6378c9842d5b773a10028191bdb8382064d7110f889e8d73a61af3d78b29"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/INTEGRATED-GUARD-INDEPENDENT-REVIEW.json",
+      "sha256": "52073d13a2fb4b45d427ca22645a9340878b5bf0897ae663d084de6914136728"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/AFTER-NATIVE-COVERAGE-INDEPENDENT-REVIEW.json",
+      "sha256": "c4d171a9698cd56f7518d26acdce9406644a2ce34a6fa6077cd15a537f9b5716"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/review/TYPE-BUILD-EMIT-INDEPENDENT-REVIEW.json",
+      "sha256": "36e76ec0d3e00a2f408fe30b5986fda1c89073bec1f36cbda4605f1b59e35c45"
+    }
+  ],
+  "dependencyCustody": {
+    "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/DEPENDENCY-PROVENANCE.json",
+    "sha256": "64f49ef92fc04e91013ad48e0f02ea6885028d3bbb6d9139dcae31f0a8cb480a"
+  },
+  "configFormattingOnly": {
+    "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/TEST-CONFIG-FORMAT-ONLY.json",
+    "sha256": "3f6b7ef0fd8c8f0899978aee26aa125c1ac6b6ba7ee1c245d28b5424d1c02934"
+  },
+  "preservedEarlierFailures": [
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-char-fixture-semantic.json",
+      "sha256": "715440d1adb3f88ee33ea4532f3f1763795e3d88dbe4c762d597f915567325a0"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/memo-sections-04137bab-20261014/BEFORE-char-fixture-semantic-resolved.json",
+      "sha256": "328f9948138b27f471aa8b137f0a617039d677a6e073226e62601f5e8b91e4e7"
+    }
+  ],
+  "failureDisposition": "First private config lacked Node/Jest type roots; second exposed two noUncheckedIndexedAccess fixture errors. Final ORIGINAL and AFTER strict checks pass; prior receipts, fixture versions and author analysis attempts remain preserved.",
+  "closure": {
+    "verifiedProductionParserTwinsClosed": 1,
+    "newWholeOriginalGroupsClosed": 0,
+    "implementationPrimaryRemaining": 18,
+    "blockedAcceptancePrimaryRemaining": 45,
+    "originalGroupsRemaining": 63,
+    "workstreamsRemaining": 15,
+    "closeoutMap": {
+      "path": "docs/backend-cleanup/20261013/CLEANUP-CLOSEOUT-MAP.json",
+      "sha256": "e908817dd3e37459cc272bbc7209764ef0046bcf46b2f8d2b6c2f44425e89339"
+    },
+    "originalRequirementsCommit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+    "globalAcceptance": false
+  },
+  "recoveryBefore": {
+    "base": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+    "tree": "4c6456ea67844bf492fc26f63262007407aae28c",
+    "branch": "codex/backend-memo-sections-20261014",
+    "tag": "backend-cleanup-memo-sections-before-20261014",
+    "bundleSha256": "23bf52a720cc6f8a554ea6589a83327ce5de0feb14270cb152bee66018b3aa4c",
+    "bundleRequires": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+    "bundleVerified": true,
+    "sourceAssets": [
+      {
+        "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+        "sha256": "86dfc8f56fcd509a3cd7ce32471643437078333f30d36b60670e0fcbe7d71a7b"
+      },
+      {
+        "path": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+        "sha256": "a6b6268617ac5febf5687433914f1623d54c631788c769268cbe54dbaae52c50"
+      },
+      {
+        "path": "docs/backend-cleanup/20261013/CLEANUP-CLOSEOUT-MAP.json",
+        "sha256": "e908817dd3e37459cc272bbc7209764ef0046bcf46b2f8d2b6c2f44425e89339"
+      }
+    ],
+    "actualLiveImageTree": "UNESTABLISHED",
+    "mainMergeDeployDatabaseProviderExecuted": false,
+    "frontendPreviewDependency": false
+  },
+  "boundaries": {
+    "mainMergeDeploymentDatabaseProviderAwsCredentialSecurityMutation": false,
+    "protectedRetirementMigrationHistoryRebuildEngagementRemoval": false,
+    "remotesOrRepositorySettingsChanged": false,
+    "actualMainOnlyCiExecutionClaimed": false,
+    "blockedLiveImageUnavailableEnvironmentChecksRepeated": false
+  }
+}

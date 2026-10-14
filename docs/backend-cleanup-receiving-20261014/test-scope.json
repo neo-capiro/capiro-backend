@@ -1,0 +1,49 @@
+{
+  "source_donor": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+  "specs": {
+    "apps/api": [
+      "src/tracker/tracker.types.spec.ts",
+      "src/tracker/tracker-action-ownership.contract.spec.ts"
+    ],
+    "apps/intel-api": [
+      "test/tracker-watchlist.spec.ts",
+      "test/watchlist-weighting.spec.ts",
+      "test/watchlist-compiler.spec.ts",
+      "test/term-validation.spec.ts",
+      "test/term-routing.spec.ts",
+      "test/watchlist-mapping.spec.ts",
+      "test/sms-verification.spec.ts",
+      "src/tracker/tracker-alert-prefs-verification.spec.ts",
+      "src/tracker/tracker-tenant-scoping.spec.ts",
+      "test/tracker-board-guards.spec.ts",
+      "test/tracker-dto-validation.spec.ts",
+      "test/task-runner.spec.ts",
+      "test/new-match-detector.spec.ts",
+      "test/action-item.spec.ts",
+      "test/alert-work-state.spec.ts",
+      "test/memo-link-idempotency.spec.ts",
+      "test/action-item-dto-validation.spec.ts",
+      "test/action-item-all-scope-routing.spec.ts",
+      "test/alert-packet.spec.ts",
+      "src/feed/alert-packet.service.spec.ts",
+      "src/feed/alert-packet.spec.ts",
+      "test/tracker-board-ownership-compilation.spec.ts",
+      "test/tracker-board-ownership-recommendations.spec.ts",
+      "test/tracker-board-ownership-reads.spec.ts",
+      "test/tracker-board-ownership-lookups.spec.ts",
+      "test/tracker-board-ownership-curation.spec.ts",
+      "test/tracker-board-ownership-worker-receivers.spec.ts",
+      "test/tracker-watchlist-ownership-read.spec.ts",
+      "test/tracker-watchlist-ownership-write.spec.ts",
+      "test/tracker-watchlist-ownership-failures.spec.ts",
+      "test/tracker-watchlist-ownership-prefs.spec.ts",
+      "test/tracker-watchlist-ownership-compile.spec.ts",
+      "test/tracker-watchlist-ownership-receivers.spec.ts",
+      "test/tracker-watchlist-ownership.contract.spec.ts",
+      "test/tracker-board-ownership.contract.spec.ts"
+    ]
+  },
+  "intended_cases": 481,
+  "intended_suites": 37,
+  "io": "inert ports + process network/credential fences; no live acceptance"
+}

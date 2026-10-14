@@ -1,0 +1,644 @@
+{
+  "assets": [
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo-citations.spec.ts",
+      "tree_entry": "100644 blob a58988e994116f5dc544a1d0fa3c869d7622b479",
+      "bytes": 11643,
+      "sha256": "2388232fb4f63d415af678445533d25958ef4cd6a776f442dfc48b9f8ea38656"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo-held-gate.spec.ts",
+      "tree_entry": "100644 blob 80852f10e23b9f6bca14ca86d2bc1d07cda6d872",
+      "bytes": 27841,
+      "sha256": "414f6782fb0d32c39e62593aa906d4db47e691c28b175948ec7f32b7d0cfc41e"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts",
+      "tree_entry": "100644 blob 9fde993fe411e1f209684ecc5bb78a8641a23df3",
+      "bytes": 14550,
+      "sha256": "3234fce0596b0eeb532b9221aec02e480970e6f9a77ff3f1db10114146cd8e8d"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo-templates.spec.ts",
+      "tree_entry": "100644 blob 7b3252fdc1027efbdc581abf3a60ef1bae3016d6",
+      "bytes": 14567,
+      "sha256": "fdeea7e91de70b8ba50215aab30491debd3f6592c31da4a66dffe4a5eefdb3fb"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts",
+      "tree_entry": "100644 blob d51f2c16814ee8afe4a06e0bc300b939aa1fdab1",
+      "bytes": 21868,
+      "sha256": "dbe7558b5ab136fa0599315a3941b0a01f843f883c478e9d9c2cb07ce48a21e3"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/district-brief.service.spec.ts",
+      "tree_entry": "100644 blob 424cc60c5bf95547fee284481acda9c1b50be36d",
+      "bytes": 27317,
+      "sha256": "8d297f531878af0e881a3913d500401cf1c5220a68bb40226e4b0413eecf0870"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/entailment-gate.spec.ts",
+      "tree_entry": "100644 blob ce35fe5fe2ebed3a972cf68daf1a49398d753211",
+      "bytes": 19786,
+      "sha256": "48e72d195e166e1c8a75669c6cb44215301228aacb0a76da698da3a211c9ec7f"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/governed-alert-deliverables.factory.spec.ts",
+      "tree_entry": "100644 blob 93b31518b92bd89a99155046b95896784ddf4916",
+      "bytes": 3646,
+      "sha256": "0a102e62c1eed8d38edebc222db3839af8f50f00855106c7d914fa849204601f"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/governed-alert-deliverables.phase22.spec.ts",
+      "tree_entry": "100644 blob 0615fcfbc0f7adbc8575ffa55d4ef13c5e6da2ea",
+      "bytes": 4594,
+      "sha256": "8e30c7e43c1351bed2ad6a391cb089bbbe9ce230e4f02ad0f7e466fe2b628bab"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/legiwatch-context-plane-architecture.contract.spec.ts",
+      "tree_entry": "100644 blob 0188420819bf41e1fce3d2901942144ff624de8b",
+      "bytes": 4981,
+      "sha256": "acd8ce7cd25aba38b6504671e26edc5dbaa8abecf1cc4ec993de99b795067b0d"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections-characterization.spec.ts",
+      "tree_entry": "100644 blob f656934974f65f006bb0e19f2ce87df95423a644",
+      "bytes": 4061,
+      "sha256": "e2e3bb9bb63952de2e9c2cf505e9ceb51a9870774d86bb28f00acc7e1cf3dfbb"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections-ownership.contract.spec.ts",
+      "tree_entry": "100644 blob 5643fc59dafbb15f1efabf1bcb00afa590106ff7",
+      "bytes": 1149,
+      "sha256": "f43dc0d4dff817572e43f03f3cf3aada75d0f6681d9ce405e92820a980df4e83"
+    },
+    {
+      "path": "apps/api/src/reviews/reviews-di-cycle.spec.ts",
+      "tree_entry": "100644 blob 87ed19684033c417bd7b48954f72bd2619c16b32",
+      "bytes": 1448,
+      "sha256": "bdc7f35b73eee4070f041bbad7d9aa837c73d9dbc2c34365b58256fc9894a9ed"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "tree_entry": "100644 blob b31cd3e30e66833697eb2ce8d8b624f903a332ce",
+      "bytes": 63320,
+      "sha256": "030c52989302cbda55e24b4182e649eaa95105ec60eb5fe5d9a3f285e6c5b6bc"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "tree_entry": "100644 blob 791c2863c9b549d6b5b238ccd229d38eaf6ee18a",
+      "bytes": 34539,
+      "sha256": "ebaf97ed75f67338c57d03d10b4c31a02f21395b9c2789717782b2fb314c95eb"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.types.ts",
+      "tree_entry": "100644 blob e9dc395b48905afdbee7d842fc5b51896d1cb8d8",
+      "bytes": 7468,
+      "sha256": "a36669c3b32b2936449893ae57f1c8eaee6467f63a4593bcda83241e5bdb0a89"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo-docx.ts",
+      "tree_entry": "100644 blob 4e43614964e572627322021f145a9a8cdc3b3ee7",
+      "bytes": 7824,
+      "sha256": "f0c21aa6047c38cf8b4eb3962bcf6c5fe4a285e2e56b5a1a52f7a2886d3a411d"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.controller.ts",
+      "tree_entry": "100644 blob 85598eeb9d90c35f3c1ebbbd80de5f390b9bc4fc",
+      "bytes": 7084,
+      "sha256": "9163f44e36c6c7a5819ff3e3cceae9964dc9da2b11158566364753ae8cb7810c"
+    },
+    {
+      "path": "apps/api/src/clients/representation-resolver.service.ts",
+      "tree_entry": "100644 blob 5c01171389851c3b94172e4509c8896c52189d8c",
+      "bytes": 17327,
+      "sha256": "79777d7fca14ff4ebb591f1dd0f54a288a81ddb7f2ef2f8e98dce66048eeeafd"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/entailment-gate.ts",
+      "tree_entry": "100644 blob 5e955c988d6ab643e4551bc627a3d171969cabcd",
+      "bytes": 10883,
+      "sha256": "b859a1b5546a5f9b0bf34ad9874c6f974713040dfb6198c587b9fafa2502d118"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/governed-alert-deliverables.factory.ts",
+      "tree_entry": "100644 blob abec0fa4507c4740a253c4d698ba49d88a0f9733",
+      "bytes": 5124,
+      "sha256": "8109d36fa299a60fc2885e9c48967e1a9b5e41072858c65e86008d34ad29ef1d"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/cases.ts",
+      "tree_entry": "100644 blob e72f11a13925e0f74ebe3c08d6a3b4fe6f75ca27",
+      "bytes": 4413,
+      "sha256": "e21831e1266e7517b9607de0975f9761414855ae2a16fdfea58941eca148abd2"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/dependencies.ts",
+      "tree_entry": "100644 blob 59c0846ee6bec874f57ef4a09a8f53ddbf7053b0",
+      "bytes": 4919,
+      "sha256": "b16a66091b4c87838561e1a8243840ddbb8f31af89fb0427df29cb36156cbde1"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/semantic.ts",
+      "tree_entry": "100644 blob 4f8bc7b0f10cded414e75b767289fac205b0d65f",
+      "bytes": 6056,
+      "sha256": "37ffd0c118364b33425977a9371910be4b4a657ea57c6e4bc15b6aacea695d18"
+    },
+    {
+      "path": "apps/api/src/reviews/reviews.service.ts",
+      "tree_entry": "100644 blob 8b0a0b8a3db6f2a7fcdaf6b21cbdd87b3ecaaae6",
+      "bytes": 10380,
+      "sha256": "778a8c77279ccb40d409c383c466faa4e1dbe12c5d1cb657172387380b04119c"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/skeptic-escalation.ts",
+      "tree_entry": "100644 blob b1795870a12640127a816046726fe4f781ded776",
+      "bytes": 2598,
+      "sha256": "bdd8276ae9de26787ac290ac942a5a779f83f37c5e5a6b03794a7d843b7c52d8"
+    },
+    {
+      "path": "apps/api/src/common/auditor-mode.ts",
+      "tree_entry": "100644 blob d6353eabe974ad7801d77cefc65b70717ad5670e",
+      "bytes": 1072,
+      "sha256": "e750156dbd588013325d18a7ec890fc93c47c8e50d066061687e8c3cc7fe7b6f"
+    },
+    {
+      "path": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "tree_entry": "100644 blob 58a4d3f9aece3bdfb974c0c4fdd4516dee85c5da",
+      "bytes": 153,
+      "sha256": "9054ccd4860c39089afe0734f097df35dada3add50042c12aa543f973e0db152"
+    },
+    {
+      "path": "apps/api/src/context/context-compiler.service.ts",
+      "tree_entry": "100644 blob ed071e75eb6cef66e28a2e57e69ae95b364089df",
+      "bytes": 11047,
+      "sha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "tree_entry": "100644 blob 677810b805210533034bf268a6c26014311cda1d",
+      "bytes": 12476,
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections.ts",
+      "tree_entry": "100644 blob 84dd57168b99ba0dab21d4d5d368b5272edefd74",
+      "bytes": 1442,
+      "sha256": "017c11283f46fd8777edb440c846bd15317e4413bba1086921063a80da143385"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/district-brief.types.ts",
+      "tree_entry": "100644 blob 0a2f7ce3b241e193a42627d42f5c4dd0feaf6e45",
+      "bytes": 1994,
+      "sha256": "b38889f6841b1fac9df62419143ae0bfc44e0075fbc4962075a4c80bed949892"
+    },
+    {
+      "path": "apps/api/src/auth/roles.decorator.ts",
+      "tree_entry": "100644 blob ec576399d6ad69e4a42f8e87eb08df43663edde9",
+      "bytes": 447,
+      "sha256": "48273cb64384cd3b22c90e3abc8a0a0e0c77d774ac1d30602e1d0a1a26715a62"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "tree_entry": "100644 blob 60fbbc8a1de21962a95af60842d25087f58a612d",
+      "bytes": 2703,
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "path": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "tree_entry": "100644 blob 40fbcf7d5ad5c4bf1b75963c97ac41207ebf64b6",
+      "bytes": 776,
+      "sha256": "4709acfb1164a4e71fa508e03534a9015a0c8e7fc4ccc452264099e913281647"
+    },
+    {
+      "path": "apps/api/src/clients/district-code.util.ts",
+      "tree_entry": "100644 blob d5b6bbc99a2816bfbbc1c9d1ca04e953bd71571f",
+      "bytes": 464,
+      "sha256": "e508fe4641164dceb77ebdc137b62a677d39eef1ae47e87a8c28a5221a943172"
+    },
+    {
+      "path": "apps/api/src/common/district-code.util.ts",
+      "tree_entry": "100644 blob 3edb55635b39600f315b04f05f981cea96dbbb37",
+      "bytes": 10783,
+      "sha256": "9b6099aecebf20f393ac021420e2d30af55cc3d03a6b035a0c4775d1189e8ce9"
+    },
+    {
+      "path": "apps/api/src/common/us-states.ts",
+      "tree_entry": "100644 blob 03f8a81e77ebf3969dcff8853bbf4cab9887a5fc",
+      "bytes": 2792,
+      "sha256": "f080718a458d1ac24e75b1b99315b30faea6ee0ab2234ce2c1a49dbd6026ae74"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/legiwatch-context-plane.service.ts",
+      "tree_entry": "100644 blob a0f85f69c1525b378d8d035397b3a0229d41daf2",
+      "bytes": 16546,
+      "sha256": "5c384de8bec744b1b3670d0303f45350084a9e004804fd93e86f626864250692"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/pins.ts",
+      "tree_entry": "100644 blob 56218402a6785fed59a4360340989fe77b049ce9",
+      "bytes": 833,
+      "sha256": "90f6672609c588f12d17495fbbc7a3f44c12e88ed7b9291a50d374ac45faec90"
+    },
+    {
+      "path": "apps/api/src/client-documents/client-document-writer.service.ts",
+      "tree_entry": "100644 blob 61532ad3afba5c6d4b11f41ee3f226838bea58c4",
+      "bytes": 3358,
+      "sha256": "d764dbffb6feb45d821c78c1c617678057fc6457e026d0bf821b12e7b9b3087b"
+    },
+    {
+      "path": "apps/api/src/outreach-review/outreach-review-transactions.service.ts",
+      "tree_entry": "100644 blob 02d47e580da1d3ecc4e26ca80feb12e2a39142b8",
+      "bytes": 3306,
+      "sha256": "bf401fa2f3f919ae71630da33f80e95f2d72a295fc5c1d89b1f9dc67337790e9"
+    },
+    {
+      "path": "apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
+      "tree_entry": "100644 blob 6860b45680419c26a2287fef2ba415c04886d946",
+      "bytes": 9338,
+      "sha256": "cebdbc57107909d42997add8216c57970bec161ad4d3b788bd875c922a09ca9f"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "tree_entry": "100644 blob ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "bytes": 7222,
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e"
+    },
+    {
+      "path": "apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "tree_entry": "100644 blob d147034eaf5141e997a3b6011bc92df01e9dd84f",
+      "bytes": 2449,
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2"
+    },
+    {
+      "path": "apps/api/src/context/context-persistence-boundary.service.ts",
+      "tree_entry": "100644 blob 79a4df92a5e533fe255a082a3fc2b83ca825877e",
+      "bytes": 1450,
+      "sha256": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221"
+    },
+    {
+      "path": "apps/api/src/context/context-stage-timer.service.ts",
+      "tree_entry": "100644 blob 2fe9b20b9a88aa4d7e5f1b4c56102b126131c4fd",
+      "bytes": 5820,
+      "sha256": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714"
+    },
+    {
+      "path": "apps/api/src/common/us-congressional-districts.ts",
+      "tree_entry": "100644 blob ba7c3ab33a169418f897fa41fdd5b9f839efe550",
+      "bytes": 4045,
+      "sha256": "b189bbc458ab3b65de1a5da02c59d0744211bb3177c61950e649c7f3376486bf"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-gateway.service.ts",
+      "tree_entry": "100644 blob 0226fb1e20fa921595e59c5d7c7d3e05276bc518",
+      "bytes": 17331,
+      "sha256": "6f4146b23c8261f4a2b9693a79db22f62d6833a8149bf26eab379dc4a28614c5"
+    },
+    {
+      "path": "apps/api/src/context/context-plane.contract.ts",
+      "tree_entry": "100644 blob f464f4303947c36caf63fe5f6eabd7284097213a",
+      "bytes": 775,
+      "sha256": "1ffffb1c07f44595c4f39ddff847c62a117749d6012390e3a143d64ade90fd63"
+    },
+    {
+      "path": "apps/api/src/context/context-resolver.types.ts",
+      "tree_entry": "100644 blob d0cbd2713786b8d5129692eae680ef366ea7ef9e",
+      "bytes": 5788,
+      "sha256": "da2362e716c813a5bf41a3d6b3944ae35908789acfa93bcbf693175bf7aeaf4f"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-v2.types.ts",
+      "tree_entry": "100644 blob 71f80b0d94d78537ab6c5f150ab7960417d319d0",
+      "bytes": 11082,
+      "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "tree_entry": "100644 blob c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "bytes": 7459,
+      "sha256": "89874c258aa2680637262d649ebc26b03d047fb0bce9cc67fa29bb9bef5e2036"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "tree_entry": "100644 blob 1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "bytes": 41867,
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.types.ts",
+      "tree_entry": "100644 blob aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "bytes": 6127,
+      "sha256": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf"
+    },
+    {
+      "path": "apps/api/src/config/config.schema.ts",
+      "tree_entry": "100644 blob 847185f17957952dc5c20f54bca64e9038d32de1",
+      "bytes": 76323,
+      "sha256": "b4f96e0700a883e5d98cab2307fe1c1081d1afec4dff1b823040f53b336cb039"
+    },
+    {
+      "path": "apps/api/src/common/secret-crypto.ts",
+      "tree_entry": "100644 blob 9837d44ab17ab5e3b7192d3f52797d5d89f11216",
+      "bytes": 1730,
+      "sha256": "6d351c2d7765294081a4d2b917d252fb9f8ba03f2c73a83bd9c982acfde4531d"
+    },
+    {
+      "path": "apps/api/src/memory/memory-governance-lifecycle.helpers.ts",
+      "tree_entry": "100644 blob 21255b310d57ec0258aadfd5aa313792bd182703",
+      "bytes": 11288,
+      "sha256": "6f983d9f0bc388464dc0be27e9edba1aeb9bfdaec9c7ab16830882db286770b7"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-audit.service.ts",
+      "tree_entry": "100644 blob 19b767ba2de679208d3e3b30bb2be3f9ce8f1029",
+      "bytes": 6136,
+      "sha256": "bfdbd1a361d6a3b73b5fe184bef671b18b7096ae2a10b629dc10459224d85d84"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-operation-registry.ts",
+      "tree_entry": "100644 blob a12c63c50cc9715eac6f105c545995b2b3f140da",
+      "bytes": 3390,
+      "sha256": "f87964159043e7c0886ff2a48ce20e609e99e136a5595760746ef434aabad3f3"
+    },
+    {
+      "path": "apps/api/src/context/context-packet-v2.service.ts",
+      "tree_entry": "100644 blob 4ee656a71ba9f1b949c22c0f36b5377a16b94df9",
+      "bytes": 13120,
+      "sha256": "34eb9db4812145a87423755f99315e7f414f9f4223324bd26f95d0e99a554ae6"
+    },
+    {
+      "path": "apps/api/src/context/context-resolver.service.ts",
+      "tree_entry": "100644 blob 0ded19dd9c189327adca6364fa15fd6800e26418",
+      "bytes": 20136,
+      "sha256": "ed7791b71c52332dddca9114fd8ea18029e6f05d3c0f7887699ec6a2ddbfe47a"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "tree_entry": "100644 blob dc405d20381bde45ab0265a992c583b5ef1f6d32",
+      "bytes": 34265,
+      "sha256": "0ce8b2a5a3b541783479726e173dd3d3b35d23761e040eecd134f21c36049ecb"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/entity-resolution.types.ts",
+      "tree_entry": "100644 blob 0151aebfc2d5f05ae818c0c53c1dc70773ac2413",
+      "bytes": 4217,
+      "sha256": "b814eaaa1f63bf5f438d0f5a139c886bbb1ea620f181a059aea4392d9ba16d28"
+    },
+    {
+      "path": "apps/api/src/knowledge/knowledge.types.ts",
+      "tree_entry": "100644 blob de4957b091de86a4f45ba585692f119b76bf167b",
+      "bytes": 5768,
+      "sha256": "af823f3ba72d84db1bd199896e8b9360f61b5489c79e31335d518d4802e498df"
+    },
+    {
+      "path": "apps/api/src/knowledge/graph/temporal-knowledge-graph.types.ts",
+      "tree_entry": "100644 blob 63a926c421197596e625d15f036d1fb74750ff4e",
+      "bytes": 2709,
+      "sha256": "6ee2696be42227bd4fdc345312c44b043701a389e724bc9a3fb98cd90c3fc005"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime.types.ts",
+      "tree_entry": "100644 blob b4f01ca403c9800189209a7a942ee2d2053a82ea",
+      "bytes": 1629,
+      "sha256": "12b5c5f8bbf2dfa66dff70b7eb6ab479995bfecaedba14bd349f622459495ff5"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft-audit.service.ts",
+      "tree_entry": "100644 blob 0052c404e3e399303e04723c3b95b86e7fcd95e6",
+      "bytes": 28825,
+      "sha256": "ef8c3eac35fd760dabdc4698903dc19fb6603a1228ae0121e9796c29a3529724"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/quality-telemetry-capture.service.ts",
+      "tree_entry": "100644 blob 499edd50b15965d852dd742e5e6a3cbc60f238b3",
+      "bytes": 7633,
+      "sha256": "e67fd26890f2db6dc87cffc159e53db4614d24d191bf391a5e4b2a4bc07afbe7"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/adapters/outreach.telemetry-adapter.ts",
+      "tree_entry": "100644 blob 0bd2177e9b5891430e7683d1289a53110dbe2637",
+      "bytes": 2653,
+      "sha256": "ab909123f2065a45314f47f3cdedcb46e7996954f648e6d6eb5fb0ab135f06d4"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/edit-metrics.helpers.ts",
+      "tree_entry": "100644 blob e15fc1bb5830f93c3d08e462741c612803add106",
+      "bytes": 2327,
+      "sha256": "aeeeaae551a7ede175fd2069099445bc8a9ce7dfd5a77ac9f762775d414c3506"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-env.ts",
+      "tree_entry": "100644 blob 6dd0715a5a8ee3ae292bcf54711bccde3e057f8f",
+      "bytes": 7305,
+      "sha256": "fde61a0d07b72c9679ec68cadf5922a089fca0cb0997c84a489a644ed42d51f3"
+    },
+    {
+      "path": "apps/api/src/memory/memory-authorization.helpers.ts",
+      "tree_entry": "100644 blob 542f8362f834126b5dad16bef72ffa6998d0cf27",
+      "bytes": 7526,
+      "sha256": "a0c2ece14a7d8164d3a7c7a2f028ffe75a486c91f6fdda8b11fa48cab66c60e7"
+    },
+    {
+      "path": "apps/api/src/memory/memory-governance-tenant-scope.ts",
+      "tree_entry": "100644 blob cdddb27ae490848d99bd3ecb55932f2ab859e225",
+      "bytes": 1450,
+      "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84"
+    },
+    {
+      "path": "apps/api/src/context/context-layer.service.ts",
+      "tree_entry": "100644 blob 20c1aea711da796249fc3a4e73d55ca729834548",
+      "bytes": 5186,
+      "sha256": "35723bd1fcc5199d2c9d829ce18c0b9169cab14664d0b0a2422e2fe49e79ea6f"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/universal-entity-resolution-orchestrator.service.ts",
+      "tree_entry": "100644 blob 9a4a3ce6c70155195b02fc2b5964624ec0f093f6",
+      "bytes": 23900,
+      "sha256": "5a643dfb07709981c1437b347492c9e9771718df5d6f80ed55401b394a3d788b"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/universal-entity-resolution-orchestrator.types.ts",
+      "tree_entry": "100644 blob a0949bddab09f134693e2582b45306d4d6a298d9",
+      "bytes": 3929,
+      "sha256": "08ba0664b60873cb3eb597a35e9a0314b5f5c998232f6bcb387cf9a754ea7d58"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-v2.service.ts",
+      "tree_entry": "100644 blob 2bf79bd83f34db06426bd55bab68b8e960f13fa2",
+      "bytes": 12003,
+      "sha256": "bf347134c6a88ea73b404c0a975f366372309319ec113ba9b349b97efafbc5ed"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-job-runtime.ts",
+      "tree_entry": "100644 blob 8fb9843b7c2a259b42ecdc512c41400cbf43044e",
+      "bytes": 1261,
+      "sha256": "bbc47da24f0a9a08a93fd653f0cf263396330f04e95930674b1f491ae0520b24"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-runtime.ts",
+      "tree_entry": "100644 blob b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "bytes": 1867,
+      "sha256": "ae6903f125af905dddee99c805c2e92656ef6242810ce1bd1e15d703a31cced5"
+    },
+    {
+      "path": "apps/api/src/memory/memory-review-admin-policy.ts",
+      "tree_entry": "100644 blob 1f214b076d172b13648f1bf842d7c83363b944d3",
+      "bytes": 687,
+      "sha256": "ce7d9b36b52b7b63d1a8bdcaf0bab2acf3c57187dedc5752a80f8e95f733adc3"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity-registration.service.ts",
+      "tree_entry": "100644 blob 9f67b6953693e14bb64d1cbb4769652d808f04f1",
+      "bytes": 4791,
+      "sha256": "2f3abe9d9ffc834157f2b3ecf1a123517521070a276d39ec6069130473870d46"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/entity-normalization.ts",
+      "tree_entry": "100644 blob 0be4680c394f2d9003c24cf8b9f88019c70f84d2",
+      "bytes": 4049,
+      "sha256": "922388f9da5cfab8d7719d312ad4945dd6ef66109f879a74ee178ed58731c408"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/entity-resolution-stage-policy.ts",
+      "tree_entry": "100644 blob cc8d8de221fdd17a94b3686ee795a8cbd8176698",
+      "bytes": 5810,
+      "sha256": "b2704e526341ae836d5d293d6f3c6e1d976758d77cae7f6c098b78cfb1fa4f8c"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/universal-entity-resolution.service.ts",
+      "tree_entry": "100644 blob 2da91d6ef4af71bf93ff7ada48cd6b71379a6e35",
+      "bytes": 11841,
+      "sha256": "45732f4b28c81d53e090617eee5b101bfa2f816abfdcd49c37026779f17254f2"
+    },
+    {
+      "path": "apps/api/src/retrieval/coverage-manifest.ts",
+      "tree_entry": "100644 blob 1d71d0f42347f39bb3db287d1b1f08fead04201a",
+      "bytes": 3992,
+      "sha256": "71912119efaf73bd6d375e8b8252ec7063fd2dca89081b8c7fe061156d9f4698"
+    },
+    {
+      "path": "apps/api/src/retrieval/exact-lexical-retrieval.service.ts",
+      "tree_entry": "100644 blob 8f2a1e1ac8a05c1099305a99a61d68e6bdbd30ca",
+      "bytes": 34002,
+      "sha256": "669c7ed8aad7fabbba71ca4cb619b186a1ae7d8732d6cbc4b58383267e3fdf85"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-planner-v2.service.ts",
+      "tree_entry": "100644 blob 7df66351690ae3eee5c77a3c10f2522c6f3219b6",
+      "bytes": 1419,
+      "sha256": "90a1f86ed5920567449f5453715d1b96bff1129cecc479f398ffeb7a153d034e"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-reranker.service.ts",
+      "tree_entry": "100644 blob 22e6dc71e3844826760d7ea91c5081bd7107e06c",
+      "bytes": 6661,
+      "sha256": "2d70d950c4336c44e360daa0aa064cad0ca4ff799aff390298977990cf51bfe3"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-scoring.service.ts",
+      "tree_entry": "100644 blob f75929c8c16d0ef814186fc1cb5649af81e75247",
+      "bytes": 11040,
+      "sha256": "bbc433f993b2be415212c7c06a717931bc3eb3f18cdd840351ccf7bd3e5c0b02"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-source.adapter.ts",
+      "tree_entry": "100644 blob 1a71c42a3f6a34b03aceb3566b881739dec134af",
+      "bytes": 479,
+      "sha256": "661983a016798b12a4aca9438153f193fdd20f90fcd9407d9367c5316d1d5780"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-policy.ts",
+      "tree_entry": "100644 blob 3b4ca28656bde24010c0b3e2b69f89cfb29b131a",
+      "bytes": 1848,
+      "sha256": "ffaca859ce7a8b767fbd9147676c675e4cb70d1e51fa16114f9cfef13cdb2054"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-grounding.ts",
+      "tree_entry": "100644 blob 9525e781f9f7840b304654fa54a57e4ced10bc08",
+      "bytes": 7607,
+      "sha256": "aaa0d17e67b67d03320b536ea1fb96b4c82b24fe0d77a7f22e61f786d83a88d0"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity-registration.types.ts",
+      "tree_entry": "100644 blob cc6926fb2872b4d9464c8f1cdb3cc598bb5c22d9",
+      "bytes": 2295,
+      "sha256": "6e3237820fd6dbdcf8e3690d8d4c67aec380e3d351ce25f15fd992a71fb237a5"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity-registration.repository.ts",
+      "tree_entry": "100644 blob 9de82e60a1fbd9f21b62f413630aa35dbbccb1c3",
+      "bytes": 18123,
+      "sha256": "0e52289d50dd9a68b8176c6f2b9ca5308ef22b3c8619e39756d3279fbead530f"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity.repository.ts",
+      "tree_entry": "100644 blob b7a6048c534f25d39e7bd3f95420dadbfc709689",
+      "bytes": 19434,
+      "sha256": "5d1cca71e1744fcac0aa3ce7aec93aaf7f7d39a94eab1e981a268a048f6e292c"
+    },
+    {
+      "path": "apps/api/src/retrieval/data-catalog/semantic-data-catalog.service.ts",
+      "tree_entry": "100644 blob 1e88234eafb549f8bc33bbbad9c4bc0ab3ae271c",
+      "bytes": 14427,
+      "sha256": "7bc2926e0343ff215b14c527de82ed56e774fb08f7b1f6ac0493439ff6b01fba"
+    },
+    {
+      "path": "apps/api/src/reranking/reranking-provider.ts",
+      "tree_entry": "100644 blob bb94237338acfbf5675667a2e8dff5605e24cf37",
+      "bytes": 1872,
+      "sha256": "4e38acad29686de0a147089b1da24d3a4e5fe6ed174c377d4c72a89ef7ad7cbe"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "tree_entry": "100644 blob 5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "bytes": 92904,
+      "sha256": "4c886e6c9ac051c1c0458c9b3b1e0ab621833cf7cc692e38e885f6c3b081f817"
+    },
+    {
+      "path": "apps/api/src/lobby-intel/lobby-intel.service.ts",
+      "tree_entry": "100644 blob ce4a20108c050db19c64d39df55b4ba9def0d3dc",
+      "bytes": 17375,
+      "sha256": "edfb5602f3209631b9605e657a1e9dfef89622f3ce934942dbc4186743b83e4b"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-spending.service.ts",
+      "tree_entry": "100644 blob a432d29147985ffa965eed67c6fbdd2970f5fb03",
+      "bytes": 12376,
+      "sha256": "58c1457d235a0207705d5de674fd030f44755c2720a156c8dc1c9b4aadb12776"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.ts",
+      "tree_entry": "100644 blob 3929816f803801098da80c31ea58827fcdf904b9",
+      "bytes": 27971,
+      "sha256": "01009c5f6a7c4bc9365c91d17419d9d1e406b570b86097af4e0144342b3d1eaf"
+    },
+    {
+      "path": "apps/api/src/engagement/llm-completion.service.ts",
+      "tree_entry": "100644 blob dbe7343eda3fb5dae848bf20b06b9b5342932cd4",
+      "bytes": 29959,
+      "sha256": "78ce34b4b5271fd6a7dbd19300470fa5403eaf5c6ef542d24d97ff33c5b1adaf"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-comprehensive.ts",
+      "tree_entry": "100644 blob 30519b8feb6305d8bb8c208ed3db5ed5e7f2a53c",
+      "bytes": 32154,
+      "sha256": "9559563e18ba101a9cd8ca2ad272befcf076b8e3c937322b508a4126919d5b12"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-rewrite-verifier.ts",
+      "tree_entry": "100644 blob 6b4c99f6886161e1f2161e8ab03211febb4ec8c5",
+      "bytes": 5901,
+      "sha256": "a7e1f86f28ff585d7f311a381cff010e9116922c0815cffaf39cd91e3a374085"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/reasoning-effort.ts",
+      "tree_entry": "100644 blob 88f21284cbf2b21af0838c96e0a1ba5b48fe9d6a",
+      "bytes": 4785,
+      "sha256": "856c70924aedefa1cdc4f3e961525e6c21bcfe8fef0b9c5508943e2ab0519f54"
+    }
+  ],
+  "excluded_without_body_read": [
+    "apps/api/src/engagement/engagement.service.ts"
+  ],
+  "schema_or_migration_execution": false
+}
