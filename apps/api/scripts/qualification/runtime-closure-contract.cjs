@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createRequire } = require('node:module');
+const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
 const CONTRACT_SHA256 = '78dfcb0a438c74df4c0778e1316bef4b15874fedad4e8c4ecbd7ae5361305def';
 const vendorWasm = {
@@ -122,12 +122,26 @@ function physicalStoreOwners(store) {
   assert(owners.length <= 10000 && new Set(owners.map(o => o.root)).size === owners.length, 'physical owner bound/duplicate');
   return owners;
 }
+function physicalDependencyLookup(name) {
+  assert(typeof name === 'string' && name.length > 0 && name.length <= 214 &&
+    /^(?:@[a-z0-9-][a-z0-9._-]*\/)?[a-z0-9-][a-z0-9._-]*$/.test(name) &&
+    !['node_modules', 'favicon.ico'].includes(name), 'invalid physical npm dependency identity');
+  const builtin = isBuiltin(name);
+  return { runtimeSelection: builtin ? 'NODE_BUILTIN' : 'NODE_PACKAGE', runtimeSpecifier: name,
+    physicalLookupSpecifier: builtin ? `${name}/package.json` : name, physicalOwnerRequired: true };
+}
 function resolveDependency(parent, name, imageRoot) {
-  for (const dir of createRequire(parent.manifest).resolve.paths(name) || []) {
+  const resolver = createRequire(parent.manifest), dependencyResolution = physicalDependencyLookup(name);
+  // Builtins have no package search paths. A locked dependency with the same
+  // name still needs its exact physical npm owner admitted into the closure.
+  // Asking for package-subpath search paths does not execute the package or
+  // change Node's runtime selection of the bare builtin specifier.
+  const lookup = dependencyResolution.physicalLookupSpecifier;
+  for (const dir of resolver.resolve.paths(lookup) || []) {
     const candidate = path.join(dir, name);
     if (!fs.existsSync(candidate)) continue;
     const real = fs.realpathSync(candidate); assert(inside(imageRoot, real), 'resolved dependency escapes image');
-    return readPackage(real);
+    return { ...readPackage(real), dependencyResolution };
   }
   return null;
 }
@@ -185,7 +199,10 @@ function verifyInstalledClosure({ imageRoot = '/app', target = { os: 'linux', cp
       if (!next) {
         assert(edge.kind === 'optionalDependencies' && !compatible(expected, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
         missingOptional.push({ ...edge, reason: 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: { os: expected.os, cpu: expected.cpu, libc: expected.libc } });
-      } else { links.push({ ...edge, physicalOwner: next.root }); queue.push({ key: edge.to, owner: next }); }
+      } else {
+        links.push({ ...edge, physicalOwner: next.root, ...(next.dependencyResolution ? { dependencyResolution: next.dependencyResolution } : {}) });
+        queue.push({ key: edge.to, owner: next });
+      }
     }
   }
   for (const owner of owners) assert(assigned.has(owner.root), `unexpected/unreachable physical package owner: ${owner.root}`);
@@ -222,4 +239,4 @@ function artifactOwner(file, closure) {
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
     relative, fixture, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
 }
-module.exports = { CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };

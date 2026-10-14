@@ -621,8 +621,8 @@ function assertActiveBinding(file, options) {
   return receipt;
 }
 function resolveInstalledManifest(parentManifest, dependencyName, root) {
-  assert(/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(dependencyName), 'invalid dependency identity');
-  const paths = createRequire(parentManifest).resolve.paths(dependencyName);
+  const resolution = require('./runtime-closure-contract.cjs').physicalDependencyLookup(dependencyName);
+  const paths = createRequire(parentManifest).resolve.paths(resolution.physicalLookupSpecifier);
   for (const lookup of paths || []) {
     const candidate = path.join(lookup, dependencyName);
     if (!fs.existsSync(candidate)) continue;
@@ -696,7 +696,8 @@ function packageDependencyEvidence(receipt, parentManifests, { root = '/app/node
     const versionAdmission = installedVersionAdmission(declaredVersion, child.version, root);
     assert(versionAdmission.admitted, 'installed dependency version not admitted by owner declaration');
     evidence.push({ parentManifest: parent, parentName: metadata.name, parentVersion: metadata.version,
-      dependencyName, declaredVersion, resolvedManifest, resolvedOwnerRoot: receipt.owner.root, relation, versionAdmission });
+      dependencyName, declaredVersion, resolvedManifest, resolvedOwnerRoot: receipt.owner.root, relation, versionAdmission,
+      dependencyResolution: require('./runtime-closure-contract.cjs').physicalDependencyLookup(dependencyName) });
   }
   assert(evidence.length > 0, 'incompatible artifact lacks verified optional dependency ownership');
   return evidence;
