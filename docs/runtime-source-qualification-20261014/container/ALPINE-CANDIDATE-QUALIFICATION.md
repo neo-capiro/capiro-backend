@@ -138,3 +138,46 @@ nonzero exit, empty output, timeout, excessive output and a missing executable.
 These local tests do not establish ARM64 image qualification. The failed attempt
 produced no candidate image; this repair authorizes no additional paid attempt
 and leaves `FULL_API_STARTUP_UNVERIFIED` blocking deployment.
+
+## Native owner classification and retained Sharp dispatcher
+
+The PR21 attempt `6b7c6e61-80e8-4e71-8ec6-8fee3d37846b` failed when the
+raw-addon traversal tried the retained glibc `@img/sharp-linux-arm64@0.35.5`
+binary on musl. That package has no `-gnu` suffix. Frozen build-log SHA256:
+`dde3078e92948297ca99d4c80eb7658391946cfcdce2a5f960c249fc18da55de`.
+The failure does not establish an actual Sharp dispatcher failure.
+
+Both path-substring heuristics are replaced with the same package-owner and
+ELF classifier. Each canonical regular file is contained in the deployed store
+and its real package owner, and carries identity, platform metadata, size, hash,
+ELF machine and actual DT_NEEDED evidence. Incompatible artifacts receive an
+inactive row only when a real deployed parent's `optionalDependencies` declares
+the exact installed name/version and its Node lookup resolves that same native
+package root. The receipt retains this relationship and resolved manifest.
+Any required dependency resolving to the same incompatible package holds, even
+if another parent marks it optional. Missing optional proof also holds.
+Missing libc metadata is resolved
+only from positive ELF dependency evidence; unknown ABI and contradictory
+metadata (including contradicted negative constraints) hold qualification.
+Known foreign non-ELF formats also hold; this classifier accepts ELF64 only.
+Active bindings must positively pass ARM64/musl
+classification. A load failure is never converted into an inactive result.
+
+The runtime image does not copy `apps/workspace`, and the API does not declare
+Sharp directly. The new check therefore exercises each actual deployed Sharp
+store owner (at most eight), explicitly reported as `RETAINED_STORE_SHARP_OWNER`.
+It resolves that owner's entry and exact pinned musl optional package, performs
+a real 1-pixel to 2-by-2 resize with a five-second Sharp processing limit, and
+checks the resulting pixels and actual loaded binding's real owner/version,
+hash, ARM64 ELF and musl classification. The selected binding must belong to
+that owner's resolved optional package. The pinned upstream
+[Sharp package](https://github.com/lovell/sharp/blob/v0.35.5/package.json) and
+[musl ARM64 package](https://github.com/lovell/sharp/blob/v0.35.5/npm/linuxmusl-arm64/package.json)
+define this optional relationship and the platform package export.
+
+Local ELF fixtures test classifier decisions, containment and rejection paths;
+they are never loaded as native code. They do not substitute for the mandatory
+real Sharp operation or ARM64 image qualification. Existing canvas, esbuild,
+Prisma, read-only, HTTP/TLS, signal and full-readiness gates remain in place.
+No paid attempt, dependency change, Dockerfile change or deployment is authorized
+by this source repair.
