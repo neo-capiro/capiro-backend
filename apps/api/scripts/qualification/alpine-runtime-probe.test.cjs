@@ -6,9 +6,107 @@ const { boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, par
 const { resolvedNativeBinding, readDeployedPackage } = require('./alpine-runtime-probe.cjs');
 const { createReceiptStream, completeReceiptReport, inspectArtifact } = require('./alpine-runtime-probe.cjs');
 const { binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence } = require('./alpine-runtime-probe.cjs');
+const { elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence, sourceIdentity } = require('./alpine-runtime-probe.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+
+// Real ELF64 table relationships; synthetic bytes only, never passed to a loader.
+function symbolElf() {
+  const data = Buffer.alloc(4096), strings = Buffer.from('\0_Unwind_Resume\0__register_frame\0GCC_3.0\0GCC_REQ\0libgcc_s.so.1\0');
+  const name = value => strings.indexOf(Buffer.from(value + '\0'));
+  data.write('7f454c46', 0, 'hex'); data[4] = 2; data[5] = 1; data.writeUInt16LE(183, 18);
+  data.writeBigUInt64LE(64n, 32); data.writeUInt16LE(56, 54); data.writeUInt16LE(1, 56);
+  data.writeBigUInt64LE(512n, 40); data.writeUInt16LE(64, 58); data.writeUInt16LE(7, 60);
+  data.writeUInt32LE(1, 64); data.writeUInt32LE(5, 68); data.writeBigUInt64LE(0x1000n, 80);
+  data.writeBigUInt64LE(4096n, 96); data.writeBigUInt64LE(4096n, 104); data.writeBigUInt64LE(4096n, 112);
+  const section = (index, type, offset, size, link = 0, entry = 0) => {
+    const at = 512 + index * 64; data.writeUInt32LE(type, at + 4); data.writeBigUInt64LE(BigInt(offset), at + 24);
+    data.writeBigUInt64LE(BigInt(size), at + 32); data.writeUInt32LE(link, at + 40); data.writeBigUInt64LE(BigInt(entry), at + 56);
+  };
+  strings.copy(data, 160); section(1, 3, 160, strings.length);
+  section(2, 11, 256, 72, 1, 24); section(3, 0x6fffffff, 336, 6, 2);
+  section(4, 0x6ffffffd, 352, 28, 1); section(5, 0x6ffffffe, 384, 32, 1); section(6, 6, 432, 16, 1);
+  data.writeUInt32LE(name('_Unwind_Resume'), 280); data[284] = 0x12; data.writeUInt16LE(1, 286); data.writeBigUInt64LE(0x1100n, 288); data.writeBigUInt64LE(16n, 296);
+  data.writeUInt32LE(name('__register_frame'), 304); data[308] = 0x12;
+  data.writeUInt16LE(2, 338); data.writeUInt16LE(0x8003, 340);
+  data.writeUInt16LE(1, 352); data.writeUInt16LE(2, 356); data.writeUInt16LE(1, 358); data.writeUInt32LE(20, 364); data.writeUInt32LE(name('GCC_3.0'), 372);
+  data.writeUInt16LE(1, 384); data.writeUInt16LE(1, 386); data.writeUInt32LE(name('libgcc_s.so.1'), 388); data.writeUInt32LE(16, 392);
+  data.writeUInt16LE(3, 406); data.writeUInt32LE(name('GCC_REQ'), 408);
+  return data;
+}
+test('provider dynsym retains exact definition, binding, visibility and version versus requirement', () => {
+  const facts = elfSymbolFacts(symbolElf(), ['_Unwind_Resume', '__register_frame', '_Unwind_GetIP']);
+  assert.equal(facts.actualProcessLookup, 'UNOBSERVED'); assert.equal(facts.symbols.length, 2);
+  const [defined, missing] = facts.symbols;
+  assert.equal(defined.defined, true); assert.equal(defined.binding, 1); assert.equal(defined.visibility, 0); assert.equal(defined.value, '0x1100');
+  assert.equal(defined.version.descriptor.name, 'GCC_3.0'); assert.equal(defined.version.descriptor.kind, 'DEFINITION');
+  assert.equal(missing.defined, false); assert.equal(missing.version.hidden, true); assert.equal(missing.version.descriptor.kind, 'REQUIREMENT');
+  assert.deepEqual(facts.missingNames, ['_Unwind_GetIP']); assert.equal(facts.loads[0].virtualAddress, '0x1000');
+});
+test('provider parser rejects wrong machine, missing symbols, truncated/version/offset corruption', () => {
+  const wrong = symbolElf(); wrong.writeUInt16LE(62, 18); assert.throws(() => elfSymbolFacts(wrong), /ARM64/);
+  const absent = symbolElf(); absent.writeUInt32LE(1, 512 + 2 * 64 + 4); assert.throws(() => elfSymbolFacts(absent), /dynamic symbol table/);
+  assert.throws(() => elfSymbolFacts(symbolElf().subarray(0, 700)), /truncated ELF/);
+  const bad = symbolElf(); bad.writeUInt32LE(20000, 364); assert.throws(() => elfSymbolFacts(bad), /auxiliary outside/);
+  const badString = symbolElf(); badString.writeUInt32LE(9999, 280); assert.throws(() => elfSymbolFacts(badString), /string table/);
+  const versym = symbolElf(); versym.writeBigUInt64LE(4n, 512 + 3 * 64 + 32); assert.throws(() => elfSymbolFacts(versym), /truncated symbol versions/);
+});
+test('mapped addresses are calculated candidates, never observed process lookup', () => {
+  const facts = mappedSymbolFacts(symbolElf(), '9000-a000 r-xp 00000000 00:01 1 /usr/lib/provider.so\n', '/usr/lib/provider.so');
+  assert.deepEqual(facts.loadBiasCandidates, ['0x8000']); assert.equal(facts.calculatedSymbolAddresses[0].addresses[0].address, '0x9100');
+  assert.equal(facts.calculatedSymbolAddresses[0].addresses[0].inMappedRange, true); assert.equal(facts.actualProcessLookup, 'UNOBSERVED');
+  const unknown = mappedSymbolFacts(symbolElf(), '', '/usr/lib/provider.so'); assert.equal(unknown.status, 'MAPPING_BIAS_UNPROVEN');
+});
+test('provider collection retains per-file failures and later valid observations without lookup exemption', () => {
+  const bytes = symbolElf(), sha256 = require('node:crypto').createHash('sha256').update(bytes).digest('hex');
+  const addon = { file: '/app/node_modules/.pnpm/addon.node', sha256, bytes: bytes.length };
+  const good = { file: '/usr/lib/good.so', sha256, bytes: bytes.length }, bad = { file: '/usr/lib/bad.so', sha256: '0'.repeat(64), bytes: bytes.length };
+  const result = collectSymbolProviders([bad, good], '', addon, ['_Unwind_Resume'], { read: () => bytes });
+  assert.equal(result.providers.length, 3); assert.equal(result.providers[1].status, 'PROVIDER_FACTS_UNVERIFIED');
+  assert(result.providers[2].facts.symbols.length); assert.equal(result.actualProcessLookup, 'UNOBSERVED');
+});
+test('changed provider bytes and escaped provider roots are explicit unverified rows', () => {
+  const bytes = symbolElf(), sha256 = require('node:crypto').createHash('sha256').update(bytes).digest('hex'); let reads = 0;
+  const result = collectSymbolProviders([], '', { file: '/usr/lib/provider.so', sha256, bytes: bytes.length }, ['_Unwind_Resume'], { read: () => ++reads === 1 ? bytes : Buffer.alloc(4096) });
+  assert.match(result.providers[0].error.message, /changed after/);
+  const escaped = collectSymbolProviders([], '', { file: '/outside/provider.so', sha256, bytes: bytes.length }, ['_Unwind_Resume'], { read: () => bytes });
+  assert.match(escaped.providers[0].error.message, /escapes/);
+});
+test('static vendor sources bind exact owner and entry bytes without executing side effects', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'core-selector-')); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const owner = path.join(root, 'vendor'); fs.mkdirSync(owner);
+  fs.writeFileSync(path.join(owner, 'package.json'), JSON.stringify({ name: 'onnxruntime-node', version: '1.30.0', main: 'index.js' }));
+  const code = 'throw new Error("MUST_NOT_EXECUTE"); module.exports=require("./selector.js");';
+  fs.writeFileSync(path.join(owner, 'index.js'), code); fs.writeFileSync(path.join(owner, 'selector.js'), 'module.exports=process.arch;');
+  const result = vendorSelectorSources(path.join(owner, 'package.json'), { imageRoot: root });
+  assert.equal(result.status, 'UNPROVEN'); assert.equal(result.selectedPayload, 'UNOBSERVED'); assert.equal(result.sources.length, 2);
+  assert.equal(Buffer.from(result.sources[0].contentBase64, 'base64').toString(), code); assert.equal(result.errors.length, 0);
+});
+test('vendor large source capture retains hash and explicit incomplete prefix', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'core-selector-large-')); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: '@openai/codex-security', version: '0.1.31', main: 'index.js' }));
+  fs.writeFileSync(path.join(root, 'index.js'), 'x'.repeat(70000));
+  const result = vendorSelectorSources(path.join(root, 'package.json'), { imageRoot: root });
+  assert.equal(result.sources[0].bytes, 70000); assert.equal(result.sources[0].capturedBytes, 65536); assert.equal(result.sources[0].sourceComplete, false);
+  assert(result.errors.some(error => /prefix only/.test(error.message))); assert.equal(result.selectedPayload, 'UNOBSERVED');
+});
+test('API graph is explicitly incomplete lexical evidence and does not execute application or prove unused vendor', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'core-graph-')); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const entry = path.join(root, 'entry.js'); fs.writeFileSync(entry, 'throw new Error("MUST_NOT_EXECUTE"); require("./child.js"); require(dynamicName);');
+  fs.writeFileSync(path.join(root, 'child.js'), '// require("not-real")\nmodule.exports=1;');
+  const result = apiReachabilityEvidence(entry, { imageRoot: root });
+  assert.equal(result.nodes.length, 2); assert.equal(result.applicationExecuted, false); assert.equal(result.status, 'UNPROVEN');
+  assert.equal(result.vendorReachability['onnxruntime-node'], 'UNPROVEN'); assert(result.edges.some(edge => edge.specifier === 'not-real' && edge.status === 'UNRESOLVED'));
+  const bounded = apiReachabilityEvidence(entry, { imageRoot: root, maximumNodes: 1 }); assert(bounded.errors.some(error => /budget/.test(error.message)));
+});
+test('source containment/type constraints and missing vendor entry never justify selection', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'core-source-bound-')); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(root, 'data.env'), 'not-source'); assert.throws(() => sourceIdentity(path.join(root, 'data.env'), { imageRoot: root }), /source type/);
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'onnxruntime-node', version: '1.30.0', main: 'missing.js' }));
+  const result = vendorSelectorSources(path.join(root, 'package.json'), { imageRoot: root }); assert(result.errors.length > 0); assert.equal(result.status, 'UNPROVEN');
+  assert.deepEqual(staticImportCandidates('require(dynamic); import(other);'), []);
+});
 
 // Minimal ELF64 section fixtures contain real SHT_DYNAMIC/DT_NEEDED references.
 // They test classification only and are never passed to a native loader.
