@@ -72,6 +72,26 @@ for (const row of compile.productInputs) {
 }
 const passed = rawOutputs.get('evidence/prune-exact-source-regressions-output.raw.json').toString();
 assert.match(passed, /pass 5/); assert.match(passed, /fail 0/); assert.match(passed, /skipped 0/);
+const merge = JSON.parse(read('MERGE-RECEIPT.json').toString());
+assert.equal(merge.result, 'pass');
+assert.deepEqual(git(['show', '-s', '--format=%P', merge.ordinaryMergeHead]).toString().trim().split(' '), merge.ordinaryMergeParents);
+assert.deepEqual(merge.ordinaryMergeParents, [merge.preservedCandidate, merge.publishedBaseHead]);
+assert.equal(git(['rev-parse', `${merge.ordinaryMergeHead}^{tree}`]).toString().trim(), merge.ordinaryMergeTree);
+assert.equal(git(['rev-parse', `${merge.publishedBaseHead}:${proof.operatorPath}`]).toString().trim(), proof.beforeBlob);
+assert.equal(git(['diff', '--name-only', merge.preservedCandidate, merge.ordinaryMergeHead, '--', 'apps', 'packages', 'scripts', 'infra']).toString(), '');
+if (!write) {
+  git(['merge-base', '--is-ancestor', merge.ordinaryMergeHead, 'HEAD']);
+  const delta = git(['diff', '--name-only', merge.publishedBaseHead, 'HEAD']).toString().trim().split('\n');
+  assert(delta.every((name) => name.startsWith(prefix + '/') || source.sourceDelta.some((row) => row.path === name)));
+  for (const row of merge.allCompilerRuntimeConfigAndLockInputsUnchanged) {
+    assert.equal(git(['rev-parse', `HEAD:${row.path}`]).toString().trim(), row.blob);
+  }
+}
+const review = JSON.parse(read('INDEPENDENT-REVIEW.json').toString());
+assert.equal(review.result, 'tiny_source_review_accept');
+assert.equal(review.sourceHead, source.sourceHead);
+assert.equal(review.sourceDeltaExactlyTwoCommentPairs, true);
+assert.equal(review.literalBytesRemoved, 4);
 console.log(JSON.stringify({ result: 'pass', mode: write ? 'write-index' : 'verify-committed-Git', payloads: value.payloads.length,
   rawOutputs: rawOutputs.size, sourceHead: source.sourceHead, cases: 5, productCompilerInputs: 4,
   changedSqlCommentBytes: 4, executableSqlIdenticalAfterExcludingOnlyFullCommentLines: true,

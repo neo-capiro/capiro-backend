@@ -1,0 +1,106 @@
+{
+  "result": "tiny_source_review_accept",
+  "base": "078c55f805de8599cc413917ef90b7e20f040942",
+  "sourceHead": "b66a1f6d08e01fe2901f65cee1befe41ca8a7b65",
+  "sourceTree": "4b2110dee3f360cb826e4628144f233c87071310",
+  "sourceParentExact": true,
+  "onlyTwoSourcePaths": [
+    "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+    "scripts/cleanup-script-smoke/assistance-recipient-prune-syntax.test.mjs"
+  ],
+  "oldScriptBlob": "134974e9b9a00863bedda7de18e793c69033f193",
+  "newScriptBlob": "ae45411410c7927a173bf622734091944f190be7",
+  "sourceDeltaExactlyTwoCommentPairs": true,
+  "literalBytesRemoved": 4,
+  "allNonSqlCommentSourceBytesExact": true,
+  "queryProof": [
+    {
+      "query": 1,
+      "commentStrippedSourceBytesExact": true,
+      "bytes": 787,
+      "sha256": "eb341a3716ad46d2db8950a13bb439b72f9f306195ef35b77d2866703b575c6a",
+      "literalCommentBytesRemoved": 2
+    },
+    {
+      "query": 2,
+      "commentStrippedSourceBytesExact": true,
+      "bytes": 740,
+      "sha256": "4aa89105df7e671c7ca47f8a538bb3bf23d33717175cdb15e48881abdabde563",
+      "literalCommentBytesRemoved": 2
+    }
+  ],
+  "suppliedExactPassingReceipts": [
+    {
+      "file": "prune-exact-source-regressions-receipt.json",
+      "sha256": "708e33a1ff3969b11a39e8b1af45a5fb6791c51e5ba768fe6b457d3caa963ecc",
+      "head": "b66a1f6d08e01fe2901f65cee1befe41ca8a7b65",
+      "exitCode": 0,
+      "exactCommittedSource": true
+    },
+    {
+      "file": "prune-exact-source-strict-compile-receipt.json",
+      "sha256": "f1e6a60a1219ad0d57e4678a6b4f3472b020d5a5dea14a074e2edc9a56f2a7f3",
+      "head": "b66a1f6d08e01fe2901f65cee1befe41ca8a7b65",
+      "exitCode": 0,
+      "exactCommittedSource": true
+    }
+  ],
+  "losslessOutputsVerified": [
+    {
+      "file": "prune-original-syntax-regressions-output.raw.json",
+      "rawSha256": "c3c01cdaf09dfc94fde85d97011cced6f46b596976b14cadc9254ebd9721d75e",
+      "bytes": 6381
+    },
+    {
+      "file": "prune-exact-source-regressions-output.raw.json",
+      "rawSha256": "bef1ab712b17a1d1141ba47fd1ff1102228cd5bf139e76e49be5631f7f243c16",
+      "bytes": 618
+    },
+    {
+      "file": "prune-exact-source-strict-compile-output.raw.json",
+      "rawSha256": "430900f1a0141222307f0437a59f48337d503a6c0b8e38a5d2f38cfde9ee5fb3",
+      "bytes": 2622
+    }
+  ],
+  "qualification": "Read-only source/evidence review; synthetic reader tests only; complete operator compiled/JavaScript-parsed but never executed; no database/provider/import graph/operator/native/live acceptance",
+  "remaining": "Ordinary receiving from final published layout head and review-authorized docs-only append/seal/hygiene/private draft publication; no operational execution.",
+  "candidateHead": "0aac4d308410bb5485f544863e2d4e41baf0f73b",
+  "candidateTree": "1ce7d17eab310bd71f5cf78c505d92d98a19bd3a",
+  "packetHashVerification": {
+    "indexedFiles": 17,
+    "losslessPayloads": 4,
+    "allCommittedHashesLengthsValid": true
+  },
+  "candidateFollowupDocsOnlyPaths": 18,
+  "regressionRawCounts": [
+    {
+      "file": "prune-original-syntax-regressions-output.raw.json",
+      "counts": {
+        "tests": 5,
+        "pass": 0,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "file": "prune-exact-source-regressions-output.raw.json",
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "strictCompilerObserved": {
+    "diagnostics": 0,
+    "actualProductInputsAllGitBlobsLengthsHashesExact": 4,
+    "cachedDeclarationFilesReported": 574,
+    "declarationManifestSha256Reported": "8154c5aea01507d38e22f48e5713552fbff0c09079544bb501566084f4dab8d8",
+    "noEmit": true
+  }
+}
