@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "--max-old-space-size=4096",
+    "scripts/qualify-successor-build.cjs"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 167.108,
+  "stdoutBytes": 111258,
+  "stderrBytes": 1071,
+  "stdoutSha256": "74340b2289652eb66e65353316d969741c0fabf72df339792a6de4537d4f5a43",
+  "stderrSha256": "d413b19878de360001c8fbcea0daaa05cc4593779628c7edf4a34726d48cf7e0",
+  "runnerSha256": "0fcbea3d042153ec897d32aa451a76fc543dbc928f01990c94cbf5b6aca2bc96",
+  "compressedRawBytesPreserved": true
+}
