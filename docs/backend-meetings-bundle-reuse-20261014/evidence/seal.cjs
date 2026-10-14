@@ -1,0 +1,13 @@
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const packet=path.resolve(__dirname,'..'),root=path.resolve(packet,'../..'),indexFile=path.join(packet,'SHA256-INDEX.json');
+const hash=b=>crypto.createHash('sha256').update(b).digest('hex'),git=(...a)=>cp.execFileSync('git',a,{cwd:root,maxBuffer:4*1024*1024});
+function walk(d){return fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{const p=path.join(d,e.name);if(p===indexFile)return[];if(e.isSymbolicLink())throw Error('symlink');return e.isDirectory()?walk(p):[p];});}
+if(process.argv[2]==='--write')fs.writeFileSync(indexFile,JSON.stringify({files:walk(packet).sort().map(p=>{const b=fs.readFileSync(p);return{path:path.relative(packet,p),bytes:b.length,sha256:hash(b)};})},null,2)+'\n');
+const index=JSON.parse(fs.readFileSync(indexFile));if(JSON.stringify(walk(packet).map(p=>path.relative(packet,p)).sort())!==JSON.stringify(index.files.map(f=>f.path).sort()))throw Error('inventory');
+let lossless=0;for(const f of index.files){const b=fs.readFileSync(path.join(packet,f.path));if(b.length!==f.bytes||hash(b)!==f.sha256)throw Error('payload '+f.path);if(f.path.endsWith('.lossless.json')){const v=JSON.parse(b),raw=Buffer.from(v.data,'base64');if(raw.length!==v.bytes||hash(raw)!==v.sha256)throw Error('raw '+f.path);lossless++;}}
+const r=JSON.parse(fs.readFileSync(path.join(packet,'SOURCE-RECEIPT.json')));git('merge-base','--is-ancestor',r.source.head,'HEAD');if(git('rev-parse',r.source.head+'^{tree}').toString().trim()!==r.source.tree)throw Error('tree');
+for(const f of r.source.paths){const b=git('show',r.source.head+':'+f.path);if(b.length!==f.bytes||hash(b)!==f.sha256||git('rev-parse',r.source.head+':'+f.path).toString().trim()!==f.blob||git('diff',r.source.head,'HEAD','--',f.path).length)throw Error('source '+f.path);}
+for(const f of r.preservation)if(!f.exact||f.baseBlob!==f.sourceBlob)throw Error('owner '+f.path);
+for(const name of ['08-receipt.json','10-types-receipt.json']){const c=JSON.parse(fs.readFileSync(path.join(__dirname,name)));if((c.sourceHead??c.head)!==r.source.head||c.exitCode!==0||!c.boundSourcesUnchanged)throw Error('check '+name);for(const f of c.bindings)if(hash(git('show',r.source.head+':'+f.path))!==f.sha256)throw Error('binding '+f.path);}
+const cases=JSON.parse(fs.readFileSync(path.join(packet,'CASE-COMPARISON.json')));if(cases.originalCount!==7||cases.preservedOriginal.length!==7||cases.missingOriginal.length||cases.finalCount!==28||!cases.redFinalIdentitiesMultiplicityExact)throw Error('cases');
+console.log(JSON.stringify({passed:true,payloads:index.files.length,lossless,sourcePaths:r.source.paths.length,cases:28,preserved:7}));
