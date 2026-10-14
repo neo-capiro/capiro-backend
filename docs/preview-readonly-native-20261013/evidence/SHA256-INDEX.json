@@ -51,6 +51,11 @@
       "sha256": "b424fa022e741a4bf9deb3fd851df3738f32578fdabd2addb8899f810f0ef6e6"
     },
     {
+      "path": "docs/preview-readonly-native-20261013/evidence/attempt0-publication-seal-repair.json",
+      "bytes": 404,
+      "sha256": "5083afa40417979ef810926035658d9b8bf6ce910601c6eeeb1d04520a8401a4"
+    },
+    {
       "path": "docs/preview-readonly-native-20261013/evidence/catalog-after.json",
       "bytes": 6789,
       "sha256": "591e83a937a17e2b0caf06ede9c5f9664157aa9f8a54a70ae25ba89466864ce0"
@@ -153,7 +158,7 @@
     {
       "path": "docs/preview-readonly-native-20261013/evidence/source-hygiene.json",
       "bytes": 1386,
-      "sha256": "93bb65ee4a5e38888794a73a022634cc9f7c411ccd5327cac4244bfa39b93c78"
+      "sha256": "9036c84058ffad0e769000838d6b1e2d254051d7bc3de59c314567fe151f3a91"
     }
   ]
 }

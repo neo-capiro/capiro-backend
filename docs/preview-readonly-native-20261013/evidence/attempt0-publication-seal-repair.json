@@ -1,0 +1,7 @@
+{
+  "finding": "finite local SHA index included ignored empty Shared build log absent from first native evidence commit",
+  "missing_path": "docs/preview-readonly-native-20261013/evidence/shared-build.log",
+  "bytes": 0,
+  "repair": "explicitly stage this finite empty observation; regenerate index and verify every row against Git tree before publication",
+  "source_or_native_results_changed": false
+}

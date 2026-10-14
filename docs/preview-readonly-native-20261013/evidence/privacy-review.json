@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "finite_files_scanned": 30,
+  "finite_files_scanned": 31,
   "findings": [],
   "actual_connection_inputs_not_recorded": true,
   "only_existing_local_fixture_names_and_synthetic_seed_values": true
