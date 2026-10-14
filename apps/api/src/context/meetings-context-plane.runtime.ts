@@ -451,13 +451,13 @@ export class MeetingsContextPlaneRuntime {
       }
       return;
     }
-    const original = globalThis.fetch.bind(globalThis);
+    const original = globalThis.fetch;
     const runtime = this;
     const wrapper: typeof fetch = async (input, init) => {
       const bundle = runtime.governed.getStore();
-      if (!bundle) return original(input, init);
+      if (!bundle) return original.call(globalThis, input, init);
       const url = requestUrl(input);
-      if (!isSupportedAiProviderUrl(url)) return original(input, init);
+      if (!isSupportedAiProviderUrl(url)) return original.call(globalThis, input, init);
       if (!init || typeof init.body !== 'string') {
         throw new Error('phase24_meetings_provider_body_unrecognized');
       }
@@ -469,7 +469,7 @@ export class MeetingsContextPlaneRuntime {
       }
       const injected = injectProviderBody(url, body, bundle);
       bundle.providerInjectionCount += 1;
-      return original(input, { ...init, body: JSON.stringify(injected) });
+      return original.call(globalThis, input, { ...init, body: JSON.stringify(injected) });
     };
     globals[FETCH_STATE] = { owner: this, original, wrapper };
     globalThis.fetch = wrapper;
