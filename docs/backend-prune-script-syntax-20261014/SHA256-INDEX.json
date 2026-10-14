@@ -1,0 +1,91 @@
+{
+  "contractVersion": 1,
+  "sourceOnly": true,
+  "payloads": [
+    {
+      "path": "DISCOVERY-FAILURES.json",
+      "bytes": 1576,
+      "sha256": "260b2f539f3b7e94ae4f9d5323b2be992bee1e4d1c34a63bf71db848d3d3e14c"
+    },
+    {
+      "path": "DONOR-SOURCE.lossless.json",
+      "bytes": 55497,
+      "sha256": "8f5ccc59b0319cfbe9c4dcd22b28c01b633e1f868a3687701e0aad6ea497d236"
+    },
+    {
+      "path": "EXPECTED-DELTA.json",
+      "bytes": 527,
+      "sha256": "9a071cea09ebf7b8ebf5e2ef183ada4a14249aec0c3a08afbda07981c62ecbdf"
+    },
+    {
+      "path": "HANDOFF.md",
+      "bytes": 4319,
+      "sha256": "2334fe2797a6be79dcfb44649372d529d5c6f02db609cd510b4fe70270131763"
+    },
+    {
+      "path": "SOURCE-RECEIPT.json",
+      "bytes": 1004,
+      "sha256": "b96eb09ddd48a54b8020257f9ce7ac232d08bbf677476d0cd9b05927eaf49359"
+    },
+    {
+      "path": "SQL-BYTE-PROOF.json",
+      "bytes": 947,
+      "sha256": "bf9e8384f40bed9e4a270247ffbd6c02dc5efab8f6ac2c39917edd923ab8eff3"
+    },
+    {
+      "path": "check-strict-operator.cjs",
+      "bytes": 3995,
+      "sha256": "b98c3bb1805d58002f8316e2b584fb019762d39ad612701ef9cd6672b2fc2a77"
+    },
+    {
+      "path": "evidence/prune-exact-source-regressions-output.raw.json",
+      "bytes": 961,
+      "sha256": "5955eaa84acabc1c198e9b2615776e40edc5791a13ffdd72f814510d4c088e42"
+    },
+    {
+      "path": "evidence/prune-exact-source-regressions-receipt.json",
+      "bytes": 1389,
+      "sha256": "708e33a1ff3969b11a39e8b1af45a5fb6791c51e5ba768fe6b457d3caa963ecc"
+    },
+    {
+      "path": "evidence/prune-exact-source-strict-compile-output.raw.json",
+      "bytes": 3634,
+      "sha256": "9d3e313854595b2fc6dbf3c026905d256375e2c4ce9828b36b47569ef9737a48"
+    },
+    {
+      "path": "evidence/prune-exact-source-strict-compile-receipt.json",
+      "bytes": 1376,
+      "sha256": "f1e6a60a1219ad0d57e4678a6b4f3472b020d5a5dea14a074e2edc9a56f2a7f3"
+    },
+    {
+      "path": "evidence/prune-original-syntax-regressions-output.raw.json",
+      "bytes": 8646,
+      "sha256": "e25d3d9356aeeed8e43e621578ebc086bed1182b9f0b28fc60758a51629ba6bb"
+    },
+    {
+      "path": "evidence/prune-original-syntax-regressions-receipt.json",
+      "bytes": 1545,
+      "sha256": "7c9d300883f5c27a59ae2c0e91882e97c7f92ae32b6288cd78d32f58d7e45dc4"
+    },
+    {
+      "path": "evidence/prune-source-hygiene-output.raw.json",
+      "bytes": 1986,
+      "sha256": "d215c5e10fd2dfe4f6dc79f21803991cac0520cbced59fb7a9171d95dc01fa9e"
+    },
+    {
+      "path": "evidence/prune-source-hygiene-receipt.json",
+      "bytes": 1409,
+      "sha256": "c17b4785fdb03ccd95d7aaea14cb793459c1787c23ad403d4d8d17648afd4e7b"
+    },
+    {
+      "path": "run-check.py",
+      "bytes": 2399,
+      "sha256": "f0c8f8c56d9828ba132eb71333e5b025f5fb268e36497eee36606f89aab925e2"
+    },
+    {
+      "path": "seal-packet.mjs",
+      "bytes": 5674,
+      "sha256": "d8ab7348f85cd996b9cd4f94d57648c89a7be9e32dabc48c902357d5d1678f82"
+    }
+  ]
+}
