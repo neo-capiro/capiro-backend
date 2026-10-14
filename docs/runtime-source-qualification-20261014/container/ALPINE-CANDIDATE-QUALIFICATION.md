@@ -181,3 +181,99 @@ real Sharp operation or ARM64 image qualification. Existing canvas, esbuild,
 Prisma, read-only, HTTP/TLS, signal and full-readiness gates remain in place.
 No paid attempt, dependency change, Dockerfile change or deployment is authorized
 by this source repair.
+
+## Consolidated diagnostic candidate after PR22 (target operations UNRUN)
+
+Baseline source is `2875afa0cf65053b5faa2b29e742c81cba446931`. PR22 stopped on
+`@libsql/linux-arm64-musl@0.5.29`: its real package omits `libc`, and its ELF
+DT_NEEDED contains generic `libc.so`. The static classifier therefore returned
+UNKNOWN before any native require. Absence of metadata is not proof of an ABI
+failure. The previous failure did not establish a LibSQL dispatcher failure or
+complete the remaining native inventory and dispatchers.
+
+The consolidated candidate preserves static UNKNOWN and examines an otherwise
+eligible addon only in a bounded, credential-free child. A successful require
+alone is insufficient. A runtime upgrade needs the exact addon path/hash in
+both intercepted `process.dlopen` and the child's own mapped objects, the fixed
+system musl loader's real path/hash/ARM64 ELF and positive version banner, and
+the actual loader's resolved libc dependency mapping to that same mapped musl
+object. ELF RPATH/RUNPATH and SONAME are retained in receipts; LD overrides are
+absent. Glibc, escaped/unobserved mappings, unexplained loader errors or missing
+evidence hold. The musl `--list` query may lack Node-exported symbols when run
+outside Node; only narrowly identified Node API relocation errors on the exact
+addon are explained, and the subsequent real Node load must still succeed.
+This observation mechanism has **not** been executed on the target image.
+
+The official `libsql@0.5.29` npm tarball was read without installation or
+execution and verified against frozen-lock SHA512
+`8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==`.
+Its dispatcher `index.js` SHA256 is
+`cc6f0fb815d302185ba69d4f749b423dfe304add1c58d6ff687842f8c1e39152`;
+the independently integrity-verified ARM64 musl addon is 8,731,816 bytes with
+SHA256 `e4a292a56e0b4baf88f22ab5ade36e4ea0991a11577b1c31a6fe19f5e4218fb9`.
+Both pins are checked before the fixture. The vendor dispatcher uses
+`@neon-rs/load` plus `detect-libc` to select its exact optional platform package.
+Its verified constructor/statement API supports `new Database(':memory:')`,
+`prepare('SELECT 7 AS qualification_value').get()`, and `close()`. That is the
+entire database operation: no file URI, schema/table writes, remote URL, sync,
+provider credential, migration, or live database. The actual deployed owner is
+resolved and its selected native binding must satisfy the runtime proof.
+There is no proven API dependency path to LibSQL or Sharp; these receipts are
+explicitly retained-store coverage, not application reachability claims.
+
+`--inventory-only` performs bounded filesystem observation before any addon or
+dispatcher load. It emits every retained `.node`, `.so`, schema-engine and
+ELF executable with canonical path, mode, bytes, SHA256, real owner/platform
+metadata and actual ELF/foreign-format evidence. It returns
+`DIAGNOSTIC_INVENTORY`/`INVENTORY_ONLY`, never a qualification PASS. Lockfile
+candidate families are not called installed files. Unknown/foreign/stripped or
+malformed observations remain explicit; no format or ABI is silently inferred.
+It also emits each deployed package manifest's real path, hash, byte length,
+name/version and declared os/cpu/libc before loads. Package-scope manifests
+without package identity are labelled as scope metadata; malformed or unreadable
+manifests retain error rows. Missing libc remains null. APK inventory stays in
+the runtime vendor report.
+
+Normal execution emits numbered `CORE_NATIVE_RECEIPT` records before loads,
+then independently checks Sharp, LibSQL, retained Canvas, esbuild and SWC owners,
+Prisma, every eligible raw addon, safe API imports, active bindings, dispatch,
+read-only rootfs, loopback HTTP/TLS and signal forwarding. Sharp executes first
+in its own child so another addon failure cannot suppress its real operation.
+Child limits are 30 seconds/256 KiB per output stream with a forced kill;
+failure, timeout and overflow retain bounded stdout/stderr/status/error receipts.
+Every required HOLD remains blocking in the aggregate nonzero result; diagnostic
+receipts never satisfy a successful `OFFLINE_RUNTIME` inventory join.
+
+Additional retained dispatcher coverage is conditional on actual filesystem
+owners: Canvas 0.1.80/1.0.9, esbuild 0.21.5/0.28.2, and SWC 1.16.2. Each runs a
+real bounded operation. Esbuild also resolves and executes its exact owner's
+ARM64 platform binary/version; the transform's separate service-child selection
+is explicitly not independently observed. An actually retained ONNX runtime has
+no approved offline inference model fixture; the candidate reports that missing
+dispatcher case as UNRUN/HOLD rather than downloading a model or claiming an
+inference pass. This limitation needs review against actual application scope.
+Canvas and SWC operations resolve the exact native optional owner before loading
+and use the same real-operation dlopen/mapped byte proof, including when package
+libc metadata is absent. Unexpected selected native owners hold. The API's
+pdf-parse-selected Canvas fixture also records this runtime evidence, which its
+final active-binding check revalidates; an absent libc declaration alone is not
+a false compatibility failure.
+
+Proposed single future diagnostic plan, requiring independent review and fresh
+attempt authorization: create a qualification-only runtime-base stage after all
+runtime files/identity/entrypoint are installed; retain both original final RUN
+gates unchanged in the default final stage. Build the diagnostic base locally,
+capture full inventory, and run the complete aggregate probe under the original
+read-only/network-none/cap-drop/no-new-privileges/PID/memory/noexec restrictions.
+Never push or admit the diagnostic stage. Only complete success could proceed
+to the unchanged final gates, immutable candidate push and supported full scan.
+The parent owns the candidate-recipe proposal, output persistence and packet;
+this probe change does not edit either Dockerfile or authorize any paid run.
+
+Local tests validate classification, runtime-proof rejection/acceptance rules,
+bounded real child outcomes and failure aggregation. They do not execute Linux
+native addons, LibSQL, Sharp or the target loader on this Windows host. The
+Docker Linux engine is unavailable; no daemon, WSL or replacement environment
+is started. Actual target operations, full image qualification and full API
+readiness remain UNRUN/unverified. `FULL_API_STARTUP_UNVERIFIED` still blocks
+deployment regardless of a future native or scan result.

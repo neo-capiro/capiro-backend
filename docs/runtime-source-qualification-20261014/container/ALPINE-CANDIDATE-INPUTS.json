@@ -8,5 +8,7 @@
     "variant": "v8"
   },
   "source": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
-  "pnpmLockSha256": "1e3db1a5c55918e9f64c06205c09618de85fa478818cf2277e5e4f692738376f"
+  "pnpmLockSha256": "01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c",
+  "pnpmLockHashBasis": "Exact unchanged Git blob bytes consumed by the sealed build context",
+  "historicalWindowsCRLFSha256": "1e3db1a5c55918e9f64c06205c09618de85fa478818cf2277e5e4f692738376f"
 }

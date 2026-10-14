@@ -79,7 +79,7 @@ RUN --mount=type=cache,id=pnpm-alpine324-arm64,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
 
 # -------- runtime -------------------------------------------------------------
-FROM docker.io/library/node:22.23.3-alpine3.24@sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22 AS runtime
+FROM docker.io/library/node:22.23.3-alpine3.24@sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22 AS runtime-base
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
 RUN addgroup -S -g 1001 capiro \
@@ -147,9 +147,14 @@ COPY apps/api/scripts/qualification/dispatch-fixture-node.sh /qualification/disp
 RUN chmod 0755 /qualification/dispatch-fixture/node
 USER capiro
 WORKDIR /app/apps/api
-# Validate the pruned runtime dependency graph before publishing the image.
-RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
-RUN --network=none node /qualification/alpine-runtime-probe.cjs --static
 EXPOSE 4000
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]
+
+# A local diagnostic artifact may be built from runtime-base to collect all
+# independent offline checks. It is never an admitted or publishable image.
+# The default final target retains both original mandatory build-layer gates.
+FROM runtime-base AS runtime
+# Validate the pruned runtime dependency graph before publishing the image.
+RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
+RUN --network=none node /qualification/alpine-runtime-probe.cjs --static
