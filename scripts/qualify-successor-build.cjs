@@ -4,11 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const crypto = require('node:crypto');
-const root = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
-const source = process.env.CAPIRO_SUCCESSOR_REF || 'd15bba2cd75a8d36743e5d7a10eda346e4e48e2a';
+const repositoryRoot = cp.execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+const source = process.env.CAPIRO_SUCCESSOR_REF || 'HEAD';
 const dependencyRoot = process.env.CAPIRO_SUCCESSOR_DEPENDENCY_ROOT || '/workspace/capirov2';
+// Use the cache's normal absolute package namespace without reading its private source.
+// Every selected application/library source read is still overridden by exact Git blobs.
+const root = dependencyRoot;
 const ts = require(require.resolve('typescript', { paths: [dependencyRoot] }));
-const git = (...args) => cp.execFileSync('git', args, { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+const git = (...args) => cp.execFileSync('git', args, { cwd: repositoryRoot, maxBuffer: 256 * 1024 * 1024 });
 const owners = ['packages/shared', 'packages/auth', 'packages/meriv2-core',
   'packages/defense-contracts', 'packages/defense-domain', 'packages/strategy-verifier',
   'apps/api', 'apps/workspace', 'apps/api-strategy', 'apps/intel-api'];
@@ -17,7 +20,7 @@ const entries = new Map(git('ls-tree', '-rz', source, '--', 'tsconfig.base.json'
     const [meta, file] = row.split('\t'); return [file, meta.split(' ')[2]];
   }).filter(([file]) => /\.(?:ts|json)$/.test(file)));
 const blobs = [...new Set(entries.values())];
-const batch = cp.spawnSync('git', ['cat-file', '--batch'], { cwd: root,
+const batch = cp.spawnSync('git', ['cat-file', '--batch'], { cwd: repositoryRoot,
   input: blobs.join('\n') + '\n', maxBuffer: 256 * 1024 * 1024 });
 if (batch.status !== 0) throw new Error('Git source batch failed');
 const texts = new Map(); let cursor = 0;
@@ -49,11 +52,14 @@ function read(file) {
   if (outputs.has(name)) return outputs.get(name);
   const sha = entries.get(name);
   if (sha) { consumed.add(name); return texts.get(sha); }
+  if ((name.startsWith('apps/') || name.startsWith('packages/')) &&
+      !name.includes('/node_modules/') &&
+      ![...generated.keys()].some((prefix) => name.startsWith(prefix))) return undefined;
   const target = physical(file), text = ts.sys.readFile(target);
   if (text !== undefined) fallback.set(target, crypto.createHash('sha256').update(text).digest('hex'));
   return text;
 }
-const exists = (file) => outputs.has(relative(file)) || entries.has(relative(file)) || ts.sys.fileExists(physical(file));
+const exists = (file) => read(file) !== undefined;
 const directoryExists = (file) => directories.has(relative(file)) || ts.sys.directoryExists(physical(file));
 function fileSystemEntries(directory) {
   const name = relative(directory), prefix = name === '.' ? '' : name + '/';
@@ -67,8 +73,27 @@ function fileSystemEntries(directory) {
 const packages = new Map(owners.filter((owner) => owner.startsWith('packages/')).map((owner) => {
   const pkg = JSON.parse(read(path.join(root, owner, 'package.json'))); return [pkg.name, { pkg, owner }];
 }));
+// These exact declared packages exist in the cache but lack application links.
+// Never substitute a different parser/version, install or mutate the cache.
+const workspacePackage = JSON.parse(read(path.join(root, 'apps/workspace/package.json')));
+const cachePackage = (location, name, version) => {
+  const manifest = JSON.parse(read(path.join(dependencyRoot, location, 'package.json')));
+  if (manifest.name !== name || manifest.version !== version) throw new Error('Cached package mismatch: ' + name);
+  return { location, manifest };
+};
+const sanitizer = cachePackage('node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html',
+  'sanitize-html', workspacePackage.dependencies['sanitize-html']);
+const sanitizerTypes = cachePackage('node_modules/.pnpm/@types+sanitize-html@2.16.1/node_modules/@types/sanitize-html',
+  '@types/sanitize-html', '2.16.1');
+const sharp = cachePackage('node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp',
+  'sharp', workspacePackage.dependencies.sharp);
+const explicitCachedModules = new Map([
+  ['sanitize-html', path.join(root, sanitizerTypes.location, 'index.d.ts')],
+  ['sharp', path.join(root, sharp.location, sharp.manifest.exports['.'].require.types)],
+]);
 const receipts = [];
-for (const owner of owners) {
+for (const owner of owners.filter((item) => !process.env.CAPIRO_SUCCESSOR_OWNER ||
+    item.startsWith('packages/') || item === process.env.CAPIRO_SUCCESSOR_OWNER)) {
   const configName = owner + (owner.startsWith('apps/') ? '/tsconfig.build.json' : '/tsconfig.json');
   const parsed = ts.getParsedCommandLineOfConfigFile(path.join(root, configName), {}, {
     ...ts.sys, readFile: read, fileExists: exists, directoryExists,
@@ -85,11 +110,15 @@ for (const owner of owners) {
     return target.startsWith(dependencyRoot + path.sep)
       ? path.join(root, path.relative(dependencyRoot, target)) : target;
   };
-  host.getDirectories = (directory) => ts.sys.getDirectories(physical(directory));
+  host.getDirectories = (directory) => ts.sys.getDirectories(physical(directory)).map((target) =>
+    target.startsWith(dependencyRoot + path.sep)
+      ? path.join(root, path.relative(dependencyRoot, target)) : target);
   host.getSourceFile = (file, languageVersion) => {
     const text = read(file); return text === undefined ? undefined : ts.createSourceFile(file, text, languageVersion, true);
   };
   host.resolveModuleNames = (names, containingFile) => names.map((name) => {
+    if (relative(containingFile).startsWith('apps/workspace/') && explicitCachedModules.has(name))
+      return { resolvedFileName: explicitCachedModules.get(name), extension: name === 'sharp' ? ts.Extension.Dcts : ts.Extension.Dts, isExternalLibraryImport: true };
     if (name === '@prisma/client' && relative(containingFile).startsWith('apps/api/'))
       return { resolvedFileName: path.join(root, 'apps/api/node_modules/@prisma/client/index.d.ts'),
         extension: ts.Extension.Dts, isExternalLibraryImport: true };
@@ -133,7 +162,7 @@ for (const owner of owners) {
   receipts.push(result); process.stderr.write(`${owner}: ${all.length} diagnostics, ${written.length} outputs\n`);
 }
 const receipt = { source, tree: git('rev-parse', source + '^{tree}').toString().trim(), typescript: ts.version,
-  node: process.version, dependencyRoot, programs: receipts,
+  node: process.version, dependencyRoot, explicitCachedModules: [...explicitCachedModules], programs: receipts,
   sourceFilesConsumed: consumed.size, sourceManifestSha256: crypto.createHash('sha256')
     .update(JSON.stringify([...consumed].sort().map((file) => [file, entries.get(file)]))).digest('hex'),
   cachedFilesConsumed: fallback.size, cachedManifestSha256: crypto.createHash('sha256')

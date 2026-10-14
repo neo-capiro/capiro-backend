@@ -1,0 +1,21 @@
+{
+  "source": "e6d027c1faca5a4338aa5b748aba82bbe7477f3b",
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "tests/successor-capture-bootstrap.test.cjs"
+  ],
+  "sanitizedEnvironmentNames": [
+    "CAPIRO_SUCCESSOR_REF",
+    "NODE_ENV",
+    "PATH"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 3.229,
+  "stdoutBytes": 6094,
+  "stdoutSha256": "507a493534b5bdee101b2274c973de531b7fc68a1bc3809c9c7c88e5435b5ec7",
+  "stderrBytes": 0,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Real Nest CaptureModule DI compilation and source factory invocation; Prisma/storage/provider/capture execution mocked. No full app init, native/HTTP/database/provider/AWS/install execution."
+}

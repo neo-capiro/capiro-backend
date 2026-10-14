@@ -58,18 +58,27 @@ test('credential failure is not cached across a fresh capture run', async () => 
   } finally { FfmpegDeepgramCaptureRuntime.prototype.run = previous; }
 });
 test('cancelled work does not resolve a credential or dispatch after the await', async () => {
-  let resolved = 0; const controller = new AbortController(); controller.abort();
-  const runtime = provider.useFactory({ resolve: async () => { resolved++; return credential(); } }, {}, {});
-  await assert.rejects(runtime.run({ ...input(), signal: controller.signal })); assert.equal(resolved, 0);
-  const during = new AbortController();
-  const later = provider.useFactory({ resolve: async () => { during.abort(); return credential(); } }, {}, {});
-  await assert.rejects(later.run({ ...input(), signal: during.signal }));
+  const previous = FfmpegDeepgramCaptureRuntime.prototype.run; let dispatched = 0;
+  FfmpegDeepgramCaptureRuntime.prototype.run = async () => { dispatched++; return { capturedMs: 0, gaps: [] }; };
+  try {
+    let resolved = 0; const controller = new AbortController(); controller.abort();
+    const runtime = provider.useFactory({ resolve: async () => { resolved++; return credential(); } }, {}, {});
+    await assert.rejects(runtime.run({ ...input(), signal: controller.signal })); assert.equal(resolved, 0);
+    const during = new AbortController();
+    const later = provider.useFactory({ resolve: async () => { during.abort(); return credential(); } }, {}, {});
+    await assert.rejects(later.run({ ...input(), signal: during.signal })); assert.equal(dispatched, 0);
+  } finally { FfmpegDeepgramCaptureRuntime.prototype.run = previous; }
 });
 test('existing public-capture billing and identity invariants remain required', async () => {
-  for (const change of [{ billingMode: 'TENANT_BYOK' }, { tenantId: 'synthetic-tenant' }, { apiKey: '' }]) {
-    const runtime = provider.useFactory({ resolve: async () => ({ ...credential(), ...change }) }, {}, {});
-    await assert.rejects(runtime.run(input()));
-  }
+  const previous = FfmpegDeepgramCaptureRuntime.prototype.run; let dispatched = 0;
+  FfmpegDeepgramCaptureRuntime.prototype.run = async () => { dispatched++; return { capturedMs: 0, gaps: [] }; };
+  try {
+    for (const change of [{ billingMode: 'TENANT_BYOK' }, { tenantId: 'synthetic-tenant' }, { apiKey: '' }]) {
+      const runtime = provider.useFactory({ resolve: async () => ({ ...credential(), ...change }) }, {}, {});
+      await assert.rejects(runtime.run(input()));
+    }
+    assert.equal(dispatched, 0);
+  } finally { FfmpegDeepgramCaptureRuntime.prototype.run = previous; }
 });
 test('exact source receipt and declared inert boundaries', (t) => {
   t.diagnostic(JSON.stringify({ ref: loader.ref, source: [...loader.consumed],

@@ -1,0 +1,25 @@
+{
+  "source": "e6d027c1faca5a4338aa5b748aba82bbe7477f3b",
+  "tree": "8ac0144e81a838c1ae7a9bea83d40eae11193197",
+  "testSha256": "b2ab8e1ac7d78899b1e54d894248f426ef11a8503d891bee1ff9ab8b586cfc10",
+  "loaderSha256": "b9127a2ce6685b836ac99bd17b2b859afd44dd39d419823c5e7b47d8697c7e84",
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "tests/successor-capture-bootstrap.test.cjs"
+  ],
+  "sanitizedEnvironmentNames": [
+    "AWS_EC2_METADATA_DISABLED",
+    "CAPIRO_SUCCESSOR_REF",
+    "NODE_ENV",
+    "PATH"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 2.376,
+  "stdoutBytes": 6096,
+  "stdoutSha256": "a5e2997b662032f1a35f0a0cb80440a6c5c33225284aa02f299f840e0a82fbc6",
+  "stderrBytes": 0,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Real CaptureModule Nest DI compile and existing factory invocation; Prisma/storage/provider/capture execution mocked. Strengthened cancellation/invariant assertions prove zero dispatch. No full app init/native/HTTP/database/provider/AWS/install."
+}
