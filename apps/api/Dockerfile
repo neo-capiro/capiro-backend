@@ -79,10 +79,14 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
+# The Node slim base already contains perl-base. Installing unrelated runtime
+# packages does not upgrade it; require the Bookworm security backport.
 RUN groupadd --system --gid 1001 capiro \
  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
  && apt-get update \
  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
+ && apt-get install -y --no-install-recommends --only-upgrade perl-base \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' perl-base)" ge '5.36.0-7+deb12u4' \
  && rm -rf /var/lib/apt/lists/*
 # tsx (used by entrypoint.sh to run scripts/sync-*.ts as ECS one-off tasks)
 # needs writable scratch space for its IPC server. Keep image-local fallbacks for
