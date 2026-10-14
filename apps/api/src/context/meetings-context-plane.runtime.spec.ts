@@ -446,6 +446,10 @@ function realServiceComposition(kind: 'stored' | 'inferred' | 'internal' | 'manu
   }) };
   const sharedGateway = { requestContext: jest.fn(async (input: { contextRequest: { clientId?: string } }) => {
     const result = gatewayResult(); (result.packet as any).clientId = input.contextRequest.clientId ?? null;
+    (result.context as any).resolution.uiContext = { currentObject: { type: 'meeting', id: MEETING } };
+    (result.context as any).resolution.subjectScope = input.contextRequest.clientId
+      ? { kind: 'client', source: 'explicit', clientIds: [input.contextRequest.clientId] }
+      : { kind: 'general', source: 'explicit', clientIds: [] };
     (result.packet as any).rendered = [{ body: 'FIRST-CANONICAL-PACKET' }]; return result;
   }) };
   const associations = { associate: jest.fn(async () => ({ clientId: CLIENT })) };
