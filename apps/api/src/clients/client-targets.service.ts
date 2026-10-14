@@ -1,9 +1,26 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { isUUID } from 'class-validator';
+import {
+  ClientObjectiveDestinationError,
+  requireClientObjectiveDestinationRevision,
+  type ClientObjectiveRevisionBinding,
+  type TenantContext,
+} from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService } from '../directory/directory.service.js';
 import type { DirectoryStaffDetail } from '../directory/directory-detail.types.js';
 import { RepresentationResolverService } from './representation-resolver.service.js';
+import {
+  normalizeObjectiveDestination,
+  type ObjectiveDestinationQueryDto,
+} from './objectives/objective-destination.js';
+
+interface SavedDirectoryTarget {
+  id: string;
+  clientId: string;
+  sourceDirectory: 'congress' | 'state' | 'staff';
+  memberId: string;
+}
 
 export interface AddTargetInput {
   memberId: string;
@@ -89,6 +106,73 @@ export class ClientTargetsService {
     private readonly directory: DirectoryService,
     private readonly representation: RepresentationResolverService,
   ) {}
+
+  /** Observe a saved client target, not a current Directory entity or stored Objective link. */
+  async objectiveDestination(
+    ctx: TenantContext,
+    clientId: string,
+    targetId: string,
+    input: ObjectiveDestinationQueryDto,
+  ) {
+    const binding = normalizeObjectiveDestination(input);
+    const pathClientId = normalizeObjectiveDestination({ ...input, clientId }).clientId;
+    if (pathClientId !== binding.clientId || !isUUID(targetId)) {
+      throw new BadRequestException('Invalid Objective destination binding');
+    }
+    const resourceId = targetId.toLowerCase();
+    try {
+      return await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        let objective: ClientObjectiveRevisionBinding | ClientObjectiveDestinationError;
+        try {
+          // Existing authority locks the client before its target, matching parent cascade order.
+          objective = await requireClientObjectiveDestinationRevision(tx, ctx, binding);
+        } catch (error) {
+          // An unavailable target must not disclose an otherwise authorized stale Objective.
+          if (!(error instanceof ClientObjectiveDestinationError) || error.code !== 'OBJECTIVE_VERSION_CONFLICT') {
+            throw error;
+          }
+          objective = error;
+        }
+        const rows = await tx.$queryRaw<SavedDirectoryTarget[]>`
+          SELECT id::text AS id, client_id::text AS "clientId",
+            source_directory AS "sourceDirectory", member_id AS "memberId"
+          FROM client_targets
+          WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${binding.clientId}::uuid
+            AND id=${resourceId}::uuid FOR SHARE
+        `;
+        const target = rows[0];
+        if (
+          rows.length !== 1 || !target || target.id !== resourceId || target.clientId !== binding.clientId ||
+          !['congress', 'state', 'staff'].includes(target.sourceDirectory) ||
+          typeof target.memberId !== 'string' || !target.memberId.trim() || target.memberId.length > 128
+        ) {
+          throw new NotFoundException('Objective destination not found');
+        }
+        if (objective instanceof ClientObjectiveDestinationError) throw objective;
+        return {
+          destination: { kind: 'directory_target' as const, resourceId: target.id, ...objective },
+          target: {
+            id: target.id, clientId: target.clientId,
+            sourceDirectory: target.sourceDirectory, memberId: target.memberId,
+          },
+        };
+      });
+    } catch (error) {
+      if (error instanceof ClientObjectiveDestinationError) {
+        if (error.code === 'OBJECTIVE_VERSION_CONFLICT') {
+          throw new ConflictException({
+            code: 'OBJECTIVE_VERSION_CONFLICT',
+            message: 'The Objective changed. Refresh before opening this saved target.',
+          });
+        }
+        if (error.code === 'OBJECTIVE_DESTINATION_INVALID') {
+          throw new BadRequestException('Invalid Objective destination binding');
+        }
+        throw new NotFoundException('Objective destination not found');
+      }
+      throw error;
+    }
+  }
 
   private async assertClient(tx: any, ctx: TenantContext, clientId: string) {
     const client = await tx.client.findFirst({
