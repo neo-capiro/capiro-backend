@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import * as ts from 'typescript';
+import { retainedWatchlistAsset } from './fixtures/tracker-watchlist-ownership-guard/semantic.js';
 import {
   retainedIntelActionAsset,
   trackerBoardFixedPaths as fixedPaths,
@@ -66,7 +67,7 @@ const pins = {
   originalData: 'deb83545b4976147bf9bdbca9bf3ab59f214de83313170999a7b38b4bd523ec3',
   moduleWiring: '596120b8195e9fea987edd8a880f75811d518696e09619487308e6d2508d589d',
   publicHelpers: 'f72ffd327953adc480d51cd40c116a8a9ee316141dccc2287d86b7763f90af8e',
-  fixedAssets: 'f919723ead2b8670cd11550dfe4bda407da2d23c007dc15153ea40546940e10d',
+  fixedAssets: 'b94ff8225cb4c05402d0f83f7571d332afdd124c173ea5aaa2a5d8c619f3a2a7',
 };
 
 function hash(bytes: string | Buffer): string {
@@ -366,9 +367,14 @@ it('keeps all eight original standalone helpers in their exact single canonical 
 
 it('retains positive controller, DTO, module, source, compiler, watchlist, worker and original-test identities', () => {
   const actual = fixedPaths
-    .filter((path) => path !== 'apps/intel-api/src/tracker/change-detector.util.ts')
+    .filter(
+      (path) =>
+        path !== 'apps/intel-api/src/tracker/change-detector.util.ts' &&
+        path !== 'apps/intel-api/src/tracker/tracker-watchlist.service.ts',
+    )
     .map((path) => ({ path, sha256: hash(readFileSync(join(root, path))) }));
-  expect(actual).toHaveLength(39);
+  expect(actual).toHaveLength(38);
   expect(digest(actual)).toBe(pins.fixedAssets);
   expect(retainedIntelActionAsset(root)).toBe(true);
+  expect(retainedWatchlistAsset(root)).toBe(true);
 });
