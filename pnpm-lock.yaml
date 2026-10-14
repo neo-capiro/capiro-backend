@@ -144,6 +144,9 @@ importers:
       pptxgenjs:
         specifier: ^3
         version: 3.12.0
+      prisma:
+        specifier: ^5.20.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -223,9 +226,6 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))
-      prisma:
-        specifier: ^5.20.0
-        version: 5.22.0
       supertest:
         specifier: ^7.3.0
         version: 7.3.0
@@ -298,6 +298,9 @@ importers:
       pptxgenjs:
         specifier: ^3
         version: 3.12.0
+      prisma:
+        specifier: ^5.20.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -338,9 +341,6 @@ importers:
       jszip:
         specifier: ^3.10.2
         version: 3.10.2
-      prisma:
-        specifier: ^5.20.0
-        version: 5.22.0
       supertest:
         specifier: ^7.3.0
         version: 7.3.0
@@ -501,6 +501,9 @@ importers:
       express:
         specifier: ^4.21.0
         version: 4.22.1
+      prisma:
+        specifier: ^5.20.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -541,9 +544,6 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))
-      prisma:
-        specifier: ^5.20.0
-        version: 5.22.0
       supertest:
         specifier: ^7.3.0
         version: 7.3.0
@@ -980,6 +980,9 @@ importers:
       pdfkit:
         specifier: ^0.20.2
         version: 0.20.2
+      prisma:
+        specifier: ^5.20.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -1026,9 +1029,6 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))
-      prisma:
-        specifier: ^5.20.0
-        version: 5.22.0
       supertest:
         specifier: ^7.3.0
         version: 7.3.0

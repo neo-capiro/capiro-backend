@@ -90,9 +90,7 @@ case "${1:-serve}" in
   migrate)
     compose_database_url
     echo "Running prisma migrate deploy (failed migration history is never auto-resolved)"
-    node ./node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma
-    echo "Seeding workflow templates"
-    exec ./node_modules/.bin/tsx prisma/seed-workflows.ts
+    exec node ./node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma
     ;;
 
   sync-florida-official-committees)
