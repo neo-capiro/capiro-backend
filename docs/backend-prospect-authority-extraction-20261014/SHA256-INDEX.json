@@ -3,19 +3,24 @@
   "sourceOnly": true,
   "payloads": [
     {
+      "path": "CACHE-CUSTODY.json",
+      "bytes": 975,
+      "sha256": "f0a625a73317c25d470f1ddd2d85ba18d5d33f2b526f8756a999247370866c7a"
+    },
+    {
       "path": "CASE-COMPARISON.json",
       "bytes": 110746,
-      "sha256": "a2a57f8ef3e29874637b7f6cc61113ff05ac69acdc3fef7be531f12b77e2be59"
+      "sha256": "74861c565b1f4dee250d66d69f90f2b741cfd8701007d18016c22b70cf15fa54"
     },
     {
       "path": "HANDOFF.md",
-      "bytes": 5121,
-      "sha256": "cba22a972ea55620e3b25042d00bae8ca9fbee2077df4a62aeaa733ed8cd5f1b"
+      "bytes": 5586,
+      "sha256": "b1d2083e1ac663acc3467937aa67796df2ed9c77d33f7edc536b0dccedb8d8c7"
     },
     {
       "path": "SOURCE-RECEIPT.json",
-      "bytes": 1964,
-      "sha256": "4de790dfcc4675cc00e90a69a71b77209389a137bc995894c78d0167548363d4"
+      "bytes": 2023,
+      "sha256": "7a1e4432ebabd9849bfd7170cbdc4fc6b9158be15172bbf710575b58d02e7ddb"
     },
     {
       "path": "check-narrow-types.cjs",
@@ -88,6 +93,51 @@
       "sha256": "2f179478fd2080027d11203de6b12b99923aaf06d97788bc6b6d1db5c07c9cd8"
     },
     {
+      "path": "evidence/prospect-final-narrow-emit-output.raw.json",
+      "bytes": 41279,
+      "sha256": "2a54c02ad48741a23115b0e257fb90476ba953d12407280bda6bdc69714d6c41"
+    },
+    {
+      "path": "evidence/prospect-final-narrow-emit-receipt.json",
+      "bytes": 1396,
+      "sha256": "f2eb0fe8e1b3529d624b43f84865dd40efe0a0438a665521b87325f948723614"
+    },
+    {
+      "path": "evidence/prospect-final-source-comparison-output.raw.json",
+      "bytes": 1746,
+      "sha256": "8a8ecad1ae52f7ca8ac3cc6b465b20a18b7c41674071760a7aa3a5c5907d9e2d"
+    },
+    {
+      "path": "evidence/prospect-final-source-comparison-receipt.json",
+      "bytes": 1382,
+      "sha256": "f3e74be49a111fedbd875e5c89dc8d748122f0cdde8abe0692c09ae3c24a64f8"
+    },
+    {
+      "path": "evidence/prospect-final-source-hygiene-output.raw.json",
+      "bytes": 1986,
+      "sha256": "a626dc538717f5974a60056251cedd5d3b0816cf178f91894713bd77a6476db6"
+    },
+    {
+      "path": "evidence/prospect-final-source-hygiene-receipt.json",
+      "bytes": 1424,
+      "sha256": "449ff48b944ae6220dd53295f5fdeeb5ad80fb7c95867d1e30e44bf4a58b7dfb"
+    },
+    {
+      "path": "evidence/prospect-final-source-output.raw.json",
+      "bytes": 6646,
+      "sha256": "a47af4d17a4ed77c3b71fde204853948e1d56c9c2dd525ef15bda0b8dd77b9e5"
+    },
+    {
+      "path": "evidence/prospect-final-source-receipt.json",
+      "bytes": 2038,
+      "sha256": "c00ced560ef33b761f1a507c7b6100edcdaf1861986088f284a34e935fd0989c"
+    },
+    {
+      "path": "evidence/prospect-final-source-results.json",
+      "bytes": 65767,
+      "sha256": "047bd3d4c3350200ec5737de6fe5acb9480455ea5d378aa77ee272f8b7422948"
+    },
+    {
       "path": "evidence/prospect-fixture-corrected-source-output.raw.json",
       "bytes": 6662,
       "sha256": "5754e031db8ee43fc489ba0224d014135d660228c36922ba821e61e1c2aad960"
@@ -133,6 +183,26 @@
       "sha256": "0f1bbd4a85b59d989625f8912398285c82c4e42bfc31e0e60761a06463f84b3a"
     },
     {
+      "path": "evidence/prospect-source-hygiene-corrected-output.raw.json",
+      "bytes": 653,
+      "sha256": "de8190116ef40bd4671411a81fcf5c68834e750706d0e2f4157ab3768f655f0d"
+    },
+    {
+      "path": "evidence/prospect-source-hygiene-corrected-receipt.json",
+      "bytes": 1428,
+      "sha256": "34181db01f1713b3c5391d621b3a7b584c544d67e9926dc41d8b7df3e3aab319"
+    },
+    {
+      "path": "evidence/prospect-source-hygiene-output.raw.json",
+      "bytes": 268,
+      "sha256": "59ee59353a5d972d16172291963fc4ae3ee216a891260ffe271ef6c49f952bd8"
+    },
+    {
+      "path": "evidence/prospect-source-hygiene-receipt.json",
+      "bytes": 1390,
+      "sha256": "a624dbf39dae076ac9896860941bd1afa751243b7ea72caa9d23e686c7f466a4"
+    },
+    {
       "path": "narrow-emitted-source.tar.gz",
       "bytes": 141859,
       "sha256": "b04b6e1552cfe63bdc864f0436d6b53bebf2c85702469f80cf9dde5bcee6cfeb"
@@ -144,8 +214,8 @@
     },
     {
       "path": "seal-packet.mjs",
-      "bytes": 4894,
-      "sha256": "2b9ebe8da04fd5d8a5c638e58724bb4e0383e3ecec77e4da74bc98b8ca566084"
+      "bytes": 4888,
+      "sha256": "b8cb7099812b2d742c59dbfebbce7201c110b5e7757e6f7c236883c4561a4284"
     },
     {
       "path": "source-jest.config.cjs",

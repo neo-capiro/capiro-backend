@@ -1087,7 +1087,7 @@
     },
     {
       "suite": "application-authority.spec.ts",
-      "title": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=1791953550732",
+      "title": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=1791953806277",
       "normalizedTitle": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=<FUTURE_MS>",
       "status": "passed"
     },

@@ -51,10 +51,10 @@ for (const row of source.sourceDelta) {
 const comparison = JSON.parse(read('CASE-COMPARISON.json').toString());
 assert.equal(comparison.originalCount, 146); assert.equal(comparison.afterCount, 150);
 assert.equal(comparison.originalCaseIdentitiesAndMultiplicityRetained, true);
-const results = JSON.parse(read('evidence/prospect-fixture-corrected-source-results.json').toString());
+const results = JSON.parse(read('evidence/prospect-final-source-results.json').toString());
 assert.equal(results.numPassedTests, 150); assert.equal(results.numFailedTests, 0);
 assert.equal(results.numPendingTests, 0); assert.equal(results.numPassedTestSuites, 7);
-const emit = JSON.parse(rawOutputs.get('evidence/prospect-narrow-emit-output.raw.json').toString());
+const emit = JSON.parse(rawOutputs.get('evidence/prospect-final-narrow-emit-output.raw.json').toString());
 assert.equal(emit.result, 'pass'); assert.equal(emit.sourceRows.length, 34);
 assert.equal(emit.artifacts.length, 136); assert.equal(emit.artifacts.filter((row) => row.path.endsWith('.js')).length, 34);
 const archive = read('narrow-emitted-source.tar.gz');

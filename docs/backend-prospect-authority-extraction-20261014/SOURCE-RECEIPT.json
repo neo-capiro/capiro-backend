@@ -1,9 +1,8 @@
 {
   "baseHead": "afff08b0342985e3a8050a5fb4cd843741a720a5",
   "baseTree": "403c6f22ce6602f98e3bc45943b81684eeb716fb",
-  "sourceHead": "c1ccc2ec49991bda6cb3c815108396cac38071aa",
-  "sourceTree": "3358d56a7f005c0f6116af2104c29379cb8006e4",
-  "preservedIntermediateSourceHead": "bbedaa45673c28018e6c7d13f4a5f4d7c30389e5",
+  "sourceHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+  "sourceTree": "baf1fc9349a0823add4873bc1840b745bf62e920",
   "sourceDelta": [
     {
       "path": "apps/api/src/auth/application-authority-boundary.spec.ts",
@@ -31,9 +30,9 @@
     },
     {
       "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
-      "blob": "b787d1352c29adb3dbef03f73a361e6d4b2bc8ea",
-      "bytes": 1634,
-      "sha256": "b8dae60639d5e738deba734891ad7a8fb12b97bf095834a4d258ddc1f066dc14"
+      "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada",
+      "bytes": 1633,
+      "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94"
     },
     {
       "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
@@ -44,5 +43,9 @@
   ],
   "productionPathCount": 3,
   "testPathCount": 3,
-  "noSchemaMigrationPackageLockAuthPolicyRuntimeRetirement": true
+  "noSchemaMigrationPackageLockAuthPolicyRuntimeRetirement": true,
+  "preservedIntermediateSourceHeads": [
+    "bbedaa45673c28018e6c7d13f4a5f4d7c30389e5",
+    "c1ccc2ec49991bda6cb3c815108396cac38071aa"
+  ]
 }
