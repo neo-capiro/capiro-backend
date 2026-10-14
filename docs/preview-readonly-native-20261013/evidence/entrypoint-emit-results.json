@@ -1,0 +1,15 @@
+{
+  "source_head": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "compiler_config": "apps/api/tsconfig.build.json",
+  "root_selection": "only exact preview-main.ts and resolved canonical dependencies",
+  "production_compiler_options_preserved": true,
+  "rootDir": "/tmp/capiro-backend-preview-native-20261013/apps/api/src",
+  "outDir": "/tmp/capiro-backend-preview-native-20261013/apps/api/dist",
+  "diagnostics": 0,
+  "emitted_files": 38,
+  "relative_emitted_entrypoint": "apps/api/dist/preview-readonly/preview-main.js",
+  "image_entrypoint": "/app/apps/api/dist/preview-readonly/preview-main.js",
+  "extra_src_path_absent": true,
+  "emitted_sha256": "74f3711e578160d7d5c062df75df02d50430ad0bf547dc50e1654c15ee7699e1",
+  "whole_api_build_or_image_qualified": false
+}

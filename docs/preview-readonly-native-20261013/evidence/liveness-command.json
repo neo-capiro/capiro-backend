@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "node",
+    "evidence/liveness-probe.cjs"
+  ],
+  "exit_code": 0,
+  "actual_emitted_code": true,
+  "fake_database_and_clerk_ports": true,
+  "attempt0_failure": "launcher resolved API-only reflect-metadata from repository root; fixed exact API-relative module path"
+}

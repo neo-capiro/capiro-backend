@@ -1,0 +1,28 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("reflect-metadata");
+const core_1 = require("@nestjs/core");
+const common_1 = require("@nestjs/common");
+const preview_config_js_1 = require("./preview.config.js");
+const prisma_service_js_1 = require("../prisma/prisma.service.js");
+const preview_module_js_1 = require("./preview.module.js");
+const preview_route_policy_js_1 = require("./preview.route-policy.js");
+async function bootstrap() {
+    const config = (0, preview_config_js_1.previewConfig)(process.env);
+    const app = await core_1.NestFactory.create(preview_module_js_1.PreviewReadOnlyModule.register(config), { bufferLogs: true });
+    // Mounted before request parsing/controller dispatch. No public callbacks,
+    // webhooks, workers, schedules, upload handlers, or provider modules exist here.
+    app.use(preview_route_policy_js_1.previewRoutePolicy);
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(new common_1.ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
+    app.enableShutdownHooks();
+    await app.init();
+    await app.get(prisma_service_js_1.PrismaService).withPreviewReadOnly(config.preview.PREVIEW_TENANT_ID, async () => undefined);
+    await app.listen(config.app.API_PORT, config.app.API_BIND_HOST);
+}
+bootstrap().catch(() => {
+    // Connection exceptions may contain credential-bearing URLs; never echo them.
+    console.error('Preview startup refused');
+    process.exit(1);
+});
+//# sourceMappingURL=preview-main.js.map

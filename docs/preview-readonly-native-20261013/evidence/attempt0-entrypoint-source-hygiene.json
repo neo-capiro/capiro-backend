@@ -1,0 +1,12 @@
+{
+  "sourceHygiene": "FAIL",
+  "base": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "checkedPaths": 55,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "rawArchivesClassified": [],
+  "checkedDiagnostics": "docs/preview-readonly-native-20261013/evidence/attempt0-entrypoint-emit.stderr:5: new blank line at EOF.\n",
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+}

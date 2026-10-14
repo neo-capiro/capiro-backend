@@ -30,6 +30,8 @@ Then run the actual preview identity/controller path with synthetic Clerk verifi
 | live Clerk, dedicated reader credentials, image/bootstrap/deployment | separate coordinator/runtime-owner decision | not qualified or executed |
 | protected EngagementService | no source or branch/body access | independent and unchanged |
 
+The [Docker entrypoint/listening correction](RUNTIME-ENTRYPOINT-CORRECTION.md) confirms the emitted image path is `/app/apps/api/dist/preview-readonly/preview-main.js` and requires an explicit dumb-init/node entryPoint plus that command to bypass serve. Actual emitted-module HTTP testing confirms the denied `/api/__preview_liveness` 403 is listening-only, with zero auth/database calls and no native-readiness claim.
+
 The [physical-column correction](RUNTIME-PERMISSIONS-CORRECTION.md) is relevant immediately to runtime permission review. In particular tenant settings is `settings_jsonb`, not `settings` in SQL. The PR2 API queries already use Prisma's correct mapping; product source requires no repair for this finding.
 
 The first launcher returned one because an optional final cat looked for a failure file that did not exist after a successful probe. Its raw results/trace and wrapper discrepancy are retained. The instrumented final run records explicit exit zero and native statement events. No assertion or test was removed. No staging environment is assumed, and no AWS, provider, production permission, deployment, main merge or unrelated database operation occurred.

@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "node",
+    "evidence/liveness-probe.cjs"
+  ],
+  "exit_code": 1,
+  "actual_emitted_code": true,
+  "fake_database_and_clerk_ports": true
+}

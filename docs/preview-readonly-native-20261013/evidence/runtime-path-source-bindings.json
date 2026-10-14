@@ -1,0 +1,40 @@
+{
+  "source_head": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "files": [
+    {
+      "path": "apps/api/Dockerfile",
+      "git_tree_row": "100644 blob dcbb443eeccc9ad4adef2899ed1e4552d6d065af\tapps/api/Dockerfile",
+      "sha256": "1a3bbedc1cd19dd7803898fa1b245b65b561371af88900226adc37f21e49b1a0"
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "git_tree_row": "100644 blob 6c60698125878c4497d68ea8d6d7f32496dd8cae\tapps/api/tsconfig.json",
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220"
+    },
+    {
+      "path": "apps/api/tsconfig.build.json",
+      "git_tree_row": "100644 blob 7dd226f439717a3af68152f01118a60b2e8671fd\tapps/api/tsconfig.build.json",
+      "sha256": "82b0f27140205492fc41d757c026455fc2d82a5c2fefb43dc27cbd951d06afaf"
+    },
+    {
+      "path": "apps/api/nest-cli.json",
+      "git_tree_row": "100644 blob 2f068a1e1ced8df87217cd28c62fcae3a3d319b4\tapps/api/nest-cli.json",
+      "sha256": "571f7760f530b8c09f5384fdb7c83799b49221ea595504c5cab4a4b0effab2c2"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "git_tree_row": "100755 blob 4acf1252b390dafee65382a1f55aefe63d9879a1\tapps/api/scripts/entrypoint.sh",
+      "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-legacy.sh",
+      "git_tree_row": "100644 blob 4f8fb3029be6229f277c61fe40daf88f4c691fac\tapps/api/scripts/entrypoint-legacy.sh",
+      "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "git_tree_row": "100644 blob 481a88ed5207030e5f73f2fbde2aaaea90ca07d4\tapps/api/scripts/entrypoint-dispatcher.inc",
+      "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+    }
+  ]
+}

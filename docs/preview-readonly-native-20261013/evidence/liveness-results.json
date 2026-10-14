@@ -1,0 +1,27 @@
+{
+  "source_head": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "actual_emitted_preview_module_and_policy": true,
+  "requests": [
+    {
+      "path": "/api/__preview_liveness",
+      "status": 403,
+      "auth_calls": 0,
+      "database_calls": 0
+    },
+    {
+      "path": "/api/__preview_liveness",
+      "status": 403,
+      "synthetic_database_unavailable": true,
+      "auth_calls": 0,
+      "database_calls": 0
+    },
+    {
+      "path": "/api/me",
+      "status": 401
+    }
+  ],
+  "startup_role_check_simulated": true,
+  "native_database_readiness_qualified": false,
+  "clerk_or_provider_called": false,
+  "only_loopback_http": true
+}

@@ -1,7 +1,9 @@
 {
   "result": "PASS",
-  "finite_files_scanned": 31,
+  "finite_files_scanned": 54,
+  "decoded_raw_observations": 1,
   "findings": [],
   "actual_connection_inputs_not_recorded": true,
+  "known_connection_literal_exception": "postgresql://synthetic:synthetic@ in the synthetic liveness fixture only",
   "only_existing_local_fixture_names_and_synthetic_seed_values": true
 }
