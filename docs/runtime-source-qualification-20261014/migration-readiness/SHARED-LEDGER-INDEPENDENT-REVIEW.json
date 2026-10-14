@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-14T14:32:39Z",
+  "reviewer": "/root/shared_ledger_mapping_review",
+  "verdict": "ACCEPT",
+  "materialCorrections": [],
+  "reviewed": {
+    "repository": "neo-capiro/capiro-backend",
+    "head": "9492c5226ddd3929205da711e35054fcab5cda13",
+    "tree": "52a145fc45522da00cce0e4334668a0345c2d800",
+    "mappingNoteBlob": "c75da534fea3f510bc55d5740fe2a3add389b2e6",
+    "mappingMetadataBlob": "48f38922f48aa92345b01e1d169446f08659bab4"
+  },
+  "acceptedClaims": {
+    "bothDatasourceEnv": "DATABASE_URL",
+    "generatedWorkspaceClientOutputDoesNotSelectSqlNamespace": true,
+    "coreServeAndMigrateComposePublic": true,
+    "workspaceFallbackPublicAndExplicitUrlPreserved": true,
+    "coreAndWorkspacePrismaServiceDatasourceOverrideAbsent": true,
+    "cdkDataStackDatabaseName": "capiro",
+    "cdkCoreWorkspaceHostPortReferencesAndDbNameSame": true,
+    "serveAppAndMigrateMasterCredentialReferencesDoNotChangeNamespace": true,
+    "selectedDockerCoreSchema": "/app/apps/api/prisma/schema.prisma",
+    "selectedDockerWorkspaceSchema": "/app/apps/workspace/prisma/schema.prisma",
+    "sourceIntentDoesNotProveLiveDeployedBinding": true,
+    "approvedObservedLedgerMetadataCollectionDoesNotNeedServiceUrlBinding": true,
+    "currentServiceApplicabilityRemainsUnknown": true,
+    "sourceSetLabelsDoNotProveLedgerServiceOwnership": true,
+    "noMatchingRecordIsNotNeverApplied": true
+  },
+  "verifiedQueryBlobs": {
+    "discovery": "3e62cdcbbf6eee64b75ee6eced83bc6a471e8a2f",
+    "core12": "7b59903fbe0d8669edf5632e5ab45d46071374ab",
+    "workspace13": "822586ed802c3f29c62cf3252d11459ef2d42799"
+  },
+  "queryReview": {
+    "expectedNameCounts": {
+      "Core12": 12,
+      "Workspace13": 13
+    },
+    "readOnlyRepeatableReadAndRollback": true,
+    "allAttemptGlobalUnfinishedDuplicateInconsistentChecksRetained": true,
+    "exactNameCompatibleChecksumSuffixCandidatesRetained": true,
+    "rawFailureLogsNotReturned": true,
+    "querySqlChangesRequired": false
+  },
+  "publicationNote": "Explicitly supersede the prior SQL-header/HISTORY-RESOLUTION service-binding prerequisite for observation-only collection; retain those SQL bytes.",
+  "boundaries": {
+    "shippingTlsPrimaryPublicLedgerFacts": "Reported delegation, not independently executed",
+    "databaseQueries": false,
+    "awsOperations": false,
+    "prismaOrApplicationStartup": false,
+    "dockerOperations": false,
+    "secretValueRequestsOrExposure": false,
+    "productCodeSqlOrRefEdits": false,
+    "protectedUnpublishedEngagementHeadAccess": false,
+    "liveServiceBindingOrNativeSchemaAcceptanceClaim": false
+  },
+  "retrievalFailures": [
+    {
+      "operation": "default-sandbox pwd",
+      "result": "Sandbox initialization ENOSPC at synthetic /tmp/.aws; command did not run."
+    },
+    {
+      "operation": "pinned AGENTS.md lookup",
+      "paths": [
+        "AGENTS.md",
+        "apps/AGENTS.md",
+        "apps/api/AGENTS.md",
+        "infra/AGENTS.md"
+      ],
+      "result": "404; no guidance file at these exact pinned paths."
+    }
+  ]
+}

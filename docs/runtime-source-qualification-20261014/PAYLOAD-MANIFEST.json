@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "branch": "codex/backend-runtime-candidate-20261014",
   "baseline": {
     "head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
@@ -12,8 +12,8 @@
     "tree": "99cfcbde6c8016747d45740eb7352f456d501125",
     "sourceDeltaPaths": 9
   },
-  "expectedFinalParent": "01205088a4da1536349feb41844c0f585b5732e9",
-  "payloadCount": 89,
+  "expectedFinalParent": "9492c5226ddd3929205da711e35054fcab5cda13",
+  "payloadCount": 99,
   "payloads": [
     {
       "path": "apps/api-strategy/package.json",
@@ -480,15 +480,17 @@
     },
     {
       "path": "docs/successor-qualification-20261014/HANDOFF.md",
-      "gitBlob": "6654d61cce7f2fdd0d45d483a59139c85dea517e",
-      "bytes": 22767,
-      "sha256": "262c2c949165bec495c0645e1314b70d9aa20f9f0d2681df0d58fab056b78e01"
+      "gitBlob": "bca0ca66e113188a914edfe633c4ff1190efdd28",
+      "bytes": 23607,
+      "sha256": "717f23146e6a82e6b5626526de82017da2300506769d20ea90e0ab564842a84e",
+      "mode": "100644"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/FINAL-RESULT.json",
-      "gitBlob": "ca53b0afeb22a501901d6532946746e74cd31301",
-      "bytes": 10346,
-      "sha256": "938dd9c2d94c720edae893b141897a6de00ef607464d78dd70687b99c3d00f72"
+      "gitBlob": "bea322aeda75ce65899bf892fa6acf94467a2d72",
+      "bytes": 11530,
+      "sha256": "7a62b55393a6d468949aa65cf893a1fe4599030ea42c1bc7bd1fd32f853aba35",
+      "mode": "100644"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/migration-readiness/discover-ledger.sql",
@@ -522,9 +524,10 @@
     },
     {
       "path": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-RESOLUTION.md",
-      "gitBlob": "afe43bdbb2b756d7192a6b9897d5037dad080b60",
-      "bytes": 8052,
-      "sha256": "ce02a5334e97478457047f0c182be7bc5d1ddd24159c0497baac9f7bb45a52bd"
+      "gitBlob": "6c84a81ac281fa8430fd33d0a75e7ada8c542d11",
+      "bytes": 8410,
+      "sha256": "38bfc6826741ac7a251d0c8339a8bc178af0035151a73dcf0ee1881967d28075",
+      "mode": "100644"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/migration-readiness/SOURCE-HISTORY-READBACK.json",
@@ -555,6 +558,72 @@
       "gitBlob": "b5e96209660baba0f77288d9c740e5dc7936e6e1",
       "bytes": 25631,
       "sha256": "50a4223fcaffcb228e9a9d924aa93f03f78530839dd25a2ebc02f17d7eb05b13"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/SHARED-LEDGER-MAPPING.md",
+      "gitBlob": "377c4570059661133ef3751bd86f14d267e17054",
+      "bytes": 6964,
+      "sha256": "0b96f1964080593f8bb6a14987fdbf202cd19b532f7756e53aa6a4c79490dea5",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/SHARED-LEDGER-MAPPING.json",
+      "gitBlob": "0e89dc3f1a7b6403fdad5b56975dd8beb15d56f9",
+      "bytes": 7877,
+      "sha256": "39022cc84dde9a893ed6e6acab2f2bb4a28cbadba3d537367af8a4257e1985a6",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/SHARED-LEDGER-MAPPING-initial.md",
+      "gitBlob": "c75da534fea3f510bc55d5740fe2a3add389b2e6",
+      "bytes": 6731,
+      "sha256": "916836f295bbc12854687a27b76a641b6b4a865a5ea5728abcc275ee59fadbd8",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/SHARED-LEDGER-MAPPING-initial.json",
+      "gitBlob": "48f38922f48aa92345b01e1d169446f08659bab4",
+      "bytes": 7667,
+      "sha256": "063803f55c3eb329fa0328f237de82cb861399e12dff860d7ea3f16a03d8c0ed",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/SHARED-LEDGER-INDEPENDENT-REVIEW.json",
+      "gitBlob": "c76377b3ab3dd6e9b49a8a8f79efc4af623e713b",
+      "bytes": 3057,
+      "sha256": "624aeb4d6fddd765dcc4d772a1b4a54d19bb8c45418d44eda32a3d0f3ae6d097",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/MAPPING-RETRIEVAL-FAILURES.json",
+      "gitBlob": "a5d4decd092785f1e8ac248b48d184e3657caf65",
+      "bytes": 1081,
+      "sha256": "c5354bf9cc0e8d15c342c95c011f96f0bdca3e01490f6efd9bd019a2f6dade50",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-RESOLUTION-pr18-9492.md",
+      "gitBlob": "afe43bdbb2b756d7192a6b9897d5037dad080b60",
+      "bytes": 8052,
+      "sha256": "ce02a5334e97478457047f0c182be7bc5d1ddd24159c0497baac9f7bb45a52bd"
+    },
+    {
+      "path": "docs/successor-qualification-20261014/HANDOFF-pr18-9492.md",
+      "gitBlob": "6654d61cce7f2fdd0d45d483a59139c85dea517e",
+      "bytes": 22767,
+      "sha256": "262c2c949165bec495c0645e1314b70d9aa20f9f0d2681df0d58fab056b78e01"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/FINAL-RESULT-pr18-9492.json",
+      "gitBlob": "ca53b0afeb22a501901d6532946746e74cd31301",
+      "bytes": 10346,
+      "sha256": "938dd9c2d94c720edae893b141897a6de00ef607464d78dd70687b99c3d00f72"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/PAYLOAD-MANIFEST-pr18-9492.json",
+      "gitBlob": "1c9bf6637b8f24c0589976dc075a07a17cf79210",
+      "bytes": 29753,
+      "sha256": "66bbff58703f13d4ccfa108808607e40a8e09d446a71f992b72aeb010ec3b7bf"
     }
   ],
   "excludedSelf": "docs/runtime-source-qualification-20261014/PAYLOAD-MANIFEST.json",
@@ -605,10 +674,9 @@
   },
   "independentHandoffClaims": "docs/runtime-source-qualification-20261014/independent/HANDOFF-CLAIM-REVIEW.md",
   "priorPublication": {
-    "head": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
-    "tree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
-    "preservedAsParent": false,
-    "preservedAsAncestor": true
+    "head": "9492c5226ddd3929205da711e35054fcab5cda13",
+    "tree": "52a145fc45522da00cce0e4334668a0345c2d800",
+    "preservedAsParent": true
   },
   "followup": {
     "scope": "Docs-only independently accepted history-aware migration readiness",
@@ -626,7 +694,30 @@
       "head": "01205088a4da1536349feb41844c0f585b5732e9",
       "tree": "40c50852241e7812088c2653e1c89a0e784a9f64",
       "preservedAsParent": true
+    },
+    "sharedLedgerMapping": {
+      "scope": "Docs-only source ownership mapping and observed-ledger collection correction",
+      "sourceChanges": false,
+      "sqlChanges": false,
+      "queriesExecuted": false,
+      "intendedNamespace": "capiro.public",
+      "observationsNeedServiceBinding": false,
+      "liveServiceApplicability": "UNKNOWN",
+      "independentReceipt": "c76377b3ab3dd6e9b49a8a8f79efc4af623e713b",
+      "noAWSCalls": true,
+      "noSecretValues": true,
+      "existingQueriesUnchanged": [
+        "3e62cdcbbf6eee64b75ee6eced83bc6a471e8a2f",
+        "7b59903fbe0d8669edf5632e5ab45d46071374ab",
+        "822586ed802c3f29c62cf3252d11459ef2d42799"
+      ]
     }
   },
-  "independentHistoryReadiness": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-INDEPENDENT-REVIEW.json"
+  "independentHistoryReadiness": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-INDEPENDENT-REVIEW.json",
+  "historicalPriorPublication": {
+    "head": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+    "tree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+    "preservedAsParent": false,
+    "preservedAsAncestor": true
+  }
 }

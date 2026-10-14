@@ -180,7 +180,7 @@
     "initialPr18PublicationParent": "3f747849a1d037806faa819f7c174d8b29675947",
     "initialPr18PublicationHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
     "initialPr18PublicationTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
-    "currentDocsFollowupParent": "01205088a4da1536349feb41844c0f585b5732e9",
+    "currentDocsFollowupParent": "9492c5226ddd3929205da711e35054fcab5cda13",
     "followupChangesSource": false
   },
   "proposals": {
@@ -239,5 +239,28 @@
     "sqlOrSchemaChanged": false,
     "dockerCycles": false,
     "firstChatSourceAndPinsUnchanged": true
+  },
+  "sharedLedgerMapping": {
+    "kind": "Source mapping and observation-collection correction only",
+    "sourceHead": "9492c5226ddd3929205da711e35054fcab5cda13",
+    "sourceTree": "52a145fc45522da00cce0e4334668a0345c2d800",
+    "coreRecipeNamespace": "public",
+    "workspaceFallbackNamespace": "public",
+    "workspaceExplicitUrlPreserved": true,
+    "bothCdKDatabaseNameAndHostPortReferencesSame": true,
+    "cdkDatabaseName": "capiro",
+    "coreRuntimeSchemaPath": "/app/apps/api/prisma/schema.prisma",
+    "workspaceRuntimeSchemaPath": "/app/apps/workspace/prisma/schema.prisma",
+    "nativeVerifiedLedger": "shipping-reported capiro.public._prisma_migrations",
+    "actualServiceBinding": "UNKNOWN",
+    "historyRowsCollectedBySourceTask": false,
+    "canCollectAuthorizedObservedLedgerWithoutServiceOwnershipClaim": true,
+    "supersedesServiceUrlAsCollectionPrerequisite": true,
+    "serviceApplicabilityNeededBeforeDeployOrRename": true,
+    "querySqlChanged": false,
+    "migrationSqlChanged": false,
+    "nativeOrAwsOrSecretOrDockerOperation": false,
+    "firstChatProofAndSourcePinsChanged": false,
+    "independentReceipt": "c76377b3ab3dd6e9b49a8a8f79efc4af623e713b"
   }
 }

@@ -1,0 +1,19 @@
+{
+  "sourceHead": "9492c5226ddd3929205da711e35054fcab5cda13",
+  "rootDefaultSandbox": {
+    "chunk_id": "4375bd",
+    "wall_time_seconds": 0,
+    "exit_code": 101,
+    "original_token_count": 66,
+    "output": "\nthread 'main' (1282744) panicked at linux-sandbox/src/linux_run_main.rs:994:25:\nfailed to register synthetic bubblewrap mount target /tmp/.aws: No space left on device (os error 28)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  "rootSparseSourceDiscovery": {
+    "chunk_id": "cf5831",
+    "wall_time_seconds": 0.000048616,
+    "exit_code": 2,
+    "original_token_count": 56,
+    "output": "rg: infra/cdk/lib/compute-stack.ts: No such file or directory (os error 2)\nrg: infra/cdk/bin/capiro.ts: No such file or directory (os error 2)\napps/workspace/scripts/entrypoint.sh\napps/api/scripts/entrypoint-dispatcher.inc\n"
+  },
+  "qualification": "Retrieval/setup evidence only; commands did not touch AWS/DB/secret values. Sparse infra absence was corrected by exact published GitHub file reads.",
+  "nativeExecution": false
+}
