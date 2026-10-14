@@ -15,7 +15,10 @@ const args = mode === 'types' ? [path.join(__dirname, 'check-source-types.cjs')]
   : [path.join(root, 'apps/api/node_modules/jest/bin/jest.js'), '--config', path.join(__dirname, 'focused.jest.cjs'), '--runInBand', '--json', '--outputFile', path.join(__dirname, `${id}-jest-result.json`),
     ...(mode === 'baseline' ? ['--runTestsByPath', path.join(root, 'apps/api/src/clients/client-targets.service.spec.ts'), path.join(root, 'apps/api/src/clients/objectives/objective-destination.shared.spec.ts')] : [])];
 const preload = mode === 'baseline' ? path.join(__dirname, 'baseline-refusal-preload.cjs') : path.join(__dirname, 'source-refusal-preload.cjs');
-const env = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: '/tmp', NODE_ENV: 'test', ...(mode === 'types' ? {} : { NODE_OPTIONS: `--require=${preload}` }) };
+const tmpdir = path.join(root, '.qualification-cache/directory-tmp');
+fs.mkdirSync(tmpdir, { recursive: true });
+if (fs.realpathSync(tmpdir) !== tmpdir) throw new Error('Owned temporary directory required');
+const env = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: tmpdir, NODE_ENV: 'test', ...(mode === 'types' ? {} : { NODE_OPTIONS: `--require=${preload}` }) };
 const result = cp.spawnSync(process.execPath, args, { cwd: root, env, encoding: null, maxBuffer: 5 * 1024 * 1024, timeout: 120000 });
 for (const stream of ['stdout', 'stderr']) {
   const data = result[stream] || Buffer.alloc(0);
@@ -23,7 +26,7 @@ for (const stream of ['stdout', 'stderr']) {
 }
 const unchanged = JSON.stringify(before) === JSON.stringify(bindings());
 fs.writeFileSync(path.join(__dirname, `${id}-${mode}-receipt.json`), JSON.stringify({ id, mode, head, boundPaths: before,
-  command: [process.execPath, ...args], exitCode: result.status, signal: result.signal, error: result.error && String(result.error), boundSourcesUnchanged: unchanged,
+  command: [process.execPath, ...args], tmpdir, exitCode: result.status, signal: result.signal, error: result.error && String(result.error), boundSourcesUnchanged: unchanged,
   qualification: 'Source/synthetic owner/controller/native-middleware IO-port fixture and narrow strict types only; no full ClientsModule/Core boot, native PostgreSQL/RLS, real Clerk/provider, migration or live HTTP acceptance.' }, null, 2) + '\n');
 process.stdout.write(JSON.stringify({ id, mode, exitCode: result.status, boundSourcesUnchanged: unchanged }) + '\n');
 if (result.status || !unchanged) process.stdout.write((result.stdout || Buffer.alloc(0)).toString() + (result.stderr || Buffer.alloc(0)).toString());
