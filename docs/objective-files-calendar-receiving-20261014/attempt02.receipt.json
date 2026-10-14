@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "docs/objective-files-calendar-receiving-20261014/qualification.test.mjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.61,
+  "stdoutBytes": 10368,
+  "stderrBytes": 0,
+  "sources": {
+    "receiver.mjs": "8ea474a351e1f9e7341a9a9680e94f25cd18bef3ce06335313296de2629d8872",
+    "canonical-harness.cjs": "4f2531e7766f3263ece40411e2fe18e81d05b90b0b1f03d951ea8ed7d362fe66",
+    "qualification.test.mjs": "18f4b3d6b33da017a7a86771076ecc50790edd94c6ff94aef662629162645335"
+  },
+  "correction": "Synthetic Prisma queryRawUnsafe adapter now preserves rest-argument arrays; no product owner source change."
+}
