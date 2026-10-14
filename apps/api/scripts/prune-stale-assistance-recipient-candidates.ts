@@ -228,7 +228,7 @@ export async function loadCandidates(
             -- A reviewer's rejection is DURABLE, and this script hard-deletes.
             -- Rejected rows are confirmed=false, so without this predicate a prune
             -- erased the rejection row itself — after which persistSourceCandidates
-            -- found no `existing`, its reviewStatus='rejected' guard had nothing to
+            -- found no existing, its reviewStatus='rejected' guard had nothing to
             -- read, and the candidate a human had already refused came straight
             -- back on the next resolution run.
             AND m.review_status <> 'rejected'
@@ -252,7 +252,7 @@ export async function loadCandidates(
             -- A reviewer's rejection is DURABLE, and this script hard-deletes.
             -- Rejected rows are confirmed=false, so without this predicate a prune
             -- erased the rejection row itself — after which persistSourceCandidates
-            -- found no `existing`, its reviewStatus='rejected' guard had nothing to
+            -- found no existing, its reviewStatus='rejected' guard had nothing to
             -- read, and the candidate a human had already refused came straight
             -- back on the next resolution run.
             AND m.review_status <> 'rejected'
