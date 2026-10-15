@@ -28,6 +28,7 @@ import {
   type ObjectiveRevisionBinding,
 } from './objective-destination.js';
 import { appendObjectiveReadyIntent } from './objective-work-intent.js';
+import { reserveCanonicalObjectivePlan } from './objective-canonical-plan.js';
 
 function presentObjective(record: ClientObjective) {
   return {
@@ -201,7 +202,18 @@ export class ClientObjectivesService {
       });
       const revision = await this.recordRevision(tx, ctx, record, action);
       if (action === 'confirm_ready') {
-        await appendObjectiveReadyIntent(tx, revision);
+        // The Objective UPDATE is already held. Lock current authority before
+        // touching intent/reservation; do not upgrade an earlier Objective SHARE
+        // lock during simultaneous confirmations.
+        const source = await this.requireDestinationRevisionWithinTx(tx, ctx, {
+          clientId: record.clientId,
+          objectiveId: record.id,
+          objectiveVersion: record.version,
+        });
+        if (source.objectiveRevisionId !== revision.id)
+          throw new Error('Objective confirmation revision mismatch');
+        const intent = await appendObjectiveReadyIntent(tx, revision);
+        await reserveCanonicalObjectivePlan(tx, revision, intent);
         await this.assertClient(tx, ctx, record.clientId);
       }
       return presentObjective(record);

@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "kind": "CENTRAL_SOURCE_ALLOCATION_RECORD",
+  "coordinatorThread": "01a0ff18-26cd-7609-beba-87726d0300c6",
+  "recordedAt": "2026-10-15T13:09:28.722Z",
+  "reservations": [
+    {
+      "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
+      "owner": "backend Objective confirmation intent",
+      "allocation": "preserved unchanged",
+      "source": "215d072def7d8449ac94559e4e1a44eabf513276",
+      "centralRecord": "23a1c35042f18ca1aae54841e340e06d6c2d815d"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015020000_client_objective_canonical_plans/migration.sql",
+      "owner": "backend Objective canonical reservation / transaction fence",
+      "workstream": "feat/objective-canonical-reservation",
+      "base": "8d4aa29decf86cb242f2f8de0faebe546d8b64ae",
+      "allocation": "coordinator authorized after central record and relevant remote head collision check",
+      "checks": [
+        {
+          "ref": "backend-import",
+          "sha": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "codex/backend-canonical-boundary-20261014",
+          "sha": "1f2655fe964cb2a01343d3bcb560de60fa5f69be",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "codex/backend-runtime-candidate-20261014",
+          "sha": "f4f9e1361d92ac0afadd67c1cae3f5faefa829ec",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "docs/objective-automation-reconciliation",
+          "sha": "23a1c35042f18ca1aae54841e340e06d6c2d815d",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "feat/objective-bound-strategy",
+          "sha": "f5f0c1d32c667654c322c8e4fc1085f5ffc5941f",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "feat/objective-confirmation-intent",
+          "sha": "215d072def7d8449ac94559e4e1a44eabf513276",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "feat/objective-planner-materialization",
+          "sha": "5d551a5ce4e88945e654a1d2c88983d76774aad1",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "fix/final-backend-node22-bookworm",
+          "sha": "4945791dfc8e755a2abaddfa60cdcf670ee20712",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        }
+      ],
+      "scope": [
+        "Core Prisma model and exact migration",
+        "private canonical reservation and requested-revision CAS",
+        "same-transaction confirm_ready wiring and focused tests"
+      ],
+      "excluded": [
+        "live migration execution",
+        "grant expansion or new service credentials",
+        "dispatcher activation",
+        "public contract freeze",
+        "Strategy/Planner output or applied-pointer writes",
+        "manual project/group restrictions"
+      ]
+    }
+  ]
+}

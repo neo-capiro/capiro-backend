@@ -1114,9 +1114,34 @@ model ClientObjectiveWorkIntent {
   blockedReason       String   @default("runtime_authority_unconnected") @map("blocked_reason") @db.VarChar(48)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   revision            ClientObjectiveRevision @relation(fields: [tenantId, clientId, objectiveId, objectiveRevisionId, objectiveVersion], references: [tenantId, clientId, objectiveId, id, version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_work_intents_revision_fk")
+  canonicalPlans      ClientObjectiveCanonicalPlan[]
 
   @@unique([tenantId, clientId, objectiveId, objectiveRevisionId, purpose], map: "client_objective_work_intents_purpose_key")
+  @@unique([tenantId, clientId, objectiveId, id, objectiveRevisionId, objectiveVersion, snapshotHash], map: "client_objective_work_intents_canonical_scope_key")
   @@map("client_objective_work_intents")
+}
+
+/// Private reservations only; no Strategy/project row or applied pointer is implied.
+/// Initial epoch is SQL-constrained to 1; replacement is not allocated here.
+model ClientObjectiveCanonicalPlan {
+  id                           String   @id @default(uuid()) @db.Uuid
+  tenantId                     String   @map("tenant_id") @db.Uuid
+  clientId                     String   @map("client_id") @db.Uuid
+  objectiveId                  String   @map("objective_id") @db.Uuid
+  canonicalStrategyId          String   @unique @map("canonical_strategy_id") @db.Uuid
+  canonicalProjectId           String   @unique @map("canonical_project_id") @db.Uuid
+  bindingVersion               Int      @default(1) @map("binding_version")
+  epoch                        Int      @default(1)
+  requestedIntentId            String   @map("requested_intent_id") @db.Uuid
+  requestedObjectiveRevisionId String   @map("requested_objective_revision_id") @db.Uuid
+  requestedObjectiveVersion    Int      @map("requested_objective_version")
+  requestedSnapshotHash        String   @map("requested_snapshot_hash") @db.Char(64)
+  createdAt                    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  requestedIntent              ClientObjectiveWorkIntent @relation(fields: [tenantId, clientId, objectiveId, requestedIntentId, requestedObjectiveRevisionId, requestedObjectiveVersion, requestedSnapshotHash], references: [tenantId, clientId, objectiveId, id, objectiveRevisionId, objectiveVersion, snapshotHash], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_canonical_plans_intent_fk")
+
+  @@unique([tenantId, clientId, objectiveId], map: "client_objective_canonical_plans_objective_key")
+  @@map("client_objective_canonical_plans")
 }
 
 /// Canonical Primary–Quaternary assignments. SQL owns the deferred Primary
