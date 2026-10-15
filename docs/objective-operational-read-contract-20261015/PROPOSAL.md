@@ -294,6 +294,11 @@ entire total. A continuation checks prior distinct identities, scope, associatio
 asOf, snapshot and cursor; a final page's own length may be smaller than its global total.
 Repeated identities, mixed snapshots, early termination and no-progress cursors fail.
 The offline helper demonstrates these relations, not cursor signatures or real DB paging.
+The trusted observation context carries immutable association and version identity maps
+across every admitted section/page. Conflicting later aliases/hashes fail even when that
+page alone is well-shaped. Update these maps only after full response admission; failed
+pages cannot poison them. They are not caller-supplied authority. Actual readers also
+verify stored links/versions, and opaque cursors remain independently integrity protected.
 
 The Strategy application read facade owns `resolveObjectiveReceipt`, a proposed read-only
 internal method, not a new Meri protocol. Its input is a server-owned typed receipt locator,

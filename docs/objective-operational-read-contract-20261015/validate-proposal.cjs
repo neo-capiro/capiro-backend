@@ -19,7 +19,7 @@ const digest = x => crypto.createHash('sha256').update(canonical(x)).digest('hex
 const key = x => `${x.kind}:${x.id}`;
 const equal = (a, b) => canonical(a) === canonical(b);
 const pageKey = row => {const r=row.resource||row.task||row.session;return row.kind?`${row.kind}:${r.selection.id}:${row.proposalId||''}`:key(r.selection);};
-function initialPageContext(x) {return {request:{schemaVersion:1,clientId:x.scope.clientId,objectiveId:x.scope.objectiveId,limit:100,cursors:{strategies:null,projects:null,decisions:null,engagements:null}},prior:{}};}
+function initialPageContext(x) {return {request:{schemaVersion:1,clientId:x.scope.clientId,objectiveId:x.scope.objectiveId,limit:100,cursors:{strategies:null,projects:null,decisions:null,engagements:null}},prior:{},manualBindings:{},immutableVersions:{}};}
 function pageProgress(x,name,section,context) {
   if(name==='questions')return true;
   const cursor=context.request.cursors[name],prior=context.prior[name];
@@ -40,10 +40,11 @@ function readSemantics(x, context) {
   if (!validators.ReadResponse(x)) return false;
   context=context||initialPageContext(x);
   if(!validators.ReadRequest(context.request)||context.request.clientId!==x.scope.clientId||context.request.objectiveId!==x.scope.objectiveId||!context.prior)return false;
+  for(const name of ['manualBindings','immutableVersions'])if(!context[name]||Array.isArray(context[name])||typeof context[name]!=='object'||Object.entries(context[name]).some(([id,value])=>!validators.UUID(id)||typeof value!=='string'))return false;
   if (Date.parse(x.asOf) > Date.parse(x.observedAt)) return false;
   const current = { id: x.scope.currentRevisionId, version: x.scope.objectiveVersion };
   const validRevision = r => r.version <= current.version && (r.version !== current.version || r.id === current.id);
-  const resources = new Map(), tasks = new Map(), proposals = new Map(), strategies = new Map(), manualBindings=new Map(), immutableVersions=new Map();
+  const resources = new Map(), tasks = new Map(), proposals = new Map(), strategies = new Map(), manualBindings=new Map(Object.entries(context.manualBindings)), immutableVersions=new Map(Object.entries(context.immutableVersions));
   for (const [name, section] of Object.entries(x.sections)) {
     if(!pageProgress(x,name,section,context))return false;
     if (Date.parse(section.observedAt) > Date.parse(x.observedAt)) return false;
@@ -111,6 +112,8 @@ function readSemantics(x, context) {
       if (!equal(tasks.get(action.taskId), {kind:'counter', value:action.taskVersion})) return false;
     } else if (!equal(proposals.get(`${action.sessionId}:${action.proposalId}`), {kind:'counter', value:action.expectedStateVersion})) return false;
   }
+  // Commit observations only after the entire response is admitted; failed pages cannot poison context.
+  context.manualBindings=Object.fromEntries(manualBindings);context.immutableVersions=Object.fromEntries(immutableVersions);
   return true;
 }
 function receiptMatches(r, command, linkingRevision) {
@@ -192,9 +195,11 @@ check('O1 verified project-derived task provenance stays representable',()=>{con
 const pinned=examples.find(e=>e.name==='verified-two-receipts-one-immutable-version-current-content').value;
 bad('O2 immutable version cannot disagree across receipt witnesses',x=>{x.sections.strategies.items[0].savedVersions[1].digest='c'.repeat(64);},pinned);
 bad('O3 complete first page cannot terminate early',x=>{x.sections.projects.total=2;});
-check('O3 continuation context allows genuine final page',()=>{const first=clone(observed);first.sections.projects.total=2;first.sections.projects.nextCursor='opaque-next';assert(readSemantics(first));const last=clone(first);last.sections.projects.nextCursor=null;last.sections.projects.items[0].resource.selection.id=command.requestId;last.sections.projects.items[0].provenance[0].via.id=command.requestId;last.sections.projects.items[0].provenance[0].associationId=command.requestId;last.actions=last.actions.filter(a=>a.kind!=='open_resource');const context=initialPageContext(last);context.request.cursors.projects='opaque-next';context.prior.projects={cursor:'opaque-next',scope:last.scope,asOf:last.asOf,associationSetVersion:last.associationSetVersion,snapshotId:last.sections.projects.snapshotId,total:2,seenKeys:first.sections.projects.items.map(pageKey)};assert(readSemantics(last,context));context.prior.projects.snapshotId=command.requestId;assert.equal(readSemantics(last,context),false);});
+check('O3 continuation context allows genuine final page',()=>{const first=clone(observed);first.sections.projects.total=2;first.sections.projects.nextCursor='opaque-next';const context=initialPageContext(first);assert(readSemantics(first,context));const last=clone(first);last.sections.projects.nextCursor=null;last.sections.projects.items[0].resource.selection.id=command.requestId;last.sections.projects.items[0].provenance[0].via.id=command.requestId;last.sections.projects.items[0].provenance[0].associationId=command.requestId;last.actions=last.actions.filter(a=>a.kind!=='open_resource');context.request.cursors.projects='opaque-next';context.prior.projects={cursor:'opaque-next',scope:last.scope,asOf:last.asOf,associationSetVersion:last.associationSetVersion,snapshotId:last.sections.projects.snapshotId,total:2,seenKeys:first.sections.projects.items.map(pageKey)};assert(readSemantics(last,context));context.prior.projects.snapshotId=command.requestId;assert.equal(readSemantics(last,context),false);});
 bad('O4 receipt identity cannot substitute for generation job',x=>{x.actions.at(-1).generatedJobId=x.sections.strategies.items[0].savedVersions[0].receiptId;},pinned);
 bad('O4 generated current receiver cannot silently adopt older Objective source',x=>{for(const p of x.sections.strategies.items[0].savedVersions)p.sourceRevision={id:command.requestId,version:2};for(const p of x.sections.strategies.items[0].provenance)if(p.kind==='application_receipt')p.sourceRevision={id:command.requestId,version:2};x.actions.at(-1).sourceRevision={id:command.requestId,version:2};},pinned);
 bad('O4 current receiving never claims frozen content',x=>{x.actions.at(-1).contentView='saved_snapshot';},pinned);
+check('continuation refuses cross-page immutable association alias',()=>{const first=clone(observed);first.sections.projects.total=2;first.sections.projects.nextCursor='next';const context=initialPageContext(first);assert(readSemantics(first,context));const last=clone(first);last.sections.projects.nextCursor=null;last.sections.projects.items[0].resource.selection.id=command.requestId;last.sections.projects.items[0].provenance[0].via.id=command.requestId;last.actions=last.actions.filter(a=>a.kind!=='open_resource');context.request.cursors.projects='next';context.prior.projects={cursor:'next',scope:last.scope,asOf:last.asOf,associationSetVersion:last.associationSetVersion,snapshotId:last.sections.projects.snapshotId,total:2,seenKeys:first.sections.projects.items.map(pageKey)};const before=canonical(context);assert.equal(readSemantics(last,context),false);assert.equal(canonical(context),before);});
+check('continuation refuses cross-page immutable Strategy version conflict',()=>{const first=clone(pinned);first.sections.strategies.total=2;first.sections.strategies.nextCursor='next';const context=initialPageContext(first);assert(readSemantics(first,context));const last=clone(first),row=last.sections.strategies.items[0];last.sections.strategies.nextCursor=null;row.resource.selection.id=command.requestId;row.provenance=row.provenance.filter(p=>p.kind==='application_receipt');for(const p of row.savedVersions)p.digest='c'.repeat(64);last.actions=last.actions.filter(a=>a.kind!=='open_generated_strategy');context.request.cursors.strategies='next';context.prior.strategies={cursor:'next',scope:last.scope,asOf:last.asOf,associationSetVersion:last.associationSetVersion,snapshotId:last.sections.strategies.snapshotId,total:2,seenKeys:first.sections.strategies.items.map(pageKey)};const before=canonical(context);assert.equal(readSemantics(last,context),false);assert.equal(canonical(context),before);});
 const report={schemaVersion:1,verdict:'OFFLINE_PROPOSAL_CONFORMANCE_ONLY',passed:results.length,failed:0,results,limits:['No runtime selectors, ACL, persistence, cursors, DB or native checks executed','Inherited composite complete semantic/receipt witness gate remains required','Synthetic owner facts do not prove source implementation']};
 process.stdout.write(JSON.stringify(report,null,2)+'\n');

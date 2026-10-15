@@ -44,6 +44,12 @@ Transaction design must preserve both replay and existing resource lock order:
    Matching digest returns the original immutable receipt before applying present CAS;
    differing payload conflicts. An old expected version is not grounds to reapply a saved
    command. This lookup is an optimization, not a write-authority witness.
+   Add `loadCurrentOperationalScopeWithinTx`: load the exact scoped current Objective
+   version and invoke the existing revision-authority helper with that actual version,
+   not the historical command's expectedVersion. The existing helper does not discover
+   the current version for the caller. Preserve its membership/client/Objective lock
+   order; a concurrent revision change fails/restarts lookup safely, never substitutes
+   historical CAS for fresh authority. Receipt GET needs no new version query parameter.
 2. For a new command, enter a fresh bounded write transaction. Acquire the resource owner's
    existing mutation/ACL gate first, then current Core authority, association-state row and
    request serialization. Re-read the exact receipt after serialization to close duplicate
@@ -89,6 +95,12 @@ Keep current exact Strategy client permission repair as a reconciled source prer
 No new greenfield service identity is proposed: this is a current-user read path. Register
 only fixed read routes after shared-contract review. Owner metadata is as-of its observedAt;
 one asOf cutoff does not claim a cross-service atomic snapshot.
+
+The new Outreach facade must explicitly retain `OUTREACH_V3_STATE_ENABLED` and existing
+role/owner gates. The current V3 flag is enforced on its controller; importing an exported
+service into the assembly does not inherit that guard. Add flag-off/denied facade tests
+and map the off/unavailable result to truthful section coverage, without disclosing session
+IDs or counts. Preserve each Strategy/Planner owner's current rollout guards similarly.
 
 ## 3. Current versus frozen Strategy receiving
 

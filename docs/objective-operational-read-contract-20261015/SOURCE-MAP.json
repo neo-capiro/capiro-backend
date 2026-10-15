@@ -212,6 +212,24 @@
       "path": "apps/api-strategy/src/context/current-plan-export.service.ts",
       "lineAnchors": "82-109",
       "meaning": "Execution readiness explicitly unevaluated"
+    },
+    {
+      "domain": "outreach-gate",
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.ts",
+      "lineAnchors": "1-21",
+      "meaning": "Feature flag defaults off and fails404; facade must preserve it"
+    },
+    {
+      "domain": "outreach-gate",
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "lineAnchors": "113-116",
+      "meaning": "Controller-only guard is not inherited by direct service import"
+    },
+    {
+      "domain": "outreach-gate",
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+      "lineAnchors": "20-29",
+      "meaning": "Outreach already imports ClientObjectivesModule; avoid reciprocal assembly import"
     }
   ],
   "unresolvedOwners": [

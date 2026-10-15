@@ -349,6 +349,27 @@
       "path": "apps/web/src/features/modules/objective-destinations/ObjectiveDestinationRoute.tsx",
       "bytes": 5256,
       "sha256": "10ad6b4ad0c0826283f7e2d5ccab2d28cb708b1be42df8376feaf9df34dc6b13"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.guard.ts",
+      "bytes": 991,
+      "sha256": "2fe67a9c5d5b4b99f5d368900b363695ce26810e493e29b8166747011476edeb",
+      "gitBlob": "d299f2ec719dee365eba4959e9aea3d2772f0679"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "bytes": 6592,
+      "sha256": "ec969b1289d88aa5aa50ceb461277a9c7c37f780a3616fd135a4990720c54d3f",
+      "gitBlob": "73723e049f3a9a23c174b4de3dd50ddc29fe4582"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+      "bytes": 2623,
+      "sha256": "98be0e09a21b151fbd92e3b70c7e163e56c95218a1a14628fc4a649b2bf30e4f",
+      "gitBlob": "ac21e44dcff3daf622d814c853c6354bd59868d8"
     }
   ]
 }
