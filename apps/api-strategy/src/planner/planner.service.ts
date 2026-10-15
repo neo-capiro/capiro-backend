@@ -78,6 +78,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   STRATEGY_MATERIALIZATION_RECEIPT,
+  checkedMaterialization,
+  materializationOutputId,
+  materializationResult,
   parseMaterialization,
   materializationUuid,
   materializationReceiptId,
@@ -531,7 +534,12 @@ export class PlannerService {
             source.snapshotDigest !== digest(stored.snapshot)
           )
             materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', requestId);
-          return this.materializationView(tx, ctx, stored, true);
+          return this.materializationView(
+            tx,
+            ctx,
+            checkedMaterialization(stored, source, ctx.tenantId, ctx.clerkUserId),
+            true,
+          );
         },
         true,
       ),
@@ -572,7 +580,12 @@ export class PlannerService {
               source.snapshotDigest !== digest(stored.snapshot)
             )
               materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
-            return this.materializationView(tx, ctx, stored, true);
+            return this.materializationView(
+              tx,
+              ctx,
+              checkedMaterialization(stored, source, ctx.tenantId, ctx.clerkUserId),
+              true,
+            );
           }
           const current = await tx.spNode.findMany({
             where: { tenantId: ctx.tenantId, strategyId: source.strategyId },
@@ -583,8 +596,24 @@ export class PlannerService {
             materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
           // Validate all fields before the first output write. Existing per-field
           // Planner bounds refuse visibly; no new project/task count policy.
-          const nodeIds = new Map(plan.actionable.map((n) => [n.id, randomUUID()]));
-          const projectIds = new Map(plan.groups.map((g) => [g.key, randomUUID()]));
+          const nodeIds = new Map(
+            plan.actionable.map((n) => [
+              n.id,
+              materializationOutputId(ctx.tenantId, ctx.clerkUserId, input.requestId, 'task', n.id),
+            ]),
+          );
+          const projectIds = new Map(
+            plan.groups.map((g) => [
+              g.key,
+              materializationOutputId(
+                ctx.tenantId,
+                ctx.clerkUserId,
+                input.requestId,
+                'project',
+                g.key,
+              ),
+            ]),
+          );
           let projectInputs: PlannerProjectData[],
             taskInputs: Array<{ id: string; data: PlannerTaskData }>;
           try {
@@ -655,53 +684,22 @@ export class PlannerService {
             );
           }
           const at = new Date().toISOString();
-          const available = (row: SpPlannerProject | SpPlannerTask): MaterializationOutput => ({
-            availability: 'available',
-            id: row.id,
-            createdVersion: row.version,
-            currentVersion: row.version,
-          });
-          const result: MaterializationResult = {
-            requestId: input.requestId,
-            status: plan.issues.length ? 'prepared_with_issues' : 'prepared',
-            replayed: false,
-            recordedAt: at,
-            observedAt: at,
+          if ([...projects, ...tasks].some((row) => row.version !== 1))
+            materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
+          const result = materializationResult(
+            plan,
+            input,
             source,
-            projects: plan.groups.map((g, i) => ({
-              groupKey: g.key,
-              name: g.name,
-              originalNodeIds: g.nodeIds,
-              output: available(projects[i]!),
-            })),
-            tasks: plan.actionable.map((n, i) => ({
-              sourceNodeId: n.id,
-              originalGroupKeys: plan.groups
-                .filter((g) => g.nodeIds.includes(n.id))
-                .map((g) => g.key),
-              currentGroupKeys: plan.groups
-                .filter((g) => g.nodeIds.includes(n.id))
-                .map((g) => g.key),
-              output: available(tasks[i]!),
-            })),
-            context: plan.context,
-            edges: plan.edges,
-            exclusions: plan.exclusions,
-            issues: plan.issues,
-            counts: {
-              savedNodes: plan.nodes.length,
-              actionableNodes: plan.actionable.length,
-              contextNodes: plan.context.length,
-              archivedNodes: plan.exclusions.length,
-              createdProjects: projects.length,
-              createdTasks: tasks.length,
-            },
-          };
+            ctx.tenantId,
+            ctx.clerkUserId,
+            at,
+          );
           const receipt: StoredMaterialization = {
             receiptVersion: 1,
             input,
             fingerprint: digest(input),
             snapshot: plan.snapshot,
+            archivedSourceNodeIds: plan.exclusions.map((n) => n.sourceNodeId),
             result,
           };
           await tx.spPlannerResource.create({

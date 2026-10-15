@@ -199,7 +199,123 @@ export interface StoredMaterialization {
   input: MaterializationInput;
   fingerprint: string;
   snapshot: StrategySnapshot;
+  archivedSourceNodeIds: string[];
   result: MaterializationResult;
+}
+
+/** Private creation identity, distinct for every actor/request/group/node. */
+export function materializationOutputId(
+  tenant: string,
+  actor: string,
+  request: string,
+  kind: 'project' | 'task',
+  key: string,
+) {
+  return materializationReceiptId(tenant, actor, JSON.stringify([request, kind, key]));
+}
+export function materializationResult(
+  plan: ReturnType<typeof materializationPlan>,
+  input: MaterializationInput,
+  source: MaterializationSource,
+  tenant: string,
+  actor: string,
+  at: string,
+): MaterializationResult {
+  const available = (kind: 'project' | 'task', key: string): MaterializationOutput => ({
+    availability: 'available',
+    id: materializationOutputId(tenant, actor, input.requestId, kind, key),
+    createdVersion: 1,
+    currentVersion: 1,
+  });
+  return {
+    requestId: input.requestId,
+    status: plan.issues.length ? 'prepared_with_issues' : 'prepared',
+    replayed: false,
+    recordedAt: at,
+    observedAt: at,
+    source,
+    projects: plan.groups.map((g) => ({
+      groupKey: g.key,
+      name: g.name,
+      originalNodeIds: g.nodeIds,
+      output: available('project', g.key),
+    })),
+    tasks: plan.actionable.map((n) => ({
+      sourceNodeId: n.id,
+      originalGroupKeys: plan.groups.filter((g) => g.nodeIds.includes(n.id)).map((g) => g.key),
+      currentGroupKeys: plan.groups.filter((g) => g.nodeIds.includes(n.id)).map((g) => g.key),
+      output: available('task', n.id),
+    })),
+    context: plan.context,
+    edges: plan.edges,
+    exclusions: plan.exclusions,
+    issues: plan.issues,
+    counts: {
+      savedNodes: plan.nodes.length,
+      actionableNodes: plan.actionable.length,
+      contextNodes: plan.context.length,
+      archivedNodes: plan.exclusions.length,
+      createdProjects: plan.groups.length,
+      createdTasks: plan.actionable.length,
+    },
+  };
+}
+
+/** Rebuild the entire immutable creation projection, not only its JSON shape.
+ * Current Planner edits are projected separately after this check. */
+export function checkedMaterialization(
+  stored: StoredMaterialization,
+  source: MaterializationSource,
+  tenant: string,
+  actor: string,
+): StoredMaterialization {
+  const requestId = stored.input.requestId;
+  try {
+    if (
+      !exact(stored, [
+        'receiptVersion',
+        'input',
+        'fingerprint',
+        'snapshot',
+        'archivedSourceNodeIds',
+        'result',
+      ]) ||
+      stored.receiptVersion !== 1 ||
+      digest(parseMaterialization(stored.input)) !== stored.fingerprint ||
+      digest(stored.input) !== stored.fingerprint ||
+      digest(stored.snapshot) !== source.snapshotDigest ||
+      !Array.isArray(stored.archivedSourceNodeIds) ||
+      stored.archivedSourceNodeIds.some((id) => typeof id !== 'string' || !UUID.test(id)) ||
+      new Set(stored.archivedSourceNodeIds).size !== stored.archivedSourceNodeIds.length
+    )
+      throw new Error('Invalid private receipt');
+    const nodes = stored.snapshot.nodes;
+    if (
+      !Array.isArray(nodes) ||
+      stored.archivedSourceNodeIds.some((id) => !nodes.some((n) => n.id === id))
+    )
+      throw new Error('Invalid archive witness');
+    const plan = materializationPlan(
+      stored.snapshot,
+      nodes.map((n) => ({
+        id: n.id,
+        archivedAt: stored.archivedSourceNodeIds.includes(n.id) ? new Date(0) : null,
+      })),
+      stored.input,
+    );
+    const at = stored.result.recordedAt;
+    if (
+      typeof at !== 'string' ||
+      !Number.isFinite(Date.parse(at)) ||
+      new Date(at).toISOString() !== at
+    )
+      throw new Error('Invalid recorded timestamp');
+    const result = materializationResult(plan, stored.input, source, tenant, actor, at);
+    if (digest(result) !== digest(stored.result)) throw new Error('Invalid creation projection');
+    return { ...stored, result };
+  } catch {
+    materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', requestId);
+  }
 }
 
 /** Validate the entire locked saved graph before excluding context/archived nodes. */
@@ -229,7 +345,9 @@ export function materializationPlan(
       return invalid('INVALID_SOURCE_NODE');
     ids.add(n.id);
     if (
-      !['action', 'decision', 'gate', 'milestone', 'risk'].includes(String(n.kind)) ||
+      typeof n.kind !== 'string' ||
+      !['action', 'decision', 'gate', 'milestone', 'risk'].includes(n.kind) ||
+      typeof n.subject !== 'string' ||
       ![
         'deliverable',
         'submission',
@@ -239,9 +357,10 @@ export function materializationPlan(
         'agency',
         'outcome',
         'optics',
-      ].includes(String(n.subject)) ||
+      ].includes(n.subject) ||
+      typeof n.status !== 'string' ||
       !['draft', 'in_progress', 'internal_review', 'active', 'suggested', 'completed'].includes(
-        String(n.status),
+        n.status,
       ) ||
       typeof n.title !== 'string' ||
       !n.title.trim() ||

@@ -36,13 +36,22 @@ current output ACL/client/archive/version/memberships without rewriting content.
 Ordinary human regrouping preserves original IDs and original membership lineage.
 Unavailable IDs are redacted; partial output is never complete plan success.
 
-Initial evidence:38 focused service fixtures passed;9 new HTTP tests passed with
+Reviewed successor: strict string-only kind/subject/status validation rejects
+array/object coercions before writes. Recovery rebuilds the entire immutable
+creation projection against the locked saved snapshot and original archive
+witness, including every node/group/edge/count and private deterministic
+actor/request/group/node output UUID. It compares all fields before projecting
+current outputs; malformed receipts fail503. Human output edits remain separate.
+This changes only private receipt JSON and server identity allocation; the
+reviewed public contract is unchanged.
+
+Current evidence:49 focused service fixtures passed;9 new HTTP tests passed with
 local loopback permission;35 legacy Planner service tests passed. Six actual
-service projections matched the reviewed strict JSON schema. Synthetic rollback
+service projections matched the reviewed strict JSON schema and semantic checks. Synthetic rollback
 models and loopback HTTP are not PostgreSQL concurrency/RLS/grants qualification.
-Full Strategy semantic typecheck is repeated after final edits; full Core and
-native qualification remain separate unproven gates. The old planner.http.spec.ts
-test module needs a narrow guard dependency setup update because the newly
+Full Strategy semantic typecheck passed before the review fixes and is repeated after final edits; full Core and
+native qualification remain separate unproven gates. The old planner.http.spec.ts and strategy/objective-destination.controller.spec.ts
+test modules needs a narrow guard dependency setup update because the newly
 allocated methods use StrategyPlannerGuard; coordinator allocation for that extra
 test file was requested before editing it. No production module change is needed.
 

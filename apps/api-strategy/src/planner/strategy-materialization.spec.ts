@@ -509,4 +509,55 @@ describe('Objective saved version to atomic Planner materialization', () => {
     );
     expect(plan.actionable).toHaveLength(150);
   });
+  test.each(['kind', 'subject', 'status'])(
+    'refuses coerced %s values with zero writes',
+    async (field) => {
+      for (const shape of ['array', 'nestedArray', 'object']) {
+        const x = fixture();
+        const row = x.snapshot.nodes[0] as unknown as Record<string, unknown>;
+        const value = row[field];
+        row[field] =
+          shape === 'array' ? [value] : shape === 'nestedArray' ? [[value]] : { toString: value };
+        await expect(x.service.prepareStrategyPlan(x.f.actor, x.input)).rejects.toMatchObject({
+          response: {
+            httpStatus: 422,
+            code: 'MATERIALIZATION_SOURCE_INVALID',
+            issues: [{ code: 'INVALID_SOURCE_NODE' }],
+          },
+        });
+        expect(Object.values(x.state).every((a) => a.length === 0)).toBe(true);
+      }
+    },
+  );
+  test.each([
+    'tasks',
+    'counts',
+    'remap',
+    'memberships',
+    'edge',
+    'context',
+    'extra',
+    'archiveWitness',
+  ])('rejects malformed durable %s on both recovery paths', async (which) => {
+    const x = fixture();
+    await x.service.prepareStrategyPlan(x.f.actor, x.input);
+    const receipt = x.state.resources[0].data;
+    if (which === 'tasks') receipt.result.tasks = [];
+    if (which === 'counts') receipt.result.counts.createdTasks = 99;
+    if (which === 'remap') receipt.result.tasks[0].output.id = x.state.tasks[1].id;
+    if (which === 'memberships') receipt.result.tasks[0].originalGroupKeys = [];
+    if (which === 'edge') receipt.result.edges = [];
+    if (which === 'context') receipt.result.context[0].kind = ['risk'];
+    if (which === 'extra') receipt.result.privateExtra = 'never public';
+    if (which === 'archiveWitness') receipt.archivedSourceNodeIds = [id(110)];
+    for (const recovery of [
+      () => x.service.strategyMaterialization(x.f.actor, x.input.requestId),
+      () => x.service.prepareStrategyPlan(x.f.actor, x.input),
+    ])
+      await expect(recovery()).rejects.toMatchObject({
+        response: { code: 'MATERIALIZATION_OUTCOME_UNCONFIRMED', httpStatus: 503 },
+      });
+    expect(x.state.projects).toHaveLength(1);
+    expect(x.state.tasks).toHaveLength(2);
+  });
 });
