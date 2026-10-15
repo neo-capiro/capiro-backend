@@ -158,6 +158,60 @@
       "path": "apps/api/src/clients/client-advocacy-matter.service.ts",
       "lineAnchors": "501-533,608-666,1454",
       "meaning": "Explicit Matter Strategy/meeting links; not Objective links"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api-strategy/src/strategy/version.service.ts",
+      "lineAnchors": "68-108",
+      "meaning": "Version list is history metadata, not immutable snapshot receiving"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api-strategy/src/strategy/detail.ts",
+      "lineAnchors": "16-33",
+      "meaning": "Existing destination renders current live Strategy content"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api/src/clients/objectives/objectives.module.ts",
+      "lineAnchors": "1-6",
+      "meaning": "Existing Objective service export; new assembly must not create reciprocal module dependency"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api/src/clients/activity-commands/activity-command.service.ts",
+      "lineAnchors": "207-230",
+      "meaning": "Existing actor/request-scoped advisory receipt pattern"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api/src/intelligence/intelligence.module.ts",
+      "lineAnchors": "39-79",
+      "meaning": "Existing Intelligence composition owner for proposed question unit"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api/src/defense-budget-lifecycle/defense-budget-lifecycle-read.service.ts",
+      "lineAnchors": "210-287",
+      "meaning": "Global fiscal year/source reads retain actual existing domain owner"
+    },
+    {
+      "domain": "receiving",
+      "path": "packages/strategy-verifier/src/plan-health.ts",
+      "lineAnchors": "11-89",
+      "meaning": "Existing health labels are diagnostics, not Figma feasibility classification"
+    },
+    {
+      "domain": "receiving",
+      "path": "packages/strategy-verifier/src/fiscal-cycle.ts",
+      "lineAnchors": "3-42",
+      "meaning": "Fiscal warning helper prohibits unsourced retiming"
+    },
+    {
+      "domain": "receiving",
+      "path": "apps/api-strategy/src/context/current-plan-export.service.ts",
+      "lineAnchors": "82-109",
+      "meaning": "Execution readiness explicitly unevaluated"
     }
   ],
   "unresolvedOwners": [
@@ -174,5 +228,11 @@
     "EngagementService implementation",
     "Meri runtime/admission/result-custody",
     "paused applied publisher"
-  ]
+  ],
+  "receivingCorrection": {
+    "currentReceiver": "ObjectiveGeneratedStrategy",
+    "semantics": "Current authorized Strategy content after exact generation-job and source receipt checks; not frozen snapshot",
+    "resolver": "Planner application owner resolves actual sp_draft_job row, embedded completed receipt and exact sp_version; never reinterpret receiptId as generatedJobId",
+    "frozenReader": "New explicitly allocated read-only Strategy snapshot reader and receiver needed; no current route weakening"
+  }
 }

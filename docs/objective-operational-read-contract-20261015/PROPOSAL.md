@@ -7,6 +7,10 @@ The full target is Figma node `411:61442`, not only the intake editor. Backend b
 `e9df91d876eaad05d13fdd0707c1fe39d5affb62`. `SOURCE-MAP.json` records the actual owners;
 `SOURCE-PINS.json` binds the inspected bytes. Meri and the paused publisher are excluded.
 
+Receiving successor: preserves published checkpoint `470274e1` and corrects frontend
+findings O1–O4. `IMPLEMENTATION-PLAN.md` gives the proposed source allocation and remaining
+product questions. This remains an unregistered draft, not a wire freeze or application.
+
 ## Finding and proposed boundary
 
 Existing owners can supply Objective revisions, saved Strategies, Planner projects/tasks,
@@ -39,6 +43,9 @@ Two sources of membership are accepted, and are distinguishable on every row:
    permission. The stable association survives later Objective edits as historical
    attribution; `linkedRevision` is never relabelled the latest revision. Unlinking changes
    membership, not the source resource. It does not delete shared tasks or undo work.
+   Manual provenance exposes its authorized `via` selection; one association ID cannot
+   refer to unrelated resources. A task may inherit the same project association only
+   after its current membership is verified by Planner; that is not a new task link.
 
 The proposed association set has a version independent of Objective content version and
 canonical generated binding version. Link/unlink uses an expected set version and exact
@@ -101,7 +108,7 @@ Accepted composite semantic/witness checks are an additional gate to JSON-schema
 
 | Page surface | Authoritative meaning / action |
 | --- | --- |
-| Strategies across cycles | One readable Strategy row per verified Strategy membership; deduplicate by Strategy ID and combine explicit cycle annotations. Source title/type/current observation come from Strategy. Navigation retains the selected saved version where a receipt pins one; ordinary current opening is separate. No guessed `active`, `achievable`, `compressed` or `next_cycle` state. |
+| Strategies across cycles | One readable Strategy row per verified Strategy membership; deduplicate by Strategy ID and combine explicit cycle annotations. Source title/type/current observation come from Strategy. Pins identify original saved versions; existing generated receiving renders current authorized content after exact job/source checks. Frozen snapshot receiving is a separate allocation, never implied by a pinned ID. No guessed `active`, `achievable`, `compressed` or `next_cycle` state. |
 | Planner projects and counters | Resolve every verified project and task under current Planner ACLs. Count unique nonarchived task IDs; completed means canonical `status=done`. Overdue uses the owner's canonical deadline/overdue helper from `dueOn`, `dueTime` and `timeZone` at the stated `asOf`; there is no invented public dueAt field or 30-day horizon. Projects and personal/manual/shared tasks retain their IDs and human edits. Creation counts and original memberships remain lineage, not current progress. No `waiting_for_window` counter without an existing authoritative scheduling rule. |
 | Decisions waiting | Initially only pending tasks whose canonical subtype is `approval`, and pending command proposals in explicitly linked Outreach sessions. A normal task's default `approval=pending` is not a decision. Review opens the existing owner; approval/rejection uses that owner's current version/permission/flags and command, never a generic Objective approve endpoint. Budget watch acknowledgements and extraction-review decisions are different domains and are not pooled. Compatibility Outreach events cannot double-count one decision. |
 | Open intelligence questions | Expose `not_implemented`/`unbound` with null count until an actual question entity, open predicate and Objective membership owner are proven. Do not relabel intelligence insights, alerts or Strategy context nodes as questions. This is an explicit full-page gap, not a zero KPI. |
@@ -247,8 +254,12 @@ These requirements accompany the closed schema; shape validation alone is insuff
   task or session/proposal ID. A Strategy row can retain multiple authorized `savedVersions`,
   each bound to its own application receipt and original source revision. A manual link
   cannot manufacture a saved-version pin. Do not choose an arbitrary receipt as current.
-  Current opening uses a null saved-version selector; a nonnull selector must match an
-  exposed pin on that Strategy row and is invalid for every other resource kind.
+  Every immutable version ID agrees on its owning Strategy and digest across receipts.
+  Ordinary `open_resource` has `contentView=current` and no saved-version selector.
+  `open_generated_strategy` requires an owner-resolved nonnull generatedJobId, exact
+  Strategy/version/digest/sourceRevision and `contentView=current`. It is emitted only
+  when that source revision equals the current Objective; the existing receiver refuses
+  stale bindings. A generic receipt ID is never used as a generation job ID.
 - Every open/review action must match a visible authorized row and exact observed version;
   pending approval-task review and session/proposal review are different selectors.
   Outreach's existing reject path checks owned/pending state; apply additionally checks
@@ -267,3 +278,45 @@ resolution and the screenshot's feasibility/window labels. Those remain explicit
 their domain owners. The association, pagination, counters and delegation mapping above are
 concrete engineering proposals; they need allocation and ordinary review, not a new
 Objective lifecycle or generic approval policy.
+
+## Receiving corrections and receipt resolution (O1–O4)
+
+Manual `associationId` maps to one immutable `via` resource, linked revision and creation
+time everywhere it appears. Project-derived task provenance keeps that project selection;
+the Planner reader proves the membership before returning it and does not expose a hidden
+project through provenance. The positive examples use distinct Strategy/project/task/meeting
+memberships. Immutable version IDs map to one Strategy/digest even when several verified
+receipt witnesses refer to them. Missing job mapping is explicitly null on the pin.
+
+Page conformance receives the decoded read request and accumulated section context in
+addition to the response. An initial complete page with no nextCursor must account for its
+entire total. A continuation checks prior distinct identities, scope, association version,
+asOf, snapshot and cursor; a final page's own length may be smaller than its global total.
+Repeated identities, mixed snapshots, early termination and no-progress cursors fail.
+The offline helper demonstrates these relations, not cursor signatures or real DB paging.
+
+The Strategy application read facade owns `resolveObjectiveReceipt`, a proposed read-only
+internal method, not a new Meri protocol. Its input is a server-owned typed receipt locator,
+never an arbitrary UUID guessed from the browser:
+
+| Existing source | Authoritative resolution |
+| --- | --- |
+| Caller-known generation job | Resolve actual tenant/actor-scoped `sp_draft_job.id`; validate the completed embedded Objective receipt, request identity, client/Objective/revision, Strategy ID and exact immutable `sp_version` snapshot/digest. Existing Planner `materializationSource` demonstrates these application checks. This is read reuse, not producer/worker modification. |
+| Caller-known materialization request | Existing `PlannerService.strategyMaterialization(ctx, requestId)` validates the deterministic private receipt, immutable creation/source chain and current output availability. Its `source.generationJobId` supplies the actual job locator; receipt ID and request ID are not interchangeable with job ID. |
+| Future Core applied publication | Must persist an exact server-owned locator/mapping to its existing application receipt. That producer remains a separate unimplemented gate. No scan/adoption of the latest job or reserved ID substitutes for it. |
+
+The facade emits `generatedJobId` only after the actual job lookup and exact version proof.
+Current `ObjectiveGeneratedStrategy` still fetches `strategies.objectiveDraftJob`, checks
+`requireGeneratedStrategy`, fetches `strategies.objectiveDestination` and matches the returned
+Objective revision. `open_generated_strategy` maps those exact selectors, not a fabricated
+full job response; the receiving component reauthorizes on open. It explicitly displays
+**current authorized Strategy content**, with the saved version named as provenance.
+
+Frozen saved content needs a separately allocated, read-only Strategy version reader and
+frontend receiver. `VersionService.list` returns history metadata; `loadStrategyDetail`
+returns the live plan. Neither is a frozen-content endpoint. The prospective allocation is
+listed in `IMPLEMENTATION-PLAN.md`. Until its contract is reviewed, no frozen-content action
+is emitted and no `contentView=saved_snapshot` is accepted by this schema. Old-revision pins
+remain provenance under current permissions; they do not weaken the current receiver's
+stale-revision check or rewrite current/applied pointers. A normal current-resource action
+can remain available independently when the source owner authorizes it.

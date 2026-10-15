@@ -18,13 +18,34 @@ const canonical = x => x === null || typeof x !== 'object' ? JSON.stringify(x) :
 const digest = x => crypto.createHash('sha256').update(canonical(x)).digest('hex');
 const key = x => `${x.kind}:${x.id}`;
 const equal = (a, b) => canonical(a) === canonical(b);
-function readSemantics(x) {
+const pageKey = row => {const r=row.resource||row.task||row.session;return row.kind?`${row.kind}:${r.selection.id}:${row.proposalId||''}`:key(r.selection);};
+function initialPageContext(x) {return {request:{schemaVersion:1,clientId:x.scope.clientId,objectiveId:x.scope.objectiveId,limit:100,cursors:{strategies:null,projects:null,decisions:null,engagements:null}},prior:{}};}
+function pageProgress(x,name,section,context) {
+  if(name==='questions')return true;
+  const cursor=context.request.cursors[name],prior=context.prior[name];
+  if(section.items.length>context.request.limit)return false;
+  let seen=[];
+  if(cursor===null) {if(prior)return false;}
+  else {
+    if(!prior||prior.cursor!==cursor||!equal(prior.scope,x.scope)||prior.asOf!==x.asOf||prior.associationSetVersion!==x.associationSetVersion||prior.snapshotId!==section.snapshotId||prior.total!==section.total||!Array.isArray(prior.seenKeys)||new Set(prior.seenKeys).size!==prior.seenKeys.length)return false;
+    seen=prior.seenKeys;
+  }
+  const keys=section.items.map(pageKey),all=new Set([...seen,...keys]);
+  if(all.size!==seen.length+keys.length)return false;
+  if(section.nextCursor!==null&&(keys.length===0||section.nextCursor===cursor))return false;
+  if(section.coverage==='complete'&&(all.size>section.total||(section.nextCursor===null?all.size!==section.total:all.size>=section.total)))return false;
+  return true;
+}
+function readSemantics(x, context) {
   if (!validators.ReadResponse(x)) return false;
+  context=context||initialPageContext(x);
+  if(!validators.ReadRequest(context.request)||context.request.clientId!==x.scope.clientId||context.request.objectiveId!==x.scope.objectiveId||!context.prior)return false;
   if (Date.parse(x.asOf) > Date.parse(x.observedAt)) return false;
   const current = { id: x.scope.currentRevisionId, version: x.scope.objectiveVersion };
   const validRevision = r => r.version <= current.version && (r.version !== current.version || r.id === current.id);
-  const resources = new Map(), tasks = new Map(), proposals = new Map(), strategies = new Map();
+  const resources = new Map(), tasks = new Map(), proposals = new Map(), strategies = new Map(), manualBindings=new Map(), immutableVersions=new Map();
   for (const [name, section] of Object.entries(x.sections)) {
+    if(!pageProgress(x,name,section,context))return false;
     if (Date.parse(section.observedAt) > Date.parse(x.observedAt)) return false;
     if (section.coverage === 'complete') {
       if (x.associationSetVersion === null || section.snapshotId === null || section.total === null || section.reasons.length || section.total < section.items.length) return false;
@@ -41,6 +62,12 @@ function readSemantics(x) {
       const rowKey = name === 'decisions' ? `${row.kind}:${resource.selection.id}:${row.proposalId || ''}` : key(resource.selection);
       if (seen.has(rowKey)) return false; seen.add(rowKey);
       if (!row.provenance.every(p => validRevision(p.linkedRevision || p.sourceRevision))) return false;
+      for(const p of row.provenance)if(p.kind==='manual') {
+        const direct=equal(p.via,resource.selection),derived=resource.selection.kind==='planner_task'&&p.via.kind==='planner_project';
+        if(!direct&&!derived)return false;
+        if(manualBindings.has(p.associationId)&&manualBindings.get(p.associationId)!==canonical(p))return false;
+        manualBindings.set(p.associationId,canonical(p));
+      }
       if (Date.parse(resource.observedAt) > Date.parse(x.observedAt)) return false;
       const resourceKey = key(resource.selection), prior = resources.get(resourceKey);
       if (prior && !equal(prior, resource)) return false;
@@ -52,6 +79,9 @@ function readSemantics(x) {
         for (const pin of row.savedVersions) {
           if (!validRevision(pin.sourceRevision) || pins.has(pin.receiptId)) return false;
           pins.add(pin.receiptId);
+          const identity=canonical({strategyId:resource.selection.id,digest:pin.digest});
+          if(immutableVersions.has(pin.id)&&immutableVersions.get(pin.id)!==identity)return false;
+          immutableVersions.set(pin.id,identity);
           if (!row.provenance.some(p => p.kind === 'application_receipt' && p.receiptId === pin.receiptId && equal(p.sourceRevision, pin.sourceRevision))) return false;
         }
         strategies.set(resource.selection.id, row.savedVersions);
@@ -75,7 +105,8 @@ function readSemantics(x) {
     } else if (action.kind === 'open_resource') {
       const resource = resources.get(key(action.resource));
       if (!resource || !equal(resource.ownerVersion, action.ownerVersion)) return false;
-      if (action.savedStrategyVersionId !== null && (action.resource.kind !== 'strategy' || !strategies.get(action.resource.id)?.some(p => p.id === action.savedStrategyVersionId))) return false;
+    } else if(action.kind==='open_generated_strategy') {
+      if(!equal(action.sourceRevision,current)||!strategies.get(action.strategyId)?.some(p=>p.id===action.strategyVersionId&&p.digest===action.strategyVersionDigest&&p.generatedJobId===action.generatedJobId&&equal(p.sourceRevision,action.sourceRevision)))return false;
     } else if (action.kind === 'review_planner_approval') {
       if (!equal(tasks.get(action.taskId), {kind:'counter', value:action.taskVersion})) return false;
     } else if (!equal(proposals.get(`${action.sessionId}:${action.proposalId}`), {kind:'counter', value:action.expectedStateVersion})) return false;
@@ -126,10 +157,10 @@ bad('question KPI cannot be invented', x => {x.sections.questions.coverage='comp
 bad('fake active Objective enum refused', x => x.scope.objectiveStatus = 'active');
 bad('old objective action version refused', x => x.actions[0].expectedObjectiveVersion = 2);
 bad('hidden resource action refused', x => x.actions.push({kind:'open_resource',resource:{kind:'strategy',id:command.resource.id},ownerVersion:{kind:'counter',value:5},savedStrategyVersionId:null}), partial);
-bad('non-Strategy cannot carry saved Strategy version', x => x.actions[2].savedStrategyVersionId = command.resource.id);
+bad('ordinary current action cannot smuggle saved-version selector', x => x.actions[2].savedStrategyVersionId = command.resource.id);
 bad('review needs visible approval task', x => x.sections.decisions.items=[]);
 bad('review task version drift refused', x => x.actions[1].taskVersion = 6);
-bad('manual link cannot manufacture saved-version pin', x => x.sections.strategies.items[0].savedVersions.push({receiptId:command.requestId,sourceRevision:{id:observed.scope.currentRevisionId,version:3},id:command.requestId,digest:'b'.repeat(64)}));
+bad('manual link cannot manufacture saved-version pin', x => x.sections.strategies.items[0].savedVersions.push({receiptId:command.requestId,sourceRevision:{id:observed.scope.currentRevisionId,version:3},id:command.requestId,digest:'b'.repeat(64),generatedJobId:null}));
 check('link receipt exact request/source/set match', () => assert(receiptMatches(receipt, command)));
 for (const [name, mutate] of [
   ['opposite receipt outcome', x => x.outcome='unlinked'],
@@ -151,9 +182,19 @@ check('synthetic authorized union deduplicates shared tasks and excludes unlinke
   assert.deepEqual(metricWitness(facts,new Set(['p','q']),new Set(['b']),2),{taskCount:2,doneCount:1,overdueCount:1});
 });
 check('normal task default pending approval is not a decision', () => {const facts=[{subtype:'task',approval:'pending'},{subtype:'approval',approval:'pending'},{subtype:'approval',approval:'approved'}];assert.equal(facts.filter(t=>t.subtype==='approval'&&t.approval==='pending').length,1);});
-check('untitled linked Outreach session remains representable', () => {const x=clone(observed),row=x.sections.decisions.items[0];x.sections.decisions.items=[{kind:'outreach_proposal',session:{...row.task,selection:{kind:'outreach_session',id:command.requestId},title:null},proposalId:receipt.associationId,state:'pending',title:'Review proposal',provenance:row.provenance}];x.actions=[x.actions[0],{kind:'review_outreach_proposal',sessionId:command.requestId,proposalId:receipt.associationId,expectedStateVersion:5}];assert(readSemantics(x));});
+check('untitled linked Outreach session remains representable', () => {const x=clone(observed),row=x.sections.decisions.items[0],selection={kind:'outreach_session',id:command.requestId};x.sections.decisions.items=[{kind:'outreach_proposal',session:{...row.task,selection,title:null},proposalId:receipt.associationId,state:'pending',title:'Review proposal',provenance:row.provenance.map(p=>({...p,via:selection}))}];x.actions=[x.actions[0],{kind:'review_outreach_proposal',sessionId:command.requestId,proposalId:receipt.associationId,expectedStateVersion:5}];assert(readSemantics(x));});
 const pendingComposite={schemaVersion:1,observedAt:observed.observedAt,projectionDigest:'a'.repeat(64),objective:{clientId:observed.scope.clientId,id:observed.scope.objectiveId,currentRevisionId:observed.scope.currentRevisionId,version:observed.scope.objectiveVersion,status:observed.scope.objectiveStatus},association:null,requestedRevision:{id:observed.scope.currentRevisionId,version:observed.scope.objectiveVersion},strategyAppliedRevision:null,planAppliedRevision:null,generation:{state:'pending',attemptId:null,receiptId:null,failureCode:'runtime_authority_unconnected'},planner:{state:'not_recorded',attemptId:null,receiptId:null,failureCode:null},strategy:{availability:'unbound',id:null,versionId:null,versionDigest:null},project:{availability:'unbound',sourceLineageAvailability:'unbound',id:null,sourceStrategyVersionId:null,sourceStrategyVersionDigest:null},notices:[],issues:[],requestedIntentId:command.requestId,strategyAppliedIntentId:null,planAppliedIntentId:null};
 check('available inherited composite must match outer Objective identity',()=>{const x=clone(observed);x.automation={availability:'available',projection:clone(pendingComposite)};assert(readSemantics(x));x.automation.projection.objective.id=command.requestId;assert.equal(readSemantics(x),false);});
 check('inherited stage matrix remains strict',()=>{const x=clone(observed);x.automation={availability:'available',projection:clone(pendingComposite)};x.automation.projection.generation.state='running';assert.equal(readSemantics(x),false);});
+bad('O1 immutable manual membership cannot alias unrelated resources',x=>{x.sections.projects.items[0].provenance[0].associationId=x.sections.strategies.items[0].provenance[0].associationId;});
+bad('O1 wrong direct source selection refused',x=>{x.sections.projects.items[0].provenance[0].via=x.sections.strategies.items[0].resource.selection;});
+check('O1 verified project-derived task provenance stays representable',()=>{const x=clone(observed);x.sections.decisions.items[0].provenance=clone(x.sections.projects.items[0].provenance);assert(readSemantics(x));});
+const pinned=examples.find(e=>e.name==='verified-two-receipts-one-immutable-version-current-content').value;
+bad('O2 immutable version cannot disagree across receipt witnesses',x=>{x.sections.strategies.items[0].savedVersions[1].digest='c'.repeat(64);},pinned);
+bad('O3 complete first page cannot terminate early',x=>{x.sections.projects.total=2;});
+check('O3 continuation context allows genuine final page',()=>{const first=clone(observed);first.sections.projects.total=2;first.sections.projects.nextCursor='opaque-next';assert(readSemantics(first));const last=clone(first);last.sections.projects.nextCursor=null;last.sections.projects.items[0].resource.selection.id=command.requestId;last.sections.projects.items[0].provenance[0].via.id=command.requestId;last.sections.projects.items[0].provenance[0].associationId=command.requestId;last.actions=last.actions.filter(a=>a.kind!=='open_resource');const context=initialPageContext(last);context.request.cursors.projects='opaque-next';context.prior.projects={cursor:'opaque-next',scope:last.scope,asOf:last.asOf,associationSetVersion:last.associationSetVersion,snapshotId:last.sections.projects.snapshotId,total:2,seenKeys:first.sections.projects.items.map(pageKey)};assert(readSemantics(last,context));context.prior.projects.snapshotId=command.requestId;assert.equal(readSemantics(last,context),false);});
+bad('O4 receipt identity cannot substitute for generation job',x=>{x.actions.at(-1).generatedJobId=x.sections.strategies.items[0].savedVersions[0].receiptId;},pinned);
+bad('O4 generated current receiver cannot silently adopt older Objective source',x=>{for(const p of x.sections.strategies.items[0].savedVersions)p.sourceRevision={id:command.requestId,version:2};for(const p of x.sections.strategies.items[0].provenance)if(p.kind==='application_receipt')p.sourceRevision={id:command.requestId,version:2};x.actions.at(-1).sourceRevision={id:command.requestId,version:2};},pinned);
+bad('O4 current receiving never claims frozen content',x=>{x.actions.at(-1).contentView='saved_snapshot';},pinned);
 const report={schemaVersion:1,verdict:'OFFLINE_PROPOSAL_CONFORMANCE_ONLY',passed:results.length,failed:0,results,limits:['No runtime selectors, ACL, persistence, cursors, DB or native checks executed','Inherited composite complete semantic/receipt witness gate remains required','Synthetic owner facts do not prove source implementation']};
 process.stdout.write(JSON.stringify(report,null,2)+'\n');

@@ -262,6 +262,93 @@
       "bytes": 4768,
       "sha256": "bb603ae44ea728362f5d80b9d64795a6b87420a034d605bab34fabae2f7d81ae",
       "gitBlob": "c686fb2c7aefe002cf08f89d88262bf1eabe2826"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api-strategy/src/strategy/version.service.ts",
+      "bytes": 24253,
+      "sha256": "ae1d39c13f318c42d94bb59d4cebbb56741b7714387cd136bbf029c997a1cce1",
+      "gitBlob": "8c2739ba68e553197b8b542fee6e90b55b8d1018"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api-strategy/src/strategy/detail.ts",
+      "bytes": 1224,
+      "sha256": "bda2c72481bc9c6ded127533d13f6d70448a20680adc19388c303505f5476c0f",
+      "gitBlob": "808cd7b35bd40685df8c4d5abebf33e730b680f4"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/clients/objectives/objectives.module.ts",
+      "bytes": 350,
+      "sha256": "d8585db9ee0fff4fef840faaf5b0d3c5c72778781f8e333dbae89afa0404c2e5",
+      "gitBlob": "cf2cd536c8d14958861416d51d2811bfe11d562a"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/clients/activity-commands/activity-command.service.ts",
+      "bytes": 10284,
+      "sha256": "04ae49271fb9b1749f112e92b57188a86e5f0a9f21c5b0f331a1a106989824c0",
+      "gitBlob": "e5f71b52f9e2cf4adfd55b8f6f5f21aa21bd4810"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/intelligence/intelligence.module.ts",
+      "bytes": 4870,
+      "sha256": "3d55657d474fbd14e98b291d90a9bfb2e93fa0054010cdab748a7392aac51593",
+      "gitBlob": "f8a56971378453b3b53ef49fa6f4593baebf2f90"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api/src/defense-budget-lifecycle/defense-budget-lifecycle-read.service.ts",
+      "bytes": 20190,
+      "sha256": "d386ef94a398d5c5eb517c7fdc70c2602343c3c196c1265fde5e71350c73ed19",
+      "gitBlob": "9fe6b03ab9c985871f297c5d7ee56c15d95990a1"
+    },
+    {
+      "repository": "backend",
+      "path": "packages/strategy-verifier/src/plan-health.ts",
+      "bytes": 4425,
+      "sha256": "da8f3fdff052a5c49ae9186fedb65cb49cf08e892179e2ed1d3f2c071be46fc3",
+      "gitBlob": "80a0c8b91b3bd4b8a7a07a9a853b5be67af134c0"
+    },
+    {
+      "repository": "backend",
+      "path": "packages/strategy-verifier/src/fiscal-cycle.ts",
+      "bytes": 1956,
+      "sha256": "792b7ce83007d73054a1f12e198b24242cb465d711d6f2a572c04f8f90a8e65a",
+      "gitBlob": "6537fe59f86fc0094b9f037af5c9d44151309b77"
+    },
+    {
+      "repository": "backend",
+      "path": "apps/api-strategy/src/context/current-plan-export.service.ts",
+      "bytes": 6221,
+      "sha256": "e3ae918f440d6a3283a3cc92a31dd8ae80920f1bf11828aea6bd99d8b42c999e",
+      "gitBlob": "4430134e4122057464d8f2b4741e43349ed69d32"
+    },
+    {
+      "repository": "frontend-local-reference",
+      "path": "apps/web/src/shared/capiro/operations/objective-generation.ts",
+      "bytes": 8305,
+      "sha256": "e359d554855c3ee27bf6e70a0732bc0c6897a449d7657ec5661d315965ee4306"
+    },
+    {
+      "repository": "frontend-local-reference",
+      "path": "apps/web/src/shared/capiro/operations/strategy-materialization.ts",
+      "bytes": 7721,
+      "sha256": "6bce50aec7c5d8dc142c88434d0bf0edf20930b999e22b69d40c6365dc205d0f"
+    },
+    {
+      "repository": "frontend-local-reference",
+      "path": "apps/web/src/features/modules/objective-destinations/ObjectiveGeneratedStrategy.tsx",
+      "bytes": 3141,
+      "sha256": "7089fd61f83ba184a246cb1b3093060b87a49c9888dc26fc6020fdbb1b98d202"
+    },
+    {
+      "repository": "frontend-local-reference",
+      "path": "apps/web/src/features/modules/objective-destinations/ObjectiveDestinationRoute.tsx",
+      "bytes": 5256,
+      "sha256": "10ad6b4ad0c0826283f7e2d5ccab2d28cb708b1be42df8376feaf9df34dc6b13"
     }
   ]
 }

@@ -148,7 +148,11 @@
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "strategy",
+                      "id": "0000001e-1111-4111-8111-111111111111"
+                    }
                   }
                 ],
                 "cycles": [
@@ -159,7 +163,8 @@
                     "context": null
                   }
                 ],
-                "savedVersions": []
+                "savedVersions": [],
+                "strategyType": "appropriations"
               }
             ]
           },
@@ -187,12 +192,16 @@
                 "provenance": [
                   {
                     "kind": "manual",
-                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "associationId": "00000015-1111-4111-8111-111111111111",
                     "linkedRevision": {
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "planner_project",
+                      "id": "0000001f-1111-4111-8111-111111111111"
+                    }
                   }
                 ]
               }
@@ -224,12 +233,16 @@
                 "provenance": [
                   {
                     "kind": "manual",
-                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "associationId": "00000016-1111-4111-8111-111111111111",
                     "linkedRevision": {
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "planner_task",
+                      "id": "00000020-1111-4111-8111-111111111111"
+                    }
                   }
                 ]
               }
@@ -259,12 +272,16 @@
                 "provenance": [
                   {
                     "kind": "manual",
-                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "associationId": "00000017-1111-4111-8111-111111111111",
                     "linkedRevision": {
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "meeting",
+                      "id": "00000021-1111-4111-8111-111111111111"
+                    }
                   }
                 ],
                 "startsAt": "2026-10-16T10:00:00.000Z",
@@ -313,10 +330,10 @@
               "kind": "counter",
               "value": 5
             },
-            "savedStrategyVersionId": null
+            "contentView": "current"
           }
         ],
-        "projectionDigest": "7a79d0cd4e66c3d6e8c7415d93c9192708bdf4c34df06f363ea7bd2b7ae75950"
+        "projectionDigest": "5a821297abe795be190a5eabe05e42d954d6d95852a8112a716f3c7db717c40e"
       }
     },
     {
@@ -377,12 +394,16 @@
                 "provenance": [
                   {
                     "kind": "manual",
-                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "associationId": "00000015-1111-4111-8111-111111111111",
                     "linkedRevision": {
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "planner_project",
+                      "id": "0000001f-1111-4111-8111-111111111111"
+                    }
                   }
                 ]
               }
@@ -414,12 +435,16 @@
                 "provenance": [
                   {
                     "kind": "manual",
-                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "associationId": "00000016-1111-4111-8111-111111111111",
                     "linkedRevision": {
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "planner_task",
+                      "id": "00000020-1111-4111-8111-111111111111"
+                    }
                   }
                 ]
               }
@@ -449,12 +474,16 @@
                 "provenance": [
                   {
                     "kind": "manual",
-                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "associationId": "00000017-1111-4111-8111-111111111111",
                     "linkedRevision": {
                       "id": "0000000a-1111-4111-8111-111111111111",
                       "version": 2
                     },
-                    "linkedAt": "2026-10-14T12:00:00.000Z"
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "meeting",
+                      "id": "00000021-1111-4111-8111-111111111111"
+                    }
                   }
                 ],
                 "startsAt": "2026-10-16T10:00:00.000Z",
@@ -505,10 +534,10 @@
               "kind": "counter",
               "value": 5
             },
-            "savedStrategyVersionId": null
+            "contentView": "current"
           }
         ],
-        "projectionDigest": "27dff0d14c93adffa1c58d4670c5c604e541b2470f5f39a58b024a90520dc2dd"
+        "projectionDigest": "eab421ab5c2edbc59436a4c1d15b2dec63dd42d56b9a034ef1c3f788d0e1068a"
       }
     },
     {
@@ -656,6 +685,293 @@
         "code": "RECEIPT_NOT_AVAILABLE",
         "outcome": "unknown",
         "requestId": "00000064-1111-4111-8111-111111111111"
+      }
+    },
+    {
+      "name": "verified-two-receipts-one-immutable-version-current-content",
+      "type": "ReadResponse",
+      "value": {
+        "schemaVersion": 1,
+        "observedAt": "2026-10-15T12:00:00.000Z",
+        "asOf": "2026-10-15T12:00:00.000Z",
+        "scope": {
+          "clientId": "00000001-1111-4111-8111-111111111111",
+          "objectiveId": "00000002-1111-4111-8111-111111111111",
+          "currentRevisionId": "00000003-1111-4111-8111-111111111111",
+          "objectiveVersion": 3,
+          "objectiveStatus": "ready",
+          "ownerUserId": "00000004-1111-4111-8111-111111111111"
+        },
+        "associationSetVersion": 4,
+        "automation": {
+          "availability": "not_implemented",
+          "projection": null
+        },
+        "sections": {
+          "strategies": {
+            "observedAt": "2026-10-15T12:00:00.000Z",
+            "snapshotId": "00000050-1111-4111-8111-111111111111",
+            "coverage": "complete",
+            "reasons": [],
+            "total": 1,
+            "nextCursor": null,
+            "items": [
+              {
+                "resource": {
+                  "selection": {
+                    "kind": "strategy",
+                    "id": "0000001e-1111-4111-8111-111111111111"
+                  },
+                  "title": "FY28 adoption strategy",
+                  "ownerVersion": {
+                    "kind": "counter",
+                    "value": 5
+                  },
+                  "observedAt": "2026-10-15T12:00:00.000Z"
+                },
+                "provenance": [
+                  {
+                    "kind": "manual",
+                    "associationId": "00000014-1111-4111-8111-111111111111",
+                    "linkedRevision": {
+                      "id": "0000000a-1111-4111-8111-111111111111",
+                      "version": 2
+                    },
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "strategy",
+                      "id": "0000001e-1111-4111-8111-111111111111"
+                    }
+                  },
+                  {
+                    "kind": "application_receipt",
+                    "receiptId": "00000191-1111-4111-8111-111111111111",
+                    "sourceRevision": {
+                      "id": "00000003-1111-4111-8111-111111111111",
+                      "version": 3
+                    }
+                  },
+                  {
+                    "kind": "application_receipt",
+                    "receiptId": "00000192-1111-4111-8111-111111111111",
+                    "sourceRevision": {
+                      "id": "00000003-1111-4111-8111-111111111111",
+                      "version": 3
+                    }
+                  }
+                ],
+                "cycles": [
+                  {
+                    "fiscalYear": 2028,
+                    "authorityTrack": null,
+                    "basis": "human_annotation",
+                    "context": null
+                  }
+                ],
+                "savedVersions": [
+                  {
+                    "receiptId": "00000191-1111-4111-8111-111111111111",
+                    "sourceRevision": {
+                      "id": "00000003-1111-4111-8111-111111111111",
+                      "version": 3
+                    },
+                    "id": "000001f5-1111-4111-8111-111111111111",
+                    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "generatedJobId": "00000259-1111-4111-8111-111111111111"
+                  },
+                  {
+                    "receiptId": "00000192-1111-4111-8111-111111111111",
+                    "sourceRevision": {
+                      "id": "00000003-1111-4111-8111-111111111111",
+                      "version": 3
+                    },
+                    "id": "000001f5-1111-4111-8111-111111111111",
+                    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "generatedJobId": "00000259-1111-4111-8111-111111111111"
+                  }
+                ],
+                "strategyType": "appropriations"
+              }
+            ]
+          },
+          "projects": {
+            "observedAt": "2026-10-15T12:00:00.000Z",
+            "snapshotId": "00000050-1111-4111-8111-111111111111",
+            "coverage": "complete",
+            "reasons": [],
+            "total": 1,
+            "nextCursor": null,
+            "items": [
+              {
+                "resource": {
+                  "selection": {
+                    "kind": "planner_project",
+                    "id": "0000001f-1111-4111-8111-111111111111"
+                  },
+                  "title": "Adoption work",
+                  "ownerVersion": {
+                    "kind": "counter",
+                    "value": 5
+                  },
+                  "observedAt": "2026-10-15T12:00:00.000Z"
+                },
+                "provenance": [
+                  {
+                    "kind": "manual",
+                    "associationId": "00000015-1111-4111-8111-111111111111",
+                    "linkedRevision": {
+                      "id": "0000000a-1111-4111-8111-111111111111",
+                      "version": 2
+                    },
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "planner_project",
+                      "id": "0000001f-1111-4111-8111-111111111111"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "decisions": {
+            "observedAt": "2026-10-15T12:00:00.000Z",
+            "snapshotId": "00000050-1111-4111-8111-111111111111",
+            "coverage": "complete",
+            "reasons": [],
+            "total": 1,
+            "nextCursor": null,
+            "items": [
+              {
+                "kind": "planner_approval",
+                "task": {
+                  "selection": {
+                    "kind": "planner_task",
+                    "id": "00000020-1111-4111-8111-111111111111"
+                  },
+                  "title": "Review the proposed amount",
+                  "ownerVersion": {
+                    "kind": "counter",
+                    "value": 5
+                  },
+                  "observedAt": "2026-10-15T12:00:00.000Z"
+                },
+                "approval": "pending",
+                "provenance": [
+                  {
+                    "kind": "manual",
+                    "associationId": "00000016-1111-4111-8111-111111111111",
+                    "linkedRevision": {
+                      "id": "0000000a-1111-4111-8111-111111111111",
+                      "version": 2
+                    },
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "planner_task",
+                      "id": "00000020-1111-4111-8111-111111111111"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "engagements": {
+            "observedAt": "2026-10-15T12:00:00.000Z",
+            "snapshotId": "00000050-1111-4111-8111-111111111111",
+            "coverage": "complete",
+            "reasons": [],
+            "total": 1,
+            "nextCursor": null,
+            "items": [
+              {
+                "resource": {
+                  "selection": {
+                    "kind": "meeting",
+                    "id": "00000021-1111-4111-8111-111111111111"
+                  },
+                  "title": "Staff meeting",
+                  "ownerVersion": {
+                    "kind": "timestamp",
+                    "value": "2026-10-15T12:00:00.000Z"
+                  },
+                  "observedAt": "2026-10-15T12:00:00.000Z"
+                },
+                "provenance": [
+                  {
+                    "kind": "manual",
+                    "associationId": "00000017-1111-4111-8111-111111111111",
+                    "linkedRevision": {
+                      "id": "0000000a-1111-4111-8111-111111111111",
+                      "version": 2
+                    },
+                    "linkedAt": "2026-10-14T12:00:00.000Z",
+                    "via": {
+                      "kind": "meeting",
+                      "id": "00000021-1111-4111-8111-111111111111"
+                    }
+                  }
+                ],
+                "startsAt": "2026-10-16T10:00:00.000Z",
+                "endsAt": null
+              }
+            ]
+          },
+          "questions": {
+            "observedAt": "2026-10-15T12:00:00.000Z",
+            "snapshotId": null,
+            "coverage": "not_implemented",
+            "reasons": [
+              "unsupported_question_lifecycle"
+            ],
+            "total": null,
+            "nextCursor": null,
+            "items": []
+          }
+        },
+        "plannerMetrics": {
+          "observedAt": "2026-10-15T12:00:00.000Z",
+          "asOf": "2026-10-15T12:00:00.000Z",
+          "coverage": "complete",
+          "reasons": [],
+          "taskCount": 3,
+          "doneCount": 1,
+          "overdueCount": 1
+        },
+        "actions": [
+          {
+            "kind": "edit_objective",
+            "expectedObjectiveVersion": 3
+          },
+          {
+            "kind": "review_planner_approval",
+            "taskId": "00000020-1111-4111-8111-111111111111",
+            "taskVersion": 5
+          },
+          {
+            "kind": "open_resource",
+            "resource": {
+              "kind": "planner_project",
+              "id": "0000001f-1111-4111-8111-111111111111"
+            },
+            "ownerVersion": {
+              "kind": "counter",
+              "value": 5
+            },
+            "contentView": "current"
+          },
+          {
+            "kind": "open_generated_strategy",
+            "strategyId": "0000001e-1111-4111-8111-111111111111",
+            "generatedJobId": "00000259-1111-4111-8111-111111111111",
+            "strategyVersionId": "000001f5-1111-4111-8111-111111111111",
+            "strategyVersionDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sourceRevision": {
+              "id": "00000003-1111-4111-8111-111111111111",
+              "version": 3
+            },
+            "contentView": "current"
+          }
+        ],
+        "projectionDigest": "88472dd1ce07f480add9138bff504988278f7269b91518d4f901fe9f84280e06"
       }
     }
   ]

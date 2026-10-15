@@ -160,7 +160,8 @@
             "kind",
             "associationId",
             "linkedRevision",
-            "linkedAt"
+            "linkedAt",
+            "via"
           ],
           "properties": {
             "kind": {
@@ -176,6 +177,9 @@
             "linkedAt": {
               "type": "string",
               "format": "date-time"
+            },
+            "via": {
+              "$ref": "#/definitions/Selection"
             }
           }
         },
@@ -322,7 +326,8 @@
         "resource",
         "provenance",
         "cycles",
-        "savedVersions"
+        "savedVersions",
+        "strategyType"
       ],
       "properties": {
         "resource": {
@@ -366,7 +371,8 @@
               "receiptId",
               "sourceRevision",
               "id",
-              "digest"
+              "digest",
+              "generatedJobId"
             ],
             "properties": {
               "receiptId": {
@@ -383,10 +389,31 @@
               "digest": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{64}$"
+              },
+              "generatedJobId": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/definitions/UUID"
+                  }
+                ]
               }
             }
           },
           "uniqueItems": true
+        },
+        "strategyType": {
+          "enum": [
+            "appropriations",
+            "authorization",
+            "regulatory",
+            "coalition",
+            "procurement",
+            "earmark",
+            "amendment"
+          ]
         }
       }
     },
@@ -1138,7 +1165,7 @@
             "kind",
             "resource",
             "ownerVersion",
-            "savedStrategyVersionId"
+            "contentView"
           ],
           "properties": {
             "kind": {
@@ -1150,16 +1177,8 @@
             "ownerVersion": {
               "$ref": "#/definitions/OwnerVersion"
             },
-            "savedStrategyVersionId": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string",
-                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                }
-              ]
+            "contentView": {
+              "const": "current"
             }
           }
         },
@@ -1211,6 +1230,43 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 2147483647
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "strategyId",
+            "generatedJobId",
+            "strategyVersionId",
+            "strategyVersionDigest",
+            "sourceRevision",
+            "contentView"
+          ],
+          "properties": {
+            "kind": {
+              "const": "open_generated_strategy"
+            },
+            "strategyId": {
+              "$ref": "#/definitions/UUID"
+            },
+            "generatedJobId": {
+              "$ref": "#/definitions/UUID"
+            },
+            "strategyVersionId": {
+              "$ref": "#/definitions/UUID"
+            },
+            "strategyVersionDigest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sourceRevision": {
+              "$ref": "#/definitions/Revision"
+            },
+            "contentView": {
+              "const": "current"
             }
           }
         }
