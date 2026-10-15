@@ -792,7 +792,7 @@ async function main() {
     closure = contract.verifyInstalledClosure();
     const summarize = owner => ({ root: owner.root, manifest: owner.manifest, manifestSHA256: owner.manifestSHA256,
       name: owner.metadata.name, version: owner.metadata.version, snapshot: owner.snapshot,
-      integrity: owner.integrity || null, declaredPlatform: owner.declaredPlatform || null, generatedBy: owner.generatedBy || null });
+      integrity: owner.integrity || null, declaredPlatform: owner.declaredPlatform || null, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null });
     report.productionClosure = { status: closure.status, contractSHA256: closure.contractSHA256, target: closure.target,
       visitedNodes: closure.visitedNodes, owners: closure.owners.map(summarize), generated: closure.generated.map(summarize),
       edges: closure.edges, missingOptional: closure.missingOptional, integrityScope: closure.integrityScope,

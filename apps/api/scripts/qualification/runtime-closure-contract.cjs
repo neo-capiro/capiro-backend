@@ -55,6 +55,83 @@ function platformAllows(list, value) {
 function compatible(node, target) {
   return ['os', 'cpu', 'libc'].every(k => platformAllows(node[k], target[k]));
 }
+// Narrow archive-proven constraints absent from the frozen pnpm snapshot.
+// Exact SRI binds the vendor archive; manifest SHA binds installed package.json.
+const archivePlatforms = Object.freeze({
+  "@napi-rs/canvas-linux-arm64-gnu@0.1.80": {
+    "integrity": "sha512-qwA63t8A86bnxhuA/GwOkK3jvb+XTQaTiVML0vAWoHyoZYTjNs7BzoOONDgTnNtr8/yHrq64XXzUoLqDzU+Uuw==",
+    "manifestSHA256": "47610b2a83d35706d8c8e1ba3c130cb31d551f035cb45a1a7c249835b0d6e1fe",
+    "os": [
+      "linux"
+    ],
+    "cpu": [
+      "arm64"
+    ],
+    "libc": [
+      "glibc"
+    ]
+  },
+  "@napi-rs/canvas-linux-arm64-gnu@1.0.9": {
+    "integrity": "sha512-012oiYtKaE7i9oxc8q7nraT7kDOpLcaCmFLzVe9Ty34RHDdoDzbWLrVh827CNxYh/EADX1eSikA3ymLjo/nNuw==",
+    "manifestSHA256": "e0b3545cfa25999da346795a164a1188aa5ddec42fd07dc3f8f8b63330acac45",
+    "os": [
+      "linux"
+    ],
+    "cpu": [
+      "arm64"
+    ],
+    "libc": [
+      "glibc"
+    ]
+  },
+  "@napi-rs/canvas-linux-arm64-musl@0.1.80": {
+    "integrity": "sha512-1XbCOz/ymhj24lFaIXtWnwv/6eFHXDrjP0jYkc6iHQ9q8oXKzUX1Lc6bu+wuGiLhGh2GS/2JlfORC5ZcXimRcg==",
+    "manifestSHA256": "2a97da49c2667cdb4178bd7de384a71925c8309b0536dd91e0dc59acdab678a2",
+    "os": [
+      "linux"
+    ],
+    "cpu": [
+      "arm64"
+    ],
+    "libc": [
+      "musl"
+    ]
+  },
+  "@napi-rs/canvas-linux-arm64-musl@1.0.9": {
+    "integrity": "sha512-Ls5UWYFFn63casTZEczbeyEg3vRDRkv9lscuGwfchtY5yLLQhgOB8SN4YGxmfJ5vTaBwZ2YUxBS3NtmjJmFXdA==",
+    "manifestSHA256": "b50f0cfa15b67996ceec96b90691a6367c443a8fb27476a80b37a740382ae34f",
+    "os": [
+      "linux"
+    ],
+    "cpu": [
+      "arm64"
+    ],
+    "libc": [
+      "musl"
+    ]
+  }
+});
+function reconciledPlatform(node, owner) {
+  const proof = archivePlatforms[`${node.name}@${node.version}`];
+  const platform = Object.fromEntries(['os', 'cpu', 'libc'].map(k => [k, node[k] ?? null]));
+  if (proof) {
+    assert.equal(node.resolution?.integrity, proof.integrity, 'platform archive lock integrity differs');
+    assert.equal(platform.libc, null, 'platform evidence only reconciles omitted lock libc');
+    for (const field of ['os', 'cpu']) assert.deepEqual(platform[field], proof[field], 'platform archive/lock constraints differ');
+    platform.libc = proof.libc;
+    if (owner) assert.equal(owner.manifestSHA256, proof.manifestSHA256, 'platform archive manifest bytes differ');
+  }
+  if (owner) for (const field of ['os', 'cpu', 'libc']) assert.deepEqual(owner.metadata[field] ?? null, platform[field], `installed ${field} metadata differs`);
+  return { platform, evidence: proof ? { basis: 'EXACT_LOCKED_ARCHIVE_MANIFEST', integrity: proof.integrity, manifestSHA256: proof.manifestSHA256 } : null };
+}
+function ownerPlatformAdmission(node, owner, target, relation) {
+  const reconciled = reconciledPlatform(node, owner), active = compatible(reconciled.platform, target);
+  // Only these exact archive-proven variants can be physically retained inactive.
+  // Every incoming edge is checked, including revisits of an assigned owner.
+  assert(active || reconciled.evidence && relation?.dependencyKind === 'optionalDependencies' && relation.physicalRequired === false,
+    `physically installed package is incompatible with target: ${node.key}`);
+  return { ...reconciled, state: active ? 'TARGET_COMPATIBLE' : 'INACTIVE_INCOMPATIBLE_OPTIONAL', executionAllowed: active };
+}
 function readContract({ contractFile = '/qualification/RUNTIME-CLOSURE-CONTRACT.json', expectedSHA256 = CONTRACT_SHA256,
   imageRoot = '/app', qualificationRoot = '/qualification' } = {}) {
   const data = readBounded(contractFile, qualificationRoot, 4 * 1024 * 1024); assert(hash(data) === expectedSHA256, 'frozen contract hash');
@@ -260,21 +337,21 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
   }
   for (let cursor = 0; cursor < queue.length; cursor++) {
     assert(queue.length < 30000, 'installed graph traversal bound'); const { key, owner, relation } = queue[cursor], node = graph.nodes.get(key);
-    for (const field of ['parentSnapshot', 'dependencyName', 'dependencyKind', 'dependencyMissing', 'expectedPlatformCompatible']) delete diagnostic.payload[field];
+    for (const field of ['parentSnapshot', 'dependencyName', 'dependencyKind', 'physicalRequired', 'dependencyMissing', 'expectedPlatformCompatible']) delete diagnostic.payload[field];
     diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
     if (relation) Object.assign(diagnostic.payload, relation);
     diagnostic.payload.stage = 'OWNER_ADMISSION'; diagnostic.payload.observedOwner = diagnosticOwner(owner, imageRoot);
     diagnostic.payload.expectedSnapshot = diagnosticText(key, 768);
     diagnostic.payload.expectedOwner = { name: diagnosticText(node.name), version: diagnosticText(node.version, 128), ...diagnosticPlatform(node) };
     assert(owner.metadata.name === node.name && owner.metadata.version === node.version, `resolved exact package mismatch: ${key}`);
+    const platformAdmission = key.startsWith('importer:') ? null : ownerPlatformAdmission(node, owner, target, relation);
     if (assigned.has(owner.root)) { assert(assigned.get(owner.root) === key, 'peer-context/physical owner disagreement'); continue; }
     assigned.set(owner.root, key); owner.snapshot = key;
     if (!key.startsWith('importer:')) {
       assert(physical.has(owner.root), 'resolved package outside physical store owners');
-      Object.assign(physical.get(owner.root), { snapshot: key, integrity: node.resolution.integrity, declaredPlatform: { os: node.os, cpu: node.cpu, libc: node.libc } });
+      Object.assign(physical.get(owner.root), { snapshot: key, integrity: node.resolution.integrity, declaredPlatform: platformAdmission.platform, platformAdmission });
       assert(typeof node.resolution.integrity === 'string' && node.resolution.integrity.startsWith('sha512-'), 'source integrity missing');
-      for (const field of ['os', 'cpu', 'libc']) assert.deepEqual(owner.metadata[field] ?? null, node[field], `installed ${field} metadata differs`);
-      assert(compatible(node, target), `physically installed package is incompatible with target: ${key}`);
+
     }
     const expectedEdges = graph.edges.get(key) || [];
     const relations = classifyDependencyRelations(owner.metadata, node, expectedEdges);
@@ -289,18 +366,19 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
       const next = resolve(owner, edge.dependencyName, imageRoot, diagnostic);
       diagnostic.payload.dependencyMissing = !next;
       diagnostic.payload.observedOwner = next ? diagnosticOwner(next, imageRoot) : null;
-      diagnostic.payload.expectedPlatformCompatible = compatible(expected, target);
+      const expectedReconciliation = reconciledPlatform(expected), expectedPlatform = expectedReconciliation.platform;
+      diagnostic.payload.expectedPlatformCompatible = compatible(expectedPlatform, target);
       if (!next) {
-        assert(edge.kind === 'optionalDependencies' && !relations.get(edge.dependencyName)?.physicalRequired && !compatible(expected, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
-        missingOptional.push({ ...edge, reason: 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: { os: expected.os, cpu: expected.cpu, libc: expected.libc } });
+        assert(edge.kind === 'optionalDependencies' && !relations.get(edge.dependencyName)?.physicalRequired && !compatible(expectedPlatform, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
+        missingOptional.push({ ...edge, reason: expectedReconciliation.evidence ? 'ARCHIVE_BOUND_PLATFORM_INCOMPATIBLE' : 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: expectedPlatform, ...(expectedReconciliation.evidence ? { platformEvidence: expectedReconciliation.evidence } : {}) });
       } else {
         links.push({ ...edge, physicalOwner: next.root, ...(next.dependencyResolution ? { dependencyResolution: next.dependencyResolution } : {}) });
-        queue.push({ key: edge.to, owner: next, relation: { parentSnapshot: diagnosticText(key, 768), dependencyName: diagnosticText(edge.dependencyName), dependencyKind: edge.kind, dependencyMissing: false } });
+        queue.push({ key: edge.to, owner: next, relation: { parentSnapshot: diagnosticText(key, 768), dependencyName: diagnosticText(edge.dependencyName), dependencyKind: edge.kind, physicalRequired: edge.kind !== 'optionalDependencies' || relations.get(edge.dependencyName)?.physicalRequired === true, dependencyMissing: false } });
       }
     }
   }
   diagnostic.payload.stage = 'CLOSED_WORLD_PHYSICAL_OWNERS';
-  for (const field of ['parentSnapshot', 'dependencyName', 'dependencyKind', 'dependencyMissing', 'expectedPlatformCompatible', 'expectedSnapshot', 'expectedOwner']) delete diagnostic.payload[field];
+  for (const field of ['parentSnapshot', 'dependencyName', 'dependencyKind', 'physicalRequired', 'dependencyMissing', 'expectedPlatformCompatible', 'expectedSnapshot', 'expectedOwner']) delete diagnostic.payload[field];
   diagnostic.payload.observedOwner = null; diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
   for (const owner of owners) {
     diagnostic.payload.observedOwner = diagnosticOwner(owner, imageRoot);
@@ -338,6 +416,6 @@ function artifactOwner(file, closure) {
   }
   assert(expected && relative === expected && fixture, `unreviewed native artifact owner/path: ${name} ${relative}`);
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
-    relative, fixture, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
+    relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
 }
-module.exports = { classifyDependencyRelations, CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
