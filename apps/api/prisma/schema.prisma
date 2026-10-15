@@ -1091,9 +1091,32 @@ model ClientObjectiveRevision {
   snapshot    Json
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   objective   ClientObjective @relation(fields: [tenantId, clientId, objectiveId], references: [tenantId, clientId, id], onDelete: Cascade)
+  workIntents ClientObjectiveWorkIntent[]
 
   @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
+  @@unique([tenantId, clientId, objectiveId, id, version], map: "client_objective_revisions_intent_scope_key")
   @@map("client_objective_revisions")
+}
+
+/// Inert confirmation intent. No dispatcher or workload authority is attached.
+/// SQL constrains the initial pending state and owns tenant RLS/grants.
+model ClientObjectiveWorkIntent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  clientId            String   @map("client_id") @db.Uuid
+  objectiveId         String   @map("objective_id") @db.Uuid
+  objectiveRevisionId String   @map("objective_revision_id") @db.Uuid
+  objectiveVersion    Int      @map("objective_version")
+  actorUserId         String   @map("actor_user_id") @db.Uuid
+  purpose             String   @db.VarChar(40)
+  snapshotHash        String   @map("snapshot_hash") @db.Char(64)
+  state               String   @default("pending") @db.VarChar(24)
+  blockedReason       String   @default("runtime_authority_unconnected") @map("blocked_reason") @db.VarChar(48)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  revision            ClientObjectiveRevision @relation(fields: [tenantId, clientId, objectiveId, objectiveRevisionId, objectiveVersion], references: [tenantId, clientId, objectiveId, id, version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_work_intents_revision_fk")
+
+  @@unique([tenantId, clientId, objectiveId, objectiveRevisionId, purpose], map: "client_objective_work_intents_purpose_key")
+  @@map("client_objective_work_intents")
 }
 
 /// Canonical Primary–Quaternary assignments. SQL owns the deferred Primary

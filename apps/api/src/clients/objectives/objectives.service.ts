@@ -27,6 +27,7 @@ import {
   type ObjectiveDestinationQueryDto,
   type ObjectiveRevisionBinding,
 } from './objective-destination.js';
+import { appendObjectiveReadyIntent } from './objective-work-intent.js';
 
 function presentObjective(record: ClientObjective) {
   return {
@@ -198,7 +199,11 @@ export class ClientObjectivesService {
         readyAt: status === 'ready' ? now : null,
         reviewRequestedAt: status === 'in_review' ? now : null,
       });
-      await this.recordRevision(tx, ctx, record, action);
+      const revision = await this.recordRevision(tx, ctx, record, action);
+      if (action === 'confirm_ready') {
+        await appendObjectiveReadyIntent(tx, revision);
+        await this.assertClient(tx, ctx, record.clientId);
+      }
       return presentObjective(record);
     });
   }
@@ -296,7 +301,7 @@ export class ClientObjectivesService {
     operation: string,
   ) {
     await this.assertClient(tx, ctx, record.clientId);
-    await tx.clientObjectiveRevision.create({
+    const revision = await tx.clientObjectiveRevision.create({
       data: {
         tenantId: ctx.tenantId,
         clientId: record.clientId,
@@ -311,5 +316,6 @@ export class ClientObjectivesService {
       },
     });
     await this.assertClient(tx, ctx, record.clientId);
+    return revision;
   }
 }

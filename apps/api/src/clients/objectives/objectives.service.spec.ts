@@ -3,6 +3,7 @@ import type { ClientObjective } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientObjectivesService } from './objectives.service.js';
+import { objectiveRevisionSnapshotHash } from './objective-work-intent.js';
 
 const ctx: TenantContext = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -55,8 +56,35 @@ function setup(current: ClientObjective = record) {
       findFirstOrThrow: jest.fn(async () => createdRecord),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
-    clientObjectiveRevision: { create: jest.fn().mockResolvedValue({ id: 'revision' }) },
+    clientObjectiveRevision: {
+      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        ...data,
+        id: '77777777-7777-4777-8777-777777777777',
+        createdAt: now,
+      })),
+    },
+    $queryRaw: jest.fn(),
   };
+  tx.$queryRaw.mockImplementation(async (sql: TemplateStringsArray) => {
+    const intentId = '99999999-9999-4999-8999-999999999999';
+    if (sql.join('').includes('INSERT INTO')) return [{ id: intentId }];
+    const { data } = tx.clientObjectiveRevision.create.mock.calls.at(-1)![0];
+    return [
+      {
+        id: intentId,
+        tenantId: data.tenantId,
+        clientId: data.clientId,
+        objectiveId: data.objectiveId,
+        objectiveRevisionId: '77777777-7777-4777-8777-777777777777',
+        objectiveVersion: data.version,
+        actorUserId: data.actorUserId,
+        snapshotHash: objectiveRevisionSnapshotHash(data.snapshot as never),
+        purpose: 'objective_strategy_plan',
+        state: 'pending',
+        blockedReason: 'runtime_authority_unconnected',
+      },
+    ];
+  });
   const prisma = {
     withTenant: jest.fn(async (_tenant: string, run: (value: typeof tx) => Promise<unknown>) =>
       run(tx),
@@ -191,6 +219,8 @@ describe('ClientObjectivesService', () => {
     );
     await service.transition(ctx, clientId, objectiveId, 2, 'confirm_ready');
     expect(tx.clientObjectiveRevision.create).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw.mock.calls[0]!.slice(1)).toContain('77777777-7777-4777-8777-777777777777');
   });
 
   test('missing fields block review and Ready without writes', async () => {
@@ -201,5 +231,82 @@ describe('ClientObjectivesService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     }
     expect(tx.clientObjective.updateMany).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
+
+  test('request_review and already-ready historical records never backfill an intent', async () => {
+    const review = setup();
+    review.tx.clientObjective.findFirst
+      .mockResolvedValueOnce(record)
+      .mockResolvedValue({ ...record, status: 'in_review', version: 2 });
+    await review.service.transition(ctx, clientId, objectiveId, 1, 'request_review');
+    expect(review.tx.clientObjectiveRevision.create).toHaveBeenCalledTimes(1);
+    expect(review.tx.$queryRaw).not.toHaveBeenCalled();
+    const ready = setup({ ...record, status: 'ready', readyAt: now });
+    await ready.service.transition(ctx, clientId, objectiveId, 1, 'confirm_ready');
+    expect(ready.tx.clientObjectiveRevision.create).not.toHaveBeenCalled();
+    expect(ready.tx.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  test('stale confirmation and a CAS loser do not create revision or intent', async () => {
+    for (const stale of [true, false]) {
+      const { service, tx } = setup();
+      if (!stale) tx.clientObjective.updateMany.mockResolvedValue({ count: 0 });
+      await expect(
+        service.transition(ctx, clientId, objectiveId, stale ? 2 : 1, 'confirm_ready'),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(tx.clientObjectiveRevision.create).not.toHaveBeenCalled();
+      expect(tx.$queryRaw).not.toHaveBeenCalled();
+    }
+  });
+
+  test.each(['revision', 'insert', 'receipt', 'authority'] as const)(
+    '%s failure escapes the same transaction and synthetic rollback restores all state',
+    async (stage) => {
+      const { service, tx, prisma } = setup();
+      const durable = {
+        objective: { ...record },
+        revisions: [] as unknown[],
+        intents: [] as unknown[],
+      };
+      tx.clientObjective.findFirst.mockImplementation(async () => durable.objective);
+      tx.clientObjective.updateMany.mockImplementation(async () => {
+        durable.objective = { ...record, version: 2, status: 'ready', readyAt: now };
+        return { count: 1 };
+      });
+      const create = tx.clientObjectiveRevision.create.getMockImplementation()!;
+      tx.clientObjectiveRevision.create.mockImplementation(async (input) => {
+        if (stage === 'revision') throw new Error('synthetic revision failure');
+        const saved = await create(input);
+        durable.revisions.push(saved);
+        return saved;
+      });
+      const query = tx.$queryRaw.getMockImplementation()!;
+      tx.$queryRaw.mockImplementation(async (...args) => {
+        const insert = (args[0] as TemplateStringsArray).join('').includes('INSERT INTO');
+        if (insert && stage === 'insert') throw new Error('synthetic insert failure');
+        const result = await query(...args);
+        if (insert) durable.intents.push(result);
+        if (!insert && stage === 'receipt') return [];
+        if (!insert && stage === 'authority') tx.client.findFirst.mockResolvedValue(null);
+        return result;
+      });
+      // Explicit synthetic transactional storage; this proves callback placement
+      // and error propagation, not real PostgreSQL rollback or concurrency.
+      prisma.withTenant.mockImplementation(async (_tenant, run) => {
+        const before = structuredClone(durable);
+        try {
+          return await run(tx);
+        } catch (error) {
+          Object.assign(durable, before);
+          throw error;
+        }
+      });
+      await expect(
+        service.transition(ctx, clientId, objectiveId, 1, 'confirm_ready'),
+      ).rejects.toThrow();
+      expect(durable).toEqual({ objective: record, revisions: [], intents: [] });
+      expect(prisma.withTenant).toHaveBeenCalledTimes(1);
+    },
+  );
 });
