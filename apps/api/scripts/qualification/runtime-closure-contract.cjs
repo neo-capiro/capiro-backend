@@ -210,6 +210,29 @@ function generatedPrismaOwners(owners, imageRoot, diagnostic) {
   }
   return generated;
 }
+// pnpm snapshot placement and physical installation obligations are separate.
+// An optional peer may be placed in optionalDependencies even when the package
+// also declares it as a direct dependency. That direct dependency stays required.
+function classifyDependencyRelations(metadata, node, expectedEdges) {
+  const declarations = new Map(Object.keys(metadata.dependencies || {}).map(name => [name, 'dependencies']));
+  for (const name of Object.keys(metadata.optionalDependencies || {})) declarations.set(name, 'optionalDependencies');
+  const relations = new Map();
+  for (const [name, declaredKind] of declarations) {
+    const edge = expectedEdges.find(e => e.dependencyName === name);
+    assert(edge, `unlocked installed dependency: ${node.key} ${name}`);
+    let basis = 'EXACT_DIRECT_DECLARATION_KIND';
+    if (edge.kind !== declaredKind) {
+      const range = metadata.peerDependencies?.[name];
+      const provenOptionalPeer = declaredKind === 'dependencies' && edge.kind === 'optionalDependencies' &&
+        typeof range === 'string' && range.length > 0 && node.peerDependencies?.[name] === range &&
+        metadata.peerDependenciesMeta?.[name]?.optional === true && node.peerDependenciesMeta?.[name]?.optional === true;
+      assert(provenOptionalPeer, `installed required/optional relation differs: ${node.key} ${name}`);
+      basis = 'FROZEN_OPTIONAL_PEER_PLACEMENT_WITH_REQUIRED_DIRECT_DEPENDENCY';
+    }
+    relations.set(name, { declaredKind, snapshotKind: edge.kind, physicalRequired: declaredKind === 'dependencies', basis });
+  }
+  return relations;
+}
 function verifyInstalledClosure(options = {}) {
   const diagnostic = { imageRoot: path.resolve(options.imageRoot || '/app'), payload: { stage: 'INITIAL_VALIDATION', physicalInventoryComplete: false, physicalOwnerCount: 0, physicalOwnerInventory: [], physicalSearchCount: 0, physicalSearch: [] } };
   try { return verifyInstalledClosureWithDiagnostics(options, diagnostic); }
@@ -254,13 +277,7 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
       assert(compatible(node, target), `physically installed package is incompatible with target: ${key}`);
     }
     const expectedEdges = graph.edges.get(key) || [];
-    const declarations = new Map(Object.keys(owner.metadata.dependencies || {}).map(name => [name, 'dependencies']));
-    for (const name of Object.keys(owner.metadata.optionalDependencies || {})) declarations.set(name, 'optionalDependencies');
-    for (const [name, kind] of declarations) {
-      const edge = expectedEdges.find(e => e.dependencyName === name);
-      assert(edge, `unlocked installed dependency: ${key} ${name}`);
-      assert(edge.kind === kind, `installed required/optional relation differs: ${key} ${name}`);
-    }
+    const relations = classifyDependencyRelations(owner.metadata, node, expectedEdges);
     for (const edge of expectedEdges) {
       diagnostic.payload.stage = 'REQUIRED_OR_OPTIONAL_EDGE'; diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
       diagnostic.payload.observedOwner = null; diagnostic.payload.dependencyMissing = null; delete diagnostic.payload.readingPhysicalOwner;
@@ -274,7 +291,7 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
       diagnostic.payload.observedOwner = next ? diagnosticOwner(next, imageRoot) : null;
       diagnostic.payload.expectedPlatformCompatible = compatible(expected, target);
       if (!next) {
-        assert(edge.kind === 'optionalDependencies' && !compatible(expected, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
+        assert(edge.kind === 'optionalDependencies' && !relations.get(edge.dependencyName)?.physicalRequired && !compatible(expected, target), `required or unproven missing dependency: ${key} ${edge.dependencyName}`);
         missingOptional.push({ ...edge, reason: 'LOCK_DECLARED_PLATFORM_INCOMPATIBLE', platform: { os: expected.os, cpu: expected.cpu, libc: expected.libc } });
       } else {
         links.push({ ...edge, physicalOwner: next.root, ...(next.dependencyResolution ? { dependencyResolution: next.dependencyResolution } : {}) });
@@ -323,4 +340,4 @@ function artifactOwner(file, closure) {
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
     relative, fixture, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
 }
-module.exports = { CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { classifyDependencyRelations, CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
