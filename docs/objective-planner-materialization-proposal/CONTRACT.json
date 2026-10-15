@@ -614,14 +614,14 @@
             "projects": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/project"
+                "$ref": "#/$defs/projectAvailable"
               },
               "minItems": 1
             },
             "tasks": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/task"
+                "$ref": "#/$defs/taskAvailable"
               }
             },
             "context": {
@@ -645,7 +645,7 @@
             "issues": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/issue"
+                "$ref": "#/$defs/successIssue"
               },
               "maxItems": 0
             },
@@ -738,14 +738,14 @@
             "projects": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/project"
+                "$ref": "#/$defs/projectAvailable"
               },
               "minItems": 1
             },
             "tasks": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/task"
+                "$ref": "#/$defs/taskAvailable"
               }
             },
             "context": {
@@ -769,7 +769,7 @@
             "issues": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/issue"
+                "$ref": "#/$defs/successIssue"
               },
               "minItems": 1
             },
@@ -893,7 +893,7 @@
             "issues": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/issue"
+                "$ref": "#/$defs/successIssue"
               }
             },
             "counts": {
@@ -955,6 +955,64 @@
             "exclusions",
             "issues",
             "counts"
+          ],
+          "anyOf": [
+            {
+              "properties": {
+                "projects": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "output": {
+                        "type": "object",
+                        "properties": {
+                          "availability": {
+                            "enum": [
+                              "archived",
+                              "unavailable"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "availability"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "output"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "tasks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "output": {
+                        "type": "object",
+                        "properties": {
+                          "availability": {
+                            "enum": [
+                              "archived",
+                              "unavailable"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "availability"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "output"
+                    ]
+                  }
+                }
+              }
+            }
           ]
         }
       ]
@@ -1277,6 +1335,180 @@
             "recordedAttempt",
             "issues"
           ]
+        }
+      ]
+    },
+    "outputAvailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "const": "available"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "createdVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "currentVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "availability",
+        "id",
+        "createdVersion",
+        "currentVersion"
+      ]
+    },
+    "projectAvailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "groupKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "originalNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "$ref": "#/$defs/outputAvailable"
+        }
+      },
+      "required": [
+        "groupKey",
+        "name",
+        "originalNodeIds",
+        "output"
+      ]
+    },
+    "taskAvailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "originalGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true
+        },
+        "currentGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "$ref": "#/$defs/outputAvailable"
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "originalGroupKeys",
+        "currentGroupKeys",
+        "output"
+      ]
+    },
+    "successIssue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "NO_ACTIONABLE_WORK"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "The saved plan has no actionable work. Its context was retained."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "CONTEXT_ONLY_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "This dependency remains linked plan context and has no Planner task edge."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "ARCHIVED_SOURCE_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "This dependency references an archived source node and has no new Planner task edge."
+            }
+          }
         }
       ]
     }

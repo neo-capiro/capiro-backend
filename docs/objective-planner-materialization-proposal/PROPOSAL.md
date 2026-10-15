@@ -119,6 +119,19 @@ has recordedAttempt=true only if its durable receipt was found, otherwise null.
 claim no earlier request committed.503 always instructs recovery with the same
 UUID. Regrouping does not change immutable creation membership or request input.
 
+Structural schema is necessary but insufficient: the materializer must also
+verify unique group/project and node/task identities, complete disjoint saved
+node classification, count totals, exact original group memberships and all
+source edges against the locked immutable Strategy snapshot. Supported edges
+must map to the matching created tasks; no edge may disappear. Runtime graph
+validation includes context/archive nodes and detects all cycles/missing refs.
+The receiving semantic checks verify cross-field mapping/count/availability
+consistency; they cannot replace the server's stored-source authority check.
+`prepared`/`prepared_with_issues` require every output currently available;
+`partial` requires at least one archived/unavailable output. Success issue codes
+are limited to NO_ACTIONABLE_WORK, CONTEXT_ONLY_DEPENDENCY and
+ARCHIVED_SOURCE_DEPENDENCY; blocking graph/source issues exist only in errors.
+
 ## Node classification and dependency truth
 
 Use the exact saved Strategy snapshot plus the current row's archive state,
@@ -229,7 +242,7 @@ Application files, **prospective only**:
 No frontend, schema/migration/lock, shared package, Meri runtime, diagnostic,
 native qualification candidate or live pipeline files are claimed. Current
 owned edits are only this proposal, CONTRACT.json, WIRE-EXAMPLES.json and the
-offline validate_examples.py schema/negative-fixture checker (24 checks pass).
+offline validate_examples.py schema/semantic/negative checker (29 checks pass).
 
 ## Required acceptance before calling implementation complete
 
