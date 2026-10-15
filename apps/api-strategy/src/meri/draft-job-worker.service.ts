@@ -135,14 +135,13 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
         error_message=${failure.message}, stream_preview=NULL, progress_text=NULL,
         input=jsonb_set(input,'{objectiveGeneration,receipt,failure}',${JSON.stringify(failure)}::jsonb), updated_at=clock_timestamp()
         WHERE input ? 'objectiveGeneration' AND status IN ('queued','running') AND deadline_at <= clock_timestamp()`;
-      return tx.spDraftJob.updateMany({
-        where: { status: { in: ['queued', 'running'] }, deadlineAt: { lte: new Date() } },
-        data: {
-          status: 'failed',
-          stage: 'failed',
-          errorMessage: DEADLINE_MESSAGE,
-        },
-      });
+      // A deadline can cross between statements, and the host clock may be
+      // ahead of PostgreSQL. Never let the legacy projection consume an
+      // Objective job without atomically recording its safe receipt.
+      return tx.$executeRaw`UPDATE sp_draft_job SET status='failed', stage='failed',
+        error_message=${DEADLINE_MESSAGE}, updated_at=clock_timestamp()
+        WHERE NOT (input ? 'objectiveGeneration') AND status IN ('queued','running')
+          AND deadline_at <= clock_timestamp()`;
     });
   }
 
