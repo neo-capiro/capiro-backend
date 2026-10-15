@@ -47,6 +47,30 @@ Candidate `GET /clients/:clientId/objectives/:objectiveId/plan`; no new write en
 
 Stage and output availability are independent. Requested/applied revision groups and exact operation receipt IDs prevent a newly pending request from relabelling an old plan. No association means unbound, not proof that no historical/manual outputs exist. Redact IDs/digests of unavailable outputs while retaining authorized Objective-level progress. Empty manual Strategy remains supported; `no_actionable_work` is a truthful notice, not a fabricated task. Node-scoped operations require a currently valid target. Prepared-with-issues is distinct from a clean applied plan; neither means activation/execution.
 
+Project permission does not confer Strategy permission. An authorized available project keeps its own navigable project ID even when Strategy lineage is unreadable; `sourceLineageAvailability=unavailable` and both source StrategyVersion ID/digest are null. Available lineage requires independent current Strategy/version authorization. Unbound/unavailable project locators have no project or lineage IDs. This preserves accessible project navigation without revealing protected identifiers.
+
+### Exhaustive application-stage matrix
+
+Every stage is about the current requested intent, not an older applied pointer. `requestedIntentId` and each applied intent ID accompany their independent revisions, so deliberate regeneration of the same Objective revision remains distinguishable. UUID means a real stored identity; null never means an invented placeholder. These shape constraints are encoded in the proposal schema and are necessary but not sufficient for source authority.
+
+| State | attemptId | receiptId | failureCode |
+|---|---|---|---|
+| not_recorded | null | null | null |
+| pending | null | null | null, runtime_authority_unconnected, authority_unavailable or dependency_unavailable |
+| running | UUID | null | null |
+| needs_information | UUID | UUID | input_required |
+| review_required | UUID | UUID | human_edit_conflict or invalid_result |
+| applied | UUID | UUID | null |
+| prepared_with_issues (Planner only) | UUID | UUID | null; at least one issue |
+| failed | UUID or null (failed before claim) | UUID | invalid_result, dependency_unavailable, deadline_expired or authority_unavailable |
+| cancelled | UUID or null | UUID | null |
+| superseded | UUID or null | UUID or null | source_changed |
+| outcome_unconfirmed | UUID or null | null | outcome_unconfirmed |
+
+A nonnull stage receipt must be an immutable Core application-stage receipt matching ALL of: requested intent ID; requested revision ID+version; Objective/client/tenant scope; this generation/Planner operation; current association ID+epoch (or an explicitly pre-association event with null association); exact attempt identity when present; and the stated stage outcome. Historical raw Meri/job/materialization receipts cannot fill the field by matching only source version. For applied/prepared states, the receipt must also identify the exact corresponding applied publication, intent and reserved target. An older applied pointer remains separately labelled with its original intent/revision while a new stage is pending/running/failed. Superseded with receipt=null is an as-of source-change observation, not a fabricated durable transition. Missing evidence for a purported completed operation becomes outcome_unconfirmed; GET never silently retries a write.
+
+The source observer also validates runtime/model custody states separately: Meri COMPLETED cannot stand in for Core APPLIED. Digest and bindingVersion do not order stage progress; frontend request-generation handling discards stale observations and resets on intent/source changes, without an invented monotonic progress field.
+
 Future materialization retains canonical defaults: private/list/on_track project; todo/unassigned/priority-none/nonrecurring tasks. Do not repurpose on_hold as a draft state, add rules, trigger outreach or activate an external workflow. One default editable group is convenience, not a project/task cap. Only actionable saved nodes create tasks; risks/decisions/gates remain linked context unless existing typed semantics say actionable. Archived exclusions and unsupported/cyclic dependencies remain explicit; required invalid references/cycles reject before writes. A canonical prepared-plan receipt must retain original group/node/task lineage while current human regrouping uses the same IDs.
 
 Normative semantic checks beyond JSON shape: requested.version<=Objective.version; each applied.version<=requested.version; planApplied.version<=strategyApplied.version; same revision version must have the same immutable revision ID; a newer generation can coexist with an older applied plan but cannot relabel it; an applied stage must correspond to the requested source and exact checked publication receipt; available/archived output locators must match that publication's saved IDs/version/digest; unavailable/unbound locators redact all IDs/digests and issues[].sourceNodeId must be null when that Strategy/source identity is unavailable; absent association permits a newly pending intent but no canonical applied pointer; plan publication must bind an existing generation publication in the same binding epoch and canonical Strategy, while an older plan may remain applied after a newer Strategy publication; epoch1 has previousEpoch=null and replacement epochN referencesN-1. Reject a plan applied to a future revision or a foreign-epoch generation receipt even when its JSON shape is valid. Stable root IDs within an epoch and human edit expected-version fences are persistence constraints, not JSON-schema proof. Existing actor-private job/materialization receipts are never relabelled as cross-actor public receipts; the new Core projection requires separately allocated minimal publication references under current authority.

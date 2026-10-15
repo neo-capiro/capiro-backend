@@ -18,7 +18,10 @@
     "strategy",
     "project",
     "notices",
-    "issues"
+    "issues",
+    "requestedIntentId",
+    "strategyAppliedIntentId",
+    "planAppliedIntentId"
   ],
   "properties": {
     "schemaVersion": {
@@ -143,6 +146,15 @@
           }
         }
       }
+    },
+    "requestedIntentId": {
+      "$ref": "#/definitions/nullableUuid"
+    },
+    "strategyAppliedIntentId": {
+      "$ref": "#/definitions/nullableUuid"
+    },
+    "planAppliedIntentId": {
+      "$ref": "#/definitions/nullableUuid"
     }
   },
   "definitions": {
@@ -247,26 +259,190 @@
           ]
         }
       },
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "state": {
-                "enum": ["applied", "prepared_with_issues"]
-              }
+          "properties": {
+            "state": {
+              "const": "not_recorded"
+            },
+            "attemptId": {
+              "type": "null"
+            },
+            "receiptId": {
+              "type": "null"
+            },
+            "failureCode": {
+              "type": "null"
             }
-          },
-          "then": {
-            "properties": {
-              "attemptId": {
-                "$ref": "#/definitions/uuid"
-              },
-              "receiptId": {
-                "$ref": "#/definitions/uuid"
-              },
-              "failureCode": {
-                "type": "null"
-              }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "pending"
+            },
+            "attemptId": {
+              "type": "null"
+            },
+            "receiptId": {
+              "type": "null"
+            },
+            "failureCode": {
+              "enum": [
+                null,
+                "runtime_authority_unconnected",
+                "authority_unavailable",
+                "dependency_unavailable"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "running"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "receiptId": {
+              "type": "null"
+            },
+            "failureCode": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "needs_information"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "failureCode": {
+              "const": "input_required"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "review_required"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "failureCode": {
+              "enum": ["human_edit_conflict", "invalid_result"]
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "applied"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "failureCode": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "prepared_with_issues"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "failureCode": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "failed"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/nullableUuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "failureCode": {
+              "enum": [
+                "invalid_result",
+                "dependency_unavailable",
+                "deadline_expired",
+                "authority_unavailable"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "cancelled"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/nullableUuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/uuid"
+            },
+            "failureCode": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "superseded"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/nullableUuid"
+            },
+            "receiptId": {
+              "$ref": "#/definitions/nullableUuid"
+            },
+            "failureCode": {
+              "const": "source_changed"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "outcome_unconfirmed"
+            },
+            "attemptId": {
+              "$ref": "#/definitions/nullableUuid"
+            },
+            "receiptId": {
+              "type": "null"
+            },
+            "failureCode": {
+              "const": "outcome_unconfirmed"
             }
           }
         }
@@ -331,7 +507,13 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["availability", "id", "sourceStrategyVersionId", "sourceStrategyVersionDigest"],
+      "required": [
+        "availability",
+        "id",
+        "sourceStrategyVersionId",
+        "sourceStrategyVersionDigest",
+        "sourceLineageAvailability"
+      ],
       "properties": {
         "availability": {
           "enum": ["unbound", "available", "archived", "unavailable"]
@@ -344,6 +526,9 @@
         },
         "sourceStrategyVersionDigest": {
           "$ref": "#/definitions/nullableHash"
+        },
+        "sourceLineageAvailability": {
+          "enum": ["unbound", "available", "unavailable"]
         }
       },
       "allOf": [
@@ -360,11 +545,8 @@
               "id": {
                 "$ref": "#/definitions/uuid"
               },
-              "sourceStrategyVersionId": {
-                "$ref": "#/definitions/uuid"
-              },
-              "sourceStrategyVersionDigest": {
-                "$ref": "#/definitions/hash"
+              "sourceLineageAvailability": {
+                "enum": ["available", "unavailable"]
               }
             }
           },
@@ -381,8 +563,202 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "sourceLineageAvailability": {
+                "const": "available"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "availability": {
+                "enum": ["available", "archived"]
+              },
+              "sourceStrategyVersionId": {
+                "$ref": "#/definitions/uuid"
+              },
+              "sourceStrategyVersionDigest": {
+                "$ref": "#/definitions/hash"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "sourceStrategyVersionId": {
+                "type": "null"
+              },
+              "sourceStrategyVersionDigest": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "availability": {
+                "const": "unbound"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sourceLineageAvailability": {
+                "const": "unbound"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "availability": {
+                "const": "unavailable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sourceLineageAvailability": {
+                "const": "unavailable"
+              }
+            }
+          }
         }
       ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "requestedRevision": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "requestedIntentId": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "requestedIntentId": {
+            "$ref": "#/definitions/uuid"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "strategy": {
+            "properties": {
+              "availability": {
+                "enum": ["unbound", "unavailable"]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "project": {
+            "properties": {
+              "sourceLineageAvailability": {
+                "enum": ["unbound", "unavailable"]
+              },
+              "sourceStrategyVersionId": {
+                "type": "null"
+              },
+              "sourceStrategyVersionDigest": {
+                "type": "null"
+              }
+            }
+          },
+          "issues": {
+            "items": {
+              "properties": {
+                "sourceNodeId": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "strategyAppliedRevision": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "strategyAppliedIntentId": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "strategyAppliedIntentId": {
+            "$ref": "#/definitions/uuid"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "planAppliedRevision": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "planAppliedIntentId": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "planAppliedIntentId": {
+            "$ref": "#/definitions/uuid"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "planner": {
+            "properties": {
+              "state": {
+                "const": "prepared_with_issues"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "issues": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
 }
