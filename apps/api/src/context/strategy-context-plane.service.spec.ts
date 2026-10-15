@@ -702,7 +702,7 @@ describe('Objective history observation boundary', () => {
     const revoked = await service.checkObjective(input);
     expect(revoked.historyDigest).not.toBe(first.historyDigest);
     resolver.resolveAndRetrieve.mockImplementation(async () => {
-      const value = context({type:'strategy_draft',id:CLIENT}); value.retrieval!.records[0]!.payload = {kind:'client',id:CLIENT,description:'changed'}; return value;
+      const value = context({type:'strategy_draft',id:CLIENT}); value.retrieval!.records[0]!.payload.title = 'Changed plan title'; return value;
     });
     const changed = await service.checkObjective(input);
     expect(changed.historyDigest).not.toBe(revoked.historyDigest);
