@@ -1,116 +1,569 @@
 {
   "status": "PROPOSED_NOT_IMPLEMENTED",
-  "post": {
-    "path": "/strategy-api/planner/strategy-materializations",
-    "body": {
+  "request": {
+    "requestId": "20000000-0000-4000-8000-000000000001",
+    "generationJobId": "20000000-0000-4000-8000-000000000002",
+    "expected": {
+      "strategyId": "20000000-0000-4000-8000-000000000003",
+      "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+      "objectiveRevisionId": "20000000-0000-4000-8000-000000000005"
+    }
+  },
+  "responses": {
+    "prepared": {
       "requestId": "20000000-0000-4000-8000-000000000001",
-      "generationJobId": "20000000-0000-4000-8000-000000000002",
-      "expected": {
+      "status": "prepared",
+      "replayed": false,
+      "recordedAt": "2026-10-15T12:00:00Z",
+      "observedAt": "2026-10-15T12:00:00Z",
+      "source": {
+        "generationJobId": "20000000-0000-4000-8000-000000000002",
+        "generationRequestId": "20000000-0000-4000-8000-000000000006",
+        "clientId": "20000000-0000-4000-8000-000000000007",
+        "objectiveId": "20000000-0000-4000-8000-000000000008",
+        "objectiveVersion": 1,
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005",
         "strategyId": "20000000-0000-4000-8000-000000000003",
         "strategyVersionId": "20000000-0000-4000-8000-000000000004",
-        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005"
+        "snapshotDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projects": [
+        {
+          "groupKey": "default",
+          "name": "Generated saved plan",
+          "originalNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000010",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+          "originalGroupKeys": [
+            "default"
+          ],
+          "currentGroupKeys": [
+            "default"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000030",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "context": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "kind": "risk",
+          "title": "Saved plan risk",
+          "note": null,
+          "dependsOnSourceNodeIds": []
+        }
+      ],
+      "edges": [],
+      "exclusions": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+          "reason": "ARCHIVED_SOURCE_NODE"
+        }
+      ],
+      "issues": [],
+      "counts": {
+        "savedNodes": 3,
+        "actionableNodes": 1,
+        "contextNodes": 1,
+        "archivedNodes": 1,
+        "createdProjects": 1,
+        "createdTasks": 1
       }
     },
-    "note": "Omitted groups means one editable convenience group covering eligible work nodes. Explicit groups may split or multihome; no global one-project rule."
+    "replayAfterHumanRegroupAndEdit": {
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "status": "prepared",
+      "replayed": true,
+      "recordedAt": "2026-10-15T12:00:00Z",
+      "observedAt": "2026-10-15T12:00:00Z",
+      "source": {
+        "generationJobId": "20000000-0000-4000-8000-000000000002",
+        "generationRequestId": "20000000-0000-4000-8000-000000000006",
+        "clientId": "20000000-0000-4000-8000-000000000007",
+        "objectiveId": "20000000-0000-4000-8000-000000000008",
+        "objectiveVersion": 1,
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005",
+        "strategyId": "20000000-0000-4000-8000-000000000003",
+        "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+        "snapshotDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projects": [
+        {
+          "groupKey": "default",
+          "name": "Generated saved plan",
+          "originalNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000010",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+          "originalGroupKeys": [
+            "default"
+          ],
+          "currentGroupKeys": [],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000030",
+            "createdVersion": 1,
+            "currentVersion": 4
+          }
+        }
+      ],
+      "context": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "kind": "risk",
+          "title": "Saved plan risk",
+          "note": null,
+          "dependsOnSourceNodeIds": []
+        }
+      ],
+      "edges": [],
+      "exclusions": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+          "reason": "ARCHIVED_SOURCE_NODE"
+        }
+      ],
+      "issues": [],
+      "counts": {
+        "savedNodes": 3,
+        "actionableNodes": 1,
+        "contextNodes": 1,
+        "archivedNodes": 1,
+        "createdProjects": 1,
+        "createdTasks": 1
+      }
+    },
+    "partialUnavailableOutput": {
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "status": "partial",
+      "replayed": true,
+      "recordedAt": "2026-10-15T12:00:00Z",
+      "observedAt": "2026-10-15T12:00:00Z",
+      "source": {
+        "generationJobId": "20000000-0000-4000-8000-000000000002",
+        "generationRequestId": "20000000-0000-4000-8000-000000000006",
+        "clientId": "20000000-0000-4000-8000-000000000007",
+        "objectiveId": "20000000-0000-4000-8000-000000000008",
+        "objectiveVersion": 1,
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005",
+        "strategyId": "20000000-0000-4000-8000-000000000003",
+        "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+        "snapshotDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projects": [
+        {
+          "groupKey": "default",
+          "name": "Generated saved plan",
+          "originalNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000010",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+          "originalGroupKeys": [
+            "default"
+          ],
+          "currentGroupKeys": [
+            "default"
+          ],
+          "output": {
+            "availability": "unavailable",
+            "id": null,
+            "createdVersion": 1,
+            "currentVersion": null
+          }
+        }
+      ],
+      "context": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "kind": "risk",
+          "title": "Saved plan risk",
+          "note": null,
+          "dependsOnSourceNodeIds": []
+        }
+      ],
+      "edges": [],
+      "exclusions": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+          "reason": "ARCHIVED_SOURCE_NODE"
+        }
+      ],
+      "issues": [],
+      "counts": {
+        "savedNodes": 3,
+        "actionableNodes": 1,
+        "contextNodes": 1,
+        "archivedNodes": 1,
+        "createdProjects": 1,
+        "createdTasks": 1
+      }
+    },
+    "preparedWithUnsupportedContextDependency": {
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "status": "prepared_with_issues",
+      "replayed": false,
+      "recordedAt": "2026-10-15T12:00:00Z",
+      "observedAt": "2026-10-15T12:00:00Z",
+      "source": {
+        "generationJobId": "20000000-0000-4000-8000-000000000002",
+        "generationRequestId": "20000000-0000-4000-8000-000000000006",
+        "clientId": "20000000-0000-4000-8000-000000000007",
+        "objectiveId": "20000000-0000-4000-8000-000000000008",
+        "objectiveVersion": 1,
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005",
+        "strategyId": "20000000-0000-4000-8000-000000000003",
+        "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+        "snapshotDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projects": [
+        {
+          "groupKey": "default",
+          "name": "Generated saved plan",
+          "originalNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000010",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+          "originalGroupKeys": [
+            "default"
+          ],
+          "currentGroupKeys": [
+            "default"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000030",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "context": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "kind": "risk",
+          "title": "Saved plan risk",
+          "note": null,
+          "dependsOnSourceNodeIds": []
+        }
+      ],
+      "edges": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+          "dependsOnSourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "disposition": "context_only"
+        }
+      ],
+      "exclusions": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+          "reason": "ARCHIVED_SOURCE_NODE"
+        }
+      ],
+      "issues": [
+        {
+          "code": "CONTEXT_ONLY_DEPENDENCY",
+          "sourceNodeIds": [
+            "20000000-0000-4000-8000-000000000020",
+            "20000000-0000-4000-8000-000000000021"
+          ],
+          "message": "This dependency remains linked plan context and has no Planner task edge."
+        }
+      ],
+      "counts": {
+        "savedNodes": 3,
+        "actionableNodes": 1,
+        "contextNodes": 1,
+        "archivedNodes": 1,
+        "createdProjects": 1,
+        "createdTasks": 1
+      }
+    },
+    "preparedContextOnlyZeroTasks": {
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "status": "prepared_with_issues",
+      "replayed": false,
+      "recordedAt": "2026-10-15T12:00:00Z",
+      "observedAt": "2026-10-15T12:00:00Z",
+      "source": {
+        "generationJobId": "20000000-0000-4000-8000-000000000002",
+        "generationRequestId": "20000000-0000-4000-8000-000000000006",
+        "clientId": "20000000-0000-4000-8000-000000000007",
+        "objectiveId": "20000000-0000-4000-8000-000000000008",
+        "objectiveVersion": 1,
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005",
+        "strategyId": "20000000-0000-4000-8000-000000000003",
+        "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+        "snapshotDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projects": [
+        {
+          "groupKey": "default",
+          "name": "Generated saved plan",
+          "originalNodeIds": [],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000010",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "tasks": [],
+      "context": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "kind": "risk",
+          "title": "Saved plan risk",
+          "note": null,
+          "dependsOnSourceNodeIds": []
+        }
+      ],
+      "edges": [],
+      "exclusions": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+          "reason": "ARCHIVED_SOURCE_NODE"
+        }
+      ],
+      "issues": [
+        {
+          "code": "NO_ACTIONABLE_WORK",
+          "sourceNodeIds": [],
+          "message": "The saved plan has no actionable work. Its context was retained."
+        }
+      ],
+      "counts": {
+        "savedNodes": 2,
+        "actionableNodes": 0,
+        "contextNodes": 1,
+        "archivedNodes": 1,
+        "createdProjects": 1,
+        "createdTasks": 0
+      }
+    },
+    "preparedMultipleGroupsOneTask": {
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "status": "prepared",
+      "replayed": false,
+      "recordedAt": "2026-10-15T12:00:00Z",
+      "observedAt": "2026-10-15T12:00:00Z",
+      "source": {
+        "generationJobId": "20000000-0000-4000-8000-000000000002",
+        "generationRequestId": "20000000-0000-4000-8000-000000000006",
+        "clientId": "20000000-0000-4000-8000-000000000007",
+        "objectiveId": "20000000-0000-4000-8000-000000000008",
+        "objectiveVersion": 1,
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005",
+        "strategyId": "20000000-0000-4000-8000-000000000003",
+        "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+        "snapshotDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projects": [
+        {
+          "groupKey": "delivery",
+          "name": "Delivery",
+          "originalNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000010",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        },
+        {
+          "groupKey": "coordination",
+          "name": "Coordination",
+          "originalNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000011",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+          "originalGroupKeys": [
+            "delivery",
+            "coordination"
+          ],
+          "currentGroupKeys": [
+            "delivery",
+            "coordination"
+          ],
+          "output": {
+            "availability": "available",
+            "id": "20000000-0000-4000-8000-000000000030",
+            "createdVersion": 1,
+            "currentVersion": 1
+          }
+        }
+      ],
+      "context": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+          "kind": "risk",
+          "title": "Saved plan risk",
+          "note": null,
+          "dependsOnSourceNodeIds": []
+        }
+      ],
+      "edges": [],
+      "exclusions": [
+        {
+          "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+          "reason": "ARCHIVED_SOURCE_NODE"
+        }
+      ],
+      "issues": [],
+      "counts": {
+        "savedNodes": 3,
+        "actionableNodes": 1,
+        "contextNodes": 1,
+        "archivedNodes": 1,
+        "createdProjects": 2,
+        "createdTasks": 1
+      }
+    }
   },
-  "prepared": {
+  "errors": [
+    {
+      "httpStatus": 400,
+      "code": "MATERIALIZATION_INPUT_INVALID",
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "message": "The plan preparation request is invalid.",
+      "outcome": "unconfirmed",
+      "recordedAttempt": null,
+      "issues": []
+    },
+    {
+      "httpStatus": 404,
+      "code": "MATERIALIZATION_NOT_AVAILABLE",
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "message": "This plan preparation request is not currently available.",
+      "outcome": "unconfirmed",
+      "recordedAttempt": null,
+      "issues": []
+    },
+    {
+      "httpStatus": 409,
+      "code": "MATERIALIZATION_REQUEST_CONFLICT",
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "message": "This request identity already belongs to different plan input.",
+      "outcome": "recorded",
+      "recordedAttempt": true,
+      "issues": []
+    },
+    {
+      "httpStatus": 409,
+      "code": "MATERIALIZATION_SOURCE_STALE",
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "message": "The Objective source changed. Review the saved source before continuing.",
+      "outcome": "recorded",
+      "recordedAttempt": true,
+      "issues": []
+    },
+    {
+      "httpStatus": 422,
+      "code": "MATERIALIZATION_SOURCE_INVALID",
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "message": "The saved plan needs review before preparation.",
+      "outcome": "unconfirmed",
+      "recordedAttempt": null,
+      "issues": [
+        {
+          "code": "CYCLIC_DEPENDENCY",
+          "sourceNodeIds": [
+            "20000000-0000-4000-8000-000000000020"
+          ],
+          "message": "The saved dependency graph contains a cycle."
+        }
+      ]
+    },
+    {
+      "httpStatus": 503,
+      "code": "MATERIALIZATION_OUTCOME_UNCONFIRMED",
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "message": "Recover this request before starting another plan.",
+      "outcome": "unconfirmed",
+      "recordedAttempt": null,
+      "issues": []
+    }
+  ],
+  "multipleGroupRequest": {
     "requestId": "20000000-0000-4000-8000-000000000001",
-    "status": "prepared",
-    "replayed": false,
-    "source": {
-      "generationJobId": "20000000-0000-4000-8000-000000000002",
+    "generationJobId": "20000000-0000-4000-8000-000000000002",
+    "expected": {
       "strategyId": "20000000-0000-4000-8000-000000000003",
       "strategyVersionId": "20000000-0000-4000-8000-000000000004",
       "objectiveRevisionId": "20000000-0000-4000-8000-000000000005"
     },
-    "projects": [
+    "groups": [
       {
-        "groupKey": "default",
-        "projectId": "20000000-0000-4000-8000-000000000010",
-        "createdVersion": 1,
-        "currentVersion": 1,
-        "availability": "available"
-      }
-    ],
-    "tasks": [
+        "key": "delivery",
+        "name": "Delivery",
+        "nodeIds": [
+          "20000000-0000-4000-8000-000000000020"
+        ]
+      },
       {
-        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
-        "taskId": "20000000-0000-4000-8000-000000000030",
-        "createdVersion": 1,
-        "currentVersion": 1,
-        "availability": "available"
+        "key": "coordination",
+        "name": "Coordination",
+        "nodeIds": [
+          "20000000-0000-4000-8000-000000000020"
+        ]
       }
-    ],
-    "context": [
-      {
-        "sourceNodeId": "20000000-0000-4000-8000-000000000021",
-        "kind": "risk",
-        "title": "Saved plan risk",
-        "note": "Context retained from the exact saved version; no fabricated task."
-      }
-    ],
-    "exclusions": [
-      {
-        "sourceNodeId": "20000000-0000-4000-8000-000000000022",
-        "reason": "ARCHIVED_SOURCE_NODE"
-      }
-    ],
-    "issues": []
-  },
-  "replayAfterHumanEdit": {
-    "status": "prepared",
-    "replayed": true,
-    "tasks": [
-      {
-        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
-        "taskId": "20000000-0000-4000-8000-000000000030",
-        "createdVersion": 1,
-        "currentVersion": 4,
-        "availability": "available"
-      }
-    ],
-    "note": "Excerpt of the same receipt projection. No fields, dates, dependencies, memberships or task versions are rewritten."
-  },
-  "partialReplay": {
-    "status": "partial",
-    "replayed": true,
-    "tasks": [
-      {
-        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
-        "availability": "unavailable"
-      }
-    ],
-    "note": "Excerpt: unavailable Planner ID is redacted; retry does not recreate it or claim current full success."
-  },
-  "unsupportedContextDependency": {
-    "status": "prepared_with_issues",
-    "issues": [
-      {
-        "code": "CONTEXT_ONLY_DEPENDENCY",
-        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
-        "dependsOnSourceNodeId": "20000000-0000-4000-8000-000000000021",
-        "message": "The dependency remains linked plan context and has no Planner task edge."
-      }
-    ],
-    "note": "Proposed operation outcome, not a new Objective/Planner approval state. This recommendation requires shared command review."
-  },
-  "cycleFailure": {
-    "httpStatus": 422,
-    "code": "CYCLIC_DEPENDENCY",
-    "requestId": "20000000-0000-4000-8000-000000000001",
-    "issues": [
-      {
-        "code": "CYCLIC_DEPENDENCY",
-        "sourceNodeIds": ["20000000-0000-4000-8000-000000000020"]
-      }
-    ],
-    "note": "No project/task/event/receipt commits on failed validation."
-  },
-  "uncertainFailure": {
-    "httpStatus": 503,
-    "code": "MATERIALIZATION_OUTCOME_UNCONFIRMED",
-    "requestId": "20000000-0000-4000-8000-000000000001",
-    "message": "Recover this request before starting another plan.",
-    "note": "GET/same-request retry checks durable state; no assertion that an earlier commit failed."
+    ]
   }
 }

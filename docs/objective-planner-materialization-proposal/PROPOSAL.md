@@ -81,7 +81,11 @@ Regrouping after creation uses ordinary version-checked Planner project/task
 membership edits on these same task IDs; it does not run a new materialization
 request or clone tasks. Same-request replay preserves those edits.
 Every eligible work node must occur in at least one group, group keys must be
-unique and nonempty groups must use eligible source IDs only. No new project
+unique and groups must use eligible source IDs only. With zero eligible work,
+create the named context-only default project, zero tasks and an explicit
+`NO_ACTIONABLE_WORK` notice (`prepared_with_issues`); never fabricate a task.
+Explicit `groups:[]` is invalid. An explicit group's empty node list is allowed
+only when the entire source has zero eligible work. No new project
 count or task cap is introduced. Existing per-field validation/body/transaction
 limits fail visibly; no slicing/truncation. Intentional omissions are not added
 to v1 without a further explicit contract decision. Context nodes do not require
@@ -93,6 +97,27 @@ result. It must show separate Strategy saved / plan preparation pending / plan
 prepared or needs review states. Objective stays ready; no completed Objective
 state is invented. Lost replies/reload retain the same operation UUID and use
 GET/retry. No smart grouping editor is a prerequisite for the default path.
+
+`CONTRACT.json` defines full strict request/success/error variants, UUID/date-time
+formats, field bounds/nullability and fixed safe message allowlists.
+WIRE-EXAMPLES.json contains complete bodies, not excerpts. Every success includes
+materialization request ID; generation job/request IDs; Objective/client/revision;
+Strategy/version and snapshot digest; immutable group→project/node→task creation
+mapping, original group memberships, retained context dependency references,
+supported/unsupported edges and exclusions. `createdVersion` and counts describe
+the historical committed creation; `currentVersion`, availability and current
+group keys describe the authorized current read. Group name is the immutable
+requested name; current names/content are read through canonical Planner APIs.
+
+Business failures use the schema's fixed400/404/409/422/503 codes/messages and
+issue allowlist. Existing authentication/rollout guards retain their standard
+401/403 handling. No raw DB/provider exceptions are public. A missing receipt
+404 is current unavailability with outcome unconfirmed, not no-write proof.
+409 request conflict identifies a recorded actor-owned request; source-stale409
+has recordedAttempt=true only if its durable receipt was found, otherwise null.
+422 graph/source validation records zero new writes by this attempt but does not
+claim no earlier request committed.503 always instructs recovery with the same
+UUID. Regrouping does not change immutable creation membership or request input.
 
 ## Node classification and dependency truth
 
@@ -112,8 +137,10 @@ Map supported action/milestone→action/milestone dependency edges to the exact
 created task IDs, including edges spanning groups. Preserve all source edges in
 lineage. An edge involving a context-only/archived/missing target is explicitly
 reported with source/target IDs and reason; it is never silently dropped or
-turned into an invented task. Cycles among actionable nodes are rejected before
-any creation with `CYCLIC_DEPENDENCY`; malformed references likewise block.
+turned into an invented task. Detect cycles across the entire saved graph,
+including context-only and currently archived nodes, before excluding anything.
+Any cycle returns `CYCLIC_DEPENDENCY` and zero writes; missing/malformed
+references likewise block. No graph pruning is used to hide a cycle.
 
 Recommended narrow distinction for review: context-only dependency edges may
 produce a saved plan with `status=prepared_with_issues`, an explicit unsupported
@@ -123,6 +150,19 @@ context edge to block creation, change this single policy before allocation;
 neither behavior has been implemented or assumed accepted.
 
 ## Transaction, replay and human edits
+
+Exact field mapping: source title→task name, note or empty string→description;
+source startsOn→date-only startOn, endsOn or startsOn→dueOn for an action.
+A milestone has startOn=dueOn=source startsOn and subtype=milestone. A conflicting
+milestone date range or actionable openEnded=true is invalid, not flattened.
+Dates never shift time zone; time/timeZone remain canonical null defaults.
+Project/task clientId is the authoritative source client, not the null default.
+Project name is the group name/default saved Strategy title and its description
+identifies generated provenance. All other defaults remain canonical. Saved
+subject/owner/status/targetRef/provenance/creation fields remain exact saved-version
+context/lineage; they do not become assignments, approval/completion, outreach
+actions or new task fields. Existing text bounds reject excess before writes;
+descriptions/context never truncate. Full receiving schema is in CONTRACT.json.
 
 One short transaction: acquire canonical Planner tenant lock; lock the exact
 completed generation job and source Strategy/version rows; check Objective and
@@ -137,6 +177,14 @@ by the existing PK, plus the tenant write lock; no new unique index is needed.
 The kind stays excluded from generic resource routes. Do not embed lineage in
 strict editable task/project JSON, where edits could erase or forge it.
 
+Transaction-aware helper boundary: do not call public saveProject/saveTask from
+inside this transaction; those open separate transactions and can make link hops.
+Extract/reuse the existing project-create row/event block as a private in-Tx
+helper. Use existing persistTask(tx,...) for derived fields/audit and validate the
+entire task graph/memberships/people with canonical validators before it. New
+private projects have no rule configuration; confirm runRules has no matches.
+Any helper refactor must leave public CRUD paths covered by regression fixtures.
+
 The same request UUID with different normalized input returns 409. A same-input
 retry returns recorded output mapping after current authorization checks, never
 reruns creation, overwrites fields, changes memberships/dependencies or recreates
@@ -148,11 +196,18 @@ an ambiguous DB error never asserts that no earlier write happened.
 
 Receipt GET/POST replay return current authorized output IDs and current
 versions, alongside immutable creation versions. Current human edits are
-preserved. Deleted/archived/inaccessible/relinked outputs are explicitly
+preserved. Ordinary regrouping among generated projects does not invalidate
+lineage: immutable original group membership is reported separately from current
+membership. Only a changed authoritative client link, deleted/archived record,
+or lost current output authority makes that output unavailable. Outputs are
 unavailable (`status=partial`); hidden Planner IDs are redacted. No automatic
 repair/recreation occurs. Lost current source authority returns opaque404;
 stale Objective source returns a typed409 without creating anything or falsely
-asserting that a historical request never committed. Frontend must not navigate
+asserting that a historical request never committed. This409 includes
+recordedAttempt=true only after finding this actor's matching durable receipt;
+otherwise null, never a false no-write assertion. Missing receipt GET is opaque
+404 MATERIALIZATION_NOT_AVAILABLE with outcome=unconfirmed, not proof of rollback.
+Frontend must not navigate
 on partial/unavailable or merely locally cached output IDs. No new durable
 Planner-project URL is invented; receiving uses its existing navigation owner.
 
@@ -173,7 +228,8 @@ Application files, **prospective only**:
 
 No frontend, schema/migration/lock, shared package, Meri runtime, diagnostic,
 native qualification candidate or live pipeline files are claimed. Current
-owned edits are only this proposal and WIRE-EXAMPLES.json.
+owned edits are only this proposal, CONTRACT.json, WIRE-EXAMPLES.json and the
+offline validate_examples.py schema/negative-fixture checker (24 checks pass).
 
 ## Required acceptance before calling implementation complete
 

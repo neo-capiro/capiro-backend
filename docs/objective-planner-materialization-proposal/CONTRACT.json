@@ -1,0 +1,1295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:capiro:proposal:objective-strategy-planner-materialization:v1",
+  "title": "Proposed exact materialization request/success/error schemas; NOT IMPLEMENTED",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generationJobId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strategyId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "strategyVersionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "objectiveRevisionId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "strategyId",
+            "strategyVersionId",
+            "objectiveRevisionId"
+          ]
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "\\S"
+              },
+              "nodeIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "key",
+              "name",
+              "nodeIds"
+            ]
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "requestId",
+        "generationJobId",
+        "expected"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generationJobId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generationRequestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "objectiveId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "objectiveVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "objectiveRevisionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "strategyId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "strategyVersionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "snapshotDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "generationJobId",
+        "generationRequestId",
+        "clientId",
+        "objectiveId",
+        "objectiveVersion",
+        "objectiveRevisionId",
+        "strategyId",
+        "strategyVersionId",
+        "snapshotDigest"
+      ]
+    },
+    "available": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "enum": [
+            "available",
+            "archived"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "createdVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "currentVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "availability",
+        "id",
+        "createdVersion",
+        "currentVersion"
+      ]
+    },
+    "unavailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "const": "unavailable"
+        },
+        "id": {
+          "type": "null"
+        },
+        "createdVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "currentVersion": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "availability",
+        "id",
+        "createdVersion",
+        "currentVersion"
+      ]
+    },
+    "output": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/available"
+        },
+        {
+          "$ref": "#/$defs/unavailable"
+        }
+      ]
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "groupKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "originalNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        }
+      },
+      "required": [
+        "groupKey",
+        "name",
+        "originalNodeIds",
+        "output"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "originalGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true
+        },
+        "currentGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "originalGroupKeys",
+        "currentGroupKeys",
+        "output"
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "risk",
+            "gate",
+            "decision"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 50000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependsOnSourceNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "kind",
+        "title",
+        "note",
+        "dependsOnSourceNodeIds"
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "dependsOnSourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "disposition": {
+          "enum": [
+            "task_dependency",
+            "context_only",
+            "archived_source"
+          ]
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "dependsOnSourceNodeId",
+        "disposition"
+      ]
+    },
+    "exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "const": "ARCHIVED_SOURCE_NODE"
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "reason"
+      ]
+    },
+    "issue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "NO_ACTIONABLE_WORK"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "The saved plan has no actionable work. Its context was retained."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "CONTEXT_ONLY_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "This dependency remains linked plan context and has no Planner task edge."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "ARCHIVED_SOURCE_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "This dependency references an archived source node and has no new Planner task edge."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "CYCLIC_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "The saved dependency graph contains a cycle."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "MISSING_SOURCE_NODE"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "A saved dependency or node is unavailable."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "INVALID_SOURCE_NODE"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "A saved source node is invalid or unsupported."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "INVALID_SOURCE_DATE"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "A saved node date cannot be represented without changing its meaning."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "INVALID_GROUPING"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "The grouping does not cover the eligible saved work."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "SOURCE_FIELD_TOO_LARGE"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "A saved field exceeds the existing Planner field limit."
+            }
+          }
+        }
+      ]
+    },
+    "response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "const": "prepared"
+            },
+            "replayed": {
+              "type": "boolean"
+            },
+            "recordedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "observedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "projects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/project"
+              },
+              "minItems": 1
+            },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/task"
+              }
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/context"
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/edge"
+              }
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/exclusion"
+              }
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              },
+              "maxItems": 0
+            },
+            "counts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "savedNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "actionableNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "contextNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "archivedNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "createdProjects": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "createdTasks": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                }
+              },
+              "required": [
+                "savedNodes",
+                "actionableNodes",
+                "contextNodes",
+                "archivedNodes",
+                "createdProjects",
+                "createdTasks"
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "status",
+            "replayed",
+            "recordedAt",
+            "observedAt",
+            "source",
+            "projects",
+            "tasks",
+            "context",
+            "edges",
+            "exclusions",
+            "issues",
+            "counts"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "const": "prepared_with_issues"
+            },
+            "replayed": {
+              "type": "boolean"
+            },
+            "recordedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "observedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "projects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/project"
+              },
+              "minItems": 1
+            },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/task"
+              }
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/context"
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/edge"
+              }
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/exclusion"
+              }
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              },
+              "minItems": 1
+            },
+            "counts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "savedNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "actionableNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "contextNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "archivedNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "createdProjects": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "createdTasks": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                }
+              },
+              "required": [
+                "savedNodes",
+                "actionableNodes",
+                "contextNodes",
+                "archivedNodes",
+                "createdProjects",
+                "createdTasks"
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "status",
+            "replayed",
+            "recordedAt",
+            "observedAt",
+            "source",
+            "projects",
+            "tasks",
+            "context",
+            "edges",
+            "exclusions",
+            "issues",
+            "counts"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "const": "partial"
+            },
+            "replayed": {
+              "type": "boolean"
+            },
+            "recordedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "observedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "projects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/project"
+              },
+              "minItems": 1
+            },
+            "tasks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/task"
+              }
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/context"
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/edge"
+              }
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/exclusion"
+              }
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            },
+            "counts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "savedNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "actionableNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "contextNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "archivedNodes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "createdProjects": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                },
+                "createdTasks": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                }
+              },
+              "required": [
+                "savedNodes",
+                "actionableNodes",
+                "contextNodes",
+                "archivedNodes",
+                "createdProjects",
+                "createdTasks"
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "status",
+            "replayed",
+            "recordedAt",
+            "observedAt",
+            "source",
+            "projects",
+            "tasks",
+            "context",
+            "edges",
+            "exclusions",
+            "issues",
+            "counts"
+          ]
+        }
+      ]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpStatus": {
+              "const": 400
+            },
+            "code": {
+              "const": "MATERIALIZATION_INPUT_INVALID"
+            },
+            "requestId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "const": "The plan preparation request is invalid."
+            },
+            "outcome": {
+              "const": "unconfirmed"
+            },
+            "recordedAttempt": {
+              "type": "null"
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            }
+          },
+          "required": [
+            "httpStatus",
+            "code",
+            "requestId",
+            "message",
+            "outcome",
+            "recordedAttempt",
+            "issues"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpStatus": {
+              "const": 404
+            },
+            "code": {
+              "const": "MATERIALIZATION_NOT_AVAILABLE"
+            },
+            "requestId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "const": "This plan preparation request is not currently available."
+            },
+            "outcome": {
+              "const": "unconfirmed"
+            },
+            "recordedAttempt": {
+              "type": "null"
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            }
+          },
+          "required": [
+            "httpStatus",
+            "code",
+            "requestId",
+            "message",
+            "outcome",
+            "recordedAttempt",
+            "issues"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpStatus": {
+              "const": 409
+            },
+            "code": {
+              "const": "MATERIALIZATION_REQUEST_CONFLICT"
+            },
+            "requestId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "const": "This request identity already belongs to different plan input."
+            },
+            "outcome": {
+              "const": "recorded"
+            },
+            "recordedAttempt": {
+              "const": true
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            }
+          },
+          "required": [
+            "httpStatus",
+            "code",
+            "requestId",
+            "message",
+            "outcome",
+            "recordedAttempt",
+            "issues"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpStatus": {
+              "const": 409
+            },
+            "code": {
+              "const": "MATERIALIZATION_SOURCE_STALE"
+            },
+            "requestId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "const": "The Objective source changed. Review the saved source before continuing."
+            },
+            "outcome": {
+              "enum": [
+                "unconfirmed",
+                "recorded"
+              ]
+            },
+            "recordedAttempt": {
+              "anyOf": [
+                {
+                  "const": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            }
+          },
+          "required": [
+            "httpStatus",
+            "code",
+            "requestId",
+            "message",
+            "outcome",
+            "recordedAttempt",
+            "issues"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "recordedAttempt": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "outcome": {
+                    "const": "recorded"
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "outcome": {
+                    "const": "unconfirmed"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpStatus": {
+              "const": 422
+            },
+            "code": {
+              "const": "MATERIALIZATION_SOURCE_INVALID"
+            },
+            "requestId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "const": "The saved plan needs review before preparation."
+            },
+            "outcome": {
+              "const": "unconfirmed"
+            },
+            "recordedAttempt": {
+              "type": "null"
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            }
+          },
+          "required": [
+            "httpStatus",
+            "code",
+            "requestId",
+            "message",
+            "outcome",
+            "recordedAttempt",
+            "issues"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpStatus": {
+              "const": 503
+            },
+            "code": {
+              "const": "MATERIALIZATION_OUTCOME_UNCONFIRMED"
+            },
+            "requestId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "const": "Recover this request before starting another plan."
+            },
+            "outcome": {
+              "const": "unconfirmed"
+            },
+            "recordedAttempt": {
+              "type": "null"
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/issue"
+              }
+            }
+          },
+          "required": [
+            "httpStatus",
+            "code",
+            "requestId",
+            "message",
+            "outcome",
+            "recordedAttempt",
+            "issues"
+          ]
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ]
+}
