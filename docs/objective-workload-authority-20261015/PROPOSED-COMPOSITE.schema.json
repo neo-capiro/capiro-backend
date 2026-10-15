@@ -1,0 +1,388 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:capiro:objective-plan-composite:proposal:1",
+  "title": "Unwired Objective plan composite review candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "observedAt",
+    "projectionDigest",
+    "objective",
+    "association",
+    "requestedRevision",
+    "strategyAppliedRevision",
+    "planAppliedRevision",
+    "generation",
+    "planner",
+    "strategy",
+    "project",
+    "notices",
+    "issues"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "projectionDigest": {
+      "$ref": "#/definitions/hash"
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clientId", "id", "currentRevisionId", "version", "status"],
+      "properties": {
+        "clientId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "currentRevisionId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "version": {
+          "$ref": "#/definitions/version"
+        },
+        "status": {
+          "enum": ["draft", "in_review", "ready"]
+        }
+      }
+    },
+    "association": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "bindingVersion", "epoch"],
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/uuid"
+            },
+            "bindingVersion": {
+              "$ref": "#/definitions/version"
+            },
+            "epoch": {
+              "$ref": "#/definitions/version"
+            }
+          }
+        }
+      ]
+    },
+    "requestedRevision": {
+      "$ref": "#/definitions/nullableRevision"
+    },
+    "strategyAppliedRevision": {
+      "$ref": "#/definitions/nullableRevision"
+    },
+    "planAppliedRevision": {
+      "$ref": "#/definitions/nullableRevision"
+    },
+    "generation": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/stage"
+        },
+        {
+          "properties": {
+            "state": {
+              "not": {
+                "const": "prepared_with_issues"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "planner": {
+      "$ref": "#/definitions/stage"
+    },
+    "strategy": {
+      "$ref": "#/definitions/strategy"
+    },
+    "project": {
+      "$ref": "#/definitions/project"
+    },
+    "notices": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["no_actionable_work", "contains_context_only_nodes", "review_required"]
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "sourceNodeId", "message"],
+        "properties": {
+          "code": {
+            "enum": [
+              "unsupported_dependency",
+              "context_dependency",
+              "archived_node_excluded",
+              "human_edit_conflict",
+              "source_unavailable"
+            ]
+          },
+          "sourceNodeId": {
+            "$ref": "#/definitions/nullableUuid"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "nullableUuid": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/uuid"
+        }
+      ]
+    },
+    "nullableHash": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/hash"
+        }
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "version": {
+          "$ref": "#/definitions/version"
+        }
+      }
+    },
+    "nullableRevision": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/revision"
+        }
+      ]
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "attemptId", "receiptId", "failureCode"],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_recorded",
+            "pending",
+            "running",
+            "needs_information",
+            "review_required",
+            "applied",
+            "prepared_with_issues",
+            "failed",
+            "cancelled",
+            "superseded",
+            "outcome_unconfirmed"
+          ]
+        },
+        "attemptId": {
+          "$ref": "#/definitions/nullableUuid"
+        },
+        "receiptId": {
+          "$ref": "#/definitions/nullableUuid"
+        },
+        "failureCode": {
+          "enum": [
+            null,
+            "runtime_authority_unconnected",
+            "authority_unavailable",
+            "source_changed",
+            "input_required",
+            "invalid_result",
+            "human_edit_conflict",
+            "dependency_unavailable",
+            "deadline_expired",
+            "outcome_unconfirmed"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["applied", "prepared_with_issues"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attemptId": {
+                "$ref": "#/definitions/uuid"
+              },
+              "receiptId": {
+                "$ref": "#/definitions/uuid"
+              },
+              "failureCode": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "id", "versionId", "versionDigest"],
+      "properties": {
+        "availability": {
+          "enum": ["unbound", "available", "archived", "unavailable"]
+        },
+        "id": {
+          "$ref": "#/definitions/nullableUuid"
+        },
+        "versionId": {
+          "$ref": "#/definitions/nullableUuid"
+        },
+        "versionDigest": {
+          "$ref": "#/definitions/nullableHash"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "availability": {
+                "enum": ["available", "archived"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/uuid"
+              },
+              "versionId": {
+                "$ref": "#/definitions/uuid"
+              },
+              "versionDigest": {
+                "$ref": "#/definitions/hash"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "id": {
+                "type": "null"
+              },
+              "versionId": {
+                "type": "null"
+              },
+              "versionDigest": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "id", "sourceStrategyVersionId", "sourceStrategyVersionDigest"],
+      "properties": {
+        "availability": {
+          "enum": ["unbound", "available", "archived", "unavailable"]
+        },
+        "id": {
+          "$ref": "#/definitions/nullableUuid"
+        },
+        "sourceStrategyVersionId": {
+          "$ref": "#/definitions/nullableUuid"
+        },
+        "sourceStrategyVersionDigest": {
+          "$ref": "#/definitions/nullableHash"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "availability": {
+                "enum": ["available", "archived"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/uuid"
+              },
+              "sourceStrategyVersionId": {
+                "$ref": "#/definitions/uuid"
+              },
+              "sourceStrategyVersionDigest": {
+                "$ref": "#/definitions/hash"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "id": {
+                "type": "null"
+              },
+              "sourceStrategyVersionId": {
+                "type": "null"
+              },
+              "sourceStrategyVersionDigest": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
