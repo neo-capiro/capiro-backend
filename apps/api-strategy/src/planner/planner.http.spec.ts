@@ -7,6 +7,7 @@ import { PlannerPublicController } from './planner-public.controller.js';
 import { PlannerService } from './planner.service.js';
 import { PlannerAttachmentsService } from './planner-attachments.service.js';
 import { TenantGuard } from '../auth/tenant.guard.js';
+import { StrategyFlagsService } from '../flags/strategy-flags.service.js';
 const ID = '30000000-0000-4000-8000-000000000001';
 const ctx = {
   tenantId: '10000000-0000-4000-8000-000000000001',
@@ -85,6 +86,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       providers: [
         { provide: PlannerService, useValue: planner },
         { provide: PlannerAttachmentsService, useValue: attachments },
+        { provide: StrategyFlagsService, useValue: { isEnabled: jest.fn(async () => true) } },
       ],
     })
       .overrideGuard(TenantGuard)

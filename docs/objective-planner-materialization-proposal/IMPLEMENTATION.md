@@ -45,24 +45,25 @@ current outputs; malformed receipts fail503. Human output edits remain separate.
 This changes only private receipt JSON and server identity allocation; the
 reviewed public contract is unchanged.
 
-Final evidence:49 focused service fixtures,9 new HTTP tests and35 legacy
-Planner service tests pass together (93/93). A separate unchanged legacy run of
-Objective-destination HTTP, task-create command/independent review and command
-scope tests passes62/62. Six actual service projections match the reviewed
-strict JSON schema and semantic checks;29 proposal checks also pass. Full
-Strategy semantic typecheck passes after both source review fixes at1024MiB.
-Synthetic transaction/loopback tests are not native PostgreSQL/RLS/grants proof.
+Final evidence:49 focused materializer service fixtures,9 materializer HTTP
+cases,35 legacy Planner service cases,77 legacy Planner HTTP cases and62
+unchanged destination/task-create/scope cases pass together:232/232 in8 suites.
+Six actual service projections match the reviewed strict JSON schema and
+semantic checks;29 proposal checks pass. Full Strategy semantic typecheck passed
+at1024MiB after the application review fixes and is repeated after this test-only
+setup successor. Native PostgreSQL/RLS/grants and full Core qualification remain
+separate unproven gates.
 
-Both independent reviewers accept source-only application commit
-59fecb492d86b478474fea4de25485e778fc331b, with no remaining concrete source finding.
-This final documentation successor changes no application blob or public schema.
-Full Core and native qualification remain separate unproven gates. Only the old
-planner.http.spec.ts test module needs the new guard dependency setup; its77
-cases fail at Nest DI setup. The existing Objective-destination HTTP suite
-already overrides this guard and passes unchanged, so it needs no edit.
-A concrete three-line test-only import/guard override patch is retained outside
-the checkout for coordinator allocation; that extra file remains unedited.
-No production module change or authority/rollout weakening is proposed.
+Both independent reviewers accept application commit59fecb49. Coordinator
+subsequently allocated only planner/planner.http.spec.ts for the exact reviewed
+StrategyFlagsService mock-provider setup patch3deeaa82. It adds only the import
+and provider, keeping the real method-scoped StrategyPlannerGuard and all prior
+authentication, impersonation, scope, bearer and no-delegation assertions intact.
+The new materialization HTTP suite retains real rollout-on/off coverage.
+The unchanged Objective-destination HTTP suite already overrides this guard and
+passes; no edit there was needed. No production application blob changed after
+59fecb49. This documentation/test setup successor closes the prior77-case Nest
+DI fixture gate; independent exact successor review follows.
 
 Accepted Objective1bc48 source/workload remains unchanged. Its separately
 reviewed native transport request is handed to the sole AWS owner; it does not
