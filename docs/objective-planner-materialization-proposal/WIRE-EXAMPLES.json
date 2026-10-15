@@ -1,0 +1,116 @@
+{
+  "status": "PROPOSED_NOT_IMPLEMENTED",
+  "post": {
+    "path": "/strategy-api/planner/strategy-materializations",
+    "body": {
+      "requestId": "20000000-0000-4000-8000-000000000001",
+      "generationJobId": "20000000-0000-4000-8000-000000000002",
+      "expected": {
+        "strategyId": "20000000-0000-4000-8000-000000000003",
+        "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+        "objectiveRevisionId": "20000000-0000-4000-8000-000000000005"
+      }
+    },
+    "note": "Omitted groups means one editable convenience group covering eligible work nodes. Explicit groups may split or multihome; no global one-project rule."
+  },
+  "prepared": {
+    "requestId": "20000000-0000-4000-8000-000000000001",
+    "status": "prepared",
+    "replayed": false,
+    "source": {
+      "generationJobId": "20000000-0000-4000-8000-000000000002",
+      "strategyId": "20000000-0000-4000-8000-000000000003",
+      "strategyVersionId": "20000000-0000-4000-8000-000000000004",
+      "objectiveRevisionId": "20000000-0000-4000-8000-000000000005"
+    },
+    "projects": [
+      {
+        "groupKey": "default",
+        "projectId": "20000000-0000-4000-8000-000000000010",
+        "createdVersion": 1,
+        "currentVersion": 1,
+        "availability": "available"
+      }
+    ],
+    "tasks": [
+      {
+        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+        "taskId": "20000000-0000-4000-8000-000000000030",
+        "createdVersion": 1,
+        "currentVersion": 1,
+        "availability": "available"
+      }
+    ],
+    "context": [
+      {
+        "sourceNodeId": "20000000-0000-4000-8000-000000000021",
+        "kind": "risk",
+        "title": "Saved plan risk",
+        "note": "Context retained from the exact saved version; no fabricated task."
+      }
+    ],
+    "exclusions": [
+      {
+        "sourceNodeId": "20000000-0000-4000-8000-000000000022",
+        "reason": "ARCHIVED_SOURCE_NODE"
+      }
+    ],
+    "issues": []
+  },
+  "replayAfterHumanEdit": {
+    "status": "prepared",
+    "replayed": true,
+    "tasks": [
+      {
+        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+        "taskId": "20000000-0000-4000-8000-000000000030",
+        "createdVersion": 1,
+        "currentVersion": 4,
+        "availability": "available"
+      }
+    ],
+    "note": "Excerpt of the same receipt projection. No fields, dates, dependencies, memberships or task versions are rewritten."
+  },
+  "partialReplay": {
+    "status": "partial",
+    "replayed": true,
+    "tasks": [
+      {
+        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+        "availability": "unavailable"
+      }
+    ],
+    "note": "Excerpt: unavailable Planner ID is redacted; retry does not recreate it or claim current full success."
+  },
+  "unsupportedContextDependency": {
+    "status": "prepared_with_issues",
+    "issues": [
+      {
+        "code": "CONTEXT_ONLY_DEPENDENCY",
+        "sourceNodeId": "20000000-0000-4000-8000-000000000020",
+        "dependsOnSourceNodeId": "20000000-0000-4000-8000-000000000021",
+        "message": "The dependency remains linked plan context and has no Planner task edge."
+      }
+    ],
+    "note": "Proposed operation outcome, not a new Objective/Planner approval state. This recommendation requires shared command review."
+  },
+  "cycleFailure": {
+    "httpStatus": 422,
+    "code": "CYCLIC_DEPENDENCY",
+    "requestId": "20000000-0000-4000-8000-000000000001",
+    "issues": [
+      {
+        "code": "CYCLIC_DEPENDENCY",
+        "sourceNodeIds": ["20000000-0000-4000-8000-000000000020"]
+      }
+    ],
+    "note": "No project/task/event/receipt commits on failed validation."
+  },
+  "uncertainFailure": {
+    "httpStatus": 503,
+    "code": "MATERIALIZATION_OUTCOME_UNCONFIRMED",
+    "requestId": "20000000-0000-4000-8000-000000000001",
+    "message": "Recover this request before starting another plan.",
+    "note": "GET/same-request retry checks durable state; no assertion that an earlier commit failed."
+  }
+}
