@@ -687,3 +687,35 @@ describe('StrategyContextPlaneService Phase 26', () => {
     });
   });
 });
+
+describe('Objective history observation boundary', () => {
+  test('rechecks current mailbox envelope and history through existing resolver without compiling another packet', async () => {
+    const h = harness();
+    const observed = { source: { clientId: CLIENT, objectiveId: NODE, objectiveVersion: 1, objectiveRevisionId: STRATEGY },
+      intent: { outcome: 'saved goal' }, sourceDigest: 'a'.repeat(64), localDigest: 'b'.repeat(64), externalDigest: 'c'.repeat(64), issues: [] };
+    const resolver = { resolveAndRetrieve: jest.fn(async () => context({ type: 'strategy_draft', id: CLIENT })) };
+    const objective = { observe: jest.fn(async () => observed) };
+    const service = new StrategyContextPlaneService(h.prisma as never,h.gateway as never,objective as never,resolver as never);
+    const input: any = { tenantId: TENANT,clerkUserId:'user_test',clientId:CLIENT,mode:'draft',objective:{objectiveId:NODE,objectiveVersion:1},generationRequestId:STRATEGY,generationType:'appropriations' };
+    const first = await service.checkObjective(input);
+    h.tx.integrationConnection.findMany.mockResolvedValue([]);
+    const revoked = await service.checkObjective(input);
+    expect(revoked.historyDigest).not.toBe(first.historyDigest);
+    resolver.resolveAndRetrieve.mockImplementation(async () => {
+      const value = context({type:'strategy_draft',id:CLIENT}); value.retrieval!.records[0]!.payload = {kind:'client',id:CLIENT,description:'changed'}; return value;
+    });
+    const changed = await service.checkObjective(input);
+    expect(changed.historyDigest).not.toBe(revoked.historyDigest);
+    expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    expect(first).toHaveProperty('checkedAt');
+  });
+  test('Objective dispatch refuses per-record provenance overflow instead of claiming lossless coverage', async () => {
+    const h = harness();
+    const result = gatewayResult({ type:'strategy_draft',id:CLIENT });
+    result.context.retrieval!.records[0]!.provenance = { source:'fixture', detail:'x'.repeat(501) } as any;
+    h.gateway.requestContext.mockResolvedValue(result);
+    const service = new StrategyContextPlaneService(h.prisma as never,h.gateway as never,{ observe:async()=>({intent:{outcome:'saved'}}) } as never);
+    await expect(service.resolve({tenantId:TENANT,clerkUserId:'user_test',clientId:CLIENT,mode:'draft',objective:{objectiveId:NODE,objectiveVersion:1}}))
+      .rejects.toMatchObject({ response: {code:'OBJECTIVE_CONTEXT_INCOMPLETE'} });
+  });
+});

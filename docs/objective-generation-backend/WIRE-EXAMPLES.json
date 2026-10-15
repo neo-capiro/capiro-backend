@@ -1,0 +1,189 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/strategy-api/strategies/objective-drafts",
+    "body": {
+      "requestId": "10000000-0000-4000-8000-000000000001",
+      "clientId": "10000000-0000-4000-8000-000000000002",
+      "objective": {
+        "objectiveId": "10000000-0000-4000-8000-000000000003",
+        "objectiveVersion": 7
+      },
+      "type": "appropriations"
+    }
+  },
+  "accepted": {
+    "httpStatus": 202,
+    "body": {
+      "jobId": "10000000-0000-4000-8000-000000000005",
+      "status": "queued",
+      "objectiveGeneration": {
+        "schemaVersion": 1,
+        "requestId": "10000000-0000-4000-8000-000000000001",
+        "source": {
+          "clientId": "10000000-0000-4000-8000-000000000002",
+          "objectiveId": "10000000-0000-4000-8000-000000000003",
+          "objectiveVersion": 7,
+          "objectiveRevisionId": "10000000-0000-4000-8000-000000000004"
+        },
+        "context": {
+          "state": "pending",
+          "packetId": null,
+          "compiledAt": null,
+          "sourceDigest": null,
+          "coverageDigest": null,
+          "inputDigest": null,
+          "issues": [],
+          "reobservedAt": null
+        },
+        "result": null,
+        "failure": null
+      }
+    }
+  },
+  "pendingPoll": {
+    "httpStatus": 200,
+    "body": {
+      "jobId": "10000000-0000-4000-8000-000000000005",
+      "status": "queued",
+      "stage": null,
+      "progressText": null,
+      "streamPreview": null,
+      "strategyId": null,
+      "errorMessage": null,
+      "createdAt": "2026-10-15T12:00:00Z",
+      "updatedAt": "2026-10-15T12:00:00Z",
+      "objectiveGeneration": {
+        "schemaVersion": 1,
+        "requestId": "10000000-0000-4000-8000-000000000001",
+        "source": {
+          "clientId": "10000000-0000-4000-8000-000000000002",
+          "objectiveId": "10000000-0000-4000-8000-000000000003",
+          "objectiveVersion": 7,
+          "objectiveRevisionId": "10000000-0000-4000-8000-000000000004"
+        },
+        "context": {
+          "state": "pending",
+          "packetId": null,
+          "compiledAt": null,
+          "sourceDigest": null,
+          "coverageDigest": null,
+          "inputDigest": null,
+          "issues": [],
+          "reobservedAt": null
+        },
+        "result": null,
+        "failure": null
+      }
+    }
+  },
+  "completedPoll": {
+    "httpStatus": 200,
+    "body": {
+      "jobId": "10000000-0000-4000-8000-000000000005",
+      "status": "completed",
+      "stage": "completed",
+      "progressText": "Done",
+      "streamPreview": null,
+      "strategyId": "10000000-0000-4000-8000-000000000006",
+      "errorMessage": null,
+      "createdAt": "2026-10-15T12:00:00Z",
+      "updatedAt": "2026-10-15T12:01:00Z",
+      "objectiveGeneration": {
+        "schemaVersion": 1,
+        "requestId": "10000000-0000-4000-8000-000000000001",
+        "source": {
+          "clientId": "10000000-0000-4000-8000-000000000002",
+          "objectiveId": "10000000-0000-4000-8000-000000000003",
+          "objectiveVersion": 7,
+          "objectiveRevisionId": "10000000-0000-4000-8000-000000000004"
+        },
+        "context": {
+          "state": "complete",
+          "packetId": "10000000-0000-4000-8000-000000000008",
+          "compiledAt": "2026-10-15T12:00:05Z",
+          "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "coverageDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "inputDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "issues": [],
+          "reobservedAt": "2026-10-15T12:00:59.000Z"
+        },
+        "result": {
+          "strategyId": "10000000-0000-4000-8000-000000000006",
+          "strategyVersionId": "10000000-0000-4000-8000-000000000007",
+          "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "contextPacketId": "10000000-0000-4000-8000-000000000008",
+          "coverageDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "inputDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "savedAt": "2026-10-15T12:01:00Z"
+        },
+        "failure": null
+      }
+    }
+  },
+  "incompleteContextPoll": {
+    "httpStatus": 200,
+    "body": {
+      "jobId": "10000000-0000-4000-8000-000000000005",
+      "status": "failed",
+      "stage": "failed",
+      "progressText": null,
+      "streamPreview": null,
+      "strategyId": null,
+      "errorMessage": "Government relationship context is incomplete. Review its coverage before generating.",
+      "createdAt": "2026-10-15T12:00:00Z",
+      "updatedAt": "2026-10-15T12:00:05Z",
+      "objectiveGeneration": {
+        "schemaVersion": 1,
+        "requestId": "10000000-0000-4000-8000-000000000001",
+        "source": {
+          "clientId": "10000000-0000-4000-8000-000000000002",
+          "objectiveId": "10000000-0000-4000-8000-000000000003",
+          "objectiveVersion": 7,
+          "objectiveRevisionId": "10000000-0000-4000-8000-000000000004"
+        },
+        "context": {
+          "state": "incomplete",
+          "packetId": "10000000-0000-4000-8000-000000000008",
+          "compiledAt": "2026-10-15T12:00:05Z",
+          "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "coverageDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "inputDigest": null,
+          "issues": [
+            {
+              "group": "government_targets",
+              "code": "REQUIRED_FIELDS_EXCEED_PACKET_BUDGET",
+              "message": "Required relationship fields do not fit the approved context policy; no generation was dispatched."
+            }
+          ],
+          "reobservedAt": null
+        },
+        "result": null,
+        "failure": {
+          "code": "OBJECTIVE_CONTEXT_INCOMPLETE",
+          "message": "Government relationship context is incomplete. Review its coverage before generating."
+        }
+      }
+    }
+  },
+  "stale": {
+    "httpStatus": 409,
+    "body": {
+      "code": "OBJECTIVE_VERSION_CONFLICT",
+      "message": "Objective changed. Refresh it before continuing."
+    }
+  },
+  "changedRetry": {
+    "httpStatus": 409,
+    "body": {
+      "code": "OBJECTIVE_REQUEST_CONFLICT",
+      "message": "This request identity was already used for different generation inputs."
+    }
+  },
+  "inaccessible": {
+    "httpStatus": 404,
+    "body": {
+      "message": "Objective generation not found"
+    }
+  }
+}

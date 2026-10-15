@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { DraftStrategyDto } from './dto/meri.dto.js';
 import type { SpDraftJob } from '../../generated/prisma-client/index.js';
+import type { Prisma } from '../../generated/prisma-client/index.js';
+import type { ObjectiveJobEnvelope, ObjectiveReceipt, ObjectiveAdmission } from './objective-generation.types.js';
+import { publicObjectiveReceipt, validObjectiveOutcome, pendingReceipt, SAFE_FAILURES } from './objective-generation.types.js';
 
 /** The api-strategy-side job stage (distinct from the orchestrator's own
  *  internal repair-loop `stage` carried on each streamed progress line). */
@@ -31,6 +34,14 @@ export const DRAFT_JOB_STAGE_TEXT: Record<DraftJobStage, string> = {
  *  Undefined (the synchronous HTTP path) means "don't report progress" —
  *  draft() falls back to the original non-streaming orchestrator call. */
 export interface DraftJobRuntime {
+  objective?: { envelope: ObjectiveJobEnvelope; onCompiled(admission: ObjectiveAdmission): Promise<void> };
+  /** Application persistence only. Both hooks are awaited in the existing write transaction. */
+  persistence?: {
+    /** External as-of observation, after generation but before opening the transaction. */
+    beforeTransaction?(): Promise<void>;
+    beforeWrite(tx: Prisma.TransactionClient): Promise<void>;
+    afterWrite(tx: Prisma.TransactionClient, saved: { strategyId: string; strategyVersionId: string }): Promise<void>;
+  };
   /** Remaining budget for the orchestrator call (deadlineAt - now()), NOT the
    *  fixed STRATEGY_MERI_TIMEOUT_MS the synchronous path uses. */
   timeoutMs: number;
@@ -67,6 +78,7 @@ export function computeDraftRequestKey(dto: Pick<DraftStrategyDto, 'clientId' | 
  *  after a ~60s Clerk session token has expired. Never returned to the client
  *  (the public job DTO below omits it). */
 export interface DraftJobInput {
+  objectiveGeneration?: ObjectiveJobEnvelope;
   dto: DraftStrategyDto;
   bearer: string | null;
 }
@@ -75,6 +87,7 @@ export interface DraftJobInput {
  *  (carries the caller's bearer) or `claimedBy`/`ownerUserId` (worker/auth
  *  internals). */
 export interface PublicDraftJob {
+  objectiveGeneration?: ObjectiveReceipt;
   jobId: string;
   status: SpDraftJob['status'];
   stage: string | null;
@@ -87,15 +100,23 @@ export interface PublicDraftJob {
 }
 
 export function toPublicDraftJob(job: SpDraftJob): PublicDraftJob {
+  const objective = (job.input as unknown as DraftJobInput).objectiveGeneration;
+  const unconfirmed = objective && !validObjectiveOutcome(objective.receipt, job.status, job.strategyId, job.errorMessage);
+  const receipt = objective ? (unconfirmed ? pendingReceipt(objective.request, objective.receipt.source) : publicObjectiveReceipt(objective.receipt)) : undefined;
+  if (unconfirmed && receipt) {
+    receipt.result = null;
+    receipt.failure = { code: 'OBJECTIVE_GENERATION_OUTCOME_UNCONFIRMED', message: SAFE_FAILURES.OBJECTIVE_GENERATION_OUTCOME_UNCONFIRMED! };
+  }
   return {
     jobId: job.id,
-    status: job.status,
-    stage: job.stage,
-    progressText: job.progressText,
-    streamPreview: job.streamPreview,
-    strategyId: job.strategyId,
-    errorMessage: job.errorMessage,
+    status: unconfirmed ? 'failed' : job.status,
+    stage: unconfirmed ? 'failed' : job.stage,
+    progressText: unconfirmed ? null : job.progressText,
+    streamPreview: objective ? null : job.streamPreview,
+    strategyId: unconfirmed ? null : job.strategyId,
+    errorMessage: unconfirmed ? SAFE_FAILURES.OBJECTIVE_GENERATION_OUTCOME_UNCONFIRMED! : job.errorMessage,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
+    ...(receipt ? { objectiveGeneration: receipt } : {}),
   };
 }

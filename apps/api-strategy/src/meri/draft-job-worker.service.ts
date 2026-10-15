@@ -28,6 +28,10 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriService } from './meri.service.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
+import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
+import { admitObjective } from './objective-generation-admission.js';
+import { objectivePersistence, safeObjectiveFailure, ObjectiveLeaseLost } from './objective-generation-completion.js';
+import { digest, SAFE_FAILURES, type ObjectiveAdmission } from './objective-generation.types.js';
 import {
   DRAFT_JOB_STAGE_TEXT,
   type DraftJobInput,
@@ -46,6 +50,8 @@ const STREAM_FLUSH_INTERVAL_MS = 750;
  *  snake_case columns — this is NOT the Prisma model type; a raw query result
  *  is never automatically camelCased). */
 interface ClaimedDraftJob {
+  claimToken: string;
+  attempt: number;
   id: string;
   tenantId: string;
   ownerUserId: string;
@@ -55,6 +61,8 @@ interface ClaimedDraftJob {
 }
 
 interface RawClaimRow {
+  claimed_by: string;
+  attempt: number;
   id: string;
   tenant_id: string;
   owner_user_id: string;
@@ -77,6 +85,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly meriService: MeriService,
     private readonly orchestrator: StrategyOrchestratorClient,
     config: ConfigService,
+    private readonly contextPlane: StrategyContextPlaneClient,
   ) {
     this.instanceId = `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
     this.sweepMs = Number.parseInt(config.get<string>('STRATEGY_DRAFT_JOB_SWEEP_MS') ?? '', 10) || 2_000;
@@ -120,16 +129,21 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
    *  abort, but this is the belt-and-suspenders net for anything outside that
    *  single fetch — e.g. the persist transaction). */
   private async failExpired(): Promise<void> {
-    await this.prisma.withSystem((tx) =>
-      tx.spDraftJob.updateMany({
+    await this.prisma.withSystem(async tx => {
+      const failure = { code: 'OBJECTIVE_GENERATION_FAILED', message: SAFE_FAILURES.OBJECTIVE_GENERATION_FAILED };
+      await tx.$executeRaw`UPDATE sp_draft_job SET status='failed', stage='failed', strategy_id=NULL,
+        error_message=${failure.message}, stream_preview=NULL, progress_text=NULL,
+        input=jsonb_set(input,'{objectiveGeneration,receipt,failure}',${JSON.stringify(failure)}::jsonb), updated_at=clock_timestamp()
+        WHERE input ? 'objectiveGeneration' AND status IN ('queued','running') AND deadline_at <= clock_timestamp()`;
+      return tx.spDraftJob.updateMany({
         where: { status: { in: ['queued', 'running'] }, deadlineAt: { lte: new Date() } },
         data: {
           status: 'failed',
           stage: 'failed',
           errorMessage: DEADLINE_MESSAGE,
         },
-      }),
-    );
+      });
+    });
   }
 
   /** A 'running' job that hasn't written progress in staleMs (a dead pod) goes
@@ -149,6 +163,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
 
   /** Atomically claim the oldest eligible queued job (pool + replica safe). */
   private async claimNext(): Promise<ClaimedDraftJob | null> {
+    const claimToken = `${this.instanceId}:${randomUUID()}`;
     return this.prisma.withSystem(async (tx) => {
       const rows = await tx.$queryRawUnsafe<RawClaimRow[]>(
         `UPDATE sp_draft_job SET status='running', claimed_by=$1, claimed_at=NOW(), attempt = attempt + 1, updated_at = NOW()
@@ -159,13 +174,15 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
            LIMIT 1
            FOR UPDATE SKIP LOCKED
          )
-         RETURNING id, tenant_id, owner_user_id, input, stream_preview, deadline_at`,
-        this.instanceId,
+         RETURNING id, tenant_id, owner_user_id, input, stream_preview, deadline_at, claimed_by, attempt`,
+        claimToken,
       );
       const row = rows[0];
       if (!row) return null;
       return {
         id: row.id,
+        claimToken: row.claimed_by,
+        attempt: row.attempt,
         tenantId: row.tenant_id,
         ownerUserId: row.owner_user_id,
         input: row.input as DraftJobInput,
@@ -176,6 +193,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processJob(job: ClaimedDraftJob): Promise<void> {
+    if (job.input.objectiveGeneration) return this.processObjectiveJob(job);
     const { dto, bearer } = job.input;
     let streamBuffer = job.streamPreview ?? '';
     let lastFlushAt = 0;
@@ -184,7 +202,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
       this.prisma
         .withSystem((tx) =>
           tx.spDraftJob.updateMany({
-            where: { id: job.id, claimedBy: this.instanceId, status: 'running' },
+            where: { id: job.id, tenantId: job.tenantId, claimedBy: job.claimToken, attempt: job.attempt, status: 'running' },
             data,
           }),
         )
@@ -216,7 +234,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
       const detail = await this.meriService.draft(job.tenantId, job.ownerUserId, bearer ?? undefined, dto, jobRuntime);
       await this.prisma.withSystem((tx) =>
         tx.spDraftJob.updateMany({
-          where: { id: job.id, claimedBy: this.instanceId, status: 'running' },
+          where: { id: job.id, tenantId: job.tenantId, claimedBy: job.claimToken, attempt: job.attempt, status: 'running' },
           data: {
             status: 'completed',
             stage: 'completed',
@@ -232,13 +250,77 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
       await this.prisma
         .withSystem((tx) =>
           tx.spDraftJob.updateMany({
-            where: { id: job.id, claimedBy: this.instanceId, status: 'running' },
+            where: { id: job.id, tenantId: job.tenantId, claimedBy: job.claimToken, attempt: job.attempt, status: 'running' },
             data: { status: 'failed', stage: 'failed', errorMessage: message },
           }),
         )
         .catch((writeErr) =>
           this.logger.error(`draft job ${job.id} could not record failure: ${(writeErr as Error).message}`),
         );
+    }
+  }
+
+  private async processObjectiveJob(job: ClaimedDraftJob): Promise<void> {
+    const envelope = job.input.objectiveGeneration!;
+    const actor = { tenantId: job.tenantId, clerkUserId: job.ownerUserId };
+    const where = { id: job.id, tenantId: job.tenantId, claimedBy: job.claimToken, attempt: job.attempt, status: 'running' as const };
+    let compiled: ObjectiveAdmission | undefined;
+    let sourceDigest: string | undefined;
+    let heartbeatAt = 0;
+    const update = (data: any) => this.prisma.withTenant(job.tenantId, tx => tx.spDraftJob.updateMany({ where, data }));
+    const runtime: DraftJobRuntime = {
+      timeoutMs: Math.max(1000, job.deadlineAt.getTime() - Date.now()),
+      onStage: (stage, progressText) => { void update({ stage, progressText }).catch(() => undefined); },
+      onStreamDelta: () => { if (Date.now() - heartbeatAt >= STREAM_FLUSH_INTERVAL_MS) {
+        heartbeatAt = Date.now(); void update({ updatedAt: new Date() }).catch(() => undefined);
+      } },
+      objective: { envelope, onCompiled: async admission => {
+        if (digest(admission.source) !== digest(envelope.receipt.source) || admission.context.sourceDigest !== sourceDigest) throw new ObjectiveLeaseLost();
+        compiled = admission;
+        envelope.receipt.context = admission.context;
+        envelope.localDigest = admission.localDigest;
+        envelope.externalDigest = admission.externalDigest;
+        envelope.historyDigest = admission.historyDigest;
+        envelope.historyObservedAt = admission.historyObservedAt;
+        envelope.coverage = admission.coverage;
+        envelope.contactIds = admission.contactIds;
+        const written = await update({ input: JSON.parse(JSON.stringify(job.input)) });
+        if (written.count !== 1) throw new ObjectiveLeaseLost();
+      } },
+      persistence: objectivePersistence(job, this.contextPlane, () => compiled),
+    };
+    try {
+      if (digest(envelope.request) !== envelope.fingerprint || envelope.receipt.schemaVersion !== 1 ||
+          envelope.receipt.requestId !== envelope.request.requestId) throw new ObjectiveLeaseLost();
+      const admitted = await this.prisma.withTenant(job.tenantId, tx => admitObjective(tx, actor, envelope.request));
+      sourceDigest = admitted.sourceDigest;
+      if (digest(admitted.source) !== digest(envelope.receipt.source)) throw new ObjectiveLeaseLost();
+      // The presentation goal is also derived again, never browser or stale job text.
+      await this.meriService.draft(job.tenantId, job.ownerUserId, undefined,
+        { clientId: envelope.request.clientId, type: envelope.request.type, goal: admitted.intent.outcome }, runtime);
+      // Completion already committed with the writer. Never finalize a second time.
+    } catch (error) {
+      // A lost response is not evidence of rollback. A durable completed receipt wins.
+      let durable;
+      try { durable = await this.prisma.withTenant(job.tenantId, tx => tx.spDraftJob.findFirst({ where: { id: job.id, tenantId: job.tenantId } })); }
+      catch { this.logger.warn(`Objective job ${job.id}: outcome unconfirmed; durable recovery required`); return; }
+      if (durable?.status === 'completed') return;
+      if (!durable || durable.status !== 'running' || durable.claimedBy !== job.claimToken || durable.attempt !== job.attempt) return;
+      const failure = safeObjectiveFailure(error);
+      if (failure.code === 'OBJECTIVE_CONTEXT_INCOMPLETE') {
+        const details = (error as any)?.getResponse?.()?.issues;
+        const groups = ['government_targets','government_profile_support','represented_facilities','current_directory','member_notes','target_recommendations','state_directory','relationship_history'];
+        const issues = Array.isArray(details) ? details.filter(i => groups.includes(i?.group) &&
+          ['REQUIRED_CONTEXT_UNAVAILABLE','REQUIRED_FIELDS_EXCEED_PACKET_BUDGET'].includes(i?.code)).map(i => ({ group: i.group, code: i.code,
+            message: i.code === 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET' ? 'Required fields do not fit the approved context budget.' : 'Required context could not be completely observed.' })) : [];
+        envelope.receipt.context = { ...envelope.receipt.context, state: 'incomplete', issues: issues.length ? issues : [{
+          group: 'government_targets', code: 'REQUIRED_CONTEXT_UNAVAILABLE', message: 'Required context could not be completely observed within the approved policy.' }] };
+      }
+      envelope.receipt.failure = failure;
+      envelope.receipt.result = null;
+      await update({ status: 'failed', stage: 'failed', strategyId: null, errorMessage: failure.message,
+        progressText: null, streamPreview: null, input: JSON.parse(JSON.stringify(job.input)) })
+        .catch(() => this.logger.warn(`Objective job ${job.id}: failure receipt could not be recorded`));
     }
   }
 

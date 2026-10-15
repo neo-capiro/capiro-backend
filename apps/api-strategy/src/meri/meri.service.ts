@@ -358,8 +358,10 @@ export class MeriService {
       }
     }
 
+    await jobRuntime?.persistence?.beforeTransaction?.();
     jobRuntime?.onStage('persisting', DRAFT_JOB_STAGE_TEXT.persisting);
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await jobRuntime?.persistence?.beforeWrite(tx);
       const strategy = await tx.spStrategy.create({
         data: {
           tenantId,
@@ -380,7 +382,7 @@ export class MeriService {
       await tx.spNode.createMany({
         data: nodeData.map((n) => ({ ...n, strategyId: strategy.id })),
       });
-      await this.versioning.cutVersion(tx, {
+      const strategyVersionId = await this.versioning.cutVersion(tx, {
         tenantId,
         strategyId: strategy.id,
         authorKind: 'meri',
@@ -425,6 +427,7 @@ export class MeriService {
       // assistant() uses below, so a later edit that resolves/changes the gap
       // set updates this SAME row rather than stacking a second one.
       await this.conversations.syncContextGap(tx, tenantId, strategy.id, gapMessageBody(gaps));
+      await jobRuntime?.persistence?.afterWrite(tx, { strategyId: strategy.id, strategyVersionId });
       return { ...detail, violations, groundingHealth: resp.groundingHealth };
     });
   }

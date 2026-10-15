@@ -64,14 +64,20 @@ export function createGovernedStrategyMeriService(
     // resolver/grounding/attachments/steward reads immediately follows it) —
     // the async draft-job worker reports it as one stage rather than two.
     jobRuntime?.onStage('compiling_context', DRAFT_JOB_STAGE_TEXT.compiling_context);
-    const governed = await contextPlane.compile({
+    const request = {
       tenantId,
       clerkUserId,
       clientId: dto.clientId,
-      mode: 'draft',
+      mode: 'draft' as const,
       query: [dto.goal, dto.meriContext].filter(Boolean).join('\n'),
       traceId: dto.clientId,
-    });
+      ...(jobRuntime?.objective ? { objective: jobRuntime.objective.envelope.request.objective,
+        generationRequestId: jobRuntime.objective.envelope.request.requestId,
+        generationType: jobRuntime.objective.envelope.request.type } : {}),
+    };
+    const governed = jobRuntime?.objective
+      ? await contextPlane.compile(request, jobRuntime.objective.onCompiled)
+      : await contextPlane.compile(request);
     return runWithStrategyGovernedContext(governed, () =>
       originalDraft(tenantId, clerkUserId, bearer, dto, jobRuntime),
     );

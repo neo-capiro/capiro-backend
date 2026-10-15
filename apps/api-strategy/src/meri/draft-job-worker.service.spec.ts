@@ -25,7 +25,7 @@ function makePrisma() {
   updateMany.mockResolvedValue({ count: 1 });
   const queryRawUnsafe = asyncMock<[string, ...unknown[]], unknown[]>();
   queryRawUnsafe.mockResolvedValue([]);
-  const tx = { spDraftJob: { updateMany }, $queryRawUnsafe: queryRawUnsafe };
+  const tx = { spDraftJob: { updateMany }, $queryRawUnsafe: queryRawUnsafe, $executeRaw: jest.fn(async () => 0) };
   const prisma = {
     withSystem: jest.fn((fn: (tx: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaService;
@@ -33,6 +33,8 @@ function makePrisma() {
 }
 
 interface ClaimedJobLike {
+  claimToken: string;
+  attempt: number;
   id: string;
   tenantId: string;
   ownerUserId: string;
@@ -62,7 +64,7 @@ function makeWorker(opts?: { orchestratorConfigured?: boolean }) {
   const orchestrator = {
     configured: opts?.orchestratorConfigured ?? true,
   } as unknown as StrategyOrchestratorClient;
-  const worker = new DraftJobWorkerService(prisma, meriService, orchestrator, config());
+  const worker = new DraftJobWorkerService(prisma, meriService, orchestrator, config(), {} as any);
   return {
     worker,
     internals: worker as unknown as WorkerInternals,
@@ -78,6 +80,8 @@ function makeWorker(opts?: { orchestratorConfigured?: boolean }) {
 function claimedJob(overrides: Partial<ClaimedJobLike> = {}): ClaimedJobLike {
   return {
     id: 'job-1',
+    claimToken: 'claim-1',
+    attempt: 2,
     tenantId: 'tenant-1',
     ownerUserId: 'user-1',
     input: { dto: { clientId: CLIENT, type: 'appropriations' }, bearer: 'token' },
@@ -94,6 +98,8 @@ describe('DraftJobWorkerService claim query', () => {
     queryRawUnsafe.mockResolvedValueOnce([
       {
         id: 'job-9',
+        claimed_by: 'claim-9',
+        attempt: 9,
         tenant_id: 'tenant-9',
         owner_user_id: 'user-9',
         input: { dto: { clientId: CLIENT }, bearer: null },
@@ -112,6 +118,8 @@ describe('DraftJobWorkerService claim query', () => {
     expect(sql).toMatch(/LIMIT 1/);
     expect(claimed).toEqual({
       id: 'job-9',
+      claimToken: 'claim-9',
+      attempt: 9,
       tenantId: 'tenant-9',
       ownerUserId: 'user-9',
       input: { dto: { clientId: CLIENT }, bearer: null },

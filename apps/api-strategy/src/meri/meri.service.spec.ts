@@ -5,7 +5,9 @@ import { CONTEXT_GAP_LABELS, MeriService } from './meri.service.js';
 import { StrategyConversationService } from './strategy-conversation.service.js';
 import { REQUIRED_TEMPLATE_KEYS } from '../context/steward.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { VersioningService } from '../strategy/versioning.service.js';
+import { VersioningService } from '../strategy/versioning.service.js';
+import { objectiveFixture, id as objectiveId } from './objective-generation.fixture.js';
+import { objectivePersistence } from './objective-generation-completion.js';
 import type { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import type { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import type { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
@@ -316,7 +318,7 @@ function makeService(
 ) {
   const { prisma, withTenantUser, withSystem, $queryRaw } = makePrisma(store);
   const versioning = {
-    cutVersion: jest.fn(async () => ({ id: 'v-1' })),
+    cutVersion: jest.fn(async () => 'v-1'),
     logActivity: jest.fn(async () => undefined),
   } as unknown as VersioningService;
   const resolver = { resolve: jest.fn(async () => provider) } as unknown as StrategyAiCredentialResolver;
@@ -2127,5 +2129,62 @@ describe('MeriService.draftExecutionDocument (Stage-G)', () => {
     const result = await svc.draftExecutionDocument(T, 'bearer-x', baseInput);
 
     expect(result).toBeNull();
+  });
+});
+
+describe('Objective receipt in the real Strategy draft writer transaction', () => {
+  function harness() {
+    const f = objectiveFixture();
+    const store = makeStore();
+    const versions = new Map<string, any>();
+    const orchestrator = { draftStreaming: jest.fn(async () => ({ summary: 'Fixture plan',
+      nodes: [{ kind: 'action', subject: 'deliverable', title: 'Bounded work', startsOn: '2027-05-01' }] })) };
+    const made = makeService(orchestrator, store);
+    const original = made.withTenantUser.getMockImplementation()!;
+    made.withTenantUser.mockImplementation(async (tenant, user, fn) => {
+      const oldJob = structuredClone(f.state.job); const oldVersions = new Map(versions);
+      try {
+        return await original(tenant, user, async (base: any) => {
+          const tx = { ...base, $executeRaw: f.tx.$executeRaw, spDraftJob: f.tx.spDraftJob,
+            $queryRaw: (sql: TemplateStringsArray, ...args: any[]) => sql.join('?').includes('SELECT 1 AS ok')
+              ? base.$queryRaw(sql, ...args) : f.tx.$queryRaw(sql, ...args),
+            spVersion: { create: async ({ data }: any) => {
+              const row = { ...data, id: objectiveId(7) }; versions.set(row.id, row); return row;
+            } } };
+          return fn(tx);
+        });
+      } catch (error) { f.state.job = oldJob; versions.clear(); for (const [k,v] of oldVersions) versions.set(k,v); throw error; }
+    });
+    const realVersioning = new VersioningService();
+    made.versioning.cutVersion = realVersioning.cutVersion.bind(realVersioning);
+    const external = jest.fn(async () => { expect(made.withTenantUser).not.toHaveBeenCalled(); return '2026-10-15T00:00:59Z'; });
+    const hooks = objectivePersistence(f.job, { recheckObjective: external } as any, () => f.admission);
+    const runtime = { timeoutMs: 60000, onStage: () => undefined, onStreamDelta: () => undefined, persistence: hooks };
+    const run = () => made.svc.draft(f.actor.tenantId, f.actor.clerkUserId, undefined,
+      { clientId: f.request.clientId, type: f.request.type, goal: f.intent.outcome }, runtime);
+    return { ...made, f, store, versions, orchestrator, hooks, run };
+  }
+  it('commits exact real cutVersion ID with Strategy/nodes/job receipt; model and external check run outside tx', async () => {
+    const h = harness();
+    h.orchestrator.draftStreaming.mockImplementation(async () => {
+      expect(h.withTenantUser).not.toHaveBeenCalled();
+      return { summary: 'Fixture plan', nodes: [{ kind: 'action', subject: 'deliverable', title: 'Bounded work', startsOn: '2027-05-01' }] };
+    });
+    const detail = await h.run();
+    expect(h.store.strategies.size).toBe(1); expect(h.store.nodes.size).toBe(1); expect(h.versions.size).toBe(1);
+    expect(h.f.state.job.status).toBe('completed');
+    expect(h.f.state.job.input.objectiveGeneration.receipt.result).toMatchObject({ strategyId: detail.id, strategyVersionId: [...h.versions.keys()][0] });
+  });
+  it.each(['receipt-rowcount','after-receipt','before-create'])('rolls back all publication state for %s failure', async mode => {
+    const h = harness();
+    if (mode === 'receipt-rowcount') h.f.state.rowcount = 0;
+    if (mode === 'before-create') h.f.state.job.claimedBy = 'new-claim';
+    if (mode === 'after-receipt') {
+      const finish = h.hooks.afterWrite; h.hooks.afterWrite = async (tx, saved) => { await finish(tx,saved); throw new Error('crash-before-commit'); };
+    }
+    await expect(h.run()).rejects.toThrow();
+    expect(h.store.strategies.size).toBe(0); expect(h.store.nodes.size).toBe(0); expect(h.store.chatMessages.size).toBe(0);
+    expect(h.versions.size).toBe(0); expect(h.f.state.job.status).toBe('running');
+    expect(h.f.state.job.input.objectiveGeneration.receipt.result).toBeNull();
   });
 });
