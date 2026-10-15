@@ -63,7 +63,8 @@ POST accepts only:
   groups?: [{ key, name, nodeIds: [...] }] }
 ```
 
-IDs are UUIDs. The client does not supply actor/tenant, source text, task data,
+Record/request IDs are UUIDs; group keys are stable nonempty string tokens
+(up to100 characters, default key `default`). The client does not supply actor/tenant, source text, task data,
 activation, output IDs or a purported authoritative receipt. Server loads the
 completed job owned by this actor in this tenant and verifies the accepted exact
 Objective-generation receipt, named Strategy/version/revision, client binding,
@@ -76,6 +77,9 @@ Omitting groups selects one editable default group named from the saved Strategy
 title. This is a convenience, not a one-project restriction. Explicit groups
 allow multiple new private projects and shared task membership across groups;
 one source node has one new task per request, even when included in two groups.
+Regrouping after creation uses ordinary version-checked Planner project/task
+membership edits on these same task IDs; it does not run a new materialization
+request or clone tasks. Same-request replay preserves those edits.
 Every eligible work node must occur in at least one group, group keys must be
 unique and nonempty groups must use eligible source IDs only. No new project
 count or task cap is introduced. Existing per-field validation/body/transaction
