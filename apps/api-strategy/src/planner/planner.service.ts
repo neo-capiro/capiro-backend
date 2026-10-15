@@ -77,6 +77,26 @@ import {
 } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  STRATEGY_MATERIALIZATION_RECEIPT,
+  parseMaterialization,
+  materializationUuid,
+  materializationReceiptId,
+  materializationPlan,
+  materializationError,
+  materializationIssue,
+  type MaterializationInput,
+  type MaterializationResult,
+  type MaterializationSource,
+  type MaterializationOutput,
+  type StoredMaterialization,
+} from './strategy-materialization.js';
+import {
+  digest,
+  requestKey,
+  validObjectiveOutcome,
+  type ObjectiveJobEnvelope,
+} from '../meri/objective-generation.types.js';
+import {
   normalizeObjectiveDestination,
   requireObjectiveDestinationRevision,
   type ObjectiveDestinationQueryDto,
@@ -292,6 +312,414 @@ export class PlannerService {
       WHERE m.tenant_id = ${ctx.tenantId}::uuid AND m.status = 'active'
       ORDER BY name`;
   }
+  private async createProjectRow(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    data: PlannerProjectData,
+    id?: string,
+  ) {
+    const row = await tx.spPlannerProject.create({
+      data: {
+        ...(id ? { id } : {}),
+        tenantId: ctx.tenantId,
+        ownerId: ctx.clerkUserId,
+        data: json(data),
+      },
+    });
+    await this.event(
+      tx,
+      ctx,
+      { projectId: row.id, kind: 'created', text: 'Created project' },
+      data.members.map((m) => m.userId),
+    );
+    return row;
+  }
+  /** No outside actions: Planner lock -> job -> Strategy -> version -> Core authority. */
+  private async materializationSource(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    input: MaterializationInput,
+    recorded: true | null,
+  ) {
+    const unavailable = (): never =>
+      materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
+    const jobLocks = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM sp_draft_job WHERE tenant_id=${ctx.tenantId}::uuid AND id=${input.generationJobId}::uuid AND owner_user_id=${ctx.clerkUserId} FOR SHARE`;
+    if (!jobLocks[0]) return unavailable();
+    const job = await tx.spDraftJob.findFirst({
+      where: { tenantId: ctx.tenantId, id: input.generationJobId, ownerUserId: ctx.clerkUserId },
+    });
+    const envelope = (job?.input as { objectiveGeneration?: ObjectiveJobEnvelope } | null)
+      ?.objectiveGeneration;
+    const receipt = envelope?.receipt;
+    if (
+      !job ||
+      !envelope ||
+      !receipt ||
+      !validObjectiveOutcome(receipt, job.status, job.strategyId, job.errorMessage) ||
+      job.status !== 'completed' ||
+      !receipt.result ||
+      envelope.request.requestId !== receipt.requestId ||
+      envelope.request.clientId !== receipt.source.clientId ||
+      envelope.request.objective.objectiveId !== receipt.source.objectiveId ||
+      envelope.request.objective.objectiveVersion !== receipt.source.objectiveVersion ||
+      job.clientId !== receipt.source.clientId ||
+      job.requestKey !== requestKey(ctx.tenantId, ctx.clerkUserId, receipt.requestId)
+    )
+      return unavailable();
+    const result = receipt.result;
+    if (
+      result.strategyId !== input.expected.strategyId ||
+      result.strategyVersionId !== input.expected.strategyVersionId ||
+      receipt.source.objectiveRevisionId !== input.expected.objectiveRevisionId
+    )
+      return unavailable();
+    const strategies = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM sp_strategy WHERE tenant_id=${ctx.tenantId}::uuid AND id=${result.strategyId}::uuid AND client_id=${job.clientId}::uuid AND archived_at IS NULL FOR SHARE`;
+    if (!strategies[0]) return unavailable();
+    const versions = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM sp_version WHERE tenant_id=${ctx.tenantId}::uuid AND strategy_id=${result.strategyId}::uuid AND id=${result.strategyVersionId}::uuid FOR SHARE`;
+    if (!versions[0]) return unavailable();
+    const version = await tx.spVersion.findFirst({
+      where: {
+        tenantId: ctx.tenantId,
+        strategyId: result.strategyId,
+        id: result.strategyVersionId,
+        coalescible: false,
+        authorKind: 'meri',
+      },
+    });
+    if (!version) return unavailable();
+    let authority;
+    try {
+      authority = await requireObjectiveDestinationRevision(tx, ctx, receipt.source);
+    } catch (error) {
+      if (error instanceof ConflictException)
+        materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded);
+      if (error instanceof NotFoundException) return unavailable();
+      throw error;
+    }
+    if (authority.objectiveRevisionId !== receipt.source.objectiveRevisionId)
+      materializationError('MATERIALIZATION_SOURCE_STALE', input.requestId, recorded);
+    const snapshot = version.snapshot as unknown as { meta?: { id?: string; clientId?: string } };
+    if (snapshot?.meta?.id !== result.strategyId || snapshot.meta.clientId !== job.clientId)
+      return unavailable();
+    const source: MaterializationSource = {
+      generationJobId: job.id,
+      generationRequestId: receipt.requestId,
+      ...receipt.source,
+      strategyId: result.strategyId,
+      strategyVersionId: result.strategyVersionId,
+      snapshotDigest: digest(version.snapshot),
+    };
+    return { source, snapshot: version.snapshot };
+  }
+  private async materializationView(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    stored: StoredMaterialization,
+    replayed: boolean,
+  ): Promise<MaterializationResult> {
+    const result = stored.result;
+    const projects = await this.projects(tx, ctx);
+    const tasks = await tx.spPlannerTask.findMany({
+      where: { tenantId: ctx.tenantId, id: { in: result.tasks.map((t) => t.output.id!) } },
+    });
+    const output = (
+      row: SpPlannerProject | SpPlannerTask | undefined,
+      original: MaterializationOutput,
+      allowed: boolean,
+    ): MaterializationOutput => {
+      if (!row || !allowed)
+        return {
+          availability: 'unavailable',
+          id: null,
+          createdVersion: original.createdVersion,
+          currentVersion: null,
+        };
+      return {
+        availability: row.archived ? 'archived' : 'available',
+        id: row.id,
+        createdVersion: original.createdVersion,
+        currentVersion: row.version,
+      };
+    };
+    const projectedProjects = result.projects.map((p) => {
+      const row = projects.find((r) => r.id === p.output.id);
+      return {
+        ...p,
+        output: output(
+          row,
+          p.output,
+          !!row &&
+            projectData(row).clientId === result.source.clientId &&
+            !!plannerProjectAccess(row, ctx.clerkUserId),
+        ),
+      };
+    });
+    const projectedTasks = result.tasks.map((t) => {
+      const row = tasks.find((r) => r.id === t.output.id);
+      const current = output(
+        row,
+        t.output,
+        !!row &&
+          taskData(row).clientId === result.source.clientId &&
+          !!plannerTaskAccess(row, projects, ctx.clerkUserId),
+      );
+      const currentGroupKeys =
+        current.id && row
+          ? projectedProjects
+              .filter(
+                (p) =>
+                  p.output.availability === 'available' &&
+                  taskData(row).memberships.some((m) => m.projectId === p.output.id),
+              )
+              .map((p) => p.groupKey)
+          : [];
+      return { ...t, currentGroupKeys, output: current };
+    });
+    return {
+      ...result,
+      replayed,
+      observedAt: new Date().toISOString(),
+      projects: projectedProjects,
+      tasks: projectedTasks,
+      status: [...projectedProjects, ...projectedTasks].some(
+        (p) => p.output.availability !== 'available',
+      )
+        ? 'partial'
+        : result.issues.length
+          ? 'prepared_with_issues'
+          : 'prepared',
+    };
+  }
+  private async storedMaterialization(tx: Tx, ctx: AuthTenantContext, requestId: string) {
+    const row = await tx.spPlannerResource.findFirst({
+      where: {
+        id: materializationReceiptId(ctx.tenantId, ctx.clerkUserId, requestId),
+        tenantId: ctx.tenantId,
+        ownerId: ctx.clerkUserId,
+        kind: STRATEGY_MATERIALIZATION_RECEIPT,
+        archived: false,
+      },
+    });
+    if (!row) return null;
+    const stored = row.data as unknown as StoredMaterialization;
+    if (
+      stored?.receiptVersion !== 1 ||
+      stored.input?.requestId !== requestId ||
+      stored.fingerprint !== digest(stored.input) ||
+      stored.result?.requestId !== requestId
+    )
+      materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', requestId);
+    return stored;
+  }
+  async strategyMaterialization(ctx: AuthTenantContext, rawId: string) {
+    const requestId = materializationUuid(rawId);
+    return this.materializationCommand(requestId, () =>
+      this.scope(
+        ctx,
+        async (tx) => {
+          const stored = await this.storedMaterialization(tx, ctx, requestId);
+          if (!stored) materializationError('MATERIALIZATION_NOT_AVAILABLE', requestId);
+          const { source } = await this.materializationSource(tx, ctx, stored.input, true);
+          if (
+            digest(source) !== digest(stored.result.source) ||
+            source.snapshotDigest !== digest(stored.snapshot)
+          )
+            materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', requestId);
+          return this.materializationView(tx, ctx, stored, true);
+        },
+        true,
+      ),
+    );
+  }
+  private async materializationCommand<T>(requestId: string, run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (
+        error instanceof HttpException &&
+        String((error.getResponse() as { code?: string })?.code ?? '').startsWith(
+          'MATERIALIZATION_',
+        )
+      )
+        throw error;
+      materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', requestId);
+    }
+  }
+  async prepareStrategyPlan(ctx: AuthTenantContext, raw: unknown) {
+    const input = parseMaterialization(raw);
+    return this.materializationCommand(input.requestId, () =>
+      this.scope(
+        ctx,
+        async (tx) => {
+          const stored = await this.storedMaterialization(tx, ctx, input.requestId);
+          const { source, snapshot } = await this.materializationSource(
+            tx,
+            ctx,
+            stored?.input ?? input,
+            stored ? true : null,
+          );
+          if (stored) {
+            if (stored.fingerprint !== digest(input))
+              materializationError('MATERIALIZATION_REQUEST_CONFLICT', input.requestId, true);
+            if (
+              digest(source) !== digest(stored.result.source) ||
+              source.snapshotDigest !== digest(stored.snapshot)
+            )
+              materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
+            return this.materializationView(tx, ctx, stored, true);
+          }
+          const current = await tx.spNode.findMany({
+            where: { tenantId: ctx.tenantId, strategyId: source.strategyId },
+            select: { id: true, archivedAt: true },
+          });
+          const plan = materializationPlan(snapshot, current, input);
+          if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+            materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
+          // Validate all fields before the first output write. Existing per-field
+          // Planner bounds refuse visibly; no new project/task count policy.
+          const nodeIds = new Map(plan.actionable.map((n) => [n.id, randomUUID()]));
+          const projectIds = new Map(plan.groups.map((g) => [g.key, randomUUID()]));
+          let projectInputs: PlannerProjectData[],
+            taskInputs: Array<{ id: string; data: PlannerTaskData }>;
+          try {
+            projectInputs = plan.groups.map((g) =>
+              validateProject({
+                ...PLANNER_DEFAULT_PROJECT,
+                name: g.name,
+                clientId: source.clientId,
+                description: `Generated from saved Strategy ${source.strategyId}, version ${source.strategyVersionId}. Linked context and source lineage are retained in plan preparation ${input.requestId}.`,
+              }),
+            );
+            taskInputs = plan.actionable.map((n) => ({
+              id: nodeIds.get(n.id)!,
+              data: validateTask({
+                ...PLANNER_DEFAULT_TASK,
+                name: n.title,
+                description: n.note ?? '',
+                clientId: source.clientId,
+                subtype: n.kind === 'milestone' ? 'milestone' : 'task',
+                startOn: n.startsOn,
+                dueOn: n.endsOn ?? n.startsOn,
+                memberships: plan.groups
+                  .filter((g) => g.nodeIds.includes(n.id))
+                  .map((g) => ({
+                    projectId: projectIds.get(g.key)!,
+                    sectionId: null,
+                    position: g.nodeIds.indexOf(n.id),
+                  })),
+                dependencies: plan.edges
+                  .filter((e) => e.sourceNodeId === n.id && e.disposition === 'task_dependency')
+                  .map((e) => nodeIds.get(e.dependsOnSourceNodeId)!),
+              }),
+            }));
+          } catch {
+            materializationError('MATERIALIZATION_SOURCE_INVALID', input.requestId, null, [
+              materializationIssue('SOURCE_FIELD_TOO_LARGE'),
+            ]);
+          }
+          const projects: SpPlannerProject[] = [];
+          for (let i = 0; i < projectInputs.length; i++) {
+            // Use the same canonical row/event owner as public project creation.
+            const row = await this.createProjectRow(
+              tx,
+              ctx,
+              projectInputs[i]!,
+              projectIds.get(plan.groups[i]!.key),
+            );
+            projects.push(row);
+          }
+          // Preallocated server IDs bind the fully validated graph; no public
+          // saveTask call, link hop, assignment, rule, recurrence or inbox action.
+          const tasks: SpPlannerTask[] = [];
+          for (let i = 0; i < taskInputs.length; i++) {
+            const item = taskInputs[i]!;
+            tasks.push(
+              await this.persistTask(
+                tx,
+                ctx,
+                item.id,
+                null,
+                item.data,
+                projects,
+                tasks,
+                {},
+                undefined,
+                false,
+              ),
+            );
+          }
+          const at = new Date().toISOString();
+          const available = (row: SpPlannerProject | SpPlannerTask): MaterializationOutput => ({
+            availability: 'available',
+            id: row.id,
+            createdVersion: row.version,
+            currentVersion: row.version,
+          });
+          const result: MaterializationResult = {
+            requestId: input.requestId,
+            status: plan.issues.length ? 'prepared_with_issues' : 'prepared',
+            replayed: false,
+            recordedAt: at,
+            observedAt: at,
+            source,
+            projects: plan.groups.map((g, i) => ({
+              groupKey: g.key,
+              name: g.name,
+              originalNodeIds: g.nodeIds,
+              output: available(projects[i]!),
+            })),
+            tasks: plan.actionable.map((n, i) => ({
+              sourceNodeId: n.id,
+              originalGroupKeys: plan.groups
+                .filter((g) => g.nodeIds.includes(n.id))
+                .map((g) => g.key),
+              currentGroupKeys: plan.groups
+                .filter((g) => g.nodeIds.includes(n.id))
+                .map((g) => g.key),
+              output: available(tasks[i]!),
+            })),
+            context: plan.context,
+            edges: plan.edges,
+            exclusions: plan.exclusions,
+            issues: plan.issues,
+            counts: {
+              savedNodes: plan.nodes.length,
+              actionableNodes: plan.actionable.length,
+              contextNodes: plan.context.length,
+              archivedNodes: plan.exclusions.length,
+              createdProjects: projects.length,
+              createdTasks: tasks.length,
+            },
+          };
+          const receipt: StoredMaterialization = {
+            receiptVersion: 1,
+            input,
+            fingerprint: digest(input),
+            snapshot: plan.snapshot,
+            result,
+          };
+          await tx.spPlannerResource.create({
+            data: {
+              id: materializationReceiptId(ctx.tenantId, ctx.clerkUserId, input.requestId),
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              kind: STRATEGY_MATERIALIZATION_RECEIPT,
+              name: 'Strategy plan preparation receipt',
+              data: json(receipt),
+            },
+          });
+          return result;
+        },
+        true,
+      ),
+    );
+  }
   private projects(tx: Tx, ctx: AuthTenantContext) {
     return tx.spPlannerProject.findMany({
       where: { tenantId: ctx.tenantId },
@@ -475,25 +903,24 @@ export class PlannerService {
                 ...(dto.archived === undefined ? {} : { archived: dto.archived }),
               },
             })
-          : await tx.spPlannerProject.create({
-              data: { tenantId: ctx.tenantId, ownerId: ctx.clerkUserId, data: json(data) },
-            });
-        await this.event(
-          tx,
-          ctx,
-          {
-            projectId: row.id,
-            kind: old
-              ? dto.archived === undefined
-                ? 'updated'
-                : dto.archived
-                  ? 'archived'
-                  : 'restored'
-              : 'created',
-            text: old ? 'Updated project' : 'Created project',
-          },
-          data.members.map((m) => m.userId),
-        );
+          : await this.createProjectRow(tx, ctx, data);
+        if (old)
+          await this.event(
+            tx,
+            ctx,
+            {
+              projectId: row.id,
+              kind: old
+                ? dto.archived === undefined
+                  ? 'updated'
+                  : dto.archived
+                    ? 'archived'
+                    : 'restored'
+                : 'created',
+              text: old ? 'Updated project' : 'Created project',
+            },
+            data.members.map((m) => m.userId),
+          );
         if (beforeGoals.length) {
           const currentProjects = await this.projects(tx, ctx);
           await this.recordGoalChanges(
