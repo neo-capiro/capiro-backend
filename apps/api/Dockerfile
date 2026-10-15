@@ -5,12 +5,13 @@
 #
 # Multi-stage:
 #   1. base    pnpm + corepack on slim node
-#   2. build   install + compile, then `pnpm prune --prod` in place
-#   3. runtime minimal node slim, non-root user, copies the pruned workspace
+#   2. build   install development deps + generate Prisma client + compile
+#   3. production-dependencies fresh production install + canonical Prisma generation
+#   4. runtime minimal node slim, non-root user
 #
 # Why we DON'T use `pnpm deploy`: it doesn't carry generated Prisma client
 # files (which live under pnpm's symlinked store at .pnpm/@prisma+client@*/.prisma).
-# Instead, we prune dev deps in place and copy the whole workspace.
+# Instead, install production dependencies and generate Prisma in a fresh stage.
 
 # sanitize-html in the frozen lockfile requires Node >=22.12.0. Keep build and
 # runtime on the same supported release so CommonJS can load its ESM parser.
@@ -70,10 +71,24 @@ RUN pnpm --filter @capiro/api exec prisma generate
 # this codebase's current size. Pin an explicit ceiling for this step only.
 RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
 
-# Prune dev dependencies in place (keeps the .pnpm store with the generated
-# Prisma client intact).
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+# Fresh production dependency graph, separate from the dev build.
+FROM base AS production-dependencies
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
+COPY packages/defense-contracts/package.json packages/defense-contracts/package.json
+COPY packages/defense-domain/package.json packages/defense-domain/package.json
+RUN test ! -e /workspace/node_modules \
+ && test ! -e /workspace/apps/api/node_modules
+RUN --mount=type=cache,id=pnpm-core-production-gnu,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
+COPY apps/api/prisma apps/api/prisma
+RUN pnpm --filter @capiro/api exec prisma generate
+
 
 # -------- runtime -------------------------------------------------------------
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -95,9 +110,9 @@ RUN mkdir -p /app/tmp /tmp \
 ENV TMPDIR=/dev/shm
 WORKDIR /app
 
-# Copy the entire workspace, pnpm's symlinked node_modules + the generated
-# Prisma client + the compiled API. Larger image (~250MB) but reliable.
-COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
+# Copy the fresh production dependency store and generated Prisma client
+# alongside the compiled API and required workspace runtime files.
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/node_modules /app/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
@@ -107,17 +122,17 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.
 # links that (+ zod) under packages/meriv2-core/node_modules (relative symlinks
 # to /app/packages/shared and /app/node_modules/.pnpm), NOT hoisted to root. Copy
 # it or the API crashloops at boot with MODULE_NOT_FOUND '@capiro/shared'.
-COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json
 # defense-domain, like meriv2-core, has a workspace dep of its own (@capiro/shared)
 # that pnpm links under its own node_modules rather than hoisting to root.
-COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
-COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
-COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api/node_modules /app/apps/api/node_modules
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api/prisma /app/apps/api/prisma
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json
 # bootstrap-*, sync-* and emit-* commands run TS scripts via tsx at task
@@ -143,7 +158,7 @@ RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh \
 
 USER capiro
 WORKDIR /app/apps/api
-# Validate the pruned runtime dependency graph before publishing the image.
+# Validate the production runtime dependency graph before publishing the image.
 RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"
 EXPOSE 4000
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
