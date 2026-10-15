@@ -1,0 +1,75 @@
+{
+  "status": "PROPOSED_NOT_IMPLEMENTED",
+  "repository": "neo-capiro/capiro-backend",
+  "sourceParent": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+  "branch": "docs/proposed-engagement-contract-20261015",
+  "documentationDirectory": "docs/proposed-engagement-contract-20261015",
+  "sourceOrRuntimeChanges": false,
+  "schemaOrPersistenceImplemented": false,
+  "migrationAllocated": false,
+  "policyAccepted": false,
+  "liveRuntimeVerified": false,
+  "manifestExcludesItself": true,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 93,
+      "sha256": "9a66a9c0ac36ddd7d39c92acecd0e24606705f4c17cf9f092a4727329071765b",
+      "gitBlob": "6779f82f87dcd6051706ab4030b2c207f79a5f9e"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3229,
+      "sha256": "bfda0a6a2f6668527ca3433e5b4d4def71acabfd16b1a6c9297015f23af0cbaf",
+      "gitBlob": "d07be4b110b1ee18a8e379c234b986dcb47a06ac"
+    },
+    {
+      "path": "contract-proposal/CALENDAR-FACTS.md",
+      "bytes": 29630,
+      "sha256": "9a152a4db0340aab051f67dff867b63d105d46b6522d39ef594bee4a25ee7eb9",
+      "gitBlob": "3f3d999efa323a914b2e088b0a62541aa3f50ec2"
+    },
+    {
+      "path": "contract-proposal/KRISP-BASELINE.md",
+      "bytes": 5053,
+      "sha256": "6ce54092c8fa7acfdaf41cb0f356c4b64b2c8063fb0a0d131d929a2d012bdf1b",
+      "gitBlob": "e00426ea4ed5c49b93b030551d5c029cac4f1391"
+    },
+    {
+      "path": "contract-proposal/PRIOR-REVIEW.md",
+      "bytes": 1935,
+      "sha256": "9f30a7f2c935eaaed7e350728b5586f61af87e58434160d3cb2aebf122c452ac",
+      "gitBlob": "9d747a37c2e9f99709b641b26686a0f513241166"
+    },
+    {
+      "path": "contract-proposal/PROPOSAL.md",
+      "bytes": 48461,
+      "sha256": "e015eb5672d7e2a1fd1f2004e862defe0f9a58fd1fdf7c30ddc54255b8237658",
+      "gitBlob": "69fea2c965d07688eea6c6d7ccf6d6700abbf8b1"
+    },
+    {
+      "path": "contract-proposal/REVIEW.md",
+      "bytes": 4803,
+      "sha256": "77f207451b06ed9afa8646bd7182b14f0196345653f30eb399a1c713a9150165",
+      "gitBlob": "e6cc621d9a25a0610b4e4ff17d7ef7c275858a17"
+    },
+    {
+      "path": "contract-proposal/REVIEWED-SNAPSHOT.md",
+      "bytes": 37487,
+      "sha256": "b9ae6fa53fe28eb3ef1af5eded7b0140af304a39edc5a6e3fb5ca8fbb3b508eb",
+      "gitBlob": "23cce4cd6d3530945cc59d31e3bf7643f0422887"
+    },
+    {
+      "path": "legacy-audit/LEGACY-AUDIT.md",
+      "bytes": 10837,
+      "sha256": "42dbf739a79f7892cf88797f9abcef388e667e77ad2118b1cc3a3eb28fa12331",
+      "gitBlob": "0cb7b2a65ef048aa55698781c08d19be022bb4b4"
+    },
+    {
+      "path": "legacy-audit/receipt.json",
+      "bytes": 5455,
+      "sha256": "44047932fd3e2d122609835f7c90078a0459fcca1eeefb59016cef1b25553a0c",
+      "gitBlob": "96eb595389f917400eb5e7505585a5d298f4383a"
+    }
+  ]
+}

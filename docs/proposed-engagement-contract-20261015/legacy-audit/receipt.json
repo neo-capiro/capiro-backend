@@ -1,0 +1,172 @@
+{
+  "audit": "legacy-runtime-read-only",
+  "repository": "neo-capiro/capirov2",
+  "defaultBranch": "main",
+  "sourceSha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "sourceCommitTimestamp": "2026-10-11T18:12:38Z",
+  "comparisonRepository": "neo-capiro/capiro-backend",
+  "comparisonSha": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+  "registrationOnly": true,
+  "deploymentVerified": false,
+  "staticAudit": {
+    "result": "PASS",
+    "legacyRoutes": 134,
+    "models": [
+      "EngagementContact",
+      "EngagementAttachment",
+      "EngagementTask",
+      "EngagementReportTargetOffice",
+      "EngagementReportTargetOverride",
+      "EngagementCampaign",
+      "EngagementCampaignRecipient"
+    ],
+    "legacyPlanWaveRoutes": 0,
+    "legacyEngagementPlanWaveModels": 0,
+    "sourceRuntimeExecution": false
+  },
+  "routeComparison": {
+    "legacy": 134,
+    "imported": 135,
+    "legacyOnly": [],
+    "importedOnly": [
+      [
+        "GET /api/engagement/mail/mailboxes EngagementController mailboxes",
+        {
+          "method": "GET",
+          "path": "/api/engagement/mail/mailboxes",
+          "controller": "EngagementController",
+          "handler": "mailboxes",
+          "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+          "sourceLine": 2023,
+          "controllerGuards": [
+            "RolesGuard"
+          ],
+          "handlerGuards": [],
+          "controllerRoles": [
+            "standard_user"
+          ],
+          "handlerRoles": [],
+          "throttle": null,
+          "httpCode": null,
+          "bodyDto": null,
+          "queryDto": null,
+          "parameterNames": [
+            "ctx"
+          ],
+          "classification": "read"
+        }
+      ]
+    ]
+  },
+  "noOmission": {
+    "engagement": {
+      "legacyFiles": 293,
+      "identicalBlobs": 282,
+      "missing": 0
+    },
+    "outreachV3": {
+      "legacyFiles": 153,
+      "identicalBlobs": 146,
+      "missing": 0
+    }
+  },
+  "criticalBlobComparisons": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "legacy": "cdf1923217edae6e7624993796a5671922b61ac0",
+      "backend": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+      "same": false
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "legacy": "d57f876f14f1d25a3e4cc7d9194922e7e8f8a415",
+      "backend": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+      "same": false
+    },
+    {
+      "path": "apps/api/src/engagement-api.app.module.ts",
+      "legacy": "496fc24912ecf3a53b31c43ce2714ead0ed1e3f3",
+      "backend": "74b1f4400160b5eea810fd5fc946a705c0d0031f",
+      "same": false
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-report-routes.spec.ts",
+      "legacy": "4085c7110432aa79cd4b792392090ee4ad69c567",
+      "backend": "4085c7110432aa79cd4b792392090ee4ad69c567",
+      "same": true
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-reports.spec.ts",
+      "legacy": "4f0de2e964ef50cd2b2ce50ac5c35a9de95ffc8f",
+      "backend": "4f0de2e964ef50cd2b2ce50ac5c35a9de95ffc8f",
+      "same": true
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-route-manifest.spec.ts",
+      "legacy": "2c32b1991835779181afd9aca44176e7472d6ab3",
+      "backend": "2c32b1991835779181afd9aca44176e7472d6ab3",
+      "same": true
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "legacy": "efa69833bd7c471c860553bfe210217a9d1dab27",
+      "backend": "7b1f1482687ed43fb1084c51b135a255a7d104af",
+      "same": false
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.module.ts",
+      "legacy": "037dc2d4b4421b3044d5b2c1bf84026bceb67fc7",
+      "backend": "43eb9579b57c4ffc4fd8aab69b2a605049609569",
+      "same": false
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "legacy": "2f0fc56b2eff3526118df7a052d13e76daf020a4",
+      "backend": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "same": false
+    },
+    {
+      "path": "apps/api/src/engagement/report-targets.spec.ts",
+      "legacy": "112420168e1a1e1c9240112007b846d1b26bbdbb",
+      "backend": "112420168e1a1e1c9240112007b846d1b26bbdbb",
+      "same": true
+    },
+    {
+      "path": "apps/api/src/engagement/report-targets.ts",
+      "legacy": "d2d60a9c070a4986ed74ab114208d5c8d7aa6f6a",
+      "backend": "d2d60a9c070a4986ed74ab114208d5c8d7aa6f6a",
+      "same": true
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts",
+      "legacy": "92e8a16fea7ff51344ff4b97ae8fa816bedbd22d",
+      "backend": "92e8a16fea7ff51344ff4b97ae8fa816bedbd22d",
+      "same": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/generation/outreach-v3-generation-plan.ts",
+      "legacy": "e67531e299d398ee14c9e48a13a5a3a3bc48692b",
+      "backend": "e67531e299d398ee14c9e48a13a5a3a3bc48692b",
+      "same": true
+    }
+  ],
+  "scope": {
+    "productionWrites": false,
+    "backendFrozenChanges": false,
+    "meriChanges": false,
+    "AWS": false,
+    "provider": false,
+    "liveDatabase": false,
+    "migrations": false,
+    "securityChanges": false
+  },
+  "access": {
+    "localRead": "denied: git -C C:\\dev\\capirov2; Permission denied; no retry",
+    "connectorRead": "succeeded"
+  },
+  "limits": [
+    "Source registration, not deployed image or traffic qualification",
+    "No application runtime, live authorization, provider, or PostgreSQL tests",
+    "Historical branches and arbitrary database metadata not proven absent"
+  ]
+}

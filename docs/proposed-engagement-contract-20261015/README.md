@@ -1,0 +1,16 @@
+# PROPOSED Engagement contract: parent review packet
+
+**Documentation only. NOT IMPLEMENTED.** No persistence/schema, migration allocation, registered route, runtime/shared/Meri contract, generated artifact or production configuration changes accompany this packet. It is an additive isolated branch from frozen backend `cd3c51e940f14e1b2a1040b0ffa445e85d68b332`; that shipping checkout remains unchanged. PR53, PR54 and Fable's work remain unchanged.
+
+Read the [current proposal](contract-proposal/PROPOSAL.md) and its [independent quality review](contract-proposal/REVIEW.md). The concrete manual candidate is one immutable client per plan, multiple plans per client, child waves and one optimistic aggregate version. Lifecycle is draft/active/archived; manual review freshness is unknown/current/stale. Existing current membership and the exact unwalled-or-matching-grant authorization remain. These manual semantics are offered for parent review, not represented as existing backend behavior or approved business policy.
+
+Algorithmic DC-window ranking is separate and remains undefined. [Calendar facts](contract-proposal/CALENDAR-FACTS.md) documents what existing event APIs and Strategy reference milestones actually support. Neither hearing absence, planning milestones nor a no-violation recess check establishes a free week or office availability. No age, availability, ranking or universal five-week formula is invented.
+
+Supporting evidence:
+
+- [Legacy route/runtime registration audit](legacy-audit/LEGACY-AUDIT.md) and [structured source/blob receipt](legacy-audit/receipt.json): all 134 legacy registered tuples survive the frozen import; no omitted current plan/wave engine found. Source evidence only; no deployed-image/live-DB conclusion.
+- [Krisp baseline classification](contract-proposal/KRISP-BASELINE.md): five inherited preview-gate failures reproduced at their first inventory commit and frozen source; no route/network broadening or generated-artifact repair.
+- [Original reviewed proposal snapshot](contract-proposal/REVIEWED-SNAPSHOT.md) and [prior review](contract-proposal/PRIOR-REVIEW.md): historical checkpoint preserved byte-for-byte. Snapshot SHA-256 `b9ae6fa53fe28eb3ef1af5eded7b0140af304a39edc5a6e3fb5ca8fbb3b508eb`. The current proposal supersedes its provisional cardinality and blanket archived-resource 404 language. Prior review applies to that snapshot, not automatically to revised text.
+- [Publication byte manifest](manifest.json): relative paths, SHA-256 and byte lengths; the manifest excludes itself. Publication verification compares every remote Git blob and full file bytes with the staged source. It is not runtime qualification.
+
+The packet's local attributes preserve exact archived receipt bytes. Tests cited in calendar/proposal evidence were inspected rather than executed unless explicitly described as prior PR54 qualification. Documentation checks validate file scope, relative links, formatting, immutable references and exact byte hashes. Parent acceptance precedes any persistence or migration work. Office-target fencing remains a coordinated implementation dependency; wave execution vocabulary and complete federal calendar eligibility/ranking policy remain open.
