@@ -1,0 +1,1889 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:capiro:objective-operational:proposal:1",
+  "title": "Unregistered Objective operational read and association commands",
+  "definitions": {
+    "UUID": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "Selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "strategy",
+            "planner_project",
+            "planner_task",
+            "outreach_session",
+            "meeting",
+            "budget_package",
+            "defense_budget_cycle"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "OwnerVersion": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "counter"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unversioned"
+            }
+          }
+        }
+      ]
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientId",
+        "objectiveId",
+        "currentRevisionId",
+        "objectiveVersion",
+        "objectiveStatus",
+        "ownerUserId"
+      ],
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "currentRevisionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "objectiveStatus": {
+          "enum": [
+            "draft",
+            "in_review",
+            "ready"
+          ]
+        },
+        "ownerUserId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          ]
+        }
+      }
+    },
+    "Provenance": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "associationId",
+            "linkedRevision",
+            "linkedAt"
+          ],
+          "properties": {
+            "kind": {
+              "const": "manual"
+            },
+            "associationId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "linkedRevision": {
+              "$ref": "#/definitions/Revision"
+            },
+            "linkedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "receiptId",
+            "sourceRevision"
+          ],
+          "properties": {
+            "kind": {
+              "const": "application_receipt"
+            },
+            "receiptId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "sourceRevision": {
+              "$ref": "#/definitions/Revision"
+            }
+          }
+        }
+      ]
+    },
+    "Cycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fiscalYear",
+        "authorityTrack",
+        "basis",
+        "context"
+      ],
+      "properties": {
+        "fiscalYear": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "authorityTrack": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            }
+          ]
+        },
+        "basis": {
+          "const": "human_annotation"
+        },
+        "context": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "id"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "budget_package",
+                    "defense_budget_cycle"
+                  ]
+                },
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "title",
+        "ownerVersion",
+        "observedAt"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/definitions/Selection"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "ownerVersion": {
+          "$ref": "#/definitions/OwnerVersion"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Reason": {
+      "enum": [
+        "association_reader_missing",
+        "membership_not_established",
+        "owner_unavailable",
+        "authorization_limited",
+        "pagination_drift",
+        "unsupported_question_lifecycle",
+        "unsupported_window_metric",
+        "unsupported_feasibility_metric",
+        "source_unverifiable"
+      ]
+    },
+    "Coverage": {
+      "enum": [
+        "complete",
+        "partial",
+        "unbound",
+        "unavailable",
+        "not_implemented"
+      ]
+    },
+    "StrategyRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource",
+        "provenance",
+        "cycles",
+        "savedVersions"
+      ],
+      "properties": {
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resource"
+            },
+            {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "kind": {
+                      "const": "strategy"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "provenance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Provenance"
+          },
+          "minItems": 1
+        },
+        "cycles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Cycle"
+          },
+          "uniqueItems": true
+        },
+        "savedVersions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "receiptId",
+              "sourceRevision",
+              "id",
+              "digest"
+            ],
+            "properties": {
+              "receiptId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "sourceRevision": {
+                "$ref": "#/definitions/Revision"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "ProjectRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource",
+        "provenance"
+      ],
+      "properties": {
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resource"
+            },
+            {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "kind": {
+                      "const": "planner_project"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "provenance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Provenance"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "MeetingRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource",
+        "provenance",
+        "startsAt",
+        "endsAt"
+      ],
+      "properties": {
+        "resource": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resource"
+            },
+            {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "kind": {
+                      "const": "meeting"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "provenance": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Provenance"
+          },
+          "minItems": 1
+        },
+        "startsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endsAt": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date-time"
+            }
+          ]
+        }
+      }
+    },
+    "DecisionRow": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "task",
+            "approval",
+            "provenance"
+          ],
+          "properties": {
+            "kind": {
+              "const": "planner_approval"
+            },
+            "task": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Resource"
+                },
+                {
+                  "properties": {
+                    "selection": {
+                      "properties": {
+                        "kind": {
+                          "const": "planner_task"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "approval": {
+              "const": "pending"
+            },
+            "provenance": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Provenance"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "session",
+            "proposalId",
+            "state",
+            "title",
+            "provenance"
+          ],
+          "properties": {
+            "kind": {
+              "const": "outreach_proposal"
+            },
+            "session": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Resource"
+                },
+                {
+                  "properties": {
+                    "selection": {
+                      "properties": {
+                        "kind": {
+                          "const": "outreach_session"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "proposalId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "const": "pending"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            },
+            "provenance": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Provenance"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    },
+    "StrategySection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedAt",
+        "snapshotId",
+        "coverage",
+        "reasons",
+        "total",
+        "nextCursor",
+        "items"
+      ],
+      "properties": {
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "snapshotId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/definitions/Coverage"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reason"
+          },
+          "uniqueItems": true
+        },
+        "total": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "nextCursor": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StrategyRow"
+          },
+          "maxItems": 100
+        }
+      }
+    },
+    "ProjectSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedAt",
+        "snapshotId",
+        "coverage",
+        "reasons",
+        "total",
+        "nextCursor",
+        "items"
+      ],
+      "properties": {
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "snapshotId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/definitions/Coverage"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reason"
+          },
+          "uniqueItems": true
+        },
+        "total": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "nextCursor": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProjectRow"
+          },
+          "maxItems": 100
+        }
+      }
+    },
+    "MeetingSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedAt",
+        "snapshotId",
+        "coverage",
+        "reasons",
+        "total",
+        "nextCursor",
+        "items"
+      ],
+      "properties": {
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "snapshotId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/definitions/Coverage"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reason"
+          },
+          "uniqueItems": true
+        },
+        "total": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "nextCursor": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MeetingRow"
+          },
+          "maxItems": 100
+        }
+      }
+    },
+    "DecisionSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedAt",
+        "snapshotId",
+        "coverage",
+        "reasons",
+        "total",
+        "nextCursor",
+        "items"
+      ],
+      "properties": {
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "snapshotId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/definitions/Coverage"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reason"
+          },
+          "uniqueItems": true
+        },
+        "total": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "nextCursor": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DecisionRow"
+          },
+          "maxItems": 100
+        }
+      }
+    },
+    "QuestionSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedAt",
+        "snapshotId",
+        "coverage",
+        "reasons",
+        "total",
+        "nextCursor",
+        "items"
+      ],
+      "properties": {
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "snapshotId": {
+          "type": "null"
+        },
+        "coverage": {
+          "enum": [
+            "not_implemented",
+            "unbound",
+            "unavailable"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reason"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "total": {
+          "type": "null"
+        },
+        "nextCursor": {
+          "type": "null"
+        },
+        "items": {
+          "type": "array",
+          "items": {},
+          "maxItems": 0
+        }
+      }
+    },
+    "PlannerMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedAt",
+        "asOf",
+        "coverage",
+        "reasons",
+        "taskCount",
+        "doneCount",
+        "overdueCount"
+      ],
+      "properties": {
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "coverage": {
+          "$ref": "#/definitions/Coverage"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Reason"
+          },
+          "uniqueItems": true
+        },
+        "taskCount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "doneCount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "overdueCount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        }
+      }
+    },
+    "Automation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "availability",
+            "projection"
+          ],
+          "properties": {
+            "availability": {
+              "enum": [
+                "not_implemented",
+                "unavailable"
+              ]
+            },
+            "projection": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "availability",
+            "projection"
+          ],
+          "properties": {
+            "availability": {
+              "const": "available"
+            },
+            "projection": {
+              "$ref": "urn:capiro:objective-plan-composite:proposal:1"
+            }
+          }
+        }
+      ]
+    },
+    "ReadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "clientId",
+        "objectiveId",
+        "limit",
+        "cursors"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "clientId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategies",
+            "projects",
+            "decisions",
+            "engagements"
+          ],
+          "properties": {
+            "strategies": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                }
+              ]
+            },
+            "projects": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                }
+              ]
+            },
+            "decisions": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                }
+              ]
+            },
+            "engagements": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "Action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "expectedObjectiveVersion"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "edit_objective",
+                "request_review",
+                "confirm_ready"
+              ]
+            },
+            "expectedObjectiveVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "resource",
+            "ownerVersion",
+            "savedStrategyVersionId"
+          ],
+          "properties": {
+            "kind": {
+              "const": "open_resource"
+            },
+            "resource": {
+              "$ref": "#/definitions/Selection"
+            },
+            "ownerVersion": {
+              "$ref": "#/definitions/OwnerVersion"
+            },
+            "savedStrategyVersionId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "taskId",
+            "taskVersion"
+          ],
+          "properties": {
+            "kind": {
+              "const": "review_planner_approval"
+            },
+            "taskId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "sessionId",
+            "proposalId",
+            "expectedStateVersion"
+          ],
+          "properties": {
+            "kind": {
+              "const": "review_outreach_proposal"
+            },
+            "sessionId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "proposalId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "expectedStateVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        }
+      ]
+    },
+    "ReadResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "observedAt",
+        "asOf",
+        "projectionDigest",
+        "scope",
+        "associationSetVersion",
+        "automation",
+        "sections",
+        "plannerMetrics",
+        "actions"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "projectionDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "scope": {
+          "$ref": "#/definitions/Scope"
+        },
+        "associationSetVersion": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          ]
+        },
+        "automation": {
+          "$ref": "#/definitions/Automation"
+        },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategies",
+            "projects",
+            "decisions",
+            "questions",
+            "engagements"
+          ],
+          "properties": {
+            "strategies": {
+              "$ref": "#/definitions/StrategySection"
+            },
+            "projects": {
+              "$ref": "#/definitions/ProjectSection"
+            },
+            "decisions": {
+              "$ref": "#/definitions/DecisionSection"
+            },
+            "questions": {
+              "$ref": "#/definitions/QuestionSection"
+            },
+            "engagements": {
+              "$ref": "#/definitions/MeetingSection"
+            }
+          }
+        },
+        "plannerMetrics": {
+          "$ref": "#/definitions/PlannerMetrics"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Action"
+          }
+        }
+      }
+    },
+    "AssociationCommand": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "requestId",
+            "clientId",
+            "objectiveId",
+            "expectedObjectiveVersion",
+            "expectedAssociationSetVersion",
+            "action",
+            "resource",
+            "cycles"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "clientId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "objectiveId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "expectedObjectiveVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "expectedAssociationSetVersion": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "action": {
+              "const": "link"
+            },
+            "resource": {
+              "$ref": "#/definitions/Selection"
+            },
+            "cycles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cycle"
+              },
+              "uniqueItems": true
+            }
+          },
+          "allOf": [
+            {
+              "properties": {
+                "resource": {
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "strategy",
+                        "planner_project",
+                        "planner_task",
+                        "outreach_session",
+                        "meeting"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "resource": {
+                    "properties": {
+                      "kind": {
+                        "not": {
+                          "const": "strategy"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "cycles": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "requestId",
+            "clientId",
+            "objectiveId",
+            "expectedObjectiveVersion",
+            "expectedAssociationSetVersion",
+            "action",
+            "associationId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "clientId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "objectiveId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "expectedObjectiveVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "expectedAssociationSetVersion": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "action": {
+              "const": "unlink"
+            },
+            "associationId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      ]
+    },
+    "AssociationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "clientId",
+        "objectiveId",
+        "commandRevision",
+        "associationLinkedRevision",
+        "action",
+        "outcome",
+        "associationId",
+        "resultSetVersion",
+        "payloadDigest",
+        "committedAt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "clientId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "commandRevision": {
+          "$ref": "#/definitions/Revision"
+        },
+        "associationLinkedRevision": {
+          "$ref": "#/definitions/Revision"
+        },
+        "action": {
+          "enum": [
+            "link",
+            "unlink"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "linked",
+            "unlinked",
+            "unchanged"
+          ]
+        },
+        "associationId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "resultSetVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "committedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "link"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "linked",
+                  "unchanged"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "unlink"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "unlinked",
+                  "unchanged"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AssociationLookupRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "clientId",
+        "objectiveId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "clientId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "Error": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 400
+            },
+            "code": {
+              "enum": [
+                "MALFORMED_REQUEST"
+              ]
+            },
+            "outcome": {
+              "const": "rejected"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 401
+            },
+            "code": {
+              "enum": [
+                "UNAUTHENTICATED"
+              ]
+            },
+            "outcome": {
+              "const": "rejected"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 403
+            },
+            "code": {
+              "enum": [
+                "FORBIDDEN"
+              ]
+            },
+            "outcome": {
+              "const": "rejected"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 404
+            },
+            "code": {
+              "enum": [
+                "NOT_AVAILABLE",
+                "RECEIPT_NOT_AVAILABLE"
+              ]
+            },
+            "outcome": {
+              "const": "unknown"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 409
+            },
+            "code": {
+              "enum": [
+                "OBJECTIVE_VERSION_CONFLICT",
+                "ASSOCIATION_VERSION_CONFLICT",
+                "CURSOR_STALE",
+                "REQUEST_CONFLICT"
+              ]
+            },
+            "outcome": {
+              "const": "rejected"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 422
+            },
+            "code": {
+              "enum": [
+                "UNSUPPORTED_RESOURCE"
+              ]
+            },
+            "outcome": {
+              "const": "rejected"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "status",
+            "code",
+            "outcome",
+            "requestId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "status": {
+              "const": 503
+            },
+            "code": {
+              "enum": [
+                "OWNER_UNAVAILABLE",
+                "RECEIPT_UNVERIFIABLE"
+              ]
+            },
+            "outcome": {
+              "const": "unknown"
+            },
+            "requestId": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/definitions/ReadRequest"
+    },
+    {
+      "$ref": "#/definitions/ReadResponse"
+    },
+    {
+      "$ref": "#/definitions/AssociationCommand"
+    },
+    {
+      "$ref": "#/definitions/AssociationReceipt"
+    },
+    {
+      "$ref": "#/definitions/AssociationLookupRequest"
+    },
+    {
+      "$ref": "#/definitions/Error"
+    }
+  ]
+}

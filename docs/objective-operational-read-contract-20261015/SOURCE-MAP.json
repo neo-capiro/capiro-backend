@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "backendCommit": "9eb3dd0253bb9080097432f462fa529eac5f60a7",
+  "frontendCommit": "e9df91d876eaad05d13fdd0707c1fe39d5affb62",
+  "rows": [
+    {
+      "domain": "objective",
+      "path": "apps/api/prisma/schema.prisma",
+      "lineAnchors": "1053-1144",
+      "meaning": "ClientObjective/revision/intent/canonical reservation; no operational association or applied output proof"
+    },
+    {
+      "domain": "objective",
+      "path": "apps/api/src/clients/objectives/objectives.controller.ts",
+      "lineAnchors": "25-79",
+      "meaning": "Existing GET/create/PATCH/delete/transition; minimum standard_user"
+    },
+    {
+      "domain": "objective",
+      "path": "apps/api/src/clients/objectives/objectives.service.ts",
+      "lineAnchors": "81-306",
+      "meaning": "Client/wall/current revision/owner/version checks; confirmation transaction"
+    },
+    {
+      "domain": "objective",
+      "path": "apps/api/src/clients/objectives/objective-rules.ts",
+      "lineAnchors": "11-60",
+      "meaning": "draft/in_review/ready; four readiness checks"
+    },
+    {
+      "domain": "binding",
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "lineAnchors": "57-102",
+      "meaning": "Fresh membership/client/wall/current Objective revision"
+    },
+    {
+      "domain": "binding",
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "lineAnchors": "6-11",
+      "meaning": "Observation explicitly not stored link or capability"
+    },
+    {
+      "domain": "strategy",
+      "path": "apps/api-strategy/src/strategy/strategy.service.ts",
+      "lineAnchors": "37-113",
+      "meaning": "Selected destination observation; tenant-only ordinary list is not fresh client authority"
+    },
+    {
+      "domain": "strategy",
+      "path": "apps/api-strategy/src/strategy/dto/create-strategy.dto.ts",
+      "lineAnchors": "1-100",
+      "meaning": "Seven existing types; no fiscal-year/Objective membership"
+    },
+    {
+      "domain": "planner",
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "lineAnchors": "252-280,423-546,741-855,1041-1165,1322-1642",
+      "meaning": "Owner ACLs/current projection/replay/versioned writes; no Objective task-list selector"
+    },
+    {
+      "domain": "planner",
+      "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "lineAnchors": "138-195",
+      "meaning": "Exact immutable creation lineage, not current progress"
+    },
+    {
+      "domain": "planner",
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "lineAnchors": "35-70,255-268",
+      "meaning": "Materialization exact request GET/POST and task update owner"
+    },
+    {
+      "domain": "planner",
+      "path": "packages/strategy-verifier/src/planner.ts",
+      "lineAnchors": "4,53-138,416-438",
+      "meaning": "Multi-project task/approval/current versions/events; default approval alone not pending decision"
+    },
+    {
+      "domain": "planner",
+      "path": "packages/strategy-verifier/src/planner-schedule.ts",
+      "lineAnchors": "65-83",
+      "meaning": "Canonical overdue/deadline from dueOn/dueTime/timeZone; no public dueAt"
+    },
+    {
+      "domain": "budget",
+      "path": "apps/api/src/defense-budget-lifecycle/defense-budget-lifecycle.controller.ts",
+      "lineAnchors": "31-74",
+      "meaning": "Global fiscal-year/track coverage reads, not Objective cycles"
+    },
+    {
+      "domain": "budget",
+      "path": "apps/api/src/defense-budget-lifecycle/defense-budget-lifecycle-internal.guard.ts",
+      "lineAnchors": "7-81",
+      "meaning": "Internal-only cycle gate must remain"
+    },
+    {
+      "domain": "budget",
+      "path": "apps/api/src/budget-packages/budget-packages.controller.ts",
+      "lineAnchors": "28-75",
+      "meaning": "Exact package/bill selectors; global context"
+    },
+    {
+      "domain": "decision",
+      "path": "apps/api/src/defense-budget-client-watch/defense-budget-client-watch.controller.ts",
+      "lineAnchors": "43-84",
+      "meaning": "Client watch decisions are a distinct domain"
+    },
+    {
+      "domain": "outreach",
+      "path": "apps/api/src/outreach-v3/services/outreach-session.service.ts",
+      "lineAnchors": "101-143",
+      "meaning": "Owned active exact one-sponsor same-client observation only"
+    },
+    {
+      "domain": "outreach",
+      "path": "apps/api/src/outreach-v3/services/outreach-command-proposal.service.ts",
+      "lineAnchors": "174-254",
+      "meaning": "Owned pending reject; apply additionally requires current session version and nonarchived session"
+    },
+    {
+      "domain": "outreach",
+      "path": "apps/api/src/outreach-v3/persistence/outreach-state.repository.ts",
+      "lineAnchors": "167-269,742-754",
+      "meaning": "Actor-owned session and session pending count"
+    },
+    {
+      "domain": "meeting",
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "lineAnchors": "1979-1981,2049-2080",
+      "meaning": "GET engagement/meetings and :id; protected implementation not inspected"
+    },
+    {
+      "domain": "meeting",
+      "path": "apps/api/src/engagement/engagement-access.helpers.ts",
+      "lineAnchors": "28-64",
+      "meaning": "Existing meeting ownership/client relevance predicate, not Objective membership"
+    },
+    {
+      "domain": "meeting",
+      "path": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+      "lineAnchors": "54-65,169-180",
+      "meaning": "Client nextTouch, not Objective next engagement"
+    },
+    {
+      "domain": "question",
+      "path": "apps/api/src/outreach-v3/reasoning/outreach-reasoning.contract.ts",
+      "lineAnchors": "77-104",
+      "meaning": "Historical turn question text, no question resolution lifecycle"
+    },
+    {
+      "domain": "question",
+      "path": "apps/api/src/intelligence/client-briefs-v1.ts",
+      "lineAnchors": "7-70",
+      "meaning": "Client free text notes, not open questions"
+    },
+    {
+      "domain": "matter",
+      "path": "apps/api/src/clients/client-advocacy-matter.service.ts",
+      "lineAnchors": "501-533,608-666,1454",
+      "meaning": "Explicit Matter Strategy/meeting links; not Objective links"
+    }
+  ],
+  "unresolvedOwners": [
+    {
+      "surface": "open intelligence questions",
+      "missing": "Objective association, stable question identity, owner and resolution/open predicate"
+    },
+    {
+      "surface": "feasibility/window labels",
+      "missing": "No inspected source supplies achievable/compressed/waiting-window semantics; never derive from screenshot"
+    }
+  ],
+  "protectedReadsExcluded": [
+    "EngagementService implementation",
+    "Meri runtime/admission/result-custody",
+    "paused applied publisher"
+  ]
+}
