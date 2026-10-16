@@ -432,6 +432,19 @@ test('UNKNOWN, missing owner evidence and applied original outcome create no ide
   }
 });
 
+test('newline-suffixed fingerprints cannot account for failed or cancelled original work', async () => {
+  for (const outcome of ['failed', 'cancelled']) {
+    const owner = new MemoryOwner();
+    owner.data.reconciliation[ACTION] = { ...accounted(outcome), requestFingerprint: `${'c'.repeat(64)}\n` };
+    const before = clone(owner.data);
+    await fails(() => executeWorkCommand(request(), owner), 'OUTCOME_UNCONFIRMED');
+    assert.deepEqual(owner.data, before, `${outcome}: control, consent and receipt data must remain unchanged`);
+    assert.equal(writes(owner).length, 0, outcome);
+    assert.equal(owner.events.some((e) => e.method === 'newId'), false, outcome);
+    assert.equal(owner.events.some((e) => e.method === 'policy'), false, outcome);
+  }
+});
+
 test('only authoritative not-started or bound failed/cancelled original accounting permits retry', async () => {
   for (const evidence of [{ state: 'not_started' }, accounted('failed'), accounted('cancelled')]) {
     const owner = new MemoryOwner();
