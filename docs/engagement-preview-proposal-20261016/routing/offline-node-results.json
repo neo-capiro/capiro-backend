@@ -1,0 +1,18 @@
+{
+  "mode": "offline pure route matcher tests only",
+  "startedAt": "2026-10-16T01:13:25.335Z",
+  "completedAt": "2026-10-16T01:13:25.648Z",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "command": "node --test --test-concurrency=1 --test-reporter=tap docs/engagement-preview-proposal-20261016/routing/plan-preview-candidate.spec.mjs",
+  "exitCode": 0,
+  "error": null,
+  "tests": 10,
+  "passed": 10,
+  "failed": 0,
+  "sourceSha256": "158843a31e0afcb6cbef2fd076111e6422c7709e84f266b7d9484f22f500a7d6",
+  "testSha256": "1b950e0cb1b9c932c2e64741560927d8b535d90484c8e15f7eac1fed136e1cbb",
+  "tapSha256": "16781b3e8eb7e57bbad2c758f40d06b37b7758535de7900fc3823c50a5692b15",
+  "httpExecuted": false,
+  "databaseSqlExecuted": false
+}

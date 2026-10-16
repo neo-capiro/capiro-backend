@@ -1,0 +1,106 @@
+# Manual-plan preview proposal: frontend coordination
+
+Read-only mapping, 2026-10-16 UTC. This is preparation for the separate source-only `backend-preview-proposal` lane based on preserved backend **`016e79b585c14f20d13669e13c987c01e3dd29dd`**. It neither activates admission nor changes a deployed setting. This copy incorporates root coordination receipts; no application source is authored here. The preserved implementation/evidence and all frontend files remain unchanged.
+
+## Exact operations and route ownership
+
+The active frontend candidate is `C:\Users\neoma\Documents\Codex\2026-10-14\task-3\objective-plan-desktop-bindings`, allocated to frontend owner thread `01a13c71-7ff1-7660-a7c8-de25cc94401c`. Its actual fixed-operation source is `apps/web/src/shared/capiro/operations/engagement-plans.ts:37`. All nine operations below already exist. Each selects `service: "core"`; its registered path is the full path below minus the existing `/api` prefix.
+
+| Fixed operation / line               | Method | Full backend path                             | Success |
+| ------------------------------------ | ------ | --------------------------------------------- | ------- |
+| `engagement.plans.list` / 38         | GET    | `/api/engagement/plans`                       | 200     |
+| `engagement.plans.detail` / 46       | GET    | `/api/engagement/plans/:planId`               | 200     |
+| `engagement.plans.create` / 54       | POST   | `/api/engagement/plans`                       | 201     |
+| `engagement.plans.update` / 62       | PATCH  | `/api/engagement/plans/:planId`               | 200     |
+| `engagement.plans.wave.create` / 70  | POST   | `/api/engagement/plans/:planId/waves`         | 201     |
+| `engagement.plans.wave.update` / 78  | PATCH  | `/api/engagement/plans/:planId/waves/:waveId` | 200     |
+| `engagement.plans.wave.reorder` / 86 | POST   | `/api/engagement/plans/:planId/waves/reorder` | 201     |
+| `engagement.plans.review` / 94       | POST   | `/api/engagement/plans/:planId/reviews`       | 201     |
+| `engagement.plans.history` / 102     | GET    | `/api/engagement/plans/:planId/history`       | 200     |
+
+`apps/web/src/shared/capiro/registry.ts:18` imports this group; line 38 composes it into the actual gateway allowlist. Request/receiving schemas are in `operations/engagement-plans-schemas.ts`. The observed operation source marker still references backend `9a151f4dbf9e910ce9a78c3cb40a5dc53390508e` and WIRE SHA256 `64181558d22ccd71bf1b09f5644a2431e591567cd2b77913f9a6471b7004e8e2`. Root's successor changed SQL only: a read-only Git diff from `9a151f4d` to `016e79b5` was empty for the controller, primary route manifest, preview generator, legacy map and its consumer. This is the audit-time observation. The later frontend-owner receipt confirms it independently Git-verified exact 016e79b5/tree/parent/unchanged WIRE and rebound metadata; frontend application bytes were reported unchanged. This note edits no binding and does not independently qualify that evolving frontend candidate.
+
+Backend anchors at preserved `016e79b5`: [controller / guards](https://github.com/neo-capiro/capiro-backend/blob/016e79b585c14f20d13669e13c987c01e3dd29dd/apps/api/src/engagement/plans/engagement-plans.controller.ts#L32), [nine manifest entries](https://github.com/neo-capiro/capiro-backend/blob/016e79b585c14f20d13669e13c987c01e3dd29dd/apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json#L3104). The controller retains canonical `CurrentTenant`, UUID path pipes, lowercase ID forwarding and closed input normalization. There is no delete, execution, recommendation, availability, scheduling or assignment route in this allocation.
+
+## Seven inherited-generator regex strings
+
+These seven new distinct strings are the existing generator's sorted output for the nine manual operations:
+
+```text
+^/api/engagement/plans$
+^/api/engagement/plans/[^/]+$
+^/api/engagement/plans/[^/]+/history$
+^/api/engagement/plans/[^/]+/reviews$
+^/api/engagement/plans/[^/]+/waves$
+^/api/engagement/plans/[^/]+/waves/[^/]+$
+^/api/engagement/plans/[^/]+/waves/reorder$
+```
+
+The canonical generator is `scripts/engagement-phase3-preview-route-patterns.mjs:82` (`pathToPattern`) and `:90` (`buildPatterns`). Its artifact is **the backend repository's legacy browser map** at `apps/web/src/lib/engagement-api-preview-routes.generated.ts:39`; its legacy browser consumer is `apps/web/src/lib/engagement-api-preview.ts:24`, with compiled patterns at line 41 and preview-header constants at lines 30–31. The current new frontend does not consume that map.
+
+These regexes contain no method or UUID semantics. In particular, `/plans/P/waves/reorder` matches both the generic wave-ID pattern and the literal reorder pattern. `/plans/recommendations` also matches the generic plan-ID pattern even though `recommendations` is not a UUID. A regex match must not substitute for an exact operation/method contract and canonical identifier parsing. No prefix allowance, wildcard subtree, custom replacement regex or catch-all route is proposed here.
+
+The prior read-only derivation found 158 frozen versus 165 feature patterns, zero removed paths, and both checked-in maps still containing 155 patterns. The five inherited Krisp gate failures remain separate from this seven-pattern feature delta. Details and hashes remain in [the earlier task-local handoff](https://github.com/neo-capiro/capiro-backend/blob/016e79b585c14f20d13669e13c987c01e3dd29dd/docs/engagement-manual-plans-20261015/PREVIEW-PATTERNS.md) and preserved [qualification limitation](https://github.com/neo-capiro/capiro-backend/blob/016e79b585c14f20d13669e13c987c01e3dd29dd/docs/engagement-manual-plans-20261015/QUALIFICATION.json). No gate pass or generated-map repair is claimed here.
+
+## Actual frontend preview gate and current auth chain
+
+All source paths in this section are relative to the active frontend candidate unless prefixed with backend.
+
+1. `shared/capiro/CapiroBoundary.tsx:77` composes `RequireSession` and `SelectedClientGate`. This is a UI/lifetime boundary. Selected client state does not grant backend access. `shared/capiro/http.ts:159` validates the registered request and at line 164 sends `/api/capiro/<encoded operation key>` using its exact method, same-origin browser credentials and no-store caching. The browser does not choose an upstream service path or mint scope claims.
+2. `proxy.ts:13` applies `previewBackendRejection` to matched API requests before Clerk. `app/api/capiro/[operation]/route.ts:14` applies the same hold before route work. With preview absent/literal false, ordinary application behavior is preserved; malformed configured values fail closed.
+3. The configured read-only preview branch is separate: `shared/preview/read-route.server.ts:44` admits only the existing three backend GET contracts `/me`, `/clients`, `/clients/:uuid` through the exact supported browser paths. It rejects non-GETs, method-override/scope headers, unknown paths and malformed input. Plan list/detail/history and every plan write remain unadmitted. `shared/preview/backend-policy.server.ts:17` returns **503 `PREVIEW_BACKEND_HELD`**, private/no-store. For the nine supported operation methods above, this happens before application auth and backend fetch.
+4. `shared/preview/read-config.server.ts:4` pins the existing separate three-read source to `111f269d749cae0249c2141779bd6d7deb93f45c`. It requires its explicit dedicated HTTPS target and has no ordinary Core fallback. `shared/preview/read-proxy.server.ts:54` rechecks the target and exact browser mapping before obtaining a server Clerk token. At lines 67–76 it dispatches GET with server token, Accept and the existing fixed internal tenant hint only; cookies/browser scope headers are not forwarded, credentials are omitted, redirects are forbidden, and responses are bounded/private/no-store. None of these three-read bindings is retargeted by this proposal note.
+5. In ordinary mode, `shared/capiro/gateway.ts:282` owns `handleCapiroRequest`: unknown key 404 at line 292; wrong method 405 at line 295; write origin check at line 299; server-selected service base/config at line 303; closed request parse at line 319; safe fixed path interpolation through `gateway-input.ts:51`; trusted token callback at line 340. The route's callback at `app/api/capiro/[operation]/route.ts:45` calls existing `auth()` and, for these Core operations, `getToken({template: "capiro"})`. There is no browser-selected auth mode.
+6. `shared/capiro/gateway.ts:131` dispatches only the registered relative path joined to its server-owned base, with Bearer token/JSON headers, credentials omitted, redirects rejected, no-store and the request deadline. It does not forward browser tenant, actor, impersonation, cookie or authorization headers.
+7. Backend `apps/api/src/app.module.ts:152` applies the existing `TenantContextMiddleware` to these routes. `tenant/tenant-context.middleware.ts:141` verifies the Clerk token through `auth/clerk.service.ts:90`, resolves current local identity/membership and sets `req.tenantContext` at line 399. The ordinary middleware can write identity/membership/last-seen data (`:229`, `:234`, `:277`, `:335`); ordinary GET semantics do not prove a mutation-free request. The separate original preview source has its own reviewed read-only auth contract. This audit changes neither auth path.
+8. Backend `engagement/plans/engagement-plans.controller.ts:33` keeps `RolesGuard` / `standard_user`; `tenant/current-tenant.decorator.ts:10` reads middleware context. `auth/roles.guard.ts:29` fails closed without tenant context and at line 42 rejects unknown roles. Service `engagement-plans.service.ts:73`, `:134` and `:386` takes canonical locks and rechecks client/current actor/grant before returning or mutating. `engagement-plan-access.ts:69` checks active tenant/membership/Clerk actor, and `:100` uses the existing `clientMemoryAllowed` rule. Client request fields narrow selection; they cannot authorize a tenant or bypass a wall.
+
+## Existing preview owner: evidence and coordination
+
+The canonical **new frontend** owner modules are documented explicitly in [preview-receiving HANDOFF.md:23](https://github.com/neo-capiro/capiro-frontend/blob/2758775ddf0e3b17898370be61540498344a9f57/docs/preview-receiving-20261013/HANDOFF.md#L23): `read-config.server.ts` owns source/target binding; `read-route.server.ts` owns browser-to-backend mapping; `read-proxy.server.ts` owns bounded receiving; `backend-policy.server.ts` owns the first-entry hold. The namespace is allocated to reviewed server entry points and its internal modules. It is separate from feature presentation and the ordinary fixed-operation catalog.
+
+Read-only local Git history identifies:
+
+- [`2e29001b0ed405f84aa751e89734b455ce5005f7`](https://github.com/neo-capiro/capiro-frontend/commit/2e29001b0ed405f84aa751e89734b455ce5005f7): containment before authentication/dispatch, author NEO MARTINEZ, 2026-10-13.
+- [`788ef3d73513c58cbaee0e7c7992e031bcc27bf5`](https://github.com/neo-capiro/capiro-frontend/commit/788ef3d73513c58cbaee0e7c7992e031bcc27bf5): pinned read-only receiving, author NEO MARTINEZ, 2026-10-14; adds `read-config`, `read-route`, `read-proxy` and their focused tests.
+
+Git authorship establishes provenance, not a currently active agent's exclusive file claim. The available source/history and our thread context do not identify a different live preview-map task owner. Subsequent direct coordination: frontend owner reports no legacy-map/admission claim; Shipping reports no edit claim on the legacy generator/map/consumer and no known conflicting writer. These are collision reviews for the inactive proposal, not an allocation or activation approval. Before any active source change, root must coordinate an explicit owner with frontend owner `01a13c71-7ff1-7660-a7c8-de25cc94401c` before any shared-preview source edit. The current manual UI allocation does not itself transfer ownership of that server namespace. This audit sends no external thread message and changes no frontend source. Backend proposal edits remain root's separately claimed lane; no frontend ownership is implied by ownership of the inherited backend-side legacy map.
+
+## Focused proposed cases; none run in this audit
+
+These cases qualify source changes only, using synthetic requests and spies. They require no deployment, credentials, live backend, browser build or admission activation.
+
+| Case                                   | Expected assertion / existing harness                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Nine exact ordinary bindings           | For every fixed operation above, valid canonical inputs produce exactly its method and Core path. No browser-supplied target URL, tenant or actor field becomes authority. Current schemas, registry and `gateway.test.ts` are the canonical harness.                                                                                                                                                                          |
+| Wrong method per fixed key             | POST to `engagement.plans.list`, GET to `.create`, POST to `.update`, PATCH to `.wave.reorder`, GET to `.review`, and POST to `.history` return ordinary-mode 405 before token/fetch. The existence of another operation on the same raw path cannot select it.                                                                                                                                                                |
+| Unknown operation siblings             | Unknown keys such as `engagement.plans.delete`, `.recommendations`, `.windows`, `.availability`, `.wave.execute`, `.wave.send`, or `.assignments` remain ordinary-mode 404 without token/fetch. No new unsupported operation is proposed.                                                                                                                                                                                      |
+| Reorder versus wave ID                 | POST `/plans/P/waves/reorder` is only the reorder contract; PATCH `/plans/P/waves/W` is only wave update with UUID W. A literal `waveId: "reorder"` fails the UUID schema before dispatch. GET/PATCH/DELETE on the literal reorder path and POST on a wave-ID path must not gain admission merely from a legacy regex match. Use method-plus-path proposal tests; do not infer current raw Nest HTTP status from path regexes. |
+| Other method collisions                | Only GET/POST root, GET/PATCH detail, GET history, POST reviews/waves/reorder, and PATCH wave-ID are named. PUT/DELETE detail, POST/PATCH history, GET/PATCH reviews and GET wave collection receive no new preview admission.                                                                                                                                                                                                 |
+| Anchoring and structural siblings      | Reject `/plans-extra`, `/plans/P/history/extra`, `/plans/P/waves/W/execute`, repeated/encoded separators, dot segments, query/fragment injection and invalid UUIDs. `/plans/recommendations` can match a generic legacy regex, so assert its rejection by exact identity/operation validation. Do not add `/api/engagement/*` or `/api/backend/core/*` permission.                                                             |
+| Existing preview held separately       | With the current valid three-read preview configuration present, all nine manual keys and their valid methods still return 503 `PREVIEW_BACKEND_HELD`, private/no-store, with zero Clerk token and upstream fetch activity. `tests/preview-read-receiving.test.ts:260` already enumerates every other registered operation; retain it and explicitly inspect the nine new keys in focused regression coverage.                 |
+| Original three reads unaffected        | Existing exact `/me`, `/clients`, `/clients/:uuid` mappings keep bounded receiving, canonical query schemas, server-only target/source binding, no ordinary-Core fallback and response validation. Preserve `preview-read-receiving.test.ts` and `preview-backend-containment.test.ts`.                                                                                                                                        |
+| Overrides and malformed preview config | Existing method-override/browser-scope headers and malformed/missing preview bindings cannot admit a plan. Existing tests at `preview-read-receiving.test.ts:185` and `:229` cover non-GET and override rejection; add manual-key examples if the separately allocated proposal touches that map.                                                                                                                              |
+| Framework HEAD/OPTIONS                 | Inspect actual entry behavior without inferring HEAD from GET or treating automatic OPTIONS as an authorized operation. Assert no backend dispatch on unallocated methods. A framework-generated rejection/response need not share an application-handler status; supported plan-method calls reaching the present hold remain 503.                                                                                            |
+| Current auth and wall behavior         | A future dedicated manual preview implementation must use its reviewed current auth/client authority and closed schemas; no create/replay receipt may bypass current access. Existing Core source behavior is evidence, not proof that the dedicated three-read preview backend already implements manual-plan methods.                                                                                                        |
+| Failure truth                          | A missing backend/configuration is unavailable, schema mismatch is an error, and current generic 409/reload remains truthful. No synthetic test or source pin claims a deployed source identity, native runtime qualification, successful manual write, external verification or recommendation availability.                                                                                                                  |
+
+Keep the existing AST entry-order check in `apps/web/test/preview-backend-boundary.test.mjs:28`: every API handler must apply preview admission before route work. No shared gateway-errors or HTTP projection change is allocated here.
+
+## Observation pins and remaining limitation
+
+Backend source observation was `016e79b585c14f20d13669e13c987c01e3dd29dd`. The controller SHA256 remains `469a72b31e1d6e53ffcb81ec33e4185af9b8471a2e147404d854daaafff41ac3`; primary manifest `162901efd77490e3a00d4cec8245c2c03fbefd58338422f6cef86a65bb35f8e9`; generator `6bd9d1861ee98b20f53ee5d516f27949152058ffc16fee5087de966aff0e8d4d`. No preserved source/evidence file was written.
+
+Current frontend direct-file SHA256 observations:
+
+| Candidate source                               | SHA256                                                             |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| `shared/capiro/operations/engagement-plans.ts` | `4e44866541fe03cd125261ca860a6309e6da9eafb8fe46e172aeef324594c67d` |
+| `shared/capiro/registry.ts`                    | `694bb2a7c1d0b41ad90e5dc5686a5dbc6dfbfa3ce7ad99e4430243b38e67aaef` |
+| `shared/capiro/gateway.ts`                     | `7170447942bc048456f2b2c0d97e0e6e0583c3c3f988265a435c12c88275c983` |
+| `app/api/capiro/[operation]/route.ts`          | `40bdd53567587e3bf1bc7ee436cb1ee7a2c780ddcc248e1aa2cc86c97e53c0ec` |
+| `shared/preview/read-route.server.ts`          | `7ba7496a8a029b1f43b67f11198d971808a1dd970efc3198e7a3f7b16a9c04c1` |
+| `shared/preview/backend-policy.server.ts`      | `4cec5468e72489a1f4ff8b9d62b1561eea7f616d472bc6eb6337cda01ca14804` |
+| `shared/preview/read-config.server.ts`         | `6f1dcd5cc48178771bbcc6a073cd8c23efe6deaa966bbe59c2796d7c7da154b8` |
+
+In the preceding audit, Git HEAD/status reads with this external frontend candidate as working directory were denied (`cannot change ... Permission denied`). That exact operation has not been retried or bypassed. Direct named-file reads succeeded and supplied the mapping above. The active frontend owner must supply its immutable commit/dirty-state receipt; these source hashes are observations, not qualification of its evolving candidate. No additional approval request blocks this document or root's separately authorized source-only proposal work.

@@ -1,0 +1,319 @@
+{
+  "mode": "pure synthetic offline only",
+  "executedAt": "2026-10-16T01:00:55.816Z",
+  "tests": 62,
+  "passed": 62,
+  "failed": 0,
+  "outcomes": [
+    {
+      "name": "hardened reverse membership and future ALL defaults",
+      "status": "PASS",
+      "passed": true
+    },
+    {
+      "name": "app superuser",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "SET-only context superuser",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "app bypass_rls",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "SET-only context bypass_rls",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "app create_role",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "SET-only context create_role",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "direct app TRUNCATE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "PUBLIC TRUNCATE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "PUBLIC DELETE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "direct app DELETE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "history UPDATE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "history column UPDATE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "inherited parent TRUNCATE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "NOINHERIT SET-only parent TRUNCATE",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "per-member INHERIT overrides role default NOINHERIT",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "both membership options false do not expose ordinary privileges",
+      "status": "PASS",
+      "passed": true
+    },
+    {
+      "name": "SET then inherited dangerous role",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "owner SET-only even ordinary owner privileges revoked",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "owner INHERIT-only even ordinary owner privileges revoked",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "SET context inherits owner without direct owner SET path",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "provider rds_superuser inheritance despite false standard flags",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "provider rds_superuser SET-only despite false standard flags",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "unreachable provider role does not imply authority",
+      "status": "PASS",
+      "passed": true
+    },
+    {
+      "name": "standard special attributes do not inherit as object privileges",
+      "status": "PASS",
+      "passed": true
+    },
+    {
+      "name": "ADMIN-only owner self-regrant path never qualifies",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "ADMIN option from reachable context never qualifies",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "forbidden grant option even effective flag absent",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "RLS disabled",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "FORCE RLS disabled",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "unexpected table owner",
+      "status": "UNSAFE",
+      "passed": true
+    },
+    {
+      "name": "future PostgreSQL major",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "older PostgreSQL major",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "wrong independent database binding",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing bound database",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "read-write transaction",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "wrong isolation",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing table before migration",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "duplicate table identity",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "duplicate role name",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing owner role",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing role fact without cardinality update",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing native role-table row even counters repaired",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "duplicate native role-table row",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing privilege vector field",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "string boolean false",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "native USAGE contradicts membership",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "native SET contradicts membership",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "native owner reach contradicts graph",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "unknown ACL grantee role",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "duplicate ACL row",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "unbound history column ACL",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "missing columns",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "malformed default ACL grant",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "malformed role row returns UNKNOWN rather than throwing",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "native effective privilege contradicts inherited raw ACL",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "native owner grant-option contradiction",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "native column privilege contradiction",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "duplicate default ACL entry",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "duplicate column names",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "cyclic catalog membership is malformed even with no effective options",
+      "status": "UNKNOWN",
+      "passed": true
+    },
+    {
+      "name": "null snapshot fails closed",
+      "status": "UNKNOWN",
+      "passed": true
+    }
+  ]
+}

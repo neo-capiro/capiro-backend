@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: all nine exact fixed-operation/method/path tuples match the preserved Core manifest
+ok 1 - all nine exact fixed-operation/method/path tuples match the preserved Core manifest
+  ---
+  duration_ms: 8.1006
+  type: 'test'
+  ...
+# Subtest: operation identity cannot be selected from another operation sharing a pathname
+ok 2 - operation identity cannot be selected from another operation sharing a pathname
+  ---
+  duration_ms: 0.7245
+  type: 'test'
+  ...
+# Subtest: wrong methods, case aliases and framework verbs never gain candidate eligibility
+ok 3 - wrong methods, case aliases and framework verbs never gain candidate eligibility
+  ---
+  duration_ms: 0.278
+  type: 'test'
+  ...
+# Subtest: all unallocated operation siblings remain absent
+ok 4 - all unallocated operation siblings remain absent
+  ---
+  duration_ms: 0.207
+  type: 'test'
+  ...
+# Subtest: generic legacy regex overlap does not admit reorder or recommendations as IDs
+ok 5 - generic legacy regex overlap does not admit reorder or recommendations as IDs
+  ---
+  duration_ms: 0.3581
+  type: 'test'
+  ...
+# Subtest: sibling, broader, parent, nested and noncanonical path forms all fail closed
+ok 6 - sibling, broader, parent, nested and noncanonical path forms all fail closed
+  ---
+  duration_ms: 2.3434
+  type: 'test'
+  ...
+# Subtest: query, fragment, slash or encoding variants of every valid tuple are rejected
+ok 7 - query, fragment, slash or encoding variants of every valid tuple are rejected
+  ---
+  duration_ms: 0.4388
+  type: 'test'
+  ...
+# Subtest: unknown or object-like input cannot be coerced into an operation
+ok 8 - unknown or object-like input cannot be coerced into an operation
+  ---
+  duration_ms: 0.151
+  type: 'test'
+  ...
+# Subtest: the exact seven legacy patterns are derived from the nine paths without adding scope
+ok 9 - the exact seven legacy patterns are derived from the nine paths without adding scope
+  ---
+  duration_ms: 0.2277
+  type: 'test'
+  ...
+# Subtest: candidate source has no ambient HTTP/DB/header/activation dependencies
+ok 10 - candidate source has no ambient HTTP/DB/header/activation dependencies
+  ---
+  duration_ms: 1.3373
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 186.3694
