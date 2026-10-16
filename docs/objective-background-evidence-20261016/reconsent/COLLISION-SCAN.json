@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "status": "SOURCE_ONLY_UNRESERVED_PROPOSAL",
+  "sourceRoot": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-14\\task-6\\objective-background-evidence",
+  "sourceCommit": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "commonGitDirectory": "C:/Users/neoma/Documents/Codex/2026-10-14/task-6/backend/.git",
+  "scope": "Local branch Git migration trees and present task-6 worktree migration directories only; no fetch or remote reservation assertion",
+  "independentScan": {
+    "reviewer": "operational_sql_tests/sql_constraint_review",
+    "localHeads": 15,
+    "task6Worktrees": 12,
+    "presentMigrationDirectories": 11,
+    "absentMigrationDirectory": "objective-operational-read-contract",
+    "procedure": [
+      "git rev-parse --git-common-dir",
+      "git worktree list --porcelain",
+      "git for-each-ref --format=%(refname:short)|%(objectname) refs/heads",
+      "git ls-tree --name-only -d <local-head-commit>:apps/api/prisma/migrations",
+      "Read-only directory names in each present task-6 worktree apps/api/prisma/migrations; filter prefix 20281015"
+    ]
+  },
+  "localHeads": [
+    {
+      "branch": "docs/objective-automation-reconciliation",
+      "commit": "23a1c35042f18ca1aae54841e340e06d6c2d815d"
+    },
+    {
+      "branch": "docs/objective-operational-read-contract",
+      "commit": "470274e107ce6ba11b752dd327b53d1a8e2b239c"
+    },
+    {
+      "branch": "docs/objective-operational-receiving-corrections",
+      "commit": "6ce5cacd261e4e4541fea482beea160a3f6c3702"
+    },
+    {
+      "branch": "feat/objective-background-evidence",
+      "commit": "622905839c7a510ab01a512ef8012926b2e1b4ce"
+    },
+    {
+      "branch": "feat/objective-bound-strategy",
+      "commit": "1bc48d8831b5dad8fbf70c6a24a0c22a944dbf0b"
+    },
+    {
+      "branch": "feat/objective-canonical-reservation",
+      "commit": "9eb3dd0253bb9080097432f462fa529eac5f60a7"
+    },
+    {
+      "branch": "feat/objective-confirmation-intent",
+      "commit": "215d072def7d8449ac94559e4e1a44eabf513276"
+    },
+    {
+      "branch": "feat/objective-operational-links",
+      "commit": "622905839c7a510ab01a512ef8012926b2e1b4ce"
+    },
+    {
+      "branch": "feat/objective-planner-materialization",
+      "commit": "cc2e0e790ee2c774dcead4b9594a9a6b1fa51535"
+    },
+    {
+      "branch": "feat/objective-strategy-application-target",
+      "commit": "6e1e7b7d1c21567c7acf101ebd713ecda5ba9f70"
+    },
+    {
+      "branch": "feat/objective-workload-authority-pure",
+      "commit": "8d4aa29decf86cb242f2f8de0faebe546d8b64ae"
+    },
+    {
+      "branch": "fix/final-backend-node22-bookworm",
+      "commit": "4945791dfc8e755a2abaddfa60cdcf670ee20712"
+    },
+    {
+      "branch": "fix/objective-history-fixture-type",
+      "commit": "f5f0c1d32c667654c322c8e4fc1085f5ffc5941f"
+    },
+    {
+      "branch": "fix/planner-history-fixture-type",
+      "commit": "5d551a5ce4e88945e654a1d2c88983d76774aad1"
+    },
+    {
+      "branch": "fix/strategy-current-client-authority",
+      "commit": "8dc42d129c154abb4aee3eb21647b24973677091"
+    }
+  ],
+  "occupied": [
+    {
+      "number": "20281015010000",
+      "directory": "20281015010000_client_objective_work_intents",
+      "witnessBranch": "feat/objective-confirmation-intent",
+      "witnessCommit": "215d072def7d8449ac94559e4e1a44eabf513276"
+    },
+    {
+      "number": "20281015020000",
+      "directory": "20281015020000_client_objective_canonical_plans",
+      "witnessBranch": "feat/objective-canonical-reservation",
+      "witnessCommit": "9eb3dd0253bb9080097432f462fa529eac5f60a7"
+    },
+    {
+      "number": "20281015030000",
+      "directory": "20281015030000_client_objective_operational_links",
+      "witnessBranches": [
+        "feat/objective-operational-links",
+        "feat/objective-background-evidence"
+      ],
+      "witnessCommit": "622905839c7a510ab01a512ef8012926b2e1b4ce"
+    }
+  ],
+  "externalReservation": {
+    "number": "20281015040000",
+    "owner": "Engagement sibling",
+    "provenance": "Parent explicitly supplied existing reservation",
+    "observedInLocalTrees": false,
+    "disposition": "Treat as occupied; local absence does not release reservation"
+  },
+  "nextCandidate": {
+    "number": "20281015050000",
+    "suggestedDirectory": "20281015050000_client_objective_work_reconsent",
+    "fullProposedMigrationPath": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+    "observedCollision": false,
+    "reservation": "UNRESERVED",
+    "allocationStatus": "UNRESERVED/PENDING ALLOCATION",
+    "allocationRequired": "Parent must allocate and refresh collision check immediately before creating an application migration"
+  },
+  "sourcePins": [
+    {
+      "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
+      "sha256": "f547d286ee728c199a5dc7008dbb53ff86314182f3bc62f6e3da6b96888ca711"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015020000_client_objective_canonical_plans/migration.sql",
+      "sha256": "6d2af8f05738cb0e3430a1b30b1c57789656b918d1ab6d600171de849cc77d0c"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015030000_client_objective_operational_links/migration.sql",
+      "sha256": "05da51ffc3debb0fa863050cbd2b2b0ce4ae93e740b647a50eaf164e6dd63236"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-work-intent.ts",
+      "sha256": "cb8a5d5b9ab637bb9e53315666234ce362a67619aabf16d6190f570ceb7cd9a1"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-canonical-plan.ts",
+      "sha256": "27d802b454fd8bbd4ed912bd91ade4eb354979b2334f97753db2913033e95661"
+    },
+    {
+      "path": "apps/api/src/auth/workload-authority/workload-authority.policy.ts",
+      "sha256": "c0565b51d8cbf1000b645340dc84a7f0cf8e26d6a470db878672093a30c6ec8a"
+    },
+    {
+      "path": "docs/objective-workload-authority-20261015/PROPOSAL.md",
+      "sha256": "5569b474ac5c1682c351004c1d7ae3edbcbac34431d55b29b31b669a609cfa2e"
+    }
+  ],
+  "execution": {
+    "applicationWrites": 0,
+    "migrationsCreated": 0,
+    "testsRun": 0,
+    "compilations": 0,
+    "databaseConnections": 0,
+    "serverLaunches": 0,
+    "networkCalls": 0
+  },
+  "documentationSuccessor": {
+    "baseCommit": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+    "copiedEvidenceSha256": "6cd4f904f1324891e5cecbf3d83a48776e2cf8226721657c36b28535abaa832e",
+    "scope": "Documentation-only successor; original local scan remains historical evidence, not a new allocation or remote collision guarantee"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "type": "commit",
+  "gitObjectSha": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+  "tree": "005806a89c89d039aacd32a6bcbd54ba20c2ca6c",
+  "encoding": "base64",
+  "payload": "dHJlZSAwMDU4MDZhODljODlkMDM5YWFjZDMyYTZiY2JkNTRiYTIwYzJjYTZjCnBhcmVudCA2MjI5MDU4MzljN2E1MTBhYjAxYTUxMmVmODAxMjkyNmIyZTFiNGNlCmF1dGhvciBOZW8gTWFydGluZXogPG5lb0BjYXBpcm8uYWk+IDE3OTIxMTkyMDUgLTA0MDAKY29tbWl0dGVyIE5lbyBNYXJ0aW5leiA8bmVvQGNhcGlyby5haT4gMTc5MjExOTIwNSAtMDQwMAoKQmluZCByZXRhaW5lZCBGaWxsIGV2aWRlbmNlIHRvIE9iamVjdGl2ZSBnZW5lcmF0aW9uIGNvbnRleHQK",
+  "note": "Exact original reviewed commit payload, archived because connector metadata changes remote commit identity. The source tree is byte-identical and all tree objects are published."
+}

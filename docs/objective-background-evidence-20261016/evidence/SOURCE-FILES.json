@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "commit": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+  "tree": "005806a89c89d039aacd32a6bcbd54ba20c2ca6c",
+  "parent": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "branch": "feat/objective-background-evidence",
+  "files": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion-projection.ts",
+      "bytes": 5210,
+      "sha256": "7e877ddf14aca433e4390e23dec7c8af45f36fc49b31e92437b8e8d0ab088986",
+      "gitBlob": "1db06a5dafd9cfec8e84464fbbbbeae7bcdaae50"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-read-model.ts",
+      "bytes": 7209,
+      "sha256": "2f2303335cd5c683369c9df7ce1584cdbbe17d1faff1a4ba28cfda2ad3d21cb0",
+      "gitBlob": "88a1bd113fcd7fe7ba4e35188192499c8e7d7673"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-background.ts",
+      "bytes": 13767,
+      "sha256": "f05b8f3122b24a0f49e69b2596ca9a2ab4513ef4da7d3f68e1d304664b389978",
+      "gitBlob": "93965a024aed4e6bec78841aafe353bc297fee90"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-context.service.spec.ts",
+      "bytes": 7429,
+      "sha256": "0a0ae3affae6bbd215a14f194013913c35e1e1587bc9d282df81826ee240be15",
+      "gitBlob": "0da492a7b40426f6e8b8b26d8b9fe6a81f654e49"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-context.service.ts",
+      "bytes": 17055,
+      "sha256": "adc4a1f7a6ab7fefafeb041cf1461c57e2afee854678aa076d338f0518dbfc83",
+      "gitBlob": "ba89e24d145a20fe280d8c7a75982432d9c9a1ff"
+    },
+    {
+      "path": "apps/api/src/context/strategy-context-plane.service.spec.ts",
+      "bytes": 26210,
+      "sha256": "8a116fcd76252c9d0080c43c146453e0e8539df729a4c8406a7ef799024dabe7",
+      "gitBlob": "89abc54733e6539d0bff700d137ee294d974a715"
+    },
+    {
+      "path": "apps/api/src/context/strategy-context-plane.service.ts",
+      "bytes": 37626,
+      "sha256": "263106f62d379664dbd9bdd558ea1935d397bef46e65024f0cde344b4ecc7ffd",
+      "gitBlob": "ed081585e5aa27a9d3b90f2e69d8febd5f2fa74e"
+    },
+    {
+      "path": "apps/api/test/objective-generation-background.focused.test.mjs",
+      "bytes": 28273,
+      "sha256": "e9236c3f7ea61333c5aec5b3c5289f844e031b78243ae9fd3a3c59bb2b89438d",
+      "gitBlob": "0030ff6e684d89c78e75ceb1cb2c93253e454f7e"
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/IMPLEMENTATION.md",
+      "bytes": 4534,
+      "sha256": "905b8f5fc27fef981270748b21366c48ae3dddc5acdb0c071e9802a67f8a0296",
+      "gitBlob": "218fed62944c80d2e5ecf7c99919a58c5956b495"
+    }
+  ]
+}
