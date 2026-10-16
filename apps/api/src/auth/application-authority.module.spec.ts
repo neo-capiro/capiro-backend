@@ -170,6 +170,23 @@ describe('actual narrow authority Nest composition and synthetic HTTP', () => {
     expect(f.events.filter((event) => event === 'membershipRoster')).toHaveLength(2);
   });
 
+  it.each(['user_admin', 'capiro_admin'])('admits active %s membership at the standard_user minimum rank', async (role) => {
+    f.membership.role = role;
+    const response = await f.request('membership', {});
+    expect(response.statusCode).toBe(200);
+    expect(Object.keys(response.body).sort()).toEqual([
+      'actorId', 'checkedAtMs', 'clientIds', 'expiresAtMs', 'membershipRevision',
+      'permissions', 'role', 'status', 'tenantId',
+    ]);
+    expect(response.body).toMatchObject({ tenantId, actorId, status: 'active', role,
+      permissions: [], clientIds: [clientId] });
+  });
+
+  it('refuses client_portal_user below the standard_user minimum rank', async () => {
+    f.membership.role = 'client_portal_user';
+    expect((await f.request('membership', {})).statusCode).toBe(403);
+  });
+
   it('refuses malformed membership body and a wall revocation during the online identity reread', async () => {
     expect((await f.request('membership', { grant: true })).statusCode).toBe(400);
     let reads = 0;
