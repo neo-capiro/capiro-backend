@@ -125,7 +125,7 @@ const quickjsWasm = {
   'url': [920499, '54167390c210290f0703752527000ba44885606c4ed1ae12be30462c147a9215'],
 };
 function wasmVendorEvidence(owner, relative, bytes, sha256) {
-  if (['pdfjs-dist', '@prisma/client'].includes(owner.name)) return require('./runtime-closure-contract.cjs').lockedWasmEvidence(owner, relative, bytes, sha256);
+  if (['pdfjs-dist', '@prisma/client', 'prisma'].includes(owner.name)) return require('./runtime-closure-contract.cjs').lockedWasmEvidence(owner, relative, bytes, sha256);
   const key = Object.keys(quickjsWasm).find(name => relative === `extensions/${name}/${name}.so`);
   const expected = key && quickjsWasm[key];
   return { package: `${owner.name}@${owner.version}`, relative, sha256, bytes,

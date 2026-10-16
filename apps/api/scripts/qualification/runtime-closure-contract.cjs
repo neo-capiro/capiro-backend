@@ -33,6 +33,11 @@ const vendorWasm = {
       'runtime/query_engine_bg.postgresql.wasm': [2130325, 'b8c2cab13e50491cec4ca2d16a20cd549f09449736ab2361ad53c0254a08bf91'],
       'runtime/query_engine_bg.sqlite.wasm': [1986352, '40800054ecc6145eb5228015c8c12e8781203e24702520657f0ccc3b90a05f25'] },
   },
+  'prisma@5.22.0': {
+    archiveSHA256: '5ff71b20c5fb9d92c55e9412cc7613d282a4dee7e854c774fa5c87a8c3842e84',
+    archiveIntegrity: 'sha512-vtpjW3XuYCSnMsNVBjLMNkTj6OZbudcPPTPYHqX0CJfpcdWciI1dM8uHETwmDxxiqEwCIE6WvXucWUetJgfu/A==',
+    files: { 'build/prisma_schema_build_bg.wasm': [2893316, 'adf02f9b486d507024be2bf59b271a88e39f48c3ca2266c6c46d7e9109296c05'] },
+  },
 };
 function lockedWasmEvidence(owner, relative, bytes, sha256) {
   const archive = vendorWasm[`${owner.name}@${owner.version}`], expected = archive?.files[relative];

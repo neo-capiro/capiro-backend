@@ -284,6 +284,17 @@ test('positive WASM header has separate vendor scope and cannot pass the active 
   assert.equal(binaryFormat(Buffer.from('0061736d02000000', 'hex')).format, 'UNKNOWN');
 });
 
+test('Prisma CLI schema WASM inventory uses only exact archive-backed evidence', () => {
+  const owner = { name: 'prisma', version: '5.22.0' }, relative = 'build/prisma_schema_build_bg.wasm';
+  const digest = 'adf02f9b486d507024be2bf59b271a88e39f48c3ca2266c6c46d7e9109296c05';
+  const proof = wasmVendorEvidence(owner, relative, 2893316, digest);
+  assert.equal(proof.verified, true); assert.equal(proof.nativeLoad, 'NOT_APPLICABLE');
+  for (const args of [[{ ...owner, name: '@prisma/client' }, relative, 2893316, digest],
+    [{ ...owner, version: '5.22.1' }, relative, 2893316, digest], [owner, 'build/other.wasm', 2893316, digest],
+    [owner, relative, 2893315, digest], [owner, relative, 2893316, '0'.repeat(64)]])
+    assert.equal(wasmVendorEvidence(...args).verified, false);
+});
+
 test('all six actual QuickJS vendor identities match the preserved integrity-verified provenance', () => {
   const source = path.resolve(__dirname, '../../../../docs/runtime-source-qualification-20261014/container/QUICKJS-FORMAT-PROVENANCE.json');
   const provenance = JSON.parse(fs.readFileSync(source, 'utf8'));

@@ -167,6 +167,12 @@ COPY pnpm-lock.yaml /qualification/pnpm-lock.yaml
 COPY package.json /qualification/root-package.json
 COPY apps/api/scripts/qualification/dispatch-fixture-node.sh /qualification/dispatch-fixture/node
 RUN chmod 0755 /qualification/dispatch-fixture/node
+# Before the mandatory static inventory, validate the pinned Prisma CLI WASM
+# and two exact postinstall binary copies in the final /app tree. Replace only
+# byte-identical copies with contained relative links to their direct locked
+# package owners; the native gates remain authoritative and fail closed.
+COPY apps/api/scripts/qualification/derived-owner-repair.cjs /qualification/derived-owner-repair.cjs
+RUN --network=none node /qualification/derived-owner-repair.cjs
 USER capiro
 WORKDIR /app/apps/api
 EXPOSE 4000

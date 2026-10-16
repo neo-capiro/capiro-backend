@@ -124,3 +124,15 @@ test('PDFjs WASM provenance binds exact vendor identity, member, size and bytes 
   const prisma = lockedWasmEvidence({ name: '@prisma/client', version: '5.22.0' }, 'runtime/query_engine_bg.postgresql.wasm', 2130325, 'b8c2cab13e50491cec4ca2d16a20cd549f09449736ab2361ad53c0254a08bf91');
   assert.equal(prisma.verified, true); assert.equal(prisma.nativeLoad, 'NOT_APPLICABLE');
 });
+test('Prisma CLI schema WASM binds the pinned archive and exact member bytes', () => {
+  const owner = { name: 'prisma', version: '5.22.0' }, relative = 'build/prisma_schema_build_bg.wasm';
+  const digest = 'adf02f9b486d507024be2bf59b271a88e39f48c3ca2266c6c46d7e9109296c05';
+  const proof = lockedWasmEvidence(owner, relative, 2893316, digest);
+  assert.equal(proof.verified, true);
+  assert.equal(proof.archiveSHA256, '5ff71b20c5fb9d92c55e9412cc7613d282a4dee7e854c774fa5c87a8c3842e84');
+  assert.equal(proof.archiveIntegrity, 'sha512-vtpjW3XuYCSnMsNVBjLMNkTj6OZbudcPPTPYHqX0CJfpcdWciI1dM8uHETwmDxxiqEwCIE6WvXucWUetJgfu/A==');
+  for (const args of [[{ ...owner, name: '@prisma/client' }, relative, 2893316, digest],
+    [{ ...owner, version: '5.22.1' }, relative, 2893316, digest], [owner, 'build/unreviewed.wasm', 2893316, digest],
+    [owner, relative, 2893315, digest], [owner, relative, 2893316, '0'.repeat(64)]])
+    assert.equal(lockedWasmEvidence(...args).verified, false);
+});
