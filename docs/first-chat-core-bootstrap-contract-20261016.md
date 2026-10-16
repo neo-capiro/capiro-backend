@@ -46,8 +46,14 @@ Its canonical identity hash join remains Meri-owned. Core does not create a
 Meri run in this operation.
 
 This source change uses the separately reserved Core migration
-`20281016020000_clio_conversation_bootstrap_receipts`. The migration has not
-been executed; native database and full app qualification remain pending.
+`20281016020000_clio_conversation_bootstrap_receipts`. The exact receipt
+migration and real `MeriService.bootstrapConversation`/`PrismaService` path
+passed six focused checks on an approved, disposable PostgreSQL 16.15 cluster
+on 2026-10-16. The cluster was stopped and removed. See
+`docs/first-chat-native-qualification-20261016/README.md` for the guarded
+runner, result, and limits. Full predecessor migration replay, production
+role grants, live HTTP authentication, and Meri original-run admission remain
+pending.
 Ordinary first chat does not depend on Objective workload activation. If both
 reserved migrations are in one deployment, apply Objective `20281016010000`
 before first-chat `20281016020000`. If first chat must deploy alone before
