@@ -63,6 +63,12 @@ import { generationAssociation, recordCanonicalNormalization } from './objective
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import { canonicalGenerationAdmissionSha256, generationUuid, parseCanonicalGenerationAdmission,
   type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
+import { GENERATION_NORMALIZATION, generationLedgerId } from './objective-canonical-generation.js';
+import { captureCanonicalStrategyBasis } from './objective-canonical-basis.js';
+import { readCanonicalRequestPublication } from './objective-canonical-request-ledger.js';
+import { CORE_CANONICAL_REGENERATION_REQUEST_VERSION } from './objective-canonical-regeneration-request.js';
+import { planCanonicalStrategyRegeneration } from './objective-canonical-regeneration.js';
+import { recordCanonicalRegenerationNormalization } from './objective-canonical-regeneration-ledger.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -336,6 +342,104 @@ export class MeriService {
     return this.persistDraftResponse(tenantId, clerkUserId, dto, normalized.response,
       await this.grounding(tenantId), 0, runtime, { strategyId: a.canonical.canonicalStrategyId, nodeIds: normalized.nodeIds,
         generationJobId: a.generationJobId, normalized });
+  }
+
+  /** Private application path for the versioned regeneration request. The
+   * genuine retained result observer must already have verified SDK custody.
+   * No model, Planner dispatch, new consent or background workflow is invoked.
+   * Existing Objective hooks fence claim/current authority and atomically
+   * publish the exact version receipt with the writes and cumulative baseline. */
+  async applyCanonicalRegeneration(tenantId: string, clerkUserId: string,
+    sourceAdmission: CanonicalGenerationAdmission, normalized: NormalizedCanonicalDraft, jobRuntime: DraftJobRuntime) {
+    const a = parseCanonicalGenerationAdmission(sourceAdmission);
+    const normalizedSha256 = applicationHash(normalized);
+    if (a.canonical.tenantId !== tenantId || a.clerkUserId !== clerkUserId || a.expectedStrategyVersionId === null ||
+        !jobRuntime?.objective || !jobRuntime.persistence ||
+        jobRuntime.objective.envelope.request.requestId !== a.generationRequestId)
+      throw new CanonicalApplicationError('REQUEST_CONFLICT');
+    const actualInput = async (tx: Tx) => {
+      const associated = await generationAssociation(tx, tenantId, clerkUserId, a.generationJobId);
+      if (applicationHash(associated.admission) !== applicationHash(a)) throw new CanonicalApplicationError('REQUEST_CONFLICT');
+      const job = await tx.spDraftJob.findFirst({ where: { tenantId, id: a.generationJobId, ownerUserId: clerkUserId } });
+      if (!job) throw new CanonicalApplicationError('NOT_AVAILABLE');
+      const input = deriveCanonicalJobInput(job, a, jobRuntime.objective!.envelope,
+        `canonical:${associated.acceptance.issuance.issuanceKey}`);
+      const retained = await readCanonicalRequestPublication(tx, a), publication = retained?.publication;
+      if (!publication || !('requestVersion' in publication.request) ||
+          publication.request.requestVersion !== CORE_CANONICAL_REGENERATION_REQUEST_VERSION ||
+          publication.request.applicationTarget.expectedStrategyVersionId !== a.expectedStrategyVersionId ||
+          publication.request.basisSha256 !== applicationHash(publication.request.basis))
+        throw new CanonicalApplicationError('REQUEST_CONFLICT');
+      const w = normalized.normalizationWitness;
+      if (w.schemaVersion !== 2 || w.namespace !== 'capiro.objective-strategy.normalization:v2' ||
+          w.identityBasis !== 'retained-server-basis' || w.expectedStrategyVersionId !== a.expectedStrategyVersionId ||
+          w.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(a) || w.strategyType !== input.dto.type ||
+          w.basisSha256 !== publication.request.basisSha256 ||
+          w.normalizedResponseSha256 !== applicationHash(normalized.response) ||
+          w.sourceKeysSha256 !== applicationHash(normalized.sourceKeys) || w.nodeIdsSha256 !== applicationHash(normalized.nodeIds))
+        throw new CanonicalApplicationError('REQUEST_CONFLICT');
+      return { input, basis: publication.request.basis, publicationSha256: retained!.publicationSha256 };
+    };
+    const original = await this.prisma.withTenantUser(tenantId, clerkUserId, actualInput);
+    const ground = await this.grounding(tenantId);
+    await jobRuntime.persistence.beforeTransaction?.();
+    jobRuntime.onStage('persisting', DRAFT_JOB_STAGE_TEXT.persisting);
+    return this.prisma.withTenantUser(tenantId, clerkUserId, async tx => {
+      // This hook takes the original job/source/claim locks before any write.
+      await jobRuntime.persistence!.beforeWrite(tx);
+      const locked = await actualInput(tx);
+      if (locked.input.inputHash !== original.input.inputHash || locked.publicationSha256 !== original.publicationSha256)
+        throw new CanonicalApplicationError('REQUEST_CONFLICT');
+      const basis = await captureCanonicalStrategyBasis(tx, a);
+      if (!basis || applicationHash(basis) !== applicationHash(locked.basis)) throw new CanonicalApplicationError('SOURCE_STALE');
+      if (applicationHash(normalized) !== normalizedSha256) throw new CanonicalApplicationError('REQUEST_CONFLICT');
+      const clocks = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
+      if (clocks.length !== 1 || !(clocks[0]!.now instanceof Date) || !Number.isFinite(clocks[0]!.now.getTime()))
+        throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+      const plan = planCanonicalStrategyRegeneration({ basis, normalized, current: basis.snapshot,
+        archivedNodeIds: basis.archiveIndex.map(n => n.nodeId), createdByUserId: clerkUserId,
+        createdAt: clocks[0]!.now.toISOString(),
+        normalizationId: generationLedgerId(GENERATION_NORMALIZATION, tenantId, clerkUserId, a.generationJobId) });
+      const violations = this.verify(plan.snapshot.meta.type, plan.snapshot.nodes, ground, plan.snapshot.meta.goal ?? '');
+      const errors = violations.filter(v => v.severity === 'error');
+      if (errors.length) throw new UnprocessableEntityException(draftErrorBody(errors, normalized.response.groundingHealth));
+      // Merge validation, current-basis equality and whole-graph checks all
+      // precede these writes. Existing execution/provenance/archive fields
+      // are not sent through generic edit helpers or overwritten by a draft.
+      const changedStrategy = await tx.spStrategy.updateMany({ where: { tenantId, id: a.canonical.canonicalStrategyId,
+        clientId: a.canonical.clientId, archivedAt: null }, data: { ...plan.metaPatch,
+          lastEditedByUserId: clerkUserId, lastEditedAt: clocks[0]!.now } });
+      if (changedStrategy.count !== 1) throw new CanonicalApplicationError('SOURCE_STALE');
+      for (const { nodeId, patch } of plan.nodePatches) {
+        const { kind, subject, startsOn, endsOn, ...literal } = patch;
+        const data: Prisma.SpNodeUpdateManyMutationInput = { ...literal };
+        if (kind !== undefined) data.kind = kind as SpNodeKind;
+        if (subject !== undefined) data.subject = subject as SpNodeSubject;
+        if (startsOn !== undefined) data.startsOn = parseDbDate(startsOn, 'node startsOn');
+        if (endsOn !== undefined) data.endsOn = endsOn === null ? null : parseDbDate(endsOn, 'node endsOn');
+        const changed = await tx.spNode.updateMany({ where: { tenantId, strategyId: plan.strategyId, id: nodeId, archivedAt: null }, data });
+        if (changed.count !== 1) throw new CanonicalApplicationError('SOURCE_STALE');
+      }
+      if (plan.newNodes.length) await tx.spNode.createMany({ data: plan.newNodes.map(n => ({
+        id: n.id, tenantId, strategyId: plan.strategyId, kind: n.kind as SpNodeKind, subject: n.subject as SpNodeSubject,
+        title: n.title, note: n.note, status: n.status as SpNodeStatus, ownerUserId: n.ownerUserId,
+        startsOn: parseDbDate(n.startsOn, 'node startsOn'), endsOn: n.endsOn === null ? null : parseDbDate(n.endsOn, 'node endsOn'),
+        openEnded: n.openEnded, dependsOnIds: n.dependsOnIds, meriAuthored: true, createdByUserId: n.createdByUserId,
+        createdAt: new Date(n.createdAt), provenance: n.provenance == null ? Prisma.JsonNull : n.provenance as Prisma.InputJsonValue,
+        targetRef: n.targetRef == null ? Prisma.JsonNull : n.targetRef as Prisma.InputJsonValue,
+      })) });
+      const strategyVersionId = await this.versioning.cutVersion(tx, { tenantId, strategyId: plan.strategyId,
+        authorKind: 'meri', authorUserId: clerkUserId, note: 'Regenerated from the current saved Objective; preserved existing work', coalesce: false });
+      await recordCanonicalRegenerationNormalization(tx, tenantId, clerkUserId, a.generationJobId,
+        { strategyId: plan.strategyId, strategyVersionId }, { basis, normalized, plan });
+      await this.versioning.logActivity(tx, { tenantId, actorUserId: clerkUserId, authorKind: 'meri',
+        action: 'strategy.regenerated', entityType: 'strategy', entityId: plan.strategyId,
+        after: { strategyVersionId, basisSha256: plan.basisSha256, counts: plan.counts } });
+      const detail = await loadStrategyDetail(tx, plan.strategyId);
+      await jobRuntime.persistence!.afterWrite(tx, { strategyId: plan.strategyId, strategyVersionId });
+      return { ...detail, violations, regeneration: { basisSha256: plan.basisSha256, counts: plan.counts,
+        preservedFields: plan.fields.filter(f => f.resolution === 'human_preserved'), protectedDisagreements: plan.proposedDisagreements } };
+    });
   }
 
   private async persistDraftResponse(tenantId: string, clerkUserId: string, dto: DraftStrategyDto,

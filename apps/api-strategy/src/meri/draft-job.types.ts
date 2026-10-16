@@ -78,6 +78,11 @@ export function computeDraftRequestKey(dto: Pick<DraftStrategyDto, 'clientId' | 
  *  after a ~60s Clerk session token has expired. Never returned to the client
  *  (the public job DTO below omits it). */
 export interface DraftJobInput {
+  /** Original verified non-success accounting only; omitted from public DTO. */
+  canonicalTerminal?: import('./objective-canonical-terminal.js').CanonicalTerminalRecord;
+  /** Private original SDK custody, inserted only by the same atomic Strategy /
+   * job-completion CAS. Never returned by the public draft-job projection. */
+  canonicalCompletion?: import('./objective-canonical-completion-receipt.js').CanonicalCompletionWitness;
   /** Only an authenticated server admission may set this private marker. The
    * legacy model worker must never claim/reclaim these canonical runs. */
   canonicalGeneration?: { admissionId: string };

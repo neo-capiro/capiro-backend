@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "sourceBase": "eeb748884bab5465d36682b6fe7cbfe43a7ac8d3",
+  "qualification": "SOURCE_FIXTURES_ONLY",
+  "tests": 145,
+  "passed": 145,
+  "failed": 0,
+  "cancelled": 0,
+  "skipped": 0,
+  "todo": 0,
+  "files": [
+    "apps/api-strategy/test/objective-canonical-completion-receipt.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-terminal-codec.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-terminal.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-terminal-service.focused.test.mjs"
+  ],
+  "process": {
+    "pid": 34792,
+    "exitCode": 0,
+    "elapsedMs": 3641.0,
+    "cleanupComplete": true,
+    "maxRSSReportedKiB": 130772,
+    "heapCapMiB": 128,
+    "estimatedAggregateMiB": 640,
+    "wallSeconds": 110,
+    "overallSeconds": 120,
+    "outputBytes": 21630,
+    "outputCapped": false,
+    "inputDrift": []
+  },
+  "capacity": {
+    "reader": "reviewed normal GlobalMemoryStatusEx metadata only",
+    "startFloorBytes": 671088640,
+    "preflightAvailableCommitBytes": 1435725824,
+    "minimumAvailableCommitBytes": 1252892672,
+    "postflightAvailableCommitBytes": 1455972352
+  },
+  "raw": {
+    "externalTaskEvidence": "objective-canonical-terminal-evidence",
+    "profileSha256": "01d5763e32c8ad0ea69e871883366bf971c6b55c6de2fb1a840a071df40e3d8d",
+    "resultSha256": "c6f21a9ead5c2553d1670cc2931f7b53c23098ecb90fd42516ce19a0104a6f0b",
+    "stdoutSha256": "1662b622286294d4afca78eb590930d622bdc84a240cec21d72efdaf16eb0421",
+    "stderrSha256": "0c3351c2d8dfb984d91120206e6bd2228ef790a758645bab5e042726f7f0ce8d"
+  },
+  "notQualified": [
+    "semantic TypeScript compiler",
+    "Nest HTTP/DI runtime",
+    "native PostgreSQL SQL/RLS/grants/concurrency",
+    "genuine Meri SDK/provider custody",
+    "live workload authority and actual reader mount",
+    "generic failed/cancelled terminal proof",
+    "private regeneration result dispatch"
+  ],
+  "publication": false
+}

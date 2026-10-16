@@ -15,6 +15,7 @@ import { requireObjectiveReady } from '../clients/objectives/objective-rules.js'
 import { classifyStaffKind } from '../clients/client-targets.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readObjectiveSources } from './objective-generation-sources.js';
+import { ObjectiveTypedContextError, projectObjectiveTypedContext } from './objective-generation-typed-context.js';
 import {
   BackgroundSnapshotError,
   OBJECTIVE_BACKGROUND_FIELDS,
@@ -321,6 +322,7 @@ export class ObjectiveGenerationContextService {
         return {
           source,
           intent,
+          snapshotSha256: objectiveDigest(saved),
           sourceDigest: objectiveDigest({ source, intent }),
           background: await readObjectiveBackground(tx, input.tenantId, input.clientId),
           sources: await readObjectiveSources(
@@ -351,7 +353,7 @@ export class ObjectiveGenerationContextService {
 
   bind(
     input: StrategyContextPlaneInput,
-    observed: Awaited<ReturnType<ObjectiveGenerationContextService['observe']>>,
+    observed: Omit<Awaited<ReturnType<ObjectiveGenerationContextService['observe']>>, 'snapshotSha256'> & { snapshotSha256?: string },
     bundle: StrategyContextPlaneBundle,
     historyDigest: string,
     historyRecords: Record<string, any>[],
@@ -457,6 +459,21 @@ export class ObjectiveGenerationContextService {
       historyDigest,
       promptDigest: objectiveDigest(governed.prompt),
     });
+    if (input.objectiveTypedContext === true) {
+      try {
+        bundle.objectiveTypedContext = projectObjectiveTypedContext({
+          tenantId: input.tenantId, clerkUserId: input.clerkUserId, requestId: input.generationRequestId,
+          source: observed.source, intent: observed.intent, snapshotSha256: observed.snapshotSha256,
+          sourceDigest: observed.sourceDigest, packetId: packet.packetId, compiledAt: packet.compiledAt,
+          coverageDigest, prompt: governed.prompt, findings: observed.background.groups.profile_fill_findings,
+          packetPersisted: packet.persisted, packetDegraded: packet.degraded, coverageComplete: coverage.complete,
+          paginationComplete: coverage.paginationComplete, truncated: coverage.truncated,
+        });
+      } catch (error) {
+        if (error instanceof ObjectiveTypedContextError) throw new ObjectiveContextIncomplete('profile_fill_corpus');
+        throw error;
+      }
+    }
     return {
       tenantId: input.tenantId,
       clerkUserId: input.clerkUserId,

@@ -8,6 +8,7 @@ import { canonicalMaterializationReceiptId, type CanonicalMaterializationBinding
   type CanonicalMaterializationPredecessor } from './strategy-materialization.js';
 import { ObjectiveCanonicalWorkloadAuthority, type CanonicalAuthoritySubject } from './objective-canonical-authority.js';
 import { requireCanonicalApplicationFence, requireCanonicalApplicationRead } from './objective-canonical-fence.js';
+import { readCanonicalSavedGeneration, requireSavedGenerationApplication } from '../meri/objective-canonical-saved-generation.js';
 import { applicationHash, applicationHeadId, applicationObservation, applicationReceiptId, applicationUuid,
   CANONICAL_APPLICATION_HEAD, CANONICAL_APPLICATION_RECEIPT, CanonicalApplicationError,
   canonicalApplicationRequestId, checkStoredApplication, executeCanonicalApplicationTransaction, parseCanonicalApplication,
@@ -87,12 +88,20 @@ export class ObjectiveCanonicalApplicationService {
         // Owner locks: Planner -> job -> Strategy -> exact saved version ->
         // current Core authority/Objective -> canonical -> current consent.
         prepare: async beforeWrite => {
+          // New effects only: historical ACK replay returns above, under its
+          // independent current read admission. Hold the original job stable
+          // while joining cd376's custody witness to the ACTUAL saved version.
+          await tx.$queryRaw`SELECT id FROM sp_draft_job WHERE tenant_id=${grant.tenantId}::uuid
+            AND owner_user_id=${grant.clerkUserId} AND id=${request.generationJobId}::uuid FOR SHARE`;
+          const saved = await readCanonicalSavedGeneration(tx, { tenantId: grant.tenantId,
+            clerkUserId: grant.clerkUserId, generationJobId: request.generationJobId });
+          const actual = requireSavedGenerationApplication(saved, grant.actorUserId, request);
           const predecessor = await this.predecessor(tx, grant, request);
           return this.planner.prepareCanonicalStrategyPlanInTransaction(tx, this.ctx(grant), {
-            requestId: request.applicationRequestId, generationJobId: request.generationJobId,
-            expected: { strategyId: request.strategyId, strategyVersionId: request.strategyVersionId,
-              objectiveRevisionId: request.canonical.requestedObjectiveRevisionId },
-          }, this.binding(request), beforeWrite, predecessor);
+            requestId: actual.applicationRequestId, generationJobId: actual.generationJobId,
+            expected: { strategyId: actual.strategyId, strategyVersionId: actual.strategyVersionId,
+              objectiveRevisionId: actual.canonical.requestedObjectiveRevisionId },
+          }, this.binding(actual), beforeWrite, predecessor);
         },
         fence: () => requireCanonicalApplicationFence(tx, grant, request),
         clock: async () => {

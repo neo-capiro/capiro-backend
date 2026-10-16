@@ -3,6 +3,7 @@ import { applicationHash } from '../planner/objective-canonical-application.js';
 import { canonicalGenerationAdmissionSha256, generationUuid, parseCanonicalGenerationAdmission,
   type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
 import type { DraftNode, StrategyDraftResponse } from './meri.types.js';
+import type { CanonicalStrategyBasis } from './objective-canonical-basis.js';
 
 /** Backend defense adapter, not a second public candidate contract or validator export.
  * Reviewed external source: neo-capiro/meri-greenfield@4d8bd8ee3d3c6f0c5e1c91edbfebe44598dcf7af
@@ -17,9 +18,9 @@ import type { DraftNode, StrategyDraftResponse } from './meri.types.js';
  * The existing candidate Draft's 60-node bound is refused, never sliced. It is
  * unchanged external payload validation, not a global Planner/task/project cap;
  * no manual-node 20-dependency restriction is applied to this draft contract.
- * Candidate 4d8 strategy.draft requires basis:null. Regeneration remains held
- * until its actual typed-request successor carries the authoritative basis;
- * this internal map parameter does not enable or alter that external request.
+ * Candidate 4d8 strategy.draft requires basis:null. The separate private
+ * regeneration entry below requires the actual versioned Core basis; it does
+ * not enable or alter that external request or establish Meri interoperability.
  */
 export class CanonicalDraftNormalizationError extends Error {
   readonly code: 'DRAFT_INVALID' | 'DRAFT_TYPE_CONFLICT' | 'OWNER_UNAVAILABLE' |
@@ -42,12 +43,14 @@ export interface CanonicalDraftNormalizationOptions {
 type Source = { section: string; ref: string };
 type Coverage = { complete: boolean; omitted: string[]; assumptions: string[]; sources: Source[]; pendingSources: Source[] };
 export interface CanonicalDraftNormalizationWitness {
-  schemaVersion: 1; namespace: 'capiro.objective-strategy.normalization:v1';
+  schemaVersion: 1 | 2; namespace: 'capiro.objective-strategy.normalization:v1' | 'capiro.objective-strategy.normalization:v2';
   strategyType: string;
   sourceAdmissionSha256: string; proposedPayloadSha256: string; normalizedResponseSha256: string;
   nodeIdsSha256: string; sourceKeysSha256: string;
   identityBasis: 'initial-reservation' | 'retained-server-basis'; expectedStrategyVersionId: string | null;
   rationale: string; coverage: Coverage;
+  /** Present only for the private versioned regeneration writer. */
+  basisSha256?: string;
 }
 export interface NormalizedCanonicalDraft {
   response: StrategyDraftResponse; nodeIds: readonly string[]; sourceKeys: readonly string[];
@@ -204,4 +207,42 @@ export function normalizeCanonicalDraft(raw: unknown, options: CanonicalDraftNor
   Object.freeze(nodes); Object.freeze(response); Object.freeze(nodeIds); Object.freeze(sourceKeys);
   freezeCoverage(protectedCoverage); Object.freeze(normalizationWitness);
   return Object.freeze({ response, nodeIds, sourceKeys, normalizationWitness });
+}
+
+/** Private regeneration adapter. Its caller supplies the actual immutable
+ * published basis after genuine result custody and rechecks that same basis
+ * inside the application transaction. Existing candidate 4d8 is not changed.
+ * Newly proposed keys use the canonical identity domain; retained and archived
+ * keys keep their existing IDs. The preserving merge decides whether a proposed
+ * archived key is unavailable; this adapter cannot resurrect it. */
+export function normalizeCanonicalRegenerationDraft(raw: unknown,
+  options: Omit<CanonicalDraftNormalizationOptions, 'sourceNodeBasis'> & { basis: CanonicalStrategyBasis }): NormalizedCanonicalDraft {
+  const a = parseCanonicalGenerationAdmission(options.admission), b = options.basis;
+  applicationHash(b);
+  if (a.expectedStrategyVersionId === null || !b || b.schemaVersion !== 1 ||
+      b.namespace !== 'capiro.objective-strategy.basis:v1' ||
+      applicationHash(b.canonical) !== applicationHash(a.canonical) ||
+      b.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(a) ||
+      b.strategyId !== a.canonical.canonicalStrategyId || b.expectedStrategyVersionId !== a.expectedStrategyVersionId ||
+      b.snapshotSha256 !== applicationHash(b.snapshot) || b.sourceIndexSha256 !== applicationHash(b.sourceIndex) ||
+      b.archiveIndexSha256 !== applicationHash(b.archiveIndex))
+    throw new CanonicalDraftNormalizationError('REGENERATION_BASIS_CONFLICT');
+  const ids = new Map<string, string>();
+  for (const entry of b.sourceIndex) {
+    const key = sourceKey(entry.sourceNodeKey), id = generationUuid(entry.nodeId);
+    if (ids.has(key) || [...ids.values()].includes(id)) throw new CanonicalDraftNormalizationError('REGENERATION_BASIS_CONFLICT');
+    ids.set(key, id);
+  }
+  const p = closed(raw, ['type', 'rationale', 'summary', 'nodes', 'coverage']);
+  for (const value of list(p.nodes, 60, 1)) {
+    const n = closed(value, ['sourceNodeKey', 'kind', 'subject', 'title', 'note', 'status', 'ownerRef',
+      'startsOn', 'endsOn', 'openEnded', 'sources', 'dependsOn']);
+    const key = sourceKey(n.sourceNodeKey);
+    if (!ids.has(key)) ids.set(key, initialNodeId(a.canonical.canonicalPlanId, key));
+  }
+  const normalized = normalizeCanonicalDraft(raw, { admission: a, queuedType: options.queuedType, ownerMap: options.ownerMap,
+    sourceNodeBasis: { expectedStrategyVersionId: a.expectedStrategyVersionId, nodeIdsBySourceKey: ids } });
+  return Object.freeze({ ...normalized, normalizationWitness: Object.freeze({ ...normalized.normalizationWitness,
+    schemaVersion: 2 as const, namespace: 'capiro.objective-strategy.normalization:v2' as const,
+    basisSha256: applicationHash(b) }) });
 }

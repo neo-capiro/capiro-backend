@@ -12,6 +12,9 @@ import { admitCanonicalGenerationWithinTx, requireCanonicalGenerationEffectWithi
 import { generationMarker, insertGenerationLedger, readGenerationLedger, readCanonicalGenerationProducer } from './objective-canonical-producer-ledger.js';
 import { parseCanonicalProducerRequest, producerApplication, requireCanonicalProducerWork } from './objective-canonical-producer.js';
 import type { DraftJobInput } from './draft-job.types.js';
+import { readCanonicalRequestPublication } from './objective-canonical-request-ledger.js';
+import { candidateJcsSha256 } from './objective-canonical-request.js';
+import { readCanonicalSavedGeneration } from './objective-canonical-saved-generation.js';
 
 type Tx = Prisma.TransactionClient;
 const fail = (code: CanonicalApplicationError['code'] = 'AUTHORITY_UNAVAILABLE'): never => { throw new CanonicalApplicationError(code); };
@@ -71,8 +74,8 @@ export class ObjectiveCanonicalProducerService {
               a.canonical.bindingVersion < fresh.canonical.bindingVersion;
           });
           if (!candidates.length) return fail('OUTCOME_UNCONFIRMED');
-          for (const p of candidates) await readCanonicalGenerationProducer(tx, grant.tenantId, p.ownerId,
-            (p.data as any).sourceAdmission.generationJobId);
+          for (const p of candidates) await readCanonicalSavedGeneration(tx, { tenantId: grant.tenantId,
+            clerkUserId: p.ownerId, generationJobId: (p.data as any).sourceAdmission.generationJobId });
         }
         const previous = await readGenerationLedger(tx, GENERATION_ADMISSION, grant.tenantId, grant.clerkUserId, job.id);
         const admission = previous ? parseCanonicalGenerationAdmission(previous) : parseCanonicalGenerationAdmission({ ...fresh,
@@ -111,11 +114,20 @@ export class ObjectiveCanonicalProducerService {
         await this.generationProof(tx, grant, subject, admission);
         if (applicationHash(proof.sourceAdmission) !== applicationHash(admission) ||
             proof.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(admission)) return fail('REQUEST_CONFLICT');
+        const published = await readCanonicalRequestPublication(tx, admission);
+        if (!published) return fail('OUTCOME_UNCONFIRMED');
+        if (proof.typedRequestSha256 !== published.publication.requestSha256 ||
+            proof.executionContextSha256 !== candidateJcsSha256(published.publication.executionContext) ||
+            proof.acceptedRequestId !== admission.generationRequestId ||
+            proof.acceptedPromptSha256 !== published.publication.executionContext.promptSha256 ||
+            proof.issuance.expiresAtMs > published.publication.request.originalExpiresAtMs)
+          return fail('REQUEST_CONFLICT');
         const old = await readGenerationLedger(tx, GENERATION_ACCEPTANCE, grant.tenantId, grant.clerkUserId, job.id);
         const observed = { schemaVersion: 1, sourceAdmissionSha256: proof.sourceAdmissionSha256,
           sourceBinding: proof.sourceBinding, sourceRequestSha256: proof.sourceRequestSha256,
           issuance: proof.issuance, acceptedAtMs: old ? (old as any).acceptedAtMs : await this.now(tx) };
         const accepted = requireGenerationAcceptanceForAdmission(observed, admission);
+        if (accepted.acceptedAtMs >= published.publication.request.originalExpiresAtMs) return fail('SOURCE_STALE');
         if (old && applicationHash(old) !== applicationHash(accepted)) return fail('REQUEST_CONFLICT');
         if (!old) {
           if (job.status !== 'queued' || job.attempt !== 1 || job.claimedBy !== null || job.claimedAt !== null ||
@@ -182,7 +194,13 @@ export class ObjectiveCanonicalProducerService {
         await this.job(tx, grant, work.generationJobId);
         await tx.$queryRaw`SELECT id FROM sp_strategy WHERE tenant_id=${grant.tenantId}::uuid AND id=${work.strategyId}::uuid FOR SHARE`;
         await tx.$queryRaw`SELECT id FROM sp_version WHERE tenant_id=${grant.tenantId}::uuid AND id=${work.strategyVersionId}::uuid FOR SHARE`;
-        const stored = await readCanonicalGenerationProducer(tx, grant.tenantId, grant.clerkUserId, work.generationJobId);
+        // A new dispatch needs the actual retained-result completion witness.
+        // Historical read/stop keeps its existing separate read admission:
+        // old effect evidence is not reminted and no new write is authorized.
+        const stored = effect
+          ? (await readCanonicalSavedGeneration(tx, { tenantId: grant.tenantId,
+            clerkUserId: grant.clerkUserId, generationJobId: work.generationJobId })).producer
+          : await readCanonicalGenerationProducer(tx, grant.tenantId, grant.clerkUserId, work.generationJobId);
         requireCanonicalProducerWork(stored, work);
         const current = async () => {
           await this.authority.assertCurrent(tx, grant, subject);

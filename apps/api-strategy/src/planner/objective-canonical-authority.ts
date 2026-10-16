@@ -14,11 +14,15 @@ export interface CanonicalAuthoritySubject {
   producerPhase?: 'start' | 'prepare' | 'read' | 'stop';
 }
 export interface CanonicalGenerationSubject {
-  phase: 'admit' | 'admission-read' | 'accept'; generationJobId: string; requestSha256: string;
+  phase: 'admit' | 'admission-read' | 'publish' | 'request-read' | 'accept' | 'complete' | 'completion-read' |
+    'terminal-account' | 'terminal-read'; generationJobId: string; requestSha256: string;
 }
 export interface CanonicalGenerationGrant {
   tenantId: string; actorUserId: string; clerkUserId: string; consentId: string; controlVersion: number;
   requestSha256: string; checkedAtMs: number; expiresAtMs: number; delegationExpiresAtMs: number; claimExpiresAtMs: number;
+  /** Genuine verifier-owned delegation metadata required before first typed
+   * publication. A consent/control/identity revision is not a delegation. */
+  delegation?: { ref: string; revision: string; issuedAtMs: number; absoluteExpiresAtMs: number };
 }
 export interface VerifiedGenerationAcceptance {
   grant: CanonicalGenerationGrant;
@@ -27,6 +31,12 @@ export interface VerifiedGenerationAcceptance {
   sourceBinding: AcceptedRunBinding;
   sourceRequestSha256: string;
   issuance: SanitizedGenerationIssuance;
+  /** Actual protected-facts observer values, compared against the immutable
+   * Core publication before claim. Never read from caller POST fields. */
+  typedRequestSha256?: string;
+  executionContextSha256?: string;
+  acceptedRequestId?: string;
+  acceptedPromptSha256?: string;
 }
 /** Centrally allocated binding port. An implementation must authenticate a named
  * workload issuer/audience + original delegated native actor, pin the complete
@@ -41,6 +51,10 @@ export class ObjectiveCanonicalWorkloadAuthority {
   async verifyGeneration(_request: Request, _subject: CanonicalGenerationSubject): Promise<CanonicalGenerationGrant> {
     throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
   }
+  // terminal-account is a distinct bookkeeping authority, NOT a completion-
+  // read or live-effect grant. It binds the original admission/consent/control
+  // identity while independently checking current accounting permission. Old
+  // worker/effect deadlines may be historical; no issuance/claim is renewed.
   async assertGenerationCurrent(_tx: Prisma.TransactionClient, _grant: CanonicalGenerationGrant,
     _subject: CanonicalGenerationSubject): Promise<void> {
     throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
@@ -48,7 +62,9 @@ export class ObjectiveCanonicalWorkloadAuthority {
   /** This is NOT a signature over caller JSON. The real adapter must read the
    * original accepted Meri request and genuine ISSUED metadata, verify its
    * protected facts.objectiveGeneration field/full-facts hash before dispatch,
-   * and return that exact owner observation. No issue/resolve/material access.
+   * and the exact protected typed request/execution context; accepted request
+   * ID and prompt must equal the immutable Core publication before dispatch.
+   * Return that actual owner observation. No issue/resolve/material access.
    * It remains unavailable until that actual owner transport is bound. */
   async verifyGenerationAcceptance(_request: Request, _subject: CanonicalGenerationSubject): Promise<VerifiedGenerationAcceptance> {
     throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');

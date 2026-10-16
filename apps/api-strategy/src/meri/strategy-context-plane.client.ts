@@ -26,6 +26,7 @@ export interface StrategyContextPlaneRequest {
 }
 
 interface CompileResponse {
+  objectiveTypedContext?: unknown;
   objectiveAdmission?: ObjectiveAdmission;
   kind?: 'governed_packet' | 'release_switch_rollback';
   governedContext?: StrategyGovernedTurnContext;
@@ -58,7 +59,8 @@ export class StrategyContextPlaneClient {
     );
   }
 
-  async compile(request: StrategyContextPlaneRequest, onAdmission?: (admission: ObjectiveAdmission) => Promise<void>): Promise<StrategyGovernedTurnContext> {
+  async compile(request: StrategyContextPlaneRequest, onAdmission?: (admission: ObjectiveAdmission) => Promise<void>,
+    onTypedContext?: (projection: unknown) => Promise<void>): Promise<StrategyGovernedTurnContext> {
     const expectedOperation = operationFor(request.mode, request.artifactKind ?? null);
     const expectedSurface = surfaceFor(expectedOperation);
     if (!this.sharedSecret) {
@@ -86,6 +88,7 @@ export class StrategyContextPlaneClient {
           traceId: request.traceId ?? null,
           artifactKind: request.artifactKind ?? null,
           ...(request.objective ? { objective: request.objective, generationRequestId: request.generationRequestId, generationType: request.generationType } : {}),
+          ...(request.objective && onTypedContext ? { objectiveTypedContext: true } : {}),
         }),
         signal: controller.signal,
       });
@@ -161,6 +164,10 @@ export class StrategyContextPlaneClient {
           digest({ source: admission.source, intent: admission.intent }) !== admission.context.sourceDigest || !onAdmission)
         throw new ServiceUnavailableException('Objective context scope validation failed');
       await onAdmission(admission);
+      if (onTypedContext) {
+        if (!body.objectiveTypedContext) throw new ServiceUnavailableException('Objective typed context unavailable');
+        await onTypedContext(body.objectiveTypedContext);
+      }
     }
     return governed;
   }

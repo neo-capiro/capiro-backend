@@ -14,6 +14,8 @@ export interface ObjectiveClaim {
   claimToken: string;
   attempt: number;
   input: DraftJobInput;
+  /** Trusted application composition only; never caller input or a new job. */
+  completion?: import('./objective-canonical-completion-receipt.js').CanonicalCompletionWitness;
 }
 export class ObjectiveLeaseLost extends Error {}
 export function objectivePersistence(
@@ -54,6 +56,7 @@ export function objectivePersistence(
         row.clientId !== envelope.request.clientId ||
         !row.input.objectiveGeneration ||
         row.input.objectiveGeneration.receipt.result ||
+        row.input.canonicalTerminal !== undefined ||
         row.input.objectiveGeneration.receipt.failure !== null ||
         row.input.objectiveGeneration.receipt.schemaVersion !== 1 ||
         row.input.objectiveGeneration.fingerprint !== envelope.fingerprint ||
@@ -108,6 +111,14 @@ export function objectivePersistence(
       const receipt = lockedInput.objectiveGeneration.receipt;
       if (!envelope.historyCheckedAt || !Number.isFinite(Date.parse(envelope.historyCheckedAt)))
         throw new ObjectiveLeaseLost();
+      if (job.completion) {
+        if (!lockedInput.canonicalGeneration || lockedInput.canonicalCompletion !== undefined || lockedInput.canonicalTerminal !== undefined ||
+            job.completion.generationJobId !== job.id || job.completion.generationRequestId !== envelope.request.requestId)
+          throw new ObjectiveLeaseLost();
+        // This joins original SDK custody to the actual saved receipt in the
+        // SAME existing completion CAS. No post-hoc pairing on read/retry.
+        lockedInput.canonicalCompletion = JSON.parse(JSON.stringify(job.completion));
+      }
       receipt.context.reobservedAt = envelope.historyCheckedAt;
       lockedInput.objectiveGeneration.historyCheckedAt = envelope.historyCheckedAt;
       receipt.result = {

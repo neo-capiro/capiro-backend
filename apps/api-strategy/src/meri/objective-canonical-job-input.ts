@@ -8,6 +8,7 @@ import type { ObjectiveJobEnvelope } from './objective-generation.types.js';
 export interface CanonicalJobOwnerRow {
   tenantId: string; id: string; ownerUserId: string; clientId: string; status: string;
   attempt: number; claimedBy: string | null; strategyId: string | null; requestKey: string; input: unknown;
+  claimedAt?: unknown;
 }
 export interface CanonicalJobInput {
   dto: DraftStrategyDto; envelope: ObjectiveJobEnvelope;
@@ -45,6 +46,8 @@ function ownerRow(raw: CanonicalJobOwnerRow): CanonicalJobOwnerRow {
     if (!d || !('value' in d)) return unavailable();
     copy[key] = d.value;
   }
+  const claimedAt = Object.getOwnPropertyDescriptor(r, 'claimedAt');
+  if (claimedAt && 'value' in claimedAt) copy.claimedAt = claimedAt.value;
   return copy as unknown as CanonicalJobOwnerRow;
 }
 function text(value: unknown, maximum: number): void {
@@ -128,15 +131,13 @@ function frozen<T>(value: T): T {
  * external-recheck timestamp to runtime before afterWrite saves it to the row.
  * Every other runtime envelope field must equal the actual stored envelope.
  */
-export function deriveCanonicalJobInput(rawJob: CanonicalJobOwnerRow, rawAdmission: unknown,
-  runtimeEnvelope: unknown, expectedClaimToken: string): CanonicalJobInput {
-  const a = parseCanonicalGenerationAdmission(rawAdmission), job = ownerRow(rawJob);
+function requireJobScope(job: CanonicalJobOwnerRow, a: CanonicalGenerationAdmission) {
   for (const value of [job.tenantId, job.id, job.clientId]) generationUuid(value);
-  if (typeof expectedClaimToken !== 'string' || /^canonical:[0-9a-f]{64}$/.exec(expectedClaimToken)?.[0] !== expectedClaimToken ||
-      job.tenantId !== a.canonical.tenantId || job.id !== a.generationJobId || job.clientId !== a.canonical.clientId ||
-      job.ownerUserId !== a.clerkUserId || job.status !== 'running' || job.attempt !== 2 ||
-      job.claimedBy !== expectedClaimToken || job.strategyId !== null ||
+  if (job.tenantId !== a.canonical.tenantId || job.id !== a.generationJobId || job.clientId !== a.canonical.clientId ||
+      job.ownerUserId !== a.clerkUserId || job.strategyId !== null ||
       job.requestKey !== `objective-v1:${applicationHash([job.tenantId, job.ownerUserId, a.generationRequestId])}`) return unavailable();
+}
+function deriveInput(job: CanonicalJobOwnerRow, a: CanonicalGenerationAdmission, runtimeEnvelope?: unknown): CanonicalJobInput {
   // Safely reject getters/proxies/non-JSON anywhere before cloning or reading
   // input fields. The legacy bearer is neither returned nor fingerprinted.
   const stored = fields(JSON.parse(applicationJson(job.input)), ['dto', 'bearer', 'objectiveGeneration', 'canonicalGeneration']);
@@ -144,13 +145,34 @@ export function deriveCanonicalJobInput(rawJob: CanonicalJobOwnerRow, rawAdmissi
   const marker = fields(stored.canonicalGeneration, ['admissionId']);
   if (marker.admissionId !== generationLedgerId(GENERATION_ADMISSION, job.tenantId, job.ownerUserId, job.id)) return unavailable();
   const derivedDto = dto(stored.dto), storedEnvelope = envelope(stored.objectiveGeneration, a);
-  const runtime = envelope(JSON.parse(applicationJson(runtimeEnvelope)), a);
-  if (derivedDto.clientId !== job.clientId || derivedDto.type !== storedEnvelope.request.type ||
-      applicationHash(withoutHistoryCheck(runtime)) !== applicationHash(withoutHistoryCheck(storedEnvelope))) return conflict();
+  if (derivedDto.clientId !== job.clientId || derivedDto.type !== storedEnvelope.request.type) return conflict();
+  if (runtimeEnvelope !== undefined) {
+    const runtime = envelope(JSON.parse(applicationJson(runtimeEnvelope)), a);
+    if (applicationHash(withoutHistoryCheck(runtime)) !== applicationHash(withoutHistoryCheck(storedEnvelope))) return conflict();
+  }
   const dtoHash = applicationHash(derivedDto), requestHash = applicationHash(storedEnvelope.request),
     sourceHash = applicationHash(storedEnvelope.receipt.source), markerHash = applicationHash(marker);
   return frozen({ dto: derivedDto, envelope: storedEnvelope, dtoHash, requestHash, sourceHash, markerHash,
     envelopeHash: applicationHash(withoutHistoryCheck(storedEnvelope)),
     inputHash: applicationHash({ dto: derivedDto, request: storedEnvelope.request, fingerprint: storedEnvelope.fingerprint,
       source: storedEnvelope.receipt.source, canonicalGeneration: marker }) });
+}
+
+export function deriveCanonicalJobInput(rawJob: CanonicalJobOwnerRow, rawAdmission: unknown,
+  runtimeEnvelope: unknown, expectedClaimToken: string): CanonicalJobInput {
+  const a = parseCanonicalGenerationAdmission(rawAdmission), job = ownerRow(rawJob);
+  requireJobScope(job, a);
+  if (typeof expectedClaimToken !== 'string' || /^canonical:[0-9a-f]{64}$/.exec(expectedClaimToken)?.[0] !== expectedClaimToken ||
+      job.status !== 'running' || job.attempt !== 2 || job.claimedBy !== expectedClaimToken || runtimeEnvelope === undefined) return unavailable();
+  return deriveInput(job, a, runtimeEnvelope);
+}
+
+/** Pre-acceptance publication: actual queued owner input, not a selected Meri
+ * run or an invented running claim. The caller rechecks this immutable hash
+ * under the real job/source/consent locks before append-once publication. */
+export function deriveCanonicalPublicationInput(rawJob: CanonicalJobOwnerRow, rawAdmission: unknown): CanonicalJobInput {
+  const a = parseCanonicalGenerationAdmission(rawAdmission), job = ownerRow(rawJob);
+  requireJobScope(job, a);
+  if (job.status !== 'queued' || job.attempt !== 1 || job.claimedBy !== null || job.claimedAt !== null) return unavailable();
+  return deriveInput(job, a);
 }
