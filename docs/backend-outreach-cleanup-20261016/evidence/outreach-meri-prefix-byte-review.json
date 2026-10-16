@@ -1,0 +1,9 @@
+{
+  "baseline": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+  "boundary": "const RETIRED = ",
+  "byteIdentical": true,
+  "bytes": 28553,
+  "sha256": "f0848f58df36bf7fdb50fa7d95bd552ff70fa5b4392f0d3f470c8df71ad1132c",
+  "topLevelCases": 22
+}

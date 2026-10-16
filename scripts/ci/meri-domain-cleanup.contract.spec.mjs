@@ -411,7 +411,9 @@ test('all five domain and actual facade handlers propagate identical port errors
   }
 });
 
-const RETIRED = ['outreachContext', 'outreachVoiceFewShots', 'batchRecipientCorrespondence'];
+const RETIRED = ['outreachContext', 'outreachVoiceFewShots', 'batchRecipientCorrespondence',
+  'persistOutreachHold', 'enrichOutreachContextItems', 'recentClientMeetingsForOutreach', 'peTruthBlock',
+  'outreachClientPeopleBlock', 'outreachClientTargetOfficesBlock', 'outreachTargetRecommendations'];
 const engagementSource = read('apps/api/src/engagement/engagement.service.ts');
 // Bounded source contract, not a TypeScript compiler or a global call graph.
 const withoutComments = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/[^\r\n]*/gm, '');
@@ -422,22 +424,37 @@ function retiredRootsAbsent(source) {
     assert.doesNotMatch(body, new RegExp('\\bthis\\s*(?:\\.\\s*' + name + '|\\[\\s*[\'"]' + name + '[\'"]\\s*\\])\\s*\\('), name + ': direct call retired');
   }
 }
-function retainedEngagementSeams(source, enrichmentCases, channelCases) {
-  const body = withoutComments(source);
-  assert.match(body, /private\s+async\s+enrichOutreachContextItems\s*\(/);
-  assert.match(body, /async\s+billTruthBlock\s*\(/);
-  assert.match(body, /this\.billTruthBlock\s*\(/);
-  assert.match(body, /this\.truth\.billTruthBlock\s*\(/);
+function retainedEngagementSeams(ports) {
+  const body = withoutComments(ports.engagement);
+  const evidence = withoutComments(ports.evidence);
+  const packet = withoutComments(ports.packet);
+  const gateway = withoutComments(ports.gateway);
+  assert.match(body, /^  async\s+billTruthBlock\s*\(/m);
+  assert.match(body, /return\s+this\.truth\.billTruthBlock\(billId\)/);
   assert.match(body, /export\s+function\s+scrubPiiForVoice\s*\(/);
   assert.match(body, /private\s+async\s+buildGatewayEnrichment\s*\(/);
   assert.match(body, /this\.buildGatewayEnrichment\s*\(/);
-  assert.match(body, /this\.gateway\.generate\s*\(/);
-  assert((enrichmentCases.match(/\.enrichOutreachContextItems\s*\(/g) ?? []).length >= 7, 'all seven direct native enrichment calls remain');
-  assert.match(channelCases, /import\s*\{[^}]*scrubPiiForVoice[^}]*\}/);
-  assert.match(channelCases, /\bscrubPiiForVoice\s*\(/);
+  assert.match(body, /this\.gateway\.generate\(ctx,\s*request,\s*enrichment,\s*identity\.creds\)/);
+  assert.match(gateway, /this\.packets\.compileOutreachPacket\(ctx,\s*\{/);
+  assert.match(gateway, /request\.authHeader\s*\?\s*\{\s*authHeader:\s*request\.authHeader\s*\}/);
+  assert.match(gateway, /if\s*\(packet\.criticalFailureCount\s*>\s*0\)/);
+  assert.match(gateway, /error:\s*'CRITICAL_SOURCE_FAILURE'/);
+  const criticalGate = gateway.indexOf('packet.criticalFailureCount');
+  const planning = gateway.indexOf('this.plans.buildPlan(');
+  assert(criticalGate >= 0 && planning > criticalGate, 'critical-source gate precedes current plan/provider path');
+  assert.match(packet, /this\.sources\.resolveSelectedItems\(ctx,\s*\{/);
+  assert.match(packet, /authHeader:\s*request\.authHeader/);
+  assert.match(evidence, /async\s+resolveSelectedItems\s*\(/);
+  assert.match(evidence, /await\s+this\.resolveOne\(ctx,\s*item,\s*input\)/);
+  assert.match(evidence, /return\s+this\.resolveIntelAlert\(item,\s*input\)/);
+  assert.match(evidence, /this\.alertPacketClient\.fetchAlertPacket\(\s*input\.authHeader,\s*input\.clientId,\s*alertId,?\s*\)/);
+  assert.match(evidence, /renderAlertPacketForOutreach\(packet\)/);
+  assert.match(ports.channels, /import\s*\{[^}]*scrubPiiForVoice[^}]*\}/);
+  assert.match(ports.channels, /\bscrubPiiForVoice\s*\(/);
 }
 
-test('three retired Engagement roots have no private declarations or direct calls and counterexamples fail', () => {
+test('retired Engagement outreach roots have no private declarations or direct calls and counterexamples fail', () => {
+  assert.equal(RETIRED.length, 10);
   retiredRootsAbsent(engagementSource);
   for (const name of RETIRED) {
     for (const addition of [`\n  private async ${name}() { return null; }\n`, `\nthis.${name}();\n`, `\nthis['${name}']();\n`, `\nthis["${name}"]();\n`]) {
@@ -447,11 +464,27 @@ test('three retired Engagement roots have no private declarations or direct call
   assert.doesNotThrow(() => retiredRootsAbsent('// unrelated future Engagement comment\n' + engagementSource));
 });
 
-test('retained Engagement enrichment bill truth voice scrubber and canonical gateway seams remain free of a whole-file freeze', () => {
-  const enrichment = read('apps/api/src/engagement/engagement-intel-context.spec.ts');
-  const channels = read('apps/api/src/engagement/outreach-channels.spec.ts');
-  retainedEngagementSeams(engagementSource, enrichment, channels);
-  assert.doesNotThrow(() => retainedEngagementSeams('// unrelated future Engagement comment\n' + engagementSource, enrichment, channels));
-  assert.throws(() => retainedEngagementSeams(engagementSource.replace(/async billTruthBlock\(/, 'async renamedBillTruthBoundaryProbe('), enrichment, channels));
-  assert.throws(() => retainedEngagementSeams(engagementSource, enrichment.replace(/\.enrichOutreachContextItems\s*\(/g, '.removedBoundaryProbe('), channels));
+test('current Engagement evidence bill truth voice scrubber and gateway seams remain free of a whole-file freeze', () => {
+  const ports = {
+    engagement: engagementSource,
+    evidence: read('apps/api/src/engagement/generation/evidence-source.service.ts'),
+    packet: read('apps/api/src/engagement/generation/evidence-packet.service.ts'),
+    gateway: read('apps/api/src/engagement/generation/generation-gateway.service.ts'),
+    channels: read('apps/api/src/engagement/outreach-channels.spec.ts'),
+  };
+  retainedEngagementSeams(ports);
+  assert.doesNotThrow(() => retainedEngagementSeams({ ...ports,
+    engagement: '// unrelated future Engagement comment\n' + ports.engagement }));
+  assert.throws(() => retainedEngagementSeams({ ...ports,
+    engagement: ports.engagement.replace(/async billTruthBlock\(/, 'async renamedBillTruthBoundaryProbe(') }));
+  assert.throws(() => retainedEngagementSeams({ ...ports,
+    engagement: ports.engagement.replace(/this\.gateway\.generate\(/, 'this.gateway.removedBoundaryProbe(') }));
+  assert.throws(() => retainedEngagementSeams({ ...ports,
+    evidence: ports.evidence.replace(/this\.alertPacketClient\.fetchAlertPacket\(/, 'this.alertPacketClient.removedBoundaryProbe(') }));
+  assert.throws(() => retainedEngagementSeams({ ...ports,
+    packet: ports.packet.replace(/this\.sources\.resolveSelectedItems\(/, 'this.sources.removedBoundaryProbe(') }));
+  assert.throws(() => retainedEngagementSeams({ ...ports,
+    gateway: ports.gateway.replace(/packet\.criticalFailureCount > 0/, 'packet.criticalFailureCount < 0') }));
+  assert.throws(() => retainedEngagementSeams({ ...ports,
+    channels: ports.channels.replace(/\bscrubPiiForVoice\b/g, 'removedVoiceBoundaryProbe') }));
 });

@@ -1,0 +1,285 @@
+{
+  "sourceHead": "f69d4a1bdfe354d95daaffa273bd274d1bf89011",
+  "sourceBase": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "serviceTransition": {
+    "before": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a",
+    "after": "affbfc3e316b879b60826ab62edeffe7cc89206c09c71076dd974f8e5a55b8da",
+    "removedRegions": 7,
+    "removedPhysicalLines": 368,
+    "everyOtherServiceByte": "unchanged except exact import and historical comment deltas",
+    "activeSendDocumentation": "24d7ad896205b13a6b6af7aba68731904c0ff82f902d32a49e77cfad8e650718"
+  },
+  "changedApplications": [
+    "apps/api/src/engagement/engagement-intel-context.spec.ts",
+    "apps/api/src/engagement/engagement.service.ts"
+  ],
+  "changedPaths": [
+    "apps/api/src/engagement/engagement-intel-context.spec.ts",
+    "apps/api/src/engagement/engagement.service.ts",
+    "docs/backend-outreach-cleanup-20261016/.gitattributes",
+    "docs/backend-outreach-cleanup-20261016/SOURCE-MAP.md",
+    "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-candidate-reference-pass.json",
+    "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-candidate-regions.json",
+    "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-legacy-case-ids.json",
+    "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-pe-reference-pass.json",
+    "scripts/backend-source-qualification.mjs",
+    "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+    "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+    "tests/support/legacy-outreach/CASE-OWNERSHIP.json"
+  ],
+  "canonicalOperands": [
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "blob": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383",
+      "sha256": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a",
+      "bytes": 496964
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+      "blob": "b68b0c53d606967cb10eb0beccd800822aebc799",
+      "sha256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+      "bytes": 9523
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-context-enrichment.ts",
+      "blob": "d71ca064a7c95e20cf1a5e31db2d4b3065b02784",
+      "sha256": "43998c69005b79df2112e093f62412238860c445b7a35c97c994e556f1ef9f5b",
+      "bytes": 13662
+    },
+    {
+      "path": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+      "blob": "4f70f51c7243792522c9266730e570bc3fcb3249",
+      "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799",
+      "bytes": 11159
+    },
+    {
+      "path": "apps/api/src/engagement/generation/outreach-truth.service.ts",
+      "blob": "34ae7319426db63739c6b326566d36e785ecc39c",
+      "sha256": "db54b9bd0d299e2fe0a85cda4f257a7b2eeca0ed073296901ae87967b8c1c125",
+      "bytes": 10848
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "blob": "02f909fbb7dfa399ba681292793ebfbc58b23bff",
+      "sha256": "780469219325881b8d112afedade22b1b09ba544c7e516f48a1d4a52d36c4c2c",
+      "bytes": 61954
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+      "blob": "25b9a3f4255b779f1698d1b33ab8630e44a85021",
+      "sha256": "8536db36dc4689a48b5f6daa997f520e9c9b718b6f404f97f5acb7776a2d2d7e",
+      "bytes": 31130
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-packet.service.ts",
+      "blob": "2a78f2ed2f0353ba1a69aa66c5945bf41756988f",
+      "sha256": "21ba916bafd1b7a9984c0da79eb23452089c341981f582c204d2af559afb984e",
+      "bytes": 19092
+    },
+    {
+      "path": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "blob": "5b6d6933eed1656ec7ac3c2c022a18314214d316",
+      "sha256": "1503b57105009e4ec1f26f17b0c3849f713465b4118e430d3a8a631e5bc8da7b",
+      "bytes": 44061
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-batch-group.spec.ts",
+      "blob": "3432f5a83f7f8a678e995a3c16ef3fb4d993b617",
+      "sha256": "480d251572f765e21a42bbb8143570dbd1f83722b348954fd52d6dba14025616",
+      "bytes": 8164
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "blob": "00998e78899becc7dc52818f3f81c2cb88f46f39",
+      "sha256": "94f1692af740ef12a085d86b7d19ece1bed2fbaa84709ad4a1fbd6f0d8ff7d95",
+      "bytes": 6357
+    },
+    {
+      "path": "apps/api/jest.native-runtime-environment.cjs",
+      "blob": "5682accba9ead35890424577759e84c50ebc7514",
+      "sha256": "31f62c69f865af50dd442d681cb031f55b83aad85170104bcfd180888b6898ae",
+      "bytes": 6917
+    },
+    {
+      "path": "apps/api/jest.native-sanitize-html.cjs",
+      "blob": "29d9a327ef9db416ec68586c9659a5e3370fe7a8",
+      "sha256": "bdfa64149133ae51a4586e422adae5b9eeed6d00a6da4e001cac641120a23c2a",
+      "bytes": 1606
+    },
+    {
+      "path": "apps/api/jest.native-tango.cjs",
+      "blob": "f7004e5dc4e7faf1747a1b1899854ec2abc91ee9",
+      "sha256": "81ad8f0e29e31a1a4a9e83f56b50c1739b3c1f4eff597c9b8742ddfdf295f894",
+      "bytes": 2016
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "blob": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd",
+      "sha256": "3da640a20f09c14764dbb33eeda2b15bb65ddf21ffbdef048e220bf0ec6ae5f7",
+      "bytes": 12850
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "blob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789",
+      "sha256": "0ecbfb2a53e9154e3d5677b68467e0e8b82563dec4fa1b71fa98c14d230c6475",
+      "bytes": 2580
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae",
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220",
+      "bytes": 624
+    },
+    {
+      "path": "tsconfig.base.json",
+      "blob": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "bytes": 471
+    },
+    {
+      "path": "apps/api/package.json",
+      "blob": "7fa0f785eaa48abdf361eb7a82fcea934c6ae3fe",
+      "sha256": "10a90b3357aad5c52dc04ae2e00d25dadd5a501ee49a9eb8fd25e6904c501c40",
+      "bytes": 29061
+    },
+    {
+      "path": "package.json",
+      "blob": "239885efbbdb940372d6c8a68ff1364f3523bff0",
+      "sha256": "5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0",
+      "bytes": 14391
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "blob": "bef9bfeb6b9840a272a71ae5b0c6debf85d527f8",
+      "sha256": "9d56f16020e0229e5724e629b4b9db4eec960f69c571cff5659585b839c2de07",
+      "bytes": 70
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "blob": "88d3bff652c22a7d9139a1a46bafd68411b3d4fe",
+      "sha256": "c40a4e5d624cf42f498a1ec0fb87851d970a7395d55afdb3c9e7cbbe38ced948",
+      "bytes": 723468
+    }
+  ],
+  "historicalCaseIdentities": [
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration rewrites an intel item body from the fetched packet, forwarding clientId/authHeader/alertId",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+      "title": "rewrites an intel item body from the fetched packet, forwarding clientId/authHeader/alertId",
+      "declarationLine": 113
+    },
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration an unverifiable alert gets an honest gap body — never the literal \"undefined\"",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+      "title": "an unverifiable alert gets an honest gap body — never the literal \"undefined\"",
+      "declarationLine": 127
+    },
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration a null clientId never calls the packet client and gets an honest gap",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+      "title": "a null clientId never calls the packet client and gets an honest gap",
+      "declarationLine": 142
+    },
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration other kinds are unaffected",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+      "title": "other kinds are unaffected",
+      "declarationLine": 154
+    },
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay OUTREACH_CLIENT_PROFILE off: the packet is rendered as-is, still honestly missing the relationship fields",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+      "title": "OUTREACH_CLIENT_PROFILE off: the packet is rendered as-is, still honestly missing the relationship fields",
+      "declarationLine": 168
+    },
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay OUTREACH_CLIENT_PROFILE on: fills people/target-offices/recent-meetings and drops exactly those three from Unknowns",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+      "title": "OUTREACH_CLIENT_PROFILE on: fills people/target-offices/recent-meetings and drops exactly those three from Unknowns",
+      "declarationLine": 185
+    },
+    {
+      "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay never fetches client-relationship data when no item is intel-kind",
+      "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+      "title": "never fetches client-relationship data when no item is intel-kind",
+      "declarationLine": 212
+    }
+  ],
+  "historicalNativeStatus": "UNRUN",
+  "flagOnOverlayCurrentEquivalent": false,
+  "unchangedMeriContractPrefixSHA256": "f0848f58df36bf7fdb50fa7d95bd552ff70fa5b4392f0d3f470c8df71ad1132c",
+  "focusedStageInputs": {
+    "timestamp": "2026-10-16T05:08:51.2046225Z",
+    "representation": "UTF8 with LF; builtin focused stage operands",
+    "inputs": [
+      {
+        "path": "apps/api/src/engagement/engagement.service.ts",
+        "sha256": "affbfc3e316b879b60826ab62edeffe7cc89206c09c71076dd974f8e5a55b8da",
+        "bytes": 480783
+      },
+      {
+        "path": "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+        "sha256": "90665e6a9d4ddc6272e9c68964b5573676f3be89a8666ad6b0e7931fc1455d70",
+        "bytes": 19216
+      },
+      {
+        "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+        "sha256": "d9e24818132fbe398dee099d118b1515aa87636f4222ca57d8bd185ddf57c53e",
+        "bytes": 33787
+      },
+      {
+        "path": "scripts/backend-source-qualification.mjs",
+        "sha256": "b482388f28fcdbf8071cebd32012a1a99b2790acef69e48ceaa32a8caaa852e0",
+        "bytes": 16103
+      },
+      {
+        "path": "scripts/backend-source-qualification.spec.mjs",
+        "sha256": "82f226ab32d7e5dd50ae69f819c1f07bf149bdff9b7bbc2d71ee13d340dfd644",
+        "bytes": 11484
+      },
+      {
+        "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+        "sha256": "780469219325881b8d112afedade22b1b09ba544c7e516f48a1d4a52d36c4c2c",
+        "bytes": 61954
+      },
+      {
+        "path": "apps/api/src/engagement/generation/evidence-packet.types.ts",
+        "sha256": "cff9dc6f348b0919df2ec43557c37c391a34719fabc303d319cde65cb092e245",
+        "bytes": 12758
+      },
+      {
+        "path": "apps/api/src/engagement/generation/evidence-freshness.ts",
+        "sha256": "16d6b0651b445c1b370a4f564eec2f67689c5bf76b1e68d01d6470bb61e0484e",
+        "bytes": 3300
+      },
+      {
+        "path": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+        "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799",
+        "bytes": 11159
+      }
+    ]
+  },
+  "currentControlInputs": [
+    {
+      "path": "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+      "sha256": "90665e6a9d4ddc6272e9c68964b5573676f3be89a8666ad6b0e7931fc1455d70"
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "sha256": "d9e24818132fbe398dee099d118b1515aa87636f4222ca57d8bd185ddf57c53e"
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "sha256": "b482388f28fcdbf8071cebd32012a1a99b2790acef69e48ceaa32a8caaa852e0"
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "sha256": "82f226ab32d7e5dd50ae69f819c1f07bf149bdff9b7bbc2d71ee13d340dfd644"
+    },
+    {
+      "path": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+      "sha256": "1600e78cd21cdb7dae02d780af048eed8b799655899246ed86a9fd2e0ca6809b"
+    }
+  ],
+  "limits": "Finite source ownership and exact byte transition only. Fixture contexts are not caller admission. No native/compiler/framework/build/image/DB/provider/historical execution."
+}

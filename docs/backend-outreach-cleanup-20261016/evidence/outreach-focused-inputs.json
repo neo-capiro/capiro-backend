@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-10-16T05:08:51.2046225Z",
+  "representation": "UTF8 with LF; builtin focused stage operands",
+  "inputs": [
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "sha256": "affbfc3e316b879b60826ab62edeffe7cc89206c09c71076dd974f8e5a55b8da",
+      "bytes": 480783
+    },
+    {
+      "path": "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+      "sha256": "90665e6a9d4ddc6272e9c68964b5573676f3be89a8666ad6b0e7931fc1455d70",
+      "bytes": 19216
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "sha256": "d9e24818132fbe398dee099d118b1515aa87636f4222ca57d8bd185ddf57c53e",
+      "bytes": 33787
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "sha256": "b482388f28fcdbf8071cebd32012a1a99b2790acef69e48ceaa32a8caaa852e0",
+      "bytes": 16103
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "sha256": "82f226ab32d7e5dd50ae69f819c1f07bf149bdff9b7bbc2d71ee13d340dfd644",
+      "bytes": 11484
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "sha256": "780469219325881b8d112afedade22b1b09ba544c7e516f48a1d4a52d36c4c2c",
+      "bytes": 61954
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-packet.types.ts",
+      "sha256": "cff9dc6f348b0919df2ec43557c37c391a34719fabc303d319cde65cb092e245",
+      "bytes": 12758
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-freshness.ts",
+      "sha256": "16d6b0651b445c1b370a4f564eec2f67689c5bf76b1e68d01d6470bb61e0484e",
+      "bytes": 3300
+    },
+    {
+      "path": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+      "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799",
+      "bytes": 11159
+    }
+  ]
+}

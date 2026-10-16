@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "status": "IMPLEMENTED_SOURCE_REVIEW_ONLY_UNRUN",
+  "premapCommit": "17b41b79b0bb8e023520cb4137e7a2fdcbb18959",
+  "acceptedBase": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "ownedSourceChanges": [
+    {
+      "path": "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+      "change": "New bounded builtin current-evidence controls",
+      "sha256": "90665e6a9d4ddc6272e9c68964b5573676f3be89a8666ad6b0e7931fc1455d70",
+      "physicalLines": 288,
+      "topLevelCases": 12
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "change": "Only the Engagement tail beginning const RETIRED, formerly line 414; 52 insertions / 19 deletions",
+      "sha256": "d9e24818132fbe398dee099d118b1515aa87636f4222ca57d8bd185ddf57c53e",
+      "engagementCasesBefore": 2,
+      "engagementCasesAfter": 2,
+      "meriPrefixUnchanged": true
+    }
+  ],
+  "meriPrefixProof": {
+    "boundary": "All raw UTF-8 bytes before the first const RETIRED = declaration",
+    "bytesBefore": 28553,
+    "bytesAfter": 28553,
+    "sha256Before": "f0848f58df36bf7fdb50fa7d95bd552ff70fa5b4392f0d3f470c8df71ad1132c",
+    "sha256After": "f0848f58df36bf7fdb50fa7d95bd552ff70fa5b4392f0d3f470c8df71ad1132c",
+    "rawBytesUnchanged": true,
+    "topLevelCasesBefore": 22,
+    "topLevelCasesAfter": 22,
+    "includes": "Original imports, functions, constants, setup and all 22 Meri test declarations"
+  },
+  "actualSourceBindings": [
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "premapBlob": "02f909fbb7dfa399ba681292793ebfbc58b23bff",
+      "methods": ["resolveSelectedItems", "resolveOne", "resolveIntelAlert", "resolveCustomNote", "malformedId", "freshnessFailures", "ref", "item"],
+      "pureGlobals": ["parsePrefixed", "clip"],
+      "loading": "Unique named method/function source boundaries; original selected bodies in a minimal class; builtin strip mode; no decorated application class or constructor imported"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-packet.types.ts",
+      "premapBlob": "3017ba39bb62c0bc96c4c895429ccc5d749e8c74",
+      "loading": "Whole actual pure module, builtin strip mode, runtime imports/reexports/dynamic imports refused"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-freshness.ts",
+      "premapBlob": "01af4bec15adc3c83e85586a6012d09b37fb46b3",
+      "loading": "Whole actual pure module, builtin strip mode, runtime imports/reexports/dynamic imports refused"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+      "premapBlob": "4f70f51c7243792522c9266730e570bc3fcb3249",
+      "exports": ["renderAlertPacketForOutreach", "OUTREACH_SUMMARY_MAX"],
+      "loading": "Exact unique renderer function and bound declaration only; real alert fetch producer remains unchanged and is not loaded"
+    }
+  ],
+  "fixturePorts": ["alertPacketClient.fetchAlertPacket", "logger.warn"],
+  "newCaseCoverage": [
+    "Exact auth/client/alert forwarding; server truth identity/provenance/scope; browser prose ignored at resolver level",
+    "Null packet is critical with zero evidence and no fabricated fallback",
+    "Null or empty client causes no fetch and a critical failure",
+    "Malformed alert identifiers cause no fetch; current suffix trimming preserved",
+    "Thrown fetch becomes a logged critical resolution failure",
+    "Authenticated item instructions are distinct from evidence and survive lookup failure with real clipping",
+    "Custom-note instruction and legacy meeting dispatch do not fetch intel",
+    "User-marked fact notes remain bounded user-authored evidence",
+    "Missing relationship names remain Unknowns; no legacy overlay/database port; ownership negative mutations",
+    "Real deterministic comparators produce identical ordered results for reversed selection",
+    "Occurred/effective as-of precedence and actual missing/stale freshness caveats",
+    "Evidence-heavy official list respects the real renderer budget while retaining Unknowns/actions and complete structured truth"
+  ],
+  "engagementTailCoverage": {
+    "retiredRoots": ["outreachContext", "outreachVoiceFewShots", "batchRecipientCorrespondence", "persistOutreachHold", "enrichOutreachContextItems", "recentClientMeetingsForOutreach", "peTruthBlock", "outreachClientPeopleBlock", "outreachClientTargetOfficesBlock", "outreachTargetRecommendations"],
+    "retiredNegatives": "Each private declaration and direct dot/single-quoted/double-quoted call counterexample must fail",
+    "retainedBoundaries": ["Public billTruthBlock delegates to canonical truth", "Voice scrubber export and existing channel consumer", "buildGatewayEnrichment and canonical gateway.generate", "Gateway packet compilation and forwarded auth header", "Critical source failure gate before the current plan/provider path", "Packet service current source resolver and auth forwarding", "EvidenceSource current per-kind alert dispatch, exact fetch operands and actual renderer"],
+    "retainedNegatives": "Removed public bill boundary, gateway generation, alert fetch, packet resolver, critical gate and voice export/import each fail",
+    "futureEdits": "Unrelated Engagement/source comments are admitted; no whole-file or body hash freeze in permanent tests",
+    "removedRequirement": "No demand for the dead helper declaration, dead this.billTruthBlock call, or seven dead-facade native calls"
+  },
+  "verificationPerformed": ["Finite source reads and Git source metadata", "Source diff limited to the allocated Engagement tail", "PowerShell raw prefix SHA256/byte-count equality", "Text declaration count: new 12; existing Meri 22 plus Engagement 2"],
+  "execution": {
+    "node": "NOT_RUN",
+    "tests": "NOT_RUN",
+    "typeStripOrParser": "NOT_RUN",
+    "compilerOrFramework": "NOT_RUN",
+    "parentProposedArgv": ["node", "--max-old-space-size=96", "--test", "--test-concurrency=1", "scripts/ci/outreach-current-evidence.contract.spec.mjs", "scripts/ci/meri-domain-cleanup.contract.spec.mjs"],
+    "expectedTopLevelCases": 36,
+    "heapBudgetQualification": "Proposal only; no peak memory measurement made here"
+  },
+  "limitations": [
+    "Fixture contexts and headers do not authenticate or authorize a caller; no controller/guard/Core admission/tenant-wall proof",
+    "The browser body/title tamper case is resolver-level defense, not a claim that gateway DTOs admit those fields",
+    "No DB/RLS, native graph, full resolver, Nest DI, TypeScript typing, provider, network or fetch-producer qualification",
+    "No copied old helper implementation or forged old/current parity; old profile-on relationship overlay behavior has no new equivalent here",
+    "Renderer bound case is the actual evidence-list budgeting behavior on the declared fixture, not a new guarantee for arbitrary oversized event/metadata fields",
+    "Source seam checks are bounded textual controls, not a compiler or global/dynamic call graph"
+  ],
+  "sourceEditsOutsideAllocation": false,
+  "commitsOrGitRefChanges": false,
+  "remaining": "Independent source review and all execution belong to the parent; existing old-profile historical disposition belongs to the separate sealed ledger owner"
+}

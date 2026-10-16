@@ -178,6 +178,7 @@ export function backendSourcePlan() {
       ['Current Meri domain and Engagement cleanup contracts', ['--test', '--test-isolation=none', 'scripts/ci/meri-domain-cleanup.contract.spec.mjs']],
       ['Current Meri stream and RP dispatch contracts', ['--test', '--test-isolation=none',
         'scripts/ci/meri-loop-current-runtime.contract.spec.mjs', 'scripts/ci/meri-current-turn-dispatch.contract.spec.mjs']],
+      ['Current outreach evidence contracts', ['--test', '--test-isolation=none', 'scripts/ci/outreach-current-evidence.contract.spec.mjs']],
       ['Historical Meri replay planner controls', ['--test', '--test-isolation=none', 'tests/support/legacy-meri/replay-plan.spec.mjs']],
     ],
     historical: [
@@ -200,6 +201,13 @@ export function backendSourcePlan() {
       nativeReplayStatus: 'UNRUN',
       owner: 'backend legacy Meri replay/shared local queue',
       scope: 'plan/data preflight only; historical execution never qualifies current backend',
+    },
+    historicalOutreach: {
+      ledger: 'tests/support/legacy-outreach/CASE-OWNERSHIP.json',
+      sourceCommit: 'a2e3eee209dc82d7536f3fc318a9d952c80e628a',
+      historicalCases: 7, nativeReplayStatus: 'UNRUN',
+      owner: 'backend legacy outreach/shared local queue',
+      gap: 'Legacy flag-on relationship overlay has no current resolver equivalent; no current pass is inferred.',
     },
     acceptanceLimits: ['no current frontend parity', 'no compiler/build/native/database/browser execution',
       'no live router/service/deployment attestation', 'no preview header authority or browser-table write'],

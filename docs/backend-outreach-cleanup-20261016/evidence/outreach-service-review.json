@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "outcome": "No source correctness finding in the bounded diff/reference review; independent byte-reconstruction execution did not start.",
+  "sourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "premapCommit": "17b41b79b0bb8e023520cb4137e7a2fdcbb18959",
+  "findings": [],
+  "service": {
+    "path": "apps/api/src/engagement/engagement.service.ts",
+    "reviewedDiff": "git diff a2e3eee209dc82d7536f3fc318a9d952c80e628a -- apps/api/src/engagement/engagement.service.ts",
+    "sourceBlob": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383",
+    "afterBlobFromRemovalReceipt": "5bbe33a50b48da58b4a21a4d927ae91f523cb41e",
+    "afterSha256FromRemovalReceipt": "affbfc3e316b879b60826ab62edeffe7cc89206c09c71076dd974f8e5a55b8da",
+    "delta": "Seven mapped blocks, nine removed bindings across five import clauses, and one comment update. No other source hunk appears in the reviewed diff.",
+    "removedRegions": [
+      { "method": "persistOutreachHold", "originalLines": [4386, 4463], "incomingCalls": [] },
+      { "method": "recentClientMeetingsForOutreach", "originalLines": [9596, 9641], "incomingCalls": ["enrichOutreachContextItems at 9705"] },
+      { "method": "enrichOutreachContextItems", "originalLines": [9643, 9775], "incomingCalls": ["seven historical direct private-helper fixtures only"] },
+      { "method": "peTruthBlock", "originalLines": [9793, 9796], "incomingCalls": ["enrichOutreachContextItems at 9734"] },
+      { "method": "outreachClientPeopleBlock", "originalLines": [9933, 9952], "incomingCalls": ["enrichOutreachContextItems at 9703"] },
+      { "method": "outreachClientTargetOfficesBlock", "originalLines": [9954, 10015], "incomingCalls": ["enrichOutreachContextItems at 9704"] },
+      { "method": "outreachTargetRecommendations", "originalLines": [10246, 10270], "incomingCalls": ["outreachClientTargetOfficesBlock at 9981"] }
+    ],
+    "runtimeIncomingConclusion": "No incoming production call from outside the removed graph in the finite evidence. Comments, historical fixtures and source-verifier strings are accounted separately; this is not deployed traffic or arbitrary reflection proof.",
+    "preserved": [
+      "Active send JSDoc originally at 4379-4385 remains before the send compatibility-route documentation; it was not deleted with the hold writer.",
+      "Constructor and provider order have no diff hunk; AlertPacketClientService constructor slot remains.",
+      "Public billTruthBlock remains at current 9520-9524 and delegates this.truth.billTruthBlock; canonical truth.peTruthBlock calls remain distinct from the removed private facade.",
+      "Current generateBatchEmailsViaGateway and gateway.generate path have no behavior delta; current generation/source files are outside the service edit.",
+      "Historical hold key, subject type, blocking statuses, tenant-scoped reviewRequest reader and per-draft send refusal remain; only the comment replaces the removed writer name with historical-hold wording."
+    ],
+    "importReview": "The nine binding removals are confined to the removed hold/enrichment graph. Remaining canonical helper imports and AlertPacketClientService class import are retained. No helper implementation, flag, DTO, constructor or provider is changed."
+  },
+  "referenceEvidence": {
+    "receipt": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-candidate-reference-pass.json",
+    "receiptSource": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+    "peReceipt": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-pe-reference-pass.json",
+    "extensionToA2": "The bounded f3-to-a2 tracked-code diff was inspected for the seven exact names; no matching changed line was returned. Engagement source is identical at f3 and a2. No new comprehensive source scan was run.",
+    "limits": "Finite exact-name/source evidence, not framework execution, dynamic reflection, deployed traffic, DB/RLS or full application acceptance."
+  },
+  "catalog": {
+    "path": "scripts/backend-source-qualification.mjs",
+    "delta": "One fixed current source-test entry and one historicalOutreach metadata object; existing runner logic and all other entries are unchanged in the reviewed diff.",
+    "currentEntryArgv": ["--test", "--test-isolation=none", "scripts/ci/outreach-current-evidence.contract.spec.mjs"],
+    "currentScope": "Actual finite resolver methods and pure helpers with explicit fake alert-fetch/logger ports. The target states that it does not qualify controllers/guards, DB/RLS, Nest DI, native typing, the fetch producer, other resolver kinds or the gateway.",
+    "historicalSourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+    "historicalCases": 7,
+    "historicalStatus": "UNRUN",
+    "historicalOwner": "backend legacy outreach/shared local queue",
+    "flagOnOverlay": "Explicitly no current resolver equivalent; no current pass inferred.",
+    "executionBoundary": "Only plan.current is executed under the existing fixed-argv equality/empty-plan refusal, finite timeout and heap setting. historicalOutreach is ownership metadata and is not automatically replayed. Existing native/build/image/frontend UNRUN ownership remains."
+  },
+  "canonicalIdentityEvidence": {
+    "sourceSpecBlob": "b68b0c53d606967cb10eb0beccd800822aebc799",
+    "sourceSpecSha256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+    "captureMethod": "The earlier manifest capture read canonical Git StandardOutput.BaseStream bytes, checked derived blob SHA1 against Git, decoded strict UTF-8 and extracted scalar suite/test declarations. It reported seven unique exact IDs and zero committed-premap differences.",
+    "independentCoordination": "Parent reports mirror binary UTF-8 proof confirmed all seven exact identities. This review does not infer an identity change from console hyphen rendering, and does not claim the failed reconstruction command produced new proof.",
+    "identityCorrectionNeeded": false
+  },
+  "launcherFailure": {
+    "action": "Attempted PowerShell read-only exact byte reconstruction and canonical identity review receipt generation",
+    "target": "Pinned a2 Engagement/spec/catalog bytes and current frozen files; intended output evidence/outreach-service-review.json",
+    "exactError": "MXC launcher: CreateProcessInSandbox failed with error code 5 (0x00000005).",
+    "exitCode": 1,
+    "wallTimeSeconds": 0,
+    "status": "Failed before process creation; no reconstruction result or file write from that command is claimed.",
+    "retry": "No repeat or escalation of that failed operation. Review receipt written with apply_patch from already-read evidence."
+  },
+  "metadataCorrection": {
+    "path": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+    "change": "Replace inaccurate aggregate 11/single group path with exact group/revise/sticky-provider paths and unchanged/native-UNRUN scope, omitting aggregate count.",
+    "supersededClaimPreservedAt": "evidence/outreach-historical-ownership.json batchOwnershipCorrection",
+    "finalManifestHash": "Pending root computation after apply_patch metadata correction; old hash retained separately and not presented as current."
+  },
+  "qualification": {
+    "nodeTestsCompilerFrameworkExecuted": false,
+    "productionEditsByReviewer": false,
+    "gitRefsChanged": false,
+    "nativeCurrent": "UNRUN by reviewer",
+    "nativeHistorical": "UNRUN",
+    "independentExactByteReconstruction": "UNRUN: launcher failed before execution; existing removal receipt describes its separately completed source inverse."
+  }
+}
