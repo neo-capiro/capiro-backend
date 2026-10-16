@@ -1,0 +1,42 @@
+{
+  "base": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "files": [
+    {
+      "path": "apps/api/src/auth/application-authority.module.spec.ts",
+      "sha256": "aff3e70651d6177e18c9664a66b41fc34d22432933b58a01ec26ee784e4dca0f"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.module.ts",
+      "sha256": "a9a450297f1c37b5f6c3164e3fa370542172470f843c43017457ce9f8f51b1f3"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership-request.ts",
+      "sha256": "f1ff3779a9817dc0fee330f1a8eb67faeea971f8e4e1a18109936377324ff340"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.controller.ts",
+      "sha256": "81b4e23fe2a5596cf4daaacf0fcc08af747ca58aa17e8853500c25e3a4553386"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.service.ts",
+      "sha256": "8d4f301d8674c006aaeebee76c1137b66c1dd5d3743ceed041a2984b51538440"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.spec.ts",
+      "sha256": "05086eb8dd6b2a3c9a6fc8b2dbe0712e945b90d81a48e40ddd24811688a657b6"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.ts",
+      "sha256": "c40054c008e5d710be904cbd285e39aad3d5bc7623bb3c05cf08690e6857f0c6"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "sha256": "c94ceeb0687fa09c3673aa1a97022439d15d4686e4e7b80f580231092350b294"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "80511693576467e56004fd7147f3c79c23f9ad79f9cc543c88a381489b40c907"
+    }
+  ],
+  "sourceSetSha256": "92adf2de1a2482a82c11c397179b299e2df7916f6f56b68fbef2c542b3e39433"
+}
