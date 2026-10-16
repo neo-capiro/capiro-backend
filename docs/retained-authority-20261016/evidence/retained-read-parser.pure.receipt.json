@@ -1,0 +1,105 @@
+{
+  "check": "pure shared parser using actual readonly JCS",
+  "maxOldSpaceMb": 128,
+  "scriptSha256": "7fd8bd2d0271b21fa3a81e1f4014a2f8ba8a066c218a09885a66615f861c6ee5",
+  "jcsPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-4\\meri-greenfield\\node_modules\\canonicalize\\lib\\canonicalize.js",
+  "jcsSha256": "c1d0195af2a0748454b06af8f218e5c90415c19d39154d0058fee8229c12d859",
+  "jcsVersion": "5.1.0",
+  "sourceHashes": {
+    "packages/shared/src/core-retained-read-request.ts": "ce8e1ecfecaed02a3f9c10794e4cc370817b5c2c69e85f9eb4d0ea3b635275a7",
+    "packages/shared/src/core-retained-authority-probe.ts": "62037476acf41009263015c877a34c78c8c2996a83ebf0a3c0476d33a1777a62"
+  },
+  "total": 22,
+  "passed": 22,
+  "failed": 0,
+  "results": [
+    {
+      "name": "RP Detail normalized and all three real-JCS digests",
+      "pass": true
+    },
+    {
+      "name": "RP Changes trims cursor and defaults limit25",
+      "pass": true
+    },
+    {
+      "name": "Florida defaults preserve empty session/nulls",
+      "pass": true
+    },
+    {
+      "name": "Florida named client resolution and frozen offset conversion",
+      "pass": true
+    },
+    {
+      "name": "Real-JCS Unicode string without byte substitution",
+      "pass": true
+    },
+    {
+      "name": "Issuer preserves exact original expiry",
+      "pass": true
+    },
+    {
+      "name": "Getter rejected without invocation",
+      "pass": true
+    },
+    {
+      "name": "Proxy rejected without traps",
+      "pass": true
+    },
+    {
+      "name": "Subject scope policy mismatch rejected",
+      "pass": true
+    },
+    {
+      "name": "Explicit Florida null request fields accepted",
+      "pass": true
+    },
+    {
+      "name": "Missing context null rejected",
+      "pass": true
+    },
+    {
+      "name": "Native nonUUID folder unavailable without widening",
+      "pass": true
+    },
+    {
+      "name": "Body above2MiB rejected before encoder",
+      "pass": true
+    },
+    {
+      "name": "Provider empty returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider detached empty object returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider malformed JSON returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider raw invalid Unicode returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider throwing returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider changed value returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider duplicate key portfolioId returns503",
+      "pass": true
+    },
+    {
+      "name": "Provider duplicate key \\u0070ortfolioId returns503",
+      "pass": true
+    },
+    {
+      "name": "Raw invalid Unicode is400 before provider",
+      "pass": true
+    }
+  ]
+}

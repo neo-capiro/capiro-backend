@@ -1,0 +1,50 @@
+{
+  "command": "node --max-old-space-size=128 retained-codec-real-jcs-check.cjs",
+  "startedAt": "2026-10-16T04:07:13.455Z",
+  "node": "v24.19.0",
+  "maxOldSpaceSizeMiB": 128,
+  "observedHeapSizeLimitBytes": 335544320,
+  "baselineStructuralChecks": 0,
+  "realJcsChecks": [],
+  "sourceEdits": false,
+  "network": false,
+  "install": false,
+  "jest": false,
+  "build": false,
+  "database": false,
+  "provider": false,
+  "syntheticInMemoryKeysOnly": true,
+  "keyPersistence": false,
+  "tokensOrKeysEmitted": false,
+  "qualification": "Pure actual-source crypto/codec regression; not live authority, transport, business, deployment or integration qualification.",
+  "earlierUnrunRecord": "Earlier 62-check run had no installed JCS in its checked runtime. That historical unrun result is preserved; this separate run uses newly supplied read-only dependency evidence.",
+  "jcs": {
+    "path": "C:/Users/neoma/Documents/Codex/2026-10-15/task-4/meri-greenfield/node_modules/canonicalize/lib/canonicalize.js",
+    "bytes": 7145,
+    "sha256": "c1d0195af2a0748454b06af8f218e5c90415c19d39154d0058fee8229c12d859",
+    "package": {
+      "path": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-4\\meri-greenfield\\node_modules\\canonicalize\\package.json",
+      "bytes": 1553,
+      "sha256": "ca7454aac0f76429b5d56bbc3bd61fa706fb1088a19f45d64cf38e055fbf4670"
+    },
+    "version": "5.1.0"
+  },
+  "exitCode": 1,
+  "failure": {
+    "stage": "read supplied JCS package",
+    "errorClass": "Error"
+  },
+  "finishedAt": "2026-10-16T04:07:13.461Z",
+  "memoryUsageBytes": {
+    "rss": 37793792,
+    "heapTotal": 7069696,
+    "heapUsed": 5865496,
+    "external": 2214506,
+    "arrayBuffers": 143823
+  },
+  "helper": {
+    "path": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-codec-real-jcs-check.cjs",
+    "bytes": 25228,
+    "sha256": "6cf62835b344dd18aab22ed4a07cc712026d8f4f574b3bb7d260f8024a557b9a"
+  }
+}
