@@ -1,0 +1,116 @@
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/get-document.capability.ts:9:  outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/get-document.capability.ts:10:  outreachContextSelectionV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/get-document.capability.ts:27:    scope: outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/get-document.capability.ts:91:    const selection = outreachContextSelectionV1Schema.parse({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.spec.ts:7:  outreachContextSelectionV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.spec.ts:35:      outreachContextSelectionV1Schema.parse({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.spec.ts:45:      outreachContextSelectionV1Schema.parse({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:53:export const outreachContextScopeV1Schema = z.discriminatedUnion('kind', [
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:68:export type OutreachContextScopeV1 = z.infer<typeof outreachContextScopeV1Schema>;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:143:export const outreachContextLocatorV1Schema = z.discriminatedUnion('source', [
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:151:export type OutreachContextLocatorV1 = z.infer<typeof outreachContextLocatorV1Schema>;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:153:export const outreachContextSelectionV1Schema = z
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:155:    locator: outreachContextLocatorV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:157:    scope: outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:186:export type OutreachContextSelectionV1 = z.infer<typeof outreachContextSelectionV1Schema>;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:199:    locator: outreachContextLocatorV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:201:    scope: outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:299:  const parsed = outreachContextLocatorV1Schema.parse(input);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:324:  const parsed = outreachContextScopeV1Schema.parse(input);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:331:  const parsed = outreachContextSelectionV1Schema.parse(input);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/outreach-context.contract.ts:332:  return outreachContextSelectionV1Schema.parse({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/research-government.capability.ts:9:  outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/research-government.capability.ts:10:  outreachContextSelectionV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/research-government.capability.ts:22:    scope: outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/research-government.capability.ts:102:        selection: outreachContextSelectionV1Schema.parse({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/search-memory.capability.ts:12:  outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/search-memory.capability.ts:13:  outreachContextSelectionV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/search-memory.capability.ts:29:    scope: outreachContextScopeV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/capabilities/context/search-memory.capability.ts:165:      const selection = outreachContextSelectionV1Schema.parse({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json:2602:      "handler": "outreachContextLibrary",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/outreach-v3-p1-reverse-dependencies.v1.json:3:  {"consumerModule":"AlertMemoModule","consumerFile":"apps/api/src/intelligence/alert-memo/alert-memo.module.ts","currentImport":"AiCredentialsModule + CapiroTruthModule + ClientDocumentsModule","symbols":["AiCredentialResolverService","DeliverableEngagementPort"],"methodUses":["billTruthBlock","createAttachmentFromBuffer","supersedeAttachment"],"targetBoundary":"ai-credentials + canonical truth + client-documents","allowedAfterPhase1":true},
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-error-status.spec.ts:95:  patch.batchRecipientCorrespondence = async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-group.spec.ts:117:  patch.batchRecipientCorrespondence = async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-revise.spec.ts:91:  patch.batchRecipientCorrespondence = async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-sticky-provider.spec.ts:100:  patch.batchRecipientCorrespondence = async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:3:// Generate request sends id-only (no body), and enrichOutreachContextItems had
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:13:// enrichOutreachContextItems directly.
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:97:  patch.outreachClientPeopleBlock = jest.fn(async () => opts.peopleBlock ?? null);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:98:  patch.outreachClientTargetOfficesBlock = jest.fn(async () => opts.targetOfficesBlock ?? null);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:99:  patch.recentClientMeetingsForOutreach = jest.fn(async () => opts.recentMeetings ?? []);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:101:    enrichOutreachContextItems: (
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:112:describe('EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration', () => {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:116:    const { items } = await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:130:    const { items } = await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:145:    const { items } = await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:157:    const { items } = await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:167:describe('EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay', () => {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:175:    const { items } = await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:194:    const { items } = await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:218:    (svc as unknown as Record<string, unknown>).outreachClientPeopleBlock = peopleBlockFn;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:219:    await svc.enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-owner-isolation.spec.ts:403:    // legacy outreachContext loader. The ordering proof is unchanged.
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.controller.ts:2724:  outreachContextLibrary(@CurrentTenant() ctx: TenantContext) {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:185:// built for the prompt (see enrichOutreachContextItems below).
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:539: * rendered text (see enrichOutreachContextItems), keyed by context-item id.
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:4310:          const block = billId ? await this.truth.billTruthBlock(billId) : null;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:4324:          const block = peCode ? await this.truth.peTruthBlock(peCode) : null;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9595:  private async outreachContext(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9618:          ? this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => [])
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9646:  private async recentClientMeetingsForOutreach(ctx: TenantContext, clientId: string) {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9728:  private async enrichOutreachContextItems(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9753:          this.outreachClientPeopleBlock(ctx, clientId).catch(() => null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9754:          this.outreachClientTargetOfficesBlock(ctx, clientId).catch(() => null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9755:          this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => []),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9775:            const block = billId ? await this.billTruthBlock(billId) : null;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9784:            const block = peCode ? await this.peTruthBlock(peCode) : null;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9836:  async billTruthBlock(billId: string): Promise<{ text: string; raw: BillTruth } | null> {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9840:    return this.truth.billTruthBlock(billId);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9844:  private async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9845:    return this.truth.peTruthBlock(peCode);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:9989:  private async outreachClientPeopleBlock(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10011:  private async outreachClientTargetOfficesBlock(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10031:      this.outreachTargetRecommendations(ctx, clientId),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10288:  private async outreachVoiceFewShots(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10365:  private async outreachTargetRecommendations(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10439:  private async batchRecipientCorrespondence(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/author-style-profile.service.ts:8: *   1. Cross-client leakage. `outreachVoiceFewShots` selected by AUTHOR only, so
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/evidence-source.service.spec.ts:55:    billTruthBlock: jest.fn(async () => opts.bill ?? null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/evidence-source.service.spec.ts:57:    peTruthBlock: jest.fn(async () => opts.pe ?? null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/evidence-source.service.spec.ts:138:    expect(truth.billTruthBlock).toHaveBeenCalledWith('hr1234-119');
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/evidence-source.service.ts:271:    const block = await this.truth.billTruthBlock(billId);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/evidence-source.service.ts:371:    const block = await this.truth.peTruthBlock(peCode);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/generation-gateway.types.ts:93:   * draft. The legacy path threaded it (enrichOutreachContextItems); the gateway
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/outreach-truth.service.ts:13: * EngagementService.billTruthBlock() remains as a thin delegate because
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/outreach-truth.service.ts:43:  async billTruthBlock(billId: string): Promise<{ text: string; raw: BillTruth } | null> {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/outreach-truth.service.ts:145:  async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-citations.spec.ts:65:    billTruthBlock: jest.fn(async () => null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-held-gate.spec.ts:187:    billTruthBlock: jest.fn(async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts:45:function makeDeps(opts: { billTruthBlock?: () => Promise<unknown> } = {}) {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts:73:    billTruthBlock: jest.fn(opts.billTruthBlock ?? (async () => null)),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts:198:    const billTruthBlock = jest.fn(async () => null);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts:199:    const { service } = makeDeps({ billTruthBlock });
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts:204:    expect(billTruthBlock).not.toHaveBeenCalled();
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-templates.spec.ts:36:    billTruthBlock: jest.fn(async () => null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo-templates.spec.ts:275:    expect(engagement.billTruthBlock).not.toHaveBeenCalled();
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:29:  billTruthBlock?: () => Promise<unknown>;
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:111:    billTruthBlock: jest.fn(opts.billTruthBlock ?? (async () => null)),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:290:      billTruthBlock: async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:323:    const billTruthBlock = jest.fn(async () => null);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:324:    const { service } = makeDeps({ billTruthBlock });
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:334:    expect(billTruthBlock).not.toHaveBeenCalled();
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:339:      billTruthBlock: async () => {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:362:      billTruthBlock: async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:387:      billTruthBlock: async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:438:      billTruthBlock: async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts:472:      billTruthBlock: async () => ({
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.ts:245:    // drafting time. Best-effort — `billTruthBlock` already returns null for a
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.ts:249:    // rule document id — neither is a bill id, so billTruthBlock would return null
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.ts:254:        ? await this.engagement.billTruthBlock(alert.sourceRef).catch(() => null)
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/deliverable-engagement.port.ts:17:  billTruthBlock(billId: string) {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/deliverable-engagement.port.ts:18:    return this.truth.billTruthBlock(billId);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/entailment-gate.spec.ts:366:      billTruthBlock: jest.fn(async () => null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/dependencies.ts:99:    billTruthBlock: jest.fn(async () => null),
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/legiwatch-context-plane-architecture.contract.spec.ts:92:    expect(memo).toContain('billTruthBlock');
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/outreach-v3/state/outreach-command.contract.ts:13:  outreachContextSelectionV1Schema,
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/outreach-v3/state/outreach-command.contract.ts:216:        .array(outreachContextSelectionV1Schema)

@@ -1,0 +1,214 @@
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/prisma/migrations/20260919010000_mail_messages_tenant_sent_idx/migration.sql:4:-- `reportOverview()` (apps/api/src/engagement/engagement.service.ts) selects the
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/prisma/migrations/20280211010000_engagement_task_action_source_uniq/migration.sql:29:-- apps/api/src/engagement/engagement.service.ts, never sets either column)
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json:1381:      "evidence": "apps/api/src/engagement/engagement.service.ts:2515 openOutreachInConnectedEmail",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/scripts/engagement-phase3-fixture-plan.ts:84: * (`reportPeriodWindow`, engagement.service.ts), so any fixture that must land
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/scripts/engagement-phase3-fixture-plan.ts:2264:          'loop (engagement.service.ts ~5513), and directory data comes from the S3 snapshot, not ' +
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/scripts/seed-engagement-phase3-parity-fixtures.ts:709:            // reportScopeKey(clientId) is `clientId || 'all'` — engagement.service.ts.
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/scripts/verify-mail-thread-covering-index.cjs:177:  const servicePath = path.join(repo, 'apps/api/src/engagement/engagement.service.ts');
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/auth/application-authority-boundary.spec.ts:62:  it.each(['../meri/meri-prospect-scope.helpers.js', '../meri/meri.module.js', '../meri/meri.service.js', '../engagement/engagement.service.js', '../context/context.module.js'])
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/client-documents/client-document-writer.service.ts:2:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-activity.service.ts:7:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-advocacy-matter.service.ts:7:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-advocacy-record-read.service.spec.ts:5:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-profile-fill-relationship-history.service.ts:4:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-profile-fill-retry.integration.spec.ts:10:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: class {} }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-profile-fill-retry.spec.ts:10:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: class {} }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-profile-fill-workflow.service.ts:12:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/clients/client-profile-fill.service.ts:24:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:167:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:217:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:227:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:258:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:268:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:288:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:651:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:681:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:741:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:821:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:861:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:882:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1362:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1826:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1950:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1960:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1970:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1980:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:1990:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2000:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2020:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2040:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2050:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2060:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2080:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2101:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2111:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2121:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2142:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2162:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2182:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2193:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2263:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2283:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2303:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2313:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2456:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2891:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2901:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2911:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2921:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2932:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2942:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2952:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2967:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2978:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:2990:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3000:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3010:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3021:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3034:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3044:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3054:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3064:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3074:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3084:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3095:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3106:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3116:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3126:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3136:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3146:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3157:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3167:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3177:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3200:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3210:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3222:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3234:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3246:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3257:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:3275:      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5037:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5099:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5260:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5425:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5435:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5445:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5805:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:5900:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6356:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6412:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6513:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6523:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6526:        "scrubPiiForVoice"
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6703:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6808:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:6907:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:7022:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:7093:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:7604:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json:7800:      "importedFile": "apps/api/src/engagement/engagement.service.js",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/engagement-phase3-fixture-contract.v1.json:496:      "note": "reportOverview attaches meetings and pendingActions only inside its directory-match loop (engagement.service.ts ~5513), and directory data comes from the S3 snapshot, not the database. The fixture seats the one snapshot-independent directory address on these meetings; without directory access the state is unreachable by ANY database fixture and 3.8 must record it as a coverage limitation rather than a parity failure."
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/__fixtures__/outreach-v3-ui-inventory-manifest.v1.json:1156:      "evidence": "apps/api/src/engagement/engagement.service.ts:2515 openOutreachInConnectedEmail",
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/attachment-content.service.ts:421:// ── Format predicates (moved from engagement.service.ts so both callers and the
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts:4:import { EngagementService, type SendSingleMailInput } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts:3:import { EngagementService } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/attachments/prospect-independent-review.spec.ts:1:import { EngagementService } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/dedupe-recipients.spec.ts:7:import { dedupeOutreachRecipients } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-access.helpers.ts:4: * Extracted from engagement.service.ts in Phase 1 so the generation services can
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-audience-type.spec.ts:34:} from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-audiences.spec.ts:9:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-error-status.spec.ts:18:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-group.spec.ts:15:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-revise.spec.ts:14:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-batch-sticky-provider.spec.ts:15:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-context-item-contract.spec.ts:19:import { normalizeSelectedContextItem } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-debrief-exact-read.spec.ts:2:import { EngagementService } from './engagement.service';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-dependency-manifest.spec.ts:167:          '/engagement/engagement.service.js',
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-dependency-manifest.spec.ts:170:        ['apps/api/src/reviews/reviews.service.ts', '/engagement/engagement.service.js'],
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-document-read.spec.ts:1:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-insights-separation.spec.ts:12:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-insights.spec.ts:13:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-integrations.spec.ts:13:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-intel-context.spec.ts:17:import { EngagementService, type OutreachSelectedContextItemInput } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-legacy-send-gate.spec.ts:19:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-mail-threads.spec.ts:8:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-meetings.spec.ts:10:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-outreach-clamp.spec.ts:3:// normalizeOutreachRecipients / normalizeOutreachContextPool (engagement.service.ts)
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-owner-isolation.spec.ts:14:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-prior-contact.spec.ts:9:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-reports.spec.ts:15:import { EngagementService, reportMemberPrincipal } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-send-authorization.spec.ts:4:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-send-thread-key.spec.ts:15:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement-template-ownership.spec.ts:13:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.attachment-content-type.spec.ts:1:import { isAllowedAttachmentContentType } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.client-filing.spec.ts:4:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.controller.ts:49:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.controller.ts:972:// Every bound below mirrors normalizeOutreachContextPool (engagement.service.ts):
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.controller.ts:1039:// `.slice(0, N)` in normalizeOutreachRecipients (engagement.service.ts). Fields
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.module.ts:29:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10325:      .map((r) => scrubPiiForVoice(r.body ?? ''))
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:10517:      for (const email of threadParticipantEmails(thread)) {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:11805:function threadParticipantEmails(thread: Record<string, unknown>): Set<string> {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts:12318:export function scrubPiiForVoice(raw: string): string {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/evals/fixtures.ts:454:    // bill, engagement.service enrichment supplies the real status; this guards the
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/generation/phase-20-outreach-context-plane.contract.spec.ts:46:    const classic = read(join(API_ROOT, 'src/engagement/engagement.service.ts'));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/governed-engagement.factory.ts:4:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/governed-engagement.phase24.spec.ts:6:import type { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/independent-sender-review.spec.ts:1:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/mail-html-format.spec.ts:2:import { trimTrailingEmptyHtml } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/mailbox-selection.spec.ts:3:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/map-with-concurrency.spec.ts:6: * engagement.service.ts, so we re-declare an identical copy here and pin the
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/meeting-artifact-lifecycle.spec.ts:11:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/meeting-artifact-sharing.spec.ts:13:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/meeting-client-reassignment.spec.ts:4:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/meeting-prep-job.service.ts:14:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/meeting-prep-persistence.spec.ts:2:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/newsletter-outreach.service.ts:24:import { EngagementService, type OutreachRecipientInput } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/notetaker/client-notetaker.postgres.spec.ts:6:import { EngagementService } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/notetaker/notetaker.service.spec.ts:5:import type { EngagementService } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/notetaker/notetaker.service.ts:19:import { EngagementService, ownMeetingWhere } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-budget.spec.ts:6:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-channels.spec.ts:6:import { EngagementService, scrubPiiForVoice } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-channels.spec.ts:60:describe('scrubPiiForVoice (W5.6)', () => {
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-channels.spec.ts:62:    const out = scrubPiiForVoice(
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-channels.spec.ts:79:      expect(scrubPiiForVoice(s)).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-job.service.ts:34:} from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts:20:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/outreach-send-intent.service.ts:47:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/race-safe-outreach-job.service.ts:6:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/race-safe-outreach-send-intent.service.ts:8:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/research-portfolio-institutional-meeting-boundary.spec.ts:3:import { EngagementService } from './engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/runtime/engagement-runtime-boundary-map-coverage.spec.ts:37:    sourceFile: 'apps/api/src/engagement/engagement.service.ts',
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/runtime/engagement-runtime-local-actions.spec.ts:4:import type { EngagementService } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/runtime/engagement-service-runtime.boundary.spec.ts:3:import type { EngagementService } from '../engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/alert-memo.service.ts:23:import { EngagementService } from '../../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/intelligence/alert-memo/district-brief.service.ts:17:import { EngagementService } from '../../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meeting-capture/meeting-capture-persistence.service.ts:2:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/memory/memory-private-fail-closed.spec.ts:95:    const engagement = readFileSync(join(SRC_ROOT, 'engagement', 'engagement.service.ts'), 'utf8');
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-conversation-evidence.service.spec.ts:7:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: class {} }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-conversation-evidence.service.ts:3:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-debrief-wall-authority.spec.ts:2:import { EngagementService } from '../engagement/engagement.service';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-document-artifact.spec.ts:15:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-edited-artifact-version.spec.ts:22:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-edited-artifact.spec.ts:28:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-native-work-owner-authority.spec.ts:2:import { EngagementService } from '../engagement/engagement.service';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-research-durable-replay.spec.ts:2:import { EngagementService } from '../engagement/engagement.service';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-source.service.spec.ts:7:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: class {} }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-source.service.ts:5:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-tool-manifest.parity.spec.ts:43:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-tools.award-compatibility.spec.ts:42:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-tools.firmdata.spec.ts:13:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-tools.registration.spec.ts:42:jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/meri/meri-tools.service.ts:63:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/mobile/meri-mobile.service.ts:8:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/mobile/meri-mobile.service.ts:14:} from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/outreach-v3/send/outreach-v3-send.service.ts:5:import { EngagementService } from '../../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/research-portfolios/research-portfolio-institutional.service.spec.ts:4:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/research-portfolios/research-portfolio-institutional.service.ts:11:import { EngagementService } from '../engagement/engagement.service.js';
+0483963adc5382202408e8398d8b1601f53d8525:infra/cdk/lib/engagement-api/engagement-api-service-stack.ts:328:  // engagement.service.ts (createAttachmentUploadUrl, confirmAttachment,
+0483963adc5382202408e8398d8b1601f53d8525:infra/cdk/test/engagement-api-active-promotion.spec.ts:145:// engagement.service.ts actually reads to find that bucket
+0483963adc5382202408e8398d8b1601f53d8525:scripts/engagement-phase3-ui-inventory.mjs:341:    evidence: 'apps/api/src/engagement/engagement.service.ts:2515 openOutreachInConnectedEmail',
+0483963adc5382202408e8398d8b1601f53d8525:scripts/outreach-v3-p1-change-scope.spec.mjs:88:    'apps/api/src/engagement/engagement.service.ts',
+0483963adc5382202408e8398d8b1601f53d8525:scripts/outreach-v3-p1-change-scope.spec.mjs:212:      { file: 'apps/api/src/engagement/engagement.service.ts', before: 'old', after: 'new' },
+0483963adc5382202408e8398d8b1601f53d8525:scripts/run-engagement-phase1-local.mjs:484:  if (output.engagement.serviceHeader !== 'engagement-api') {
+0483963adc5382202408e8398d8b1601f53d8525:tests/support/legacy-web/source-data/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json:1381:      "evidence": "apps/api/src/engagement/engagement.service.ts:2515 openOutreachInConnectedEmail",
