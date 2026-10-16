@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /** @cleanup-smoke noArgsExit=0 helpExit=0 */
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { inspectPhase17OperatorOwnership } from './lib/phase17-operator-ownership.mjs';
+import { inspectDefenseRuntimeSourceOwnership } from './lib/defense-runtime-source-ownership.mjs';
 
 function resolveRepoRoot(start = process.cwd()) {
   let dir = path.resolve(start);
@@ -41,48 +41,13 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const exists = (relative) => fs.existsSync(path.join(root, relative));
 const fail = (message) => failures.push(message);
 
-function gitTree(relative) {
-  try {
-    return execFileSync('git', ['rev-parse', `HEAD:${relative}`], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
-  } catch {
-    fail(`Unable to resolve Git tree for ${relative}`);
-    return null;
-  }
-}
-
-const treePairs = [
-  ['apps/api/src/defense-budget', 'apps/defense-api/runtime-source/defense-budget'],
-  ['apps/api/src/program-element/snapshot', 'apps/defense-api/runtime-source/program-element/snapshot'],
-  ['apps/api/src/program-element/source-document', 'apps/defense-api/runtime-source/program-element/source-document'],
-  ['apps/api/src/program-element/deltas', 'apps/defense-api/runtime-source/program-element/deltas'],
-];
-for (const [source, mirror] of treePairs) {
-  const sourceSha = gitTree(source);
-  const mirrorSha = gitTree(mirror);
-  if (sourceSha && mirrorSha && sourceSha !== mirrorSha) {
-    fail(`Trusted runtime drift: ${source}=${sourceSha}, ${mirror}=${mirrorSha}`);
-  }
-}
-
-const blobPairs = [
-  ['apps/api/src/program-element/program-element-change-outbox.service.ts', 'apps/defense-api/runtime-source/program-element/program-element-change-outbox.service.ts'],
-  ['apps/api/src/program-element/program-element-change-outbox.service.spec.ts', 'apps/defense-api/runtime-source/program-element/program-element-change-outbox.service.spec.ts'],
-];
-for (const [source, mirror] of blobPairs) {
-  if (!exists(source) || !exists(mirror)) {
-    fail(`Missing source/mirror blob: ${source} -> ${mirror}`);
-    continue;
-  }
-  if (read(source) !== read(mirror)) fail(`Trusted runtime blob drift: ${source} -> ${mirror}`);
-}
-
-// Keep one executable CLI owner; the runtime and fixture mirror pairs above
-// retain their existing parity requirements.
+// One canonical code owner replaces the copied implementation/spec trees.
+// Independently rederived baseline blobs retain exact twin/test provenance;
+// all original data and the nine dual-root replay fixtures remain byte-pinned.
+const sourceOwnership = inspectDefenseRuntimeSourceOwnership(root);
+failures.push(...sourceOwnership.errors);
 failures.push(...inspectPhase17OperatorOwnership(exists));
+notes.push('Runtime implementation owner: apps/api/src; replay compares two fixture roots through one inspect adapter, not independent implementations');
 
 const requiredSlices = [
   'contracts',
@@ -99,8 +64,8 @@ const requiredSlices = [
   'promotion',
 ];
 for (const slice of requiredSlices) {
-  if (!exists(`apps/defense-api/runtime-source/defense-budget/${slice}`)) {
-    fail(`Missing Phase 1–7 runtime slice: ${slice}`);
+  if (!exists(`apps/api/src/defense-budget/${slice}`)) {
+    fail(`Missing canonical Phase 1–7 runtime slice: ${slice}`);
   }
 }
 
