@@ -83,6 +83,8 @@ CREATE TABLE client_objective_workload_issue_decisions (
     (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision),
   CONSTRAINT objective_workload_issue_decisions_issuance_key UNIQUE
     (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,resolved_tenant_id),
+  CONSTRAINT objective_workload_issue_decisions_delivery_key UNIQUE
+    (operation_id,decision,resolved_tenant_id),
   CONSTRAINT objective_workload_issue_decisions_claim_key UNIQUE
     (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,
       resolved_tenant_id,generation_job_id,phase)
@@ -126,6 +128,8 @@ CREATE TABLE client_objective_workload_issuances (
   run_id UUID,
   accepted_binding_sha256 CHAR(64)
     CHECK (accepted_binding_sha256 IS NULL OR accepted_binding_sha256 ~ '^[0-9a-f]{64}$'),
+  source_sha256 CHAR(64)
+    CHECK (source_sha256 IS NULL OR source_sha256 ~ '^[0-9a-f]{64}$'),
   iat_seconds BIGINT NOT NULL,
   nbf_seconds BIGINT NOT NULL,
   exp_seconds BIGINT NOT NULL,
@@ -152,9 +156,14 @@ CREATE TABLE client_objective_workload_issuances (
     AND exp_seconds-iat_seconds<=60),
   CONSTRAINT objective_workload_issuances_binding_check CHECK (
     (phase IN ('admit','admission-read','publish','request-read')
-      AND attempt_id IS NULL AND run_id IS NULL AND accepted_binding_sha256 IS NULL)
-    OR (phase IN ('accept','complete','completion-read','terminal-account','terminal-read','retained-result-read')
-      AND attempt_id IS NOT NULL AND run_id IS NOT NULL AND accepted_binding_sha256 IS NOT NULL)),
+      AND attempt_id IS NULL AND run_id IS NULL AND accepted_binding_sha256 IS NULL
+      AND source_sha256 IS NULL)
+    OR (phase IN ('accept','complete','completion-read','terminal-account','terminal-read')
+      AND attempt_id IS NOT NULL AND run_id IS NOT NULL AND accepted_binding_sha256 IS NOT NULL
+      AND source_sha256 IS NULL)
+    OR (phase='retained-result-read'
+      AND attempt_id IS NOT NULL AND run_id IS NOT NULL AND accepted_binding_sha256 IS NOT NULL
+      AND source_sha256 IS NOT NULL)),
   CONSTRAINT objective_workload_issuances_subject_check CHECK (
     (phase IN ('admit','admission-read','publish','request-read','accept','complete','completion-read')
       AND token_subject='capiro-objective-generation-worker:v1'
@@ -202,6 +211,9 @@ CREATE INDEX objective_workload_issuances_job_idx ON client_objective_workload_i
   (tenant_id,generation_job_id,recorded_at);
 
 -- A proof use belongs to the immutable issued OR denied operation decision.
+-- For an issued decision, proof_outcome='issued' records consumption for the
+-- durable CLAIMED reservation; only deliveries.state='issued' proves that a
+-- bearer was finalized for release. A later UNKNOWN leaves the proof spent.
 -- It does not FK to the consent-linked issuance: an Objective hard-delete may
 -- erase claims, but must never release the consumed proof jti or decision.
 -- A denied proof may have a Core-derived tenant and use the tenant transaction.
@@ -250,6 +262,52 @@ CREATE TABLE client_objective_workload_proof_uses (
 CREATE INDEX objective_workload_proof_uses_operation_idx ON client_objective_workload_proof_uses
   (caller_issuer,operation_id);
 
+-- The immutable claim and its JTI commit before Core invokes its signer. A
+-- crash after that commit leaves CLAIMED, which is treated as UNKNOWN on any
+-- retry; no new JTI is possible. The delivery row references the permanent
+-- decision, never the consent-linked issuance, so hard deletion cannot erase
+-- this uncertainty fence. ISSUED keeps only the token digest, not a bearer.
+CREATE TABLE client_objective_workload_deliveries (
+  operation_id UUID PRIMARY KEY,
+  decision VARCHAR(6) NOT NULL DEFAULT 'issued' CHECK (decision='issued'),
+  tenant_id UUID NOT NULL,
+  authorization_jti UUID NOT NULL,
+  state VARCHAR(7) NOT NULL DEFAULT 'claimed'
+    CHECK (state IN ('claimed','issued','unknown')),
+  token_sha256 CHAR(64)
+    CHECK (token_sha256 IS NULL OR token_sha256 ~ '^[0-9a-f]{64}$'),
+  claimed_at TIMESTAMPTZ(6) NOT NULL DEFAULT clock_timestamp(),
+  finalized_at TIMESTAMPTZ(6),
+  CONSTRAINT objective_workload_deliveries_decision_fk FOREIGN KEY (operation_id,decision,tenant_id)
+    REFERENCES client_objective_workload_issue_decisions
+      (operation_id,decision,resolved_tenant_id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT objective_workload_deliveries_state_check CHECK (
+    (state='claimed' AND token_sha256 IS NULL AND finalized_at IS NULL)
+    OR (state='unknown' AND token_sha256 IS NULL AND finalized_at IS NOT NULL)
+    OR (state='issued' AND token_sha256 IS NOT NULL AND finalized_at IS NOT NULL)),
+  CONSTRAINT objective_workload_deliveries_time_check CHECK (
+    finalized_at IS NULL OR finalized_at>=claimed_at)
+);
+CREATE UNIQUE INDEX objective_workload_deliveries_jti_key
+  ON client_objective_workload_deliveries (authorization_jti);
+
+CREATE FUNCTION objective_workload_delivery_transition_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.state<>'claimed' OR NEW.state NOT IN ('issued','unknown')
+     OR (to_jsonb(NEW)-ARRAY['state','token_sha256','finalized_at'])
+        IS DISTINCT FROM (to_jsonb(OLD)-ARRAY['state','token_sha256','finalized_at']) THEN
+    RAISE EXCEPTION 'Objective workload delivery transition refused' USING ERRCODE='23514';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER objective_workload_deliveries_transition_guard
+  BEFORE UPDATE ON client_objective_workload_deliveries
+  FOR EACH ROW EXECUTE FUNCTION objective_workload_delivery_transition_guard();
+CREATE TRIGGER objective_workload_deliveries_immutable_delete
+  BEFORE DELETE ON client_objective_workload_deliveries
+  FOR EACH ROW EXECUTE FUNCTION objective_work_record_immutable();
+
 -- Every proof must have exactly its operation decision's resolved tenant,
 -- including NULL for a future system-scoped unknown-tenant denial. The
 -- composite FK alone cannot enforce this when proof.tenant_id is NULL.
@@ -289,6 +347,13 @@ BEGIN
         AND p.proof_request_sha256=NEW.issuance_request_sha256
         AND p.operation_decision='issued' AND p.proof_outcome='issued') THEN
       RAISE EXCEPTION 'Objective workload issued decision lacks its successful proof receipt' USING ERRCODE='23514';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM client_objective_workload_deliveries d
+      JOIN client_objective_workload_issuances i ON i.operation_id=d.operation_id
+      WHERE d.operation_id=NEW.operation_id AND d.tenant_id=NEW.resolved_tenant_id
+        AND d.decision='issued' AND d.state='claimed'
+        AND d.authorization_jti=i.authorization_jti) THEN
+      RAISE EXCEPTION 'Objective workload issued decision lacks its durable claim' USING ERRCODE='23514';
     END IF;
   ELSIF NOT EXISTS (SELECT 1 FROM client_objective_workload_proof_uses p
       WHERE p.operation_id=NEW.operation_id AND p.caller_issuer=NEW.caller_issuer
@@ -348,6 +413,11 @@ ALTER TABLE client_objective_workload_proof_uses FORCE ROW LEVEL SECURITY;
 CREATE POLICY objective_workload_proof_uses_isolation ON client_objective_workload_proof_uses
   USING (rls_bypass() OR tenant_id=current_tenant_id())
   WITH CHECK (rls_bypass() OR tenant_id=current_tenant_id());
+ALTER TABLE client_objective_workload_deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_objective_workload_deliveries FORCE ROW LEVEL SECURITY;
+CREATE POLICY objective_workload_deliveries_isolation ON client_objective_workload_deliveries
+  USING (rls_bypass() OR tenant_id=current_tenant_id())
+  WITH CHECK (rls_bypass() OR tenant_id=current_tenant_id());
 
 -- Existing default privileges supply the configured runtime role. Narrow
 -- direct destructive grants only; owner inheritance, PUBLIC, effective ACLs
@@ -358,5 +428,8 @@ DO $$ BEGIN
     REVOKE UPDATE,DELETE,TRUNCATE ON client_objective_workload_issue_decisions,
       client_objective_workload_issuances,
       client_objective_workload_proof_uses FROM capiro_app;
+    REVOKE DELETE,TRUNCATE ON client_objective_workload_deliveries FROM capiro_app;
+    REVOKE UPDATE ON client_objective_workload_deliveries FROM capiro_app;
+    GRANT UPDATE (state,token_sha256,finalized_at) ON client_objective_workload_deliveries TO capiro_app;
   END IF;
 END $$;

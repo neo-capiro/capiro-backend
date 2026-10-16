@@ -5,6 +5,7 @@ import type {
   ObjectiveWorkloadIssueDecisionRecord,
   ObjectiveWorkloadIssuanceRecord,
   ObjectiveWorkloadProofUseRecord,
+  ObjectiveWorkloadDeliveryRecord,
 } from './objective-workload-issuance.js';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -21,7 +22,7 @@ const issuance: ObjectiveWorkloadIssuanceRecord = {
   phase: 'admit', targetMethod: 'POST',
   targetPath: '/strategy-api/internal/objective-canonical/generation-admissions',
   targetQuery: '', targetBodySha256: SHA, attemptId: null, runId: null,
-  acceptedBindingSha256: null, iatSeconds: 1_800_000_000n,
+  acceptedBindingSha256: null, sourceSha256: null, iatSeconds: 1_800_000_000n,
   nbfSeconds: 1_800_000_000n, expSeconds: 1_800_000_060n,
 };
 const proofUse: ObjectiveWorkloadProofUseRecord = {
@@ -36,6 +37,10 @@ const decision: ObjectiveWorkloadIssueDecisionRecord = {
   callerSubject: issuance.callerSubject, issuanceRequestSha256: SHA,
   decision: 'issued', tenantId: TENANT,
   generationJobId: issuance.generationJobId, phase: 'admit',
+};
+const delivery: ObjectiveWorkloadDeliveryRecord = {
+  operationId: issuance.operationId, tenantId: TENANT,
+  authorizationJti: issuance.authorizationJti, state: 'claimed', tokenSha256: null,
 };
 
 function fakePrisma() {
@@ -71,13 +76,17 @@ describe('unmounted Prisma Objective issuance port', () => {
       await tx.insertDecision(decision);
       expect(await tx.findIssuance(issuance.operationId)).toBeNull();
       await tx.insertIssuance(issuance);
+      expect(await tx.findDelivery(issuance.operationId)).toBeNull();
+      await tx.insertDelivery(delivery);
       expect(await tx.findProofUse(proofUse.callerIssuer, proofUse.proofJti)).toBeNull();
       await tx.insertProofUse(proofUse);
+      await tx.finalizeDelivery(issuance.operationId, 'issued', SHA);
     });
 
     expect(h.transactions()).toBe(1);
     expect(h.statements.map((statement) => statement.kind)).toEqual([
       'query', 'query', 'execute', 'query', 'execute', 'query', 'execute',
+      'query', 'execute', 'execute',
     ]);
     expect(h.statements[0]?.sql.trimStart()).toMatch(/^SELECT pg_advisory_xact_lock\(/);
     for (const statement of h.statements.slice(1)) {
@@ -86,8 +95,11 @@ describe('unmounted Prisma Objective issuance port', () => {
     }
     expect(h.statements[1]?.sql).toContain('client_objective_workload_issue_decisions');
     expect(h.statements[2]?.sql).toContain('INSERT INTO client_objective_workload_issue_decisions');
-    expect(h.statements[5]?.sql).toContain('proof_jti');
-    expect(h.statements[6]?.sql).toContain('proof_outcome');
+    expect(h.statements[5]?.sql).toContain('client_objective_workload_deliveries');
+    expect(h.statements[6]?.sql).toContain('INSERT INTO client_objective_workload_deliveries');
+    expect(h.statements[7]?.sql).toContain('proof_jti');
+    expect(h.statements[8]?.sql).toContain('proof_outcome');
+    expect(h.statements[9]?.sql).toContain('UPDATE client_objective_workload_deliveries');
   });
 
   test('disabled current facts deny before ledger or SQL access', async () => {

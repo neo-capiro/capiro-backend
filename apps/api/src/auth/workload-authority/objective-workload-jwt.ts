@@ -16,9 +16,14 @@ import { types as nodeTypes } from 'node:util';
 const ALGORITHM = 'RS256';
 export const OBJECTIVE_WORKLOAD_JWT_TYPE = 'capiro-objective-workload+jwt';
 const MAX_TOKEN_BYTES = 8_192;
+const MAX_HEADER_BYTES = 1_024;
+const MAX_PAYLOAD_BYTES = 4_096;
+const MAX_SIGNING_INPUT_CHARS = 4_096;
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
+const MAX_RETAINED_BODY_BYTES = 65_536;
 const MAX_LIFETIME_SECONDS = 60;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const NAME = /^[a-z][a-z0-9:._-]{0,127}$/;
 const KID = /^[A-Za-z0-9._-]{1,64}$/;
@@ -27,7 +32,7 @@ const BASE64URL = /^[A-Za-z0-9_-]+$/;
 const BINDING_FIELDS = [
   'subject', 'audience', 'method', 'path', 'query', 'body', 'operation',
   'phase', 'tenantId', 'generationJobId', 'delegationRef', 'consentId', 'attemptId',
-  'runId', 'acceptedBindingSha256',
+  'runId', 'acceptedBindingSha256', 'sourceSha256',
 ] as const;
 
 export const OBJECTIVE_GENERATION_WORKER_SUBJECT = 'capiro-objective-generation-worker:v1';
@@ -50,7 +55,7 @@ const PHASE_ROUTES = {
   'retained-result-read': { subject: OBJECTIVE_CORE_RESULT_READER_SUBJECT, audience: OBJECTIVE_MERI_RETAINED_AUDIENCE, method: 'POST', path: MERI_RESULT_PATH, accepted: true },
 } as const;
 
-export type ObjectiveWorkloadOperation = 'objective.strategy.draft';
+export type ObjectiveWorkloadOperation = 'objective.strategy.draft' | 'objective.retained-result.read';
 export type ObjectiveWorkloadPhase = keyof typeof PHASE_ROUTES;
 
 export interface ObjectiveWorkloadRequestBinding {
@@ -76,6 +81,9 @@ export interface ObjectiveWorkloadRequestBinding {
   /** Hash of the full persisted AcceptedRunBinding, including workerId and
    * writerFence, using the existing generationBindingKey canonicalization. */
   readonly acceptedBindingSha256: string | null;
+  /** Derived from the independently resolved complete accepted source. This
+   * digest does not replace current source, custody or membership checks. */
+  readonly sourceSha256: string | null;
 }
 
 export interface ObjectiveWorkloadJwtClaims {
@@ -99,6 +107,7 @@ export interface ObjectiveWorkloadJwtClaims {
   readonly attemptId: string | null;
   readonly runId: string | null;
   readonly acceptedBindingSha256: string | null;
+  readonly sourceSha256: string | null;
 }
 
 export interface ObjectiveWorkloadIssuerSigner {
@@ -138,6 +147,10 @@ function uuid(value: unknown): value is string {
   return typeof value === 'string' && UUID.test(value);
 }
 
+function uuidV4(value: unknown): value is string {
+  return typeof value === 'string' && UUID_V4.test(value);
+}
+
 function seconds(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
@@ -173,9 +186,12 @@ function requestBinding(input: ObjectiveWorkloadRequestBinding): ObjectiveWorklo
       captured.path.includes('//') || captured.path.endsWith('/') || captured.query !== '' ||
       !(captured.body instanceof Uint8Array) || nodeTypes.isProxy(captured.body) ||
       captured.body.byteLength > MAX_BODY_BYTES ||
+      (captured.phase === 'retained-result-read' &&
+        captured.body.byteLength > MAX_RETAINED_BODY_BYTES) ||
       (captured.method === 'GET' && captured.body.byteLength !== 0) ||
       (captured.method === 'POST' && captured.body.byteLength === 0) ||
-      captured.operation !== 'objective.strategy.draft' ||
+      captured.operation !== (captured.phase === 'retained-result-read'
+        ? 'objective.retained-result.read' : 'objective.strategy.draft') ||
       !uuid(captured.tenantId) || !uuid(captured.generationJobId) || !uuid(captured.delegationRef) ||
       !uuid(captured.consentId) || !Object.hasOwn(PHASE_ROUTES, captured.phase)) denied();
   const route = PHASE_ROUTES[captured.phase];
@@ -189,6 +205,9 @@ function requestBinding(input: ObjectiveWorkloadRequestBinding): ObjectiveWorklo
         !SHA256.test(captured.acceptedBindingSha256)) denied();
   } else if (captured.attemptId !== null || captured.runId !== null ||
       captured.acceptedBindingSha256 !== null) denied();
+  if (captured.phase === 'retained-result-read') {
+    if (typeof captured.sourceSha256 !== 'string' || !SHA256.test(captured.sourceSha256)) denied();
+  } else if (captured.sourceSha256 !== null) denied();
   return Object.freeze({ ...captured, body: Buffer.from(captured.body) });
 }
 
@@ -201,6 +220,7 @@ function claimsJson(value: ObjectiveWorkloadJwtClaims): string {
     tenantId: value.tenantId, generationJobId: value.generationJobId, delegationRef: value.delegationRef,
     consentId: value.consentId, attemptId: value.attemptId, runId: value.runId,
     acceptedBindingSha256: value.acceptedBindingSha256,
+    sourceSha256: value.sourceSha256,
   });
 }
 
@@ -212,8 +232,11 @@ function checkClaims(value: ObjectiveWorkloadJwtClaims): void {
   if (!name(value.iss) || !name(value.sub) || !name(value.aud) ||
       !seconds(value.iat) || !seconds(value.nbf) || !seconds(value.exp) ||
       value.nbf < value.iat || value.exp <= value.nbf ||
-      value.exp - value.iat > MAX_LIFETIME_SECONDS || !uuid(value.jti) ||
+      value.exp - value.iat > MAX_LIFETIME_SECONDS || !uuidV4(value.jti) ||
       !SHA256.test(value.bodySha256)) denied();
+  if (value.phase === 'retained-result-read') {
+    if (typeof value.sourceSha256 !== 'string' || !SHA256.test(value.sourceSha256)) denied();
+  } else if (value.sourceSha256 !== null) denied();
 }
 
 /** Issuer-only signing primitive. The Core issuer must first authenticate its
@@ -229,7 +252,7 @@ export function issueObjectiveWorkloadJwt(
     const key = ownData(signer, ['issuer', 'kid', 'privateKey']) as unknown as ObjectiveWorkloadIssuerSigner;
     const allocation = ownData(decision, ['jti', 'nowSeconds', 'expiresAtSeconds']) as unknown as ObjectiveWorkloadIssueDecision;
     if (!name(key.issuer) || !KID.test(key.kid) ||
-        !rsaKey(key.privateKey, 'private') || !uuid(allocation.jti) ||
+        !rsaKey(key.privateKey, 'private') || !uuidV4(allocation.jti) ||
         !seconds(allocation.nowSeconds) || !seconds(allocation.expiresAtSeconds)) denied();
     const exp = Math.min(allocation.expiresAtSeconds, allocation.nowSeconds + MAX_LIFETIME_SECONDS);
     if (exp <= allocation.nowSeconds) denied();
@@ -242,14 +265,21 @@ export function issueObjectiveWorkloadJwt(
       tenantId: authorized.tenantId, generationJobId: authorized.generationJobId, delegationRef: authorized.delegationRef,
       consentId: authorized.consentId, attemptId: authorized.attemptId, runId: authorized.runId,
       acceptedBindingSha256: authorized.acceptedBindingSha256,
+      sourceSha256: authorized.sourceSha256,
     };
     checkClaims(claims);
-    const input = Buffer.from(`${Buffer.from(headerJson(key.kid)).toString('base64url')}.` +
-      Buffer.from(claimsJson(claims)).toString('base64url'), 'ascii');
+    const headerBytes = Buffer.from(headerJson(key.kid), 'utf8');
+    const payloadBytes = Buffer.from(claimsJson(claims), 'utf8');
+    if (headerBytes.length > MAX_HEADER_BYTES || payloadBytes.length > MAX_PAYLOAD_BYTES) denied();
+    const input = Buffer.from(`${headerBytes.toString('base64url')}.` +
+      payloadBytes.toString('base64url'), 'ascii');
+    if (input.length > MAX_SIGNING_INPUT_CHARS) denied();
     const signature = rsaSign('RSA-SHA256', input, {
       key: key.privateKey, padding: constants.RSA_PKCS1_PADDING,
     });
-    return `${input.toString('ascii')}.${signature.toString('base64url')}`;
+    const token = `${input.toString('ascii')}.${signature.toString('base64url')}`;
+    if (token.length > MAX_TOKEN_BYTES) denied();
+    return token;
   } catch { return denied(); }
 }
 
@@ -277,6 +307,9 @@ export function verifyObjectiveWorkloadJwt(
         typeof token !== 'string' || token.length > MAX_TOKEN_BYTES) denied();
     const parts = token.split('.');
     if (parts.length !== 3 || parts.some(part => !BASE64URL.test(part))) denied();
+    if (`${parts[0]}.${parts[1]}`.length > MAX_SIGNING_INPUT_CHARS) denied();
+    if (Buffer.from(parts[0]!, 'base64url').length > MAX_HEADER_BYTES ||
+        Buffer.from(parts[1]!, 'base64url').length > MAX_PAYLOAD_BYTES) denied();
     const headerText = decoded(parts[0]!);
     const header: unknown = JSON.parse(headerText);
     const kidValue = header && typeof header === 'object' && !Array.isArray(header)
@@ -316,7 +349,8 @@ export function verifyObjectiveWorkloadJwt(
         claims.delegationRef !== authorized.delegationRef ||
         claims.consentId !== authorized.consentId ||
         claims.attemptId !== authorized.attemptId || claims.runId !== authorized.runId ||
-        claims.acceptedBindingSha256 !== authorized.acceptedBindingSha256) denied();
+        claims.acceptedBindingSha256 !== authorized.acceptedBindingSha256 ||
+        claims.sourceSha256 !== authorized.sourceSha256) denied();
     return Object.freeze(claims);
   } catch { return denied(); }
 }

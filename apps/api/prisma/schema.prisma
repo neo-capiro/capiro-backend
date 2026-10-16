@@ -16948,6 +16948,7 @@ model ClientObjectiveWorkloadIssueDecision {
 
   @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision], map: "objective_workload_issue_decisions_proof_key")
   @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision, tenantId], map: "objective_workload_issue_decisions_issuance_key")
+  @@unique([operationId, decision, tenantId], map: "objective_workload_issue_decisions_delivery_key")
   @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision, tenantId, generationJobId, phase], map: "objective_workload_issue_decisions_claim_key")
   @@map("client_objective_workload_issue_decisions")
 }
@@ -16982,6 +16983,7 @@ model ClientObjectiveWorkloadIssuance {
   attemptId              String?  @map("attempt_id") @db.Uuid
   runId                  String?  @map("run_id") @db.Uuid
   acceptedBindingSha256  String?  @map("accepted_binding_sha256") @db.Char(64)
+  sourceSha256           String?  @map("source_sha256") @db.Char(64)
   iatSeconds             BigInt   @map("iat_seconds")
   nbfSeconds             BigInt   @map("nbf_seconds")
   expSeconds             BigInt   @map("exp_seconds")
@@ -16990,6 +16992,23 @@ model ClientObjectiveWorkloadIssuance {
   @@unique([tenantId, operationId, callerIssuer, callerSubject, issuanceRequestSha256], map: "objective_workload_issuances_proof_scope_key")
   @@index([tenantId, generationJobId, recordedAt], map: "objective_workload_issuances_job_idx")
   @@map("client_objective_workload_issuances")
+}
+
+/// Durable post-claim signing state. CLAIMED is treated as UNKNOWN on replay;
+/// only ISSUED with the original token digest permits an exact current replay.
+/// This table references the permanent decision, not the consent-linked
+/// issuance, so hard deletion preserves its JTI and uncertain-delivery fence.
+model ClientObjectiveWorkloadDelivery {
+  operationId      String    @id @map("operation_id") @db.Uuid
+  decision         String    @default("issued") @db.VarChar(6)
+  tenantId         String    @map("tenant_id") @db.Uuid
+  authorizationJti String    @unique(map: "objective_workload_deliveries_jti_key") @map("authorization_jti") @db.Uuid
+  state            String    @default("claimed") @db.VarChar(7)
+  tokenSha256      String?   @map("token_sha256") @db.Char(64)
+  claimedAt        DateTime  @default(dbgenerated("clock_timestamp()")) @map("claimed_at") @db.Timestamptz(6)
+  finalizedAt      DateTime? @map("finalized_at") @db.Timestamptz(6)
+
+  @@map("client_objective_workload_deliveries")
 }
 
 /// Every verified proof use binds the exact operation and request. A later
