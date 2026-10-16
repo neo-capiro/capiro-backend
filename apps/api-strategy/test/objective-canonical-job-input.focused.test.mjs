@@ -28,7 +28,7 @@ const inputUrl = await moduleSource('../src/meri/objective-canonical-job-input.t
 ]);
 const { applicationHash } = await import(appUrl);
 const { GENERATION_ADMISSION, GENERATION_ADMISSION_NAMESPACE, generationLedgerId } = await import(generationUrl);
-const { deriveCanonicalJobInput } = await import(inputUrl);
+const { deriveCanonicalJobInput, deriveCanonicalPublicationInput } = await import(inputUrl);
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const hash = c => c.repeat(64);
 const clone = x => structuredClone(x);
@@ -194,4 +194,22 @@ test('derived values are deep frozen and detached from later owner/runtime mutat
   for (const value of [result, result.dto, result.dto.attachmentIds, result.envelope, result.envelope.request,
     result.envelope.request.objective, result.envelope.receipt, result.envelope.receipt.context,
     result.envelope.receipt.context.issues, result.envelope.coverage, result.envelope.coverage[0], result.envelope.contactIds]) assert.ok(Object.isFrozen(value));
+});
+
+test('pre-acceptance publication derives the actual queued attempt without a Meri claim or runtime envelope', () => {
+  const x = fixture(), expected = derive(x);
+  Object.assign(x.job, { status: 'queued', attempt: 1, claimedBy: null, claimedAt: null });
+  const actual = deriveCanonicalPublicationInput(x.job, x.admission);
+  assert.deepEqual(actual, expected);
+  assert.equal(Object.hasOwn(actual, 'claimedBy'), false);
+});
+
+test('publication refuses claimed, retried, completed or unavailable queued owner states', () => {
+  for (const [key, value] of [['status', 'running'], ['status', 'completed'], ['attempt', 2],
+    ['claimedBy', `canonical:${hash('2')}`], ['claimedAt', new Date()], ['strategyId', id(5)]]) {
+    const x = fixture(); Object.assign(x.job, { status: 'queued', attempt: 1, claimedBy: null, claimedAt: null });
+    x.job[key] = value; refuses(() => deriveCanonicalPublicationInput(x.job, x.admission));
+  }
+  const x = fixture(); Object.assign(x.job, { status: 'queued', attempt: 1, claimedBy: null });
+  delete x.job.claimedAt; refuses(() => deriveCanonicalPublicationInput(x.job, x.admission));
 });

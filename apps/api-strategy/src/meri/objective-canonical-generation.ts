@@ -6,8 +6,9 @@ export const GENERATION_ADMISSION = 'objective_canonical_generation_admission';
 export const GENERATION_ACCEPTANCE = 'objective_canonical_generation_acceptance';
 export const GENERATION_PRODUCER = 'objective_canonical_generation_producer';
 export const GENERATION_NORMALIZATION = 'objective_canonical_generation_normalization';
+export const GENERATION_REQUEST = 'objective_canonical_generation_request';
 export type GenerationLedgerKind = typeof GENERATION_ADMISSION | typeof GENERATION_ACCEPTANCE |
-  typeof GENERATION_PRODUCER | typeof GENERATION_NORMALIZATION;
+  typeof GENERATION_PRODUCER | typeof GENERATION_NORMALIZATION | typeof GENERATION_REQUEST;
 export const GENERATION_ADMISSION_NAMESPACE = 'capiro.objective-strategy.admission:v1';
 export interface CanonicalGenerationAdmission {
   schemaVersion: 1; namespace: typeof GENERATION_ADMISSION_NAMESPACE; canonical: CanonicalToken;
@@ -124,7 +125,7 @@ export function requireGenerationAcceptanceForAdmission(raw: unknown, source: un
 }
 export function generationLedgerId(kind: GenerationLedgerKind,
   tenantId: string, clerkUserId: string, jobId: string): string {
-  if (![GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_PRODUCER, GENERATION_NORMALIZATION].includes(kind)) return invalid();
+  if (![GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_PRODUCER, GENERATION_NORMALIZATION, GENERATION_REQUEST].includes(kind)) return invalid();
   generationUuid(tenantId); actor(clerkUserId); generationUuid(jobId);
   const h = applicationHash([kind, tenantId, clerkUserId, jobId]);
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;

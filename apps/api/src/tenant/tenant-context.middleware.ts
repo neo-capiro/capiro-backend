@@ -87,11 +87,11 @@ export class TenantContextMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     // Also cover authentication/authorization denials before the controller.
     const authorityPaths = [
-      '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
-      '/clio/application-authority/identity', '/clio/application-authority/context',
+      '/api/clio/application-authority/identity', '/api/clio/application-authority/context', '/api/clio/application-authority/membership',
+      '/clio/application-authority/identity', '/clio/application-authority/context', '/clio/application-authority/membership',
     ];
     if ([req.path, (req.originalUrl ?? req.url ?? '').split('?')[0]].some(
-      (path) => path !== undefined && authorityPaths.includes(path),
+      (path) => path !== undefined && authorityPaths.includes(path.replace(/\/$/, '').toLowerCase()),
     )) res.setHeader('Cache-Control', 'no-store');
     // Belt-and-suspenders bypass for paths that authenticate via a different
     // channel than the Clerk session. The OAuth callback is reached via a

@@ -9,6 +9,7 @@ import {
 
 interface CompileStrategyContextBody {
   objective?: { objectiveId: string; objectiveVersion: number };
+  objectiveTypedContext?: boolean;
   generationRequestId?: string;
   generationType?: string;
   tenantId?: string;
@@ -67,15 +68,19 @@ export class InternalStrategyContextController {
       nodeId: stringOrNull(body.nodeId),
       traceId: stringOrNull(body.traceId),
       artifactKind,
-      ...(body.objective ? { objective: body.objective, generationRequestId: body.generationRequestId, generationType: body.generationType } : {}),
+      ...(body.objective ? { objective: body.objective, generationRequestId: body.generationRequestId, generationType: body.generationType,
+        ...(body.objectiveTypedContext === true ? { objectiveTypedContext: true } : {}) } : {}),
     });
   }
 }
 
 function validateObjective(body: CompileStrategyContextBody) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('Invalid Strategy context request');
+  if (body.objectiveTypedContext !== undefined && typeof body.objectiveTypedContext !== 'boolean' ||
+      body.objectiveTypedContext === true && !body.objective)
+    throw new BadRequestException('Invalid Objective typed context request');
   if (!body.objective && body.generationRequestId == null && body.generationType == null) return;
-  const allowed = ['tenantId','clerkUserId','clientId','mode','query','strategyId','nodeId','traceId','artifactKind','objective','generationRequestId','generationType'];
+  const allowed = ['tenantId','clerkUserId','clientId','mode','query','strategyId','nodeId','traceId','artifactKind','objective','objectiveTypedContext','generationRequestId','generationType'];
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const selector = body.objective;
   if (Object.keys(body).some(k => !allowed.includes(k)) || !selector ||

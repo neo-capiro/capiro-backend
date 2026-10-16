@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ObjectiveGenerationContextService, ObjectiveContextIncomplete, objectiveDigest } from './objective-generation-context.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
 import { OBJECTIVE_EMPTY_STEERING } from './objective-generation-background.js';
+import type { ObjectiveTypedContext } from './objective-generation-typed-context.js';
 
 export const PHASE_26 = 26;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
@@ -62,6 +63,8 @@ interface StrategyContextRoute {
 
 export interface StrategyContextPlaneInput {
   objective?: { objectiveId: string; objectiveVersion: number };
+  /** Opt-in private typed-request projection; legacy Objective compilation does not require it. */
+  objectiveTypedContext?: boolean;
   generationRequestId?: string;
   generationType?: string;
   tenantId: string;
@@ -90,6 +93,8 @@ export interface StrategyCoverageProjection {
 
 export interface StrategyContextPlaneBundle {
   objectiveAdmission?: ReturnType<ObjectiveGenerationContextService['bind']>;
+  /** Private runtime projection; never a public field-level coverage manifest. */
+  objectiveTypedContext?: ObjectiveTypedContext;
   kind: 'governed_packet' | 'release_switch_rollback';
   packet: Phase17CompiledContextPacket;
   governedContext: MeriGovernedTurnContext;

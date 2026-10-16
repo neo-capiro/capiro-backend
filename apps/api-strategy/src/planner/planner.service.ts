@@ -3196,7 +3196,8 @@ export class PlannerService {
     if ([STRATEGY_MATERIALIZATION_RECEIPT, CANONICAL_MATERIALIZATION_RECEIPT,
       'objective_canonical_application_receipt', 'objective_canonical_application_head',
       'objective_canonical_generation_admission', 'objective_canonical_generation_acceptance',
-      'objective_canonical_generation_producer', 'objective_canonical_generation_normalization'].includes(row.kind))
+      'objective_canonical_generation_producer', 'objective_canonical_generation_normalization',
+      'objective_canonical_generation_request'].includes(row.kind))
       return null;
     if (['task_import_receipt', TASK_CREATE_RECEIPT, 'timer_session'].includes(row.kind))
       return null;

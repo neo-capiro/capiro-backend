@@ -16,12 +16,29 @@ import { ObjectiveCanonicalApplicationService } from './objective-canonical-appl
 import { ObjectiveCanonicalWorkloadAuthority } from './objective-canonical-authority.js';
 import { ObjectiveCanonicalProducerController } from '../meri/objective-canonical-producer.controller.js';
 import { ObjectiveCanonicalProducerService } from '../meri/objective-canonical-producer.service.js';
+import { ObjectiveCanonicalRequestController } from '../meri/objective-canonical-request.controller.js';
+import { ObjectiveCanonicalRequestService } from '../meri/objective-canonical-request.service.js';
+import { ObjectiveCanonicalOwnerDirectory } from '../meri/objective-canonical-owner-directory.js';
+import { StrategyContextPlaneClient } from '../meri/strategy-context-plane.client.js';
+import { MeriModule } from '../meri/meri.module.js';
+import { ObjectiveCanonicalCompletionController } from '../meri/objective-canonical-completion.controller.js';
+import { ObjectiveCanonicalCompletionService } from '../meri/objective-canonical-completion.service.js';
+import { ObjectiveCanonicalResultOwner } from '../meri/objective-canonical-result-owner.js';
+import { ObjectiveCanonicalTerminalController } from '../meri/objective-canonical-terminal.controller.js';
+import { ObjectiveCanonicalTerminalService } from '../meri/objective-canonical-terminal.service.js';
 
 @Module({
-  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalApplicationController, ObjectiveCanonicalProducerController],
+  imports: [MeriModule],
+  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalApplicationController, ObjectiveCanonicalProducerController, ObjectiveCanonicalRequestController, ObjectiveCanonicalCompletionController, ObjectiveCanonicalTerminalController],
   providers: [
+    ObjectiveCanonicalCompletionService,
+    ObjectiveCanonicalTerminalService,
+    ObjectiveCanonicalResultOwner,
     ObjectiveCanonicalApplicationService,
     ObjectiveCanonicalProducerService,
+    ObjectiveCanonicalRequestService,
+    ObjectiveCanonicalOwnerDirectory,
+    StrategyContextPlaneClient,
     ObjectiveCanonicalWorkloadAuthority,
     PlannerCapacityService,
     PlannerService,
