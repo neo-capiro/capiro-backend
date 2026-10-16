@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=64",
+    "scripts/backend-source-qualification.mjs",
+    "--plan"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T04:11:26.3487619Z",
+  "endedAt": "2026-10-16T04:11:26.4483208Z",
+  "ownedPID": 38520,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": null,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 268435456,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "6af27458fe1ff0644dca3ac4116c25239ab0a8ad71b2819caf2eb1fb59a0b8d3",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

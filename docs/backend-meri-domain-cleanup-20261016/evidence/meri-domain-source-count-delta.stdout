@@ -1,0 +1,57 @@
+{
+  "parent": "0483963adc5382202408e8398d8b1601f53d8525",
+  "sourceHead": "322b2f30cd30488631dc5acb20e14b12995c48ca",
+  "before": {
+    "unique": {
+      "files": 7978,
+      "nonblankLines": 1811119,
+      "physicalLines": 1936900
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7978,
+      "nonblankLines": 1811119,
+      "physicalLines": 1936900
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 7981,
+      "nonblankLines": 1811365,
+      "physicalLines": 1937177
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7981,
+      "nonblankLines": 1811365,
+      "physicalLines": 1937177
+    }
+  },
+  "deltaFromParent": {
+    "unique": {
+      "files": 3,
+      "nonblankLines": 246,
+      "physicalLines": 277
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 3,
+      "nonblankLines": 246,
+      "physicalLines": 277
+    }
+  },
+  "changedCodeFiles": 6,
+  "excludedChangedFiles": 35
+}
