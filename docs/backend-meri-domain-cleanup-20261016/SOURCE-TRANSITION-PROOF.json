@@ -1,0 +1,188 @@
+{
+  "parent": "0483963adc5382202408e8398d8b1601f53d8525",
+  "workingSourceIdentities": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "canonicalSha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "checkoutSha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "bytes": 392207,
+      "physicalLines": 9784,
+      "nonblankLines": 9399
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "canonicalSha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "checkoutSha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "bytes": 23905,
+      "physicalLines": 659,
+      "nonblankLines": 633
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "canonicalSha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "checkoutSha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "bytes": 977,
+      "physicalLines": 24,
+      "nonblankLines": 20
+    }
+  ],
+  "methods": [
+    {
+      "name": "resolveBillId",
+      "bodySHA256": "dd6de953cf9fc3c4f944e6b06a6da749f2890213240e5b5ac0c0a02c98beadef",
+      "sourceIdentical": true
+    },
+    {
+      "name": "searchCongressBills",
+      "bodySHA256": "0f51ad130aa191d8f36546ad082ea80c806fc608033cf257630a9b03550e5e4d",
+      "sourceIdentical": true
+    },
+    {
+      "name": "readBillText",
+      "bodySHA256": "0ae146bcc562371d7d3496c17bc2f8ab66478e1bca80ffd81d7cca147be65111",
+      "sourceIdentical": true
+    },
+    {
+      "name": "locatedBillText",
+      "bodySHA256": "50fd18046f05e5a007f671cff992e94728bea90873fcae4a605b0ed1f8e39e50",
+      "sourceIdentical": true
+    },
+    {
+      "name": "getBillStatus",
+      "bodySHA256": "dc58e19b8087d695ea6d82b4cd69224df69acf2f841275d9d3be8accf1b0e58a",
+      "sourceIdentical": true
+    },
+    {
+      "name": "searchFloorVotes",
+      "bodySHA256": "005b104c457a58692491efa2d5c9ab70d10839ca91c8099df77a11655fe63e94",
+      "sourceIdentical": true
+    },
+    {
+      "name": "searchCboCostEstimates",
+      "bodySHA256": "7cec576889c526d5ecc6af9d617331b59a8e83fc8922bbe90f1b73112924c155",
+      "sourceIdentical": true
+    }
+  ],
+  "canonicalInputDefinitions": 4,
+  "exactSQLAndAlgorithms": true,
+  "facadeInverseSHA256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267",
+  "facadeOtherCodeUnchanged": true,
+  "approvedFacadeHunks": [
+    {
+      "oldStart": 0,
+      "oldCount": 0,
+      "newStart": 1,
+      "newCount": 2,
+      "removedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "addedSHA256": "c1f8ba63ab2a7d3fbad491bc9f63ae567a41066ad1f92ac29053dc710938fe20"
+    },
+    {
+      "oldStart": 29,
+      "oldCount": 10,
+      "newStart": 30,
+      "newCount": 0,
+      "removedSHA256": "a609a38d1a313bee1cb71f2676e5c61813cb520d4bc5aa72edc5ab9571bc2335",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 45,
+      "oldCount": 2,
+      "newStart": 36,
+      "newCount": 0,
+      "removedSHA256": "25cd4ba1de04275bba9ed2ec79e054337e1502bc59e2de911fb206b53cd65897",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 299,
+      "oldCount": 17,
+      "newStart": 288,
+      "newCount": 0,
+      "removedSHA256": "b7fc6927a740faa2d42e0a652e991fd013a097c423778d3fec9c5848e9ccaa49",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 342,
+      "oldCount": 1,
+      "newStart": 314,
+      "newCount": 0,
+      "removedSHA256": "5701a0f50cf185a1f1b9a17e04f8874621f22d37dc4aa8ff12b91408f6d2f5a9",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 3630,
+      "oldCount": 14,
+      "newStart": 3601,
+      "newCount": 0,
+      "removedSHA256": "24a22cc1861e1d70b65fa6c47ade1664ba79a2657bc0c6411f48cbddae5173ae",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 3703,
+      "oldCount": 63,
+      "newStart": 3661,
+      "newCount": 1,
+      "removedSHA256": "849ee2cfb939a7f44fb8019bd28e93dd7c455eb0599f02ad2f24e34b165fd321",
+      "addedSHA256": "b2eff995125d840c6478ecef860d59633805587acd57bd0f1c093e1456eb3603"
+    },
+    {
+      "oldStart": 3829,
+      "oldCount": 189,
+      "newStart": 3725,
+      "newCount": 1,
+      "removedSHA256": "2728d3c5bacd983b17328b6a243daeede45171a411908a0c3352be250307f440",
+      "addedSHA256": "be72e9c03f79e5576d2de16fc7f5db764e2950cc842b05aaef7630fd4dcf7c3b"
+    },
+    {
+      "oldStart": 4021,
+      "oldCount": 134,
+      "newStart": 3729,
+      "newCount": 1,
+      "removedSHA256": "a181fec7411ce71d8e24382d617a4e41e4a2ed1974b978cf9d5d19feb0a045e5",
+      "addedSHA256": "42ed5cd66365c4944557bcfa5ac02f809ff586ed02d7487256d1612f99296067"
+    },
+    {
+      "oldStart": 4162,
+      "oldCount": 155,
+      "newStart": 3737,
+      "newCount": 1,
+      "removedSHA256": "0377a2cf21074a28218f72a3f8dfc8bf4990ae1aa997e36220726cd45668bae8",
+      "addedSHA256": "8edad7609e288865505547476aed18c1ddc8f787e72149a8d31b1412402c5f41"
+    },
+    {
+      "oldStart": 4324,
+      "oldCount": 40,
+      "newStart": 3745,
+      "newCount": 1,
+      "removedSHA256": "c7f7c40790c9344a299bfce7c0eb696b0789526c006667e1508997692497eca1",
+      "addedSHA256": "4d9147e247bc6d4a637d668d9e869dfd35e376dd7a3557bf484d2caa1037f4cf"
+    },
+    {
+      "oldStart": 9867,
+      "oldCount": 14,
+      "newStart": 9248,
+      "newCount": 0,
+      "removedSHA256": "f471cf082180439271d050c8c549cb541ece1fd21e72a529477d6501aeb41819",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 9969,
+      "oldCount": 7,
+      "newStart": 9336,
+      "newCount": 0,
+      "removedSHA256": "957620017cf41500f98b26ad851ca0d8db5d533aa084eaae9cac8d245f12d945",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "engagement": {
+    "removedMethods": [
+      "outreachContext",
+      "outreachVoiceFewShots",
+      "batchRecipientCorrespondence"
+    ],
+    "physicalLines": 225,
+    "nonblankLines": 220,
+    "inverseSHA256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9",
+    "otherBytesUnchanged": true
+  },
+  "scope": "one-time source transition proof; not evergreen CI, native typing, router, database or runtime acceptance"
+}
