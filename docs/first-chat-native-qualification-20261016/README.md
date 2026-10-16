@@ -76,3 +76,7 @@ For production migration order, ordinary chat is independent of disabled
 Objective activation, but an unapplied Objective `20281016010000` must be
 reallocated to a later prefix if `20281016020000` is applied first. Retain the
 reservation record and committed receipt rows across application rollback.
+
+For the exact portable isolation requirements, direct receipt prerequisites,
+pgvector boundary, and the separate Meri `0017` handoff, see
+[`PORTABILITY-AND-MERI-HANDOFF.md`](PORTABILITY-AND-MERI-HANDOFF.md).
