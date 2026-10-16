@@ -20,6 +20,10 @@ export interface CanonicalGenerationSubject {
 export interface CanonicalGenerationGrant {
   tenantId: string; actorUserId: string; clerkUserId: string; consentId: string; controlVersion: number;
   requestSha256: string; checkedAtMs: number; expiresAtMs: number; delegationExpiresAtMs: number; claimExpiresAtMs: number;
+  /** Separate fresh bookkeeping decision for terminal phases. The original
+   * effect delegation and claim deadlines remain historical and may be past. */
+  terminalAccounting?: { phase: 'terminal-account' | 'terminal-read'; checkedAtMs: number;
+    expiresAtMs: number; absoluteExpiresAtMs: number };
   /** Genuine verifier-owned delegation metadata required before first typed
    * publication. A consent/control/identity revision is not a delegation. */
   delegation?: { ref: string; revision: string; issuedAtMs: number; absoluteExpiresAtMs: number };

@@ -37,9 +37,12 @@ export class ObjectiveCanonicalTerminalService {
     await this.authority.assertGenerationCurrent(tx, grant, subject);
     const rows = await tx.$queryRaw<Array<{ ms: string }>>`SELECT ceil(extract(epoch FROM clock_timestamp())*1000)::text AS ms`;
     const now = Number(rows[0]?.ms);
+    const accounting = grant.terminalAccounting;
     if (rows.length !== 1 || !Number.isSafeInteger(now) || now < 0 || grant.requestSha256 !== subject.requestSha256 ||
         !Number.isSafeInteger(grant.checkedAtMs) || grant.checkedAtMs > now ||
-        [grant.expiresAtMs, grant.delegationExpiresAtMs, grant.claimExpiresAtMs,
+        !accounting || accounting.phase !== subject.phase ||
+        !Number.isSafeInteger(accounting.checkedAtMs) || accounting.checkedAtMs > now ||
+        [grant.expiresAtMs, accounting.expiresAtMs, accounting.absoluteExpiresAtMs,
           ...(observedExpiry === undefined ? [] : [observedExpiry])].some(n => !Number.isSafeInteger(n) || n <= now))
       return fail('AUTHORITY_UNAVAILABLE');
     return now;

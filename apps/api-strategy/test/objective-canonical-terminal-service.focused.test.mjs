@@ -156,7 +156,9 @@ function fixture(outcome = 'needs-information') {
       retained: { syntheticOriginalObservation: true, privateIssues: [{ code: 'synthetic-code', message: 'PRIVATE_PROVIDER_MARKER' }] },
       witness: { syntheticOriginalBindingHash: app.applicationHash(binding) } } };
   s.grant = { tenantId: id(2), actorUserId: id(9), clerkUserId: 'user_original', consentId: id(12), controlVersion: 3,
-    checkedAtMs: 4999, expiresAtMs: 20_000, delegationExpiresAtMs: 21_000, claimExpiresAtMs: 22_000 };
+    checkedAtMs: 4999, expiresAtMs: 20_000, delegationExpiresAtMs: 21_000, claimExpiresAtMs: 22_000,
+    terminalAccounting: { phase: 'terminal-account', checkedAtMs: 4999, expiresAtMs: 23_000,
+      absoluteExpiresAtMs: 24_000 } };
   s.normalization = null;s.producer = null;s.strategyExists = false;
   s.savedEvidence = { normalization: true, producer: true, strategy: true };
   s.savedReceipt = { schemaVersion: 1, generationJobId: id(10), sourceAdmissionSha256: acceptance.sourceAdmissionSha256,
@@ -210,7 +212,8 @@ function fixture(outcome = 'needs-information') {
     verifyGeneration: async (http, subject) => {
       s.calls.verify++;assert.equal(http.syntheticTrustedRequest, true);s.subject = copy(subject);
       assert.ok(['terminal-account', 'terminal-read'].includes(subject.phase));
-      return { ...s.grant, requestSha256: subject.requestSha256 };
+      return { ...s.grant, terminalAccounting: s.grant.terminalAccounting &&
+        { ...s.grant.terminalAccounting, phase: subject.phase }, requestSha256: subject.requestSha256 };
     },
     assertGenerationCurrent: async (tx, grant, subject) => {
       s.calls.current++;assert.equal(tx, s.tx);assert.equal(subject.phase, s.subject.phase);
@@ -359,12 +362,21 @@ test('current Objective advance and original expired deadline do not trigger an 
 });
 
 test('fresh account grant or observed reader expiry prevents terminal CAS', async () => {
-  for (const mutate of [s => { s.grant.expiresAtMs = s.now; }, s => { s.grant.claimExpiresAtMs = s.now; },
+  for (const mutate of [s => { s.grant.expiresAtMs = s.now; },
+    s => { s.grant.terminalAccounting.expiresAtMs = s.now; },
+    s => { s.grant.terminalAccounting.absoluteExpiresAtMs = s.now; },
+    s => { s.grant.terminalAccounting = null; },
     s => { s.rawOutcome.expiresAtMs = s.now; }]) {
     const s = fixture();mutate(s);
     await assert.rejects(() => account(s), failure(503, 'AUTHORITY_UNAVAILABLE'));
     assert.equal(s.cas.length, 0);noAccounting(s);
   }
+});
+
+test('fresh terminal bookkeeping permits expired historical effect deadlines', async () => {
+  const s = fixture();s.grant.delegationExpiresAtMs = s.now;s.grant.claimExpiresAtMs = s.now;
+  const result = await account(s);
+  assert.equal(result.status, 'not-applied');assert.equal(s.casWrites, 1);
 });
 
 test('current read revocation withholds committed terminal record without changing it', async () => {
