@@ -33,7 +33,9 @@ import { ObjectiveCanonicalTerminalService } from '../meri/objective-canonical-t
   providers: [
     ObjectiveCanonicalCompletionService,
     ObjectiveCanonicalTerminalService,
-    ObjectiveCanonicalResultOwner,
+    // The Meri custody bridge is not yet allocated. Construct the closed owner
+    // explicitly so Nest never treats its optional bridge parameter as a grant.
+    { provide: ObjectiveCanonicalResultOwner, useFactory: () => new ObjectiveCanonicalResultOwner() },
     ObjectiveCanonicalApplicationService,
     ObjectiveCanonicalProducerService,
     ObjectiveCanonicalRequestService,
