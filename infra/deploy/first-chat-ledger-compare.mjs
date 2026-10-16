@@ -1,15 +1,35 @@
 #!/usr/bin/env node
-// Offline only: compare a separately approved, metadata-only Aurora ledger export
-// to exact migration.sql bytes. This program never opens a database connection.
+// Offline only: compare the fixed read-only Aurora ledger reader's attested
+// metadata export to exact migration.sql bytes. No database connection is opened.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 
 const receipt = '20281016020000_clio_conversation_bootstrap_receipts';
 const receiptChecksum = '943ef85f23922de246c4ec53771630f586f4ad4d99b8a871504c341ee66e9ff0';
 const manifestChecksum = 'cebd7886545e3fbee1c3024a2d2c2e6f3fab8127c1d77c01341bd16f0b6ad5ac';
+const sourceSha = '13d12a7d7bdbe0be021cb218dd4cf7690cc4420b';
 const fields = ['checksum', 'finished', 'has_error', 'migration_name', 'rolled_back'];
+const envelopeFields = ['attestation', 'ledger', 'prerequisites', 'schemaVersion', 'sourceSha'];
+const attestationFields = [
+  'database_ok', 'ledger_select_ok', 'read_only_ok', 'role_ok',
+  'session_role_ok', 'tls_verified', 'writer_ok',
+];
+const prerequisiteFields = [
+  'app_role_present', 'bypass_fn_present', 'conversations_present',
+  'tenant_fn_present', 'tenants_present',
+];
+
+function requireOnlyFields(value, expected, name) {
+  assert.ok(value && typeof value === 'object' && !Array.isArray(value), `${name} must be an object`);
+  assert.deepEqual(Object.keys(value).sort(), expected, `${name} fields changed`);
+}
+
+function requireTrueFlags(value, expected, name) {
+  requireOnlyFields(value, expected, name);
+  for (const key of expected) assert.equal(value[key], true, `${name}.${key} must be true`);
+}
 
 function usage() {
   console.error('Usage: node first-chat-ledger-compare.mjs <apps/api/prisma/migrations> <metadata-only-ledger.json> [--post]');
@@ -50,14 +70,19 @@ try {
     [...pinned].sort(([a], [b]) => a.localeCompare(b)),
     'Local migration tree differs from exact PR43 manifest');
 
-  const rows = JSON.parse(readFileSync(ledgerPath, 'utf8'));
-  assert.ok(Array.isArray(rows), 'Ledger JSON must be an array');
+  const envelope = JSON.parse(readFileSync(ledgerPath, 'utf8'));
+  requireOnlyFields(envelope, envelopeFields, 'Ledger export');
+  assert.equal(envelope.schemaVersion, 1, 'Ledger export schema changed');
+  assert.equal(envelope.sourceSha, sourceSha, 'Ledger export source is not pinned PR43');
+  requireTrueFlags(envelope.attestation, attestationFields, 'Ledger attestation');
+  requireTrueFlags(envelope.prerequisites, prerequisiteFields, 'Ledger prerequisites');
+  const rows = envelope.ledger;
+  assert.ok(Array.isArray(rows) && rows.length <= 1000, 'Ledger rows must be a bounded array');
   const successful = new Map();
   const unresolved = [];
   const rolledBack = [];
   for (const row of rows) {
-    assert.ok(row && typeof row === 'object' && !Array.isArray(row));
-    assert.deepEqual(Object.keys(row).sort(), fields, 'Ledger export must have only five metadata fields');
+    requireOnlyFields(row, fields, 'Ledger row');
     assert.match(row.migration_name, /^\d{14}_[a-z0-9_]+$/);
     assert.match(row.checksum, /^[0-9a-f]{64}$/);
     assert.equal(typeof row.finished, 'boolean');
@@ -88,6 +113,6 @@ try {
   }, null, 2));
   if (!pass) process.exitCode = 1;
 } catch (error) {
-  console.error(`BLOCK: invalid local migration tree or ledger metadata (${error.message})`);
+  console.error(`BLOCK: invalid local migration tree or attested ledger metadata (${error.message})`);
   process.exitCode = 1;
 }
