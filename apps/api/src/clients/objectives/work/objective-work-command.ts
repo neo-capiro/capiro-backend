@@ -168,7 +168,8 @@ function checkSource(s: WorkSource) {
   for (const id of [s.canonicalPlanId, s.canonicalStrategyId, s.canonicalProjectId, s.rootIntentId,
     s.sourceRevisionId, s.rootActorUserId]) workUuid(id);
   integer(s.canonicalBindingVersion); integer(s.sourceObjectiveVersion);
-  if (s.canonicalEpoch !== 1 || !HASH.test(s.sourceSnapshotHash)) throw Error();
+  if (s.canonicalEpoch !== 1 || typeof s.sourceSnapshotHash !== 'string' ||
+      HASH.exec(s.sourceSnapshotHash)?.[0] !== s.sourceSnapshotHash) throw Error();
 }
 function checkState(state: WorkState) {
   checkSource(state.source);
@@ -244,7 +245,8 @@ function reconciliationState(e: WorkReconciliation, a: WorkAuthority, action: Wo
     try {
       for (const id of [e.operationId, e.attemptId, e.runId, e.terminalReceiptId]) workUuid(id);
       utc(e.originalDeadlineAt);
-      if (!HASH.test(e.requestFingerprint ?? '') || !['failed', 'cancelled', 'applied'].includes(e.outcome ?? '')) throw Error();
+      if (typeof e.requestFingerprint !== 'string' || HASH.exec(e.requestFingerprint)?.[0] !== e.requestFingerprint ||
+          !['failed', 'cancelled', 'applied'].includes(e.outcome ?? '')) throw Error();
     } catch { return 'outcome_unconfirmed'; }
   }
   return e.state;
