@@ -1,0 +1,772 @@
+{
+  "parent": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "sourceHead": "e666c4f36bc2a802779e3255cb4d7f2edd776589",
+  "sealedParentReceiptSHA256": "ab26e85c8baea4dbeab8f06ff7f774472fd7c429578c3aa14af079aabf5610c0",
+  "originalBaseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "originalBefore": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "method": "Sealed PR30 after totals plus changed regular Git-blob deltas under unchanged original016e UTF-8/nonblank/comment/exclusion rules. No full source scan.",
+  "before": {
+    "unique": {
+      "files": 7971,
+      "nonblankLines": 1810041,
+      "physicalLines": 1935781
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7971,
+      "nonblankLines": 1810041,
+      "physicalLines": 1935781
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 7978,
+      "nonblankLines": 1811119,
+      "physicalLines": 1936900
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7978,
+      "nonblankLines": 1811119,
+      "physicalLines": 1936900
+    }
+  },
+  "deltaFromParent": {
+    "unique": {
+      "files": 7,
+      "nonblankLines": 1078,
+      "physicalLines": 1119
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7,
+      "nonblankLines": 1078,
+      "physicalLines": 1119
+    }
+  },
+  "changes": [
+    {
+      "path": "apps/api/src/directory/directory-detail-mappers.ts",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 106,
+        "physicalLines": 113,
+        "blob": "67f6ae5329f45b28873b775d4c0ed88e19ce21ed"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 106,
+        "physicalLines": 113
+      }
+    },
+    {
+      "path": "apps/api/src/directory/directory.service.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 3538,
+        "physicalLines": 3775,
+        "blob": "4bce0f9ccfe1fe5dbd383ca18b8fd5a602839754"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 3463,
+        "physicalLines": 3700,
+        "blob": "d60c07c197dd6af94f3b581a143d854650a50c76"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -75,
+        "physicalLines": -75
+      }
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 242,
+        "physicalLines": 248,
+        "blob": "4a804305b2a3c1b263eda7aae1f5d23f619c20ee"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 242,
+        "physicalLines": 248
+      }
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 167,
+        "physicalLines": 169,
+        "blob": "622cc59db6bd7f887dfebacb77e53a0c5d6548e0"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 167,
+        "physicalLines": 169
+      }
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 191,
+        "physicalLines": 210,
+        "blob": "6491c759fbebefa9f560fd4dc7968fd6efac5349"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 191,
+        "physicalLines": 210,
+        "blob": "2daa0f5055d19dbcffbf1fad2347d810173e7e18"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      }
+    },
+    {
+      "path": "scripts/ci/directory-detail-mappers.contract.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 179,
+        "physicalLines": 192,
+        "blob": "a597f855544c4be880693c7e39d29123b62307be"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 179,
+        "physicalLines": 192
+      }
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 110,
+        "physicalLines": 115,
+        "blob": "cc2c4999e75a898d8f4def39e720b29304170648"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 110,
+        "physicalLines": 115,
+        "blob": "fcb6e7428b0092463dbb09e8f519da2b93477dbc"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      }
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 145,
+        "physicalLines": 154,
+        "blob": "b5c96fa286b80b8c82a5c2a8eb25cc7130a96605"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 153,
+        "physicalLines": 163,
+        "blob": "29b21fa13f18c9bfe549fa5ee192ba36c1a6540c"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 8,
+        "physicalLines": 9
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-contract.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 249,
+        "physicalLines": 258,
+        "blob": "af097ee9b371d5084aa2d6bcd388e7898e83dbb5"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 249,
+        "physicalLines": 258
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-contract.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 154,
+        "physicalLines": 156,
+        "blob": "e6b98de9b76435c351d29a3bb5fd9a8bc35ae8c4"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 154,
+        "physicalLines": 156
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 129,
+        "physicalLines": 139,
+        "blob": "925a136e85bcd94674354bf88bcf0cdfe4c38a5f"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 135,
+        "physicalLines": 145,
+        "blob": "7218107d808cff53ebc06ef6913b3e14f7d16a03"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 6,
+        "physicalLines": 6
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 96,
+        "physicalLines": 98,
+        "blob": "f80b38d89fcc467df1a1c08f2e48f14320de2ed5"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 103,
+        "physicalLines": 105,
+        "blob": "68d6078bd5e7f985d4add96d3b9c9b4138d8a1b9"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 7,
+        "physicalLines": 7
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 907,
+        "physicalLines": 997,
+        "blob": "3ba101c57ebb6693ea5ad4b1ec648725b464f119"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 925,
+        "physicalLines": 1015,
+        "blob": "7b5b3b1a88403a3d374c6a59e00b27575040b2b5"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 18,
+        "physicalLines": 18
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.spec.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 328,
+        "physicalLines": 369,
+        "blob": "b25d2587dd9636296a9b9845387e5fb05fabc0f4"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 331,
+        "physicalLines": 373,
+        "blob": "d995b3da1117f3df7bbe966c2b67a4acbccc1cda"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 3,
+        "physicalLines": 4
+      }
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase6-code.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 308,
+        "physicalLines": 323,
+        "blob": "8a4f8377b2c06732ff8c44c2680879fa7caa04fc"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 315,
+        "physicalLines": 330,
+        "blob": "d5f971f391eaf79c4e94087c2dc2077d94afdf6d"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 7,
+        "physicalLines": 7
+      }
+    },
+    {
+      "path": "tests/support/legacy-web/qualification-owner.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 7,
+        "physicalLines": 7,
+        "blob": "16fb16114986e4f7abac62c227d6a8a1e8d63502"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 7,
+        "physicalLines": 7
+      }
+    }
+  ],
+  "excludedChanges": [
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/.gitattributes",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/CI-ARTIFACT-OWNERSHIP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/CURRENT-CI-OWNERSHIP-PLAN.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/DIRECTORY-EXTRACTION-MAP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/DIRECTORY-INDEPENDENT-REVIEW.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/DIRECTORY-MAP-CORRECTION.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/DIRECTORY-RESULT.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/MERI-OWNERSHIP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/MERI-SOURCE-REFS.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/PR30-SOURCE-ACCEPTANCE.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/SOURCE-MAP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/VERSIONED-SOURCE-AND-DOCS.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/count-source-delta.cjs",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/analysis-memory-before.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/directory-implementation.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/duplicate-doc-refs.raw.txt",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/plan-status-prefaces.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-counter-directory-independent-review.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-ci-independent-review.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-inputs.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired-inputs.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-mapper-concurrency-readback.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-prefix-fix-and-catalog-review.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/verify-directory-extraction-source.mjs",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/plans/budget-lines-ui-implementation-plan.md",
+      "status": "M",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/plans/clio-assistant-parity-plan.md",
+      "status": "M",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/plans/clio-assistant-parity-progress.md",
+      "status": "M",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/plans/legiwatch-ux-simplification-2026-09-18.md",
+      "status": "M",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/plans/workspace-design-handoff-parity-2026-08-16.md",
+      "status": "M",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
+      "status": "A",
+      "reason": "supplemental-config-data"
+    },
+    {
+      "path": "tests/support/legacy-web/README.md",
+      "status": "M",
+      "reason": "non-code-extension-or-non-source-data"
+    },
+    {
+      "path": "tests/support/legacy-web/visual-cli-inputs/README.md",
+      "status": "M",
+      "reason": "non-code-extension-or-non-source-data"
+    }
+  ],
+  "limits": "Source size only. New source-contract/fixture controls increase source intentionally. No native coverage, runtime, image or frontend acceptance claim. Historical qualification data and all old receipts retain their existing disclosed accounting."
+}
