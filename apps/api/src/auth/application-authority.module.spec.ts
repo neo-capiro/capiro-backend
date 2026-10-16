@@ -91,7 +91,7 @@ async function fixture() {
   const middleware = new TenantContextMiddleware(clerk as any, prisma as any, module.get(TenantContextStore));
   const router = app.getHttpAdapter().getInstance()._router;
   async function request(
-    path: 'identity' | 'context' | 'membership',
+    path: 'identity' | 'context' | 'membership' | 'MEMBERSHIP' | 'membership/',
     body: unknown,
     bearer = true,
     options: {
@@ -320,6 +320,13 @@ describe('current membership authority registered HTTP boundary', () => {
 
   it('keeps no-store on pre-controller bearer denial for the membership path', async () => {
     const response = await f.request('membership', {}, false);
+    expect(response.statusCode).toBe(401);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(f.events).toEqual([]);
+  });
+
+  it.each(['MEMBERSHIP', 'membership/'] as const)('keeps no-store on pre-controller bearer denial for route alias %s', async (path) => {
+    const response = await f.request(path, {}, false);
     expect(response.statusCode).toBe(401);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(f.events).toEqual([]);

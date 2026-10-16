@@ -91,7 +91,7 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/clio/application-authority/identity', '/clio/application-authority/context', '/clio/application-authority/membership',
     ];
     if ([req.path, (req.originalUrl ?? req.url ?? '').split('?')[0]].some(
-      (path) => path !== undefined && authorityPaths.includes(path),
+      (path) => path !== undefined && authorityPaths.includes(path.replace(/\/$/, '').toLowerCase()),
     )) res.setHeader('Cache-Control', 'no-store');
     // Belt-and-suspenders bypass for paths that authenticate via a different
     // channel than the Clerk session. The OAuth callback is reached via a
