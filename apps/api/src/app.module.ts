@@ -15,6 +15,7 @@ import { RecallWebhookModule } from './webhooks/recall-webhook.module.js';
 import { CapiroAdminModule } from './capiro-admin/capiro-admin.module.js';
 import { TenantAdminModule } from './tenant-admin/tenant-admin.module.js';
 import { ClientsModule } from './clients/clients.module.js';
+import { ObjectiveOperationalModule } from './clients/objectives/operational/objective-operational.module.js';
 import { BrandingModule } from './branding/branding.module.js';
 import { HelpModule } from './help/help.module.js';
 import { DirectoryModule } from './directory/directory.module.js';
@@ -97,6 +98,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     AdminBroadcastsModule,
     TenantAdminModule,
     ClientsModule,
+    ObjectiveOperationalModule,
     BrandingModule,
     DirectoryModule,
     DistrictNexusModule,

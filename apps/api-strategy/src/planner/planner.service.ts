@@ -13,10 +13,8 @@ import {
   PLANNER_DEFAULT_PROJECT,
   PLANNER_DEFAULT_TASK,
   nextPlannerSchedule,
-  plannerDueTimestamp,
   plannerCalendarDate,
   PLANNER_GOAL_GRADING_DAYS,
-  plannerScheduledInstant,
   plannerWeekOn,
   plannerWeekDate,
   plannerTimeToday,
@@ -68,6 +66,12 @@ import {
   type PlannerTimeTreeNode,
   plannerTimeRollups,
 } from '@capiro/strategy-verifier';
+import {
+  plannerProjectAccessDecision,
+  plannerTaskAccessDecision,
+  plannerResourceDueTimestamp as plannerDueTimestamp,
+  plannerResourceScheduledInstant as plannerScheduledInstant,
+} from '@capiro/shared';
 import {
   Prisma,
   type SpPlannerProject,
@@ -253,26 +257,21 @@ export function plannerProjectAccess(
   project: Pick<SpPlannerProject, 'ownerId' | 'data'>,
   userId: string,
 ): PlannerRole | null {
-  const data = projectData(project as SpPlannerProject);
-  if (project.ownerId === userId) return 'admin';
-  const grant = data.members.find((m) => m.userId === userId);
-  return grant?.role ?? (data.privacy === 'team' ? 'editor' : null);
+  return plannerProjectAccessDecision(
+    { ownerId: project.ownerId, data: projectData(project as SpPlannerProject) },
+    userId,
+  );
 }
 export function plannerTaskAccess(
   task: Pick<SpPlannerTask, 'ownerId' | 'data'>,
   projects: SpPlannerProject[],
   userId: string,
 ): PlannerRole | null {
-  const data = taskData(task as SpPlannerTask);
-  const roles = data.memberships.flatMap((m) => {
-    const p = projects.find((p) => p.id === m.projectId);
-    const role = p && plannerProjectAccess(p, userId);
-    return role ? [role] : [];
-  });
-  if ((!data.memberships.length && task.ownerId === userId) || data.assigneeId === userId)
-    roles.push('editor');
-  if (data.collaborators.includes(userId)) roles.push('commenter');
-  return roles.sort((a, b) => RANK[b] - RANK[a])[0] ?? null;
+  return plannerTaskAccessDecision(
+    { ownerId: task.ownerId, data: taskData(task) },
+    projects.map((project) => ({ ...project, data: projectData(project) })),
+    userId,
+  );
 }
 function requireRole(role: PlannerRole | null, minimum: PlannerRole) {
   if (!role) throw missing();

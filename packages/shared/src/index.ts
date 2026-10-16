@@ -5761,6 +5761,10 @@ export * from './prospect-brief-source.js';
 export * from './workspace-saved-revision.js';
 
 export * from './client-objective-destination.js';
+export * from './objective-operational-resource.js';
+export * from './objective-plan-resource-authority.js';
+export * from './planner-resource-access.js';
+export * from './planner-resource-schedule.js';
 
 export * from './time.js';
 

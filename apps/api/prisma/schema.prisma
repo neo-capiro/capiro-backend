@@ -1073,6 +1073,7 @@ model ClientObjective {
   tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client            Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
   revisions         ClientObjectiveRevision[]
+  operationalState  ClientObjectiveOperationalState?
 
   @@unique([tenantId, clientId, id], map: "client_objectives_scope_key")
   @@unique([tenantId, clientId, clientRequestId], map: "client_objectives_request_key")
@@ -1092,6 +1093,8 @@ model ClientObjectiveRevision {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   objective   ClientObjective @relation(fields: [tenantId, clientId, objectiveId], references: [tenantId, clientId, id], onDelete: Cascade)
   workIntents ClientObjectiveWorkIntent[]
+  operationalLinks ClientObjectiveResourceLink[]
+  operationalReceipts ClientObjectiveOperationalReceipt[]
 
   @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
   @@unique([tenantId, clientId, objectiveId, id, version], map: "client_objective_revisions_intent_scope_key")
@@ -1142,6 +1145,69 @@ model ClientObjectiveCanonicalPlan {
 
   @@unique([tenantId, clientId, objectiveId], map: "client_objective_canonical_plans_objective_key")
   @@map("client_objective_canonical_plans")
+}
+
+/// Manual associations do not grant source authority or change Objective readiness.
+model ClientObjectiveOperationalState {
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  version Int @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  objective ClientObjective @relation(fields: [tenantId,clientId,objectiveId], references: [tenantId,clientId,id], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_operational_states_objective_fk")
+
+  @@id([tenantId,clientId,objectiveId])
+  @@map("client_objective_operational_states")
+}
+
+/// SQL freezes identity/annotations and permits only a one-way unlink tombstone.
+model ClientObjectiveResourceLink {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  linkedRevisionId String @map("linked_revision_id") @db.Uuid
+  linkedObjectiveVersion Int @map("linked_objective_version")
+  resourceKind String @map("resource_kind") @db.VarChar(32)
+  resourceId String @map("resource_id") @db.Uuid
+  cycles Json @default("[]")
+  linkedByUserId String @map("linked_by_user_id") @db.Uuid
+  linkedAt DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+  removedAt DateTime? @map("removed_at") @db.Timestamptz(6)
+  removedByUserId String? @map("removed_by_user_id") @db.Uuid
+  removedRequestId String? @map("removed_request_id") @db.Uuid
+  revision ClientObjectiveRevision @relation(fields: [tenantId,clientId,objectiveId,linkedRevisionId,linkedObjectiveVersion], references: [tenantId,clientId,objectiveId,id,version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_resource_links_revision_fk")
+  receipts ClientObjectiveOperationalReceipt[]
+
+  @@unique([tenantId,clientId,objectiveId,id,linkedRevisionId,linkedObjectiveVersion], map: "client_objective_resource_links_receipt_key")
+  @@index([tenantId,clientId,objectiveId,removedAt,id], map: "client_objective_resource_links_list_idx")
+  @@map("client_objective_resource_links")
+}
+
+/// Insert-only command result, actor/request scoped; SQL also freezes updates.
+model ClientObjectiveOperationalReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  command Json
+  associationId String @map("association_id") @db.Uuid
+  commandRevisionId String @map("command_revision_id") @db.Uuid
+  commandObjectiveVersion Int @map("command_objective_version")
+  linkedRevisionId String @map("linked_revision_id") @db.Uuid
+  linkedObjectiveVersion Int @map("linked_objective_version")
+  action String @db.VarChar(8)
+  outcome String @db.VarChar(12)
+  resultSetVersion Int @map("result_set_version")
+  committedAt DateTime @default(dbgenerated("clock_timestamp()")) @map("committed_at") @db.Timestamptz(6)
+  revision ClientObjectiveRevision @relation(fields: [tenantId,clientId,objectiveId,commandRevisionId,commandObjectiveVersion], references: [tenantId,clientId,objectiveId,id,version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_operational_receipts_revision_fk")
+  association ClientObjectiveResourceLink @relation(fields: [tenantId,clientId,objectiveId,associationId,linkedRevisionId,linkedObjectiveVersion], references: [tenantId,clientId,objectiveId,id,linkedRevisionId,linkedObjectiveVersion], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_operational_receipts_link_fk")
+
+  @@unique([tenantId,clientId,objectiveId,actorUserId,requestId], map: "client_objective_operational_receipts_request_key")
+  @@map("client_objective_operational_receipts")
 }
 
 /// Canonical Primary–Quaternary assignments. SQL owns the deferred Primary
