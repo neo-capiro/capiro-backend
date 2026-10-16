@@ -10,6 +10,7 @@ const { elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, vendorSelecto
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 // Real ELF64 table relationships; synthetic bytes only, never passed to a loader.
 function symbolElf() {
@@ -366,6 +367,20 @@ test('bounded native child outcomes retain failure, timeout and capped output ev
   const timed = boundedChild(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { timeout: 100 }); assert.equal(timed.error.code, 'ETIMEDOUT');
   const overflow = boundedChild(process.execPath, ['-e', 'process.stdout.write("x".repeat(65536))'], { maxBuffer: 1024 });
   assert.equal(overflow.error.code, 'ENOBUFS'); assert(overflow.stdout.length <= 1024);
+});
+test('bounded children inherit the selected qualification architecture', () => {
+  const probe = require.resolve('./alpine-runtime-probe.cjs');
+  const childCode = 'process.stdout.write(JSON.stringify({arch:process.env.CAPIRO_QUALIFICATION_ARCH,selected:require("./qualification-platform.cjs").selectedPlatform().cpu}))';
+  for (const arch of ['x64', 'arm64']) {
+    const parentCode = `const { boundedChild } = require(${JSON.stringify(probe)}); process.stdout.write(JSON.stringify(boundedChild(process.execPath, ['-e', ${JSON.stringify(childCode)}])))`;
+    const parent = spawnSync(process.execPath, ['-e', parentCode], {
+      encoding: 'utf8', env: { ...process.env, CAPIRO_QUALIFICATION_ARCH: arch }, cwd: __dirname,
+    });
+    assert.equal(parent.status, 0, parent.stderr);
+    const child = JSON.parse(parent.stdout);
+    assert.equal(child.status, 0, child.stderr);
+    assert.deepEqual(JSON.parse(child.stdout), { arch, selected: arch });
+  }
 });
 test('collector runs Sharp and remaining independent cases after prior failures; aggregate stays HOLD', async () => {
   const ran = [], emitted = [];

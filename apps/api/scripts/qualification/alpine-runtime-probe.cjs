@@ -60,7 +60,8 @@ function elfMetadata(data) {
 }
 function boundedChild(file, args, { timeout = 30000, maxBuffer = 1024 * 1024 } = {}) {
   const result = spawnSync(file, args, { encoding: 'utf8', timeout, maxBuffer, killSignal: 'SIGKILL',
-    stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: '/usr/local/bin:/usr/bin:/bin', NODE_ENV: 'production', TMPDIR: '/dev/shm', HOME: '/nonexistent' } });
+    stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: '/usr/local/bin:/usr/bin:/bin', NODE_ENV: 'production', TMPDIR: '/dev/shm', HOME: '/nonexistent',
+      CAPIRO_QUALIFICATION_ARCH: platform.cpu } });
   return { status: result.status, signal: result.signal, error: result.error ? { code: result.error.code || 'CHILD_ERROR' } : null,
     stdout: (result.stdout || '').slice(0, maxBuffer), stderr: (result.stderr || '').slice(0, maxBuffer) };
 }
