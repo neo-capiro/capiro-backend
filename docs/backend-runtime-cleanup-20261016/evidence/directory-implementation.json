@@ -67,11 +67,11 @@
     },
     {
       "path": "scripts/ci/directory-detail-mappers.contract.spec.mjs",
-      "canonicalSha256": "b34788af55150dbeafe496291b638635359b7214bd5640f4af49fa9c2bb2230d",
-      "checkoutSha256": "b34788af55150dbeafe496291b638635359b7214bd5640f4af49fa9c2bb2230d",
-      "canonicalBytes": 13270,
-      "physicalLines": 210,
-      "nonblankLines": 197
+      "canonicalSha256": "9be20b9f9f59d70c7ec9def7127a03f8a31026ac3f8961926f40c9c3b4c66031",
+      "checkoutSha256": "9be20b9f9f59d70c7ec9def7127a03f8a31026ac3f8961926f40c9c3b4c66031",
+      "canonicalBytes": 11832,
+      "physicalLines": 192,
+      "nonblankLines": 179
     }
   ],
   "verification": {
@@ -97,5 +97,14 @@
       "bytes": 4979
     },
     "explanation": "The sealed map counted the following 82-byte resolveMemberRef doc-comment line. Only the seven algorithm methods and separating blanks moved; that following comment stays untouched in DirectoryService."
+  },
+  "priorDraftTestMeasurement": {
+    "path": "scripts/ci/directory-detail-mappers.contract.spec.mjs",
+    "canonicalSha256": "b34788af55150dbeafe496291b638635359b7214bd5640f4af49fa9c2bb2230d",
+    "checkoutSha256": "b34788af55150dbeafe496291b638635359b7214bd5640f4af49fa9c2bb2230d",
+    "canonicalBytes": 13270,
+    "physicalLines": 210,
+    "nonblankLines": 197,
+    "status": "Preserved initial pre-review design; superseded before the executed focused stage. It is not the current permanent gate."
   }
 }

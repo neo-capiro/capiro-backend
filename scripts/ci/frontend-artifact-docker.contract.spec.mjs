@@ -67,7 +67,7 @@ test('backend ownership transition retains release operator, dependency graph an
     const before = execFileSync('git', ['show', `${reference}:${file}`], { cwd: ROOT, encoding: 'utf8' });
     if (file === 'pnpm-lock.yaml') {
       // The sealed runtime source already moved the same Prisma version into
-      // API and Onboard production dependencies before cleanup began.
+      // four repository importers' production dependencies before cleanup began.
       const identity = createHash('sha256').update(before).digest('hex');
       assert.equal(identity, BACKEND_WORKSPACE_TRANSITION_HASHES[file].before);
       assert.equal(identity, '01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c');
