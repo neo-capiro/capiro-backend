@@ -130,6 +130,17 @@ payload, and run both Core issue/verify and Meri receiver fixtures against
 the same raw bytes. It must separately exercise malformed signatures. No
 fixture token or key is usable as a product credential.
 
+The same-`jti`, changed-fingerprint case first completes one accepted read, then
+re-signs the **same** `jti` with `exp=1800000029` at fixture time
+`1800000000`. Both lifetimes are valid, so the second denial must come from
+the durable replay fingerprint check, with no second result-owner callback.
+For each malformed or stale case, assert the rejection stage and replay-store
+and owner callback counts in the JSON, not just its public error. Check the
+wire size limits before decoding or signature work; body size before hashing.
+Run separate `UNKNOWN` cases before and after an owner callback and deny a
+later identical replay without another owner callback. These are required
+harness behaviors, not evidence that either repository implements them yet.
+
 Positive vectors: baseline current read; exact replay returns one saved
 result; current revocation after read begins withholds the reply. Negative
 vectors: old EdDSA/nested layout; wrong type, key, issuer, audience, subject,
