@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 /**
+ * Historical UI scanner; canonical current frontend parity owner is
+ * capiro-frontend. --backend-only delegates to current backend declarations.
+ * UI generation/verification requires the explicit pinned historical root.
+ *
  * Phase 3 micro-session 3.1 — current Engagement UI surface and API consumer
  * inventory.
  *
@@ -26,6 +30,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { requirePinnedLegacySourceRoot } from '../tests/support/legacy-web/source-root.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB_SRC = path.join(ROOT, 'apps/web/src');
@@ -922,21 +927,28 @@ export function verifyUiInventory(inventory, routeManifest) {
 
 // ───────────────────────────────────────────────────────────────────────── CLI
 
-function main(argv) {
+async function main(argv) {
   if (argv.length === 1 && argv[0] === '--backend-only') {
-    const inventory = loadBackendUiInventory();
-    const problems = verifyUiInventory(inventory);
-    if (problems.length) {
-      console.error('Sealed historical source identity is preserved, but its inventory is invalid against the retained backend route/classification contract. No current frontend or backend consumer-coverage pass is claimed.');
-      for (const problem of problems) console.error(`  - ${problem}`);
-      console.error('ENGAGEMENT_PHASE3_BACKEND_CONSUMER_CONTRACT_INVALID');
-      return 1;
-    }
-    console.log(`ENGAGEMENT_PHASE3_BACKEND_CONSUMER_CONTRACT_OK: ${inventory.totals.requests} historical consumer requests; current frontend acceptance not performed`);
-    return 0;
+    // Load lazily: the current backend checker reuses this module's pure
+    // classification helpers, never its historical UI coverage assumptions.
+    const { checkCurrentBackendContract } = await import('./engagement-phase3-backend-contract.mjs');
+    const result = checkCurrentBackendContract('--check-routes');
+    for (const problem of result.issues) console.error(`  - ${problem}`);
+    console[result.issues.length ? 'error' : 'log'](
+      `${result.issues.length ? 'CURRENT_BACKEND_SOURCE_CONTRACT_INVALID' : 'CURRENT_BACKEND_SOURCE_CONTRACT_OK'} ${JSON.stringify(result)}`,
+    );
+    return result.issues.length ? 1 : 0;
   }
   if (argv.includes('--backend-only')) {
-    console.error('Use exactly --backend-only for preserved backend consumer-contract validation');
+    console.error('Use exactly --backend-only for current backend route-declaration validation');
+    return 2;
+  }
+  if (argv.length === 1 && argv[0] === '--help') {
+    console.log('Use exactly --backend-only for current backend declarations. Historical UI --check|--write <manifest.json> requires CAPIRO_LEGACY_WEB_SOURCE_ROOT at sealed source4e. Canonical frontend parity owner: capiro-frontend.');
+    return 0;
+  }
+  if (argv.length !== 2 || !['--check', '--write'].includes(argv[0]) || argv[1].startsWith('--')) {
+    console.error('Use exactly --backend-only, or historical --check|--write <manifest.json> with explicit pinned historical source');
     return 2;
   }
   const checkIndex = argv.indexOf('--check');
@@ -951,7 +963,10 @@ function main(argv) {
     return 1;
   }
 
-  const built = buildUiInventory();
+  const historicalRoot = requirePinnedLegacySourceRoot();
+  const historicalRouteManifest = JSON.parse(readFileSync(path.join(historicalRoot,
+    'apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json'), 'utf8'));
+  const built = buildUiInventory({ root: historicalRoot, routeManifest: historicalRouteManifest });
 
   if (writeIndex !== -1) {
     writeFileSync(path.resolve(target), `${JSON.stringify(built, null, 2)}\n`);
@@ -971,7 +986,7 @@ function main(argv) {
     return 1;
   }
 
-  const problems = verifyUiInventory(committed);
+  const problems = verifyUiInventory(committed, historicalRouteManifest);
   if (JSON.stringify(committed) !== JSON.stringify(built)) {
     problems.unshift(
       'committed manifest is stale — re-run with --write (the web source changed)',
@@ -993,5 +1008,8 @@ function main(argv) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('engagement-phase3-ui-inventory.mjs')) {
-  process.exit(main(process.argv.slice(2)));
+  main(process.argv.slice(2)).then(code => process.exit(code)).catch(error => {
+    console.error(error.message);
+    process.exit(1);
+  });
 }

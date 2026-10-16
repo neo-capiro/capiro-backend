@@ -1,11 +1,20 @@
 #!/usr/bin/env node
 /** Exercise sealed historical CLI bodies with inert dependency/resource ports. */
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { readVisualCliInput, readRelocatedPhase1CliInput } from '../../tests/support/legacy-web/visual-cli-inputs/inputs.mjs';
+import { historicalReplayMode } from '../../tests/support/legacy-web/qualification-owner.mjs';
+
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log('Use exactly --historical-replay to run the sealed 27 historical Web scenarios. Canonical frontend parity owner: capiro-frontend. Current backend gate: scripts/backend-source-qualification.mjs --plan.');
+  process.exit(0);
+}
+try { historicalReplayMode(process.argv.slice(2)); }
+catch (error) { console.error(error.message); process.exit(2); }
 
 const TEMP = path.resolve(os.tmpdir());
 // Validate every required immutable operand before creating temporary fixtures.

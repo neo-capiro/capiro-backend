@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "sourceBaseline": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "historicalSourceCommit": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "canonicalFrontendParityOwner": "capiro-frontend",
+  "currentCatalog": "scripts/backend-source-qualification.mjs --plan|--run",
+  "currentAcceptanceScope": "Backend source declarations, runtime-action classification, exact preview prefix boundary, and owned qualification-data bytes. No frontend parity, generated browser-table acceptance, actual router registration, live routing, database, browser, compiler or deployment acceptance.",
+  "classificationScope": "Existing runtime-action scanner owns apps/api/src/engagement only. Credential resolve and Recall source declarations remain catalogued separately without an invented Engagement action classification.",
+  "current": [
+    {
+      "path": "scripts/engagement-phase3-backend-contract.spec.mjs",
+      "owner": "capiro-backend",
+      "cases": 27,
+      "purpose": "Current backend declarations and negative controls; no frozen whole-file or route-count snapshot",
+      "caseNames": [
+        "current backend manifests and controller declarations validate without UI coverage assumptions",
+        "current backend external and read classifications come from retained controller metadata",
+        "current route catalog is deterministic and does not mutate source declarations",
+        "historical byte inputs are preserved only as qualification data identities",
+        "a duplicate current backend method and path is rejected",
+        "a missing admitted route manifest is rejected",
+        "an unavailable owned controller source is rejected",
+        "a controller metadata name absent from its source is rejected",
+        "a handler metadata name absent from its source is rejected",
+        "an unsupported route method is rejected",
+        "a route path carrying a query or traversal is rejected",
+        "an additive manifest with a different runtime declaration is rejected",
+        "an additive route cannot escape the existing Engagement prefix",
+        "removing the current send action metadata introduces its own backend diagnostic",
+        "send-intent status reads remain reads while mutation heuristics remain external",
+        "the two documented local exemptions cannot absorb a genuine current send",
+        "invalid handler identifiers are rejected before source matching",
+        "a stale heuristic exemption is rejected against current backend declarations",
+        "current preview patterns exclude every non-preview backend catalog path",
+        "a broad prefix pattern is rejected even if route coverage is unchanged",
+        "an unanchored pattern is rejected",
+        "dropping an in-prefix route cannot shrink the checked preview boundary",
+        "the current backend check cannot broaden the reviewed preview prefix",
+        "the current backend check cannot add a Krisp exclusion to the historical policy",
+        "additive global and controller prefix metadata mutations introduce their own diagnostics",
+        "an additive route cannot move into a sibling Engagement or V3 family owner",
+        "legitimate future routes under each admitted additive owner need no historical UI update"
+      ]
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "owner": "capiro-backend",
+      "cases": 18,
+      "purpose": "Strict mode grammar, exact current/historical ownership, finite argv, fake-executor failure stop, no-child plan/help",
+      "caseNames": [
+        "current source catalog accepts only its declared single ownership modes",
+        "current source catalog refuses missing intent before executing anything",
+        "current source catalog refuses unknown arguments",
+        "current source catalog refuses combined modes",
+        "current source catalog refuses duplicated mode flags",
+        "current source catalog names every historical obligation and its canonical frontend owner",
+        "fake executor observes exactly the finite Node argv and no service commands",
+        "a failed current source step stops later work and cannot emit completion",
+        "uncertain child results and empty or unowned source plans fail closed",
+        "plan and help inspect ownership without invoking any child process",
+        "current workspace fields and real delegated Turbo filters validate",
+        "unrelated versions dependencies and backend importers remain free to evolve",
+        "retired Web source package workspace and importer regressions each fail",
+        "Onboard and E2E retain their package workspace importer and identity support",
+        "fake filter substrings shell controls and forwarded flags cannot satisfy current defaults",
+        "typecheck delegation follows actual tokens supports equivalent quoting and rejects cycles or missing filters",
+        "dry-run graph help and version flags cannot replace executing current default tasks",
+        "extra positive broad negative and duplicated default selectors cannot narrow the current task set to zero"
+      ]
+    },
+    {
+      "path": "tests/support/legacy-web/inputs.spec.mjs",
+      "owner": "capiro-backend",
+      "cases": 22,
+      "purpose": "Existing 13 harness inverses, three source-operand identities/tamper refusals, and three preflight cases; immutable data integrity only",
+      "unchangedSeal": "tests/support/legacy-web/SOURCE-INPUTS.json"
+    }
+  ],
+  "historical": [
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.spec.mjs",
+      "owner": "capiro-frontend",
+      "cases": 32,
+      "requiredInput": "CAPIRO_LEGACY_WEB_SOURCE_ROOT: clean read-only exact historicalSourceCommit",
+      "sourceReads": "ROOT, owned manifest, Phase0 route manifest and collectRuntimeActions(ROOT) all bind to historicalRoot; current backend source scan is not old parity proof",
+      "preservedCaseNames": [
+        "the backend consumer inventory retains its exact historical input bytes",
+        "the committed manifest passes every invariant",
+        "backend inventory validation is deterministic and does not mutate its input",
+        "the inventory is non-trivial",
+        "every request maps to a Phase 0 route manifest entry",
+        "every request belongs to a declared surface",
+        "every user-facing route is either consumed or explicitly api_only",
+        "classification is driven by @EngagementRuntimeAction, not by URL shape",
+        "the decorator scan finds the real runtime actions",
+        "every send endpoint is external, including send-batch and jobs/send",
+        "a GET is never classified as a local write",
+        "every heuristic exemption cites evidence and names a live route",
+        "Outreach v2 is the sole production wizard and OutreachView is inventoried",
+        "no Outreach V3 route or component exists",
+        "every surface declares loading, empty, error and permission states",
+        "NEGATIVE CONTROL: a fake missing route is rejected",
+        "NEGATIVE CONTROL: an unmapped request is rejected",
+        "NEGATIVE CONTROL: a send endpoint classified read is rejected",
+        "NEGATIVE CONTROL: omitting OutreachView is rejected",
+        "NEGATIVE CONTROL: a request with no surface is rejected",
+        "NEGATIVE CONTROL: an undecorated external route is rejected",
+        "NEGATIVE CONTROL: a V3 consumer is rejected",
+        "NEGATIVE CONTROL: a missing route-coverage entry is rejected",
+        "NEGATIVE CONTROL: a surface missing a required state is rejected",
+        "NEGATIVE CONTROL: tampered totals are rejected",
+        "NEGATIVE CONTROL: an unresolved scanner finding is rejected",
+        "NEGATIVE CONTROL: a consumed route with no consumers is rejected",
+        "normalizePath collapses dynamic segments and drops query strings",
+        "template literals resolve through module constants",
+        "matchRoute prefers a literal segment over a parameter segment",
+        "classifyRequest defers to the decorator over the method",
+        "the heuristic still recognises send-batch, which an anchored /send$/ would miss"
+      ],
+      "priorObservedFailingCases": [
+        "the committed manifest passes every invariant",
+        "every request maps to a Phase 0 route manifest entry",
+        "every request belongs to a declared surface",
+        "every user-facing route is either consumed or explicitly api_only",
+        "no Outreach V3 route or component exists"
+      ],
+      "priorEvidence": "docs/backend-cleanup-frontend-20261016/evidence/historical-inventory-controls.stdout",
+      "assertionsRemovedOrSkipped": 0
+    },
+    {
+      "path": "scripts/engagement-phase3-preview-route-patterns.mjs",
+      "owner": "capiro-frontend",
+      "scope": "Original historical browser table generator/guard, unchanged",
+      "priorObservedMarker": "ENGAGEMENT_PREVIEW_ROUTE_PATTERNS_INVALID (5)",
+      "preservedRejectedPaths": [
+        "/api/clio/krisp-notetaker",
+        "/api/clio/krisp-notetaker/folders",
+        "/api/clio/krisp-notetaker/imports/:id/candidates",
+        "/api/clio/krisp-notetaker/imports/:id/match",
+        "/api/clio/krisp-notetaker/preferences"
+      ],
+      "priorEvidence": "docs/backend-cleanup-frontend-20261016/evidence/preview-pattern-inherited-failure-source-proof.json",
+      "prefixAndExclusionRuleChanges": 0,
+      "generatedBrowserTableWrites": 0
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+      "owner": "capiro-frontend",
+      "requiredArgument": "--historical-replay",
+      "scenarios": 27,
+      "assertions": 144,
+      "caseGroups": { "noargsHelpUnknownAndConfiguration": 22, "explicitModeResourceRefusals": 2, "deliberateTrapProof": 1, "packageAssertions": 2 },
+      "preservedPackageAssertions": [
+        "package Lighthouse command must opt into Chrome",
+        "package capture command must opt into writes"
+      ],
+      "priorObservedPackageFailures": 2,
+      "priorEvidence": "docs/backend-cleanup-frontend-20261016/evidence/historical-web-visual-cli-controls.stderr",
+      "assertionsRemovedOrSkipped": 0
+    },
+    {
+      "path": "tests/support/legacy-web/historical-source-replay.spec.mjs",
+      "owner": "capiro-frontend",
+      "cases": 3,
+      "requiredInput": "CAPIRO_LEGACY_WEB_SOURCE_ROOT: clean read-only exact historicalSourceCommit",
+      "unchanged": true
+    }
+  ],
+  "selectorChanges": [
+    { "consumer": "scripts/engagement-phase3-qualification-plan.mjs", "scope": "backend-only", "old": "Phase 3 UI inventory", "current": "Phase 3 current backend route contracts" },
+    { "consumer": "scripts/engagement-phase3-qualification-plan.mjs", "scope": "backend-only", "old": "Phase 3 preview route generation drift", "current": "Phase 3 current backend preview boundary" },
+    { "consumer": "scripts/verify-outreach-v3-phase6-code.mjs", "scope": "backend-only", "old": "Preview route manifest drift", "current": "Current backend preview boundary" }
+  ],
+  "existingCurrentCatalogSuites": [
+    { "paths": ["scripts/lib/defense-runtime-source-ownership.test.mjs", "scripts/lib/phase17-operator-ownership.test.mjs"], "cases": 19 },
+    { "paths": ["scripts/ci/directory-detail-mappers.contract.spec.mjs"], "cases": 8 }
+  ],
+  "currentCanonicalSourceVerifiers": ["scripts/verify-defense-budget-mirror-parity.mjs", "scripts/verify-phase8-session4.mjs"],
+  "verifierExecution": "Two source verifiers perform finite synchronous Git reads, not child services or compiler execution.",
+  "sourceQualificationRunner": "Node24 with builtin TypeScript stripping for source fixtures; no Onboard Node20 runtime/image upgrade is implied.",
+  "currentWorkspaceContract": "Current Web absence/exclusion, retained Onboard/E2E/source-identity support, actual default/delegated Turbo task tokens with exactly the two reviewed exclusion filters; order/quoting may vary, extras/duplicates require owner review. Unrelated versions/dependencies/backend importers may evolve. No whole root or lock hash.",
+  "unrunScopes": ["nativeApplication", "install", "build", "image", "frontend", "Onboard-default-source-SPA-and-Node20-image", "Onboard-optional-artifact-image", "native-platform"],
+  "frontendParityReplacementsClaimed": 0,
+  "historicalRerunRequiredForCurrentBackendAcceptance": false,
+  "newGithubWorkflowActivations": 0,
+  "rootPackageOrLockChanges": 0
+}

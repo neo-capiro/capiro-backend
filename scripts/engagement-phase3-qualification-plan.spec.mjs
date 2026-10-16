@@ -28,7 +28,14 @@ test('backend excludes direct Web and historical UI main while retaining source 
   assert(!plan.some(x=>browserLabels.includes(x[0])));
   assert.deepEqual(plan.find(x=>x[0]==='Phase 1 prerequisite')[2],['verify:engagement-phase-1:backend']);
   assert.deepEqual(plan.find(x=>x[0]==='Phase 2 prerequisite')[2],['verify:engagement-phase-2:backend']);
-  for(const label of ['Phase 3 UI inventory','Phase 3 preview route generation drift','Phase 3 scope and findings','Phase 3 committed-range whitespace'])assert.deepEqual(plan.find(x=>x[0]===label),full.find(x=>x[0]===label));
+  for(const label of ['Phase 3 scope and findings','Phase 3 committed-range whitespace'])assert.deepEqual(plan.find(x=>x[0]===label),full.find(x=>x[0]===label));
+  assert(!plan.some(x=>['Phase 3 UI inventory','Phase 3 preview route generation drift'].includes(x[0])));
+  const inventory=full.find(x=>x[0]==='Phase 3 UI inventory');
+  assert.deepEqual(plan.find(x=>x[0]==='Phase 3 current backend route contracts'),
+    ['Phase 3 current backend route contracts',inventory[1],['--test','scripts/engagement-phase3-backend-contract.spec.mjs'],...inventory.slice(3)]);
+  const preview=full.find(x=>x[0]==='Phase 3 preview route generation drift');
+  assert.deepEqual(plan.find(x=>x[0]==='Phase 3 current backend preview boundary'),
+    ['Phase 3 current backend preview boundary',preview[1],['scripts/engagement-phase3-backend-contract.mjs','--check-preview-boundary'],...preview.slice(3)]);
   const controls=plan.find(x=>x[0]==='Phase 3 harness/scope/resilience negative controls')[2];
   assert(!controls.some(x=>x.startsWith('tests/support/legacy-web/')));
   assert(controls.includes('scripts/verify-engagement-phase3-prototype-boundary.spec.mjs'));

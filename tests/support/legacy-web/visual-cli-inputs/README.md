@@ -4,6 +4,8 @@ The two `.mjs.txt` operands and `package.json` are exact bytes extracted from Gi
 
 `scripts/cleanup-script-smoke/web-visual-cli-controls.mjs` retains its 27 original scenarios and 144 original assertions: 22 no-argument/help/unknown/configuration checks, two explicit-mode resource refusals, one deliberate trap proof and two package assertions. The three script basenames and all existing check labels remain. The already relocated Phase 1 harness is verified through its exact recorded path inverse; it is not duplicated into this archive.
 
+It now requires exactly `--historical-replay` before reading archive operands or creating fixtures. Missing/malformed intent exits 2; `--help` exits 0 without executing cases. All 27 scenario bodies and 144 assertions remain. Canonical current frontend parity owner is `capiro-frontend`; `../QUALIFICATION-OWNERSHIP.json` records the cases and inherited outcomes. The current backend catalog excludes this suite and verifies immutable input bytes without claiming its package assertions pass.
+
 Script bodies are materialized into a separate temporary input directory so the original resource trap can still assert that the calling directory stays empty. Browser-package ESM and CJS ports are inert and refuse execution; no Chrome, Lighthouse dependency, browser, network or database is used. Original filesystem/subprocess/network traps and explicit-mode markers remain. Child Node heaps are capped at 64 MiB; parent uses 128 MiB and an external 120-second wall limit.
 
 ## Preserved failures
@@ -19,10 +21,10 @@ Both original `assert.equal` expressions execute once. Failures are collected se
 
 After 25 successful inert runtime scenarios, the command emits `Historical Web visual CLI runtime controls COMPLETE`, then emits `HISTORICAL_WEB_VISUAL_PACKAGE_ASSERTIONS_FAILED` with both observations and exits 1. An earlier runtime-control failure remains a distinct unexpected failure. This historical package qualification is separate from current backend acceptance.
 
-Queued parent validation command (not run by this implementation lane):
+Explicit historical replay command (no rerun is required for current backend source acceptance):
 
 ```text
-node --max-old-space-size=128 scripts/cleanup-script-smoke/web-visual-cli-controls.mjs
+node --max-old-space-size=128 scripts/cleanup-script-smoke/web-visual-cli-controls.mjs --historical-replay
 ```
 
 No test, compiler, install or browser ran in this lane. These inputs permit retirement of the old main-Web automation files without dropping their CLI/refusal scenarios; they do not qualify a currently served frontend.
