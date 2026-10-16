@@ -1,3 +1,6 @@
+> **Scope status — backend cleanup successor.** Historical frontend execution instructions. Old Web build/browser commands below are no longer current backend CI. The UX matrix, permission/data-preservation requirements and open real-service qualification remain intact. Current frontend parity belongs to `capiro-frontend`; this cleanup does not complete that qualification.
+> Source retirement: [PR30](https://github.com/neo-capiro/capiro-backend/pull/30), exact `7b6bda7ca75ea86afb36c76f013f550fdd79e42f`.
+
 # LegiWatch: make the existing product clear and easy to use
 
 Implementation plan · September 18, 2026 · UI implementation complete locally; real-service qualification remains open
