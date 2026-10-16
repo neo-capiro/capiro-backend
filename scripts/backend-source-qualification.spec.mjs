@@ -55,6 +55,24 @@ test('fake executor observes exactly the finite Node argv and no service command
     plan.current.map(([, args]) => [process.execPath, ['--max-old-space-size=128', ...args]]));
   assert(calls.every(([, , options]) => options.windowsHide === true && options.timeout === 120_000));
 });
+
+test('Meri historical replay is explicit data ownership outside the current source steps', () => {
+  const plan = backendSourcePlan();
+  const ledger = JSON.parse(readFileSync(new URL('../tests/support/legacy-meri/CASE-OWNERSHIP.json', import.meta.url)));
+  assert.equal(plan.historicalMeri.sourceCommit, ledger.sourceCommit);
+  assert.equal(plan.historicalMeri.historicalExpandedCases, ledger.totals.historicalExpandedCases);
+  assert.equal(plan.historicalMeri.currentRpSafetyIdentities, 22);
+  assert.equal(plan.historicalMeri.nativeReplayStatus, 'UNRUN');
+  assert.equal(ledger.groups.filter(group => group.classification.startsWith('historical-'))
+    .reduce((count, group) => count + group.cases.length, 0), 71);
+  const current = JSON.stringify(plan.current);
+  assert(current.includes('meri-loop-current-runtime.contract.spec.mjs'));
+  assert(current.includes('meri-current-turn-dispatch.contract.spec.mjs'));
+  assert(current.includes('legacy-meri/replay-plan.spec.mjs'));
+  assert(!current.includes('legacy-meri/replay-plan.mjs'));
+  assert(!current.includes('meriv2-chat.client.spec.ts'));
+  assert(!current.includes('ResearchPortfolioMeriTurnBinding.spec.ts'));
+});
 test('a failed current source step stops later work and cannot emit completion', () => {
   let calls = 0;
   const output = [];
