@@ -235,6 +235,7 @@ model Tenant {
   outreachJobs                       OutreachJob[]
   outreachJobItems                   OutreachJobItem[]
   clioConversations                  ClioConversation[]
+  clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
@@ -2269,11 +2270,29 @@ model ClioConversation {
   messages  ClioMessage[]
   artifacts ClioArtifact[]
   notes     ClioNote[]
+  bootstrapReceipt ClioConversationBootstrapReceipt?
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
   @@index([tenantId, userId, workspaceId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_workspace_updated_idx")
   @@map("clio_conversations")
+}
+
+/// Durable first-chat intent key. The optional conversation link is cleared on
+/// hard deletion so an old requestId can never allocate a replacement chat.
+model ClioConversationBootstrapReceipt {
+  tenantId       String    @map("tenant_id") @db.Uuid
+  actorUserId    String    @map("actor_user_id") @db.Uuid
+  requestId      String    @map("request_id") @db.Uuid
+  clientId       String    @map("client_id") @db.Uuid
+  conversationId String?   @unique(map: "clio_bootstrap_receipts_conversation_key") @map("conversation_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_bootstrap_receipts_tenant_fkey")
+  conversation ClioConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull, map: "clio_bootstrap_receipts_conversation_fkey")
+
+  @@id([tenantId, actorUserId, requestId], map: "clio_bootstrap_receipts_pkey")
+  @@map("clio_conversation_bootstrap_receipts")
 }
 
 /// User-owned reusable instructions for the Meri vNext workspace.
