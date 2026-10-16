@@ -2,7 +2,7 @@
   "status": "REVIEWED_SOURCE_CANDIDATE_NOT_DEPLOYED",
   "repository": "neo-capiro/capiro-backend",
   "branch": "feat/engagement-manual-plans",
-  "parent": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+  "parent": "9a151f4dbf9e910ce9a78c3cb40a5dc53390508e",
   "pullRequestBase": "fix/bookworm-clean-production-store",
   "acceptedContract": "f41be1774131d5a51ed5eaaafdcdade4f50781e3",
   "focused": {
@@ -12,7 +12,8 @@
     "suites": 6,
     "nativePostgresCasesIncluded": 18,
     "postgres": "16.14",
-    "nativeFixture": "guarded disposable engagement_plan_acceptance on127.0.0.1:60009; actual PrismaService/frozen generated client/current target writers"
+    "nativeFixture": "guarded disposable engagement_plan_acceptance on127.0.0.1:60009; actual PrismaService/frozen generated client/current target writers",
+    "receipt": "implementation-runtime/successor-focused.json"
   },
   "migration": {
     "reservation": "20281015040000_engagement_plans",
@@ -25,11 +26,13 @@
       "EngagementPlanCommandReceipt",
       "EngagementPlanRevision"
     ],
-    "sqlSha256": "39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f",
+    "sqlSha256": "40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a",
     "sqlNativeConstraintChecks": 79,
     "liveMigrationExecuted": false,
-    "executedFixtureScript": "evidence/migration-constraints.executed.cjs",
-    "executedFixtureScriptSha256": "b0b2bc285d20893519d378c6a8b07f5b47b712d38da966a2c2cd9933525f5b5c"
+    "executedFixtureScript": "evidence/migration-constraints-after-truncate.executed.cjs",
+    "executedFixtureScriptSha256": "33501b831a41414986a531330095fd0776d29addb05c98cfcbab49539df7af6b",
+    "defaultAclReproduced": "arwdDxt via GRANT ALL before table creation",
+    "constraintReceipt": "evidence/migration-constraints-after-truncate.json"
   },
   "targetedSemantic": {
     "passed": true,
@@ -38,14 +41,15 @@
     "programSourceFiles": 1468,
     "diagnostics": 0,
     "actualSourceAndDependencyTypes": true,
-    "sourceCheckpointSha256": "3e0c7fa026b25e3e405c056ed9391391df47bcdb64c3ad8f992f568127362a63",
+    "sourceCheckpointSha256": "e18bbdffd79b3526a8fdbd3437c4f8d8db7b3d00260c631fd26f1fc825a8ca1d",
     "baselineImportedBodySemanticAcceptance": false,
-    "canonicalFullBackendSemanticAcceptance": false
+    "canonicalFullBackendSemanticAcceptance": false,
+    "receipt": "implementation-runtime/successor-types.json"
   },
   "nativeRuntime": {
     "stopped": true,
     "ready": false,
-    "stoppedAtUtc": "2026-10-16T00:12:52.6179170Z",
+    "stoppedAtUtc": "2026-10-16T00:43:26.9229674Z",
     "receipt": "implementation-runtime/postgres-plan.json"
   },
   "schemaValidation": {
@@ -516,13 +520,18 @@
         "currentArtifactsChangedByAudit": false,
         "limit": "Both CLI gates stop on five inherited Krisp exclusions before comparing generated artifact text. Separate in-memory derivation is diagnostic evidence only; no gate, route permissions or generated artifact was changed."
       }
-    }
+    },
+    "successorFeaturePassed": 25,
+    "successorFeatureLog": "implementation-runtime/successor-offline-feature.log",
+    "frozenBaselineUnchanged": true
   },
   "manifestJest": {
     "passed": 16,
     "failed": 1,
     "pending": 0,
-    "failure": "Inherited NewsletterOutreachController and NewsletterPublicController omitted from primary manifest; no new plan-controller omission"
+    "failure": "Inherited NewsletterOutreachController and NewsletterPublicController omitted from primary manifest; no new plan-controller omission",
+    "carriedReceipt": "implementation-runtime/final-manifest-jest.json",
+    "currentManifestAndControllerInputsUnchangedSinceReceipt": true
   },
   "routeInventory": {
     "baselineGenerated": 135,
@@ -537,7 +546,7 @@
   "inheritedLimits": [
     "Full/transitive backend semantic attempts OOM before diagnostics",
     "Five inherited Krisp preview gate failures remain; no permission/exclusion broadening",
-    "Preview generated artifact drift exists in frozen baseline; feature additionally derives seven plan patterns, artifact unchanged",
+    "Frozen preview generated artifact already differs from current frozen generator",
     "Two inherited Newsletter controller omissions remain"
   ],
   "unqualified": [
@@ -554,15 +563,15 @@
     "reason": "Reviewer interpreted instructions as forbidding junction mutations",
     "response": "No links created/retried; environment module lookup and runtime-owned compiler resolver used"
   },
-  "earlierAttempts": "Sandbox cache EPERM before tests; absent DB guard before DDL; initial strict test tuple diagnostic fixed without changing assertions; OOM and missing fixture attempts retained",
+  "earlierAttempts": "Sandbox cache EPERM before tests; absent DB guard before DDL; initial strict test tuple diagnostic fixed without changing assertions; OOM and missing fixture attempts retained; original full-default-ACL TRUNCATE regression failed15/28 and is retained; intermediate fixture metrics corrected to derive unsafe-profile outcomes; first successor Jest had140pass/18beforeAllrefusals on old39dbsentinel before DDL; preserved old database by verified rename and created fresh owned acceptance fixture without weakening guard",
   "productionAndFrozenPinsUnchanged": true,
   "frontendAndMeriSourceChanges": false,
   "mergeOrDeployment": false,
   "sources": [
     {
       "path": "apps/api/prisma/migrations/20281015040000_engagement_plans/migration.sql",
-      "bytes": 13352,
-      "sha256": "39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f"
+      "bytes": 13442,
+      "sha256": "40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a"
     },
     {
       "path": "apps/api/prisma/schema.prisma",
@@ -597,7 +606,7 @@
     {
       "path": "apps/api/src/engagement/plans/engagement-plan-postgres.fixture.ts",
       "bytes": 13880,
-      "sha256": "d33706e44900c25c0612ecc5e57317353aef4748399c5fb63f0d4d24557ecfad"
+      "sha256": "7e5a97bc91db7fc5c5bce1e2362e7e12e23d79082c760fbc68b5f6ab3c304649"
     },
     {
       "path": "apps/api/src/engagement/plans/engagement-plan-store.ts",
@@ -642,48 +651,76 @@
   ],
   "evidence": [
     {
-      "taskRuntimePath": "implementation-runtime/final-focused.json",
-      "sha256": "abe89036b760d0384b51d4f2f204cdb7887888556c41218a42f169703fdc1760"
+      "taskRuntimePath": "implementation-runtime/successor-focused.json",
+      "sha256": "7b5844e09537c8cd3356a8c4c2190ae9e83cec01e98ca34d3569b997504f62c1"
     },
     {
-      "taskRuntimePath": "implementation-runtime/final-focused.log",
-      "sha256": "04bf2efccb8425e97767b1b4182893b60ebc007193d135b5630d9d7a6dad32fa"
+      "taskRuntimePath": "implementation-runtime/successor-focused.log",
+      "sha256": "ba890a70290ed945406b518cb8b8f1ab17d04c999f92048e56b784572f11a41a"
     },
     {
-      "taskRuntimePath": "implementation-runtime/final-attempt2.json",
-      "sha256": "d51780c9cb6a83db808c578a96dc942d919a4b39eda3ad51cdaee193853035f4"
+      "taskRuntimePath": "implementation-runtime/successor-focused-attempt1.json",
+      "sha256": "d73c96d1b995f831c1f33d0a28052bf3ee51810a99c6fe9b3842fdbddb96fa3b"
     },
     {
-      "taskRuntimePath": "implementation-runtime/final-attempt2.log",
-      "sha256": "f0d50e264c3ace5880bc5b2089dfa8c3527d956a8a630556e47d570797fc18fe"
+      "taskRuntimePath": "implementation-runtime/successor-focused-attempt1.log",
+      "sha256": "468e192d1fd20064974cb23efbe1850b6a97b7e9b0a5542acc52f24ded13f0f8"
     },
     {
-      "taskRuntimePath": "implementation-runtime/final-qualified-checkpoint.json",
-      "sha256": "3e0c7fa026b25e3e405c056ed9391391df47bcdb64c3ad8f992f568127362a63"
+      "taskRuntimePath": "implementation-runtime/successor-database-preparation.json",
+      "sha256": "a5ad27bc308f2bc0a2d313ff02cef343269b42c224287359203a344b0e23ff75"
     },
     {
-      "taskRuntimePath": "implementation-runtime/prisma-validate-final.json",
-      "sha256": "dc46e4f31bd86fdd1a7ae7ce579db37d7c943f62bcaa798a0d42150e7e70f11d"
+      "taskRuntimePath": "implementation-runtime/prepare-successor-acceptance.cjs",
+      "sha256": "a35ea630f99278272aaa8a9601beb4230975e40bdd1b89db947260f278e31793"
     },
     {
-      "taskRuntimePath": "implementation-runtime/prisma-validate-final.log",
-      "sha256": "1e6679e0b1afe0867861ff6319cc2fbe2e4ad53ad12ca9e1bb54eb900c2755a9"
+      "taskRuntimePath": "implementation-runtime/successor-types.json",
+      "sha256": "e18bbdffd79b3526a8fdbd3437c4f8d8db7b3d00260c631fd26f1fc825a8ca1d"
     },
     {
-      "taskRuntimePath": "implementation-runtime/aggregate/final-summary.json",
-      "sha256": "5fb573ce0b9a33e37ed82658e897b0556a3a9e5cef4706f4a1d43bc223c23e4e"
+      "taskRuntimePath": "implementation-runtime/successor-types.log",
+      "sha256": "0594e8aa40ad7062f4362fa1f88edc75cffb40517e7c66d04e3be81b8be36858"
     },
     {
-      "taskRuntimePath": "implementation-runtime/aggregate/AGGREGATE.md",
-      "sha256": "e0f9bf67816dd18f329610a857aa230dd4d37f83b3c02cdd7045527f27ed522e"
+      "taskRuntimePath": "implementation-runtime/successor-offline-feature.log",
+      "sha256": "733eb41cd80597057d64f6202186e94d3f71a72ccc8a9c110b173807a9f5b923"
     },
     {
-      "taskRuntimePath": "implementation-runtime/final-manifest-jest.json",
-      "sha256": "1defccaa0064c486d2950fac5a78111a47cffb94b6dde787f92871741d4917a8"
+      "taskRuntimePath": "implementation-runtime/postgres-plan.json",
+      "sha256": "23679452b4e511a840276e639c232ddb27bf38c0f5e9388b73722be5d7a19dd8"
     },
     {
-      "taskRuntimePath": "implementation-runtime/final-manifest-jest.log",
-      "sha256": "1678136f4a12a418076259721e21db9ed5c64d5ff915e76e8022b2b9f19d9757"
+      "taskRuntimePath": "implementation-runtime/postgres/role-source-evidence.json",
+      "sha256": "b5ec585e3c18c73e508ca2678fc1a8947cb1174955f71e2ac9ea3033debfe084"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/ROLE-PROFILE-AUDIT.md",
+      "sha256": "95487be368f772c1cfc51ccf4f6fcfd14be5472a28353b3579c0008e57ee8c55"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/restart1-readiness.json",
+      "sha256": "c68aee3c898519b16f67e3a6436220e52c099a077bd7df17de3988775fbb3620"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/restart1-readiness-recheck.json",
+      "sha256": "5602a26472a408db59fd9e57e961356737924638af0a124901dbb938c7ff2e58"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/successor-stop-precheck.json",
+      "sha256": "4583948931c5de5039d639180e0f8c48dacd23f8235d4898682317ccc9614522"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/successor-stop-result.json",
+      "sha256": "72375b331b96c16fc8b6342ec3893882e850fabc5916f7931194911002a45060"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/successor-stop-verification.json",
+      "sha256": "d87c609fd89f7319a1e972c0e540a38f58c1bd8ee7175facb9630ae1e7072f4e"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/successor-launch-session-completion.json",
+      "sha256": "5567cff1c443e4b241b0c610dc417173a5c8d081f7f68081c6ac1a7394ce4cd3"
     },
     {
       "taskRuntimePath": "implementation-runtime/denials.json",
@@ -698,20 +735,172 @@
       "sha256": "4bedd622d1a84fd4e683d8ddf326ac5e20b810d5090a586ea13362b92aec5f79"
     },
     {
-      "taskRuntimePath": "implementation-runtime/postgres-acceptance-attempt1.json",
-      "sha256": "9016e2b717ae7007bfbf9c7f72cd98a2bc0cf422d71c235766b06c24ed9c0cff"
+      "taskRuntimePath": "implementation-runtime/aggregate/final-summary.json",
+      "sha256": "5fb573ce0b9a33e37ed82658e897b0556a3a9e5cef4706f4a1d43bc223c23e4e"
     },
     {
-      "taskRuntimePath": "implementation-runtime/postgres-acceptance-attempt2.json",
-      "sha256": "b42b314af9994e426f076a1855a0488c79177c9bed846cf6d91e26bde4d124ac"
+      "taskRuntimePath": "implementation-runtime/final-manifest-jest.json",
+      "sha256": "1defccaa0064c486d2950fac5a78111a47cffb94b6dde787f92871741d4917a8"
     },
     {
-      "taskRuntimePath": "implementation-runtime/postgres-plan.json",
-      "sha256": "1bf1157eed242704fda2e6398dcc5810391f9edec2a9bcc12cb2336a1b54e95c"
+      "taskRuntimePath": "implementation-runtime/prisma-validate-final.json",
+      "sha256": "dc46e4f31bd86fdd1a7ae7ce579db37d7c943f62bcaa798a0d42150e7e70f11d"
+    }
+  ],
+  "qualificationRevision": "TRUNCATE_REPAIR_REVIEWED_SOURCE_ONLY",
+  "frozenBase": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+  "supersedes": {
+    "commit": "9a151f4dbf9e910ce9a78c3cb40a5dc53390508e",
+    "reason": "Documented full arwdDxt default ACL retained TRUNCATE; original79-check fixture seeded only CRUD",
+    "priorSqlSha256": "39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f"
+  },
+  "truncateRegression": {
+    "before": {
+      "receipt": "evidence/migration-truncate-before-final.json",
+      "passed": 13,
+      "failed": 15,
+      "actualAppTruncatesSucceeded": 10
+    },
+    "after": {
+      "receipt": "evidence/migration-truncate-after-final.json",
+      "passed": 28,
+      "failed": 0,
+      "actualAppTruncatesDenied42501": 10
+    },
+    "sameExecutableSha256": "7fabdcb093b899280cfac77a75b94c2c26ac83de632cd7497d8ece8a77702715",
+    "unsafeProfilesRefused": [
+      "unsafe_owner_inheritance",
+      "unsafe_owner_set_only",
+      "unsafe_parent_truncate_inheritance",
+      "unsafe_parent_truncate_set_only",
+      "unsafe_public_truncate"
+    ],
+    "acceptedUnsafeProfiles": 0,
+    "supportedPosture": "Nonowner app with no inherited or SET-able owner/TRUNCATE role; documented reverse master-to-app membership only",
+    "negativeProfilesDeniedByMigration": false,
+    "negativeProfilesRefusedByFixtureQualification": true,
+    "postNegativeCleanupVerified": true
+  },
+  "roleQualification": {
+    "deployedPostureInspected": false,
+    "sourceMigrationChangesBroadRoles": false,
+    "requiredBeforeAdoption": "Separately authorized read-only target preflight of effective ACL, ownership, inherited and SET-able roles; repeat after any blanket grants",
+    "blanketGrantReplayCanRestoreRevokedPrivileges": true,
+    "fixtureControlledRolesOnly": true,
+    "sourceReview": "TRUNCATE-REVIEW.md"
+  },
+  "featureIntegrationOutstanding": {
+    "previewNewPatterns": 7,
+    "exactPatternsDocument": "PREVIEW-PATTERNS.md",
+    "classification": "New feature integration, distinct from inherited debt",
+    "frontendOwnerNotified": true,
+    "generatedMapAndAdmissionUnchanged": true,
+    "actualNewFrontendPreviewPlanOperationsHeld503": true
+  },
+  "applicationWire": {
+    "sha256": "64181558d22ccd71bf1b09f5644a2431e591567cd2b77913f9a6471b7004e8e2",
+    "receivingFieldsUnchanged": true
+  },
+  "committedRegressionEvidence": [
+    {
+      "path": "evidence/migration-constraints-after-truncate.executed.cjs",
+      "bytes": 14438,
+      "sha256": "33501b831a41414986a531330095fd0776d29addb05c98cfcbab49539df7af6b"
     },
     {
-      "taskRuntimePath": "implementation-runtime/postgres/launch-session-completion.json",
-      "sha256": "074bda9d9b38b1fdeb22fd0ec553d2fb44559f5defad40868618cde71e1ab43e"
+      "path": "evidence/migration-constraints-after-truncate.json",
+      "bytes": 345,
+      "sha256": "4fbfb8565941a883ba4a8e686edbd1177e929e736ee5a2a07c4f8f0923f12247"
+    },
+    {
+      "path": "evidence/migration-constraints-after-truncate.log",
+      "bytes": 3045,
+      "sha256": "cf680d32f3acb215360f1d1391f40586f9981c58257dde450a6feac72a5aab45"
+    },
+    {
+      "path": "evidence/migration-constraints.executed.cjs",
+      "bytes": 13888,
+      "sha256": "b0b2bc285d20893519d378c6a8b07f5b47b712d38da966a2c2cd9933525f5b5c"
+    },
+    {
+      "path": "evidence/migration-truncate-after-attempt1.executed.cjs",
+      "bytes": 14559,
+      "sha256": "95eb4384ee02e4de7a5693aff683139e3e4a158bff8ecf40269ac4b053804b63"
+    },
+    {
+      "path": "evidence/migration-truncate-after-attempt1.json",
+      "bytes": 52143,
+      "sha256": "4d27ee9298d5df61fbc63906a55ea3b79b5af6dc671e4b62903af7682ba29523"
+    },
+    {
+      "path": "evidence/migration-truncate-after-attempt1.log",
+      "bytes": 2086,
+      "sha256": "1aee84b71225da6d623f2ff88f3d430d1108cccfd83c003ec984d5648995b70d"
+    },
+    {
+      "path": "evidence/migration-truncate-after-final.json",
+      "bytes": 52143,
+      "sha256": "1efaf29ca74b7a8d1bbf08a00fb33cbf313cb70e793230b51ca37ff13bde1847"
+    },
+    {
+      "path": "evidence/migration-truncate-after-final.log",
+      "bytes": 2092,
+      "sha256": "b645c57480a99f2890d5fdb3733adcddaff1d1fe05735775f286db9caddd028c"
+    },
+    {
+      "path": "evidence/migration-truncate-after-metrics1.executed.cjs",
+      "bytes": 14811,
+      "sha256": "d732697f4f872c3bcde83a92806fd4917a16e9f9dcf75962d2b11feaf57e1626"
+    },
+    {
+      "path": "evidence/migration-truncate-after.json",
+      "bytes": 52143,
+      "sha256": "22e49d671ffe16c260fb1d8e27e82960aa6d232ed78e6009ed6988248ca31a74"
+    },
+    {
+      "path": "evidence/migration-truncate-after.log",
+      "bytes": 2086,
+      "sha256": "1aee84b71225da6d623f2ff88f3d430d1108cccfd83c003ec984d5648995b70d"
+    },
+    {
+      "path": "evidence/migration-truncate-before-final.json",
+      "bytes": 53964,
+      "sha256": "8f231d26578678c193ffeb45e4f421f741227680cdc453cebfa7d2d1ed6abce5"
+    },
+    {
+      "path": "evidence/migration-truncate-before-final.log",
+      "bytes": 2075,
+      "sha256": "489aaab04eace9b57cf17e8b34a3fb4576014abe2f1d425773620b6f393b385a"
+    },
+    {
+      "path": "evidence/migration-truncate-before.executed.cjs",
+      "bytes": 14117,
+      "sha256": "d45deb575850d5e4ccb8ba3a5b5788f49f6b2ae29988cde20a82801d817f71f5"
+    },
+    {
+      "path": "evidence/migration-truncate-before.json",
+      "bytes": 50483,
+      "sha256": "d679652f6462237be83a93570903afb83e12f57abe82ccf1301ca98e752699cf"
+    },
+    {
+      "path": "evidence/migration-truncate-before.log",
+      "bytes": 1999,
+      "sha256": "7e5c7b6eb93329c741ab4901fb4030ce056ae7a04b1a3072b8c516f1cefbeb1a"
+    },
+    {
+      "path": "evidence/migration-truncate-before.sql",
+      "bytes": 13352,
+      "sha256": "39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f"
+    },
+    {
+      "path": "evidence/migration-truncate-regression.executed.cjs",
+      "bytes": 14941,
+      "sha256": "7fabdcb093b899280cfac77a75b94c2c26ac83de632cd7497d8ece8a77702715"
+    },
+    {
+      "path": "evidence/migration-truncate-results.json",
+      "bytes": 5401,
+      "sha256": "b133ea350b18ad3a43aa02b2528992a35c076a7dfcbbb5de18734960ddfa0452"
     }
   ]
 }

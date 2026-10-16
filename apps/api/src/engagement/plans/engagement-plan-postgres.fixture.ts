@@ -14,7 +14,7 @@ export const FIXTURE_URL =
 export const FIXTURE_DATABASE = 'engagement_plan_acceptance';
 // Filled only after the migration owner confirms the final candidate bytes.
 export const APPROVED_MIGRATION_SHA256 =
-  '39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f';
+  '40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a';
 const OWNER = 'engagement-plans.postgres.spec.ts';
 export const ids = {
   tenant: '10000000-0000-4000-8000-000000000001',

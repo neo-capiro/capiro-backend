@@ -236,11 +236,12 @@ CREATE POLICY engagement_plan_revisions_isolation ON engagement_plan_revisions
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='capiro_app') THEN
     -- Archive endpoints only. Tenant/client cleanup retains its existing FKs.
-    -- Core's default privileges grant DELETE on future tables; GRANT alone
-    -- cannot remove it. Revoke parent deletion before granting archive writes.
-    REVOKE DELETE ON engagement_plans,engagement_plan_waves FROM capiro_app;
+    -- Core's documented default table ACL includes DELETE and TRUNCATE.
+    -- GRANT alone cannot remove either; TRUNCATE bypasses row triggers/RLS.
+    -- The existing hardened non-owner runtime role posture remains required.
+    REVOKE DELETE,TRUNCATE ON engagement_plans,engagement_plan_waves FROM capiro_app;
     GRANT SELECT,INSERT,UPDATE ON engagement_plans,engagement_plan_waves TO capiro_app;
-    REVOKE UPDATE,DELETE ON engagement_plan_command_receipts,engagement_plan_revisions FROM capiro_app;
+    REVOKE UPDATE,DELETE,TRUNCATE ON engagement_plan_command_receipts,engagement_plan_revisions FROM capiro_app;
     GRANT SELECT,INSERT ON engagement_plan_command_receipts,engagement_plan_revisions TO capiro_app;
   END IF;
 END $$;
