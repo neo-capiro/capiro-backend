@@ -25,8 +25,11 @@ phases:
         test "${AWS_REGION:-${AWS_DEFAULT_REGION:-}}" = us-east-1
         stage=account
         test "$(aws sts get-caller-identity --query Account --output text)" = 967807252336
-        stage=source-repository-url
-        test "${CODEBUILD_SOURCE_REPO_URL:-}" = "s3://${APPROVED_SOURCE_BUCKET:?}/$SOURCE_KEY"
+        # CodeBuild's source URL metadata is not used as build input. The
+        # versioned S3 download and full archive hash below select the bytes.
+        stage=source-pin
+        test "${APPROVED_SOURCE_BUCKET:?}" = capiro-portfolio-preview-source-967807252336-us-east-1
+        test "${APPROVED_SOURCE_VERSION_ID:?}" = H7novBkHZg.qAof.Kf5GRr_joZfnzOHx
         stage=source-version
         test "${CODEBUILD_SOURCE_VERSION:-}" = "${APPROVED_SOURCE_VERSION_ID:?}"
         stage=resolved-source-version
