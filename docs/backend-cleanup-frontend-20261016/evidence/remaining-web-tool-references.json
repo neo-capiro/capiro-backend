@@ -1,0 +1,31 @@
+{
+  "executable": "C:\\Program Files\\Git\\cmd\\git.exe",
+  "argv": [
+    "-c",
+    "grep.threads=1",
+    "grep",
+    "-n",
+    "-F",
+    "-f",
+    "../remaining-web-tool-patterns.txt",
+    "HEAD",
+    "--",
+    "apps",
+    "packages",
+    "scripts",
+    "infra",
+    "tests"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:35:39.4681306Z",
+  "endedAt": "2026-10-16T02:35:41.6164208Z",
+  "ownedPID": 19672,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 6758400,
+  "hardWallSeconds": 120,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "4e0821231e2d4206e2d26dea500d58a5d3bf37e949e795cfc36f615cc58fd2b3",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

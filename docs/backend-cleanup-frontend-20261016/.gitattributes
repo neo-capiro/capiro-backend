@@ -1,0 +1,4 @@
+# Preserve exact captured bytes so receipt hashes survive any checkout platform.
+evidence/** -text
+runtime-ownership-controls-* -text
+runtime-source-reference-before.* -text

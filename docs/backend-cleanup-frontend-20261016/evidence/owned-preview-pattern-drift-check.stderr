@@ -1,0 +1,7 @@
+FAIL  manifest path /api/clio/krisp-notetaker is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table
+FAIL  manifest path /api/clio/krisp-notetaker/folders is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table
+FAIL  manifest path /api/clio/krisp-notetaker/imports/:id/candidates is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table
+FAIL  manifest path /api/clio/krisp-notetaker/imports/:id/match is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table
+FAIL  manifest path /api/clio/krisp-notetaker/preferences is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table
+
+ENGAGEMENT_PREVIEW_ROUTE_PATTERNS_INVALID (5)

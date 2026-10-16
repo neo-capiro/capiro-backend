@@ -1,0 +1,32 @@
+Γ£ö destination package preserves all 107 existing aliases and all metadata (1.6457ms)
+Γ£ö only the four reviewed Phase26 aliases extend the original package inverse (3.2423ms)
+Γ£ö Phase1 scoped operands retain one explicit run and every current syntax check (0.1556ms)
+Γ£ö all twelve scoped verification aliases bind one run and exactly one declared scope (0.1568ms)
+Γ£ö current 18 typed workspaces partition 16 backend plus retained Onboard/E2E with Web excluded (44.5201ms)
+Γ£ö quarantined CI retains exactly the destination scope hunk union and every old guard/test/condition (41.5119ms)
+Γ£ö source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (250.6672ms)
+Γ£ö exact reviewed root manifest reconstructs every prior byte and retains its real entry points (172.2561ms)
+Γ£ö root manifest mutations cannot turn this exact review into a general exemption (41.6604ms)
+Γ£ö exact reviewed api manifest reconstructs every prior byte and retains its real entry points (174.8855ms)
+Γ£ö api manifest mutations cannot turn this exact review into a general exemption (46.4963ms)
+Γ£ö runtime Prisma inverse binds its accepted source and refuses version, classification and unrelated dependency changes (122.7583ms)
+Γ£ö unknown/coercible inputs refuse without executing application or coercion ports (0.1932ms)
+Γ£ö exact package.json retirement reconstructs every prior canonical byte from its admitted representations (126.4344ms)
+Γ£ö exact pnpm-workspace.yaml retirement reconstructs every prior canonical byte from its admitted representations (122.6841ms)
+Γ£ö exact pnpm-lock.yaml retirement reconstructs every prior canonical byte from its admitted representations (190.0867ms)
+Γ£ö backend defaults exclude Web, retained Onboard SPA and retained E2E while metadata and alias identities remain (1.144ms)
+Γ£ö mixed default verifiers retain the complete existing backend operand union and explicit historical local entrypoints (0.1809ms)
+Γ£ö all seven retired main-Web frontend aliases explicitly fail through the real finite CLI (378.2473ms)
+Γ£ö retirement CLI refuses unknown or widened requests and help performs no verification (0.3162ms)
+Γ£ö package.json inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver (44.2296ms)
+Γ£ö pnpm-workspace.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver (42.2373ms)
+Γ£ö pnpm-lock.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver (50.7213ms)
+Γ£ö finite inverse refuses foreign paths and coercion ports and its hash profiles are immutable (0.434ms)
+Γä╣ tests 24
+Γä╣ suites 0
+Γä╣ pass 24
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 2108.5991

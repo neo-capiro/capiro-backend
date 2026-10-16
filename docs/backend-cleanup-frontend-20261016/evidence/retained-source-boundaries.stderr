@@ -1,0 +1,79 @@
+warning: in the working copy of 'apps/web/Dockerfile', CRLF will be replaced by LF the next time Git touches it
+node:child_process:981
+    throw err;
+    ^
+
+<ref *1> Error: spawnSync git ENOBUFS
+    at Object.spawnSync (node:internal/child_process:1160:20)
+    at spawnSync (node:child_process:928:24)
+    at execFileSync (node:child_process:971:15)
+    at git (C:\Users\neoma\Documents\Codex\2026-10-15\task-10\backend-cleanup\docs\backend-cleanup-frontend-20261016\verify-retained-boundaries.cjs:8:26)
+    at diffEmpty (C:\Users\neoma\Documents\Codex\2026-10-15\task-10\backend-cleanup\docs\backend-cleanup-frontend-20261016\verify-retained-boundaries.cjs:23:48)
+    at Object.<anonymous> (C:\Users\neoma\Documents\Codex\2026-10-15\task-10\backend-cleanup\docs\backend-cleanup-frontend-20261016\verify-retained-boundaries.cjs:33:1)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12) {
+  errno: -4060,
+  code: 'ENOBUFS',
+  syscall: 'spawnSync git',
+  path: 'git',
+  spawnargs: [ 'diff', '4e0c189c5d0522098be1c4916a033bb681d11c0b', '--' ],
+  error: [Circular *1],
+  status: null,
+  signal: 'SIGTERM',
+  output: [
+    null,
+    Buffer(4194304) [Uint8Array] [
+      100, 105, 102, 102,  32,  45,  45, 103, 105, 116,  32,  97,
+       47,  46, 103, 105, 116,  97, 116, 116, 114, 105,  98, 117,
+      116, 101, 115,  32,  98,  47,  46, 103, 105, 116,  97, 116,
+      116, 114, 105,  98, 117, 116, 101, 115,  10, 105, 110, 100,
+      101, 120,  32,  97,  51, 101,  99,  57,  52, 100,  56,  98,
+       46,  46,  56,  56, 101,  52,  48,  57,  55, 100,  51,  32,
+       49,  48,  48,  54,  52,  52,  10,  45,  45,  45,  32,  97,
+       47,  46, 103, 105, 116,  97, 116, 116, 114, 105,  98, 117,
+      116, 101, 115,  10,
+      ... 4194204 more items
+    ],
+    Buffer(112) [Uint8Array] [
+      119,  97, 114, 110, 105, 110, 103,  58,  32, 105, 110,  32,
+      116, 104, 101,  32, 119, 111, 114, 107, 105, 110, 103,  32,
+       99, 111, 112, 121,  32, 111, 102,  32,  39,  97, 112, 112,
+      115,  47, 119, 101,  98,  47,  68, 111,  99, 107, 101, 114,
+      102, 105, 108, 101,  39,  44,  32,  67,  82,  76,  70,  32,
+      119, 105, 108, 108,  32,  98, 101,  32, 114, 101, 112, 108,
+       97,  99, 101, 100,  32,  98, 121,  32,  76,  70,  32, 116,
+      104, 101,  32, 110, 101, 120, 116,  32, 116, 105, 109, 101,
+       32,  71, 105, 116,
+      ... 12 more items
+    ]
+  ],
+  pid: 26636,
+  stdout: Buffer(4194304) [Uint8Array] [
+    100, 105, 102, 102,  32,  45,  45, 103, 105, 116,  32,  97,
+     47,  46, 103, 105, 116,  97, 116, 116, 114, 105,  98, 117,
+    116, 101, 115,  32,  98,  47,  46, 103, 105, 116,  97, 116,
+    116, 114, 105,  98, 117, 116, 101, 115,  10, 105, 110, 100,
+    101, 120,  32,  97,  51, 101,  99,  57,  52, 100,  56,  98,
+     46,  46,  56,  56, 101,  52,  48,  57,  55, 100,  51,  32,
+     49,  48,  48,  54,  52,  52,  10,  45,  45,  45,  32,  97,
+     47,  46, 103, 105, 116,  97, 116, 116, 114, 105,  98, 117,
+    116, 101, 115,  10,
+    ... 4194204 more items
+  ],
+  stderr: Buffer(112) [Uint8Array] [
+    119,  97, 114, 110, 105, 110, 103,  58,  32, 105, 110,  32,
+    116, 104, 101,  32, 119, 111, 114, 107, 105, 110, 103,  32,
+     99, 111, 112, 121,  32, 111, 102,  32,  39,  97, 112, 112,
+    115,  47, 119, 101,  98,  47,  68, 111,  99, 107, 101, 114,
+    102, 105, 108, 101,  39,  44,  32,  67,  82,  76,  70,  32,
+    119, 105, 108, 108,  32,  98, 101,  32, 114, 101, 112, 108,
+     97,  99, 101, 100,  32,  98, 121,  32,  76,  70,  32, 116,
+    104, 101,  32, 110, 101, 120, 116,  32, 116, 105, 109, 101,
+     32,  71, 105, 116,
+    ... 12 more items
+  ]
+}
+
+Node.js v24.19.0

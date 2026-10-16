@@ -1,0 +1,51 @@
+HISTORICAL_WEB_VISUAL_PACKAGE_ASSERTIONS_FAILED [{"identity":"package Lighthouse command must opt into Chrome","actual":"node scripts/lighthouse-pe-watch.mjs","expected":"node scripts/lighthouse-pe-watch.mjs --run","sourceCommit":"4e0c189c5d0522098be1c4916a033bb681d11c0b"},{"identity":"package capture command must opt into writes","actual":"node scripts/vnext-visual-capture.mjs","expected":"node scripts/vnext-visual-capture.mjs --capture","sourceCommit":"4e0c189c5d0522098be1c4916a033bb681d11c0b"}]
+file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:146
+    throw new AggregateError(packageFailures.map(({ error }) => error), 'Historical Web package opt-in assertions remain failing; current backend acceptance is separate');
+          ^
+
+AggregateError: Historical Web package opt-in assertions remain failing; current backend acceptance is separate
+    at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:146:11
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  [errors]: [
+    AssertionError [ERR_ASSERTION]: package Lighthouse command must opt into Chrome
+    + actual - expected
+    
+    + 'node scripts/lighthouse-pe-watch.mjs'
+    - 'node scripts/lighthouse-pe-watch.mjs --run'
+    
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:132:14
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:140:11
+        at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+        at async node:internal/modules/esm/loader:643:26
+        at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+      generatedMessage: false,
+      code: 'ERR_ASSERTION',
+      actual: 'node scripts/lighthouse-pe-watch.mjs',
+      expected: 'node scripts/lighthouse-pe-watch.mjs --run',
+      operator: 'strictEqual',
+      diff: 'simple'
+    },
+    AssertionError [ERR_ASSERTION]: package capture command must opt into writes
+    + actual - expected
+    
+    + 'node scripts/vnext-visual-capture.mjs'
+    - 'node scripts/vnext-visual-capture.mjs --capture'
+    
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:136:14
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:140:11
+        at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+        at async node:internal/modules/esm/loader:643:26
+        at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+      generatedMessage: false,
+      code: 'ERR_ASSERTION',
+      actual: 'node scripts/vnext-visual-capture.mjs',
+      expected: 'node scripts/vnext-visual-capture.mjs --capture',
+      operator: 'strictEqual',
+      diff: 'simple'
+    }
+  ]
+}
+
+Node.js v24.19.0

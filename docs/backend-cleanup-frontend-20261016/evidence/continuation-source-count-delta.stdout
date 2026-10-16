@@ -1,0 +1,58 @@
+{
+  "baseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "parent": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "sourceHead": "f0e846c2ad04a3c1edc4fa8f8bbcf0da22cc9ae3",
+  "before": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 7971,
+      "nonblankLines": 1810041,
+      "physicalLines": 1935781
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7971,
+      "nonblankLines": 1810041,
+      "physicalLines": 1935781
+    }
+  },
+  "deltaFromParent": {
+    "unique": {
+      "files": -2167,
+      "nonblankLines": -663046,
+      "physicalLines": -704780
+    },
+    "mirror": {
+      "files": -727,
+      "nonblankLines": -191226,
+      "physicalLines": -205344
+    },
+    "physical": {
+      "files": -2894,
+      "nonblankLines": -854272,
+      "physicalLines": -910124
+    }
+  },
+  "changedCodeFiles": 2984,
+  "excludedChangedFiles": 70
+}

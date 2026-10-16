@@ -1,0 +1,11 @@
+Γ£ö default Web Docker consumes only an explicit validated frontend-owned rootfs (1.1402ms)
+Γ£ö backend ownership transition retains release operator, dependency graph and Onboard default (258.0704ms)
+Γ£ö missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify (2.3334ms)
+Γä╣ tests 3
+Γä╣ suites 0
+Γä╣ pass 3
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 283.2077

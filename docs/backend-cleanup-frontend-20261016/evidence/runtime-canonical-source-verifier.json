@@ -1,0 +1,19 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "scripts/verify-defense-budget-mirror-parity.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:38:07.0096542Z",
+  "endedAt": "2026-10-16T02:38:07.3479933Z",
+  "ownedPID": 32952,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 48103424,
+  "hardWallSeconds": 120,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "62e63e6c446cbe483f830ce14782f606f0507330d94bbb7242fd6d1b932142a0",
+  "stderrSHA256": "53397111ea340962d8b29ef830df94c5451648f6e5bb0df17db37df99bb1e371"
+}
