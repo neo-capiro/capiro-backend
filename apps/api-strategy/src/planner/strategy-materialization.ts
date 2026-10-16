@@ -5,6 +5,7 @@ import { digest, UUID } from '../meri/objective-generation.types.js';
 import type { SnapshotNode, StrategySnapshot } from '../strategy/versioning.js';
 
 export const STRATEGY_MATERIALIZATION_RECEIPT = 'strategy_materialization_receipt';
+export const CANONICAL_MATERIALIZATION_RECEIPT = 'objective_canonical_materialization_receipt';
 export interface MaterializationInput {
   requestId: string;
   generationJobId: string;
@@ -203,6 +204,111 @@ export interface StoredMaterialization {
   result: MaterializationResult;
 }
 
+/** Server-only binding. These reserved identities are never an authority grant. */
+export interface CanonicalMaterializationBinding {
+  canonical: {
+    canonicalPlanId: string;
+    tenantId: string;
+    clientId: string;
+    objectiveId: string;
+    canonicalStrategyId: string;
+    canonicalProjectId: string;
+    bindingVersion: number;
+    epoch: number;
+    requestedIntentId: string;
+    requestedObjectiveRevisionId: string;
+    requestedObjectiveVersion: number;
+    snapshotHash: string;
+  };
+  generationRequestId: string;
+  objectiveReceiptSha256: string;
+  snapshotDigest: string;
+}
+export interface StoredCanonicalMaterialization {
+  receiptVersion: 2;
+  input: MaterializationInput;
+  binding: CanonicalMaterializationBinding;
+  fingerprint: string;
+  snapshot: StrategySnapshot;
+  archivedSourceNodeIds: string[];
+  result: MaterializationResult;
+}
+const CANONICAL_TOKEN_KEYS = [
+  'canonicalPlanId', 'tenantId', 'clientId', 'objectiveId', 'canonicalStrategyId',
+  'canonicalProjectId', 'bindingVersion', 'epoch', 'requestedIntentId',
+  'requestedObjectiveRevisionId', 'requestedObjectiveVersion', 'snapshotHash',
+];
+const CANONICAL_INTEGER_KEYS = ['bindingVersion', 'epoch', 'requestedObjectiveVersion'];
+const SHA256 = /^[0-9a-f]{64}$/;
+export function parseCanonicalMaterializationBinding(
+  raw: unknown,
+  requestId: string,
+): CanonicalMaterializationBinding {
+  const invalid = (): never => materializationError('MATERIALIZATION_INPUT_INVALID', requestId);
+  if (!exact(raw, ['canonical', 'generationRequestId', 'objectiveReceiptSha256', 'snapshotDigest']) ||
+      !exact(raw.canonical, CANONICAL_TOKEN_KEYS)) return invalid();
+  for (const key of CANONICAL_TOKEN_KEYS) {
+    const value = raw.canonical[key];
+    if (CANONICAL_INTEGER_KEYS.includes(key)) {
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 2147483647)
+        return invalid();
+    } else if (typeof value !== 'string' ||
+        !(key === 'snapshotHash' ? SHA256.test(value) : UUID.test(value) && value === value.toLowerCase()))
+      return invalid();
+  }
+  if (raw.canonical.epoch !== 1 ||
+      typeof raw.generationRequestId !== 'string' || !UUID.test(raw.generationRequestId) ||
+      raw.generationRequestId !== raw.generationRequestId.toLowerCase() ||
+      typeof raw.objectiveReceiptSha256 !== 'string' || !SHA256.test(raw.objectiveReceiptSha256) ||
+      typeof raw.snapshotDigest !== 'string' || !SHA256.test(raw.snapshotDigest)) return invalid();
+  return raw as unknown as CanonicalMaterializationBinding;
+}
+export function canonicalMaterializationReceiptId(tenant: string, actor: string, request: string) {
+  return materializationReceiptId(tenant, actor, JSON.stringify([CANONICAL_MATERIALIZATION_RECEIPT, request]));
+}
+export function canonicalMaterializationFingerprint(input: MaterializationInput, binding: CanonicalMaterializationBinding) {
+  return digest({ input, binding });
+}
+export function requireCanonicalMaterializationSource(
+  input: MaterializationInput,
+  source: MaterializationSource,
+  binding: CanonicalMaterializationBinding,
+  tenant: string,
+) {
+  const c = binding.canonical;
+  if (!exact(source, ['generationJobId', 'generationRequestId', 'clientId', 'objectiveId',
+      'objectiveVersion', 'objectiveRevisionId', 'strategyId', 'strategyVersionId', 'snapshotDigest']) ||
+      Object.hasOwn(input, 'groups') || c.tenantId !== tenant ||
+      source.generationJobId !== input.generationJobId ||
+      source.generationRequestId !== binding.generationRequestId ||
+      source.clientId !== c.clientId || source.objectiveId !== c.objectiveId ||
+      source.objectiveVersion !== c.requestedObjectiveVersion ||
+      source.objectiveRevisionId !== c.requestedObjectiveRevisionId ||
+      source.strategyId !== c.canonicalStrategyId ||
+      source.strategyId !== input.expected.strategyId ||
+      source.strategyVersionId !== input.expected.strategyVersionId ||
+      source.objectiveRevisionId !== input.expected.objectiveRevisionId ||
+      source.snapshotDigest !== binding.snapshotDigest)
+    materializationError('MATERIALIZATION_REQUEST_CONFLICT', input.requestId);
+}
+
+export type MaterializationOutputResolver = (kind: 'project' | 'task', key: string) => string;
+/** One identity resolver is shared by row creation and both immutable projections. */
+export function materializationOutputResolver(
+  tenant: string,
+  actor: string,
+  request: string,
+  binding?: CanonicalMaterializationBinding,
+): MaterializationOutputResolver {
+  return (kind, key) => {
+    if (binding && kind === 'project') {
+      if (key !== 'default') materializationError('MATERIALIZATION_INPUT_INVALID', request);
+      return binding.canonical.canonicalProjectId;
+    }
+    return materializationOutputId(tenant, actor, request, kind, key);
+  };
+}
+
 /** Private creation identity, distinct for every actor/request/group/node. */
 export function materializationOutputId(
   tenant: string,
@@ -220,10 +326,11 @@ export function materializationResult(
   tenant: string,
   actor: string,
   at: string,
+  outputId: MaterializationOutputResolver = materializationOutputResolver(tenant, actor, input.requestId),
 ): MaterializationResult {
   const available = (kind: 'project' | 'task', key: string): MaterializationOutput => ({
     availability: 'available',
-    id: materializationOutputId(tenant, actor, input.requestId, kind, key),
+    id: outputId(kind, key),
     createdVersion: 1,
     currentVersion: 1,
   });
@@ -269,6 +376,23 @@ export function checkedMaterialization(
   tenant: string,
   actor: string,
 ): StoredMaterialization {
+  return checkedMaterializationReceipt(stored, source, tenant, actor) as StoredMaterialization;
+}
+export function checkedCanonicalMaterialization(
+  stored: StoredCanonicalMaterialization,
+  binding: CanonicalMaterializationBinding,
+  tenant: string,
+  actor: string,
+): StoredCanonicalMaterialization {
+  return checkedMaterializationReceipt(stored, stored.result.source, tenant, actor, binding) as StoredCanonicalMaterialization;
+}
+function checkedMaterializationReceipt(
+  stored: StoredMaterialization | StoredCanonicalMaterialization,
+  source: MaterializationSource,
+  tenant: string,
+  actor: string,
+  binding?: CanonicalMaterializationBinding,
+): StoredMaterialization | StoredCanonicalMaterialization {
   const requestId = stored.input.requestId;
   try {
     if (
@@ -279,16 +403,22 @@ export function checkedMaterialization(
         'snapshot',
         'archivedSourceNodeIds',
         'result',
+        ...(binding ? ['binding'] : []),
       ]) ||
-      stored.receiptVersion !== 1 ||
-      digest(parseMaterialization(stored.input)) !== stored.fingerprint ||
-      digest(stored.input) !== stored.fingerprint ||
+      stored.receiptVersion !== (binding ? 2 : 1) ||
+      digest(parseMaterialization(stored.input)) !== digest(stored.input) ||
+      (binding ? canonicalMaterializationFingerprint(stored.input, binding) : digest(stored.input)) !== stored.fingerprint ||
       digest(stored.snapshot) !== source.snapshotDigest ||
       !Array.isArray(stored.archivedSourceNodeIds) ||
       stored.archivedSourceNodeIds.some((id) => typeof id !== 'string' || !UUID.test(id)) ||
       new Set(stored.archivedSourceNodeIds).size !== stored.archivedSourceNodeIds.length
     )
       throw new Error('Invalid private receipt');
+    if (binding) {
+      const savedBinding = parseCanonicalMaterializationBinding((stored as StoredCanonicalMaterialization).binding, requestId);
+      if (digest(savedBinding) !== digest(binding)) throw new Error('Invalid canonical binding');
+      requireCanonicalMaterializationSource(stored.input, source, binding, tenant);
+    }
     const nodes = stored.snapshot.nodes;
     if (
       !Array.isArray(nodes) ||
@@ -310,7 +440,8 @@ export function checkedMaterialization(
       new Date(at).toISOString() !== at
     )
       throw new Error('Invalid recorded timestamp');
-    const result = materializationResult(plan, stored.input, source, tenant, actor, at);
+    const result = materializationResult(plan, stored.input, source, tenant, actor, at,
+      materializationOutputResolver(tenant, actor, requestId, binding));
     if (digest(result) !== digest(stored.result)) throw new Error('Invalid creation projection');
     return { ...stored, result };
   } catch {

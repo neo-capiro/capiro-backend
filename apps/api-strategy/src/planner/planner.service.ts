@@ -82,8 +82,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   STRATEGY_MATERIALIZATION_RECEIPT,
+  CANONICAL_MATERIALIZATION_RECEIPT,
+  canonicalMaterializationReceiptId,
+  canonicalMaterializationFingerprint,
+  checkedCanonicalMaterialization,
   checkedMaterialization,
-  materializationOutputId,
+  materializationOutputResolver,
   materializationResult,
   parseMaterialization,
   materializationUuid,
@@ -91,11 +95,15 @@ import {
   materializationPlan,
   materializationError,
   materializationIssue,
+  parseCanonicalMaterializationBinding,
+  requireCanonicalMaterializationSource,
   type MaterializationInput,
   type MaterializationResult,
   type MaterializationSource,
   type MaterializationOutput,
   type StoredMaterialization,
+  type StoredCanonicalMaterialization,
+  type CanonicalMaterializationBinding,
 } from './strategy-materialization.js';
 import {
   digest,
@@ -417,12 +425,12 @@ export class PlannerService {
       strategyVersionId: result.strategyVersionId,
       snapshotDigest: digest(version.snapshot),
     };
-    return { source, snapshot: version.snapshot };
+    return { source, snapshot: version.snapshot, objectiveReceiptSha256: digest(receipt) };
   }
   private async materializationView(
     tx: Tx,
     ctx: AuthTenantContext,
-    stored: StoredMaterialization,
+    stored: Pick<StoredMaterialization, 'result'>,
     replayed: boolean,
   ): Promise<MaterializationResult> {
     const result = stored.result;
@@ -561,161 +569,231 @@ export class PlannerService {
   async prepareStrategyPlan(ctx: AuthTenantContext, raw: unknown) {
     const input = parseMaterialization(raw);
     return this.materializationCommand(input.requestId, () =>
-      this.scope(
+      this.scope(ctx, async (tx) => {
+        const prepared = await this.prepareStrategyPlanInTransaction(tx, ctx, input);
+        const stored = prepared.stored as StoredMaterialization;
+        return prepared.replayed ? this.materializationView(tx, ctx, stored, true) : stored.result;
+      }, true),
+    );
+  }
+  /** Owner port: caller owns this transaction and revalidates canonical authority in beforeWrite. */
+  async prepareCanonicalStrategyPlanInTransaction(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    raw: MaterializationInput,
+    rawBinding: CanonicalMaterializationBinding,
+    beforeWrite: (source: MaterializationSource) => Promise<void>,
+  ): Promise<{ stored: StoredCanonicalMaterialization; replayed: boolean }> {
+    const input = parseMaterialization(raw);
+    const binding = parseCanonicalMaterializationBinding(rawBinding, input.requestId);
+    if (Object.hasOwn(input, 'groups') || typeof beforeWrite !== 'function')
+      materializationError('MATERIALIZATION_INPUT_INVALID', input.requestId);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`planner:${ctx.tenantId}`}, 0))`;
+    const prepared = await this.prepareStrategyPlanInTransaction(tx, ctx, input, binding, beforeWrite);
+    return { stored: prepared.stored as StoredCanonicalMaterialization, replayed: prepared.replayed };
+  }
+  /** Immutable owner ACK lookup. Current read authority is the receiving owner's separate responsibility. */
+  async canonicalStrategyPlanCreationInTransaction(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    requestId: string,
+    rawBinding: CanonicalMaterializationBinding,
+  ): Promise<StoredCanonicalMaterialization | null> {
+    requestId = materializationUuid(requestId);
+    const binding = parseCanonicalMaterializationBinding(rawBinding, requestId);
+    const row = await tx.spPlannerResource.findFirst({ where: {
+      id: canonicalMaterializationReceiptId(ctx.tenantId, ctx.clerkUserId, requestId),
+      tenantId: ctx.tenantId, ownerId: ctx.clerkUserId,
+      kind: CANONICAL_MATERIALIZATION_RECEIPT, archived: false,
+    } });
+    if (!row) return null;
+    const stored = row.data as unknown as StoredCanonicalMaterialization;
+    if (stored?.receiptVersion !== 2 || stored.input?.requestId !== requestId ||
+        stored.result?.requestId !== requestId)
+      materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', requestId);
+    return checkedCanonicalMaterialization(stored, binding, ctx.tenantId, ctx.clerkUserId);
+  }
+  /** Current permission-filtered observation, separate from the immutable creation ACK. */
+  async canonicalStrategyPlanObservationInTransaction(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    stored: StoredCanonicalMaterialization,
+    replayed = true,
+  ): Promise<MaterializationResult> {
+    return this.materializationView(tx, ctx, stored, replayed);
+  }
+  private async prepareStrategyPlanInTransaction(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    input: MaterializationInput,
+    binding?: CanonicalMaterializationBinding,
+    beforeWrite?: (source: MaterializationSource) => Promise<void>,
+  ): Promise<{ stored: StoredMaterialization | StoredCanonicalMaterialization; replayed: boolean }> {
+  const stored = binding
+    ? await this.canonicalStrategyPlanCreationInTransaction(tx, ctx, input.requestId, binding)
+    : await this.storedMaterialization(tx, ctx, input.requestId);
+  const { source, snapshot, objectiveReceiptSha256 } = await this.materializationSource(
+    tx,
+    ctx,
+    stored?.input ?? input,
+    stored ? true : null,
+  );
+  if (binding) {
+    requireCanonicalMaterializationSource(input, source, binding, ctx.tenantId);
+    if (objectiveReceiptSha256 !== binding.objectiveReceiptSha256)
+      materializationError('MATERIALIZATION_REQUEST_CONFLICT', input.requestId, stored ? true : null);
+  }
+  if (stored) {
+    if (stored.fingerprint !== (binding ? canonicalMaterializationFingerprint(input, binding) : digest(input)))
+      materializationError('MATERIALIZATION_REQUEST_CONFLICT', input.requestId, true);
+    if (
+      digest(source) !== digest(stored.result.source) ||
+      source.snapshotDigest !== digest(stored.snapshot)
+    )
+      materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
+    return { stored: binding
+      ? checkedCanonicalMaterialization(stored as StoredCanonicalMaterialization, binding, ctx.tenantId, ctx.clerkUserId)
+      : checkedMaterialization(stored as StoredMaterialization, source, ctx.tenantId, ctx.clerkUserId),
+      replayed: true };
+  }
+  const current = await tx.spNode.findMany({
+    where: { tenantId: ctx.tenantId, strategyId: source.strategyId },
+    select: { id: true, archivedAt: true },
+  });
+  const plan = materializationPlan(snapshot, current, input);
+  if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+    materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
+  // Validate all fields before the first output write. Existing per-field
+  // Planner bounds refuse visibly; no new project/task count policy.
+  const outputId = materializationOutputResolver(ctx.tenantId, ctx.clerkUserId, input.requestId, binding);
+  const nodeIds = new Map(
+    plan.actionable.map((n) => [
+      n.id,
+      outputId('task', n.id),
+    ]),
+  );
+  const projectIds = new Map(
+    plan.groups.map((g) => [
+      g.key,
+      outputId('project', g.key),
+    ]),
+  );
+  let projectInputs: PlannerProjectData[],
+    taskInputs: Array<{ id: string; data: PlannerTaskData }>;
+  try {
+    projectInputs = plan.groups.map((g) =>
+      validateProject({
+        ...PLANNER_DEFAULT_PROJECT,
+        name: g.name,
+        clientId: source.clientId,
+        description: `Generated from saved Strategy ${source.strategyId}, version ${source.strategyVersionId}. Linked context and source lineage are retained in plan preparation ${input.requestId}.`,
+      }),
+    );
+    taskInputs = plan.actionable.map((n) => ({
+      id: nodeIds.get(n.id)!,
+      data: validateTask({
+        ...PLANNER_DEFAULT_TASK,
+        name: n.title,
+        description: n.note ?? '',
+        clientId: source.clientId,
+        subtype: n.kind === 'milestone' ? 'milestone' : 'task',
+        startOn: n.startsOn,
+        dueOn: n.endsOn ?? n.startsOn,
+        memberships: plan.groups
+          .filter((g) => g.nodeIds.includes(n.id))
+          .map((g) => ({
+            projectId: projectIds.get(g.key)!,
+            sectionId: null,
+            position: g.nodeIds.indexOf(n.id),
+          })),
+        dependencies: plan.edges
+          .filter((e) => e.sourceNodeId === n.id && e.disposition === 'task_dependency')
+          .map((e) => nodeIds.get(e.dependsOnSourceNodeId)!),
+      }),
+    }));
+  } catch {
+    materializationError('MATERIALIZATION_SOURCE_INVALID', input.requestId, null, [
+      materializationIssue('SOURCE_FIELD_TOO_LARGE'),
+    ]);
+  }
+  if (binding) {
+    // Existing canonical or task identities cannot be overwritten on regeneration.
+    // An owner-approved update strategy is required before supporting that collision.
+    const projectCollision = await tx.spPlannerProject.findFirst({ where: {
+      tenantId: ctx.tenantId, id: { in: [...projectIds.values()] },
+    } });
+    const taskCollision = await tx.spPlannerTask.findFirst({ where: {
+      tenantId: ctx.tenantId, id: { in: [...nodeIds.values()] },
+    } });
+    if (projectCollision || taskCollision)
+      materializationError('MATERIALIZATION_REQUEST_CONFLICT', input.requestId);
+    await beforeWrite!(source);
+  }
+  const projects: SpPlannerProject[] = [];
+  for (let i = 0; i < projectInputs.length; i++) {
+    // Use the same canonical row/event owner as public project creation.
+    const row = await this.createProjectRow(
+      tx,
+      ctx,
+      projectInputs[i]!,
+      projectIds.get(plan.groups[i]!.key),
+    );
+    projects.push(row);
+  }
+  // Preallocated server IDs bind the fully validated graph; no public
+  // saveTask call, link hop, assignment, rule, recurrence or inbox action.
+  const tasks: SpPlannerTask[] = [];
+  for (let i = 0; i < taskInputs.length; i++) {
+    const item = taskInputs[i]!;
+    tasks.push(
+      await this.persistTask(
+        tx,
         ctx,
-        async (tx) => {
-          const stored = await this.storedMaterialization(tx, ctx, input.requestId);
-          const { source, snapshot } = await this.materializationSource(
-            tx,
-            ctx,
-            stored?.input ?? input,
-            stored ? true : null,
-          );
-          if (stored) {
-            if (stored.fingerprint !== digest(input))
-              materializationError('MATERIALIZATION_REQUEST_CONFLICT', input.requestId, true);
-            if (
-              digest(source) !== digest(stored.result.source) ||
-              source.snapshotDigest !== digest(stored.snapshot)
-            )
-              materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
-            return this.materializationView(
-              tx,
-              ctx,
-              checkedMaterialization(stored, source, ctx.tenantId, ctx.clerkUserId),
-              true,
-            );
-          }
-          const current = await tx.spNode.findMany({
-            where: { tenantId: ctx.tenantId, strategyId: source.strategyId },
-            select: { id: true, archivedAt: true },
-          });
-          const plan = materializationPlan(snapshot, current, input);
-          if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
-            materializationError('MATERIALIZATION_NOT_AVAILABLE', input.requestId);
-          // Validate all fields before the first output write. Existing per-field
-          // Planner bounds refuse visibly; no new project/task count policy.
-          const nodeIds = new Map(
-            plan.actionable.map((n) => [
-              n.id,
-              materializationOutputId(ctx.tenantId, ctx.clerkUserId, input.requestId, 'task', n.id),
-            ]),
-          );
-          const projectIds = new Map(
-            plan.groups.map((g) => [
-              g.key,
-              materializationOutputId(
-                ctx.tenantId,
-                ctx.clerkUserId,
-                input.requestId,
-                'project',
-                g.key,
-              ),
-            ]),
-          );
-          let projectInputs: PlannerProjectData[],
-            taskInputs: Array<{ id: string; data: PlannerTaskData }>;
-          try {
-            projectInputs = plan.groups.map((g) =>
-              validateProject({
-                ...PLANNER_DEFAULT_PROJECT,
-                name: g.name,
-                clientId: source.clientId,
-                description: `Generated from saved Strategy ${source.strategyId}, version ${source.strategyVersionId}. Linked context and source lineage are retained in plan preparation ${input.requestId}.`,
-              }),
-            );
-            taskInputs = plan.actionable.map((n) => ({
-              id: nodeIds.get(n.id)!,
-              data: validateTask({
-                ...PLANNER_DEFAULT_TASK,
-                name: n.title,
-                description: n.note ?? '',
-                clientId: source.clientId,
-                subtype: n.kind === 'milestone' ? 'milestone' : 'task',
-                startOn: n.startsOn,
-                dueOn: n.endsOn ?? n.startsOn,
-                memberships: plan.groups
-                  .filter((g) => g.nodeIds.includes(n.id))
-                  .map((g) => ({
-                    projectId: projectIds.get(g.key)!,
-                    sectionId: null,
-                    position: g.nodeIds.indexOf(n.id),
-                  })),
-                dependencies: plan.edges
-                  .filter((e) => e.sourceNodeId === n.id && e.disposition === 'task_dependency')
-                  .map((e) => nodeIds.get(e.dependsOnSourceNodeId)!),
-              }),
-            }));
-          } catch {
-            materializationError('MATERIALIZATION_SOURCE_INVALID', input.requestId, null, [
-              materializationIssue('SOURCE_FIELD_TOO_LARGE'),
-            ]);
-          }
-          const projects: SpPlannerProject[] = [];
-          for (let i = 0; i < projectInputs.length; i++) {
-            // Use the same canonical row/event owner as public project creation.
-            const row = await this.createProjectRow(
-              tx,
-              ctx,
-              projectInputs[i]!,
-              projectIds.get(plan.groups[i]!.key),
-            );
-            projects.push(row);
-          }
-          // Preallocated server IDs bind the fully validated graph; no public
-          // saveTask call, link hop, assignment, rule, recurrence or inbox action.
-          const tasks: SpPlannerTask[] = [];
-          for (let i = 0; i < taskInputs.length; i++) {
-            const item = taskInputs[i]!;
-            tasks.push(
-              await this.persistTask(
-                tx,
-                ctx,
-                item.id,
-                null,
-                item.data,
-                projects,
-                tasks,
-                {},
-                undefined,
-                false,
-              ),
-            );
-          }
-          const at = new Date().toISOString();
-          if ([...projects, ...tasks].some((row) => row.version !== 1))
-            materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
-          const result = materializationResult(
-            plan,
-            input,
-            source,
-            ctx.tenantId,
-            ctx.clerkUserId,
-            at,
-          );
-          const receipt: StoredMaterialization = {
-            receiptVersion: 1,
-            input,
-            fingerprint: digest(input),
-            snapshot: plan.snapshot,
-            archivedSourceNodeIds: plan.exclusions.map((n) => n.sourceNodeId),
-            result,
-          };
-          await tx.spPlannerResource.create({
-            data: {
-              id: materializationReceiptId(ctx.tenantId, ctx.clerkUserId, input.requestId),
-              tenantId: ctx.tenantId,
-              ownerId: ctx.clerkUserId,
-              kind: STRATEGY_MATERIALIZATION_RECEIPT,
-              name: 'Strategy plan preparation receipt',
-              data: json(receipt),
-            },
-          });
-          return result;
-        },
-        true,
+        item.id,
+        null,
+        item.data,
+        projects,
+        tasks,
+        {},
+        undefined,
+        false,
       ),
     );
+  }
+  const at = new Date().toISOString();
+  if ([...projects, ...tasks].some((row) => row.version !== 1))
+    materializationError('MATERIALIZATION_OUTCOME_UNCONFIRMED', input.requestId);
+  const result = materializationResult(
+    plan,
+    input,
+    source,
+    ctx.tenantId,
+    ctx.clerkUserId,
+    at,
+    outputId,
+  );
+  const creation = {
+    input,
+    snapshot: plan.snapshot,
+    archivedSourceNodeIds: plan.exclusions.map((n) => n.sourceNodeId),
+    result,
+  };
+  const receipt: StoredMaterialization | StoredCanonicalMaterialization = binding
+    ? { ...creation, receiptVersion: 2, binding, fingerprint: canonicalMaterializationFingerprint(input, binding) }
+    : { ...creation, receiptVersion: 1, fingerprint: digest(input) };
+  await tx.spPlannerResource.create({
+    data: {
+      id: binding
+        ? canonicalMaterializationReceiptId(ctx.tenantId, ctx.clerkUserId, input.requestId)
+        : materializationReceiptId(ctx.tenantId, ctx.clerkUserId, input.requestId),
+      tenantId: ctx.tenantId,
+      ownerId: ctx.clerkUserId,
+      kind: binding ? CANONICAL_MATERIALIZATION_RECEIPT : STRATEGY_MATERIALIZATION_RECEIPT,
+      name: 'Strategy plan preparation receipt',
+      data: json(receipt),
+    },
+  });
+  return { stored: receipt, replayed: false };
   }
   private projects(tx: Tx, ctx: AuthTenantContext) {
     return tx.spPlannerProject.findMany({
@@ -2959,6 +3037,9 @@ export class PlannerService {
     ctx: AuthTenantContext,
   ): PlannerRole | null {
     if (row.kind.startsWith('capacity_')) return null;
+    if ([STRATEGY_MATERIALIZATION_RECEIPT, CANONICAL_MATERIALIZATION_RECEIPT,
+      'objective_canonical_application_receipt', 'objective_canonical_application_head'].includes(row.kind))
+      return null;
     if (['task_import_receipt', TASK_CREATE_RECEIPT, 'timer_session'].includes(row.kind))
       return null;
     if (['project_budget', 'project_budget_alert'].includes(row.kind)) {

@@ -11,10 +11,15 @@ import { PlannerFormFilesService } from './planner-form-files.service.js';
 import { PlannerPublicFormGuard } from './planner-public-form.guard.js';
 import { PlannerCapacityController } from './planner-capacity.controller.js';
 import { PlannerCapacityService } from './planner-capacity.service.js';
+import { ObjectiveCanonicalApplicationController } from './objective-canonical-application.controller.js';
+import { ObjectiveCanonicalApplicationService } from './objective-canonical-application.service.js';
+import { ObjectiveCanonicalWorkloadAuthority } from './objective-canonical-authority.js';
 
 @Module({
-  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController],
+  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalApplicationController],
   providers: [
+    ObjectiveCanonicalApplicationService,
+    ObjectiveCanonicalWorkloadAuthority,
     PlannerCapacityService,
     PlannerService,
     PlannerLinksService,
