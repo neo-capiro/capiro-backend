@@ -1,0 +1,21 @@
+Γ£ö existing immutable source and reservation migrations expose the required scoped identities (0.8296ms)
+Γ£ö the additive migration creates exactly the three scoped control, consent and receipt tables (0.932ms)
+Γ£ö stable canonical and original root-intent keys retain exact ordered lineage without mutable binding versions (0.5202ms)
+Γ£ö control, previous/head consent, receipt and command-revision FKs cannot cross action or scope (0.3629ms)
+Γ£ö immutable consent pins original and newly consenting actors without a user or membership lifecycle FK (1.0724ms)
+Γ£ö revision-1 policy is explicit and only permits configured/effective durations up to 30 minutes (0.7844ms)
+Γ£ö source/digest formats and bounded integer versions are declared on durable identities (0.7901ms)
+Γ£ö cancellation permits an expired original root with a null head and complete cancellation metadata (0.5078ms)
+Γ£ö receipt commands and transitions are exact, with a distinct new retry identity and no version arithmetic wrap (0.4675ms)
+Γ£ö immutable guards freeze consent/receipt rows and only allow a one-step mutable control transition (0.4952ms)
+Γ£ö each advancing control mutation requires a deferred exact before/after receipt (0.316ms)
+Γ£ö both inserted consent and receipt sides receive deferred reciprocal checks of exact immutable lineage (0.6505ms)
+Γ£ö all new tables retain Core tenant RLS and narrow application DML without role or grant expansion (0.3805ms)
+Γä╣ tests 13
+Γä╣ suites 0
+Γä╣ pass 13
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 43.5383

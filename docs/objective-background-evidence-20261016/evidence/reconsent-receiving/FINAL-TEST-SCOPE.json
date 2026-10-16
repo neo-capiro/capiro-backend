@@ -1,0 +1,46 @@
+{
+  "migrationWindowSuccessor": {
+    "overlap": "same13staticcases rerun afterSQLguard+assertion change; NOT149unique",
+    "pid": 8688,
+    "tests": 13,
+    "exit": 0,
+    "passed": 13,
+    "exited": true,
+    "seconds": 0.1176094
+  },
+  "nativePostgres": "UNRUN/ACLSTOP retained",
+  "semanticCompiler": "UNRUN",
+  "canonicalOwnerJest8": "UNRUN",
+  "liveVerifier": "DISABLED",
+  "firstBatch": {
+    "pid": 21204,
+    "tests": 136,
+    "exit": 0,
+    "passed": 136,
+    "exited": true,
+    "seconds": 0.2298269
+  },
+  "scope": "Source fixtures and staticSQL only",
+  "NestHTTP": "UNRUN",
+  "sourceFiles": 20,
+  "schemaVersion": 1,
+  "workUuidSuccessor": {
+    "passed": 26,
+    "seconds": 0.1562951,
+    "tests": 26,
+    "pid": 3372,
+    "exit": 0,
+    "exited": true,
+    "overlap": "25 prior workcases plus1 new newline test; NOT175 unique"
+  },
+  "finalUniqueFixtureCases": 138,
+  "workHashSuccessor": {
+    "pid": 21740,
+    "seconds": 0.1504985,
+    "exited": true,
+    "overlap": "26 prior workcases plus1 new accounting hash case; all affected reruns overlap",
+    "tests": 27,
+    "exit": 0,
+    "passed": 27
+  }
+}
