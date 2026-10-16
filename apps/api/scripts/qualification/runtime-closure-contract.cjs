@@ -6,11 +6,18 @@ const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
 const CONTRACT_SHA256 = '78dfcb0a438c74df4c0778e1316bef4b15874fedad4e8c4ecbd7ae5361305def';
-// SHA-256 of the PR45 Git-archive schema after only the image-local generator
+// SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
   arm64: '6aa1892cfbb9f3c5da1057ebb05234c892c0fd39dd828d37aa15d0ebfda291ee',
   x64: 'c909a6ce3610f35b9179473af3bf6f418a6e47b4c5ba761bac157aa41b9b0498',
+});
+// Prisma 5.22's generator merges/formats the image-local schema before writing
+// its generated companion. Pin those exact bytes separately from the raw image
+// schema above; a raw byte-equality check rejects valid generated clients.
+const GENERATED_PRISMA_SCHEMA_SHA256 = Object.freeze({
+  arm64: '2162851624c0c9ab16e9263e5ab68bd38ac55f471ae61a9df13a8a4aed295124',
+  x64: 'e4bbd8daed6f2695081e99515fc652c44b991aedd478576717e81be04fc37320',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
@@ -309,7 +316,8 @@ function generatedPrismaOwners(owners, imageRoot, diagnostic) {
     assert(row.metadata.version === owner.metadata.version && /^prisma-client-[a-f0-9]{64}$/.test(row.metadata.name), 'generated Prisma identity');
     const schema = readBounded(path.join(imageRoot, 'apps/api/prisma/schema.prisma'), imageRoot, 8 * 1024 * 1024);
     assert(hash(schema) === IMAGE_LOCAL_PRISMA_SCHEMA_SHA256[selectedPlatform().cpu], 'canonical image-local musl Prisma schema');
-    assert(readBounded(path.join(row.root, 'schema.prisma'), row.root, 8 * 1024 * 1024).equals(schema), 'generated Prisma schema differs');
+    const generatedSchema = readBounded(path.join(row.root, 'schema.prisma'), row.root, 8 * 1024 * 1024);
+    assert(hash(generatedSchema) === GENERATED_PRISMA_SCHEMA_SHA256[selectedPlatform().cpu], 'pinned generated Prisma schema differs');
     generated.push({ ...row, snapshot: owner.snapshot, generatedBy: owner.root, generation: 'PINNED_PRISMA_5_22_CLIENT' });
   }
   return generated;
@@ -464,4 +472,4 @@ function artifactOwner(file, closure) {
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
     relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
 }
-module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, GENERATED_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
