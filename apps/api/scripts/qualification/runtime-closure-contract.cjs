@@ -6,6 +6,12 @@ const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
 const CONTRACT_SHA256 = '78dfcb0a438c74df4c0778e1316bef4b15874fedad4e8c4ecbd7ae5361305def';
+// SHA-256 of the PR45 Git-archive schema after only the image-local generator
+// target rewrite. A Windows CRLF checkout is not the admitted build input.
+const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
+  arm64: '6aa1892cfbb9f3c5da1057ebb05234c892c0fd39dd828d37aa15d0ebfda291ee',
+  x64: 'c909a6ce3610f35b9179473af3bf6f418a6e47b4c5ba761bac157aa41b9b0498',
+});
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
     archiveSHA256: '01f7da2d0983256b7d9f8dde9d99e94479f075e30bc571b69cafc92bf419cee2',
@@ -302,7 +308,7 @@ function generatedPrismaOwners(owners, imageRoot, diagnostic) {
     if (diagnostic) { diagnostic.payload.observedOwner = diagnosticOwner(row, imageRoot); delete diagnostic.payload.readingPhysicalOwner; }
     assert(row.metadata.version === owner.metadata.version && /^prisma-client-[a-f0-9]{64}$/.test(row.metadata.name), 'generated Prisma identity');
     const schema = readBounded(path.join(imageRoot, 'apps/api/prisma/schema.prisma'), imageRoot, 8 * 1024 * 1024);
-    assert(hash(schema) === '6b831443a9a1c6a19d39911ecc886bc23d273d99712fb4226ccf5a0735863368', 'canonical image-local musl Prisma schema');
+    assert(hash(schema) === IMAGE_LOCAL_PRISMA_SCHEMA_SHA256[selectedPlatform().cpu], 'canonical image-local musl Prisma schema');
     assert(readBounded(path.join(row.root, 'schema.prisma'), row.root, 8 * 1024 * 1024).equals(schema), 'generated Prisma schema differs');
     generated.push({ ...row, snapshot: owner.snapshot, generatedBy: owner.root, generation: 'PINNED_PRISMA_5_22_CLIENT' });
   }
@@ -458,4 +464,4 @@ function artifactOwner(file, closure) {
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
     relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
 }
-module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };

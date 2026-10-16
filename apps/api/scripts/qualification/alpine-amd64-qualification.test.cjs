@@ -3,8 +3,9 @@ const test = require('node:test');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
-const { reconciledPlatform, ownerPlatformAdmission } = require('./runtime-closure-contract.cjs');
+const { reconciledPlatform, ownerPlatformAdmission, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 } = require('./runtime-closure-contract.cjs');
 const { verify } = require('./verify-alpine-amd64-scan.cjs');
 const priorArch = process.env.CAPIRO_QUALIFICATION_ARCH;
 process.env.CAPIRO_QUALIFICATION_ARCH = 'x64';
@@ -30,8 +31,18 @@ test('candidate Dockerfile copies the shared platform gate into build and runtim
   assert.equal(source.split(pin).length - 1, 2, 'same exact AMD64 base for build and runtime');
   assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
   assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3\.0\.x/);
-  assert.match(source, /"zlib>=1\.3\.2-r1"/);
+  assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2, 'build/prod-deps and runtime both require patched zlib');
   assert.doesNotMatch(source, /linux-musl-arm64|sha256:85cdd100/);
+});
+
+test('current PR45 canonical schema binds both image-local Prisma targets', () => {
+  const schema = fs.readFileSync(path.join(root, 'apps/api/prisma/schema.prisma'), 'utf8').replace(/\r\n/g, '\n');
+  const from = '"linux-arm64-openssl-3.0.x"';
+  assert.equal(schema.split(from).length - 1, 1, 'one source generator target');
+  for (const [arch, expected] of Object.entries(IMAGE_LOCAL_PRISMA_SCHEMA_SHA256)) {
+    const transformed = schema.replace(from, `"${selectedPlatform({ CAPIRO_QUALIFICATION_ARCH: arch }).prisma}"`);
+    assert.equal(createHash('sha256').update(transformed).digest('hex'), expected, `${arch} schema source pin`);
+  }
 });
 
 test('exact locked x64 Canvas archive evidence rejects GNU and admits musl', () => {
