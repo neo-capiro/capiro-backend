@@ -134,6 +134,7 @@ enum BillingStatus {
 }
 
 model Tenant {
+  engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
 
@@ -865,6 +866,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  engagementPlans EngagementPlan[]
   notetakerPreferences      ClientNotetakerPreference[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                        String                      @id @default(uuid()) @db.Uuid
@@ -16781,4 +16783,89 @@ model NewsletterInvitationEmailDelivery {
   @@index([tenantId, createdAt])
   @@index([status, updatedAt])
   @@map("newsletter_invitation_email_deliveries")
+}
+
+/// Non-Meri manual Engagement aggregate. SQL owns structural JSON constraints,
+/// immutable identities and append-only history. Authorization stays in Core.
+model EngagementPlan {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  clientId            String    @map("client_id") @db.Uuid
+  title               String    @db.VarChar(200)
+  lifecycle           String    @default("draft") @db.VarChar(16)
+  version             Int       @default(1)
+  officeReferences    Json      @default("[]") @map("office_references") @db.JsonB
+  objectiveBinding    Json?     @map("objective_binding") @db.JsonB
+  reviewedPlanVersion Int?      @map("reviewed_plan_version")
+  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewDueAt         DateTime? @map("review_due_at") @db.Timestamptz(6)
+  reviewedByUserId    String?   @map("reviewed_by_user_id") @db.Uuid
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plans_tenant_fk")
+  client              Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plans_client_fk")
+  waves               EngagementPlanWave[]
+  commandReceipts     EngagementPlanCommandReceipt[]
+  revisions           EngagementPlanRevision[]
+
+  @@unique([tenantId, clientId, id], map: "engagement_plans_scope_key")
+  @@index([tenantId, clientId, lifecycle, createdAt], map: "engagement_plans_list_idx")
+  @@map("engagement_plans")
+}
+
+/// No separate wave version: every wave command advances its parent plan.
+/// Office IDs are historical snapshots, intentionally without target FKs.
+model EngagementPlanWave {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  planId          String    @map("plan_id") @db.Uuid
+  title           String    @db.VarChar(200)
+  position        Int
+  formatLabel     String?   @map("format_label") @db.VarChar(120)
+  window          Json?     @db.JsonB
+  officeTargetIds String[]  @default([]) @map("office_target_ids") @db.Uuid
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  plan            EngagementPlan @relation(fields: [tenantId, clientId, planId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plan_waves_plan_fk")
+
+  @@index([tenantId, clientId, planId, archivedAt, position, id], map: "engagement_plan_waves_list_idx")
+  @@map("engagement_plan_waves")
+}
+
+/// Immutable original command result; retry never returns a later aggregate.
+model EngagementPlanCommandReceipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  planId      String   @map("plan_id") @db.Uuid
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  command     String   @db.VarChar(32)
+  requestId   String   @map("request_id") @db.Uuid
+  requestHash String   @map("request_hash") @db.Char(64)
+  receipt     Json     @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan        EngagementPlan @relation(fields: [tenantId, clientId, planId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plan_command_receipts_plan_fk")
+
+  @@unique([tenantId, clientId, actorUserId, command, requestId], map: "engagement_plan_command_receipts_request_key")
+  @@index([tenantId, clientId, planId], map: "engagement_plan_command_receipts_plan_idx")
+  @@map("engagement_plan_command_receipts")
+}
+
+model EngagementPlanRevision {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  planId      String   @map("plan_id") @db.Uuid
+  version     Int
+  operation   String   @db.VarChar(32)
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  snapshot    Json     @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan        EngagementPlan @relation(fields: [tenantId, clientId, planId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plan_revisions_plan_fk")
+
+  @@unique([tenantId, planId, version], map: "engagement_plan_revisions_version_key")
+  @@map("engagement_plan_revisions")
 }

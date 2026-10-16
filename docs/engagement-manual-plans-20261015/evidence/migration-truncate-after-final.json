@@ -1,0 +1,1662 @@
+{
+  "phase": "after",
+  "database": "engagement_truncate_regression",
+  "migrationPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-plan-implementation\\apps\\api\\prisma\\migrations\\20281015040000_engagement_plans\\migration.sql",
+  "migrationSha256": "40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a",
+  "scriptSha256": "7fabdcb093b899280cfac77a75b94c2c26ac83de632cd7497d8ece8a77702715",
+  "serverVersion": "16.14",
+  "checks": [
+    {
+      "name": "documented owner GRANT ALL default ACL includes app TRUNCATE",
+      "passed": true,
+      "detail": "{capiro_app=arwdDxt/capiro_master}"
+    },
+    {
+      "name": "hardened full-default-ACL posture qualifies without inherited or SET-able D",
+      "passed": true,
+      "detail": {
+        "accepted": true,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          }
+        ],
+        "reachable": []
+      }
+    },
+    {
+      "name": "real app session cannot SET ROLE hardened owner",
+      "passed": true,
+      "detail": {
+        "sql": "SET ROLE capiro_master",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied to set role \"capiro_master\""
+      }
+    },
+    {
+      "name": "effective app TRUNCATE denied engagement_plan_command_receipts",
+      "passed": true,
+      "detail": {
+        "relname": "engagement_plan_command_receipts",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      }
+    },
+    {
+      "name": "effective app TRUNCATE denied engagement_plan_revisions",
+      "passed": true,
+      "detail": {
+        "relname": "engagement_plan_revisions",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      }
+    },
+    {
+      "name": "effective app TRUNCATE denied engagement_plan_waves",
+      "passed": true,
+      "detail": {
+        "relname": "engagement_plan_waves",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      }
+    },
+    {
+      "name": "effective app TRUNCATE denied engagement_plans",
+      "passed": true,
+      "detail": {
+        "relname": "engagement_plans",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      }
+    },
+    {
+      "name": "app denied wave leaf",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plan_waves",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_waves"
+      }
+    },
+    {
+      "name": "app denied receipt leaf",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plan_command_receipts",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_command_receipts"
+      }
+    },
+    {
+      "name": "app denied revision leaf",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plan_revisions",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_revisions"
+      }
+    },
+    {
+      "name": "app denied plan cascade",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      }
+    },
+    {
+      "name": "app denied all four together",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      }
+    },
+    {
+      "name": "app denied client cascade",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE clients CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      }
+    },
+    {
+      "name": "app denied tenant cascade",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE tenants CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      }
+    },
+    {
+      "name": "app denied wave cascade",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plan_waves CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_waves"
+      }
+    },
+    {
+      "name": "app denied receipt cascade",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plan_command_receipts CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_command_receipts"
+      }
+    },
+    {
+      "name": "app denied revision cascade",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plan_revisions CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_revisions"
+      }
+    },
+    {
+      "name": "unsafe_owner_inheritance fails qualification precondition",
+      "passed": true,
+      "detail": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          }
+        ],
+        "reachable": [
+          {
+            "role": "capiro_master",
+            "table": "engagement_plans",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_waves",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_command_receipts",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_revisions",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsafe_owner_inheritance native negative control proves direct REVOKE insufficient",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_owner_set_only fails qualification precondition",
+      "passed": true,
+      "detail": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": true
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          }
+        ],
+        "reachable": [
+          {
+            "role": "capiro_master",
+            "table": "engagement_plans",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_waves",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_command_receipts",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_revisions",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsafe_owner_set_only native negative control proves direct REVOKE insufficient",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": "capiro_master",
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_master"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_parent_truncate_inheritance fails qualification precondition",
+      "passed": true,
+      "detail": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          }
+        ],
+        "reachable": [
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plans",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_waves",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_command_receipts",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_revisions",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsafe_parent_truncate_inheritance native negative control proves direct REVOKE insufficient",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_parent_truncate_set_only fails qualification precondition",
+      "passed": true,
+      "detail": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": true
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          }
+        ],
+        "reachable": [
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plans",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_waves",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_command_receipts",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_revisions",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsafe_parent_truncate_set_only native negative control proves direct REVOKE insufficient",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": "engagement_truncate_parent",
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "engagement_truncate_parent"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_public_truncate fails qualification precondition",
+      "passed": true,
+      "detail": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          }
+        ],
+        "reachable": []
+      }
+    },
+    {
+      "name": "unsafe_public_truncate native negative control proves direct REVOKE insufficient",
+      "passed": true,
+      "detail": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "negative controls cleaned; supported authority posture restored",
+      "passed": true,
+      "detail": {
+        "accepted": true,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          }
+        ],
+        "reachable": []
+      }
+    }
+  ],
+  "hardened": {
+    "accepted": true,
+    "authority": {
+      "accepted": true,
+      "roles": [
+        {
+          "rolname": "capiro_app",
+          "rolsuper": false,
+          "rolcreaterole": false,
+          "rolbypassrls": false,
+          "inherited": true,
+          "settable": true
+        },
+        {
+          "rolname": "capiro_master",
+          "rolsuper": false,
+          "rolcreaterole": false,
+          "rolbypassrls": false,
+          "inherited": false,
+          "settable": false
+        },
+        {
+          "rolname": "engagement_truncate_parent",
+          "rolsuper": false,
+          "rolcreaterole": false,
+          "rolbypassrls": false,
+          "inherited": false,
+          "settable": false
+        }
+      ],
+      "owners": [
+        {
+          "relname": "engagement_plan_command_receipts",
+          "owner": "capiro_master",
+          "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+          "app_truncate": false
+        },
+        {
+          "relname": "engagement_plan_revisions",
+          "owner": "capiro_master",
+          "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+          "app_truncate": false
+        },
+        {
+          "relname": "engagement_plan_waves",
+          "owner": "capiro_master",
+          "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+          "app_truncate": false
+        },
+        {
+          "relname": "engagement_plans",
+          "owner": "capiro_master",
+          "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+          "app_truncate": false
+        }
+      ],
+      "reachable": []
+    },
+    "attempts": [
+      {
+        "sql": "TRUNCATE engagement_plan_waves",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_waves"
+      },
+      {
+        "sql": "TRUNCATE engagement_plan_command_receipts",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_command_receipts"
+      },
+      {
+        "sql": "TRUNCATE engagement_plan_revisions",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_revisions"
+      },
+      {
+        "sql": "TRUNCATE engagement_plans CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      },
+      {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      },
+      {
+        "sql": "TRUNCATE clients CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      },
+      {
+        "sql": "TRUNCATE tenants CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plans"
+      },
+      {
+        "sql": "TRUNCATE engagement_plan_waves CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_waves"
+      },
+      {
+        "sql": "TRUNCATE engagement_plan_command_receipts CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_command_receipts"
+      },
+      {
+        "sql": "TRUNCATE engagement_plan_revisions CASCADE",
+        "setRole": null,
+        "success": false,
+        "code": "42501",
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": null,
+        "message": "permission denied for table engagement_plan_revisions"
+      }
+    ]
+  },
+  "negativeControls": [
+    {
+      "name": "unsafe_owner_inheritance",
+      "acceptedPosture": false,
+      "preconditionRefused": true,
+      "authority": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": true
+          }
+        ],
+        "reachable": [
+          {
+            "role": "capiro_master",
+            "table": "engagement_plans",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_waves",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_command_receipts",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_revisions",
+            "inherited": true,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          }
+        ]
+      },
+      "attempt": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_owner_set_only",
+      "acceptedPosture": false,
+      "preconditionRefused": true,
+      "authority": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": true
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+            "app_truncate": false
+          }
+        ],
+        "reachable": [
+          {
+            "role": "capiro_master",
+            "table": "engagement_plans",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_waves",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_command_receipts",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          },
+          {
+            "role": "capiro_master",
+            "table": "engagement_plan_revisions",
+            "inherited": false,
+            "settable": true,
+            "owner": true,
+            "truncate": true
+          }
+        ]
+      },
+      "attempt": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": "capiro_master",
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_master"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_parent_truncate_inheritance",
+      "acceptedPosture": false,
+      "preconditionRefused": true,
+      "authority": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": true
+          }
+        ],
+        "reachable": [
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plans",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_waves",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_command_receipts",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_revisions",
+            "inherited": true,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          }
+        ]
+      },
+      "attempt": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_parent_truncate_set_only",
+      "acceptedPosture": false,
+      "preconditionRefused": true,
+      "authority": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": true
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,engagement_truncate_parent=D/capiro_master}",
+            "app_truncate": false
+          }
+        ],
+        "reachable": [
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plans",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_waves",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_command_receipts",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          },
+          {
+            "role": "engagement_truncate_parent",
+            "table": "engagement_plan_revisions",
+            "inherited": false,
+            "settable": true,
+            "owner": false,
+            "truncate": true
+          }
+        ]
+      },
+      "attempt": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": "engagement_truncate_parent",
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "engagement_truncate_parent"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    },
+    {
+      "name": "unsafe_public_truncate",
+      "acceptedPosture": false,
+      "preconditionRefused": true,
+      "authority": {
+        "accepted": false,
+        "roles": [
+          {
+            "rolname": "capiro_app",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": true,
+            "settable": true
+          },
+          {
+            "rolname": "capiro_master",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          },
+          {
+            "rolname": "engagement_truncate_parent",
+            "rolsuper": false,
+            "rolcreaterole": false,
+            "rolbypassrls": false,
+            "inherited": false,
+            "settable": false
+          }
+        ],
+        "owners": [
+          {
+            "relname": "engagement_plan_command_receipts",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_revisions",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plan_waves",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          },
+          {
+            "relname": "engagement_plans",
+            "owner": "capiro_master",
+            "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master,=D/capiro_master}",
+            "app_truncate": true
+          }
+        ],
+        "reachable": []
+      },
+      "attempt": {
+        "sql": "TRUNCATE engagement_plans,engagement_plan_waves,engagement_plan_command_receipts,engagement_plan_revisions",
+        "setRole": null,
+        "success": true,
+        "code": null,
+        "identity": {
+          "session_user": "capiro_app",
+          "current_user": "capiro_app"
+        },
+        "countsAfter": {
+          "engagement_plans": 0,
+          "engagement_plan_waves": 0,
+          "engagement_plan_command_receipts": 0,
+          "engagement_plan_revisions": 0
+        }
+      }
+    }
+  ],
+  "acceptedUnsafeProfiles": 0,
+  "sourceFacts": [
+    {
+      "frozenSource": "scripts/sql/2026-07-19-rls-role-hardening.sql",
+      "sha256": "c8d003b1600f903d95bee3092973a82860a821dd7eff39f7ca704254ac53e744"
+    },
+    {
+      "frozenSource": "docs/plans/2026-07-19-capiro-app-rls-bypass-remediation.md",
+      "sha256": "e478e7b7fef4e3762fc76a23ad704000b990c1f0ebf21315c4f513f79fcbfa86"
+    },
+    {
+      "frozenSource": "scripts/legiwatch-phase7-upgrade.mjs",
+      "sha256": "fa2c43ee84181dd7ddd50a06ee87962a0ab283a909a3d7c7d74eedd2434063a3"
+    },
+    {
+      "frozenSource": "apps/api/src/prisma/prisma.service.ts",
+      "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+    }
+  ],
+  "postNegativeCleanupAuthority": {
+    "accepted": true,
+    "roles": [
+      {
+        "rolname": "capiro_app",
+        "rolsuper": false,
+        "rolcreaterole": false,
+        "rolbypassrls": false,
+        "inherited": true,
+        "settable": true
+      },
+      {
+        "rolname": "capiro_master",
+        "rolsuper": false,
+        "rolcreaterole": false,
+        "rolbypassrls": false,
+        "inherited": false,
+        "settable": false
+      },
+      {
+        "rolname": "engagement_truncate_parent",
+        "rolsuper": false,
+        "rolcreaterole": false,
+        "rolbypassrls": false,
+        "inherited": false,
+        "settable": false
+      }
+    ],
+    "owners": [
+      {
+        "relname": "engagement_plan_command_receipts",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      },
+      {
+        "relname": "engagement_plan_revisions",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      },
+      {
+        "relname": "engagement_plan_waves",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      },
+      {
+        "relname": "engagement_plans",
+        "owner": "capiro_master",
+        "acl": "{capiro_app=arwxt/capiro_master,capiro_master=arwdDxt/capiro_master}",
+        "app_truncate": false
+      }
+    ],
+    "reachable": []
+  },
+  "totalChecks": 28,
+  "passedChecks": 28,
+  "failedChecks": 0,
+  "status": "hardened_posture_qualified_negative_profiles_refused"
+}

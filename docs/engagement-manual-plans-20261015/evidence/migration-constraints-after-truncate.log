@@ -1,0 +1,80 @@
+PASS actual Core default privileges seeded before new tables
+PASS exact migration applies to native PostgreSQL
+PASS plan defaults
+PASS cross-tenant client FK
+PASS cross-client child FK
+PASS blank title
+PASS unknown lifecycle
+PASS zero version
+PASS review newer than aggregate
+PASS title storage bound
+PASS partial review metadata 1
+PASS partial review metadata 2
+PASS partial review metadata 3
+PASS partial review metadata 4
+PASS partial review metadata 5
+PASS partial review metadata 6
+PASS partial review metadata 7
+PASS partial review metadata 8
+PASS partial review metadata 9
+PASS partial review metadata 10
+PASS partial review metadata 11
+PASS partial review metadata 12
+PASS partial review metadata 13
+PASS partial review metadata 14
+PASS non-increasing review deadline 2001-01-01T00:00:00.000Z
+PASS non-increasing review deadline 2000-12-31T00:00:00.000Z
+PASS complete expired review receipt retained without invented age cutoff
+PASS all-null review metadata accepted
+PASS valid historical office snapshot
+PASS office snapshot shape 0
+PASS office snapshot shape 1
+PASS office snapshot shape 2
+PASS office snapshot shape 3
+PASS office snapshot shape 4
+PASS office snapshot shape 5
+PASS office snapshot shape 6
+PASS office snapshot shape 7
+PASS office snapshot shape 8
+PASS exact Objective receipt snapshot without FK
+PASS Objective binding shape 0
+PASS Objective binding shape 1
+PASS Objective binding shape 2
+PASS Objective binding shape 3
+PASS Objective binding shape 4
+PASS Objective binding shape 5
+PASS Objective binding shape 6
+PASS day precision and explicit timezone retained
+PASS window shape 0
+PASS window shape 1
+PASS window shape 2
+PASS window shape 3
+PASS window shape 4
+PASS window shape 5
+PASS window shape 6
+PASS negative position
+PASS NULL office ID
+PASS duplicate office ID
+PASS office ID maximum
+PASS office ID dimensions
+PASS office ID lower bound
+PASS plan parent immutable
+PASS plan UUID immutable
+PASS plan creator immutable
+PASS wave parent immutable
+PASS engagement_plan_revisions UPDATE immutable
+PASS engagement_plan_revisions direct DELETE immutable
+PASS engagement_plan_command_receipts UPDATE immutable
+PASS engagement_plan_command_receipts direct DELETE immutable
+PASS duplicate revision version
+PASS duplicate command request
+PASS unsupported command
+PASS tenant RLS hides foreign rows
+PASS tenant RLS permits own rows
+PASS app role cannot delete plan
+PASS app role cannot delete wave despite Core defaults
+PASS app role cannot rewrite receipt
+PASS plan FK cascade permits history cleanup
+PASS client FK cascade permits history cleanup
+PASS tenant FK cascade permits history cleanup
+{"status":"passed","checks":79,"database":"engagement_migration_candidate","postgres":"16.14","candidate":"C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-plan-implementation/apps/api/prisma/migrations/20281015040000_engagement_plans/migration.sql","migrationSha256":"40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a"}

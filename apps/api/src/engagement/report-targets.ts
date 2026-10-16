@@ -84,6 +84,9 @@ async function lockTargets(tx: Prisma.TransactionClient, tenantId: string) {
   await tx.$executeRaw`SELECT id FROM engagement_report_target_offices WHERE tenant_id = ${tenantId}::uuid ORDER BY id FOR UPDATE`;
 }
 
+// Plan bindings share the existing owner fence; existing writers keep their order.
+export { lockTargets as lockEngagementReportTargets };
+
 async function checkClient(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string) {
   if (!(await tx.client.findFirst({ where: { tenantId: ctx.tenantId, id: clientId }, select: { id: true } }))) {
     throw new NotFoundException('Client not found');

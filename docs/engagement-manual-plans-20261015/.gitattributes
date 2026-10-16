@@ -1,0 +1,2 @@
+# Preserve executed regression artifacts exactly as hashed in their evidence index.
+evidence/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
