@@ -1,0 +1,8 @@
+{
+  "sampledAt": "2026-10-16T02:07:04.0814183Z",
+  "freeVirtualBytes": 2863403008,
+  "totalVirtualBytes": 33632079872,
+  "freePhysicalBytes": 12109328384,
+  "totalPhysicalBytes": 33632079872,
+  "source": "Win32_OperatingSystem"
+}

@@ -1,0 +1,19 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-cleanup-20261016/count-delta.cjs",
+    "../evidence/baseline-code-count-receipt.json"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:10:05.1100918Z",
+  "endedAt": "2026-10-16T02:10:05.5375847Z",
+  "ownedPID": 32980,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 65847296,
+  "hardWallSeconds": 60,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "d81f34d1c1ae03f122f67b2ba1e11aa8e0f121e230489768dd93ae9d6d08330f",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
