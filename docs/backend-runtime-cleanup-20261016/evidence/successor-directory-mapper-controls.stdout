@@ -1,0 +1,16 @@
+Γ£ö member offices preserve raw field projection, finite-ID coercion and district/class strings (0.798ms)
+Γ£ö leaderships preserve ordering, nullish defaults, falsy values and legacy array-object admission (0.1598ms)
+Γ£ö contact methods retain only string contacts including empty and untrimmed values (0.1361ms)
+Γ£ö staff roles preserve nested nullish member fallback and zero-producing coercions (0.1897ms)
+Γ£ö staff issues preserve issue text, nullish defaults and finite-ID conversions (0.1772ms)
+Γ£ö staff positions preserve strict flags, nested member choice and preferred-name whitespace semantics (0.3016ms)
+Γ£ö staff office addresses preserve all fields, finite IDs, false values and strict main-office flag (0.1898ms)
+Γ£ö seven raw forwarding wrappers retain one pure algorithm owner while unrelated service edits remain free (11.1402ms)
+Γä╣ tests 8
+Γä╣ suites 0
+Γä╣ pass 8
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 58.3647

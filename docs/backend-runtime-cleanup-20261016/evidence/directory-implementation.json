@@ -1,0 +1,101 @@
+{
+  "source": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "allocation": "39ae771ec70caf8046193b32f204634ec05dac54",
+  "beforeSourceBlob": "4bce0f9ccfe1fe5dbd383ca18b8fd5a602839754",
+  "beforeCanonicalSha256": "eeb60d50ffa8492330055bb085a10763363a7959185c6f7ae996b6ac134a1b47",
+  "region": {
+    "physicalLines": 112,
+    "nonblankLines": 105,
+    "bytes": 4897,
+    "sha256": "326acc03ec067f10b00efd107fb301114be777dc6fd1e8daec2ac235db5a70c2"
+  },
+  "methods": [
+    {
+      "name": "mapMemberOffices",
+      "declaration": "  private mapMemberOffices(raw: unknown): DirectoryMemberDetail['offices'] {",
+      "helperFunctionSha256": "459f92390b95e90d5641b7afb0493f8d9efd496bd87604c5d3cfa2bcc0790306"
+    },
+    {
+      "name": "mapLeaderships",
+      "declaration": "  private mapLeaderships(raw: unknown): DirectoryMemberDetail['leaderships'] {",
+      "helperFunctionSha256": "46b0219db76491529241b1a1e36eec6e74c254ad9f74b5e4b4749a4147fb108c"
+    },
+    {
+      "name": "mapContactMethods",
+      "declaration": "  private mapContactMethods(raw: unknown): DirectoryMemberDetail['socialContacts'] {",
+      "helperFunctionSha256": "78eb99be917e69878fde6d2e5668585e68e43e5fbfaf36c61592cb60598e0ce8"
+    },
+    {
+      "name": "mapStaffRoles",
+      "declaration": "  private mapStaffRoles(raw: unknown): DirectoryMemberDetail['staffRoles'] {",
+      "helperFunctionSha256": "db18a6ee87c224ae4985d97da5e0994f54612270f073b166bf5f58a60abc1ade"
+    },
+    {
+      "name": "mapStaffIssues",
+      "declaration": "  private mapStaffIssues(raw: unknown): DirectoryMemberDetail['staffIssues'] {",
+      "helperFunctionSha256": "d670504f5f8ecf527da5a55624436fd61b2013005c434c942c965a1d8142377c"
+    },
+    {
+      "name": "mapStaffPositions",
+      "declaration": "  private mapStaffPositions(raw: unknown): DirectoryStaffDetail['positions'] {",
+      "helperFunctionSha256": "3754bafad32dda4075fd8d73383912482cc7d1df42243497a344e2c231345b26"
+    },
+    {
+      "name": "mapStaffOfficeAddresses",
+      "declaration": "  private mapStaffOfficeAddresses(raw: unknown): DirectoryStaffDetail['officeAddresses'] {",
+      "helperFunctionSha256": "5adba6f1de6b96a8928d91febd7313375b00dfcbf332c77429494f8424f5836a"
+    }
+  ],
+  "importBlock": "import {\n  mapMemberOffices,\n  mapLeaderships,\n  mapContactMethods,\n  mapStaffRoles,\n  mapStaffIssues,\n  mapStaffPositions,\n  mapStaffOfficeAddresses,\n} from './directory-detail-mappers.js';\n",
+  "typeImport": "import type { DirectoryMemberDetail, DirectoryStaffDetail } from './directory-detail.types.js';\n",
+  "paths": [
+    {
+      "path": "apps/api/src/directory/directory.service.ts",
+      "canonicalSha256": "25ca4a6a12d36252dfc677556075824ff0c3833a7967a6974a64143ed3f1a3af",
+      "checkoutSha256": "25ca4a6a12d36252dfc677556075824ff0c3833a7967a6974a64143ed3f1a3af",
+      "canonicalBytes": 140010,
+      "physicalLines": 3700,
+      "nonblankLines": 3463
+    },
+    {
+      "path": "apps/api/src/directory/directory-detail-mappers.ts",
+      "canonicalSha256": "67b6a1c54b2457891c23119c240fed8f380353db7a0717c396a9a46971c89018",
+      "checkoutSha256": "67b6a1c54b2457891c23119c240fed8f380353db7a0717c396a9a46971c89018",
+      "canonicalBytes": 4839,
+      "physicalLines": 113,
+      "nonblankLines": 106
+    },
+    {
+      "path": "scripts/ci/directory-detail-mappers.contract.spec.mjs",
+      "canonicalSha256": "b34788af55150dbeafe496291b638635359b7214bd5640f4af49fa9c2bb2230d",
+      "checkoutSha256": "b34788af55150dbeafe496291b638635359b7214bd5640f4af49fa9c2bb2230d",
+      "canonicalBytes": 13270,
+      "physicalLines": 210,
+      "nonblankLines": 197
+    }
+  ],
+  "verification": {
+    "executed": true,
+    "actualArgv": [
+      "--max-old-space-size=128",
+      "--test",
+      "--test-isolation=none",
+      "scripts/ci/directory-detail-mappers.contract.spec.mjs"
+    ],
+    "cases": 8,
+    "exitCode": 0,
+    "testSHA256": "9be20b9f9f59d70c7ec9def7127a03f8a31026ac3f8961926f40c9c3b4c66031",
+    "permanentScope": "Semantic fixtures and bounded forwarding/type-only/copy ownership; unrelated service bytes are not pinned",
+    "oneTimeSourceProof": "verify-directory-extraction-source.mjs --run; full former service inverse retained separately",
+    "nativeApplicationQualification": "pending integrated checkpoint"
+  },
+  "mapCorrection": {
+    "sealedMapSha256": "34a7dec08f61838124b800c02c339b65fce3a7fe2ccc4ec26690102c44fa2e49",
+    "mappedSpan": {
+      "physicalLines": 113,
+      "nonblankLines": 106,
+      "bytes": 4979
+    },
+    "explanation": "The sealed map counted the following 82-byte resolveMemberRef doc-comment line. Only the seven algorithm methods and separating blanks moved; that following comment stays untouched in DirectoryService."
+  }
+}
