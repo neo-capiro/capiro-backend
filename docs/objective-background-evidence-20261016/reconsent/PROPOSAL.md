@@ -1,5 +1,15 @@
 # Objective work cancellation and explicit reconsent
 
+## Superseding implementation allocation, 2026-10-16
+
+The parent has now **centrally reserved exclusively** `apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql` for this owner. The historical 15-head/12-worktree collision scan found no 50000 directory; 10000/20000/30000 and Engagement 40000 remain preserved. The three tables and commands below are now implemented as source, without migration execution. The older UNRESERVED/proposal statements below describe the earlier checkpoint, not current authority.
+
+The parent explicitly selected a **new** product policy: `capiro.objective-generation-consent`, integer revision **1**, default/max configured duration **1,800,000 ms (30 minutes)** for `objective.strategy.draft` and `objective.plan.prepare`. Configuration may reduce it; an increase requires an explicit policy revision. The existing stricter tenant/action/token/delegation expiry limits still reduce the effective duration. There is no 24-hour default, and neither model/budget/token lifetime supplies human consent. The pure Core policy lives at `apps/api/src/auth/workload-authority/objective-consent-policy.ts`. This supersedes the prior search for a legacy duration binding and the earlier proposed CHAR(64) policy revision/24-hour effective maximum. The actual SQL uses INTEGER policy revision 1 and configured/effective durations at most 1,800,000 ms.
+
+Current source: `apps/api/src/clients/objectives/work/` implements the exact authenticated command/read boundary. Owner reconciliation and stricter-settings facts remain explicitly unconnected and fail closed; their absence cannot establish not_started, authorize retry, or allocate a fresh effect identity. A successful consent record never creates a workload credential or dispatches a model. The API-Strategy receiving allocation is detailed in `../RECEIVING-TRUST-ALLOCATION.md`.
+
+## Historical proposal checkpoint (superseded where stated above)
+
 Source-only proposal against Core `622905839c7a510ab01a512ef8012926b2e1b4ce`. No application, Prisma schema, migration, test or runtime change is made here. The parent has resolved policy: a currently authorized Objective writer may explicitly reconsent for the exact current ready revision/action without editing the Objective; retain original and new actor lineage, preserve every old expiry, and never retry an UNKNOWN outcome. Existing action-consent duration applies, capped at 24 hours and every stricter applicable limit. **24 hours is a ceiling, never a default duration.**
 
 ## Existing boundaries
