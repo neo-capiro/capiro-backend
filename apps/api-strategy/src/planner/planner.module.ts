@@ -14,11 +14,14 @@ import { PlannerCapacityService } from './planner-capacity.service.js';
 import { ObjectiveCanonicalApplicationController } from './objective-canonical-application.controller.js';
 import { ObjectiveCanonicalApplicationService } from './objective-canonical-application.service.js';
 import { ObjectiveCanonicalWorkloadAuthority } from './objective-canonical-authority.js';
+import { ObjectiveCanonicalProducerController } from '../meri/objective-canonical-producer.controller.js';
+import { ObjectiveCanonicalProducerService } from '../meri/objective-canonical-producer.service.js';
 
 @Module({
-  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalApplicationController],
+  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalApplicationController, ObjectiveCanonicalProducerController],
   providers: [
     ObjectiveCanonicalApplicationService,
+    ObjectiveCanonicalProducerService,
     ObjectiveCanonicalWorkloadAuthority,
     PlannerCapacityService,
     PlannerService,

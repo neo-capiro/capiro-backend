@@ -9,6 +9,11 @@ export type WorkCommand = {
   expectedCanonicalBindingVersion: number; targetAuthorizationRequestId: string | null;
 };
 export type WorkRequest = { clientId: string; objectiveId: string; command: WorkCommand };
+export type WorkPairRequest = {
+  clientId: string; objectiveId: string; strategy: WorkRequest; planner: WorkRequest;
+};
+/** Two existing action receipts. This is not a separately persisted pair receipt. */
+export type WorkPairReceipt = { schemaVersion: 1; strategy: WorkReceipt; planner: WorkReceipt };
 export type WorkReadRequest = { clientId: string; objectiveId: string; workAction: WorkAction; requestId?: string };
 type Revision = { id: string; version: number };
 type ConsentTimes = { id: string; confirmedAt: string; expiresAt: string };
@@ -68,7 +73,8 @@ export interface WorkTransaction {
   lockOwner(): Promise<void>;
   currentAuthority(): Promise<WorkAuthority>;
   receipt(authority: WorkAuthority, action: WorkAction, requestId: string): Promise<StoredWorkReceipt | null>;
-  state(authority: WorkAuthority, action: WorkAction, createControl: boolean): Promise<WorkState>;
+  /** lockOnly locks existing rows without creating an empty control. */
+  state(authority: WorkAuthority, action: WorkAction, createControl: boolean, lockOnly?: boolean): Promise<WorkState>;
   clock(): Promise<string>;
   /** The connected owner must join the exact original immutable operation,
    * attempt, run, fingerprint, deadline and receipt; syntax is not that proof. */
@@ -81,6 +87,11 @@ export interface WorkTransaction {
 }
 export interface WorkOwner {
   transaction<T>(write: boolean, run: (tx: WorkTransaction) => Promise<T>): Promise<T>;
+}
+export type WorkPairTransaction = { strategy: WorkTransaction; planner: WorkTransaction };
+export interface WorkPairOwner {
+  /** Both ports must use the same transaction and original native proof. */
+  transaction<T>(write: boolean, run: (tx: WorkPairTransaction) => Promise<T>): Promise<T>;
 }
 export type WorkErrorCode = 'INVALID_REQUEST' | 'NOT_AVAILABLE' | 'OBJECTIVE_VERSION_CONFLICT'
   | 'CONTROL_VERSION_CONFLICT' | 'CANONICAL_VERSION_CONFLICT' | 'REQUEST_ID_CONFLICT'
@@ -147,6 +158,20 @@ export function parseWorkRead(client: unknown, objective: unknown, raw: unknown)
   const v = closed(raw, ['workAction'], ['requestId']);
   return { clientId: workUuid(client), objectiveId: workUuid(objective), workAction: action(v.workAction),
     ...(Object.hasOwn(v, 'requestId') ? { requestId: workUuid(v.requestId) } : {}) };
+}
+export function parseWorkPairConfirmation(client: unknown, objective: unknown, raw: unknown): WorkPairRequest {
+  const v = closed(raw, ['schemaVersion', 'expectedObjectiveVersion', 'expectedCanonicalBindingVersion', 'strategy', 'planner']);
+  if (v.schemaVersion !== 1) return workFailure('INVALID_REQUEST');
+  const clientId = workUuid(client), objectiveId = workUuid(objective);
+  const expectedObjectiveVersion = integer(v.expectedObjectiveVersion);
+  const expectedCanonicalBindingVersion = integer(v.expectedCanonicalBindingVersion);
+  const command = (value: unknown, workAction: WorkAction) => {
+    const c = closed(value, ['requestId', 'expectedControlVersion', 'targetAuthorizationRequestId']);
+    return parseWorkCommand(clientId, objectiveId, { schemaVersion: 1, command: 'retry', workAction,
+      expectedObjectiveVersion, expectedCanonicalBindingVersion, ...c });
+  };
+  return { clientId, objectiveId, strategy: command(v.strategy, 'objective.strategy.draft'),
+    planner: command(v.planner, 'objective.plan.prepare') };
 }
 function canonical(value: any): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -251,6 +276,39 @@ function reconciliationState(e: WorkReconciliation, a: WorkAuthority, action: Wo
   }
   return e.state;
 }
+async function retryPreflight(tx: WorkTransaction, a: WorkAuthority, request: WorkRequest, state: WorkState) {
+  const c = request.command, source = state.source;
+  if (a.objectiveStatus !== 'ready' || a.objectiveRevisionId !== source.sourceRevisionId ||
+      a.objectiveVersion !== source.sourceObjectiveVersion) workFailure('OBJECTIVE_VERSION_CONFLICT', c.requestId);
+  const evidence = await tx.reconcile(a, c.workAction, state);
+  const outcome = reconciliationState(evidence, a, c.workAction, state);
+  if (outcome === 'unavailable') workFailure('AUTHORITY_UNAVAILABLE', c.requestId);
+  if (outcome === 'outcome_unconfirmed' || outcome === 'accounted' && evidence.outcome === 'applied')
+    workFailure('OUTCOME_UNCONFIRMED', c.requestId);
+  const facts = await tx.policy(a, c.workAction, state);
+  if (typeof facts.limitReference !== 'string' || !facts.limitReference || facts.limitReference.length > 128 ||
+      !Number.isSafeInteger(facts.originalTokenExpiresAtMs)) workFailure('AUTHORITY_UNAVAILABLE', c.requestId);
+  return facts;
+}
+function retryTerms(request: WorkRequest, facts: WorkPolicyFacts, now: string) {
+  try {
+    return objectiveConsentPolicyTerms({ operation: request.command.workAction, databaseNowMs: Date.parse(now),
+      configuredDurationMs: facts.configuredDurationMs, tenantDurationLimitMs: facts.tenantDurationLimitMs,
+      actionDurationLimitMs: facts.actionDurationLimitMs, originalTokenExpiresAtMs: facts.originalTokenExpiresAtMs,
+      originalDelegationExpiresAtMs: facts.originalDelegationExpiresAtMs, priorOutcomeUnconfirmed: false });
+  } catch { return workFailure('AUTHORITY_UNAVAILABLE', request.command.requestId); }
+}
+function retryConsent(tx: WorkTransaction, a: WorkAuthority, request: WorkRequest, state: WorkState,
+  facts: WorkPolicyFacts, now: string, terms: ReturnType<typeof retryTerms>): WorkConsent {
+  if (!state.control) return workFailure('AUTHORITY_UNAVAILABLE', request.command.requestId);
+  const receiptId = workUuid(tx.newId());
+  return { id: workUuid(tx.newId()), controlId: state.control.id, source: state.source,
+    previousConsentId: state.control.currentConsentId, actorUserId: a.actorUserId, actorMembershipId: a.actorMembershipId,
+    policyId: terms.policyId, policyRevision: terms.policyRevision, configuredDurationMs: terms.configuredDurationMs,
+    effectiveDurationMs: terms.effectiveDurationMs, stricterExpiresAt: new Date(terms.expiresAtMs).toISOString(),
+    stricterLimitRef: facts.limitReference, confirmedAt: now, expiresAt: new Date(terms.expiresAtMs).toISOString(),
+    commandRequestId: request.command.requestId, commandReceiptId: receiptId, payloadDigest: workDigest(request) };
+}
 export async function executeWorkCommand(request: WorkRequest, owner: WorkOwner): Promise<WorkReceipt> {
   const early = await owner.transaction(false, async tx => {
     const a = await tx.currentAuthority(); checkAuthority(a, request);
@@ -279,33 +337,12 @@ export async function executeWorkCommand(request: WorkRequest, owner: WorkOwner)
     let receiptId: string;
     let consent: WorkConsent | null = null;
     if (c.command === 'retry') {
-      if (a.objectiveStatus !== 'ready' || a.objectiveRevisionId !== source.sourceRevisionId ||
-          a.objectiveVersion !== source.sourceObjectiveVersion) workFailure('OBJECTIVE_VERSION_CONFLICT', c.requestId);
-      const evidence = await tx.reconcile(a, c.workAction, state);
-      const outcome = reconciliationState(evidence, a, c.workAction, state);
-      if (outcome === 'unavailable') workFailure('AUTHORITY_UNAVAILABLE', c.requestId);
-      if (outcome === 'outcome_unconfirmed' || outcome === 'accounted' && evidence.outcome === 'applied')
-        workFailure('OUTCOME_UNCONFIRMED', c.requestId);
-      const facts = await tx.policy(a, c.workAction, state);
-      if (typeof facts.limitReference !== 'string' || !facts.limitReference || facts.limitReference.length > 128 ||
-          !Number.isSafeInteger(facts.originalTokenExpiresAtMs)) workFailure('AUTHORITY_UNAVAILABLE', c.requestId);
+      const facts = await retryPreflight(tx, a, request, state);
       // Owner/settings ports may acquire their own already-ordered local locks.
       // Sample the DB clock after those waits, never before them.
       now = utc(await tx.clock());
-      let terms;
-      try {
-        terms = objectiveConsentPolicyTerms({ operation: c.workAction, databaseNowMs: Date.parse(now),
-          configuredDurationMs: facts.configuredDurationMs, tenantDurationLimitMs: facts.tenantDurationLimitMs,
-          actionDurationLimitMs: facts.actionDurationLimitMs, originalTokenExpiresAtMs: facts.originalTokenExpiresAtMs,
-          originalDelegationExpiresAtMs: facts.originalDelegationExpiresAtMs, priorOutcomeUnconfirmed: false });
-      } catch { return workFailure('AUTHORITY_UNAVAILABLE', c.requestId); }
-      receiptId = workUuid(tx.newId());
-      consent = { id: workUuid(tx.newId()), controlId: control.id, source,
-        previousConsentId: control.currentConsentId, actorUserId: a.actorUserId, actorMembershipId: a.actorMembershipId,
-        policyId: terms.policyId, policyRevision: terms.policyRevision, configuredDurationMs: terms.configuredDurationMs,
-        effectiveDurationMs: terms.effectiveDurationMs, stricterExpiresAt: new Date(terms.expiresAtMs).toISOString(),
-        stricterLimitRef: facts.limitReference, confirmedAt: now, expiresAt: new Date(terms.expiresAtMs).toISOString(),
-        commandRequestId: c.requestId, commandReceiptId: receiptId, payloadDigest };
+      consent = retryConsent(tx, a, request, state, facts, now, retryTerms(request, facts, now));
+      receiptId = consent.commandReceiptId;
       await tx.insertConsent(a, c.workAction, consent);
     } else { now = utc(await tx.clock()); receiptId = workUuid(tx.newId()); }
     const after: WorkControl = { ...control, version: control.version + (changed ? 1 : 0),
@@ -326,6 +363,106 @@ export async function executeWorkCommand(request: WorkRequest, owner: WorkOwner)
     await tx.insertReceipt(a, { receipt, command: c, source, controlId: control.id,
       actorUserId: a.actorUserId, actorMembershipId: a.actorMembershipId });
     return receipt;
+  });
+}
+function pairState(a: WorkAuthority, request: WorkRequest, state: WorkState) {
+  const c = request.command;
+  try { checkState(state); } catch { workFailure('AUTHORITY_UNAVAILABLE', c.requestId); }
+  if (a.objectiveVersion !== c.expectedObjectiveVersion || a.objectiveStatus !== 'ready' ||
+      a.objectiveRevisionId !== state.source.sourceRevisionId || a.objectiveVersion !== state.source.sourceObjectiveVersion)
+    workFailure('OBJECTIVE_VERSION_CONFLICT', c.requestId);
+  if (state.source.canonicalBindingVersion !== c.expectedCanonicalBindingVersion)
+    workFailure('CANONICAL_VERSION_CONFLICT', c.requestId);
+  if ((state.control?.version ?? 0) !== c.expectedControlVersion ||
+      (state.control?.currentConsentId ?? null) !== c.targetAuthorizationRequestId || state.control?.version === INT_MAX)
+    workFailure('CONTROL_VERSION_CONFLICT', c.requestId);
+}
+async function recoverPair(tx: WorkPairTransaction, a: WorkAuthority, request: WorkPairRequest): Promise<WorkPairReceipt | null> {
+  const strategy = await recover(tx.strategy, a, request.strategy);
+  const planner = await recover(tx.planner, a, request.planner);
+  // Never create the missing half of a previously recorded request. Two exact
+  // receipts are historical action receipts, not proof of a persisted pair.
+  if ((strategy === null) !== (planner === null))
+    workFailure('OUTCOME_UNCONFIRMED', strategy === null ? request.strategy.command.requestId : request.planner.command.requestId);
+  return strategy && planner ? { schemaVersion: 1, strategy, planner } : null;
+}
+export async function executeWorkPairConfirmation(request: WorkPairRequest, owner: WorkPairOwner): Promise<WorkPairReceipt> {
+  const s = request.strategy, p = request.planner;
+  if (s.clientId !== request.clientId || p.clientId !== request.clientId || s.objectiveId !== request.objectiveId ||
+      p.objectiveId !== request.objectiveId || s.command.command !== 'retry' || p.command.command !== 'retry' ||
+      s.command.workAction !== 'objective.strategy.draft' || p.command.workAction !== 'objective.plan.prepare' ||
+      s.command.expectedObjectiveVersion !== p.command.expectedObjectiveVersion ||
+      s.command.expectedCanonicalBindingVersion !== p.command.expectedCanonicalBindingVersion)
+    workFailure('INVALID_REQUEST');
+  const early = await owner.transaction(false, async tx => {
+    const a = await tx.strategy.currentAuthority(); checkAuthority(a, request);
+    return recoverPair(tx, a, request);
+  });
+  if (early) return early;
+  return owner.transaction(true, async tx => {
+    // A connected owner must preserve Planner -> job -> Strategy before Core.
+    await tx.planner.lockOwner(); await tx.strategy.lockOwner();
+    const a = await tx.strategy.currentAuthority(); checkAuthority(a, request);
+    const replay = await recoverPair(tx, a, request); if (replay) return replay;
+    const plannerState = await tx.planner.state(a, request.planner.command.workAction, false, true);
+    const strategyState = await tx.strategy.state(a, request.strategy.command.workAction, false, true);
+    const lockedReplay = await recoverPair(tx, a, request); if (lockedReplay) return lockedReplay;
+    pairState(a, request.planner, plannerState); pairState(a, request.strategy, strategyState);
+    if (canonical(plannerState.source) !== canonical(strategyState.source)) workFailure('AUTHORITY_UNAVAILABLE');
+    const plannerFacts = await retryPreflight(tx.planner, a, request.planner, plannerState);
+    const strategyFacts = await retryPreflight(tx.strategy, a, request.strategy, strategyState);
+    if (plannerFacts.originalTokenExpiresAtMs !== strategyFacts.originalTokenExpiresAtMs) workFailure('AUTHORITY_UNAVAILABLE');
+    const now = utc(await tx.strategy.clock());
+    // Both actual policies must pass before even an empty control is inserted.
+    const plannerTerms = retryTerms(request.planner, plannerFacts, now);
+    const strategyTerms = retryTerms(request.strategy, strategyFacts, now);
+    const materialize = async (port: WorkTransaction, r: WorkRequest, before: WorkState) => {
+      if (before.control) return before;
+      const after = await port.state(a, r.command.workAction, true);
+      pairState(a, r, after);
+      if (!after.control || canonical(after.source) !== canonical(before.source)) workFailure('AUTHORITY_UNAVAILABLE');
+      return after;
+    };
+    const planner = await materialize(tx.planner, request.planner, plannerState);
+    const strategy = await materialize(tx.strategy, request.strategy, strategyState);
+    const plannerConsent = retryConsent(tx.planner, a, request.planner, planner, plannerFacts, now, plannerTerms);
+    const strategyConsent = retryConsent(tx.strategy, a, request.strategy, strategy, strategyFacts, now, strategyTerms);
+    if (plannerConsent.id === strategyConsent.id || plannerConsent.controlId === strategyConsent.controlId ||
+        new Set([plannerConsent.id, strategyConsent.id, plannerConsent.commandReceiptId, strategyConsent.commandReceiptId]).size !== 4)
+      workFailure('AUTHORITY_UNAVAILABLE');
+    const save = async (port: WorkTransaction, r: WorkRequest, state: WorkState, consent: WorkConsent) => {
+      const before = state.control!;
+      await port.insertConsent(a, r.command.workAction, consent);
+      const after = { ...before, version: before.version + 1, currentConsentId: consent.id,
+        cancelledAt: null, cancelledByUserId: null };
+      if (!(await port.casControl(a, r.command.workAction, before, after)))
+        workFailure('CONTROL_VERSION_CONFLICT', r.command.requestId);
+    };
+    await save(tx.planner, request.planner, planner, plannerConsent);
+    await save(tx.strategy, request.strategy, strategy, strategyConsent);
+    const committedAt = utc(await tx.strategy.clock());
+    const receipt = (r: WorkRequest, state: WorkState, consent: WorkConsent): WorkReceipt => ({
+      schemaVersion: 1, receiptId: consent.commandReceiptId, requestId: r.command.requestId, payloadDigest: consent.payloadDigest,
+      clientId: a.clientId, objectiveId: a.objectiveId, command: 'retry', workAction: r.command.workAction,
+      commandRevision: { id: a.objectiveRevisionId, version: a.objectiveVersion },
+      sourceRevision: { id: state.source.sourceRevisionId, version: state.source.sourceObjectiveVersion }, rootIntentId: state.source.rootIntentId,
+      controlVersionBefore: state.control!.version, controlVersionAfter: state.control!.version + 1,
+      targetAuthorizationRequestId: r.command.targetAuthorizationRequestId, authorizationRequestId: consent.id,
+      consent: { id: consent.id, confirmedAt: consent.confirmedAt, expiresAt: consent.expiresAt },
+      outcome: 'reconsent_recorded', committedAt });
+    const result: WorkPairReceipt = { schemaVersion: 1, strategy: receipt(request.strategy, strategy, strategyConsent),
+      planner: receipt(request.planner, planner, plannerConsent) };
+    const checkExpiry = (clock: string) => {
+      if (Date.parse(clock) < Date.parse(now) || [plannerConsent, strategyConsent].some(c => Date.parse(c.expiresAt) <= Date.parse(clock)))
+        workFailure('AUTHORITY_UNAVAILABLE');
+    };
+    checkExpiry(committedAt);
+    await tx.planner.insertReceipt(a, { receipt: result.planner, command: request.planner.command, source: planner.source,
+      controlId: planner.control!.id, actorUserId: a.actorUserId, actorMembershipId: a.actorMembershipId });
+    await tx.strategy.insertReceipt(a, { receipt: result.strategy, command: request.strategy.command, source: strategy.source,
+      controlId: strategy.control!.id, actorUserId: a.actorUserId, actorMembershipId: a.actorMembershipId });
+    checkExpiry(utc(await tx.strategy.clock()));
+    return result;
   });
 }
 export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOwner) {

@@ -9,10 +9,10 @@ import type { ApplicationAuthorityIdentityProof } from '../../../auth/applicatio
 import { objectiveRevisionSnapshotHash, OBJECTIVE_WORK_BLOCKER, OBJECTIVE_WORK_PURPOSE } from '../objective-work-intent.js';
 import { requireCanonicalObjectiveFence, type CanonicalObjectivePlanToken } from '../objective-canonical-plan.js';
 import {
-  ObjectiveWorkError, executeWorkCommand, readWorkGeneration, workFailure, workUuid,
+  ObjectiveWorkError, executeWorkCommand, executeWorkPairConfirmation, readWorkGeneration, workFailure, workUuid,
   type WorkAction, type WorkAuthority, type WorkConsent, type WorkControl, type WorkOwner,
   type WorkPolicyFacts, type WorkReadRequest, type WorkReconciliation, type WorkRequest,
-  type WorkSource, type WorkState, type WorkTransaction, type StoredWorkReceipt,
+  type WorkSource, type WorkState, type WorkTransaction, type StoredWorkReceipt, type WorkPairOwner, type WorkPairRequest,
 } from './objective-work-command.js';
 
 type Tx = Prisma.TransactionClient;
@@ -86,13 +86,42 @@ export class ObjectiveWorkService {
   async command(ctx: TenantContext, req: Request, request: WorkRequest) {
     return executeWorkCommand(request, this.store(ctx, request, await this.proof(ctx, req)));
   }
+  async confirmPair(ctx: TenantContext, req: Request, request: WorkPairRequest) {
+    return executeWorkPairConfirmation(request, this.pairStore(ctx, request, await this.proof(ctx, req)));
+  }
   async read(ctx: TenantContext, req: Request, request: WorkReadRequest) {
     return readWorkGeneration(request, this.store(ctx, request, await this.proof(ctx, req)));
   }
   private store(ctx: TenantContext, request: WorkRequest | WorkReadRequest, proof: ApplicationAuthorityIdentityProof): WorkOwner {
     const action = 'command' in request ? request.command.workAction : request.workAction;
     const requestId = 'command' in request ? request.command.requestId : request.requestId ?? null;
-    return { transaction: async <T>(write: boolean, run: (ports: WorkTransaction) => Promise<T>) => {
+    return { transaction: <T>(write: boolean, run: (ports: WorkTransaction) => Promise<T>) =>
+      this.proofTransaction(ctx, proof, requestId, tx => run(this.ports(tx, ctx, request, action, proof, write))) };
+  }
+  private pairStore(ctx: TenantContext, request: WorkPairRequest, proof: ApplicationAuthorityIdentityProof): WorkPairOwner {
+    return { transaction: (write, run) => {
+      const expires: string[] = [];
+      return this.proofTransaction(ctx, proof, request.strategy.command.requestId, tx => {
+        const port = (r: WorkRequest, action: WorkAction): WorkTransaction => {
+          const owned = this.ports(tx, ctx, r, action, proof, write);
+          return { ...owned, insertConsent: async (a, kind, consent) => {
+            await owned.insertConsent(a, kind, consent); expires.push(consent.expiresAt);
+          } };
+        };
+        return run({ strategy: port(request.strategy, 'objective.strategy.draft'),
+          planner: port(request.planner, 'objective.plan.prepare') });
+      }, async tx => {
+        // Historical replay inserts no consent and does not renew old expiry.
+        if (expires.length === 0) return;
+        if (expires.length !== 2) workFailure('AUTHORITY_UNAVAILABLE');
+        const rows = await tx.$queryRaw<Array<{ valid: boolean }>>`SELECT clock_timestamp() <
+          LEAST(${expires[0]!}::timestamptz,${expires[1]!}::timestamptz) AS valid`;
+        if (rows.length !== 1 || rows[0]!.valid !== true) workFailure('AUTHORITY_UNAVAILABLE');
+      });
+    } };
+  }
+  private async proofTransaction<T>(ctx: TenantContext, proof: ApplicationAuthorityIdentityProof, requestId: string | null,
+    run: (tx: Tx) => Promise<T>, afterAuthority?: (tx: Tx) => Promise<void>): Promise<T> {
       try {
         // The existing request-local owner rechecks its local membership/session
         // evidence before opening our transaction. No HTTP/provider under locks.
@@ -102,7 +131,7 @@ export class ObjectiveWorkService {
           workFailure('NOT_AVAILABLE', requestId);
         return await this.prisma.withTenant(ctx.tenantId, async tx => {
           await tx.$executeRaw`SELECT set_config('statement_timeout','12000',true),set_config('lock_timeout','3000',true)`;
-          const result = await run(this.ports(tx, ctx, request, action, proof, write));
+          const result = await run(tx);
           // Existing owner callback is local read-only withSystem work on its
           // separate connection; it performs no Clerk HTTP call. Native scope
           // locks remain held by this outer tx. This is not atomic session or
@@ -115,13 +144,13 @@ export class ObjectiveWorkService {
           // Includes historical replay, read and cancellation. Expiry of the
           // CURRENT request is separate from expiry of any historical consent.
           await this.currentProofWithinTx(tx, proof);
+          if (afterAuthority) await afterAuthority(tx);
           return result;
         }, { timeoutMs: 15000 });
       } catch (error) {
         if (error instanceof ObjectiveWorkError) throw error;
         workFailure('AUTHORITY_UNAVAILABLE', requestId);
       }
-    } };
   }
   private ports(tx: Tx, ctx: TenantContext, request: WorkRequest | WorkReadRequest,
     action: WorkAction, proof: ApplicationAuthorityIdentityProof, write: boolean): WorkTransaction {
@@ -140,10 +169,10 @@ export class ObjectiveWorkService {
         return authority;
       },
       receipt: (a, kind, id) => { sameAction(kind); return this.receipt(tx, a, kind, id); },
-      state: async (a, kind, create) => {
-        sameAction(kind); if (create) requireWrite();
-        const state = await this.state(tx, ctx, a, kind, create, 'command' in request ? request.command.command : null);
-        if (create) lockedSource = state.source;
+      state: async (a, kind, create, lockOnly = false) => {
+        sameAction(kind); if (create || lockOnly) requireWrite();
+        const state = await this.state(tx, ctx, a, kind, create, 'command' in request ? request.command.command : null, lockOnly);
+        if (create || lockOnly) lockedSource = state.source;
         return state;
       },
       clock: async () => {
@@ -234,8 +263,9 @@ export class ObjectiveWorkService {
     return consent(rows[0]!.record);
   }
   private async state(tx: Tx, ctx: TenantContext, a: WorkAuthority, action: WorkAction, create: boolean,
-    command: 'retry' | 'cancel' | null): Promise<WorkState> {
-    const canonical = create
+    command: 'retry' | 'cancel' | null, lockOnly = false): Promise<WorkState> {
+    const lock = create || lockOnly;
+    const canonical = lock
       ? await tx.$queryRaw<Array<{ record: Row }>>`SELECT to_jsonb(p) AS record FROM client_objective_canonical_plans p
           WHERE tenant_id=${a.tenantId}::uuid AND client_id=${a.clientId}::uuid AND objective_id=${a.objectiveId}::uuid FOR UPDATE`
       : await tx.$queryRaw<Array<{ record: Row }>>`SELECT to_jsonb(p) AS record FROM client_objective_canonical_plans p
@@ -252,7 +282,7 @@ export class ObjectiveWorkService {
     if (roots.length !== 1) workFailure('AUTHORITY_UNAVAILABLE');
     s.rootActorUserId = roots[0]!.actor;
     await this.root(tx, a, s);
-    if (create && command === 'retry') {
+    if (lock && command === 'retry') {
       const token: CanonicalObjectivePlanToken = { canonicalPlanId: s.canonicalPlanId, tenantId: a.tenantId,
         clientId: a.clientId, objectiveId: a.objectiveId, canonicalStrategyId: s.canonicalStrategyId,
         canonicalProjectId: s.canonicalProjectId, bindingVersion: s.canonicalBindingVersion, epoch: s.canonicalEpoch,
@@ -265,7 +295,7 @@ export class ObjectiveWorkService {
       VALUES (${randomUUID()}::uuid,${a.tenantId}::uuid,${a.clientId}::uuid,${a.objectiveId}::uuid,${action},
         ${s.canonicalPlanId}::uuid,${s.canonicalEpoch},${s.canonicalStrategyId}::uuid,${s.canonicalProjectId}::uuid)
       ON CONFLICT (tenant_id,client_id,objective_id,work_action) DO NOTHING`;
-    const heads = create
+    const heads = lock
       ? await tx.$queryRaw<Array<{ record: Row }>>`SELECT to_jsonb(c) AS record FROM client_objective_work_controls c
           WHERE tenant_id=${a.tenantId}::uuid AND client_id=${a.clientId}::uuid AND objective_id=${a.objectiveId}::uuid
             AND work_action=${action} FOR UPDATE`

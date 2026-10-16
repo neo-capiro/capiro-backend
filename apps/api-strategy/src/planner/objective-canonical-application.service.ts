@@ -4,7 +4,8 @@ import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PlannerService } from './planner.service.js';
-import { canonicalMaterializationReceiptId, type CanonicalMaterializationBinding } from './strategy-materialization.js';
+import { canonicalMaterializationReceiptId, type CanonicalMaterializationBinding,
+  type CanonicalMaterializationPredecessor } from './strategy-materialization.js';
 import { ObjectiveCanonicalWorkloadAuthority, type CanonicalAuthoritySubject } from './objective-canonical-authority.js';
 import { requireCanonicalApplicationFence, requireCanonicalApplicationRead } from './objective-canonical-fence.js';
 import { applicationHash, applicationHeadId, applicationObservation, applicationReceiptId, applicationUuid,
@@ -85,11 +86,14 @@ export class ObjectiveCanonicalApplicationService {
         assertEffect: () => this.authority.assertCurrent(tx, grant, subject),
         // Owner locks: Planner -> job -> Strategy -> exact saved version ->
         // current Core authority/Objective -> canonical -> current consent.
-        prepare: beforeWrite => this.planner.prepareCanonicalStrategyPlanInTransaction(tx, this.ctx(grant), {
-          requestId: request.applicationRequestId, generationJobId: request.generationJobId,
-          expected: { strategyId: request.strategyId, strategyVersionId: request.strategyVersionId,
-            objectiveRevisionId: request.canonical.requestedObjectiveRevisionId },
-        }, this.binding(request), beforeWrite),
+        prepare: async beforeWrite => {
+          const predecessor = await this.predecessor(tx, grant, request);
+          return this.planner.prepareCanonicalStrategyPlanInTransaction(tx, this.ctx(grant), {
+            requestId: request.applicationRequestId, generationJobId: request.generationJobId,
+            expected: { strategyId: request.strategyId, strategyVersionId: request.strategyVersionId,
+              objectiveRevisionId: request.canonical.requestedObjectiveRevisionId },
+          }, this.binding(request), beforeWrite, predecessor);
+        },
         fence: () => requireCanonicalApplicationFence(tx, grant, request),
         clock: async () => {
           const clocks = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
@@ -108,6 +112,40 @@ export class ObjectiveCanonicalApplicationService {
       }), { timeoutMs: 15_000 });
     });
   }
+  /** Planner lock is already held. A mutable head is accepted only after
+   * reconstructing its complete paired immutable application/owner evidence.
+   * Original receipt actors remain original; fresh output editor authority is
+   * checked by the new owner operation, not inherited from an old actor. */
+  private async predecessor(tx: Tx, grant: CanonicalApplicationGrant,
+    request: CanonicalApplicationRequest): Promise<CanonicalMaterializationPredecessor | undefined> {
+    const c = request.canonical;
+    const head = await tx.spPlannerResource.findFirst({ where: { tenantId: grant.tenantId, id: applicationHeadId(c) } });
+    if (!head) return undefined;
+    const data = head.data as { applicationRequestId?: string; canonical?: CanonicalApplicationRequest['canonical'] };
+    if (head.kind !== CANONICAL_APPLICATION_HEAD || head.archived || !data.canonical ||
+        data.canonical.tenantId !== c.tenantId || data.canonical.clientId !== c.clientId || data.canonical.objectiveId !== c.objectiveId ||
+        data.canonical.canonicalPlanId !== c.canonicalPlanId || data.canonical.epoch !== c.epoch ||
+        data.canonical.canonicalStrategyId !== c.canonicalStrategyId || data.canonical.canonicalProjectId !== c.canonicalProjectId ||
+        data.canonical.bindingVersion >= c.bindingVersion) throw new CanonicalApplicationError('REQUEST_CONFLICT');
+    const oldId = applicationUuid(data.applicationRequestId);
+    const oldRow = await tx.spPlannerResource.findFirst({ where: { tenantId: grant.tenantId,
+      id: applicationReceiptId(grant.tenantId, head.ownerId, oldId), ownerId: head.ownerId,
+      kind: CANONICAL_APPLICATION_RECEIPT, archived: false } });
+    if (!oldRow) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+    const oldRequest = parseCanonicalApplication((oldRow.data as unknown as StoredCanonicalApplication).request);
+    const oldOwner = await this.planner.canonicalStrategyPlanCreationInTransaction(tx,
+      { ...this.ctx(grant), clerkUserId: head.ownerId }, oldId, this.binding(oldRequest));
+    if (!oldOwner) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+    const ownerId = canonicalMaterializationReceiptId(grant.tenantId, head.ownerId, oldId);
+    const old = checkStoredApplication(oldRow.data, oldOwner, ownerId);
+    const expected = { schemaVersion: 1, canonical: old.request.canonical, applicationRequestId: oldId,
+      ackSha256: old.ackSha256, source: old.ack.source, strategyId: old.ack.source.strategyId,
+      projectId: old.request.canonical.canonicalProjectId };
+    if (old.request.canonical.tenantId !== grant.tenantId || applicationHash(head.data) !== applicationHash(expected))
+      throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+    return { owner: oldOwner, applicationRequestId: oldId, applicationAckSha256: old.ackSha256,
+      ownerReceiptId: ownerId, ownerReceiptSha256: applicationHash(oldOwner) };
+  }
   private async advanceHead(tx: Tx, grant: CanonicalApplicationGrant, stored: StoredCanonicalApplication) {
     const c = stored.request.canonical;
     const id = applicationHeadId(c);
@@ -116,30 +154,10 @@ export class ObjectiveCanonicalApplicationService {
       ackSha256: stored.ackSha256, source: stored.ack.source,
       strategyId: stored.ack.source.strategyId, projectId: c.canonicalProjectId };
     if (prior) {
-      const p = prior.data as { canonical?: CanonicalApplicationRequest['canonical']; applicationRequestId?: string };
-      if (prior.kind !== CANONICAL_APPLICATION_HEAD || prior.ownerId !== grant.clerkUserId ||
-          !p?.canonical || p.canonical.canonicalPlanId !== c.canonicalPlanId || p.canonical.epoch !== c.epoch ||
-          p.canonical.canonicalStrategyId !== c.canonicalStrategyId || p.canonical.canonicalProjectId !== c.canonicalProjectId ||
-          p.canonical.bindingVersion >= c.bindingVersion)
-        throw new CanonicalApplicationError('REQUEST_CONFLICT');
-      // The mutable pointer is not its own proof. Rebuild its complete old
-      // value from the paired immutable creation evidence before advancing it.
-      const oldId = applicationUuid(p.applicationRequestId);
-      const oldRow = await this.receipt(tx, grant, oldId);
-      if (!oldRow) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
-      const oldRequest = parseCanonicalApplication((oldRow.data as unknown as StoredCanonicalApplication).request);
-      const oldOwner = await this.owner(tx, grant, oldRequest);
-      if (!oldOwner) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
-      const old = checkStoredApplication(oldRow.data, oldOwner,
-        canonicalMaterializationReceiptId(grant.tenantId, grant.clerkUserId, oldId));
-      const expected = { schemaVersion: 1, canonical: old.request.canonical, applicationRequestId: oldId,
-        ackSha256: old.ackSha256, source: old.ack.source, strategyId: old.ack.source.strategyId,
-        projectId: old.request.canonical.canonicalProjectId };
-      if (applicationHash(prior.data) !== applicationHash(expected))
-        throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+      if (!await this.predecessor(tx, grant, stored.request)) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
       const changed = await tx.spPlannerResource.updateMany({ where: { tenantId: grant.tenantId,
-        id, kind: CANONICAL_APPLICATION_HEAD, version: prior.version, archived: false },
-        data: { data: head as unknown as Prisma.InputJsonValue, version: { increment: 1 } } });
+        id, kind: CANONICAL_APPLICATION_HEAD, version: prior.version, ownerId: prior.ownerId, archived: false },
+        data: { ownerId: grant.clerkUserId, data: head as unknown as Prisma.InputJsonValue, version: { increment: 1 } } });
       if (changed.count !== 1) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
     } else await tx.spPlannerResource.create({ data: { id, tenantId: grant.tenantId,
       ownerId: grant.clerkUserId, kind: CANONICAL_APPLICATION_HEAD,

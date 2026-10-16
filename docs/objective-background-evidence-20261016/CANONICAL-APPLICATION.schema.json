@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:capiro:private:objective-canonical-planner-application:v1",
   "title": "Private Objective canonical Planner application request, immutable ACK and responses",
-  "description": "Source-only server contract. This file neither approves a public wire export nor enables the unbound workload authority port. JSON Schema covers structure; authority, deterministic identities, content hashes and cross-field correlations remain source-enforced.",
+  "description": "Private server application contract for initial owner receipt v2 and reconciliation receipt v3; request/ACK/response schemaVersion remains 1. This file neither approves a public wire export nor enables the unbound workload authority port. The legacy public/manual issue decoder is unchanged. JSON Schema covers structure; authority, deterministic identities, content hashes and cross-field correlations remain source-enforced.",
   "oneOf": [
     {
       "$ref": "#/$defs/request"
@@ -17,9 +17,11 @@
       "$ref": "#/$defs/error"
     }
   ],
+  "x-service-global-prefix": "/strategy-api",
   "x-http": {
     "post": {
-      "path": "/internal/objective-canonical/planner-applications",
+      "path": "/strategy-api/internal/objective-canonical/planner-applications",
+      "controllerRelativePath": "/internal/objective-canonical/planner-applications",
       "operation": "objective.plan.prepare",
       "request": "#/$defs/request",
       "success": {
@@ -28,7 +30,8 @@
       }
     },
     "get": {
-      "path": "/internal/objective-canonical/planner-applications/:applicationRequestId",
+      "path": "/strategy-api/internal/objective-canonical/planner-applications/:applicationRequestId",
+      "controllerRelativePath": "/internal/objective-canonical/planner-applications/:applicationRequestId",
       "operation": "objective.plan.prepare",
       "pathParameter": "#/$defs/uuid",
       "success": {
@@ -84,12 +87,29 @@
     "POST strategyId equals canonical.canonicalStrategyId. Actual owner source must match generationJobId, generationRequestId, clientId, Objective ID/version/revision, actual Strategy ID/version and snapshotDigest; objectiveReceiptSha256 matches the actual stored generation receipt. A Strategy generation job is not inferred to be a Meri run.",
     "Verify authenticated named workload/audience/delegation/current actor/scope/claim before DB access; recheck the exact transaction-local current authority/claim witness. The default authority port remains unavailable. A reservation, digest, expected header, generic service secret or posted actor is not that proof.",
     "Validate current ready source, exact canonical token, current consent/control/action/policy/expiry, current actor/client authority and tenant feature gate for a new effect. Replay existing paired receipts before applying a new-effect source fence. Retained GET has separate current read authority and does not revive old effect consent or require the old Objective version still current.",
-    "Canonical default project ID is the actual reserved canonicalProjectId in row creation, task memberships and rebuilt immutable owner/application projections. No caller grouping or first-manual-group alias is accepted. Existing output collisions are refused; human changes are not reset.",
+    "Canonical default project ID is the actual reserved canonicalProjectId in row creation, initial task memberships and rebuilt immutable owner/application projections. No caller grouping or first-manual-group alias is accepted. An existing project is reusable only through the checked prior head/application ACK/owner receipt chain; unrelated collisions refuse. Reconciliation preserves human membership edits rather than restoring default membership.",
     "ACK requestSha256 and request identity bind the original request/actor. ACK source and objectiveReceiptSha256 must correlate to that request. Projects/tasks/versions/source/ownerReceiptSha256 must reconstruct exactly from the validated owner creation receipt; ACK digest is not accepted as a self-authenticating claim.",
     "Current source/request, ordered project/task identity cardinality, source-node IDs and created versions must match the retained ACK; available current IDs must equal original IDs. Current versions/membership/availability may reflect human edits. If any current output ID is null, creation.ack and creation.sha256 are both null.",
     "All owner outputs, owner receipt, receiving receipt and explicit application head commit in one owner Prisma transaction, with release fences after all writes. The mutable prior head is rebuilt against its paired immutable ACK and owner receipt before CAS; a head or reservation alone is never proof of application.",
+    "Owner receipt v2 is initial creation: createdProjects=1 and createdTasks equals its active task output count, with initial currentVersion=1. Owner receipt v3 is advancing-revision reconciliation: createdProjects=0 and createdTasks counts only newly inserted tasks, not all task outputs. Output createdVersion and ACK createdVersion retain original row-creation version 1; private beforeVersion/appliedVersion witnesses describe this application and currentVersion may subsequently increase through human edits.",
+    "Only the private canonical result admits HUMAN_EDITS_PRESERVED and PRIOR_WORK_RETAINED. Legacy public/manual successIssue remains the original three-code dictionary. Reconciliation preserves machine baselines when a human field wins, retains removed tasks and cumulative source-node/task identity, and refuses a missing/cyclic merged task graph or a proposed task edge left unapplied before writes. It introduces no new edge disposition or public issue code.",
+    "V3 receipt checking reconstructs source/result identities, baselines, version algebra, groups, edges, counts and issues against the checked predecessor. Observed human-value hashes, membership observations and the merged graph hash are transaction witnesses from locked owner reads; their raw values and complete tenant graph are not copied into the receipt and cannot be independently reconstructed from those hashes.",
     "JSON Schema cannot express JavaScript descriptor/prototype checks, authentication, full digest/reconstruction, complete cross-record provenance, SQL locking, RLS or rollback. This document adds no runtime admission or test/typing/native qualification."
   ],
+  "x-owner-receipts": {
+    "kind": "objective_canonical_materialization_receipt",
+    "initial": { "receiptVersion": 2, "behavior": "Exact initial creation evidence; historical v2 interpretation unchanged." },
+    "regeneration": { "receiptVersion": 3, "behavior": "Checked paired predecessor plus cumulative node/task index, machine baselines, field/edge hashes, row versions and reconciliation counts. Supports advancing Objective revision and bindingVersion; same-revision deliberate regeneration remains unavailable." },
+    "applicationAck": { "schemaVersion": 1, "behavior": "Same closed immutable ACK, hashing the complete validated v2 or v3 owner receipt. No reconciliation witness or new fields are added to the ACK." }
+  },
+  "x-generation-producer-http": {
+    "status": "Authored source registered in PlannerModule; named workload/current-claim/acceptance verifier remains unavailable. These are separate fixed producer routes, not alternate application bodies.",
+    "admissionPost": { "path": "/strategy-api/internal/objective-canonical/generation-admissions", "successStatus": 201 },
+    "admissionGet": { "path": "/strategy-api/internal/objective-canonical/generation-admissions/:generationJobId", "successStatus": 200 },
+    "acceptancePost": { "path": "/strategy-api/internal/objective-canonical/generation-acceptances", "successStatus": 201 },
+    "producerAdmitPost": { "path": "/strategy-api/internal/objective-canonical/generation-producer/admit", "successStatus": 200 },
+    "requestAndResponseOwner": "apps/api-strategy/src/meri/objective-canonical-producer.controller.ts, objective-canonical-producer.service.ts and objective-canonical-producer.ts; producer shapes are not defined by the application request schema."
+  },
   "$defs": {
     "uuid": {
       "type": "string",
@@ -572,6 +592,32 @@
         }
       ]
     },
+    "canonicalSuccessIssue": {
+      "description": "Private canonical result only. The referenced legacy successIssue definition and public/manual decoder remain unchanged.",
+      "oneOf": [
+        { "$ref": "#/$defs/successIssue" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "sourceNodeIds", "message"],
+          "properties": {
+            "code": { "const": "HUMAN_EDITS_PRESERVED" },
+            "sourceNodeIds": { "type": "array", "items": { "$ref": "#/$defs/uuid" }, "uniqueItems": true },
+            "message": { "const": "Existing human edits were preserved during plan reconciliation." }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "sourceNodeIds", "message"],
+          "properties": {
+            "code": { "const": "PRIOR_WORK_RETAINED" },
+            "sourceNodeIds": { "type": "array", "items": { "$ref": "#/$defs/uuid" }, "uniqueItems": true },
+            "message": { "const": "Work from a prior saved version was retained." }
+          }
+        }
+      ]
+    },
     "materializationResult": {
       "type": "object",
       "additionalProperties": false,
@@ -631,7 +677,7 @@
         "issues": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/successIssue"
+            "$ref": "#/$defs/canonicalSuccessIssue"
           }
         },
         "counts": {
@@ -656,11 +702,13 @@
             },
             "createdProjects": {
               "type": "integer",
-              "minimum": 0
+          "minimum": 0,
+          "description": "Retained application accounting: 1 for canonical initial owner receipt v2, 0 for reconciliation v3; not current readable project count."
             },
             "createdTasks": {
               "type": "integer",
-              "minimum": 0
+          "minimum": 0,
+          "description": "New task rows inserted by this retained application. V3 reuses cumulative node/task IDs, so this can be less than tasks.length; retained removed tasks are not fabricated active outputs."
             }
           },
           "required": [
@@ -688,7 +736,7 @@
         "issues",
         "counts"
       ],
-      "description": "Current permission-filtered MaterializationResult shape from the owner. Creation counts describe retained creation, not newly computed current totals. Source/output/project/task/context/edge/exclusion/successIssue definitions are copied unchanged from the existing materialization contract; this object is transcribed from the current source type without a new count cap. Semantic status/issue/count correlations remain owner-enforced."
+      "description": "Current permission-filtered CanonicalMaterializationResult from the owner. This private projection adds only the two canonical reconciliation issues; legacy public/manual MaterializationResult remains unchanged. Counts describe the retained application, not current totals. Original createdVersion remains 1, while observed currentVersion reflects the actual row after application and later human edits. Source graph, v2/v3 count algebra, row-version witnesses and status/issue correlations remain owner-enforced without a new count cap."
     },
     "creationProject": {
       "type": "object",
@@ -701,7 +749,8 @@
           "$ref": "#/$defs/uuid"
         },
         "createdVersion": {
-          "const": 1
+          "const": 1,
+          "description": "Original project row-creation version, retained across v3 reconciliation. This is not the applied or current row version."
         },
         "originalNodeIds": {
           "type": "array",
@@ -728,7 +777,8 @@
           "$ref": "#/$defs/uuid"
         },
         "createdVersion": {
-          "const": 1
+          "const": 1,
+          "description": "Original task row-creation version, retained for reused/readded source nodes. V3 applied versions are private owner witnesses, not new ACK fields."
         },
         "originalGroupKeys": {
           "type": "array",
@@ -826,7 +876,7 @@
         "projects",
         "tasks"
       ],
-      "description": "Immutable receiving creation projection, reconstructed from the separately validated owner receipt. No current versions, mutable output availability, worker deadline, model data or delegated credential."
+      "description": "Immutable receiving application projection reconstructed from a separately validated initial v2 or reconciliation v3 owner receipt. Its schemaVersion remains 1; createdVersion is original creation version, not application/current version. No mutable availability, reconciliation body, worker deadline, model data or delegated credential is added."
     },
     "creation": {
       "oneOf": [
