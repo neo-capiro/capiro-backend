@@ -50,6 +50,11 @@ const ISSUE = {
   code: 'REQUIRED_CONTEXT_UNAVAILABLE',
   message: 'Required relationship context could not be completely observed.',
 };
+// General Objective generation has no specifically necessary, approved EIN
+// purpose. Report policy omission independently of whether a saved value exists.
+const OBJECTIVE_POLICY_OMITTED_FIELDS: Record<string, readonly string[]> = {
+  government_profile_support: ['ein'],
+};
 export const OBJECTIVE_FIELD_INVENTORY: Record<string, string[]> = {
   ...OBJECTIVE_BACKGROUND_FIELDS,
   government_profile_support: [
@@ -71,7 +76,6 @@ export const OBJECTIVE_FIELD_INVENTORY: Record<string, string[]> = {
     'sam_status',
     'sam_expiration_date',
     'lda_registrant_name',
-    'ein',
   ],
   government_targets: [
     'id',
@@ -382,6 +386,15 @@ export class ObjectiveGenerationContextService {
     const { mailbox_authority: _mailboxAuthority, ...contextSources } = observed.sources;
     const groups: Record<string, any[]> = {
       ...contextSources,
+      // Keep the model boundary safe even if an older source reader supplies
+      // the omitted field. Do not read its value or report it as absent.
+      government_profile_support: observed.sources.government_profile_support.map((record) =>
+        Object.fromEntries(
+          Object.keys(record)
+            .filter((field) => !OBJECTIVE_POLICY_OMITTED_FIELDS.government_profile_support!.includes(field))
+            .map((field) => [field, record[field]]),
+        ),
+      ),
       government_targets: observed.sources.government_targets.map((target) =>
         target.source_directory !== 'staff'
           ? target
@@ -411,6 +424,14 @@ export class ObjectiveGenerationContextService {
       enumerationComplete: true,
       fields: records.flatMap((record) => {
         const fields: any[] = [];
+        const sourceReference = String(record.id ?? record.targetId ?? input.clientId);
+        const sourceVersionOrAsOf =
+          record.updated_at ??
+          record.updatedAt ??
+          record.computed_at ??
+          record.synced_at ??
+          record.detail?.source?.lastUpdatedAt ??
+          observed.observedAt;
         const visit = (value: any, field: string) => {
           if (value && typeof value === 'object' && Object.keys(value).length) {
             for (const key of Object.keys(value).sort())
@@ -418,18 +439,14 @@ export class ObjectiveGenerationContextService {
           } else
             fields.push({
               field,
-              sourceReference: String(record.id ?? record.targetId ?? input.clientId),
-              sourceVersionOrAsOf:
-                record.updated_at ??
-                record.updatedAt ??
-                record.computed_at ??
-                record.synced_at ??
-                record.detail?.source?.lastUpdatedAt ??
-                observed.observedAt,
+              sourceReference,
+              sourceVersionOrAsOf,
               disposition: value == null ? 'absent' : 'included',
             });
         };
         visit(record, '');
+        for (const field of OBJECTIVE_POLICY_OMITTED_FIELDS[group] ?? [])
+          fields.push({ field, sourceReference, sourceVersionOrAsOf, disposition: 'policy_omitted' });
         return fields;
       }),
     }));
