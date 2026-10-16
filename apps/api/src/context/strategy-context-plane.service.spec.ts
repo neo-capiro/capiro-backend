@@ -692,7 +692,7 @@ describe('Objective history observation boundary', () => {
   test('rechecks current mailbox envelope and history through existing resolver without compiling another packet', async () => {
     const h = harness();
     const observed = { source: { clientId: CLIENT, objectiveId: NODE, objectiveVersion: 1, objectiveRevisionId: STRATEGY },
-      intent: { outcome: 'saved goal' }, sourceDigest: 'a'.repeat(64), localDigest: 'b'.repeat(64), externalDigest: 'c'.repeat(64), issues: [] };
+      intent: { outcome: 'saved goal' }, sourceDigest: 'a'.repeat(64), localDigest: 'b'.repeat(64), externalDigest: 'c'.repeat(64), background: { digest: 'd'.repeat(64) }, issues: [] };
     const resolver = { resolveAndRetrieve: jest.fn(async () => context({ type: 'strategy_draft', id: CLIENT })) };
     const objective = { observe: jest.fn(async () => observed) };
     const service = new StrategyContextPlaneService(h.prisma as never,h.gateway as never,objective as never,resolver as never);
@@ -706,6 +706,9 @@ describe('Objective history observation boundary', () => {
     });
     const changed = await service.checkObjective(input);
     expect(changed.historyDigest).not.toBe(revoked.historyDigest);
+    observed.background.digest = 'e'.repeat(64);
+    const researchChanged = await service.checkObjective(input);
+    expect(researchChanged.historyDigest).not.toBe(changed.historyDigest);
     expect(h.gateway.requestContext).not.toHaveBeenCalled();
     expect(first).toHaveProperty('checkedAt');
   });

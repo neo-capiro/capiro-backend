@@ -17,6 +17,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ObjectiveGenerationContextService, ObjectiveContextIncomplete, objectiveDigest } from './objective-generation-context.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
+import { OBJECTIVE_EMPTY_STEERING } from './objective-generation-background.js';
 
 export const PHASE_26 = 26;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
@@ -195,7 +196,7 @@ export class StrategyContextPlaneService {
         coverage.sources.every(s => s.coverageComplete && s.paginationComplete && !s.truncated && s.sourceStatus === 'healthy');
       return { tenantId: input.tenantId, clerkUserId: input.clerkUserId, requestId: input.generationRequestId,
         source: observed.source, sourceDigest: observed.sourceDigest, localDigest: observed.localDigest,
-        externalDigest: observed.externalDigest, historyDigest: historyDigest(records, security),
+        externalDigest: observed.externalDigest, historyDigest: historyDigest(records, security, observed.background.digest),
         checkedAt: new Date().toISOString(), complete: complete && observed.issues.length === 0 };
     }
 
@@ -258,7 +259,7 @@ export class StrategyContextPlaneService {
       throw new ObjectiveContextIncomplete();
     const coverage = projectCoverage(result.context, result.packet, projection.truncated);
     const packetSummary = toPacketSummary(result.packet, result.kind);
-    const prompt = buildStrategyPrompt({
+    const promptInput = {
       operationId: route.operationId,
       packet: result.packet,
       packetSummary,
@@ -266,7 +267,8 @@ export class StrategyContextPlaneService {
       recordsText: projection.text,
       mode: input.mode,
       kind: result.kind,
-    });
+    };
+    const prompt = buildStrategyPrompt(promptInput);
 
     const bundle: StrategyContextPlaneBundle = {
       kind: result.kind,
@@ -315,8 +317,12 @@ export class StrategyContextPlaneService {
         },
       },
     };
-    if (objective) bundle.objectiveAdmission = this.objectiveContext!.bind(input, objective, bundle, historyDigest(records, security),
-      records.map(r => ({ id: r.recordId, domain: r.domain, ...safePayloadFor(r), provenance: r.provenance ?? null })));
+    if (objective) bundle.objectiveAdmission = this.objectiveContext!.bind(input, objective, bundle, historyDigest(records, security, objective.background.digest),
+      records.map(r => ({ id: r.recordId, domain: r.domain, ...safePayloadFor(r), provenance: r.provenance ?? null })), {
+        retrieval: projection.text, steering: strategySteering(result.packet),
+        compose: (intentText, recordsText) => buildStrategyPrompt({ ...promptInput,
+          objectiveIntentText: intentText, objectiveRecordsText: recordsText }),
+      });
     return bundle;
   }
 
@@ -481,9 +487,10 @@ export class StrategyContextPlaneService {
   }
 }
 
-function historyDigest(records: RetrievalRecord[], security: SecurityEnvelope): string {
+function historyDigest(records: RetrievalRecord[], security: SecurityEnvelope, backgroundDigest?: string): string {
   return objectiveDigest({ userId: security.userId, clientIds: [...security.authorizedClientIds].sort(),
     mailboxIds: [...security.authorizedMailboxConnectionIds].sort(),
+    ...(backgroundDigest ? { backgroundDigest } : {}),
     records: records.map(r => ({ domain: r.domain, recordId: r.recordId, payload: safePayloadFor(r), provenance: r.provenance ?? null }))
       .sort((a, b) => `${a.domain}:${a.recordId}`.localeCompare(`${b.domain}:${b.recordId}`)) });
 }
@@ -862,18 +869,10 @@ function buildStrategyPrompt(input: {
   recordsText: string;
   mode: StrategyContextMode;
   kind: 'governed_packet' | 'release_switch_rollback';
+  objectiveIntentText?: string;
+  objectiveRecordsText?: string;
 }): string {
-  const value = asRecord(input.packet);
-  const steering = (Array.isArray(value.rendered) ? value.rendered : [])
-    .map((raw) => {
-      const item = asRecord(raw);
-      const type = typeof item.type === 'string' ? item.type : 'context';
-      const body = typeof item.body === 'string' ? item.body : '';
-      return body ? `[${type}]\n${body}` : '';
-    })
-    .filter(Boolean)
-    .join('\n\n')
-    .slice(0, STEERING_CHAR_BUDGET);
+  const steering = strategySteering(input.packet);
   const coverage = input.coverage;
   return [
     '<capiro_strategy_context_plane>',
@@ -905,14 +904,28 @@ function buildStrategyPrompt(input: {
     `truncated=${coverage.truncated}`,
     '',
     'GOVERNED STEERING:',
-    steering || '(no approved steering items selected)',
+    input.objectiveIntentText ?? '',
+    steering || OBJECTIVE_EMPTY_STEERING,
     '',
     'AUTHORIZED RETRIEVAL:',
+    input.objectiveRecordsText ?? '',
     input.recordsText,
     '</capiro_strategy_context_plane>',
   ]
     .filter((line) => line !== '')
     .join('\n');
+}
+
+function strategySteering(packet: Phase17CompiledContextPacket): string {
+  const value = asRecord(packet);
+  return (Array.isArray(value.rendered) ? value.rendered : [])
+    .map((raw) => {
+      const item = asRecord(raw);
+      const type = typeof item.type === 'string' ? item.type : 'context';
+      const body = typeof item.body === 'string' ? item.body : '';
+      return body ? `[${type}]\n${body}` : '';
+    })
+    .filter(Boolean).join('\n\n').slice(0, STEERING_CHAR_BUDGET);
 }
 
 function sourceHealth(context: ContextRetrievalResult) {

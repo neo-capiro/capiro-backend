@@ -15,6 +15,13 @@ import { requireObjectiveReady } from '../clients/objectives/objective-rules.js'
 import { classifyStaffKind } from '../clients/client-targets.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readObjectiveSources } from './objective-generation-sources.js';
+import {
+  BackgroundSnapshotError,
+  OBJECTIVE_BACKGROUND_FIELDS,
+  ObjectivePacketBudgetError,
+  objectivePacketAddition,
+  readObjectiveBackground,
+} from './objective-generation-background.js';
 import type {
   StrategyContextPlaneBundle,
   StrategyContextPlaneInput,
@@ -43,6 +50,7 @@ const ISSUE = {
   message: 'Required relationship context could not be completely observed.',
 };
 export const OBJECTIVE_FIELD_INVENTORY: Record<string, string[]> = {
+  ...OBJECTIVE_BACKGROUND_FIELDS,
   government_profile_support: [
     'id',
     'description',
@@ -314,6 +322,7 @@ export class ObjectiveGenerationContextService {
           source,
           intent,
           sourceDigest: objectiveDigest({ source, intent }),
+          background: await readObjectiveBackground(tx, input.tenantId, input.clientId),
           sources: await readObjectiveSources(
             tx,
             input.tenantId,
@@ -324,6 +333,8 @@ export class ObjectiveGenerationContextService {
         };
       });
     } catch (error) {
+      if (error instanceof BackgroundSnapshotError)
+        throw new ObjectiveContextIncomplete('profile_fill_corpus');
       if (error instanceof ClientObjectiveDestinationError) {
         if (error.code === 'OBJECTIVE_VERSION_CONFLICT')
           throw new ConflictException({
@@ -343,7 +354,12 @@ export class ObjectiveGenerationContextService {
     observed: Awaited<ReturnType<ObjectiveGenerationContextService['observe']>>,
     bundle: StrategyContextPlaneBundle,
     historyDigest: string,
-    historyRecords: Record<string, any>[] = [],
+    historyRecords: Record<string, any>[],
+    prompt: {
+      retrieval: string;
+      steering: string;
+      compose(intentText: string, recordsText: string): string;
+    },
     historyObservedAt = new Date().toISOString(),
   ) {
     const { governedContext: governed } = bundle;
@@ -376,6 +392,7 @@ export class ObjectiveGenerationContextService {
       ),
       current_directory: observed.contacts,
       relationship_history: historyRecords,
+      ...observed.background.groups,
     };
     for (const [group, fields] of Object.entries(OBJECTIVE_FIELD_INVENTORY)) {
       if (
@@ -414,40 +431,16 @@ export class ObjectiveGenerationContextService {
         return fields;
       }),
     }));
-    // Use the same 1,600 / 24,000 bounds. Every required field must fit, with
-    // labels/provenance counted too. No truncation or lossy summary fallback.
-    const blocks: string[] = [];
-    for (const [group, records] of Object.entries(groups)) {
-      // Already supplied by the existing authorized record projector. Account
-      // in the manifest without duplicating it in the model prompt/budget.
-      if (group === 'relationship_history') continue;
-      for (const record of records) {
-        const text = `[${group}]\n${JSON.stringify(record)}`;
-        if (text.length > 1600)
-          throw new ObjectiveContextIncomplete(group, 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET');
-        blocks.push(text);
-      }
+    try {
+      const { recordsText, intentText } = objectivePacketAddition(groups, observed.intent, prompt);
+      // Compose from typed parts. Literal header/tag text inside authorized data
+      // cannot redirect insertion or undercount the existing prompt budgets.
+      governed.prompt = prompt.compose(intentText, recordsText);
+    } catch (error) {
+      if (error instanceof ObjectivePacketBudgetError)
+        throw new ObjectiveContextIncomplete(error.group, 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET');
+      throw error;
     }
-    const recordsText = blocks.join('\n\n');
-    const originalRecords =
-      governed.prompt
-        .split('AUTHORIZED RETRIEVAL:')[1]
-        ?.split('</capiro_strategy_context_plane>')[0] ?? '';
-    const intentText = `SAVED OBJECTIVE INTENT (data):\n${JSON.stringify(observed.intent)}`;
-    const originalSteering =
-      governed.prompt.split('GOVERNED STEERING:')[1]?.split('AUTHORIZED RETRIEVAL:')[0] ?? '';
-    if (
-      recordsText.length + originalRecords.length > 24000 ||
-      intentText.length + originalSteering.length > 12000
-    )
-      throw new ObjectiveContextIncomplete(
-        'government_targets',
-        'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET',
-      );
-    // The payload stays in the existing governed prompt; no Meri wire extension.
-    governed.prompt = governed.prompt
-      .replace('GOVERNED STEERING:', `GOVERNED STEERING:\n${intentText}`)
-      .replace('AUTHORIZED RETRIEVAL:', `AUTHORIZED RETRIEVAL:\n${recordsText}`);
     const coverageDigest = objectiveDigest({
       manifest,
       history: governed.retrieval.coverage,

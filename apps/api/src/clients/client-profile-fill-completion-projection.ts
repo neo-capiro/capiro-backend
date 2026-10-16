@@ -1,4 +1,5 @@
 import { asString } from './client-profile-fill.helpers.js';
+import { TERMINAL_TASK_STATUSES } from './client-profile-fill-completion-runtime.shared.js';
 
 export const CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES = [
   'federal_market',
@@ -83,6 +84,53 @@ export function mergeFillProgress(tasks: ReadonlyArray<{ status?: unknown }>) {
     cancelled: tasks.filter((task) => statusOf(task) === 'cancelled').length,
   };
 }
+
+/** Projects the existing Core and extension task state without reading or changing a run. */
+export function projectFillRunState(
+  coreStatus: unknown,
+  coreTasks: ReadonlyArray<{ status?: unknown }>,
+  extensionTasks: ReadonlyArray<{ status?: unknown; taskType?: unknown }>,
+) {
+  const allTasks = [...coreTasks, ...extensionTasks];
+  const progress = mergeFillProgress(allTasks);
+  const pending =
+    coreStatus !== 'cancelled' &&
+    allTasks.some((task) => task.status === 'queued' || task.status === 'running');
+  const allTerminal =
+    allTasks.length > 0 &&
+    allTasks.every((task) => TERMINAL_TASK_STATUSES.has(String(task.status)));
+  const anyFailed = allTasks.some((task) => task.status === 'failed');
+  const anyCompleted = allTasks.some(
+    (task) => task.status === 'completed' || task.status === 'skipped',
+  );
+  const status =
+    coreStatus === 'cancelled'
+      ? 'cancelled'
+      : pending
+        ? 'running'
+        : allTerminal
+          ? anyFailed
+            ? anyCompleted
+              ? 'partial'
+              : 'failed'
+            : 'completed'
+          : coreStatus;
+  const stage = pending
+    ? extensionTasks.some(
+        (task) =>
+          task.status === 'running' &&
+          (task.taskType === 'reconciliation' || task.taskType === 'completion_audit'),
+      )
+      ? 'reconciliation'
+      : 'research'
+    : status === 'failed'
+      ? 'failed'
+      : status === 'cancelled'
+        ? 'cancelled'
+        : 'review_ready';
+  return { status, stage, pending, progress };
+}
+
 export function calculateProfileCompletion(input: ProfileCompletionInput): ProfileCompletionResult {
   const labels: Array<[keyof ProfileCompletionInput, string]> = [
     ['federalIdentity', 'Federal identity'],
