@@ -2,6 +2,7 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import { ObjectiveCurrentSourceUnavailable } from './objective-workload-current.js';
 import { createPrismaObjectiveIssuancePort } from './objective-workload-issuance-prisma.js';
 import type {
+  ObjectiveWorkloadIssueDecisionRecord,
   ObjectiveWorkloadIssuanceRecord,
   ObjectiveWorkloadProofUseRecord,
 } from './objective-workload-issuance.js';
@@ -26,8 +27,15 @@ const issuance: ObjectiveWorkloadIssuanceRecord = {
 const proofUse: ObjectiveWorkloadProofUseRecord = {
   tenantId: TENANT, callerIssuer: issuance.callerIssuer, callerSubject: issuance.callerSubject,
   callerKeyId: 'worker-test-1', proofJti: id(10), operationId: issuance.operationId,
+  operationDecision: 'issued', proofOutcome: 'issued',
   proofRequestSha256: SHA, proofIatSeconds: 1_800_000_000n,
   proofNbfSeconds: 1_800_000_000n, proofExpSeconds: 1_800_000_030n,
+};
+const decision: ObjectiveWorkloadIssueDecisionRecord = {
+  operationId: issuance.operationId, callerIssuer: issuance.callerIssuer,
+  callerSubject: issuance.callerSubject, issuanceRequestSha256: SHA,
+  decision: 'issued', tenantId: TENANT,
+  generationJobId: issuance.generationJobId, phase: 'admit',
 };
 
 function fakePrisma() {
@@ -59,6 +67,8 @@ describe('unmounted Prisma Objective issuance port', () => {
     const port = createPrismaObjectiveIssuancePort(h.prisma, { enabled: false, policyRevision: SHA });
     await port.withTenantTransaction(TENANT, async (tx) => {
       await tx.lockOperation(issuance.operationId);
+      expect(await tx.findDecision(decision.operationId)).toBeNull();
+      await tx.insertDecision(decision);
       expect(await tx.findIssuance(issuance.operationId)).toBeNull();
       await tx.insertIssuance(issuance);
       expect(await tx.findProofUse(proofUse.callerIssuer, proofUse.proofJti)).toBeNull();
@@ -67,15 +77,17 @@ describe('unmounted Prisma Objective issuance port', () => {
 
     expect(h.transactions()).toBe(1);
     expect(h.statements.map((statement) => statement.kind)).toEqual([
-      'query', 'query', 'execute', 'query', 'execute',
+      'query', 'query', 'execute', 'query', 'execute', 'query', 'execute',
     ]);
     expect(h.statements[0]?.sql.trimStart()).toMatch(/^SELECT pg_advisory_xact_lock\(/);
     for (const statement of h.statements.slice(1)) {
-      expect(statement.sql).toContain('tenant_id');
+      expect(statement.sql).toMatch(/tenant_id|resolved_tenant_id/);
       expect(statement.values).toContain(TENANT);
     }
-    expect(h.statements[1]?.sql).toContain('operation_id');
-    expect(h.statements[3]?.sql).toContain('proof_jti');
+    expect(h.statements[1]?.sql).toContain('client_objective_workload_issue_decisions');
+    expect(h.statements[2]?.sql).toContain('INSERT INTO client_objective_workload_issue_decisions');
+    expect(h.statements[5]?.sql).toContain('proof_jti');
+    expect(h.statements[6]?.sql).toContain('proof_outcome');
   });
 
   test('disabled current facts deny before ledger or SQL access', async () => {

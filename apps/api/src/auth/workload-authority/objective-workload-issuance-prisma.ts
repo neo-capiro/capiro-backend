@@ -10,6 +10,7 @@ import {
   type ObjectiveIssuanceSelector,
   type ObjectiveIssuanceTransaction,
   type ObjectiveIssuanceTransactionPort,
+  type ObjectiveWorkloadIssueDecisionRecord,
   type ObjectiveWorkloadIssuanceRecord,
   type ObjectiveWorkloadProofUseRecord,
 } from './objective-workload-issuance.js';
@@ -56,6 +57,33 @@ export function createPrismaObjectiveIssuancePort(
               )::text AS locked`;
             exactOne(rows);
             if (typeof rows[0]?.locked !== 'string') unavailable();
+          },
+          async findDecision(operationId) {
+            if (!UUID.test(operationId)) unavailable();
+            const rows = await native.$queryRaw<ObjectiveWorkloadIssueDecisionRecord[]>`
+              SELECT operation_id::text AS "operationId",caller_issuer AS "callerIssuer",
+                caller_subject AS "callerSubject",issuance_request_sha256 AS "issuanceRequestSha256",
+                decision,resolved_tenant_id::text AS "tenantId",
+                generation_job_id::text AS "generationJobId",phase
+              FROM client_objective_workload_issue_decisions
+              WHERE resolved_tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid FOR SHARE`;
+            return atMostOne<ObjectiveWorkloadIssueDecisionRecord>(rows);
+          },
+          async insertDecision(row) {
+            if (row.tenantId !== tenantId ||
+                (row.decision === 'issued' && (!row.generationJobId || !UUID.test(row.generationJobId) ||
+                  row.phase !== 'admit')) ||
+                (row.decision === 'denied' && (row.generationJobId !== null || row.phase !== null))) unavailable();
+            const count = await native.$executeRaw`
+              INSERT INTO client_objective_workload_issue_decisions (
+                operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,
+                resolved_tenant_id,generation_job_id,phase
+              ) VALUES (
+                ${row.operationId}::uuid,${row.callerIssuer},${row.callerSubject},
+                ${row.issuanceRequestSha256},${row.decision},${tenantId}::uuid,
+                ${row.generationJobId}::uuid,${row.phase}
+              )`;
+            if (count !== 1) unavailable();
           },
           async findIssuance(operationId) {
             if (!UUID.test(operationId)) unavailable();
@@ -104,6 +132,7 @@ export function createPrismaObjectiveIssuancePort(
               SELECT tenant_id::text AS "tenantId",caller_issuer AS "callerIssuer",
                 caller_subject AS "callerSubject",caller_key_id AS "callerKeyId",
                 proof_jti::text AS "proofJti",operation_id::text AS "operationId",
+                operation_decision AS "operationDecision",proof_outcome AS "proofOutcome",
                 proof_request_sha256 AS "proofRequestSha256",
                 proof_iat_seconds AS "proofIatSeconds",proof_nbf_seconds AS "proofNbfSeconds",
                 proof_exp_seconds AS "proofExpSeconds"
@@ -117,10 +146,12 @@ export function createPrismaObjectiveIssuancePort(
             const count = await native.$executeRaw`
               INSERT INTO client_objective_workload_proof_uses (
                 tenant_id,caller_issuer,caller_subject,caller_key_id,proof_jti,operation_id,
-                proof_request_sha256,proof_iat_seconds,proof_nbf_seconds,proof_exp_seconds
+                operation_decision,proof_outcome,proof_request_sha256,
+                proof_iat_seconds,proof_nbf_seconds,proof_exp_seconds
               ) VALUES (
                 ${tenantId}::uuid,${row.callerIssuer},${row.callerSubject},${row.callerKeyId},
-                ${row.proofJti}::uuid,${row.operationId}::uuid,${row.proofRequestSha256},
+                ${row.proofJti}::uuid,${row.operationId}::uuid,
+                ${row.operationDecision},${row.proofOutcome},${row.proofRequestSha256},
                 ${row.proofIatSeconds},${row.proofNbfSeconds},${row.proofExpSeconds}
               )`;
             if (count !== 1) unavailable();

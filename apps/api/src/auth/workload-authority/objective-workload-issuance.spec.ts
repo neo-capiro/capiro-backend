@@ -1,4 +1,5 @@
 import { createHash, generateKeyPairSync } from 'node:crypto';
+import { ObjectiveCurrentSourceUnavailable } from './objective-workload-current.js';
 import {
   OBJECTIVE_GENERATION_WORKER_SUBJECT,
   OBJECTIVE_STRATEGY_AUDIENCE,
@@ -8,9 +9,11 @@ import {
 } from './objective-workload-jwt.js';
 import {
   createObjectiveWorkloadIssuanceAdapter,
+  ObjectiveWorkloadIssuanceError,
   type CurrentObjectiveIssuanceSource,
   type ObjectiveIssuanceInput,
   type ObjectiveIssuanceTransaction,
+  type ObjectiveWorkloadIssueDecisionRecord,
   type ObjectiveWorkloadIssuanceRecord,
   type ObjectiveWorkloadProofUseRecord,
 } from './objective-workload-issuance.js';
@@ -52,9 +55,10 @@ function input(proofJti = id(10), proofIatSeconds = now): ObjectiveIssuanceInput
 
 function harness(enabled = true) {
   const store: {
+    decisions: ObjectiveWorkloadIssueDecisionRecord[];
     issuances: ObjectiveWorkloadIssuanceRecord[];
     proofUses: ObjectiveWorkloadProofUseRecord[];
-  } = { issuances: [], proofUses: [] };
+  } = { decisions: [], issuances: [], proofUses: [] };
   const source: CurrentObjectiveIssuanceSource = {
     enabled, databaseNowSeconds: now, validUntilSeconds: now + 120,
     tenantId: id(2), clientId: id(6), objectiveId: id(7),
@@ -80,6 +84,9 @@ function harness(enabled = true) {
           if (operationId !== id(5)) throw new Error('wrong operation lock');
           locks += 1;
         },
+        findDecision: async (operationId) =>
+          snapshot.decisions.find((row) => row.operationId === operationId) ?? null,
+        insertDecision: async (row) => { snapshot.decisions.push(row); },
         findIssuance: async (operationId) =>
           snapshot.issuances.find((row) => row.operationId === operationId) ?? null,
         insertIssuance: async (row) => { snapshot.issuances.push(row); },
@@ -92,6 +99,7 @@ function harness(enabled = true) {
         },
       };
       const result = await run(tx);
+      store.decisions = snapshot.decisions;
       store.issuances = snapshot.issuances;
       store.proofUses = snapshot.proofUses;
       return result;
@@ -120,13 +128,14 @@ function harness(enabled = true) {
 }
 
 describe('source-only Objective issuance ledger adapter', () => {
-  test('the migration disabled fence prevents real issuance before any row or jti allocation', async () => {
+  test('the migration disabled fence saves denial and proof use without allocating a JWT jti', async () => {
     const h = harness(false);
     await expect(h.issue(input())).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     expect(h.store.issuances).toHaveLength(0);
-    expect(h.store.proofUses).toHaveLength(0);
+    expect(h.store.decisions).toMatchObject([{ decision: 'denied', operationId: id(5) }]);
+    expect(h.store.proofUses).toMatchObject([{ operationDecision: 'denied', proofOutcome: 'denied' }]);
     expect(h.allocations()).toBe(0);
-    expect(h.locks()).toBe(0);
+    expect(h.locks()).toBe(1);
   });
 
   test('synthetic enabled source commits one issuance and proof use in one transaction', async () => {
@@ -137,7 +146,9 @@ describe('source-only Objective issuance ledger adapter', () => {
     expect(h.locks()).toBe(1);
     expect(h.allocations()).toBe(1);
     expect(h.store.issuances).toHaveLength(1);
+    expect(h.store.decisions).toMatchObject([{ decision: 'issued', operationId: id(5) }]);
     expect(h.store.proofUses).toHaveLength(1);
+    expect(h.store.proofUses[0]).toMatchObject({ operationDecision: 'issued', proofOutcome: 'issued' });
     expect(h.store.issuances[0]).toMatchObject({
       operationId: id(5), authorizationJti: id(9), signerKeyId: signer.kid,
       issuanceRequestSha256: request.proof.requestSha256,
@@ -183,7 +194,8 @@ describe('source-only Objective issuance ledger adapter', () => {
       }
       await expect(h.issue(retry)).rejects.toMatchObject({ code: 'CONFLICT' });
       expect(h.store.issuances).toHaveLength(1);
-      expect(h.store.proofUses).toHaveLength(1);
+      expect(h.store.proofUses).toHaveLength(changed === 'request' ? 1 : 2);
+      if (changed !== 'request') expect(h.store.proofUses[1]?.proofOutcome).toBe('denied');
       expect(h.allocations()).toBe(1);
     }
   });
@@ -202,7 +214,8 @@ describe('source-only Objective issuance ledger adapter', () => {
         code: blocked === 'expired' ? 'EXPIRED' : 'UNAVAILABLE',
       });
       expect(h.store.issuances).toHaveLength(1);
-      expect(h.store.proofUses).toHaveLength(1);
+      expect(h.store.proofUses).toHaveLength(2);
+      expect(h.store.proofUses[1]).toMatchObject({ operationDecision: 'issued', proofOutcome: 'denied' });
       expect(h.allocations()).toBe(1);
     }
   });
@@ -212,6 +225,7 @@ describe('source-only Objective issuance ledger adapter', () => {
     h.setFailProofInsert(true);
     await expect(h.issue(input())).rejects.toThrow('proof insert failed');
     expect(h.transactions()).toBe(1);
+    expect(h.store.decisions).toHaveLength(0);
     expect(h.store.issuances).toHaveLength(0);
     expect(h.store.proofUses).toHaveLength(0);
   });
@@ -227,8 +241,57 @@ describe('source-only Objective issuance ledger adapter', () => {
     expect(sourceReads).toBe(2);
     expect(h.locks()).toBe(1);
     expect(h.allocations()).toBe(0);
+    expect(h.store.decisions).toMatchObject([{ decision: 'denied' }]);
     expect(h.store.issuances).toHaveLength(0);
-    expect(h.store.proofUses).toHaveLength(0);
+    expect(h.store.proofUses).toMatchObject([{ proofOutcome: 'denied' }]);
+  });
+
+  test('a denied operation remains denied after source restoration and consumes fresh verified proofs', async () => {
+    const h = harness(false);
+    await expect(h.issue(input())).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    h.setSource({ enabled: true, databaseNowSeconds: now + 10 });
+    await expect(h.issue(input(id(11), now + 10))).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    expect(h.store.decisions).toHaveLength(1);
+    expect(h.store.proofUses.map((proof) => proof.proofOutcome)).toEqual(['denied', 'denied']);
+    expect(h.store.issuances).toHaveLength(0);
+    expect(h.allocations()).toBe(0);
+  });
+
+  test('a proof denied after issuance cannot be redeemed if current source recovers', async () => {
+    const h = harness();
+    const issued = await h.issue(input());
+    h.setSource({ enabled: false, databaseNowSeconds: now + 10 });
+    await expect(h.issue(input(id(11), now + 10))).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    h.setSource({ enabled: true, databaseNowSeconds: now + 11 });
+    await expect(h.issue(input(id(11), now + 10))).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    expect(await h.issue(input(id(12), now + 11))).toEqual(issued);
+    expect(h.store.decisions).toMatchObject([{ decision: 'issued' }]);
+    expect(h.store.proofUses.map((proof) => proof.proofOutcome)).toEqual(['issued', 'denied', 'issued']);
+    expect(h.allocations()).toBe(1);
+  });
+
+  test('an already issued proof can only replay its original token after current source recovers', async () => {
+    const h = harness();
+    const original = await h.issue(input());
+    h.setSource({ enabled: false, databaseNowSeconds: now + 10 });
+    await expect(h.issue(input())).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    expect(h.store.proofUses).toMatchObject([{ proofOutcome: 'issued' }]);
+    h.setSource({ enabled: true, databaseNowSeconds: now + 11 });
+    expect(await h.issue(input())).toEqual(original);
+    expect(h.store.proofUses).toHaveLength(1);
+    expect(h.allocations()).toBe(1);
+  });
+
+  test('only semantic current-source absence commits a denial; unexpected port faults roll back', async () => {
+    for (const fault of [new ObjectiveCurrentSourceUnavailable(),
+      new ObjectiveWorkloadIssuanceError('UNAVAILABLE'), new Error('storage fault')]) {
+      const h = harness();
+      h.setOnLoadCurrent(() => { throw fault; });
+      await expect(h.issue(input())).rejects.toThrow();
+      expect(h.store.decisions).toHaveLength(fault instanceof ObjectiveCurrentSourceUnavailable ? 1 : 0);
+      expect(h.store.proofUses).toHaveLength(fault instanceof ObjectiveCurrentSourceUnavailable ? 1 : 0);
+      expect(h.store.issuances).toHaveLength(0);
+    }
   });
 
   test('snapshots request, proof and binding before an awaited current-source read', async () => {

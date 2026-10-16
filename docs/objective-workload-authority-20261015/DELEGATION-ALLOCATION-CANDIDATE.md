@@ -242,8 +242,9 @@ operation ID. No raw bearer is stored. Strategy's separate verifier ledger
 must uniquely bind `(iss,sub,aud,jti)` to the actual phase/body/job and its
 committed domain receipt in the same local transaction. Meri's retained-read
 owner needs the corresponding durable read-replay record and fresh custody
-check. Neither ledger exists today; their SQL/lock ownership remains a HOLD
-gate, rather than an implied property of the cryptographic fixture helper.
+check. Strategy and Meri verifier ledgers are still unallocated; their SQL/lock
+ownership remains a HOLD gate, rather than an implied property of the
+cryptographic fixture helper.
 
 ## Implementation attachment points after allocation
 
@@ -258,6 +259,21 @@ the same operation ID conflicts. Re-sign original unexpired claims with their
 original key. A retired key or expired claim returns unavailable or the saved
 terminal decision, never a successor token under that operation ID. Neither
 table stores a raw bearer.
+
+The source-only Core migration now adds an independent immutable operation
+decision and proof-use receipt. A first-use verified proof that is denied for
+tenant-known semantic source absence commits a terminal denied decision and
+consumes its `(caller_issuer,proof_jti)` before returning denial. An issued
+decision retains tenant/job/phase as an effect fence even if the consent-linked
+issuance row is later deleted. A *fresh* proof denied during revocation is
+also permanently consumed. If a proof was already recorded as issued, a
+temporary current-source denial does not rewrite that immutable receipt; if
+authority returns before the proof and original JWT expire, it may reproduce
+only the original token after two fresh current checks. This is first-use
+proof-outcome semantics, not a monotonic later-denial fence. Unknown-tenant
+denial receipts need a separately reviewed narrow system transaction and
+effective-role/native privilege proof; until then they fail closed without a
+durable receipt. No issuer route is mounted.
 
 Strategy needs its own `sp_objective_workload_operations` table in a separately
 allocated Strategy migration (local frontier `20261007040000`, year offset

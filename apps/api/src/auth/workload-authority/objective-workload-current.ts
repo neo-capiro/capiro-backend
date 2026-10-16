@@ -277,5 +277,10 @@ export async function loadObjectivePreacceptanceCurrentFactsWithinTx(
       generationRequestFingerprint: delegation.fingerprint, policyRevision: delegation.policyRevision,
       checkedAtMs: now, consentExpiresAtMs: consentExpires, delegationExpiresAtMs: delegationExpires,
       jobDeadlineAtMs: jobDeadline, effectExpiresAtMs: Math.min(consentExpires, delegationExpires, jobDeadline) });
-  } catch { return unavailable(); }
+  } catch (error) {
+    // A database fault must roll back the caller transaction, not become a
+    // durable denial of authority. Semantic source denials already use the
+    // ObjectiveCurrentSourceUnavailable class.
+    throw error;
+  }
 }
