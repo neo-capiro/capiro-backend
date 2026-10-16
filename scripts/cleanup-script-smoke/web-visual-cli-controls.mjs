@@ -1,19 +1,34 @@
 #!/usr/bin/env node
-/** Exercise the actual web CLIs while trapping writes, subprocesses, and network. */
+/** Exercise sealed historical CLI bodies with inert dependency/resource ports. */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readVisualCliInput, readRelocatedPhase1CliInput } from '../../tests/support/legacy-web/visual-cli-inputs/inputs.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEMP = path.resolve(os.tmpdir());
+// Validate every required immutable operand before creating temporary fixtures.
+const cliInputs = new Map([
+  ['engagement-phase1-browser-parity.mjs', readRelocatedPhase1CliInput()],
+  ['lighthouse-pe-watch.mjs', readVisualCliInput('lighthouse-pe-watch.mjs.txt')],
+  ['vnext-visual-capture.mjs', readVisualCliInput('vnext-visual-capture.mjs.txt')],
+]);
+const webPackage = JSON.parse(readVisualCliInput('package.json').toString('utf8'));
+const inputDirectory = mkdtempSync(path.join(TEMP, 'capiro-web-visual-inputs-'));
+for (const [name, bytes] of cliInputs) writeFileSync(path.join(inputDirectory, name), bytes);
 const scratch = mkdtempSync(path.join(TEMP, 'capiro-web-visual-cli-'));
 const baseEnv = Object.fromEntries(
   ['PATH', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP'].filter((key) => process.env[key])
     .map((key) => [key, process.env[key]]),
 );
+// Browser packages are deliberately not installed or resolved. Their inert
+// ports allow the unchanged explicit-mode code to reach its first resource
+// request, where the original write/network/process trap still refuses it.
+const portSource = "const refuse=()=>{process.stderr.write('RESOURCE_ATTEMPT:browser-package\\n');throw Error('RESOURCE_ATTEMPT:browser-package');};export const launch=refuse;export default refuse;";
+const portUrl = `data:text/javascript,${encodeURIComponent(portSource)}`;
+const loaderSource = `export async function resolve(specifier,context,nextResolve){if(['chrome-launcher','lighthouse'].includes(specifier))return {url:${JSON.stringify(portUrl)},shortCircuit:true};return nextResolve(specifier,context);}`;
+const loaderUrl = `data:text/javascript,${encodeURIComponent(loaderSource)}`;
 const trapSource = [
   "import cp from 'node:child_process';",
   "import fs from 'node:fs';",
@@ -21,8 +36,10 @@ const trapSource = [
   "import net from 'node:net';",
   "import http from 'node:http';",
   "import https from 'node:https';",
-  "import { syncBuiltinESMExports } from 'node:module';",
+  "import Module, { register, syncBuiltinESMExports } from 'node:module';",
   "const deny = (name) => () => { process.stderr.write('RESOURCE_ATTEMPT:' + name + '\\n'); throw new Error('RESOURCE_ATTEMPT:' + name); };",
+  `register(${JSON.stringify(loaderUrl)});`,
+  "const originalLoad=Module._load;Module._load=function(name,...args){if(name==='chrome-launcher')return {launch:deny('chrome-launcher.launch')};if(name==='lighthouse')return deny('lighthouse');return originalLoad.call(this,name,...args);};",
   "for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync']) cp[name] = deny('child_process.' + name);",
   "for (const name of ['writeFileSync', 'appendFileSync', 'mkdirSync', 'rmSync', 'unlinkSync', 'renameSync']) fs[name] = deny('fs.' + name);",
   "for (const name of ['writeFile', 'appendFile', 'mkdir', 'rm', 'unlink', 'rename']) fsp[name] = deny('fs.promises.' + name);",
@@ -36,7 +53,7 @@ const trapUrl = `data:text/javascript,${encodeURIComponent(trapSource)}`;
 
 function invoke(file, args, env = baseEnv, timeout = 5000) {
   return spawnSync(process.execPath, [
-    '--import', trapUrl, path.join(ROOT, 'apps', 'web', 'scripts', file), ...args,
+    '--max-old-space-size=64', '--import', trapUrl, path.join(inputDirectory, file), ...args,
   ], { cwd: scratch, env, encoding: 'utf8', timeout, windowsHide: true });
 }
 
@@ -54,7 +71,7 @@ function check(file, args, expectedExit, env = baseEnv) {
 
 function checkTrap() {
   const probe = spawnSync(process.execPath, [
-    '--import', trapUrl, '--input-type=module', '-e',
+    '--max-old-space-size=64', '--import', trapUrl, '--input-type=module', '-e',
     "import { mkdir } from 'node:fs/promises'; await mkdir('forbidden');",
   ], { cwd: scratch, env: baseEnv, encoding: 'utf8', timeout: 5000, windowsHide: true });
   assert.equal(probe.error, undefined, 'trap probe spawn error');
@@ -104,14 +121,34 @@ try {
   checkExplicitMode(phase1, '--run', phase1Config, /RESOURCE_ATTEMPT:fs\.promises\.mkdir/);
   checkExplicitMode(capture, '--capture', baseEnv, /RESOURCE_ATTEMPT:fs\.promises\.mkdir/);
 
-  const webPackage = JSON.parse(readFileSync(path.join(ROOT, 'apps', 'web', 'package.json'), 'utf8'));
-  assert.equal(webPackage.scripts['lighthouse:pe-watch'],
-    'node scripts/lighthouse-pe-watch.mjs --run', 'package Lighthouse command must opt into Chrome');
-  assert.equal(webPackage.scripts['visual:vnext:capture'],
-    'node scripts/vnext-visual-capture.mjs --capture', 'package capture command must opt into writes');
+  console.log('Historical Web visual CLI runtime controls COMPLETE: 25 inert scenarios; browser/performance acceptance not performed');
+  const packageFailures = [];
+  // Both original assertions execute once. The exact historical package lacks
+  // these flags; record both failures without rewriting its archived bytes.
+  for (const [identity, assertion] of [
+    ['package Lighthouse command must opt into Chrome', () => {
+      assert.equal(webPackage.scripts['lighthouse:pe-watch'],
+        'node scripts/lighthouse-pe-watch.mjs --run', 'package Lighthouse command must opt into Chrome');
+    }],
+    ['package capture command must opt into writes', () => {
+      assert.equal(webPackage.scripts['visual:vnext:capture'],
+        'node scripts/vnext-visual-capture.mjs --capture', 'package capture command must opt into writes');
+    }],
+  ]) {
+    try { assertion(); } catch (error) { packageFailures.push({ identity, error }); }
+  }
+  if (packageFailures.length) {
+    console.error('HISTORICAL_WEB_VISUAL_PACKAGE_ASSERTIONS_FAILED ' + JSON.stringify(packageFailures.map(({ identity, error }) => ({
+      identity, actual: error.actual, expected: error.expected, sourceCommit: '4e0c189c5d0522098be1c4916a033bb681d11c0b',
+    }))));
+    throw new AggregateError(packageFailures.map(({ error }) => error), 'Historical Web package opt-in assertions remain failing; current backend acceptance is separate');
+  }
   console.log('Web visual CLI controls PASS: missing-config/noargs, help, unknown, write opt-in');
 } finally {
   const resolved = path.resolve(scratch);
   assert.equal(path.dirname(resolved), TEMP, 'scratch cleanup escaped temporary root');
   rmSync(resolved, { recursive: true, force: true });
+  const resolvedInputs = path.resolve(inputDirectory);
+  assert.equal(path.dirname(resolvedInputs), TEMP, 'input cleanup escaped temporary root');
+  rmSync(resolvedInputs, { recursive: true, force: true });
 }

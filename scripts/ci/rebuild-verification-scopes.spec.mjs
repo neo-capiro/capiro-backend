@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { restoreReviewedPeManifest } from '../lib/reviewed-pe-manifest-contract.mjs';
+import { restoreBackendWorkspaceSource } from '../lib/backend-workspace-retirement.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const baseline = '5470c6df029c9553dd49e531229c3c91b26275ef';
@@ -14,9 +15,13 @@ const before = (path) =>
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-const current = (path) => readFileSync(join(root, path), 'utf8');
+// Compare canonical Git text, including when a Windows checkout uses CRLF.
+// The manifest/workspace retirement inverse separately verifies exact identities.
+const current = (path) => readFileSync(join(root, path), 'utf8').replace(/\r\n/g, '\n');
 const originalPackage = JSON.parse(before('package.json'));
 const actualPackage = JSON.parse(restoreReviewedPeManifest(current('package.json'), 'root'));
+const backendPackage = JSON.parse(current('package.json'));
+const quarantinedWorkflow = 'docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/ci-pr.yml.disabled';
 const aliasKeys = ['typecheck:backend', 'typecheck:frontend'];
 for (const [prefix, phases] of [
   ['verify:engagement-phase-', [1, 2, 3]],
@@ -155,11 +160,14 @@ test('all twelve scoped verification aliases bind one run and exactly one declar
   }
 });
 
-test('current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard', () => {
+// Identity mapping: the former 19/17/Web+Onboard case now measures explicit
+// workspace membership: 18 typed packages, 16 backend, retained Onboard and E2E.
+test('current 18 typed workspaces partition 16 backend plus retained Onboard/E2E with Web excluded', () => {
   const names = [];
   for (const group of ['apps', 'packages', 'infra'])
     for (const directory of readdirSync(join(root, group), { withFileTypes: true })) {
       if (!directory.isDirectory()) continue;
+      if (`${group}/${directory.name}` === 'apps/web') continue;
       let data;
       try {
         data = JSON.parse(current(`${group}/${directory.name}/package.json`));
@@ -169,22 +177,34 @@ test('current 19 typed workspaces remain partitioned 17 backend plus retained We
       }
       if (data.scripts?.typecheck) names.push(data.name);
     }
-  assert.equal(names.length, 19);
+  assert.equal(names.length, 18);
   assert.ok(names.includes('@capiro/api') && names.includes('@capiro/onboard-api'));
-  for (const name of ['@capiro/web', '@capiro/onboard-web']) assert.ok(names.includes(name));
+  for (const name of ['@capiro/e2e', '@capiro/onboard-web']) assert.ok(names.includes(name));
+  assert.equal(names.includes('@capiro/web'), false);
+  assert.equal(existsSync(join(root, 'apps/web/package.json')), false);
+  assert.deepEqual(names.filter(name => !['@capiro/e2e', '@capiro/onboard-web'].includes(name)).sort(), [
+    '@capiro/api', '@capiro/api-strategy', '@capiro/auth', '@capiro/clio-sandbox',
+    '@capiro/defense-api', '@capiro/defense-client', '@capiro/defense-contracts',
+    '@capiro/defense-domain', '@capiro/infra-cdk', '@capiro/intel-api',
+    '@capiro/meriv2-core', '@capiro/meriv2-orchestrator', '@capiro/onboard-api',
+    '@capiro/shared', '@capiro/strategy-verifier', '@capiro/workspace',
+  ].sort());
   assert.equal(
-    actualPackage.scripts['typecheck:backend'],
-    "turbo run typecheck --concurrency=1 --filter='!@capiro/web' --filter='!@capiro/onboard-web'",
+    backendPackage.scripts['typecheck:backend'],
+    'turbo run typecheck --concurrency=1 --filter="!@capiro/onboard-web" --filter="!@capiro/e2e"',
   );
   assert.equal(
-    actualPackage.scripts['typecheck:frontend'],
-    'turbo run typecheck --concurrency=1 --filter=@capiro/web --filter=@capiro/onboard-web',
+    backendPackage.scripts['typecheck:frontend'],
+    'turbo run typecheck --concurrency=1 --filter=@capiro/onboard-web',
   );
-  assert.equal(current('pnpm-workspace.yaml'), before('pnpm-workspace.yaml'));
+  assert.equal(restoreBackendWorkspaceSource(current('pnpm-workspace.yaml'), 'pnpm-workspace.yaml'), before('pnpm-workspace.yaml'));
 });
 
-test('CI is exactly the destination scope hunk union and retains every old guard/test/condition', () => {
-  assertWorkflowPreserved(current('.github/workflows/ci-pr.yml'));
+// Identity mapping: the former active-CI case retains its byte/union assertions
+// against the inert preparation quarantine and now also proves it is inactive.
+test('quarantined CI retains exactly the destination scope hunk union and every old guard/test/condition', () => {
+  assert.equal(existsSync(join(root, '.github/workflows/ci-pr.yml')), false);
+  assertWorkflowPreserved(current(quarantinedWorkflow));
 });
 
 test('source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status', () => {
@@ -202,7 +222,7 @@ test('source contract refuses dropping any old gate or metadata, narrowing a bac
   const mutatedPackage = structuredClone(actualPackage);
   mutatedPackage.packageManager = 'pnpm@99';
   assert.throws(() => assertPackagePreserved(mutatedPackage));
-  const workflow = current('.github/workflows/ci-pr.yml');
+  const workflow = current(quarantinedWorkflow);
   for (const mutate of [
     (text) => text.replace('run: pnpm gate:cleanup4:meri-local-dispatch', 'run: true'),
     (text) =>

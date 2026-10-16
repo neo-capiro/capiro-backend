@@ -16,20 +16,24 @@ const slice=(s,a,b)=>s.slice(s.indexOf(a),s.indexOf(b,s.indexOf(a)));
 const array=(s,name)=>slice(s,`const ${name} = [;`.replace('[;','['),'\n];')+'\n];';
 const oldArray=array(before,'steps'),newArray=array(current,'fullSteps');
 const context={PHASE3_SCOPE_END:'synthetic-head',PHASE3_WHITESPACE_BASE:'synthetic-base',scopedOptions:{env:{ENGAGEMENT_PHASE3_SCOPE_END:'synthetic-head'}}};
-const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\nsteps;',context,{timeout:1000})));
-const browserLabels=['Phase 3 web preview-header containment','Phase 3 focused web contracts','Phase 3 browser harness syntax','Phase 3 interaction harness syntax','Phase 3 scenario catalog syntax','Phase 3 bearer refresh syntax','Phase 3 browser+replay wrapper syntax','Web production typecheck','Web production build','Web complete regression suite'];
+const full=JSON.parse(JSON.stringify(vm.runInNewContext(newArray+'\nfullSteps;',context,{timeout:1000})));
+const browserLabels=['Phase 3 web preview-header containment','Phase 3 focused web contracts','Phase 3 browser harness syntax','Phase 3 interaction harness syntax','Phase 3 scenario catalog syntax','Phase 3 bearer refresh syntax','Phase 3 browser+replay wrapper syntax','Phase 3 V3/prototype boundary','Web production typecheck','Web production build','Web complete regression suite'];
 test('actual full step array, whitespace resolver and scoped source context remain byte-exact',()=>{
-  assert.equal(newArray.replace('const fullSteps','const steps'),oldArray);
+  assert.equal(newArray.replace('const fullSteps','const steps').replaceAll('tests/support/legacy-web/','apps/web/scripts/'),oldArray);
   assert.equal(slice(current,'function resolveWhitespaceBase()','\nconst PHASE3_WHITESPACE_BASE'),slice(before,'function resolveWhitespaceBase()','\nconst PHASE3_WHITESPACE_BASE'));
   assert.equal(engagementPhase3QualificationPlan('full',full),full);assert.equal(full.length,26);
 });
-test('backend excludes exactly original direct Web steps and only browser control argv',()=>{
+test('backend excludes direct Web and historical UI main while retaining source controls',()=>{
   const plan=engagementPhase3QualificationPlan('backend-only',full);
   assert(!plan.some(x=>browserLabels.includes(x[0])));
   assert.deepEqual(plan.find(x=>x[0]==='Phase 1 prerequisite')[2],['verify:engagement-phase-1:backend']);
   assert.deepEqual(plan.find(x=>x[0]==='Phase 2 prerequisite')[2],['verify:engagement-phase-2:backend']);
-  for(const label of ['Phase 3 UI inventory','Phase 3 preview route generation drift','Phase 3 V3/prototype boundary','Phase 3 scope and findings','Phase 3 committed-range whitespace'])assert.deepEqual(plan.find(x=>x[0]===label),full.find(x=>x[0]===label));
-  assert(!plan.find(x=>x[0]==='Phase 3 harness/scope/resilience negative controls')[2].some(x=>x.startsWith('apps/web/')));
+  for(const label of ['Phase 3 UI inventory','Phase 3 preview route generation drift','Phase 3 scope and findings','Phase 3 committed-range whitespace'])assert.deepEqual(plan.find(x=>x[0]===label),full.find(x=>x[0]===label));
+  const controls=plan.find(x=>x[0]==='Phase 3 harness/scope/resilience negative controls')[2];
+  assert(!controls.some(x=>x.startsWith('tests/support/legacy-web/')));
+  assert(controls.includes('scripts/verify-engagement-phase3-prototype-boundary.spec.mjs'));
+  assert(controls.includes('scripts/verify-engagement-phase3-scope.spec.mjs'));
+  assert(controls.includes('scripts/engagement-phase3-scope-base.spec.mjs'));
 });
 test('frontend retains root scope/prototype controls and nested frontend aliases',()=>{
   const plan=engagementPhase3QualificationPlan('frontend-only',full);

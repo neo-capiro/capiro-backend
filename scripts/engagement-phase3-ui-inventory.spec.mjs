@@ -11,13 +11,14 @@
  import assert from 'node:assert/strict';
  import test from 'node:test';
  import { readFileSync } from 'node:fs';
+ import { createHash } from 'node:crypto';
  import path from 'node:path';
 
  import {
    ROOT,
+   loadBackendUiInventory,
    SURFACES,
    HEURISTIC_EXEMPTIONS,
-   buildUiInventory,
    verifyUiInventory,
    classifyRequest,
    heuristicClassify,
@@ -28,17 +29,9 @@
    collectRuntimeActions,
  } from './engagement-phase3-ui-inventory.mjs';
 
- /**
-  * When ENGAGEMENT_PHASE3_SCOPE_END is set (by the combined/final verifiers),
-  * Phase 6 web surfaces exist that legitimately violate Phase 3 invariants
-  * (V3 routes, V3 API consumers). Skip those invariants when scoped.
-  */
- const SCOPED = Boolean(process.env.ENGAGEMENT_PHASE3_SCOPE_END);
- const skipIfScoped = SCOPED ? { skip: true } : {};
-
 const MANIFEST_PATH = path.join(
   ROOT,
-  'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+  'apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
 );
 const ROUTE_MANIFEST = JSON.parse(
   readFileSync(
@@ -47,36 +40,51 @@ const ROUTE_MANIFEST = JSON.parse(
   ),
 );
 
-const committed = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+const committed = loadBackendUiInventory();
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const rejects = (mutate, matcher) => {
+  // The sealed historical inventory has inherited findings. A negative control
+  // must introduce its own diagnostic; an old defect cannot satisfy this case.
+  const baseline = new Map();
+  for (const problem of verifyUiInventory(committed, ROUTE_MANIFEST)) {
+    baseline.set(problem, (baseline.get(problem) ?? 0) + 1);
+  }
   const copy = clone(committed);
   mutate(copy);
   const problems = verifyUiInventory(copy, ROUTE_MANIFEST);
-  assert.ok(problems.length > 0, 'expected the verifier to reject this manifest');
+  const introduced = problems.filter(problem => {
+    const count = baseline.get(problem) ?? 0;
+    if (count === 0) return true;
+    baseline.set(problem, count - 1);
+    return false;
+  });
+  assert.ok(introduced.length > 0, 'expected this mutation to introduce a verifier diagnostic');
   if (matcher) {
     assert.ok(
-      problems.some((p) => matcher.test(p)),
-      `expected a problem matching ${matcher}, got:\n  ${problems.join('\n  ')}`,
+      introduced.some((p) => matcher.test(p)),
+      `expected a new problem matching ${matcher}, got:\n  ${introduced.join('\n  ')}`,
     );
   }
 };
 
 // ───────────────────────────────────────────────────────────── committed state
 
-test('the committed manifest is exactly what the builder generates', () => {
-  assert.deepEqual(buildUiInventory({ routeManifest: ROUTE_MANIFEST }), committed);
+test('the backend consumer inventory retains its exact historical input bytes', () => {
+  assert.equal(createHash('sha256').update(readFileSync(MANIFEST_PATH)).digest('hex'),
+    '39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac');
 });
 
-test('the committed manifest passes every invariant', skipIfScoped, () => {
+test('the committed manifest passes every invariant', () => {
   assert.deepEqual(verifyUiInventory(committed, ROUTE_MANIFEST), []);
 });
 
-test('output is deterministic across repeated builds', () => {
-  const first = buildUiInventory({ routeManifest: ROUTE_MANIFEST });
-  const second = buildUiInventory({ routeManifest: ROUTE_MANIFEST });
+test('backend inventory validation is deterministic and does not mutate its input', () => {
+  const original = JSON.stringify(committed);
+  const first = verifyUiInventory(committed, ROUTE_MANIFEST);
+  const second = verifyUiInventory(committed, ROUTE_MANIFEST);
   assert.deepEqual(first, second);
   assert.equal(JSON.stringify(first), JSON.stringify(second), 'key order must be stable too');
+  assert.equal(JSON.stringify(committed), original);
 });
 
 test('the inventory is non-trivial', () => {
@@ -87,7 +95,7 @@ test('the inventory is non-trivial', () => {
 
 // ───────────────────────────────────────────── every request maps to a route
 
-test('every request maps to a Phase 0 route manifest entry', skipIfScoped, () => {
+test('every request maps to a Phase 0 route manifest entry', () => {
   const keys = new Set(ROUTE_MANIFEST.routes.map((r) => `${r.method} ${r.path}`));
   for (const entry of committed.requests) {
     assert.ok(entry.routeManifestKey, `${entry.consumerFile} ${entry.requestPath} is unmapped`);
@@ -95,7 +103,7 @@ test('every request maps to a Phase 0 route manifest entry', skipIfScoped, () =>
   }
 });
 
-test('every request belongs to a declared surface', skipIfScoped, () => {
+test('every request belongs to a declared surface', () => {
   const ids = new Set(SURFACES.map((s) => s.id));
   for (const entry of committed.requests) {
     assert.ok(ids.has(entry.surface), `${entry.consumerFile} has surface "${entry.surface}"`);
@@ -196,7 +204,7 @@ test('Outreach v2 is the sole production wizard and OutreachView is inventoried'
   );
 });
 
-test('no Outreach V3 route or component exists', skipIfScoped, () => {
+test('no Outreach V3 route or component exists', () => {
   for (const file of committed.consumerFiles) {
     assert.doesNotMatch(file, /outreach\/v3|outreach-v3/i, `V3 consumer: ${file}`);
   }

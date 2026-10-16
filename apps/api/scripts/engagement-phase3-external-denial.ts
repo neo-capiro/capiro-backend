@@ -59,7 +59,7 @@ interface TableDigest {
 const ROOT = path.resolve(__dirname, '../../..');
 const INVENTORY = path.join(
   ROOT,
-  'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+  'apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
 );
 const EVIDENCE = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
 const FIXTURE_FILE = required('ENGAGEMENT_PHASE3_FIXTURE_FILE');

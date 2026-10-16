@@ -54,7 +54,7 @@ const ADDITIVE_ROUTE_MANIFEST_PATHS = [
 ];
 const GENERATED_PATH = path.join(
   ROOT,
-  'apps/web/src/lib/engagement-api-preview-routes.generated.ts',
+  'tests/support/legacy-web/source-inputs/engagement-api-preview-routes.generated.ts.txt',
 );
 
 /** Only paths under this prefix are reachable through the ALB preview rule. */

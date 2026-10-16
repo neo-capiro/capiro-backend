@@ -25,6 +25,7 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB_SRC = path.join(ROOT, 'apps/web/src');
@@ -35,6 +36,16 @@ const ROUTE_MANIFEST_PATH = path.join(
 
 export const SCHEMA_VERSION = 1;
 const ENGAGEMENT_PREFIX = '/api/engagement';
+
+/** Preserved consumer contract data; does not regenerate or qualify a current UI. */
+export function loadBackendUiInventory(root = ROOT) {
+  const bytes = readFileSync(path.join(root, 'apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'));
+  if (createHash('sha256').update(bytes).digest('hex') !==
+      '39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac') {
+    throw new Error('Backend-owned historical Engagement UI inventory identity drift');
+  }
+  return JSON.parse(bytes.toString('utf8'));
+}
 
 // ─────────────────────────────────────────────────────────────────── surfaces
 //
@@ -352,12 +363,12 @@ export function classifyRequest(method, routePath, runtimeAction) {
 const SKIP_FILE = /\.(test|spec)\.[tj]sx?$/;
 const SKIP_DIR = /(^|[\\/])(node_modules|__tests__|__mocks__|dist|build)([\\/]|$)/;
 
-export function listSourceFiles(dir) {
+export function listSourceFiles(dir, root = ROOT) {
   const out = [];
   const walk = (current) => {
     for (const entry of readdirSync(current).sort()) {
       const full = path.join(current, entry);
-      const rel = path.relative(ROOT, full).split(path.sep).join('/');
+      const rel = path.relative(root, full).split(path.sep).join('/');
       if (SKIP_DIR.test(rel)) continue;
       if (statSync(full).isDirectory()) {
         walk(full);
@@ -482,7 +493,7 @@ export function buildHelperIndex(root = ROOT) {
     if (typeof value === 'string' && value.startsWith('/')) index.set(key, value);
   };
 
-  for (const rel of listSourceFiles(path.join(root, 'apps/web/src'))) {
+  for (const rel of listSourceFiles(path.join(root, 'apps/web/src'), root)) {
     const source = readFileSync(path.join(root, rel), 'utf8');
 
     // export const NAME = { member: (...) => `/path...` | '/path...' , ... }
@@ -624,7 +635,7 @@ export function userActionFor(symbol, method, routePath) {
 export function buildUiInventory({ root = ROOT, routeManifest } = {}) {
   const manifest =
     routeManifest ?? JSON.parse(readFileSync(ROUTE_MANIFEST_PATH, 'utf8'));
-  const files = listSourceFiles(path.join(root, 'apps/web/src'));
+  const files = listSourceFiles(path.join(root, 'apps/web/src'), root);
   const helperIndex = buildHelperIndex(root);
   const runtimeActions = collectRuntimeActions(root);
 
@@ -912,6 +923,22 @@ export function verifyUiInventory(inventory, routeManifest) {
 // ───────────────────────────────────────────────────────────────────────── CLI
 
 function main(argv) {
+  if (argv.length === 1 && argv[0] === '--backend-only') {
+    const inventory = loadBackendUiInventory();
+    const problems = verifyUiInventory(inventory);
+    if (problems.length) {
+      console.error('Sealed historical source identity is preserved, but its inventory is invalid against the retained backend route/classification contract. No current frontend or backend consumer-coverage pass is claimed.');
+      for (const problem of problems) console.error(`  - ${problem}`);
+      console.error('ENGAGEMENT_PHASE3_BACKEND_CONSUMER_CONTRACT_INVALID');
+      return 1;
+    }
+    console.log(`ENGAGEMENT_PHASE3_BACKEND_CONSUMER_CONTRACT_OK: ${inventory.totals.requests} historical consumer requests; current frontend acceptance not performed`);
+    return 0;
+  }
+  if (argv.includes('--backend-only')) {
+    console.error('Use exactly --backend-only for preserved backend consumer-contract validation');
+    return 2;
+  }
   const checkIndex = argv.indexOf('--check');
   const writeIndex = argv.indexOf('--write');
   // Read the operand of whichever flag is actually present. Using
