@@ -6,11 +6,9 @@ import {
   evidenceItems,
   executiveSummary,
   formatDate,
-  kindLabel,
   roadmap,
-  statusLabel,
-  strategyTypeLabel,
 } from "./report-content.js";
+import { kindLabel, statusLabel, strategyTypeLabel } from "./report-labels.js";
 import { narrativeSection } from "./report-narrative.types.js";
 import { pdfFontFaceCss } from "./pdf-fonts.js";
 import {
