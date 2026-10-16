@@ -78,6 +78,13 @@ function createReceiptStream(write = line => console.log(line)) {
   let count = 0;
   return { emit: (kind, value) => write('CORE_NATIVE_RECEIPT ' + JSON.stringify({ sequence: ++count, kind, value })), write, get count() { return count; } };
 }
+function compactGateSummary(report, outcome, fatal) {
+  const gates = report.gates || [], failed = gates.filter(row => row.status !== 'PASS');
+  const bounded = value => String(value || '').slice(0, 512);
+  return { status: report.status, outcome, gateCount: gates.length, failedCount: failed.length,
+    failures: failed.slice(0, 32).map(row => ({ name: bounded(row.name), code: bounded(row.error?.code), message: bounded(row.error?.message) })),
+    ...(fatal ? { fatal: { code: bounded(fatal.code || fatal.name), message: bounded(fatal.message) } } : {}) };
+}
 function completeReceiptReport(report, stream, kind, summary) {
   stream.emit(kind, summary); report.receiptCount = stream.count;
   stream.write(JSON.stringify(report, null, 2));
@@ -340,8 +347,13 @@ async function observeNativeLoad(file, operation = () => require(file)) {
     operationCompleted: !operationError, addonAfter: inspect(addon.file),
     searchPolicy: 'FIXED_CREDENTIAL_FREE_ENV_NO_LD_OVERRIDES; ELF RPATH/RUNPATH retained',
     loader: { ...list, nodeSymbols, unexplained } };
-  // Evidence is emitted BEFORE policy assertions and is retained even on an operation failure.
-  if (require.main === module) { (report.nativeObservations ||= []).push(evidence); console.log('CORE_NATIVE_EVIDENCE ' + JSON.stringify(evidence)); }
+  // Record evidence before policy assertions; main flushes it after the bounded gate summary.
+  if (require.main === module) {
+    (report.nativeObservations ||= []).push(evidence);
+    const line = 'CORE_NATIVE_EVIDENCE ' + JSON.stringify(evidence);
+    if (['--native-child', '--libsql-child', '--sharp-child', '--dispatcher-child'].includes(process.argv[2])) console.log(line);
+    else bufferReceipt(line);
+  }
   if (operationError) { operationError.evidence = { runtimeEvidence: evidence }; throw operationError; }
   try {
     assert(!bannerResult.error && !bannerResult.signal, 'musl identity query failed');
@@ -742,6 +754,17 @@ async function sharpDispatcherProbe(manifest, { root = '/app/node_modules/.pnpm'
 }
 module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence, elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, sourceIdentity, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence };
 const report = { status: 'STARTED', packages: [], native: [], activeBindings: [] };
+const maxBufferedReceiptBytes = 16 * 1024 * 1024;
+let pendingReceipts = [], pendingReceiptBytes = 0;
+function bufferReceipt(line) {
+  pendingReceiptBytes += Buffer.byteLength(line) + 1;
+  assert(pendingReceiptBytes <= maxBufferedReceiptBytes, 'bounded probe receipt output required');
+  pendingReceipts.push(line);
+}
+function flushReceipts() {
+  for (const line of pendingReceipts) console.log(line);
+  pendingReceipts = []; pendingReceiptBytes = 0;
+}
 function walk(dir, files = [], depth = 0) {
   assert(depth <= 32 && files.length < 200000, 'bounded native directory traversal required');
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -785,9 +808,14 @@ async function main() {
   assert.equal(process.version, 'v22.23.3'); assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
   assert(fs.existsSync(platform.loader), 'musl loader missing');
   assert(!process.report.getReport().header.glibcVersionRuntime, 'glibc runtime detected');
-  const stream = createReceiptStream();
+  const stream = createReceiptStream(bufferReceipt);
   report.gates = []; report.artifacts = []; report.sharp = []; report.libsql = []; report.npmPackages = []; report.wasm = [];
   const emit = stream.emit;
+  const finish = (kind, summary) => {
+    completeReceiptReport(report, stream, kind, summary);
+    console.log('CORE_NATIVE_GATE_SUMMARY ' + JSON.stringify(compactGateSummary(report, summary.status || kind)));
+    flushReceipts();
+  };
   const check = async (name, run) => {
     const result = await collectChecks([{ name, run }], row => { report.gates.push(row); emit('gate', row); });
     return result.rows[0];
@@ -807,7 +835,7 @@ async function main() {
   });
   if (graphGate.status !== 'PASS') {
     report.status = 'FAIL'; report.fullApiReadiness = 'FULL_API_STARTUP_UNVERIFIED';
-    completeReceiptReport(report, stream, 'summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', gate: graphGate.name });
+    finish('summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', gate: graphGate.name });
     process.exitCode = 1; return;
   }
   const files = closure.traversal.files;
@@ -869,11 +897,11 @@ async function main() {
   report.qualificationInputs = qualificationInputBindings(); emit('qualification-input-bindings', report.qualificationInputs);
   if (process.argv.includes('--inventory-only')) {
     report.status = 'INVENTORY_ONLY'; report.mode = 'DIAGNOSTIC_INVENTORY';
-    completeReceiptReport(report, stream, 'inventory-summary', { npmPackages: report.npmPackages.length, artifacts: report.artifacts.length, native: report.native.length }); return;
+    finish('inventory-summary', { npmPackages: report.npmPackages.length, artifacts: report.artifacts.length, native: report.native.length }); return;
   }
   if (report.gates.some(row => row.status !== 'PASS')) {
     report.status = 'FAIL'; report.fullApiReadiness = 'FULL_API_STARTUP_UNVERIFIED';
-    completeReceiptReport(report, stream, 'summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', failures: report.gates.filter(row => row.status !== 'PASS').map(row => row.name) });
+    finish('summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', failures: report.gates.filter(row => row.status !== 'PASS').map(row => row.name) });
     process.exitCode = 1; return;
   }
   for (const artifact of report.artifacts) if (artifact.inspectionError) await check('artifact-inspection:' + artifact.file, () => { throw new Error(artifact.inspectionError.message); });
@@ -992,11 +1020,13 @@ async function main() {
   report.status = report.gates.every(row => row.status === 'PASS') ? 'PASS' : 'FAIL';
   report.mode = process.argv.includes('--static') ? 'STATIC_NATIVE' : 'OFFLINE_RUNTIME';
   report.fullApiReadiness = 'FULL_API_STARTUP_UNVERIFIED';
-  completeReceiptReport(report, stream, 'summary', { status: report.status, npmPackages: report.npmPackages.length, native: report.native.length, artifacts: report.artifacts.length, gates: report.gates.length, failures: report.gates.filter(row => row.status !== 'PASS').map(row => row.name) });
+  finish('summary', { status: report.status, npmPackages: report.npmPackages.length, native: report.native.length, artifacts: report.artifacts.length, gates: report.gates.length, failures: report.gates.filter(row => row.status !== 'PASS').map(row => row.name) });
   if (report.status !== 'PASS') process.exitCode = 1;
 }
 
 if (require.main === module && ['--native-child', '--libsql-child', '--sharp-child', '--dispatcher-child'].includes(process.argv[2])) {
   (async () => { const result = await (process.argv[2] === '--native-child' ? nativeChild(process.argv[3]) : process.argv[2] === '--sharp-child' ? sharpDispatcherProbe(process.argv[3]) : process.argv[2] === '--dispatcher-child' ? retainedDispatcher(process.argv[3]) : libsqlChild(process.argv[3])); console.log('CORE_NATIVE_CHILD ' + JSON.stringify(result)); })()
     .catch(error => { console.error(JSON.stringify({ status: 'HOLD', code: error.code || error.name, message: String(error.message).slice(0, 4096), ...(error.evidence ? { evidence: error.evidence } : {}) })); process.exitCode = 1; });
-} else if (require.main === module) main().catch(error => { report.status = 'FAIL'; report.error = error.message; console.error(JSON.stringify(report, null, 2)); process.exitCode = 1; });
+} else if (require.main === module) main().catch(error => { report.status = 'FAIL'; report.error = error.message;
+  console.log('CORE_NATIVE_GATE_SUMMARY ' + JSON.stringify(compactGateSummary(report, 'UNCAUGHT_ERROR', error)));
+  flushReceipts(); console.error(JSON.stringify(report, null, 2)); process.exitCode = 1; });
