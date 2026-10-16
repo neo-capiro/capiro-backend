@@ -28,17 +28,20 @@ export class ApplicationMembershipService {
     control.assertActive();
     this.assertIdentity(initial, ctx);
     const first = await this.snapshot(ctx, control);
+    control.assertActive();
     const current = await this.tenant.readApplicationAuthority(req, ctx);
     control.assertActive();
     this.assertIdentity(current, ctx);
     if (initial.identityRevision !== current.identityRevision) throw changed();
     const second = await this.snapshot(ctx, control);
+    control.assertActive();
     this.assertSame(first, second);
     const finalIdentity = await current.recheckCurrent();
     control.assertActive();
     this.assertIdentity(finalIdentity, ctx);
     if (current.identityRevision !== finalIdentity.identityRevision) throw changed();
     const latest = await this.snapshot(ctx, control);
+    control.assertActive();
     this.assertSame(second, latest);
     control.assertActive();
     const identity = applicationAuthorityIdentityReceipt({
@@ -66,6 +69,7 @@ export class ApplicationMembershipService {
     control.assertActive();
     try {
       return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        control.assertActive();
         const before = await this.member(tx, ctx);
         control.assertActive();
         const rows = await fetchAccessibleClientRevisionsForClerkActor(

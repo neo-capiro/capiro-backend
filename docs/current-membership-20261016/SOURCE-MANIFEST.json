@@ -19,11 +19,11 @@
     },
     {
       "path": "apps/api/src/auth/application-membership.service.ts",
-      "sha256": "8d4f301d8674c006aaeebee76c1137b66c1dd5d3743ceed041a2984b51538440"
+      "sha256": "874d53647757576239b2d71d63a6ddebcd6eddcf24ce6458bf1893ef4922faef"
     },
     {
       "path": "apps/api/src/auth/application-membership.spec.ts",
-      "sha256": "05086eb8dd6b2a3c9a6fc8b2dbe0712e945b90d81a48e40ddd24811688a657b6"
+      "sha256": "bec1df467a89583de93a5907350ddb6dd7a0b31dea4f65c982614291aaac4593"
     },
     {
       "path": "apps/api/src/auth/application-membership.ts",
@@ -38,5 +38,5 @@
       "sha256": "80511693576467e56004fd7147f3c79c23f9ad79f9cc543c88a381489b40c907"
     }
   ],
-  "sourceSetSha256": "92adf2de1a2482a82c11c397179b299e2df7916f6f56b68fbef2c542b3e39433"
+  "sourceSetSha256": "8df09fd015f0fab593bc79bc34d2bfb9dddc9e37d3f529875910ae28818ceab9"
 }

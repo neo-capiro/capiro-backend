@@ -386,6 +386,15 @@ describe('Current application membership through actual canonical owners', () =>
     expect(h.snapshotReads).toBe(1);
   });
 
+  it('refuses cancellation during transaction acquisition before starting membership queries', async () => {
+    const h = await fixture(); const cancelled = new Error('Cancelled before transaction callback');
+    h.onSnapshot((index, point) => { if (index === 1 && point === 'before') h.cancel(cancelled); });
+    await expect(h.read()).rejects.toBe(cancelled);
+    expect(h.onlineReads).toBe(1);
+    expect(h.events).not.toContain('snapshot-member');
+    expect(h.queries).toEqual([]);
+  });
+
   it('checks the supplied deadline before starting any online session or snapshot work', async () => {
     const h = await fixture(); h.control.deadlineMs = Date.now() - 1;
     await expect(h.read()).rejects.toThrow('Synthetic current-membership deadline');
