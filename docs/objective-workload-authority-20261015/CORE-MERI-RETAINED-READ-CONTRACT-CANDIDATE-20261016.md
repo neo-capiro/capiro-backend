@@ -1,15 +1,18 @@
 # Core–Meri Objective retained-read token candidate
 
-**Status: source proposal for joint Core/Meri review.** The Core fixture at
-`apps/api/src/auth/workload-authority/objective-workload-jwt.ts` and Meri draft
-PR #90 at `5b166bf49bf4871138e3c02eebf04a8d6f04a5e2` do not implement the
-same wire contract. Neither retained-read route nor issuer is mounted. This
-document and the adjacent unsigned vectors allocate no key, credential,
-trust manifest, replay store, live route, SQL execution, or deployment. They
-do not change either implementation. The extra flat `sourceSha256` and
-phase-specific read `operation` remain pending parent and Meri review.
-Ordinary authenticated chat remains
-separate from this Objective gate.
+**Status: source-only candidate for joint Core/Meri qualification.** Core's
+`apps/api/src/auth/workload-authority/objective-workload-jwt.ts` now implements
+the flat RS256 wire below. Meri draft PR #95 at
+`5781c1150fbb3954c25ba245b26d325e06b4d82d` implements an unmounted
+RS256 retained reader. The adjacent unsigned vectors and public-only signed
+fixture pin that Meri source. Core producer/crypto checks passed 76/76, and a
+task-owned offline run against the exact Meri PR #95 source passed 63/63
+expected allow/deny outcomes and current, replay, and owner callback counts.
+That run used synthetic current authority and an in-memory replay port; the
+public Meri gate does not expose its internal rejection-stage labels. Neither
+retained-read route nor issuer is mounted, and no product key, credential,
+trust manifest, replay store, live route, SQL execution, or deployment was
+allocated by these fixtures. Ordinary authenticated chat remains separate.
 
 ## One proposed Core-issued authorization
 
@@ -19,7 +22,7 @@ in that order. `kid` is a configured `[A-Za-z0-9._-]{1,64}` identifier for a
 locally pinned RSA public key of at least 3072 bits. The receiver accepts
 only RSASSA-PKCS1-v1_5 with SHA-256 and a fixed issuer/key mapping. It never
 uses token-supplied keys, `jwk`, `jku`, `x5u`, URLs, or an ambient JWKS fetch.
-The fixture uses no private key. Its issuer and `kid` are synthetic pins;
+The published fixture retains no private key. Its issuer and `kid` are synthetic pins;
 deployment must allocate environment-qualified values separately.
 
 The retained-read payload is a **closed flat object**, in this fixed Core
@@ -32,11 +35,10 @@ tenantId, generationJobId, delegationRef, consentId,
 attemptId, runId, acceptedBindingSha256, sourceSha256
 ```
 
-The first 20 members and their order come from the current Core fixture.
-`sourceSha256` is the proposed twenty-first member; Meri PR #90 currently
-requires that value inside its nested `objective` object. Core must derive it
-from the independently resolved complete source, not accept a caller's
-digest. These are the retained-read values:
+The first 20 members and their order came from Core's earlier fixture.
+`sourceSha256` is the implemented twenty-first member. A future mounted Core
+adapter must derive it from the independently resolved complete source, not
+accept a caller's digest. These are the retained-read values:
 
 | Claim | Proposed exact value or check |
 | --- | --- |
@@ -44,10 +46,10 @@ digest. These are the retained-read values:
 | `sub` | `capiro-objective-core-result-reader:v1` only. |
 | `aud` | `capiro:objective-meri-retained-result:v1` only. |
 | `iat`, `nbf`, `exp` | Safe integer Unix seconds, `iat <= now`, `nbf >= iat`, `nbf <= now`, `exp > now`, `1 <= exp-iat <= 60`; Core also clips to current source and request deadlines. No fixture clock skew extends a database fence. |
-| `jti` | Fresh random UUIDv4, unique for the durable issuance intent. This tightens Core's current generic UUID parser to retain PR #90's UUIDv4 rule. An exact issuer replay reproduces the original still-current signed token and `jti`. |
+| `jti` | Fresh random UUIDv4, unique for the durable issuance intent. The Core helper now enforces UUIDv4. An exact issuer replay reproduces the original still-current signed token and `jti`. |
 | `method`, `path`, `query` | `POST`, `/v1/internal/objective-generation/retained-result/read`, `""`. No rewritten path, query, redirect or alternate encoding. |
 | `bodySha256` | Lowercase SHA-256 of the exact received raw UTF-8 entity bytes. The receiver hashes before any JSON reserialization. |
-| `operation` | **Proposed change:** `objective.retained-result.read` only for `retained-result-read`. The underlying Core delegation's `work_action` remains `objective.strategy.draft`; a read token is never an effect grant. All Strategy phases keep `objective.strategy.draft`. This phase-specific operation needs an explicit Core change and joint approval. |
+| `operation` | `objective.retained-result.read` only for `retained-result-read`. The underlying Core delegation's `work_action` remains `objective.strategy.draft`; a read token is never an effect grant. All Strategy phases keep `objective.strategy.draft`. Core implements this mapping but does not authorize later-phase issuance. |
 | `phase` | `retained-result-read` only. Strategy/terminal tokens cannot enter this receiver even if correctly signed. |
 | `tenantId`, `generationJobId` | Lowercase UUIDs matching the trusted accepted source and native tenant. |
 | `delegationRef`, `consentId` | Lowercase Core UUIDs. Meri may not use these signed values as their own current authority; its `assertCurrent` port must corroborate original Core delegation/consent and current source or fail closed. |
@@ -57,9 +59,9 @@ digest. These are the retained-read values:
 
 The Meri request remains `POST` with the closed body
 `{"schemaVersion":1,"source":{"generationJobId":...,"binding":...,"sourceAdmissionSha256":...}}`.
-The body has at most 65,536 bytes under PR #90, and its exact bytes must
-match `bodySha256`. The Core issuer must enforce this same phase-specific cap;
-its current generic JWT helper permits larger bodies. Neither its source nor the signed token chooses an
+The body has at most 65,536 bytes under the shared source contract, and its
+exact bytes must match `bodySha256`. The Core JWT helper enforces this
+phase-specific cap. Neither its source nor the signed token chooses an
 arbitrary result owner. Before admission, Meri resolves the accepted run from
 trusted custody, constructs a fixed gate for its exact source and retained
 owner, and checks the native actor, membership, consent/delegation, source,
@@ -87,14 +89,13 @@ original job, accepted run, consent/control, membership and custody.
 
 ## Receiver and replay checks
 
-Meri must replace, version and review its unmounted EdDSA/nested verifier to
-consume this RS256/flat form; simply relaxing its current parser would be
-unsafe. It must reject duplicate or extra header/payload members, noncanonical
+Meri PR #95 replaces the prior unmounted EdDSA/nested verifier with this
+RS256/flat form. It must reject duplicate or extra header/payload members, noncanonical
 base64url, invalid UTF-8, wrong fixed serialization, malformed or oversized
 segments, unknown/stale `kid`, wrong signature, and algorithm/type confusion.
-Preserve PR #90's 8,192-character token cap, 1,024-byte header cap, 4,096-byte
-payload cap and 4,096-character signing-input cap. Core's current fixture
-needs the same segment/signing-input bounds before this becomes shared.
+Preserve the 8,192-character token cap, 1,024-byte header cap, 4,096-byte
+payload cap and 4,096-character signing-input cap. Core's helper now enforces
+the same segment/signing-input bounds.
 
 After signature and raw wire checks, Meri compares every claim to independent
 expected route, configured issuer/subject/audience, fixed trusted source,
@@ -114,21 +115,25 @@ Core's caller proof is a **different** credential to `POST
 `typ=capiro-objective-workload-proof+jwt`, separate pinned caller issuer/key,
 `aud=capiro:objective-core-issuer:v1`, maximum 30-second lifetime and exact
 raw issuance-body binding. It is never forwarded to Meri. Meri CONTROL's
-PR #90 Ed25519 issuer/KMS proposal cannot be silently treated as this proof;
+The earlier PR #90 Ed25519 issuer/KMS proposal cannot be silently treated as this proof;
 its signer/custody and exact response contract need a separate joint decision.
-Keep the PR #90 same-token pre-dispatch/post-reply recheck, durable
+Keep the Meri source same-token pre-dispatch/post-reply recheck, durable
 CLAIMED/ISSUED/UNKNOWN semantics, and no fresh `jti` after an uncertain
 signing or delivery result. The proposed authorization says nothing about
 KMS versus an allocated Core signer; production key custody is unresolved.
 
 ## Offline matrix
 
-The adjacent JSON contains an unsigned baseline and path-based synthetic
-mutations. A cross-repository harness should create a disposable RSA-3072
-key pair, pin only its public key, sign each cryptographically valid mutated
-payload, and run both Core issue/verify and Meri receiver fixtures against
-the same raw bytes. It must separately exercise malformed signatures. No
-fixture token or key is usable as a product credential.
+The adjacent unsigned JSON contains a baseline and path-based synthetic
+mutations. `CORE-MERI-RETAINED-READ-SIGNED-FIXTURES-20261016.json` contains
+their signed bytes and a synthetic RSA-3072 public pin; its private key was
+discarded. Core checks its producer and cryptography against those bytes.
+The task-owned cross-repository harness ran the same 63 tokens and raw bodies
+through PR #95's gate with synthetic current authority, replay and owner
+ports, including malformed signatures. Its sanitized result is retained at
+`task-3/meri-pr95-retained-signed-results.json`. Product durable replay,
+current authority wiring and live ingress remain unqualified. No fixture
+token or key is usable as a product credential.
 
 The same-`jti`, changed-fingerprint case first completes one accepted read, then
 re-signs the **same** `jti` with `exp=1800000029` at fixture time
@@ -139,7 +144,8 @@ and owner callback counts in the JSON, not just its public error. Check the
 wire size limits before decoding or signature work; body size before hashing.
 Run separate `UNKNOWN` cases before and after an owner callback and deny a
 later identical replay without another owner callback. These are required
-harness behaviors, not evidence that either repository implements them yet.
+harness behaviors; the offline run checked outcome and callback counts, while
+the public gate did not expose named internal rejection stages.
 
 Positive vectors: baseline current read; exact replay returns one saved
 result; current revocation after read begins withholds the reply. Negative
@@ -154,5 +160,5 @@ fails the fixed-source and current-authority checks.
 
 Sources: Core `objective-workload-jwt.ts` and Strategy
 `objective-canonical-generation.ts`/`objective-canonical-retained-http-bridge.ts`
-on draft PR #42; Meri PR #90 `workload-reader-gate.mjs`, its focused test,
-and `CODEX-MERI-OBJECTIVE-WORKLOAD-ISSUER-20261016.md` at the pinned head.
+on draft PR #42; Meri PR #95 `workload-reader-gate.mjs` and its focused test
+at `5781c1150fbb3954c25ba245b26d325e06b4d82d`.

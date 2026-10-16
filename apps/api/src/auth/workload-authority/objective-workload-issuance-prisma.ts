@@ -12,6 +12,7 @@ import {
   type ObjectiveIssuanceTransactionPort,
   type ObjectiveWorkloadIssueDecisionRecord,
   type ObjectiveWorkloadIssuanceRecord,
+  type ObjectiveWorkloadDeliveryRecord,
   type ObjectiveWorkloadProofUseRecord,
 } from './objective-workload-issuance.js';
 import {
@@ -100,6 +101,7 @@ export function createPrismaObjectiveIssuancePort(
                 target_path AS "targetPath", target_query AS "targetQuery",
                 target_body_sha256 AS "targetBodySha256", attempt_id::text AS "attemptId",
                 run_id::text AS "runId", accepted_binding_sha256 AS "acceptedBindingSha256",
+                source_sha256 AS "sourceSha256",
                 iat_seconds AS "iatSeconds", nbf_seconds AS "nbfSeconds", exp_seconds AS "expSeconds"
               FROM client_objective_workload_issuances
               WHERE tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid FOR SHARE`;
@@ -113,7 +115,7 @@ export function createPrismaObjectiveIssuancePort(
                 generation_job_id,delegation_ref,caller_issuer,caller_subject,issuance_request_sha256,
                 authorization_jti,token_issuer,token_subject,token_audience,signer_key_id,phase,
                 target_method,target_path,target_query,target_body_sha256,attempt_id,run_id,
-                accepted_binding_sha256,iat_seconds,nbf_seconds,exp_seconds
+                accepted_binding_sha256,source_sha256,iat_seconds,nbf_seconds,exp_seconds
               ) VALUES (
                 ${row.operationId}::uuid,${tenantId}::uuid,${row.clientId}::uuid,${row.objectiveId}::uuid,
                 ${row.workAction},${row.controlId}::uuid,${row.consentId}::uuid,
@@ -122,8 +124,40 @@ export function createPrismaObjectiveIssuancePort(
                 ${row.authorizationJti}::uuid,${row.tokenIssuer},${row.tokenSubject},${row.tokenAudience},
                 ${row.signerKeyId},${row.phase},${row.targetMethod},${row.targetPath},${row.targetQuery},
                 ${row.targetBodySha256},${row.attemptId}::uuid,${row.runId}::uuid,
-                ${row.acceptedBindingSha256},${row.iatSeconds},${row.nbfSeconds},${row.expSeconds}
+                ${row.acceptedBindingSha256},${row.sourceSha256},
+                ${row.iatSeconds},${row.nbfSeconds},${row.expSeconds}
               )`;
+            if (count !== 1) unavailable();
+          },
+          async findDelivery(operationId) {
+            if (!UUID.test(operationId)) unavailable();
+            const rows = await native.$queryRaw<ObjectiveWorkloadDeliveryRecord[]>`
+              SELECT operation_id::text AS "operationId",tenant_id::text AS "tenantId",
+                authorization_jti::text AS "authorizationJti",state,
+                token_sha256 AS "tokenSha256"
+              FROM client_objective_workload_deliveries
+              WHERE tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid FOR SHARE`;
+            return atMostOne<ObjectiveWorkloadDeliveryRecord>(rows);
+          },
+          async insertDelivery(row) {
+            if (row.tenantId !== tenantId || row.state !== 'claimed' ||
+                row.tokenSha256 !== null || !UUID.test(row.authorizationJti)) unavailable();
+            const count = await native.$executeRaw`
+              INSERT INTO client_objective_workload_deliveries
+                (operation_id,tenant_id,authorization_jti,state,token_sha256)
+              VALUES (${row.operationId}::uuid,${tenantId}::uuid,
+                ${row.authorizationJti}::uuid,'claimed',NULL)`;
+            if (count !== 1) unavailable();
+          },
+          async finalizeDelivery(operationId, state, tokenSha256) {
+            if (!UUID.test(operationId) ||
+                (state === 'issued' && !/^[0-9a-f]{64}$/.test(tokenSha256 ?? '')) ||
+                (state === 'unknown' && tokenSha256 !== null)) unavailable();
+            const count = await native.$executeRaw`
+              UPDATE client_objective_workload_deliveries
+              SET state=${state},token_sha256=${tokenSha256},finalized_at=clock_timestamp()
+              WHERE tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid
+                AND state='claimed'`;
             if (count !== 1) unavailable();
           },
           async findProofUse(callerIssuer, proofJti) {
@@ -187,6 +221,7 @@ export function createPrismaObjectiveIssuancePort(
         // exact DB delegation service subject and audience under lock.
         serviceSubject: OBJECTIVE_GENERATION_WORKER_SUBJECT,
         audience: OBJECTIVE_STRATEGY_AUDIENCE,
+        sourceSha256: null,
       });
     },
   };

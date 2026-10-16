@@ -5,7 +5,7 @@
   "sourcePins": {
     "core": "apps/api/src/auth/workload-authority/objective-workload-jwt.ts on draft PR 42",
     "meriRepository": "neo-capiro/meri-greenfield",
-    "meriCommit": "5b166bf49bf4871138e3c02eebf04a8d6f04a5e2",
+    "meriCommit": "5781c1150fbb3954c25ba245b26d325e06b4d82d",
     "meriGate": "apps/control/objective-generation/workload-reader-gate.mjs"
   },
   "fixtureRules": {

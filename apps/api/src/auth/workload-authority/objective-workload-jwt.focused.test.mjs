@@ -23,7 +23,7 @@ const binding = Object.freeze({ subject: OBJECTIVE_GENERATION_WORKER_SUBJECT, au
   query: '', body: Buffer.from('{"schemaVersion":1,"generationJobId":"' + id(1) + '"}'),
   operation: 'objective.strategy.draft', phase: 'admit', tenantId: id(8), generationJobId: id(1),
   delegationRef: id(2), consentId: id(3), attemptId: null, runId: null,
-  acceptedBindingSha256: null });
+  acceptedBindingSha256: null, sourceSha256: null });
 const signer = { issuer, kid: 'core-test-1', privateKey };
 const decision = { jti: id(5), nowSeconds: now, expiresAtSeconds: now + 3600 };
 const trust = { issuer, audience, nowSeconds: now, publicKeys: { 'core-test-1': publicKey } };
@@ -142,7 +142,8 @@ test('accepted phases require a real full binding hash and their fixed named ide
   assert.equal(verify(issue(terminal), terminal).sub, OBJECTIVE_TERMINAL_ACCOUNTANT_SUBJECT);
   const retained = { ...accepted, subject: OBJECTIVE_CORE_RESULT_READER_SUBJECT,
     audience: OBJECTIVE_MERI_RETAINED_AUDIENCE,
-    phase: 'retained-result-read', path: '/v1/internal/objective-generation/retained-result/read' };
+    phase: 'retained-result-read', path: '/v1/internal/objective-generation/retained-result/read',
+    operation: 'objective.retained-result.read', sourceSha256: 'b'.repeat(64) };
   assert.equal(verify(issue(retained), retained,
     { ...trust, audience: OBJECTIVE_MERI_RETAINED_AUDIENCE }).sub, OBJECTIVE_CORE_RESULT_READER_SUBJECT);
   assert.throws(() => issue({ ...retained, audience: OBJECTIVE_STRATEGY_AUDIENCE }), denied);
