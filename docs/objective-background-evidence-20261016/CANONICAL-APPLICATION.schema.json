@@ -17,9 +17,11 @@
       "$ref": "#/$defs/error"
     }
   ],
+  "x-service-global-prefix": "/strategy-api",
   "x-http": {
     "post": {
-      "path": "/internal/objective-canonical/planner-applications",
+      "path": "/strategy-api/internal/objective-canonical/planner-applications",
+      "controllerRelativePath": "/internal/objective-canonical/planner-applications",
       "operation": "objective.plan.prepare",
       "request": "#/$defs/request",
       "success": {
@@ -28,7 +30,8 @@
       }
     },
     "get": {
-      "path": "/internal/objective-canonical/planner-applications/:applicationRequestId",
+      "path": "/strategy-api/internal/objective-canonical/planner-applications/:applicationRequestId",
+      "controllerRelativePath": "/internal/objective-canonical/planner-applications/:applicationRequestId",
       "operation": "objective.plan.prepare",
       "pathParameter": "#/$defs/uuid",
       "success": {

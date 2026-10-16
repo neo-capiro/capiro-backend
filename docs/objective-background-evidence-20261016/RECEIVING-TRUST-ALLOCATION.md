@@ -6,7 +6,7 @@ The receiving owner is **API-Strategy**, in the Planner owner's existing Prisma 
 
 ## Fixed operation and closed request
 
-The routes are `POST /internal/objective-canonical/planner-applications` and `GET /internal/objective-canonical/planner-applications/:applicationRequestId` (deployment prefixes are external to this contract). The operation is fixed by the route to `objective.plan.prepare` and is absent from the body. The POST has exactly these nine fields:
+The controller-relative routes are `POST /internal/objective-canonical/planner-applications` and `GET /internal/objective-canonical/planner-applications/:applicationRequestId`. The actual service sets the global prefix `/strategy-api` in `apps/api-strategy/src/main.ts`, so the fixed deployed paths are **`POST /strategy-api/internal/objective-canonical/planner-applications`** and **`GET /strategy-api/internal/objective-canonical/planner-applications/:applicationRequestId`**. No proxy rewrite has been established or is assumed. Trusted transport uses its approved bare service origin plus these literal deployed paths; a caller cannot select a path/origin. This metadata clarification changes no request/ACK fields or live routing. The operation is fixed by the route to `objective.plan.prepare` and is absent from the body. The POST has exactly these nine fields:
 
 ```ts
 {
