@@ -1,0 +1,962 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:capiro:private:objective-canonical-planner-application:v1",
+  "title": "Private Objective canonical Planner application request, immutable ACK and responses",
+  "description": "Source-only server contract. This file neither approves a public wire export nor enables the unbound workload authority port. JSON Schema covers structure; authority, deterministic identities, content hashes and cross-field correlations remain source-enforced.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/ack"
+    },
+    {
+      "$ref": "#/$defs/success"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ],
+  "x-http": {
+    "post": {
+      "path": "/internal/objective-canonical/planner-applications",
+      "operation": "objective.plan.prepare",
+      "request": "#/$defs/request",
+      "success": {
+        "status": 201,
+        "schema": "#/$defs/success"
+      }
+    },
+    "get": {
+      "path": "/internal/objective-canonical/planner-applications/:applicationRequestId",
+      "operation": "objective.plan.prepare",
+      "pathParameter": "#/$defs/uuid",
+      "success": {
+        "status": 200,
+        "schema": "#/$defs/success"
+      }
+    },
+    "errors": [
+      {
+        "status": 400,
+        "codes": [
+          "INPUT_INVALID"
+        ]
+      },
+      {
+        "status": 404,
+        "codes": [
+          "NOT_AVAILABLE"
+        ]
+      },
+      {
+        "status": 409,
+        "codes": [
+          "REQUEST_CONFLICT",
+          "SOURCE_STALE"
+        ]
+      },
+      {
+        "status": 422,
+        "codes": [
+          "SOURCE_INVALID"
+        ]
+      },
+      {
+        "status": 503,
+        "codes": [
+          "AUTHORITY_UNAVAILABLE",
+          "OUTCOME_UNCONFIRMED"
+        ]
+      }
+    ],
+    "errorSchema": "#/$defs/error"
+  },
+  "x-hash-and-identity": {
+    "json": "applicationJson: JSON finite primitives; object own enumerable data keys sorted by JavaScript Array.sort (UTF-16 code-unit order); original dense array order; JSON.stringify escaping/number spelling; no whitespace; reject proxies, accessors, sparse/decorated arrays, non-plain objects and non-finite/undefined values. This is the existing Objective convention, not RFC8785/JCS.",
+    "sha256": "Lowercase hex SHA256 over UTF-8 applicationJson(value). requestSha256 hashes the complete normalized nine-field request; canonicalSha256 hashes the complete original canonical object; ownerReceiptSha256 hashes the complete validated StoredCanonicalMaterialization; creation.sha256 hashes the complete ACK.",
+    "privateUuid": "Let h be lowercase hex SHA256(applicationJson(value)). UUID = h.slice(0,8)+'-'+h.slice(8,12)+'-8'+h.slice(13,16)+'-8'+h.slice(17,20)+'-'+h.slice(20,32). This is the exact source private UUID construction; it is not UUIDv5.",
+    "applicationRequestId": "privateUuid({namespace:'capiro.objective-plan.application:v1',canonical:fullOriginalToken,actorUserId:authenticatedNativeCoreActorUuid}). It excludes consent/claim/worker identity and binds all original token fields.",
+    "receiptId": "privateUuid(['objective_canonical_application_receipt',tenantId,authenticatedClerkSubject,applicationRequestId]).",
+    "headId": "privateUuid(['objective_canonical_application_head',canonical.tenantId,canonical.canonicalPlanId])."
+  },
+  "x-semantic-rules": [
+    "POST strategyId equals canonical.canonicalStrategyId. Actual owner source must match generationJobId, generationRequestId, clientId, Objective ID/version/revision, actual Strategy ID/version and snapshotDigest; objectiveReceiptSha256 matches the actual stored generation receipt. A Strategy generation job is not inferred to be a Meri run.",
+    "Verify authenticated named workload/audience/delegation/current actor/scope/claim before DB access; recheck the exact transaction-local current authority/claim witness. The default authority port remains unavailable. A reservation, digest, expected header, generic service secret or posted actor is not that proof.",
+    "Validate current ready source, exact canonical token, current consent/control/action/policy/expiry, current actor/client authority and tenant feature gate for a new effect. Replay existing paired receipts before applying a new-effect source fence. Retained GET has separate current read authority and does not revive old effect consent or require the old Objective version still current.",
+    "Canonical default project ID is the actual reserved canonicalProjectId in row creation, task memberships and rebuilt immutable owner/application projections. No caller grouping or first-manual-group alias is accepted. Existing output collisions are refused; human changes are not reset.",
+    "ACK requestSha256 and request identity bind the original request/actor. ACK source and objectiveReceiptSha256 must correlate to that request. Projects/tasks/versions/source/ownerReceiptSha256 must reconstruct exactly from the validated owner creation receipt; ACK digest is not accepted as a self-authenticating claim.",
+    "Current source/request, ordered project/task identity cardinality, source-node IDs and created versions must match the retained ACK; available current IDs must equal original IDs. Current versions/membership/availability may reflect human edits. If any current output ID is null, creation.ack and creation.sha256 are both null.",
+    "All owner outputs, owner receipt, receiving receipt and explicit application head commit in one owner Prisma transaction, with release fences after all writes. The mutable prior head is rebuilt against its paired immutable ACK and owner receipt before CAS; a head or reservation alone is never proof of application.",
+    "JSON Schema cannot express JavaScript descriptor/prototype checks, authentication, full digest/reconstruction, complete cross-record provenance, SQL locking, RLS or rollback. This document adds no runtime admission or test/typing/native qualification."
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Lowercase complete version 1–8/standard-variant UUID; fixed length prevents a final-newline regex match."
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "positiveInt32": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "canonical": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canonicalPlanId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "tenantId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "clientId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "objectiveId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "canonicalStrategyId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "canonicalProjectId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "bindingVersion": {
+          "$ref": "#/$defs/positiveInt32"
+        },
+        "epoch": {
+          "const": 1
+        },
+        "requestedIntentId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "requestedObjectiveRevisionId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "requestedObjectiveVersion": {
+          "$ref": "#/$defs/positiveInt32"
+        },
+        "snapshotHash": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "canonicalPlanId",
+        "tenantId",
+        "clientId",
+        "objectiveId",
+        "canonicalStrategyId",
+        "canonicalProjectId",
+        "bindingVersion",
+        "epoch",
+        "requestedIntentId",
+        "requestedObjectiveRevisionId",
+        "requestedObjectiveVersion",
+        "snapshotHash"
+      ],
+      "description": "Exact original transaction-local reservation. It grants no authority and does not prove an output exists."
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "canonical": {
+          "$ref": "#/$defs/canonical"
+        },
+        "applicationRequestId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "generationJobId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "generationRequestId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "strategyId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "strategyVersionId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "objectiveReceiptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshotDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "canonical",
+        "applicationRequestId",
+        "generationJobId",
+        "generationRequestId",
+        "strategyId",
+        "strategyVersionId",
+        "objectiveReceiptSha256",
+        "snapshotDigest"
+      ],
+      "description": "POST body: exactly nine fields. Fixed route operation objective.plan.prepare; no actor, groups, model, resultRef or credential."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generationJobId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generationRequestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "objectiveId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "objectiveVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "objectiveRevisionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "strategyId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "strategyVersionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "snapshotDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "generationJobId",
+        "generationRequestId",
+        "clientId",
+        "objectiveId",
+        "objectiveVersion",
+        "objectiveRevisionId",
+        "strategyId",
+        "strategyVersionId",
+        "snapshotDigest"
+      ]
+    },
+    "available": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "enum": [
+            "available",
+            "archived"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "createdVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "currentVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "availability",
+        "id",
+        "createdVersion",
+        "currentVersion"
+      ]
+    },
+    "unavailable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "const": "unavailable"
+        },
+        "id": {
+          "type": "null"
+        },
+        "createdVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "currentVersion": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "availability",
+        "id",
+        "createdVersion",
+        "currentVersion"
+      ]
+    },
+    "output": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/available"
+        },
+        {
+          "$ref": "#/$defs/unavailable"
+        }
+      ]
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "groupKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "originalNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        }
+      },
+      "required": [
+        "groupKey",
+        "name",
+        "originalNodeIds",
+        "output"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "originalGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true
+        },
+        "currentGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"
+          },
+          "uniqueItems": true
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "originalGroupKeys",
+        "currentGroupKeys",
+        "output"
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "risk",
+            "gate",
+            "decision"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 50000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependsOnSourceNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "kind",
+        "title",
+        "note",
+        "dependsOnSourceNodeIds"
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "dependsOnSourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "disposition": {
+          "enum": [
+            "task_dependency",
+            "context_only",
+            "archived_source"
+          ]
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "dependsOnSourceNodeId",
+        "disposition"
+      ]
+    },
+    "exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "const": "ARCHIVED_SOURCE_NODE"
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "reason"
+      ]
+    },
+    "successIssue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "NO_ACTIONABLE_WORK"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "The saved plan has no actionable work. Its context was retained."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "CONTEXT_ONLY_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "This dependency remains linked plan context and has no Planner task edge."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "sourceNodeIds",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "ARCHIVED_SOURCE_DEPENDENCY"
+            },
+            "sourceNodeIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "uniqueItems": true
+            },
+            "message": {
+              "const": "This dependency references an archived source node and has no new Planner task edge."
+            }
+          }
+        }
+      ]
+    },
+    "materializationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "status": {
+          "enum": [
+            "prepared",
+            "prepared_with_issues",
+            "partial"
+          ]
+        },
+        "replayed": {
+          "type": "boolean"
+        },
+        "recordedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/project"
+          }
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/task"
+          }
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/context"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edge"
+          }
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/exclusion"
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/successIssue"
+          }
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "savedNodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "actionableNodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "contextNodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "archivedNodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "createdProjects": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "createdTasks": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "savedNodes",
+            "actionableNodes",
+            "contextNodes",
+            "archivedNodes",
+            "createdProjects",
+            "createdTasks"
+          ]
+        }
+      },
+      "required": [
+        "requestId",
+        "status",
+        "replayed",
+        "recordedAt",
+        "observedAt",
+        "source",
+        "projects",
+        "tasks",
+        "context",
+        "edges",
+        "exclusions",
+        "issues",
+        "counts"
+      ],
+      "description": "Current permission-filtered MaterializationResult shape from the owner. Creation counts describe retained creation, not newly computed current totals. Source/output/project/task/context/edge/exclusion/successIssue definitions are copied unchanged from the existing materialization contract; this object is transcribed from the current source type without a new count cap. Semantic status/issue/count correlations remain owner-enforced."
+    },
+    "creationProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "groupKey": {
+          "const": "default"
+        },
+        "projectId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "createdVersion": {
+          "const": 1
+        },
+        "originalNodeIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        }
+      },
+      "required": [
+        "groupKey",
+        "projectId",
+        "createdVersion",
+        "originalNodeIds"
+      ]
+    },
+    "creationTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNodeId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "taskId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "createdVersion": {
+          "const": 1
+        },
+        "originalGroupKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "sourceNodeId",
+        "taskId",
+        "createdVersion",
+        "originalGroupKeys"
+      ]
+    },
+    "ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "operation": {
+          "const": "objective.plan.prepare"
+        },
+        "applicationRequestId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "requestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical": {
+          "$ref": "#/$defs/canonical"
+        },
+        "actorUserId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "consentId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "controlVersion": {
+          "$ref": "#/$defs/positiveInt32"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "objectiveReceiptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ownerReceiptId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "ownerReceiptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "recordedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "outcome": {
+          "enum": [
+            "applied",
+            "applied_with_issues"
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/creationProject"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/creationTask"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "operation",
+        "applicationRequestId",
+        "requestSha256",
+        "canonical",
+        "actorUserId",
+        "consentId",
+        "controlVersion",
+        "source",
+        "objectiveReceiptSha256",
+        "ownerReceiptId",
+        "ownerReceiptSha256",
+        "recordedAt",
+        "outcome",
+        "projects",
+        "tasks"
+      ],
+      "description": "Immutable receiving creation projection, reconstructed from the separately validated owner receipt. No current versions, mutable output availability, worker deadline, model data or delegated credential."
+    },
+    "creation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "availability": {
+              "const": "available"
+            },
+            "ack": {
+              "$ref": "#/$defs/ack"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          },
+          "required": [
+            "availability",
+            "ack",
+            "sha256"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "availability": {
+              "const": "unavailable"
+            },
+            "ack": {
+              "type": "null"
+            },
+            "sha256": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "availability",
+            "ack",
+            "sha256"
+          ]
+        }
+      ],
+      "description": "Whole ACK and digest withheld when any current output is withheld. A readable archived output does not erase the historical creation fact."
+    },
+    "success": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "applicationRequestId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "creation": {
+          "$ref": "#/$defs/creation"
+        },
+        "current": {
+          "$ref": "#/$defs/materializationResult"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "applicationRequestId",
+        "creation",
+        "current"
+      ],
+      "description": "Same JSON shape for POST 201 and GET 200; current is observed separately from immutable creation."
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "code": {
+              "enum": [
+                "INPUT_INVALID",
+                "NOT_AVAILABLE",
+                "REQUEST_CONFLICT",
+                "SOURCE_STALE",
+                "AUTHORITY_UNAVAILABLE",
+                "OUTCOME_UNCONFIRMED"
+              ]
+            },
+            "message": {
+              "const": "Objective plan application is unavailable."
+            },
+            "outcome": {
+              "const": "unconfirmed"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "code",
+            "message",
+            "outcome"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "code": {
+              "const": "SOURCE_INVALID"
+            },
+            "message": {
+              "const": "The saved plan needs review before preparation."
+            },
+            "outcome": {
+              "const": "unconfirmed"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "code",
+            "message",
+            "outcome"
+          ]
+        }
+      ],
+      "description": "Safe service/controller error envelope; no raw DB, owner, identity or provider details. HTTP status is transport metadata and is absent from this closed JSON object."
+    }
+  }
+}
