@@ -1,7 +1,4 @@
-import {
-  Body, ConflictException, Controller, ForbiddenException, Header, HttpCode, Post, Req,
-  RequestTimeoutException, UnauthorizedException, UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Header, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -17,8 +14,6 @@ import {
   assertApplicationAuthorityIdentityBody,
   parseApplicationAuthorityContextBody,
   applicationAuthorityIdentityReceipt,
-  parseApplicationAuthorityMembershipDeadline,
-  readApplicationAuthorityMembership,
   readApplicationAuthorityContext,
 } from './application-authority.js';
 
@@ -42,60 +37,6 @@ export class ApplicationAuthorityController {
     assertApplicationAuthorityIdentityBody(body);
     if (!this.tenant) throw new ForbiddenException('Application authority unavailable');
     return applicationAuthorityIdentityReceipt(await this.tenant.readApplicationAuthority(req, ctx));
-  }
-
-  @Post('membership')
-  @HttpCode(200)
-  @Header('Cache-Control', 'no-store')
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  async applicationAuthorityMembership(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    assertApplicationAuthorityIdentityBody(body);
-    const deadlineMs = parseApplicationAuthorityMembershipDeadline(req.header('x-meri-deadline-at'));
-    const tenant = this.tenant;
-    if (!tenant || !this.prisma) throw new ForbiddenException('Application authority unavailable');
-    try {
-      return await readApplicationAuthorityMembership({
-        identity: () => tenant.readApplicationAuthority(req, ctx),
-        membership: async (principal) => {
-          if (principal.tenantId !== ctx.tenantId || principal.actorId !== ctx.userId) {
-            throw new ForbiddenException('Application authority unavailable');
-          }
-          return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-            const membership = await tx.tenantMembership.findFirst({
-              where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
-              select: { id: true, tenantId: true, userId: true, status: true, role: true, updatedAt: true },
-            });
-            if (!membership || membership.role !== ctx.role) {
-              throw new ForbiddenException('Application authority unavailable');
-            }
-            const clients = await tx.client.findMany({
-              where: {
-                tenantId: ctx.tenantId,
-                status: { not: 'archived' },
-                OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } }],
-              },
-              select: { id: true },
-              orderBy: { id: 'asc' },
-              take: 4097,
-            });
-            if (clients.length > 4096) throw new ForbiddenException('Application authority unavailable');
-            return {
-              membershipId: membership.id,
-              tenantId: membership.tenantId,
-              actorId: membership.userId,
-              status: membership.status,
-              role: membership.role,
-              updatedAtMs: membership.updatedAt.getTime(),
-              clientIds: clients.map((client) => client.id),
-            };
-          });
-        },
-      }, deadlineMs);
-    } catch (error) {
-      if (error instanceof RequestTimeoutException || error instanceof ConflictException ||
-          error instanceof UnauthorizedException) throw error;
-      throw new ForbiddenException('Application authority unavailable');
-    }
   }
 
   @Post('context')

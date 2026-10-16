@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
-import { BadRequestException, ConflictException, ForbiddenException, RequestTimeoutException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 export interface ApplicationAuthorityPrincipal {
   tenantId: string;
@@ -30,31 +30,9 @@ export interface ApplicationAuthorityContextReceipt extends ApplicationAuthority
   contextRevision: string;
 }
 
-export interface ApplicationAuthorityMembershipFacts {
-  membershipId: string;
-  tenantId: string;
-  actorId: string;
-  status: string;
-  role: string;
-  updatedAtMs: number;
-  clientIds: string[];
-}
-export interface ApplicationAuthorityMembershipReceipt {
-  tenantId: string;
-  actorId: string;
-  status: 'active';
-  role: string;
-  permissions: string[];
-  clientIds: string[];
-  membershipRevision: string;
-  checkedAtMs: number;
-  expiresAtMs: number;
-}
-
 // Wire syntax, not resource authority: nil and UUID versions 7/8 are allowed.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const HASH = /^[0-9a-f]{64}$/;
-const ROLE_NAME = /^[a-z][a-z0-9_-]{0,63}$/;
 
 export function assertApplicationAuthorityIdentityBody(body: unknown): void {
   closedBody(body, []);
@@ -68,17 +46,6 @@ export function parseApplicationAuthorityContextBody(body: unknown): Application
     throw new BadRequestException('Invalid application authority request');
   }
   return { identitySha256, conversationId, clientId };
-}
-
-/** Optional caller cutoff; it can only shorten the online session's expiry. */
-export function parseApplicationAuthorityMembershipDeadline(raw: string | undefined): number | undefined {
-  if (raw === undefined) return undefined;
-  if (!/^[1-9][0-9]{0,15}$/.test(raw) || !Number.isSafeInteger(Number(raw))) {
-    throw new BadRequestException('Invalid application authority request');
-  }
-  const deadlineMs = Number(raw);
-  if (deadlineMs <= Date.now()) throw new RequestTimeoutException('Application authority deadline exceeded');
-  return deadlineMs;
 }
 
 function closedBody(body: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -150,82 +117,6 @@ export function applicationAuthorityIdentityReceipt(
     identityRevision: evidence.identityRevision,
     checkedAtMs,
     expiresAtMs: evidence.expiresAtMs,
-  };
-}
-
-function sameIdentity(
-  initial: ApplicationAuthorityIdentityEvidence,
-  current: ApplicationAuthorityIdentityEvidence,
-): boolean {
-  return current.principal.tenantId === initial.principal.tenantId &&
-    current.principal.actorId === initial.principal.actorId &&
-    current.identityRevision === initial.identityRevision;
-}
-
-/** The client roster is a current DB fact, not a caller-selected authorization scope. */
-function membershipSnapshot(
-  evidence: ApplicationAuthorityIdentityEvidence,
-  facts: ApplicationAuthorityMembershipFacts,
-): { revision: string; role: string; clientIds: string[] } {
-  if (facts.tenantId !== evidence.principal.tenantId || facts.actorId !== evidence.principal.actorId ||
-      facts.status !== 'active' || typeof facts.membershipId !== 'string' ||
-      facts.membershipId.length === 0 || facts.membershipId.length > 256 ||
-      typeof facts.role !== 'string' || !ROLE_NAME.test(facts.role) ||
-      !Number.isSafeInteger(facts.updatedAtMs) || facts.updatedAtMs < 0 ||
-      !Array.isArray(facts.clientIds) || facts.clientIds.length > 4096 ||
-      !facts.clientIds.every((id) => typeof id === 'string' && UUID.test(id))) {
-    throw new ForbiddenException('Application authority unavailable');
-  }
-  const clientIds = [...facts.clientIds].sort();
-  if (new Set(clientIds).size !== clientIds.length || !HASH.test(evidence.identityRevision)) {
-    throw new ForbiddenException('Application authority unavailable');
-  }
-  // Session evidence is rechecked separately; membership revision changes only
-  // when current membership or client rights change.
-  const revision = createHash('sha256')
-    .update('capiro-application-authority-membership-v1\n')
-    .update(JSON.stringify([facts.membershipId, facts.tenantId,
-      facts.actorId, facts.status, facts.role, facts.updatedAtMs, clientIds]))
-    .digest('hex');
-  return { revision, role: facts.role, clientIds };
-}
-
-/** A fresh session read and a second roster read close changes during asynchronous DB work. */
-export async function readApplicationAuthorityMembership(
-  ports: {
-    identity(): Promise<ApplicationAuthorityIdentityProof>;
-    membership(principal: ApplicationAuthorityPrincipal): Promise<ApplicationAuthorityMembershipFacts>;
-  },
-  deadlineMs?: number,
-): Promise<ApplicationAuthorityMembershipReceipt> {
-  const initial = await ports.identity();
-  const before = membershipSnapshot(initial, await ports.membership(initial.principal));
-  const current = await ports.identity();
-  if (!sameIdentity(initial, current)) throw new ForbiddenException('Application authority unavailable');
-  const latest = membershipSnapshot(current, await ports.membership(current.principal));
-  if (latest.revision !== before.revision) throw new ConflictException('Application membership changed');
-  const final = await current.recheckCurrent();
-  if (!sameIdentity(current, final)) throw new ForbiddenException('Application authority unavailable');
-  const checkedAtMs = Date.now();
-  if (deadlineMs !== undefined && deadlineMs <= checkedAtMs) {
-    throw new RequestTimeoutException('Application authority deadline exceeded');
-  }
-  const identity = applicationAuthorityIdentityReceipt({
-    ...final,
-    expiresAtMs: Math.min(initial.expiresAtMs, current.expiresAtMs, final.expiresAtMs,
-      deadlineMs ?? Number.MAX_SAFE_INTEGER),
-  }, checkedAtMs);
-  return {
-    tenantId: identity.principal.tenantId,
-    actorId: identity.principal.actorId,
-    status: 'active',
-    role: latest.role,
-    // No native owner currently defines these proposed product permissions.
-    permissions: [],
-    clientIds: latest.clientIds,
-    membershipRevision: latest.revision,
-    checkedAtMs: identity.checkedAtMs,
-    expiresAtMs: identity.expiresAtMs,
   };
 }
 
