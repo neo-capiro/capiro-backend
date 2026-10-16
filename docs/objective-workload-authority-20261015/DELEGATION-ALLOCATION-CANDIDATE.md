@@ -1,9 +1,18 @@
-# Objective generation delegation: disabled schema allocation candidate
+# Objective generation delegation: reserved, disabled schema source
 
-Status: source proposal only. No migration ID is reserved, no SQL has been run,
-and this document grants no runtime authority. It concerns Objective-triggered
-canonical Strategy generation. Ordinary authenticated Meri chat does not read
-this table or require this workload credential.
+Status: source preparation only. The Core migration path below is centrally
+reserved in draft PR #42, and its source migration is included. No SQL has
+been run, and this document grants no runtime authority. It concerns
+Objective-triggered canonical Strategy generation. Ordinary authenticated Meri
+chat does not read this table or require this workload credential.
+
+The retained-result reader in Meri draft PR #90 is still unmounted. Its
+EdDSA/Ed25519, `typ=JWT`, nested Objective/source claim contract does not
+accept this branch's RS256, custom-typ, flat Core JWT. No shared issuer key,
+claim mapping, or current-source verifier has been approved across Core and
+Meri. Keep Objective issuance and retained reading inactive until that exact
+contract and native transaction behavior are reconciled. This mismatch does
+not gate the separate ordinary first-chat bootstrap in Core draft PR #43.
 
 ## Migration slot and source
 
@@ -11,21 +20,20 @@ The local Core frontier is
 `20281015050000_client_objective_work_reconsent`. Core migration naming requires
 a real timestamp after every existing directory and the configured two-year
 offset (`apps/api/prisma/migrations/README.md` and
-`scripts/migration-timestamp-offsets.json`). The collision-free **local
-candidate**, pending central allocation and a fresh remote/worktree scan, is
+`scripts/migration-timestamp-offsets.json`). The centrally reserved Core path is
 `apps/api/prisma/migrations/20281016010000_client_objective_workload_delegations/migration.sql`.
-No `20281016*` Core directory exists in this checkout. The 15th-day
-`40000` Engagement reservation is occupied even though absent locally; the
-existing `10000`, `20000`, `30000`, and `50000` directories must not change.
-This checkout lacks `origin/main`, so the candidate is not a remote clearance.
-A fresh 2026-10-16 read-only scan of all 51 current remote branch heads found
-seven distinct, untruncated Core migration trees. None contains a `20281016*`
-directory; their latest observed Core frontier is `20281015050000`. The
-in-repository central record at
+Its source is included in draft PR #42 and has not been executed. The
+15th-day `40000` Engagement reservation is occupied even though absent
+locally; the existing `10000`, `20000`, `30000`, and `50000` directories must
+not change.
+This checkout lacks `origin/main`. A 2026-10-16 read-only scan of 51 then-current
+remote branch heads found seven distinct, untruncated Core migration trees.
+None contains a `20281016*` directory; their latest observed Core frontier is
+`20281015050000`. The in-repository central record at
 `docs/objective-automation-reconciliation-20261015/MIGRATION-ALLOCATIONS.json`
-does not reserve this candidate (the current PR #41 branch has the same record
-blob). This shows no observed collision, **not an allocation**; another
-coordinator or later branch can still claim the slot.
+now reserves this exact path after a fresh record and remote collision check.
+The reservation is source-only; native database qualification and deployment
+remain separate gates.
 
 The source of consent is the immutable
 `client_objective_work_consents` row created by migration `20281015050000`.
@@ -142,7 +150,7 @@ by this proposal. KMS signing is a later adapter choice requiring separate
 dependency/IAM/CDK review, not a hidden prerequisite for source fixtures.
 
 Proposed private issuance route:
-`POST /internal/objective-workload-authority/decisions`, no query. A named
+`POST /api/internal/objective-workload-authority/decisions`, no query. A named
 Meri worker or separate terminal accountant first presents a
 separately signed, request-bound proof from its own pinned key pair. Core maps
 the verified issuer-qualified proof subject to a fixed permission table,
@@ -220,8 +228,8 @@ route is enabled. Meri retained reads additionally recheck the accepted run,
 journal/object custody and current identity; the Core reader subject by
 itself never selects a result.
 
-One concrete Core issuance-ledger candidate, subject to the same central
-migration allocation, is `client_objective_workload_issuances`: immutable
+One concrete Core issuance-ledger candidate within the reserved source-only
+Core migration scope is `client_objective_workload_issuances`: immutable
 `operation_id` UUID unique with service subject, authorization `jti` UUID
 unique, delegation/job/consent scope, fixed
 phase/method/path, body SHA-256, accepted-binding SHA-256 or null, signer
@@ -280,7 +288,8 @@ JWT's preacceptance-null binding. Finally,
 `CanonicalGenerationSubject.requestSha256` hashes the parsed identity body;
 the JWT `bodySha256` hashes transmitted bytes. Both checks are required.
 
-These source attachment points do not create tables or configure an issuer.
-Core and Strategy migration IDs, database privileges, current-source lookup,
-authenticated caller proof, and native transactional qualification must be
-allocated before mounting an Objective route.
+These source attachment points do not execute SQL or configure an issuer.
+The Core migration path is reserved; a separate Strategy migration ID,
+database privileges, current-source lookup, authenticated caller proof, and
+native transactional qualification remain gates before mounting an Objective
+route.

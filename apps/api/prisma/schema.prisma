@@ -16915,3 +16915,96 @@ model NewsletterInvitationEmailDelivery {
   @@index([status, updatedAt])
   @@map("newsletter_invitation_email_deliveries")
 }
+
+
+/// Source-only Objective workload delegation. Existing consent/control tables
+/// are SQL-owned and intentionally have no Prisma model or relation here.
+/// Migration 20281016010000 enforces the exact composite consent FK and a
+/// database CHECK that keeps every delegation disabled until a later review.
+model ClientObjectiveWorkloadDelegation {
+  delegationRef                String    @id @default(dbgenerated("gen_random_uuid()")) @map("delegation_ref") @db.Uuid
+  tenantId                     String    @map("tenant_id") @db.Uuid
+  clientId                     String    @map("client_id") @db.Uuid
+  objectiveId                  String    @map("objective_id") @db.Uuid
+  workAction                   String    @map("work_action") @db.VarChar(40)
+  controlId                    String    @map("control_id") @db.Uuid
+  consentId                    String    @map("consent_id") @db.Uuid
+  controlVersion               Int       @map("control_version")
+  generationJobId              String    @unique(map: "objective_workload_delegations_job_key") @map("generation_job_id") @db.Uuid
+  generationRequestId          String    @map("generation_request_id") @db.Uuid
+  generationRequestFingerprint String   @map("generation_request_fingerprint") @db.Char(64)
+  jobRequestKey                String    @map("job_request_key") @db.Text
+  clerkUserId                  String    @map("clerk_user_id") @db.VarChar(128)
+  serviceSubject               String    @map("service_subject") @db.VarChar(128)
+  audience                     String    @db.VarChar(128)
+  policyRevision               String    @map("policy_revision") @db.Char(64)
+  issuedAt                     DateTime  @default(dbgenerated("clock_timestamp()")) @map("issued_at") @db.Timestamptz(6)
+  absoluteExpiresAt            DateTime  @map("absolute_expires_at") @db.Timestamptz(6)
+  authorityVersion             Int       @default(1) @map("authority_version")
+  enabled                      Boolean   @default(false)
+  cancelledAt                  DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, consentId, generationRequestId], map: "objective_workload_delegations_consent_request_key")
+  @@unique([tenantId, clientId, objectiveId, workAction, controlId, consentId, generationJobId, delegationRef], map: "objective_workload_delegations_issuance_scope_key")
+  @@index([tenantId, clientId, objectiveId, controlId, consentId], map: "objective_workload_delegations_scope_idx")
+  @@map("client_objective_workload_delegations")
+}
+
+/// Immutable saved JWT claim tuple for Core operation-level issuance replay.
+/// SQL owns the composite delegation FK, fixed phase/routes and raw-body hash
+/// checks; the issuer still has to recheck current database authority.
+model ClientObjectiveWorkloadIssuance {
+  operationId            String   @id @map("operation_id") @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  clientId               String   @map("client_id") @db.Uuid
+  objectiveId            String   @map("objective_id") @db.Uuid
+  workAction             String   @map("work_action") @db.VarChar(40)
+  controlId              String   @map("control_id") @db.Uuid
+  consentId              String   @map("consent_id") @db.Uuid
+  generationJobId        String   @map("generation_job_id") @db.Uuid
+  delegationRef          String   @map("delegation_ref") @db.Uuid
+  callerIssuer           String   @map("caller_issuer") @db.VarChar(128)
+  callerSubject          String   @map("caller_subject") @db.VarChar(128)
+  issuanceRequestSha256  String   @map("issuance_request_sha256") @db.Char(64)
+  authorizationJti       String   @unique(map: "objective_workload_issuances_jti_key") @map("authorization_jti") @db.Uuid
+  tokenIssuer            String   @map("token_issuer") @db.VarChar(128)
+  tokenSubject           String   @map("token_subject") @db.VarChar(128)
+  tokenAudience          String   @map("token_audience") @db.VarChar(128)
+  signerKeyId            String   @map("signer_key_id") @db.VarChar(64)
+  phase                  String   @db.VarChar(32)
+  targetMethod           String   @map("target_method") @db.VarChar(4)
+  targetPath             String   @map("target_path") @db.VarChar(256)
+  targetQuery            String   @default("") @map("target_query") @db.VarChar(1)
+  targetBodySha256       String   @map("target_body_sha256") @db.Char(64)
+  attemptId              String?  @map("attempt_id") @db.Uuid
+  runId                  String?  @map("run_id") @db.Uuid
+  acceptedBindingSha256  String?  @map("accepted_binding_sha256") @db.Char(64)
+  iatSeconds             BigInt   @map("iat_seconds")
+  nbfSeconds             BigInt   @map("nbf_seconds")
+  expSeconds             BigInt   @map("exp_seconds")
+  recordedAt             DateTime @default(dbgenerated("clock_timestamp()")) @map("recorded_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, operationId, callerIssuer, callerSubject, issuanceRequestSha256], map: "objective_workload_issuances_proof_scope_key")
+  @@index([tenantId, generationJobId, recordedAt], map: "objective_workload_issuances_job_idx")
+  @@map("client_objective_workload_issuances")
+}
+
+/// Successful caller-proof use, bound to the same original issuance request.
+/// Denied-proof replay needs a separate receipt design before production use.
+model ClientObjectiveWorkloadProofUse {
+  tenantId            String   @map("tenant_id") @db.Uuid
+  callerIssuer        String   @map("caller_issuer") @db.VarChar(128)
+  callerSubject       String   @map("caller_subject") @db.VarChar(128)
+  callerKeyId         String   @map("caller_key_id") @db.VarChar(64)
+  proofJti            String   @map("proof_jti") @db.Uuid
+  operationId         String   @map("operation_id") @db.Uuid
+  proofRequestSha256  String   @map("proof_request_sha256") @db.Char(64)
+  proofIatSeconds     BigInt   @map("proof_iat_seconds")
+  proofNbfSeconds     BigInt   @map("proof_nbf_seconds")
+  proofExpSeconds     BigInt   @map("proof_exp_seconds")
+  usedAt              DateTime @default(dbgenerated("clock_timestamp()")) @map("used_at") @db.Timestamptz(6)
+
+  @@id([callerIssuer, proofJti], map: "objective_workload_proof_uses_pkey")
+  @@index([tenantId, operationId], map: "objective_workload_proof_uses_operation_idx")
+  @@map("client_objective_workload_proof_uses")
+}
