@@ -26,7 +26,7 @@ const PATH = /^\/[A-Za-z0-9/_-]+$/;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 const BINDING_FIELDS = [
   'subject', 'audience', 'method', 'path', 'query', 'body', 'operation',
-  'phase', 'generationJobId', 'delegationRef', 'consentId', 'attemptId',
+  'phase', 'tenantId', 'generationJobId', 'delegationRef', 'consentId', 'attemptId',
   'runId', 'acceptedBindingSha256',
 ] as const;
 
@@ -65,6 +65,8 @@ export interface ObjectiveWorkloadRequestBinding {
   readonly body: Uint8Array;
   readonly operation: ObjectiveWorkloadOperation;
   readonly phase: ObjectiveWorkloadPhase;
+  /** Core-derived routing hint, compared with the exact DB row by the receiver. */
+  readonly tenantId: string;
   readonly generationJobId: string;
   readonly delegationRef: string;
   readonly consentId: string;
@@ -90,6 +92,7 @@ export interface ObjectiveWorkloadJwtClaims {
   readonly bodySha256: string;
   readonly operation: ObjectiveWorkloadOperation;
   readonly phase: ObjectiveWorkloadPhase;
+  readonly tenantId: string;
   readonly generationJobId: string;
   readonly delegationRef: string;
   readonly consentId: string;
@@ -173,7 +176,7 @@ function requestBinding(input: ObjectiveWorkloadRequestBinding): ObjectiveWorklo
       (captured.method === 'GET' && captured.body.byteLength !== 0) ||
       (captured.method === 'POST' && captured.body.byteLength === 0) ||
       captured.operation !== 'objective.strategy.draft' ||
-      !uuid(captured.generationJobId) || !uuid(captured.delegationRef) ||
+      !uuid(captured.tenantId) || !uuid(captured.generationJobId) || !uuid(captured.delegationRef) ||
       !uuid(captured.consentId) || !Object.hasOwn(PHASE_ROUTES, captured.phase)) denied();
   const route = PHASE_ROUTES[captured.phase];
   const expectedPath = route.method === 'GET'
@@ -195,7 +198,7 @@ function claimsJson(value: ObjectiveWorkloadJwtClaims): string {
     nbf: value.nbf, exp: value.exp, jti: value.jti, method: value.method,
     path: value.path, query: value.query, bodySha256: value.bodySha256,
     operation: value.operation, phase: value.phase,
-    generationJobId: value.generationJobId, delegationRef: value.delegationRef,
+    tenantId: value.tenantId, generationJobId: value.generationJobId, delegationRef: value.delegationRef,
     consentId: value.consentId, attemptId: value.attemptId, runId: value.runId,
     acceptedBindingSha256: value.acceptedBindingSha256,
   });
@@ -236,7 +239,7 @@ export function issueObjectiveWorkloadJwt(
       method: authorized.method, path: authorized.path, query: '',
       bodySha256: createHash('sha256').update(authorized.body).digest('hex'),
       operation: authorized.operation, phase: authorized.phase,
-      generationJobId: authorized.generationJobId, delegationRef: authorized.delegationRef,
+      tenantId: authorized.tenantId, generationJobId: authorized.generationJobId, delegationRef: authorized.delegationRef,
       consentId: authorized.consentId, attemptId: authorized.attemptId, runId: authorized.runId,
       acceptedBindingSha256: authorized.acceptedBindingSha256,
     };
@@ -307,6 +310,7 @@ export function verifyObjectiveWorkloadJwt(
         claims.query !== '' ||
         claims.bodySha256 !== createHash('sha256').update(authorized.body).digest('hex') ||
         claims.operation !== authorized.operation || claims.phase !== authorized.phase ||
+        claims.tenantId !== authorized.tenantId ||
         claims.generationJobId !== authorized.generationJobId ||
         claims.delegationRef !== authorized.delegationRef ||
         claims.consentId !== authorized.consentId ||

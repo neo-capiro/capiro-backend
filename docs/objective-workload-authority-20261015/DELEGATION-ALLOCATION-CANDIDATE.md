@@ -18,6 +18,14 @@ No `20281016*` Core directory exists in this checkout. The 15th-day
 `40000` Engagement reservation is occupied even though absent locally; the
 existing `10000`, `20000`, `30000`, and `50000` directories must not change.
 This checkout lacks `origin/main`, so the candidate is not a remote clearance.
+A fresh 2026-10-16 read-only scan of all 51 current remote branch heads found
+seven distinct, untruncated Core migration trees. None contains a `20281016*`
+directory; their latest observed Core frontier is `20281015050000`. The
+in-repository central record at
+`docs/objective-automation-reconciliation-20261015/MIGRATION-ALLOCATIONS.json`
+does not reserve this candidate (the current PR #41 branch has the same record
+blob). This shows no observed collision, **not an allocation**; another
+coordinator or later branch can still claim the slot.
 
 The source of consent is the immutable
 `client_objective_work_consents` row created by migration `20281015050000`.
@@ -107,6 +115,13 @@ the consent/control tables are presently owned by raw SQL.
   uncertain evidence remains `outcome_unconfirmed`. This purpose is bounded
   by the original delegation's 24-hour ceiling and its own short token life.
 
+The terminal service now requires a distinct `terminalAccounting` grant
+matched to `terminal-account` or `terminal-read`, with its own checked time,
+short expiry and original absolute ceiling. It does not treat the original
+worker claim/delegation expiry as a renewed effect grant. Its authority port
+remains disabled, so these fields are a required source contract, not an
+issued production grant.
+
 Request-bound JWT issuance, signature verification and operation-level `jti`
 deduplication are separate source allocations. A unique job row alone cannot
 make HTTP phase replay safe; existing admission/publication/terminal ledgers
@@ -161,7 +176,10 @@ accepted Meri readback, computes its own target body SHA-256, and rejects
 anything it cannot establish. The caller sends those identical bytes to the
 target. The proof covers the whole issuance request exactly as transmitted.
 No caller-supplied tenant, actor, membership, consent ID, deadline, token
-audience or hash can override Core's stored values.
+audience or hash can override Core's stored values. Core includes the exact
+tenant UUID as a signed routing hint. Strategy may use it to enter `withTenant`
+only after signature verification, then must compare it with the locked
+delegation, job and consent rows; a signed tenant alone grants no access.
 
 The first fixed target audiences are `capiro:objective-strategy-api:v1` for
 generation and terminal routes, and
@@ -175,7 +193,7 @@ continuation needs its own audience and authorization allocation.
 The signed header has a fixed workload `typ`, `alg=RS256`, and trusted `kid`.
 The signed payload has exact environment-qualified `iss`, named `sub`, one
 target `aud`, unique UUID `jti`, bounded integer `iat`/`nbf`/`exp` (at most
-60 seconds), operation/phase, delegation/consent/job identity, concrete
+60 seconds), operation/phase, tenant/delegation/consent/job identity, concrete
 method/path, empty-query marker, and lowercase raw-body SHA-256. Each target
 verifier pins the expected issuer, subject, audience, `kid`, algorithm,
 operation/phase and actual route; recomputes the hash from captured raw bytes;
@@ -204,8 +222,8 @@ itself never selects a result.
 
 One concrete Core issuance-ledger candidate, subject to the same central
 migration allocation, is `client_objective_workload_issuances`: immutable
-`operation_id` UUID unique with service subject, proof `jti` UUID unique,
-authorization `jti` UUID unique, delegation/job/consent scope, fixed
+`operation_id` UUID unique with service subject, authorization `jti` UUID
+unique, delegation/job/consent scope, fixed
 phase/method/path, body SHA-256, accepted-binding SHA-256 or null, signer
 `kid`, and DB `iat`/`nbf`/`exp`. Lock/insert this row with the source decision.
 An exact request replay uses its original claims and RS256 key to reproduce
@@ -218,3 +236,51 @@ committed domain receipt in the same local transaction. Meri's retained-read
 owner needs the corresponding durable read-replay record and fresh custody
 check. Neither ledger exists today; their SQL/lock ownership remains a HOLD
 gate, rather than an implied property of the cryptographic fixture helper.
+
+## Implementation attachment points after allocation
+
+The Core issuance row binds the exact service subject, audience,
+tenant/delegation/consent/job, phase, concrete method/path, raw-body SHA-256,
+accepted-binding hash or null, signer `kid`, bounded timestamps and saved
+decision. A separate caller-proof-use table needs unique
+`(caller_issuer,proof_jti)` and an operation foreign key. It permits a fresh
+30-second proof to authenticate an **exact retry** after the first proof
+expires without creating a new authorization `jti`. A changed request under
+the same operation ID conflicts. Re-sign original unexpired claims with their
+original key. A retired key or expired claim returns unavailable or the saved
+terminal decision, never a successor token under that operation ID. Neither
+table stores a raw bearer.
+
+Strategy needs its own `sp_objective_workload_operations` table in a separately
+allocated Strategy migration (local frontier `20261007040000`, year offset
+zero). Require unique `(issuer,jti)` and an independently fenced
+`(tenant_id,generation_job_id,phase)` mutative reservation, immutable token
+tuple/body SHA, bounded in-progress lease/version, and committed domain
+receipt reference/hash. Phase handlers compare the signed tenant to the
+durable job/delegation row and finalize replay with the actual job/domain
+transition. Admission, publication and acceptance can finalize in their
+existing job transactions. Completion must finalize inside the actual
+Strategy writer transaction's `runtime.persistence.afterWrite`; terminal
+accounting finalizes with its failed-job compare-and-set. Before external
+Meri or retained-result I/O, reserve the same fenced operation. An uncertain
+reservation reconciles the original job and receipt before allowing another
+operation to repeat an effect. Existing job compare-and-set and deterministic
+evidence rows are not `jti` records.
+
+Use one shared-database lock order: Strategy job, canonical/source,
+control/current consent, delegation, then operation row. The current Strategy
+authority port is invoked before some source-fence locks, so it must not
+lock control/delegation there until call order is reconciled. Every raw SQL
+statement needs an explicit `tenant_id` predicate; the runtime Prisma role
+bypasses RLS even inside `withTenant`. The retained-read path has a separate
+current visibility check and cannot adopt an old effect claim. The older Core
+pure `workload-authority.policy.ts` uses a different audience and requires a
+pre-dispatch attempt ID. Version and reconcile it before using it with this
+JWT's preacceptance-null binding. Finally,
+`CanonicalGenerationSubject.requestSha256` hashes the parsed identity body;
+the JWT `bodySha256` hashes transmitted bytes. Both checks are required.
+
+These source attachment points do not create tables or configure an issuer.
+Core and Strategy migration IDs, database privileges, current-source lookup,
+authenticated caller proof, and native transactional qualification must be
+allocated before mounting an Objective route.

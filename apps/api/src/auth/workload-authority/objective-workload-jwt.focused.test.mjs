@@ -21,7 +21,7 @@ const audience = OBJECTIVE_STRATEGY_AUDIENCE;
 const binding = Object.freeze({ subject: OBJECTIVE_GENERATION_WORKER_SUBJECT, audience,
   method: 'POST', path: '/strategy-api/internal/objective-canonical/generation-admissions',
   query: '', body: Buffer.from('{"schemaVersion":1,"generationJobId":"' + id(1) + '"}'),
-  operation: 'objective.strategy.draft', phase: 'admit', generationJobId: id(1),
+  operation: 'objective.strategy.draft', phase: 'admit', tenantId: id(8), generationJobId: id(1),
   delegationRef: id(2), consentId: id(3), attemptId: null, runId: null,
   acceptedBindingSha256: null });
 const signer = { issuer, kid: 'core-test-1', privateKey };
@@ -46,6 +46,7 @@ test('issuer signs one sixty-second request-bound token and verifier returns onl
   assert.equal(claims.iss, issuer);
   assert.equal(claims.sub, binding.subject);
   assert.equal(claims.aud, audience);
+  assert.equal(claims.tenantId, binding.tenantId);
   assert.equal(claims.jti, decision.jti);
   assert.equal(claims.iat, now);
   assert.equal(claims.nbf, now);
@@ -64,6 +65,7 @@ test('receiver must bind exact raw bytes, method, path, empty query, phase and s
     { path: '/strategy-api/internal/objective-canonical/generation-acceptances' },
     { query: 'retry=1' },
     { phase: 'publish' },
+    { tenantId: id(9) },
     { generationJobId: id(9) },
     { delegationRef: id(9) },
     { consentId: id(9) },
