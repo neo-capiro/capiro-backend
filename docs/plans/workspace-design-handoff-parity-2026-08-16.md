@@ -1,3 +1,6 @@
+> **Scope status — backend cleanup successor.** Historical frontend handoff. The old `apps/web` implementation and workspace commands below were retired from this backend repository in PR30. Current frontend implementation and parity belong to `capiro-frontend`. Retain the backend endpoint observations and open gaps as historical evidence; source retirement does not requalify them.
+> Source retirement: [PR30](https://github.com/neo-capiro/capiro-backend/pull/30), exact `7b6bda7ca75ea86afb36c76f013f550fdd79e42f`.
+
 # Workspace vNext — design-handoff parity (2026-08-16)
 
 Branch: `ui/workspace-design-handoff-parity`

@@ -181,7 +181,7 @@ class SourceJobsContract(unittest.TestCase):
                                     check=True, capture_output=True).stdout
             if file == "pnpm-lock.yaml":
                 # Cleanup removes only Web's importer from the already approved
-                # runtime lock, including its two production Prisma operands.
+                # runtime lock, including its four Prisma importer relocations.
                 self.assertEqual(hashlib.sha256(before).hexdigest(), PRE_CLEANUP_LOCK_SHA256)
                 runtime = subprocess.run(["git", "show", f"{RUNTIME_DEPENDENCY_SOURCE}:{file}"],
                                          cwd=ROOT, check=True, capture_output=True).stdout

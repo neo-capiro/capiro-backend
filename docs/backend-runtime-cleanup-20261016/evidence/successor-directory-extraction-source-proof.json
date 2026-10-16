@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=64",
+    "docs/backend-runtime-cleanup-20261016/verify-directory-extraction-source.mjs",
+    "--run"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T03:29:00.8551600Z",
+  "endedAt": "2026-10-16T03:29:00.9433377Z",
+  "ownedPID": 32440,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": null,
+  "hardWallSeconds": 60,
+  "maxObservedWorkingSetBytes": 268435456,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "0930dca178df3a5a667f685dd949892d248f9bbcbbb6cbbc963dba92de05e902",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -15,7 +15,6 @@
  import path from 'node:path';
 
  import {
-   ROOT,
    loadBackendUiInventory,
    SURFACES,
    HEURISTIC_EXEMPTIONS,
@@ -28,6 +27,11 @@
    collectStringConstants,
    collectRuntimeActions,
  } from './engagement-phase3-ui-inventory.mjs';
+import { requirePinnedLegacySourceRoot } from '../tests/support/legacy-web/source-root.mjs';
+
+// All 32 original assertions remain historical UI acceptance. A current backend
+// scan cannot stand in for its sealed source. This is outside the current gate.
+const ROOT = requirePinnedLegacySourceRoot();
 
 const MANIFEST_PATH = path.join(
   ROOT,
@@ -40,7 +44,7 @@ const ROUTE_MANIFEST = JSON.parse(
   ),
 );
 
-const committed = loadBackendUiInventory();
+const committed = loadBackendUiInventory(ROOT);
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const rejects = (mutate, matcher) => {
   // The sealed historical inventory has inherited findings. A negative control
@@ -145,7 +149,7 @@ test('classification is driven by @EngagementRuntimeAction, not by URL shape', (
 });
 
 test('the decorator scan finds the real runtime actions', () => {
-  const actions = collectRuntimeActions();
+  const actions = collectRuntimeActions(ROOT);
   assert.ok(actions.size >= 25, `expected the full decorator set, found ${actions.size}`);
   assert.ok([...actions.values()].includes('outreach_send'));
   assert.ok([...actions.values()].includes('notetaker_dispatch'));

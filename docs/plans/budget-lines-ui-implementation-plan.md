@@ -1,3 +1,6 @@
+> **Scope status — backend cleanup successor.** Historical UI implementation status. The original ACTIVE label below describes the old frontend branch. Keep this plan at its existing path as schema/migration and design provenance, including all backend money-graph requirements. Current frontend implementation and parity belong to `capiro-frontend`; no schema or migration change is implied.
+> Source retirement: [PR30](https://github.com/neo-capiro/capiro-backend/pull/30), exact `7b6bda7ca75ea86afb36c76f013f550fdd79e42f`.
+
 # Budget Lines — UI implementation plan (mockup → production)
 
 **Status:** ACTIVE BUILD (started 2026-07-03)

@@ -1,0 +1,1 @@
+CURRENT_BACKEND_SOURCE_CONTRACT_OK {"mode":"--check-routes","issues":[],"summary":{"manifests":9,"routes":207,"primary":144,"additive":63},"inputs":{"purpose":"immutable-qualification-data-identity-only","inventoryRequests":237,"generatedBytes":10476,"historicalPackageBytes":2250},"boundary":null,"frontendParityOwner":"capiro-frontend","liveRoutingAcceptance":false}

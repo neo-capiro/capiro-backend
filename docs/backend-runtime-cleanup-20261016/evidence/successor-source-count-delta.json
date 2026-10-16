@@ -1,0 +1,21 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-runtime-cleanup-20261016/count-source-delta.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T03:46:17.2459358Z",
+  "endedAt": "2026-10-16T03:46:19.6077372Z",
+  "ownedPID": 33496,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 50110464,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "d7f6c3e91f16f75de9d57c47eb51aac5c58162757ec01f8651a3e25acbe6484b",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

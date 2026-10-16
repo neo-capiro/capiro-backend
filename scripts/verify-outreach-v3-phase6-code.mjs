@@ -256,10 +256,17 @@ for (const node of [
 
 }
 
+if (backendOnly) {
+run('Current backend preview boundary', 'node', [
+  'scripts/engagement-phase3-backend-contract.mjs',
+  '--check-preview-boundary',
+]);
+} else {
 run('Preview route manifest drift', 'node', [
   'scripts/engagement-phase3-preview-route-patterns.mjs',
   '--check',
 ]);
+}
 if (!backendOnly) {
 run('vNext outreach-decision css generator controls', 'node', [
   '--test',

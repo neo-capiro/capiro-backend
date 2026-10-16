@@ -50,7 +50,13 @@ export function engagementPhase3QualificationPlan(scope, steps) {
     if (scope === 'backend-only' && FRONTEND_ONLY_LABELS.has(label)) continue;
     if (scope === 'frontend-only' && BACKEND_ONLY_LABELS.has(label)) continue;
 
-    if (label === 'Phase 1 prerequisite' || label === 'Phase 2 prerequisite') {
+    if (scope === 'backend-only' && label === 'Phase 3 UI inventory') {
+      planned.push(['Phase 3 current backend route contracts', command,
+        ['--test', 'scripts/engagement-phase3-backend-contract.spec.mjs'], ...options]);
+    } else if (scope === 'backend-only' && label === 'Phase 3 preview route generation drift') {
+      planned.push(['Phase 3 current backend preview boundary', command,
+        ['scripts/engagement-phase3-backend-contract.mjs', '--check-preview-boundary'], ...options]);
+    } else if (label === 'Phase 1 prerequisite' || label === 'Phase 2 prerequisite') {
       const suffix = scope === 'backend-only' ? ':backend' : ':frontend';
       planned.push([label, command, [args[0] + suffix], ...options]);
     } else if (label === CONTROL_LABEL) {
@@ -63,9 +69,9 @@ export function engagementPhase3QualificationPlan(scope, steps) {
       }
       planned.push([label, command, ['--test', ...root], ...options]);
     } else {
-      // Backend inventory reads its sealed owned manifest. Scope/findings keeps
-      // current backend infra/runtime/ledger enforcement. Historical UI main is
-      // frontend-only; its pure source-boundary controls are retained above.
+      // Source-only replacements above do not qualify the historical UI/table.
+      // Scope/findings retains current backend infra/runtime/ledger enforcement.
+      // Historical UI main is frontend-only; pure controls remain above.
       planned.push([label, command, args, ...options]);
     }
   }

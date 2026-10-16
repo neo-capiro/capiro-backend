@@ -1,0 +1,42 @@
+{
+  "stage": "successor-current-backend-controls-selector-repaired",
+  "actualResult": "75 pass, 0 failures/skips",
+  "inputs": [
+    {
+      "path": "scripts/engagement-phase3-backend-contract.mjs",
+      "sha256": "6b150a826e4497c01d118551bda42833d9b461aecfea088853ecb8fc4c854c5a"
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-contract.spec.mjs",
+      "sha256": "9488a1e14b4baaaf60d51fa0051371d6b277d0042890818b7cc8ccd4f5a8c020"
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "sha256": "39bbe8e44db68399b2a15b2d0d5c11a948798b49a142fc287df179dbdd5b8dbb"
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "sha256": "478014a4d3a33bf26ffb6e7eacff3ba1490afd883f252ee673197db241a8778b"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "sha256": "60873fa16932224863a54352d428488cf6d9d9c98758bff9c057232d405581e5"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "sha256": "0620da44b4ad8589c776b67fc5091d13c163b597018255639aff522e9b77b83e"
+    },
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.mjs",
+      "sha256": "add8161edfeb1ac37d12ae111aadd80fa88122a351ff01f91e1a0b3f3bbb3b98"
+    },
+    {
+      "path": "tests/support/legacy-web/qualification-owner.mjs",
+      "sha256": "dd149d66292c1f6ebe94f402973a5417ee541b9c827bdfc955360f57188da5a6"
+    },
+    {
+      "path": "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
+      "sha256": "dac89a2d28bf815073b747af317906505e012db757bab9841428789b3b4ec9b9"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "sourceHead": "3a28da334f2aa8373e7759048e8047563905260a",
+  "parent": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "changedPaths": 92,
+  "applicationPaths": [
+    "apps/api/src/directory/directory-detail-mappers.ts",
+    "apps/api/src/directory/directory.service.ts"
+  ],
+  "protectedIdentities": 24,
+  "historicalPlanInverses": 5,
+  "capturedGitBytes": 50,
+  "countedSourceHead": "e666c4f36bc2a802779e3255cb4d7f2edd776589",
+  "countedFirstPartySourceUnchanged": true
+}
