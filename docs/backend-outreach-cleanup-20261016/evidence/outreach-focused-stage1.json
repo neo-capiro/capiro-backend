@@ -1,0 +1,25 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+    "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+    "scripts/backend-source-qualification.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T05:08:51.2800869Z",
+  "endedAt": "2026-10-16T05:08:51.8628215Z",
+  "ownedPID": 31992,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 114483200,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "c16e253b722c178ac15ebf34d69ebc2cac025ff6549c1e925debcb5d171cddb7",
+  "stderrSHA256": "2bf21ba3bbcae462777565f988695ba11aae23644e71b3b55b5aac5810fbca62"
+}

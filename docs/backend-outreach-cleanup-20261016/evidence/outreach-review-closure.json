@@ -1,0 +1,12 @@
+{
+  "status": "RESOLVED",
+  "finding": "batch-owner-count",
+  "manifestPath": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+  "manifestBytes": 23065,
+  "manifestSHA256": "2da8d8c006322b5f0dbe52da3c4ea88f071b1d2c947b17d05e747a052cf7598b",
+  "resolution": "Exact group/revise/sticky-provider paths; unsupported aggregate removed; all source assertions unchanged/nativeUNRUN",
+  "priorFinding": "outreach-independent-review.json",
+  "sourceReview": "outreach-service-review.json",
+  "proofHardening": "Nine tested operands now checked against exact distinct path inventory as well as hashes; source proof only",
+  "rerunRequired": "No changed executable/production input after 55/55 stage; metadata corrected before exact postcommit source proof"
+}

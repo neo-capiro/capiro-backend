@@ -1,0 +1,13 @@
+# Closed outreach implementation retirement
+
+Successor to source-accepted PR36 `a2e3eee209dc82d7536f3fc318a9d952c80e628a`. This isolated branch removes seven private Engagement methods with no current production entry: an obsolete enrichment composition and its five helpers, plus an uncalled hold writer. The exact pre-edit map and finite reference receipts were committed as `17b41b79b0bb8e023520cb4137e7a2fdcbb18959`.
+
+`engagement.service.ts` falls from 12,303 to 11,926 physical lines and from 11,722 to 11,350 nonblank lines. Seven owned regions account for 368 physical/363 nonblank lines; unused import bindings and one historical-reader comment account for the remaining net delta. The exact inverse proves every other service byte is unchanged. Current generation, public bill truth, canonical packet/truth producers, constructor/provider order, send guards and historical hold readers remain intact.
+
+The seven old native fixtures directly invoked the retired private enrichment method. Their exact identities, assertions' source blob and 22 finite source/config operands remain pinned in `tests/support/legacy-outreach/CASE-OWNERSHIP.json`. The original spec stays in Git history. Current source contracts exercise actual selected resolver bodies and pure packet helpers using alert-fetch/logger fixture ports; they do not establish caller admission or native application acceptance.
+
+The old flag-on client relationship overlay has **no current equivalent**. It remains a historical UNRUN obligation; this cleanup neither reactivates it nor labels current critical-source failures as equivalent to old gap-body strings. Existing current native evidence and batch source tests remain unchanged. The two Engagement ownership controls now follow the current gateway/packet/resolver boundary; all 22 Meri controls before that tail remain byte-exact.
+
+Source checkpoint and repository totals are recorded in `CODE-COUNTS.json`; exact transition, protected operands and focused input hashes are in `SOURCE-PROOF.json`. The counter applies changed Git-blob deltas to sealed PR36 totals using unchanged original016e counting rules. Documentation/evidence/config data are excluded under those original rules; no full source scan was repeated.
+
+`VALIDATION.md` and raw receipts record 55/55 bounded builtin controls. Native/framework/type/build/image/DB/integration and seven historical fixtures remain UNRUN, subject to the shared local queue. A complete qualified pinned historical root was not supplied. Source acceptance, merge and release qualification remain separate decisions. Frozen shipping cd3, Engagement016e, Objective622, other owners' candidates, live capirov2, migrations, runbooks, provenance and release configuration are outside this delta.

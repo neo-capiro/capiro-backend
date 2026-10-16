@@ -1,0 +1,118 @@
+{
+  "sourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "sourceSpecBytes": 9523,
+  "sourceSpecSHA256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+  "sourceCaseCount": 7,
+  "manifestCaseCount": 7,
+  "comparison": [
+    {
+      "index": 0,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [],
+      "manifestTitleNonAscii": []
+    },
+    {
+      "index": 1,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [
+        8212
+      ],
+      "manifestTitleNonAscii": [
+        8212
+      ]
+    },
+    {
+      "index": 2,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [],
+      "manifestTitleNonAscii": []
+    },
+    {
+      "index": 3,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [],
+      "manifestTitleNonAscii": []
+    },
+    {
+      "index": 4,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [],
+      "manifestTitleNonAscii": []
+    },
+    {
+      "index": 5,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [],
+      "manifestTitleNonAscii": []
+    },
+    {
+      "index": 6,
+      "idEqual": true,
+      "suiteEqual": true,
+      "titleEqual": true,
+      "lineEqual": true,
+      "sourceSuiteNonAscii": [
+        8212
+      ],
+      "manifestSuiteNonAscii": [
+        8212
+      ],
+      "sourceTitleNonAscii": [],
+      "manifestTitleNonAscii": []
+    }
+  ]
+}

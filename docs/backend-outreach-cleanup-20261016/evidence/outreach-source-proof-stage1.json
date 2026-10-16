@@ -1,0 +1,21 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-outreach-cleanup-20261016/verify-source-transition.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T05:11:51.2536232Z",
+  "endedAt": "2026-10-16T05:11:53.0473040Z",
+  "ownedPID": 28680,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 53088256,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "89fb615ee6c0238501f1ce93cf1b09f784ffabc9a1df89d52dfbe893cd3dcf8a",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
