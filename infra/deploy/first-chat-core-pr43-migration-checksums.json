@@ -1,0 +1,1902 @@
+[
+  {
+    "migration_name": "20260501000000_init_identity_tenancy",
+    "checksum": "c3c2affcf5a182cf1acfec7d4912a3cad84e8c94b8e4799ec53e43b61b01704c"
+  },
+  {
+    "migration_name": "20260501010000_add_tenants_clerk_org_id",
+    "checksum": "f580ebb67d5575b92c045093a1d5c0ade15fc107736e9da8a03932c51a86ecdb"
+  },
+  {
+    "migration_name": "20260502000000_user_admin_brand_clients",
+    "checksum": "feeb9c7017e6aaacdb49b3025ffc7fcb18d8e382bc38ba69812632f82a595940"
+  },
+  {
+    "migration_name": "20260502010000_impersonation_sessions",
+    "checksum": "835d7789c49a7a2ba45887d8ed74a12bd348512972667238ac4666d2065f04a0"
+  },
+  {
+    "migration_name": "20260502020000_capiro_app_role",
+    "checksum": "6c1cb77730636923a1ea434a9a37a078b6e4fa7c6fb6f6bfdc7ca451f71bec69"
+  },
+  {
+    "migration_name": "20260503020000_engagement_manager_core",
+    "checksum": "90827d788cc5acdc2daa8d9fd5ff6d12a2c09e5695bfa4337f6be83cd01bf8cc"
+  },
+  {
+    "migration_name": "20260503020100_engagement_connection_tokens",
+    "checksum": "acf515db57f9d97f54150a127b26eadd1551c9b9c96bb1fef563693d387aa6e6"
+  },
+  {
+    "migration_name": "20260503170000_directory_contact_notes",
+    "checksum": "c4572470b195095c62c495e155457a9084a84cd57c3ae98f96c646507e2eb8d5"
+  },
+  {
+    "migration_name": "20260503190000_client_logos",
+    "checksum": "dd57135405fd9f4c381f0a13497b5183a9201960359d21d92b91410c737f2cfa"
+  },
+  {
+    "migration_name": "20260504193000_demo_requests",
+    "checksum": "f68d233bd317bbd178d4f96dd8c731cb71e3196895b3b6d6e7bd545652adfd98"
+  },
+  {
+    "migration_name": "20260505002000_meeting_debriefs_and_prep_approval",
+    "checksum": "4471c43ce1fc341db5a857f4e4f6de79919e0e27de9e40b79b49d2ce85332d2d"
+  },
+  {
+    "migration_name": "20260505124500_engagement_report_targets",
+    "checksum": "3dc7d8c7daba14d53dc23d78fcc02c05b3fe5a4e24bf2ec64cff859ff88389c5"
+  },
+  {
+    "migration_name": "20260505203000_engagement_outreach_records",
+    "checksum": "38062af597a246e6bc700f0f180f520d324dfee48b1baf4306425a59af823a43"
+  },
+  {
+    "migration_name": "20260507020000_soft_delete_outreach_records",
+    "checksum": "2b091ead680d1d60037a437e235d243469cbf5b172cec860dab632a7585796f7"
+  },
+  {
+    "migration_name": "20260507030000_outbound_campaign_templates",
+    "checksum": "37a338c497eae7947c62130a1588abb5a3f7b1b94921859732decfe96598eda7"
+  },
+  {
+    "migration_name": "20260510010000_clio_nanoclaw_workspace",
+    "checksum": "f39a09a6289b2f17777ca14daee1c13e87bb1430c3344bea5612f1a74d4a85d6"
+  },
+  {
+    "migration_name": "20260510013000_clio_notes",
+    "checksum": "1b6ca385c4f953ae040a4c969fc1547a250b0b02d760c13fd22e5341ca89864c"
+  },
+  {
+    "migration_name": "20260515000000_add_workflow_models",
+    "checksum": "b7a3061a597701fbcaccd6902e20b0ba14b279e2ff1a4f13756664c861c87d55"
+  },
+  {
+    "migration_name": "20260517175724_add_client_capabilities_people",
+    "checksum": "784359c54de0ea7ce6325fd9bd4e8c72057856812047393767c41ebb45642802"
+  },
+  {
+    "migration_name": "20260518013324_add_strategies",
+    "checksum": "8293f298a1f1e3247eb343e746eb4de0de3a64521ea31d1287ffca7d2c22aac2"
+  },
+  {
+    "migration_name": "20260519015221_add_engagement_campaigns",
+    "checksum": "e80a3c512a5d219202c0ca44d91bbaa382bd70f5464ec1405fedf71b2297d7a1"
+  },
+  {
+    "migration_name": "20260519160000_lobby_intel",
+    "checksum": "6fd0304a12787e35bffd1154a1493dbb43c4658dc98a0090bde4cad067999c4a"
+  },
+  {
+    "migration_name": "20260519210000_federal_spending",
+    "checksum": "fb0ec3504405a6807efbe87a3db133e8ed8621f8e8f118ca96536e7a7d1f14bb"
+  },
+  {
+    "migration_name": "20260520010000_lda_intel",
+    "checksum": "a8e07d748835554c73daa1d97a425f1f911191ff8c6ca909388ca6ee308b5690"
+  },
+  {
+    "migration_name": "20260520010000_lda_intel_pipeline",
+    "checksum": "7b07c9def14ecd6699c8bd1198b5bdceebfa75d015ef03d2b9dcf7c938cddd20"
+  },
+  {
+    "migration_name": "20260521011251_outreach_ai_templates",
+    "checksum": "116f54cf695c5ec14292d68097978c6b9a3ccb43fe507963e0e42b05902714a8"
+  },
+  {
+    "migration_name": "20260521030000_intel_optimization",
+    "checksum": "91b8a411fb84f711203d9cb6431a1cd9f54975ec104168c5a66dec70cbccf5bb"
+  },
+  {
+    "migration_name": "20260521080000_regulatory_docket",
+    "checksum": "5ea4940890c31b76f93f600db9327f2296c93533ea6dc6d1dbe69d1acb618371"
+  },
+  {
+    "migration_name": "20260521100000_regulatory_docket_nullable_docket",
+    "checksum": "4a53a00975701a7c716f2b3b6f132dcccd279926a9bcf61a707c5a3cf6075bbb"
+  },
+  {
+    "migration_name": "20260521120000_gin_trigram_indexes",
+    "checksum": "5edec7ee3a265c08da3767198711f99fb39ddd19318d4a90d6dfbfcfd17cbb71"
+  },
+  {
+    "migration_name": "20260521130000_synthesis_layer",
+    "checksum": "b7d314011156ff5a79b6a6c1c492b203b09f845cc4c796b388d379134c28ef4f"
+  },
+  {
+    "migration_name": "20260521150000_add_chat_messages",
+    "checksum": "b95175a0cdb7c4e9c1f2b0f3c3f8cc6b67beb6d5b2f31d37426b8827d3441e61"
+  },
+  {
+    "migration_name": "20260522200000_clio_memory_alerts_versioning",
+    "checksum": "5d668b385f5f35a1ee805bcfc482ef485f10fe4b11f4f3c5a0e90179e3e9a73d"
+  },
+  {
+    "migration_name": "20260522210000_lda_derived_lobby_intel",
+    "checksum": "153637ab008a123b280447cb2f8525bdb8bd5bbf9550f3f68c5aa630111c7379"
+  },
+  {
+    "migration_name": "20260523050000_drop_openlobby_legacy",
+    "checksum": "518e9ef8b1095b35b3846437c72e3352a7a49fc176d8904f890b22cb50300156"
+  },
+  {
+    "migration_name": "20260523060000_intel_pipeline_tables",
+    "checksum": "a0efe31a522967606ae2da9862a47a6961358cee810c62eef70d74ba9abd8f98"
+  },
+  {
+    "migration_name": "20260523070000_portfolio_schema_additions",
+    "checksum": "7807791491406232d0986e251824befc320924a049fcd54af48bd4518ade8ba0"
+  },
+  {
+    "migration_name": "20260523080000_sync_run_table",
+    "checksum": "2ff2d6e6839f8fdd3a5b51278c666c58ab71d57003d6d2bf17254b8a04080f21"
+  },
+  {
+    "migration_name": "20260525103000_clio_memory_scope_hardening",
+    "checksum": "03a92171f2734f779e51bef29aaf9c152b4d2c79d71aa59898c19338e69548fd"
+  },
+  {
+    "migration_name": "20260525151500_user_title",
+    "checksum": "604cdda44bfeb264db0835a1ae443aad055f9897c065cf3e33af45992d852ddc"
+  },
+  {
+    "migration_name": "20260525183000_user_title_apply",
+    "checksum": "fde45fea185d11409f5421740a142f7a72971eae2b5520786559baf9491d3897"
+  },
+  {
+    "migration_name": "20260525213000_kg_views",
+    "checksum": "5025994841a40246428f0abce1754edbe90f8ff513ee56c479972f5636c7a9d5"
+  },
+  {
+    "migration_name": "20260526113000_capability_issue_codes",
+    "checksum": "1adb057e76a550b75d1ab1c4a71198972250cd71ef0dc171ddb9e93280f11f8a"
+  },
+  {
+    "migration_name": "20260527021119_context_embeddings_v2",
+    "checksum": "a4a8f2183dd3ee1d86237b68d30104bfbcb4905a26ce7781357c07ea77d88295"
+  },
+  {
+    "migration_name": "20260528085651_add_program_element",
+    "checksum": "25e15cf1b1a8b94ffd156f76eadb0df347dd30ecbc0872e851cbd49a9e2467c1"
+  },
+  {
+    "migration_name": "20260528091823_add_program_element_writer_tables",
+    "checksum": "5c4157892e7a328ada7e3dffd62c480608b19976f2c61c41d889cad7b2ebb5bb"
+  },
+  {
+    "migration_name": "20260528112943_add_program_element_watch",
+    "checksum": "cc1a24c81fca754301c9a253b648cfa3055cc7b816353df442f7b4b55e3c0b2f"
+  },
+  {
+    "migration_name": "20260528173000_add_conference_probability",
+    "checksum": "1b8ced8201f9ce374f2a3e143ba36b43f1dc04ea30cd5b3d2f2b9cd6e6f0e050"
+  },
+  {
+    "migration_name": "20260529091500_add_pe_materialized_views",
+    "checksum": "ff15b0fc3fda3ce77c2c2700e8ff0ed87155502c85a86305182ae0413b5d287d"
+  },
+  {
+    "migration_name": "20260529142000_enable_pg_trgm_extension",
+    "checksum": "dfea58bb7d61c31be6b4cf790004f451451d10fc5db990897ee01c54f534d9f3"
+  },
+  {
+    "migration_name": "20260529143000_add_acquisition_personnel",
+    "checksum": "8060629ac29787f3fa01d824d7c0e7c459c9fc077d3779e36599af6d1f38b1e7"
+  },
+  {
+    "migration_name": "20260530000000_add_program_element_source",
+    "checksum": "b0a0735a00cb915e17167bc2f62cd78353158c289d3e12651be876622812a3ad"
+  },
+  {
+    "migration_name": "20260530120000_add_directory_contact_favorites",
+    "checksum": "00683e5e27127f794ad469d58b343b16c7cd77463c0c84d6d31867c24dfd4290"
+  },
+  {
+    "migration_name": "20260530150000_add_program_element_project",
+    "checksum": "7aa3e26253864fa546a6802c61bc075da66005d1c24555ead5ae4a1867b6a29b"
+  },
+  {
+    "migration_name": "20260530160000_add_clio_research_session",
+    "checksum": "9ea6a7722e24f779adf9fb6d482baaa874c87e3e4fbe3513871b5e97c907dfde"
+  },
+  {
+    "migration_name": "20260530170000_widen_pe_code_to_16",
+    "checksum": "f5e0e787a05e09d1c2025ac28b99c980e3e1c8075b04e3543eab1ea4182c6e2b"
+  },
+  {
+    "migration_name": "20260530180000_add_pe_person_candidate",
+    "checksum": "a18537dc4f3f206e1622ebca1641eb64d80cc70138bef43c48997af9607d05ad"
+  },
+  {
+    "migration_name": "20260531000000_add_govinfo_cache",
+    "checksum": "acb0839b3614ba0775da680f726ddf961ee63cb8580155c657019474e12386d5"
+  },
+  {
+    "migration_name": "20260531010000_add_bill_text",
+    "checksum": "539a9c35eb33f6d324744e67fde98250d3eba3e08e12bd906be759487c5e0ff7"
+  },
+  {
+    "migration_name": "20260531020000_add_fec_pac_contribution",
+    "checksum": "25f39bbc9e1227f817222747fcc928fb78e6226dd261099d07913417ba981f53"
+  },
+  {
+    "migration_name": "20260531030000_add_procurement_line",
+    "checksum": "42d4f00a7f66dcd754cff986840341bfbcc1a5d25cb1f0e22516c71338ccce9f"
+  },
+  {
+    "migration_name": "20260531040000_add_federal_award",
+    "checksum": "5656fd3d85799cb0314dd9daaea6beb11b2efc11fce0f463736066e5dfbdfd67"
+  },
+  {
+    "migration_name": "20260531050000_add_reconciliation",
+    "checksum": "450047440c12009beea0eb73e0072ec844bdd7b6121c7bdf22d29cc972457e96"
+  },
+  {
+    "migration_name": "20260531060000_add_federal_award_location",
+    "checksum": "ec849d13997af0c3f5bda2402c7cb270e3f9074f1d48c4ce91bb3a09be06ed76"
+  },
+  {
+    "migration_name": "20260601120000_add_tracked_bill",
+    "checksum": "fb4b7cefbc2f86d862d6fe6ebdb5d72cf371547d170cef0a441d50e1b02d6db1"
+  },
+  {
+    "migration_name": "20260602160000_pe_detail_mv_refresh_fn",
+    "checksum": "79e05020e77177368a1785dc4e18e65cb660caadf7b496ac4e088503e2058458"
+  },
+  {
+    "migration_name": "20260603120000_add_alert_state_client_brief",
+    "checksum": "03316cb3bab3f76dff9cb359439a8e484d178a0b4823ed1a0a9b896d104d92fe"
+  },
+  {
+    "migration_name": "20260604120000_add_pe_acquisition_program_linkage",
+    "checksum": "2e277f040855aac2f4668bd20ac21852f80b7993d309e9248573d6ac3845947a"
+  },
+  {
+    "migration_name": "20260605130000_add_stale_data_markers",
+    "checksum": "a1bc3c85c6ff11a64ab7c29d94ad04e97a1bd62d647a0ea4d4e5d224c01aac15"
+  },
+  {
+    "migration_name": "20260605160000_widen_federal_award_pe_code_to_16",
+    "checksum": "641c222fbf4c218959cff5ffb52f7cc14eee25d882e4f4b64fee050ac3677b2b"
+  },
+  {
+    "migration_name": "20260606170000_add_client_issue_codes",
+    "checksum": "5a22876a9ea1808904a3ad1641b6c591e9ef8f899e4f17aec94215a124dd0084"
+  },
+  {
+    "migration_name": "20260607000000_add_pe_performer_and_award_tas_crosswalk",
+    "checksum": "872145c5445ba38b5d90919721cee43ab6e6c9476ab7b97e7bdd8233ba457b0a"
+  },
+  {
+    "migration_name": "20260607120000_meeting_is_internal",
+    "checksum": "126922a811431dd063fcb3221ae242400c2ca203c8a61bde667c9a7dcb5517b0"
+  },
+  {
+    "migration_name": "20260607130000_add_source_document_registry",
+    "checksum": "2839e0d0271078b4068bde016eda7dc1807a43b2e0cec46eb0fa2a627a32287b"
+  },
+  {
+    "migration_name": "20260607140000_add_meeting_prep_email_evidence",
+    "checksum": "614f2ebeb2528495fb26fed5c5831c7671034c49efff78299d29531f719a732a"
+  },
+  {
+    "migration_name": "20260607150000_add_program_graph",
+    "checksum": "cd434a3b8de9cceb719918e089d354f1257a98650db76b900b10b62a3a277899"
+  },
+  {
+    "migration_name": "20260607160000_add_program_element_budget_position",
+    "checksum": "52eec324d48fc538f26bd27eddb1d6668944e91c98310c0d9595dcbad9c42c5e"
+  },
+  {
+    "migration_name": "20260607170000_add_program_element_delta",
+    "checksum": "fce4df1bea907d230f2552d3eb2dd40d626f2951b105af1d8f47e2945dcfb67a"
+  },
+  {
+    "migration_name": "20260607180000_add_program_office_person_role",
+    "checksum": "c7d33360b39a626f5b29d02b5311d44c9fbf1bfd735289f5912e765d2dfc3790"
+  },
+  {
+    "migration_name": "20260607190000_add_client_relevance_inputs",
+    "checksum": "7b93fb6fd99abf0f2fedc0329d57acd20c887c0fdf874f2f779bc7bc7e0698f9"
+  },
+  {
+    "migration_name": "20260607200000_add_action_recommendation",
+    "checksum": "8b3bb404ca606c5f09ea34f394d1ea18a5c9db39e352930f5c46a4cfb46cdbef"
+  },
+  {
+    "migration_name": "20260607210000_add_committee_report_provision",
+    "checksum": "696d046ea06f45ba4e834179133a9a979d9f025dc6195bb8724704fcecc6bece"
+  },
+  {
+    "migration_name": "20260607220000_add_sam_opportunity",
+    "checksum": "7d649d9a51fb0fb696d92271e867d7f06f20aecfa363d5f4f7a7bfc0092600eb"
+  },
+  {
+    "migration_name": "20260608000000_force_rls_client_capabilities",
+    "checksum": "42f0407f58cf0298e46ab19d111943fb9175ea29a5662eca2e9fd790b1d348fe"
+  },
+  {
+    "migration_name": "20260608010000_add_tenant_rls_client_intel_mapping",
+    "checksum": "947d607149ff4982aec1ba58e4d6fd31c4e070010500e1075cf2058f65b554b8"
+  },
+  {
+    "migration_name": "20260608120000_client_lda_association_phase0",
+    "checksum": "e0615fcf5ba4a8348eb3fcbd0d4ff3402f8b5cc6a6db4591b7882a4ccc6406ea"
+  },
+  {
+    "migration_name": "20260609002500_widen_outreach_last_step_check",
+    "checksum": "07eca4981e60621ffc014b01f9747bc5f57824c712c93b20d939a12b1eb9fee8"
+  },
+  {
+    "migration_name": "20260609030000_add_clio_scheduled_task",
+    "checksum": "c9097e108ed46c7014ec7cdbfc914a28e9ac574fe43f9e246d41f24d4eee5d81"
+  },
+  {
+    "migration_name": "20260610100000_clio_attachments",
+    "checksum": "876cedf7e86a5b0d76628db922bfddf61f8a1e83d9021d49770378706a4849f9"
+  },
+  {
+    "migration_name": "20260610110000_clio_conversation_summary",
+    "checksum": "bf832e771cb8ab5fa7fb64b230ea5549e67b52113c81101d9452a03c9ee1b5c5"
+  },
+  {
+    "migration_name": "20260610120000_clio_mcp_servers_firm_skills",
+    "checksum": "49a97d4adfbeee9f341a15f7564f2d1717ce52e465211360ff62c84dc75a0d4e"
+  },
+  {
+    "migration_name": "20260611120000_ai_usage_events",
+    "checksum": "ba9bf66a1ef6aa4674126369bc20aa5202b1bd1a5fd5e7b52a09d5af57c0d669"
+  },
+  {
+    "migration_name": "20260611130000_tenant_ai_credentials",
+    "checksum": "7690fdaad6fdc7b13efca2512004f8cbccf9e367f0a5315477be66939a026a32"
+  },
+  {
+    "migration_name": "20260612090000_outreach_audiences",
+    "checksum": "fcbd41e30315c72d96c9f51b57a1153aff3bc8059bd17de86a1731c518243780"
+  },
+  {
+    "migration_name": "20260614120000_billing",
+    "checksum": "fbae89c82266460491876ed30ce3fc6c7b85342de747bb267c3a14d209fbf8c5"
+  },
+  {
+    "migration_name": "20260614180000_user_email_signature",
+    "checksum": "3ccbeb4500b61b27293a51123056a06ea5c7a5b723c4a75b6079ace77036c1a3"
+  },
+  {
+    "migration_name": "20260625120000_client_targets",
+    "checksum": "1e563f4d6959c5ac83b0f5711bf4b113cc8c7ee88a09ad14976a1ba1819a37e0"
+  },
+  {
+    "migration_name": "20260625130000_institutional_memory",
+    "checksum": "bab9820c1d8f948d195b5edf2e5abd3fb5143b722af93b12dfd07d5072246b55"
+  },
+  {
+    "migration_name": "20260626120000_client_target_recommendations",
+    "checksum": "3b50d3507107f21e455f1ef0783d0bc0da670c5d46c9892e050569080e8284c2"
+  },
+  {
+    "migration_name": "20260627120000_member_press_item",
+    "checksum": "805ab366c9dc2887e1ee3069e07d890aaa5d8d0163e8b795bdf7d83f7dc5245b"
+  },
+  {
+    "migration_name": "20260627130000_drop_legacy_workflow_strategy_chat",
+    "checksum": "95d4ad5a28a1ff25ef6744aabd09938fe08cef944d502bd07f954cbefbdef4cd"
+  },
+  {
+    "migration_name": "20260627140000_add_tracker_tables",
+    "checksum": "d5f2be5f3ea8fda8765bf643ac342365f199ed2730f26d113e20911e12504067"
+  },
+  {
+    "migration_name": "20260628120000_add_program_element_ingest_run",
+    "checksum": "9c0ca4977b550c1ddecace5405518e8f136c5a37d3abfe3a2694dada648dc636"
+  },
+  {
+    "migration_name": "20260629120000_clio_mcp_connector_library",
+    "checksum": "03965f4921e8e74edab09f95df2ffbda5ea3731af03ec1660d35ce08fa2af55f"
+  },
+  {
+    "migration_name": "20260630120000_meriv2_claim_evidence_compliance",
+    "checksum": "885ece17eb7afac10c5f77bc5e59a6cf88500e812e525d4099e764eee74ff608"
+  },
+  {
+    "migration_name": "20260701200000_engagement_attachments_allow_unlinked",
+    "checksum": "0ead3c48be418a164806eaf3c731fd131584e9116509e9ce4f9dcdc9c328f050"
+  },
+  {
+    "migration_name": "20260703120000_budget_lines_money_graph",
+    "checksum": "d3f4cfd28d7c8b1b965815575302f5b9f1537f2dcc083e8450e47974a1d061e0"
+  },
+  {
+    "migration_name": "20260703210000_bill_budget_line_link",
+    "checksum": "93e103408bb4ae233efa876dbd445fc414c59cacae41c963403b9a74e0b3fb34"
+  },
+  {
+    "migration_name": "20260704160000_acquisition_personnel_full_email",
+    "checksum": "9744f4bcad8722839d749c19d5d539ad21a907ee93e60c0898d7b0afe2fcb3a1"
+  },
+  {
+    "migration_name": "20260704180000_office_program_link_provenance",
+    "checksum": "17373f93b82db02e2bad770dd16a2c965a43cd882c0e0fe2cf78567b8407eec2"
+  },
+  {
+    "migration_name": "20260705120000_clio_memory_firm_dedup_unique",
+    "checksum": "2a8cbcc1a3492d347239847dd8acf20c3cbcad5b33116d1b7d85ef29648dcc51"
+  },
+  {
+    "migration_name": "20260705120100_clio_memory_rls",
+    "checksum": "ded327a13a59559f8aecd42b234a1e1408a69fcc0dc954ca91b97436699e0e24"
+  },
+  {
+    "migration_name": "20260706020000_meri_action_approval",
+    "checksum": "28e58c2ea4b4690087b03f26eac405b5aaf515b3ac77a4cc00b89099c1923364"
+  },
+  {
+    "migration_name": "20260706180000_official_hearing_transcript",
+    "checksum": "1122d476c886e04aadcfdcfb6e2e3f0df210cf3703570538972692ea386f1374"
+  },
+  {
+    "migration_name": "20260706220000_intelligence_change_dedupe_key",
+    "checksum": "a18c2a62678f0fa1b35f25c9a3cae876748ba58193fe1939fe02c8260cdb0472"
+  },
+  {
+    "migration_name": "20260707003000_onboarding_v1_billing_admin",
+    "checksum": "a32d5b29b560747811c904bbd7f23b4f10c6e5ab8800b69e82f29ba1c76610e3"
+  },
+  {
+    "migration_name": "20260707010000_cbo_cost_estimate",
+    "checksum": "7f2b657fc90fedce8279c005e955a34b1d84903917fea27d7ef94bea7a5793b3"
+  },
+  {
+    "migration_name": "20260707010000_user_tour_completed",
+    "checksum": "1bc6960589dae98fd0c569887c904d734a31c1929e292a46db727638d704b364"
+  },
+  {
+    "migration_name": "20260707020000_congress_member",
+    "checksum": "4ddcb42ba1eba3465a714478dd8c5360bbe46c7e2931d26f1918934dd6eca682"
+  },
+  {
+    "migration_name": "20260707020000_tenant_locked_at",
+    "checksum": "9daff931d3bf48aaa2f0bb010f0c3af4a2c9dbd9b67b6b733802ce910df08e3d"
+  },
+  {
+    "migration_name": "20260707030000_p61_cosponsors_committees_crosswalk",
+    "checksum": "2c626cacb50091a2832e15f868b143cf3b31116afec59f0ba0d01e8c959cc973"
+  },
+  {
+    "migration_name": "20260707100000_pe_alert_email_pref",
+    "checksum": "35a29fdc74f28ac08426f84285f515380c1ac138164761c478a7782ad131299c"
+  },
+  {
+    "migration_name": "20260707120000_meeting_bot_sessions",
+    "checksum": "9fce62f83351eb6173c54ec70638df4fdaaa5799bb146392b2af84b92d7f6d42"
+  },
+  {
+    "migration_name": "20260709010000_legiwatch_vote_truth_layer",
+    "checksum": "4dc5df830fd55c00ae3010d330e99e9db67c738b163d7ff9eab4e4d3a01c4347"
+  },
+  {
+    "migration_name": "20260709030000_legiwatch_b_hearing_bill_link",
+    "checksum": "2854870eaaa1573df22c9a4c665562e4acada4eb5c8975ff468ab43379cf5031"
+  },
+  {
+    "migration_name": "20260710000000_state_truth_layer",
+    "checksum": "3f92c0b8a8f8395275717784fe8198229814eaa974e22b2309da6880f223195c"
+  },
+  {
+    "migration_name": "20260710010000_district_impact_facility_geo",
+    "checksum": "dd4ae8a6f7de64877db8c6e6a1ecbecdcba94f7571d20f821320e95cd2eedf1f"
+  },
+  {
+    "migration_name": "20260710020000_deadline_physics_chokepoint",
+    "checksum": "594b423ed0060e3493610df76113efd3b2199cdba5405e699e21cd67ec65149d"
+  },
+  {
+    "migration_name": "20260710030000_state_rules",
+    "checksum": "6d99c9bcdca43eca997bae2ba7734fc051464d5cccaa36b0a595f1e8f0d0462e"
+  },
+  {
+    "migration_name": "20260710040000_ai_run",
+    "checksum": "5bd10e144a565aec4ef6597c2c9516bc55e94255cc1d8935c031d773a85c85ed"
+  },
+  {
+    "migration_name": "20260710060000_state_bill_status_derived_at",
+    "checksum": "6cc5e3e7d314cac9450c7522a6344f7276260d2df0d829fb545b5c110ffc1d03"
+  },
+  {
+    "migration_name": "20260710120000_add_ndaa_conference",
+    "checksum": "acca4c6ba9adf232636d4b4cd4aa265a1f5db72eb34953afac632b9d2fe1cd5d"
+  },
+  {
+    "migration_name": "20260710120000_meetings_v2_visibility",
+    "checksum": "5b76efe94a6eaea222b1f6a3f7935fdeb1ff5fa2947d3b89d40d3f8c3a322006"
+  },
+  {
+    "migration_name": "20260711000000_outreach_usage_spec_cache",
+    "checksum": "217e838cb8ca9231d85737d280a12ecfc255250de5a0432ecaf8ff6164c417bf"
+  },
+  {
+    "migration_name": "20260711010000_outreach_async_jobs",
+    "checksum": "0a844af0723be8f9bdce75f251cf98f1aa9715bddf2eba0cc231e7b432d4da6e"
+  },
+  {
+    "migration_name": "20260711120000_meeting_ical_uid",
+    "checksum": "8d9da232918cd55527cb1e944e411dbb50b1c24de70b41910a0713d295301b36"
+  },
+  {
+    "migration_name": "20260712000000_meri_audit_ledger",
+    "checksum": "7efce49f0372d4c26ec3b380476207edee47f97a6954b8c875eecbcaf9344b61"
+  },
+  {
+    "migration_name": "20260712010000_memory_items_governance_fields",
+    "checksum": "d11bd9fdb5d0bcbb232a49e325d2de69b8d62dd1216890ae9f780293c7eafc79"
+  },
+  {
+    "migration_name": "20260712020000_memory_candidate",
+    "checksum": "7751ee76fee33c8f40936db4896ddf98369ae8594f2bead248de17083bc9228f"
+  },
+  {
+    "migration_name": "20260712030000_memory_items_private_scope_rls",
+    "checksum": "95eb72649cbc95451acb615e7282ab04262e11d433c53ef3173f9942c2cfb220"
+  },
+  {
+    "migration_name": "20260713010000_context_packet",
+    "checksum": "8187d83de8c917a3c1e20dd0ffa018f9a3c1adfe9cf9738f720c29a08954b244"
+  },
+  {
+    "migration_name": "20260713020000_memory_client_scope_ephemeral",
+    "checksum": "87427f6a7ffb79aee2388a4023318d25d570b92a483173400a359ca4e214347b"
+  },
+  {
+    "migration_name": "20260713030000_memory_items_expiry_rls",
+    "checksum": "b51411e827e4dcf79489de2a71b327f87d9b330544d037a776bad2f455d54179"
+  },
+  {
+    "migration_name": "20260713040000_outcome_event",
+    "checksum": "452b51d5fb6ccbf5ef9036d3653c20178295d280d72b46dfbfe5d0d13a8bca08"
+  },
+  {
+    "migration_name": "20260713050000_review_request",
+    "checksum": "446be3755ce79d00c58dd13b092712c76b5f9a752ac3aad93f3bfed7d93de595"
+  },
+  {
+    "migration_name": "20260715180000_meri_pending_action",
+    "checksum": "f03c99530517068b22e3d8753fdb3b4e11698385de13f73fd2e0e2778ac91461"
+  },
+  {
+    "migration_name": "20260716000000_pe_watch_s3_archive_and_parse_job",
+    "checksum": "96315738001a44d1939b57389b217e494751baf8f27760fd91559b08b6138224"
+  },
+  {
+    "migration_name": "20260716220000_proactive_alert_owner_rls",
+    "checksum": "52259ae0e2de4103589a9c7ca9053c1fe64c4faf754a7b427b2d03f21414eb52"
+  },
+  {
+    "migration_name": "20260716221000_intelligence_insight_tenant_rls",
+    "checksum": "2211a2f5d1de5338aa23e1f1db13945ece80838d2da297764ffb9d28c4ab6632"
+  },
+  {
+    "migration_name": "20260717120000_review_request_outreach_surface",
+    "checksum": "74c96ceb6b313796bf38b853060f1b4215f737478551ab24592be00f0f6b7126"
+  },
+  {
+    "migration_name": "20260718000000_audit_append_only",
+    "checksum": "f1143efdd9a668fa337c8dbf07edcc23aa04266042be4a670fad30eb982a5aee"
+  },
+  {
+    "migration_name": "20260719220000_client_memory_walls",
+    "checksum": "09286280f6940879235a6884a3a4f6b8f474c5c22f71fd30cdc639781482beda"
+  },
+  {
+    "migration_name": "20260719221000_memory_wall_rls",
+    "checksum": "3919bd9a7db0e757e307c4379733549d509de90cc900c5f3546095b1230e9353"
+  },
+  {
+    "migration_name": "20260720120000_memory_ingest_provenance",
+    "checksum": "2abe2add5344fc76e918aa10203b4e7ab2d0d803989737c78ff22559713f976a"
+  },
+  {
+    "migration_name": "20260721010000_memory_confidence",
+    "checksum": "ad7c036cf42ddb3880895e4f3258ffed54af7d3919fa828e060ca72e261da3e2"
+  },
+  {
+    "migration_name": "20260722010000_kg_edge_cache",
+    "checksum": "59b649ee41c58c1bfb48dab0951d55e2bcb3a98ce7c20d87457d7d7aeddf0293"
+  },
+  {
+    "migration_name": "20260722020000_kg_bounded_traversal",
+    "checksum": "d1607fe338a653b4b90070480a083e31472b3972cfbe04501661dc06e4603978"
+  },
+  {
+    "migration_name": "20260723010000_kg_cache_count_and_comments",
+    "checksum": "c65efa4a982df3abbab949b716a152fc663a4f0a0c6f210f60534e2b0419a6f7"
+  },
+  {
+    "migration_name": "20260723020000_kg_edge_cache_revoke_select",
+    "checksum": "57cc241a9e1c628f0177b5f229d4390f100f8298e0f3615721d382a09852ed58"
+  },
+  {
+    "migration_name": "20260723030000_kg_edge_cache_fec_employer_kind",
+    "checksum": "e242e52769d2b9012655c6141629d3a499c96324bbe47fd9bc7d884a798c115e"
+  },
+  {
+    "migration_name": "20260724010000_congress_bill_trgm_lower",
+    "checksum": "c03c37a331964515ee56845139f62aeb35f68120cc251c505b54e3048574f9a7"
+  },
+  {
+    "migration_name": "20260725010000_client_target_state_directory",
+    "checksum": "e692576e171122232c60304585a0e72f37bb89e2ae3171023c6bead983d7f324"
+  },
+  {
+    "migration_name": "20260726010000_client_target_tier",
+    "checksum": "2a61b3ec24ce6101944f180fc1e43167e12ce24afa88833576ab5309bc601595"
+  },
+  {
+    "migration_name": "20260727010000_defense_budget_packages",
+    "checksum": "2b24f80b084b02642538083275b6769413b493e62f528800623c8d72d6618bf6"
+  },
+  {
+    "migration_name": "20260727010000_engagement_trust_boundary",
+    "checksum": "e6cdd0b63c91fcc7873f3b621c3ebfee94c9d1402ac4c7c3279037c6c6c3aab8"
+  },
+  {
+    "migration_name": "20260727010000_legislative_district",
+    "checksum": "4873f6a56ebefa9a11a2e42d819eaee6ca9e93e2ca44fb4a1794da0cecfb3e29"
+  },
+  {
+    "migration_name": "20260727170000_mail_message_removal_state",
+    "checksum": "9da2db6be8d71dbd4735f52dc89c3a9e1d459c264dac6f7eac22499546435341"
+  },
+  {
+    "migration_name": "20260728010000_legistorm_trip",
+    "checksum": "a76546f0c7b6bd6648bba378be300c0e4867f50d26bf0ccbdf8637b0b94c6b42"
+  },
+  {
+    "migration_name": "20260728010000_meriv2_action_proposals",
+    "checksum": "a0195a5f314fd43637c54e8882c8ea617faba258a38dd74ce7226aac02ec8079"
+  },
+  {
+    "migration_name": "20260728230000_add_tenant_scoped_pe_watch_key",
+    "checksum": "b32803c40c6f1e144d16e53e70fa05897e67a7dcefec0ae37ed7f472e8821ff2"
+  },
+  {
+    "migration_name": "20260728230100_enable_program_element_watch_rls",
+    "checksum": "ca8de8f822ad5be40868aaaedc342495591eed2e0c23e6114f9f11b4d523e7f3"
+  },
+  {
+    "migration_name": "20260729010000_committee_membership_watch",
+    "checksum": "733afbf130f47e28d1d1a07912985bb083b52915948198dfe32629aadc86bdff"
+  },
+  {
+    "migration_name": "20260729010000_memory_governance_context_v2",
+    "checksum": "7a1bb0bb267bb6ee467d631ef60903ae9aa4d655a22a3f1299560e96fd656c5b"
+  },
+  {
+    "migration_name": "20260729011000_memory_governance_lineage",
+    "checksum": "d8a4ae20997e07f9ba4df66572cddddbd4a30a9572276a1952865b7418d25d10"
+  },
+  {
+    "migration_name": "20260729035000_legiwatch_recap_provenance_and_intro",
+    "checksum": "0770b2e09fa23ab531308565d835ec005a2616c60a73f037bf251c078528cbe1"
+  },
+  {
+    "migration_name": "20260729050000_pe_observation_idempotency_and_outbox",
+    "checksum": "d2fcc0e7cfe16415c9255c87aa5203764fe8e6149e7ce4de4bb7329b2f672baa"
+  },
+  {
+    "migration_name": "20260730010000_client_people_import_identity",
+    "checksum": "0e835163644a092ee425a52e32db47b58f7a431d73930ddc07a9091f25a7d844"
+  },
+  {
+    "migration_name": "20260730010000_district_nexus_grants_v2",
+    "checksum": "ab98e20ff9bf0e95c1f0ab8476116ada6108ee75a40f9e2fabc07123d21ffe29"
+  },
+  {
+    "migration_name": "20260731010000_federal_grant_detail_v2",
+    "checksum": "38fd62781b6c943a4a38a4685fd316ad18d7d5192ec4f98c18c2dc9a6d29bfc2"
+  },
+  {
+    "migration_name": "20260801010000_faa_recipient_name_btree",
+    "checksum": "ea5a3c5357085bd7bed481b39d9de568ca294a4daaa3b66bd18712516c937498"
+  },
+  {
+    "migration_name": "20260802010000_identity_outbox",
+    "checksum": "ee18a59643b5a84e4e07af53161ba9e028afcd3680ea004932ef9bb7696c246f"
+  },
+  {
+    "migration_name": "20260802030000_user_identity_conflict",
+    "checksum": "7f3a08cf09041e1a26fdf53a85d4ae2939a38e8a49859fca4e793634fa1c961e"
+  },
+  {
+    "migration_name": "20260802050000_budget_verification_audit",
+    "checksum": "d3be05f98495fab3513f15bef3f8972ad5b59af070c1ff8ef6972bd53c58b111"
+  },
+  {
+    "migration_name": "20260802180000_budget_verification_containment",
+    "checksum": "825ac6391728d78f276bfe797f601d02850b92347ce5d1dae35a2c4b590318af"
+  },
+  {
+    "migration_name": "20260803010000_engagement_generation_gateway",
+    "checksum": "e5fa76ca10aa194e6cfb133872cff197ec48f22d818bb3b399f5d0de6f347f7b"
+  },
+  {
+    "migration_name": "20260803160000_meeting_timezone",
+    "checksum": "14f074acd1400ab65d1b3a493c9f65d4092f204ed8077243a1f24068c63dcc1a"
+  },
+  {
+    "migration_name": "20260803170000_soft_delete_sparse_untitled_occurrences",
+    "checksum": "8241b64a909563f640eaf658b1e24b0d736d43e1616901b1d2ac26982952cc9a"
+  },
+  {
+    "migration_name": "20260804010000_engagement_artifact_lifecycle",
+    "checksum": "18877e8b54cac9cb684d66ab0601fcbcd6f9fb6a18fb2af5a7b3eaae1243434a"
+  },
+  {
+    "migration_name": "20260804010000_engagement_attachment_supersede",
+    "checksum": "e234cde68cac9e7f52d4be6bd4d3779829a62a339f74c26c0d5c1f47fc12add6"
+  },
+  {
+    "migration_name": "20260805010000_alert_generation_record",
+    "checksum": "8204191d17f8cc4052e8dbd230b3dce1a5e3bd31517e4ffbf20855c52bf2568e"
+  },
+  {
+    "migration_name": "20260806010000_client_grant_nexus_producer_unique",
+    "checksum": "7e48ae7fdd900160d1aae812ccccb56d91ce09d14cbec37c97e8dbecfc25f390"
+  },
+  {
+    "migration_name": "20260807010000_engagement_audit_ledger_subject",
+    "checksum": "009a562ea79502cd1764c71767674aa20c2a846207ada92af098dcc301e30a15"
+  },
+  {
+    "migration_name": "20260807020000_engagement_send_intent_fingerprint",
+    "checksum": "0a17f4402ba50dc96b3701b32b8e82cfe82dd0fe9946c09218bf6a0ac6bffd1f"
+  },
+  {
+    "migration_name": "20260808010000_client_grant_nexus_manual_award_unique",
+    "checksum": "4598f525130718b97bb1673cff3d3878876ea4d892c3839c61a2bedbcd879087"
+  },
+  {
+    "migration_name": "20260809010000_client_applicant_types",
+    "checksum": "d18e5aa0779b200f3dae08f480c2424aa2d92210317d75c64397a8e0035b95f3"
+  },
+  {
+    "migration_name": "20260809010000_engagement_audit_finding_redaction",
+    "checksum": "7e8b61e4d23559c42ba6d28ef760b66af1b598388438b6341369aa34cdfa7e7f"
+  },
+  {
+    "migration_name": "20260810010000_funding_opportunities",
+    "checksum": "55abfc4cd145a1cee5fe44b05cb5b2e991ffbed0d8dcea98725b6b04ac39c8ff"
+  },
+  {
+    "migration_name": "20260810020000_funding_opportunities_closeout",
+    "checksum": "77561b3a3651d770e376c5ad04700ec1f2b3d9481c39705dff052ee7e8e0a540"
+  },
+  {
+    "migration_name": "20260810030000_committee_hearing_starts_at",
+    "checksum": "fb611dbc5fd823d6687a096e10a53fc3b97e6ed3cf0c5e058a54a68812747043"
+  },
+  {
+    "migration_name": "20260810040000_funding_opportunities_lifecycle_truth",
+    "checksum": "d53da3a145ceaf626f3d1144f278cb792b41787a2270be2f9533ff5b140b4fba"
+  },
+  {
+    "migration_name": "20260810050000_widen_facility_state_district_columns",
+    "checksum": "39c8200f82733fd108f4240d4a340c92182d902fa6dac60f4f4843e62dbb4d35"
+  },
+  {
+    "migration_name": "20260811010000_assurance_policy_packs",
+    "checksum": "c8c4cda5a50070c66028581a667cec4dd727ec9a1872cfd12be18e44b9d1d5db"
+  },
+  {
+    "migration_name": "20260811010000_program_element_data_issue",
+    "checksum": "c6b832b807142424ae0b1d4eb856fab08d9738e7ef842404a9b1ed3d53dbc1ed"
+  },
+  {
+    "migration_name": "20260811020000_assurance_eval_runs",
+    "checksum": "1934eaaa8e46f75b33b5dc2abdecfc9a467f35c1929498f9a3af17e4391ee9fc"
+  },
+  {
+    "migration_name": "20260811030000_assurance_feedback_fixtures",
+    "checksum": "c7feff926971b69c019639977b6109775f2eed3fb0977a94f21ff5c0f68bb5ea"
+  },
+  {
+    "migration_name": "20260811040000_memory_index_outbox_subject",
+    "checksum": "228129b637e84e115905eb106f9898f781f8f031de6d6728c7b9215c2e53940f"
+  },
+  {
+    "migration_name": "20260812010000_memory_immutable_versions",
+    "checksum": "62e22b7e4c3c76c42f89068b98d58d267dd18444a4d5211da164b53a9f4b78ec"
+  },
+  {
+    "migration_name": "20260812020000_memory_cleanup_worker_leases",
+    "checksum": "6c8ed40cc1fc29fd346ceaeba16e534688a586581f610aea6130cc2e35eafe26"
+  },
+  {
+    "migration_name": "20260812030000_memory_projection_exact_completion",
+    "checksum": "d0809e55ce91165a2980b27b2fee41002a79130c90516f002e2481814e6931e4"
+  },
+  {
+    "migration_name": "20260813010000_policy_pack_action_authority",
+    "checksum": "42586f22f1fafbdc18dd5c5510a670522796d512e2ac87eaf6fc47a266f87525"
+  },
+  {
+    "migration_name": "20260813020000_policy_pack_lifecycle_concurrency",
+    "checksum": "c8bbb873de40743e169a496f1e1761b8dc3416993d6a2da9fef73d7822d39c32"
+  },
+  {
+    "migration_name": "20260814010000_memory_governance_backfill_jobs",
+    "checksum": "c1ab3c805a812d41a04279855861a24cdba056bea2d1bd8c1b0d479fb8975327"
+  },
+  {
+    "migration_name": "20260814011000_memory_governance_backfill_delete_guards",
+    "checksum": "6b38ae2e5851f1b886641c3dfe94445f283ca3d16e04e053b9afe983ba47259c"
+  },
+  {
+    "migration_name": "20260815010000_memory_candidate_withdrawal",
+    "checksum": "18061de8248a32d262a53c0dbbd124313ef28992f4d968a78927dea992977877"
+  },
+  {
+    "migration_name": "20260816010000_budget_verification_v1",
+    "checksum": "91c522f627a4cb003e63e09cfe798c74479a7b6d896a0e73f7dc942965d09cfa"
+  },
+  {
+    "migration_name": "20260816235000_add_client_account_owner",
+    "checksum": "e577a94451f82debf530a4fb7351573ce7a6f41f0e36500da580fcb2cd789aed"
+  },
+  {
+    "migration_name": "20260817010000_rdte_phase4_projection_schema",
+    "checksum": "f6f181a52095dd9d20dc1319b6f9c55de3cdf3ee9fc682f19cf8c7453b9b8bf0"
+  },
+  {
+    "migration_name": "20260817233500_context_packet_retrieval_context",
+    "checksum": "b15257188ecd0ca455d3bfb17b976f1ad61f324f87a551118baac8bf54a5b506"
+  },
+  {
+    "migration_name": "20260818010000_memory_phase2_review_workflow_foundation",
+    "checksum": "5abb141cb7b1ade477cb43b0884c30a3b20e4c3fbecdcbaf58d26a4db1ed68ed"
+  },
+  {
+    "migration_name": "20260818010000_rdte_phase4_closeout_constraints",
+    "checksum": "b64ee843e58d30cbcac939fa2ba0e75d273aba3f3c7163371a76c4053e65905a"
+  },
+  {
+    "migration_name": "20260818020000_memory_phase2_revision_lineage",
+    "checksum": "508258b36134a506bcf3c85880fcff0745919c57283d373eab841c04500bcc57"
+  },
+  {
+    "migration_name": "20260818020000_rdte_phase4_audit_repairs",
+    "checksum": "f71670354eb2a3a0d54dd77f872dec8fa1f439eeb02981237e2b99016461b056"
+  },
+  {
+    "migration_name": "20260818030000_non_rdte_phase5_projection_schema",
+    "checksum": "ac9f716144663d3ad50b1f23db34d4e8aa57ce2a6735d20b31324aa05d0b765d"
+  },
+  {
+    "migration_name": "20260818030000_widen_memory_candidate_source_kind",
+    "checksum": "03b31065b3dbd5024f738f34a270293aea1047d95f6cab6eea1ec30cbe3908f6"
+  },
+  {
+    "migration_name": "20260818040000_memory_phase2_notification_outbox",
+    "checksum": "015714620eea0b9118c5222e50394ea67318fcc56e4044462a70d92a87068a6e"
+  },
+  {
+    "migration_name": "20260818040100_memory_phase2_notification_assignment_classification",
+    "checksum": "969d24ee83e4684c02199a2f7dc7eb96adf7bf2922b05d4dba8a1e6f56d12e33"
+  },
+  {
+    "migration_name": "20260818040200_memory_phase2_notification_dispatcher",
+    "checksum": "57d165f7aa228f289ebcca4ae12a1df176e6c637fefaac19905f12b80c1d6b04"
+  },
+  {
+    "migration_name": "20260818050000_memory_admin_self_approval_policy",
+    "checksum": "91a0a8c5b088d8ff6b345e5ab6a812257eb1c3c943bb6cf722a80e3e995e59d7"
+  },
+  {
+    "migration_name": "20260819010000_funding_opportunity_decisions",
+    "checksum": "b23c06517e474f859b14f6a3deed5bfaa4189c839a86933efc1273fcaa4b300d"
+  },
+  {
+    "migration_name": "20260820010000_facility_geocode_retry",
+    "checksum": "f8e78201c4f48472035c4f7693bd8272bf80c8d5974510db3e48f837e80e88f3"
+  },
+  {
+    "migration_name": "20260820010000_funding_opportunity_generic_source",
+    "checksum": "d93fb7d8875c8717050d19878310e1e92f220b5a23fe614e9298b1612fe5c718"
+  },
+  {
+    "migration_name": "20260821010000_facility_geocode_candidates",
+    "checksum": "9e58b3466eda605ce0d13ec433b4ee0a174daf498bf65ed6dd60b20b8b26c0a0"
+  },
+  {
+    "migration_name": "20260821010000_tango_source_substrate",
+    "checksum": "2d8ee392bd055a15dd5fd18d7bd66bc943f14f1fdd5c181abb389e7a6c5f94e9"
+  },
+  {
+    "migration_name": "20260822010000_client_tango_entity_sync_status",
+    "checksum": "3a9b9575dc1dfaa6e1ae4715b4745c5e5fc85523d6f2128132e864abd6625748"
+  },
+  {
+    "migration_name": "20260822010000_pe_budget_phase7_canonical_promotion",
+    "checksum": "84edee9e6564da4915ff90370da3890e5c44fadc375d89ef6898def9bd67aa2e"
+  },
+  {
+    "migration_name": "20260822020000_pe_budget_phase7_manual_override_queue_link",
+    "checksum": "ba12d5320ce581895355372a1899c0cfcaf4447bf99a8c22e6c0cafd2a9a9d5f"
+  },
+  {
+    "migration_name": "20260823010000_client_profile_enrichment_candidates",
+    "checksum": "0618a20a34c819bf5fff4798b45ff76ddcfb6d7fa5cfa9ac53de4543b378c690"
+  },
+  {
+    "migration_name": "20260824010000_client_relevant_vehicle",
+    "checksum": "ea8caf42557b8b5e8ac122645dbddaa6807eaabeeb57568df83100a3ec4168ea"
+  },
+  {
+    "migration_name": "20260825010000_tango_procurement_forecasts",
+    "checksum": "065c36df88504da1f078325d76725beec8735aacc15e8071a08403b9ceda5ecd"
+  },
+  {
+    "migration_name": "20260826010000_tango_opportunity_crosswalk",
+    "checksum": "a9a4ea86cdd96722f138c336b33003afbcf5daca5f1dd14068b2da14cf4073b8"
+  },
+  {
+    "migration_name": "20260827010000_tango_opportunity_notice_history",
+    "checksum": "386b4c9bf72d0fc2e5c4e8a179143f387e944f38e36067f065c546eb681a7f84"
+  },
+  {
+    "migration_name": "20260828010000_tango_notice_description_hash",
+    "checksum": "49d6c8421db2b452cacc791e95b4fb7630fe0d5cceda25963a891ab70452f124"
+  },
+  {
+    "migration_name": "20260829010000_opportunity_attachments",
+    "checksum": "5e7c94c6c4b3b89db3b6a8d501b561de86d36b3bc1a03a71b604d156733ec777"
+  },
+  {
+    "migration_name": "20260830010000_opportunity_document_text",
+    "checksum": "5805ea4f752627efcd9abb7171c51c15ecace9abf4d26b7c79a75374f58d1b3c"
+  },
+  {
+    "migration_name": "20260831010000_opportunity_requirement_artifacts",
+    "checksum": "eaa7b8245524d0caf3351b25c6fb976a16e4def0ca25c9306f7a3a9d0263df53"
+  },
+  {
+    "migration_name": "20260901010000_funding_opportunity_pipeline_v2",
+    "checksum": "218abc419135f6eaf6ebb4a693b9a072d63bd7b7237af8486c795c8ff689ed91"
+  },
+  {
+    "migration_name": "20260902010000_pe_budget_phase7_outbox_drain",
+    "checksum": "16158b15921a59f7cd88f40d9e3261717f528aecf24ea0f6e85febd320ec062b"
+  },
+  {
+    "migration_name": "20260902010000_tango_budget_context",
+    "checksum": "ae38e0e36789d8f4e1b2d62ab4421ac616a8a3de70887ee294f1a353248710b2"
+  },
+  {
+    "migration_name": "20260903010000_pe_budget_phase7_promotion_eligibility",
+    "checksum": "47a1d515f3ee4a8df5e38ffceac290431d8796da1560da3a21b8e0d0bbd2aec3"
+  },
+  {
+    "migration_name": "20260903010000_tango_procurement_risk",
+    "checksum": "905b9276f0b1192dc88e3d6fff6cd76df1ee014c3b6fb997227332863163b8d1"
+  },
+  {
+    "migration_name": "20260903200000_legiwatch_user_prefs",
+    "checksum": "49690100a88b810809cfc5602b0a9a834622289d5744aa7c8991dae2060792fe"
+  },
+  {
+    "migration_name": "20260904010000_outcome_event_funding_opportunity",
+    "checksum": "5d2c399c96024cd13a68061bbfbad052b7ed35bb6c544d4ccc0fc4b1b0386e26"
+  },
+  {
+    "migration_name": "20260905010000_tango_webhook_deliveries",
+    "checksum": "f023618afc11924f3b1bf295bc974ea9f159f64add9346d835c4015da897f81b"
+  },
+  {
+    "migration_name": "20260905205000_district_nexus_release4_priority_intelligence",
+    "checksum": "8054f75b7e218f0b54daaa1527c3b010291ab36634210e13a6d3664419112a68"
+  },
+  {
+    "migration_name": "20260906010000_gsa_frpp_varchar_overflow_fix",
+    "checksum": "2dafa445d07dcc8d1eae8c87634addf09446dbb2b35c7a823edf3dd99d6e1ac7"
+  },
+  {
+    "migration_name": "20260906010000_tango_event_outbox",
+    "checksum": "03435e6c9c8eddb186599b31fec69d7d759b6d07382ec85f8345b76285537af6"
+  },
+  {
+    "migration_name": "20260906020000_district_nexus_change_observation_kind",
+    "checksum": "1742320932f8cba18db01e550424bfd8ec65783199f58556fd656f7e3dce7acb"
+  },
+  {
+    "migration_name": "20260907010000_pe_budget_phase2_candidate_source_metadata",
+    "checksum": "af83ae121703868deaef94052362a1ee0f107210d49de6e40e69f2adc7e02127"
+  },
+  {
+    "migration_name": "20260907010000_tango_event_outbox_per_event",
+    "checksum": "9c75a60026d32595c105d14f14605477c31d83572a7b3af41ed4a9223618f8ef"
+  },
+  {
+    "migration_name": "20260907020000_pe_budget_projection_plan_persistence",
+    "checksum": "da01d46d8fe8caaf2c03797196fc13aca8774302b37b431ea2c28b1b4b6d2983"
+  },
+  {
+    "migration_name": "20260908010000_outreach_v3_campaign_state",
+    "checksum": "660267db982dd63f3d20e83fe15dfe5211dc99897ef35a494c8d3889e69bd539"
+  },
+  {
+    "migration_name": "20260908010000_tango_dibbs",
+    "checksum": "8610e8343d860ae922f7dd565c2c8176c90087c25cbec00fb2e96764ca817b9b"
+  },
+  {
+    "migration_name": "20260908200000_report_target_annual_overrides",
+    "checksum": "a608ea2b00e54dcc42a100f36d2af1e06280a545ed5581f8962a022487dadb3b"
+  },
+  {
+    "migration_name": "20260909010000_tango_sbir_sttr",
+    "checksum": "5fa43408934a63e6034f80597e2661ce21d72a96a6d25f32640e7cbfa4b8077a"
+  },
+  {
+    "migration_name": "20260909020000_pe_budget_phase7_exact_plan_read_grants",
+    "checksum": "79c749efeca5940ffa3c55e81959c10d05f2cdaac8ffa07868d089287949e78a"
+  },
+  {
+    "migration_name": "20260909110000_fec_pac_source_identity_and_coverage",
+    "checksum": "e667ed586a77052ded0ccd48cafec87fbec129005b32efaec0922e21ce3ea25e"
+  },
+  {
+    "migration_name": "20260910130200_state_bill_source_checks",
+    "checksum": "9f1841bbc00337c86399a5e784ea4f8c9c06458b99adf3d2d1ccbc3550d58370"
+  },
+  {
+    "migration_name": "20260912000100_meeting_prep_jobs",
+    "checksum": "137196a32185300ce8c15e8170557b8152304670b246f9e4249a7e154725a6e3"
+  },
+  {
+    "migration_name": "20260913120000_meeting_prep_depth_max",
+    "checksum": "65d6687223c8cc134d4a846d127a92ddef93f037e9b62ed0b98cb49906ca6c5a"
+  },
+  {
+    "migration_name": "20260913130000_meeting_artifacts_auto_approved",
+    "checksum": "2cb95fd2db01034d16f94c7e23a4a6fb71027f713b74640a0401f16f85d19ceb"
+  },
+  {
+    "migration_name": "20260913140000_notetaker_notes_auto_approved",
+    "checksum": "0f1b5d4be318abb6ff1edf98e9b79402a50655817e02e400c2ef6a21cb851754"
+  },
+  {
+    "migration_name": "20260914010000_client_notetaker_preferences",
+    "checksum": "99466f42d9df86f7c7c257405c04e12f400973818b27f94a3af2187a26c483eb"
+  },
+  {
+    "migration_name": "20260914120000_admin_broadcasts",
+    "checksum": "c799d09023d4d0bc196794bf5b4170d00349af242555c861407ac1124b8e43c1"
+  },
+  {
+    "migration_name": "20260916140000_saved_opportunity_searches",
+    "checksum": "2bb96bebb5e9cd958e896f0dd54925c64ea938d44cf93de070b7bd1cb1c5fb18"
+  },
+  {
+    "migration_name": "20260916150000_pipeline_reason_rules",
+    "checksum": "341deb7e31f6c6e574d7d2f4612721ba227bd5a498f360af4ae91aacf0f7d29d"
+  },
+  {
+    "migration_name": "20260916160000_california_grant_opportunity",
+    "checksum": "2e028de832da9bef3a3263ac391bdea7468f34bd94ccdd9962775c496ada8526"
+  },
+  {
+    "migration_name": "20260916170000_california_workflow_identity",
+    "checksum": "13971efee59b3d27731080b79a184f06447bdf5640ab4ff594d0d524044e2946"
+  },
+  {
+    "migration_name": "20260916171000_california_workflow_identity_check_hardening",
+    "checksum": "5982638c4e73d77f2b930d6b2490bcb40615db88770594e751a7cf653caafcf8"
+  },
+  {
+    "migration_name": "20260916180000_opportunity_bookmarks",
+    "checksum": "270dac81272ba34c284216f2cd1424e0b9796e91d422ce7e6a6f3ae765c9561f"
+  },
+  {
+    "migration_name": "20260919010000_mail_messages_tenant_sent_idx",
+    "checksum": "1ab0de11c6e3f1c6c8e0c3aaaf048bff65b90b8cbfe7fb12c9f8db69fdb2a01d"
+  },
+  {
+    "migration_name": "20261001010000_tango_subaward_intelligence",
+    "checksum": "276edfe5caa50e3c47895e0d45473a645453097582123d13df308f2b9be62581"
+  },
+  {
+    "migration_name": "20261001011000_tango_subaward_reobservation_freshness",
+    "checksum": "717c0e6d095a5ff826e53e7a42b38977f5365387202012b3b2708153b711fc06"
+  },
+  {
+    "migration_name": "20261001012000_outreach_v3_reasoning_conversations",
+    "checksum": "5e39247e5db258bca4a9dfec415a2429aae9c025c6ead0163eb864d0c85da140"
+  },
+  {
+    "migration_name": "20261001012100_outreach_v3_reasoning_turn_claim",
+    "checksum": "7c593996a4b8d2e0f4daa0c02ed3c311e1519c19067798536bb231facfb31fe8"
+  },
+  {
+    "migration_name": "20261001012200_outreach_v3_reasoning_archive_claim_cleanup",
+    "checksum": "7fff43170dd2e4cd5cbb6f3a8c667c301aaf27b29b09d9ef4243878917d432ff"
+  },
+  {
+    "migration_name": "20261005160000_krisp_notetaker",
+    "checksum": "558a06f0317d99105242eecb024b7848ab48dfdd4d5015aa7f11f43064718224"
+  },
+  {
+    "migration_name": "20261007010000_newsletter_outreach_format",
+    "checksum": "7ec7f6d4dbdf9e718aafab4f6f6187161c85da7e0385e59e95965f23a50fccf6"
+  },
+  {
+    "migration_name": "20261007020000_newsletter_review_email_delivery",
+    "checksum": "ca590570056e13552d693cafc5e97b80d076b9fb90ec6801487730ad33c30a26"
+  },
+  {
+    "migration_name": "20261007030000_newsletter_invitation_email_delivery",
+    "checksum": "558cb08decf56507371672935e3f4b35c0b1a4f76cd86adf8e1aa9aabee10b47"
+  },
+  {
+    "migration_name": "20261007040000_newsletter_account_invitations",
+    "checksum": "a95122d6b1ba8ca13af0646bc6b03e8a8faf67d4ecb81622cc0cca3486473326"
+  },
+  {
+    "migration_name": "20261014050000_user_portfolio_layout",
+    "checksum": "7ccb4dbc851ddd33c9f6e198ea5b143891def95667effcd2f9d20f45fa86a22a"
+  },
+  {
+    "migration_name": "20261015010000_client_profile_fill_with_meri",
+    "checksum": "efa5bcbac4396905a76d83c0c59e03a119d53dac48ccc8213a1a6cdb83334e82"
+  },
+  {
+    "migration_name": "20261015020000_fix_client_profile_fill_rls_guc",
+    "checksum": "810b7934e9ee8e3299503484742fec2b42d216e3c3551321793edae96417ec35"
+  },
+  {
+    "migration_name": "20261120010000_client_person_hierarchy",
+    "checksum": "24cbdbe1784ffc2d7670a37104cda0551d901aee5fe43dcc2eb18439635fd28c"
+  },
+  {
+    "migration_name": "20261120020000_client_activity",
+    "checksum": "551786744d9c408e8a615e1f79e31f8603ffae63fb56596d9dc359f570058c12"
+  },
+  {
+    "migration_name": "20261120030000_attachment_folder",
+    "checksum": "082b547321ab2f9e980e9c3f257b547f577e88a14c30cf033f6252cbb6773f26"
+  },
+  {
+    "migration_name": "20261120040000_x_intelligence_feed",
+    "checksum": "96e534e2d61bb6699b7a3640e65e86b20775eb00558667a2d018768bde8061a7"
+  },
+  {
+    "migration_name": "20261120050000_knowledge_events_assertions",
+    "checksum": "43e764998af17b58755605744ea401a9adbfae521520a1abee66884474069f16"
+  },
+  {
+    "migration_name": "20261120060000_knowledge_evidence",
+    "checksum": "ff0041ae0729037083b0808d9287d83ae709aec867aeaf25bd0e8b7d2633d65d"
+  },
+  {
+    "migration_name": "20261120070000_mailbox_knowledge_ingestion",
+    "checksum": "cfa4bed03928c96743e5e9612891c5424c535bb488fae6007667d75b4ec16cb7"
+  },
+  {
+    "migration_name": "20261120080000_drop_knowledge_assertions_created_by_fkey",
+    "checksum": "b2f9b1a2cc6abb7088f197b44f9c1a1079de3a1a282847300a8de91ac79850f6"
+  },
+  {
+    "migration_name": "20261120090000_mailbox_knowledge_incremental_only",
+    "checksum": "108cfbc945122ac08a8fff93be2c5f0f47bbdd23c78c0fa4c34713124a77a2cd"
+  },
+  {
+    "migration_name": "20261120100000_universal_entity_resolution",
+    "checksum": "53deb11b43f45fa36369a534eaf16fe999e32bd05af267635d11061db43ecfc6"
+  },
+  {
+    "migration_name": "20261120110000_universal_entity_resolution_hardening",
+    "checksum": "16deeb2523c9a3af1f71cca13a03eed6c248a0faa987a0525401999373d9f645"
+  },
+  {
+    "migration_name": "20261120120000_canonical_entity_merge_ledger",
+    "checksum": "06fb49b4b49901e0c614d823ef44db42c5cd1c5a6c1b0884e977728cf3ef62b3"
+  },
+  {
+    "migration_name": "20261120130000_canonical_entity_terminal_lifecycle",
+    "checksum": "ee545f0d2e8b3c6695793d0f2d0c7354a775881f277f60d68b2f2a8866cd4cdc"
+  },
+  {
+    "migration_name": "20261120140000_entity_identity_governance",
+    "checksum": "471a8f9f5455714c9fd69986ad92026c09e0c7d3405ce85fc56df27753bbd63e"
+  },
+  {
+    "migration_name": "20261120141000_entity_governance_concurrency",
+    "checksum": "04804e1a3df66ff9f545ea0bc59d66059cbc03339cab1ebe7ec4a8a9ce4a95ae"
+  },
+  {
+    "migration_name": "20261120142000_resolution_governance_projection",
+    "checksum": "c208700a0603b6b6db9042f5d7dcb5e0a51f755f366be044602c143f805751a7"
+  },
+  {
+    "migration_name": "20261120143000_canonical_entity_backfill_checkpoints",
+    "checksum": "daace73c5f28140b17597cfe3e5a242f49e5996649db7fc7607d6ee2fc093165"
+  },
+  {
+    "migration_name": "20261120150000_mailbox_knowledge_extraction",
+    "checksum": "052598af48b1d687ec3fe6417c5795d9145a059946955321dd73293249b14c65"
+  },
+  {
+    "migration_name": "20261120160000_knowledge_episodes",
+    "checksum": "2a4794c1b5516faf54291b4374c40c5916ccc2ac0220a598273ed9e2090968f3"
+  },
+  {
+    "migration_name": "20261120170000_temporal_knowledge_graph",
+    "checksum": "fb0dae605ce5339c80d1fd24e71eedd436e8f06d9158e38e9777419a41e27604"
+  },
+  {
+    "migration_name": "20261120180000_temporal_knowledge_graph_merge_continuity",
+    "checksum": "d98a68e49d54f9f93ae9dc03e237c8d3d03f7112b3dc790a8b6fb113e52c6064"
+  },
+  {
+    "migration_name": "20261120181000_temporal_knowledge_graph_canonical_input_continuity",
+    "checksum": "fc5f71888974eedb218b10a69d7e797ba17d7acc00ec9932f7e1da60cb4a968d"
+  },
+  {
+    "migration_name": "20261120190000_meri_vnext_library",
+    "checksum": "70709dd044ac6b5c03c76c13347cea37fe0c7d41a4f2bd207719caf27fbffb95"
+  },
+  {
+    "migration_name": "20261120190000_retrieval_v2_exact_lexical_indexes",
+    "checksum": "2c2af342460b36d88e23d545e1ab5eb98e16779750536334837fab613924cb13"
+  },
+  {
+    "migration_name": "20261120200000_phase8_defense_runtime_roles",
+    "checksum": "8e33fbe2d0b8dedc5130eaf0a6c2cdaa76f05e3820d7e5348ad7857db6373145"
+  },
+  {
+    "migration_name": "20261120210000_client_profile_fill_capability_document",
+    "checksum": "a58fdb5113af8e6fc1d774010dcaa54fbbed7818d3529387ca4fa840f7dca6e2"
+  },
+  {
+    "migration_name": "20261120210000_outreach_records_outreach_v3_type",
+    "checksum": "2c35a5d5c255911b34faf1f34aec24bb1c9a6991fc5c0ded8ccf2d72827068ad"
+  },
+  {
+    "migration_name": "20261120210000_phase8_defense_serve_user_resolver",
+    "checksum": "0b77d0168fed87b0a97d0585980ff961bea458d6248463d71994d400ad597ccb"
+  },
+  {
+    "migration_name": "20261120210200_phase8_defense_program_admin_boundary",
+    "checksum": "27a6a420e4a3bdca1040e67852e9cbd89b5edd240f67c485c43a140ac0dbda05"
+  },
+  {
+    "migration_name": "20261120220000_client_team_members",
+    "checksum": "d369169957b4f9fe1e45e85eaaa810b58f016c60bc8f93c0cf6be49d041bc1c5"
+  },
+  {
+    "migration_name": "20261120220000_phase8_session6_federal_funding_events",
+    "checksum": "1b70527d086a540e7b63c6d68e677b3afdc170f45613d96bd6e27e7cf6eee092"
+  },
+  {
+    "migration_name": "20261120230000_facility_congressional_district_congress",
+    "checksum": "300ffff2ce14ef94150dac378cab64749c2e773f234b61c8be0c8634c3b0dd94"
+  },
+  {
+    "migration_name": "20261120230000_legiwatch_live_hearings_foundation",
+    "checksum": "e64b7a0dbcde4c569a60bf10145d312c4891440892f1ea2d8c5551a4fa4ac3d5"
+  },
+  {
+    "migration_name": "20261120230000_phase8_session7_budget_cycle_lifecycle",
+    "checksum": "51bdb7beb0508dda9075bcf47ffbf5e47d56399266610497c89e12034bd3d562"
+  },
+  {
+    "migration_name": "20261120230100_federal_award_identity_indexes",
+    "checksum": "8db4754a66fcd15db373c887d7173b23a5da50147b4d8389e0ee84d5a82f52d0"
+  },
+  {
+    "migration_name": "20261121000000_district_nexus_release3_economic_footprint",
+    "checksum": "0232197714b908ee25f6f2c0dba8f765bf1e559a7324174d3edd1fb4c4987e2d"
+  },
+  {
+    "migration_name": "20261121010000_legiwatch_phase4_capture_runtime_fields",
+    "checksum": "6ce1c8d275588595d3f21d1f5f0cfcc63a16f78e1ce32de7786750a4bc9121f2"
+  },
+  {
+    "migration_name": "20261123010000_legiwatch_capture_outcome_queue_closeout",
+    "checksum": "967894333aa5bc830222642368326ff8aca06885f6e2dac2e345d617cdb4c7b7"
+  },
+  {
+    "migration_name": "20261123020000_legiwatch_phase7_following",
+    "checksum": "c2443c796127086944f2bc67ed1b0df741bcb8fe8ac8095cf5a06cf348bc3eb8"
+  },
+  {
+    "migration_name": "20261123030000_legiwatch_phase8_live_intelligence",
+    "checksum": "39bd0ddc3c8a4285fcda08c80520a728f7d43ed90eff56ab36ec5e96e55f64e8"
+  },
+  {
+    "migration_name": "20261123040000_legiwatch_phase9_hardening_cutover",
+    "checksum": "41ab7bb04cb94575c705f01f05fc7bb798559729a75f8c256d3ae07907548f95"
+  },
+  {
+    "migration_name": "20261123041000_legiwatch_phase9_observation_disposition",
+    "checksum": "52dc11863790f5b4b44874dfe8a268b4a7195dae5237e49970c4045a78e3ae8a"
+  },
+  {
+    "migration_name": "20261123042000_legiwatch_phase9_observation_disposition_trigger",
+    "checksum": "99a97e7ec8db9d0c5f43ef77ce88259f7c439de423c6a0f10447525bcc8c26e6"
+  },
+  {
+    "migration_name": "20261123043000_legiwatch_phase9_runtime_and_evidence",
+    "checksum": "f1d5f6e1a45b96454d374e96e5e1b14ce4e70315a6f05eb7ab3f3e00c5bfbc44"
+  },
+  {
+    "migration_name": "20261123044000_legiwatch_phase9_shadow_schedules",
+    "checksum": "3a87aebba59c82e12cfffeebedd1a260d6158571eb2ce5b03cacdc62052b3b6e"
+  },
+  {
+    "migration_name": "20261123045000_legiwatch_phase9_audit_scope",
+    "checksum": "3ef993e5f38fab4d657cbb072cbeff330ef20a68594f734bb435cae6c017c348"
+  },
+  {
+    "migration_name": "20261123045100_legiwatch_phase9_audit_scope_trigger",
+    "checksum": "4fa9c768bc226a29da53d26a758c72e8726eda4937aa4c201a17515dbfac5f87"
+  },
+  {
+    "migration_name": "20261123045200_legiwatch_phase9_safe_observation_timestamp",
+    "checksum": "5a9753c75e1684c0fe3a230dff814710c811697d2784cf157d7cfe80d8ce6e50"
+  },
+  {
+    "migration_name": "20261127120000_phase8_session8_live_source_discovery",
+    "checksum": "1cfc60300e27ce70ba6411ee8e25eb7690898dd558939f5fa7ac8f702d707c2c"
+  },
+  {
+    "migration_name": "20261204120000_phase8_session9_provider_invocation_audit",
+    "checksum": "d08a642074847fd71a4318ffa58afc183c1ea8d4ffe2f1d5f9799e5ff1d2174f"
+  },
+  {
+    "migration_name": "20261211120000_phase8_session10_schedule_control_plane",
+    "checksum": "2e2f0a07348a331ec0a1874d8e5f5ae12a94b0854ae06faafbe7fa4556a0ffbf"
+  },
+  {
+    "migration_name": "20261212010000_learning_signal_foundation",
+    "checksum": "a66a6db22ed44dbf352b883518bdd8cbeff4d214fd6dab9841a5b9b94a074243"
+  },
+  {
+    "migration_name": "20261213010000_learning_signal_candidate_generation",
+    "checksum": "eee8e1060990b50146a41774a3234aab8360f051c43756fe46895ae63d969565"
+  },
+  {
+    "migration_name": "20261215120000_client_capability_fit_recommendations",
+    "checksum": "4b9651ada774815b88bfccec23e82a3e18f1a045c090155de315cc4a2848340b"
+  },
+  {
+    "migration_name": "20261218120000_phase8_session11_review_resolution_audit",
+    "checksum": "b381e85e1479095b661f24aa638533dcc41605d6f39094a2d9d76a7b0b0159bb"
+  },
+  {
+    "migration_name": "20261219010000_client_profile_fill_bill_recommendation",
+    "checksum": "e4605a0439f5ab82ff58d4a06c3281043d806bf09546c460f283e0bc41096d83"
+  },
+  {
+    "migration_name": "20261219010000_outreach_v3_templates",
+    "checksum": "90b990786219f95f068fd4bcd689a2af83ab961729e4d8bfc2437ba492308999"
+  },
+  {
+    "migration_name": "20261220010000_phase27e_quality_telemetry",
+    "checksum": "b6a0ff9bbab730acf4fee9ee61f40d90041e7cd8b51795be261d229e713cd5bd"
+  },
+  {
+    "migration_name": "20261222010000_phase27f_evaluation",
+    "checksum": "c142ce237439374d0bc6568d957065f32acfe90382fb5e856a050754de56e797"
+  },
+  {
+    "migration_name": "20261223010000_client_file_viewer_access",
+    "checksum": "b336508a7978530d840c6ac7e2cc7efa5b2548dd201fd4cbaf7359d605e6e7c1"
+  },
+  {
+    "migration_name": "20261223020000_congress_committee_url_provenance",
+    "checksum": "a5e6a59bc40f797ea3fd875dc8e7c8ab848b8d1a27257b37f3dff3080ffb0db6"
+  },
+  {
+    "migration_name": "20261223020001_committee_source_exception",
+    "checksum": "65c87021548f6bdd4d6345f2bb7200828c23cbbd39aa8c597038c2cddf22a271"
+  },
+  {
+    "migration_name": "20271231010000_client_profile_fill_agentic_workflow",
+    "checksum": "f790e5a8fe7831ed80517a14eaebbbc07487e7344cb7d1ea872ec700eb9a7c40"
+  },
+  {
+    "migration_name": "20271231020000_client_profile_fill_relationship_history",
+    "checksum": "5c112eef778e7efa0daf8ee3410e930b50162810ce7bf3895c6f505d2144714e"
+  },
+  {
+    "migration_name": "20271231030000_client_profile_fill_completion",
+    "checksum": "28aa8130bc3445abd368ab7ac3acf0b0d8290469af180989f61e653ddce76f45"
+  },
+  {
+    "migration_name": "20271231040000_client_advocacy_matter",
+    "checksum": "fdce88b8d64c52fe6f0594011f3b3e3db566ece2eff8d522d3bd6bf0a0884758"
+  },
+  {
+    "migration_name": "20271231050000_advocacy_matter_correction_ux",
+    "checksum": "a860ac9f9b3f7fff681a49cfa02ebfc5512d9b373eb17569befcbbe3b337fbd4"
+  },
+  {
+    "migration_name": "20271231060000_advocacy_matter_direct_evidence_links",
+    "checksum": "e2dcb061a0cca0e050b85ceb740272ec3324fcba9d96c335c7d6a67076e40f91"
+  },
+  {
+    "migration_name": "20271231070000_advocacy_matter_public_source_links",
+    "checksum": "e9750dc65cc650034373994b5ee303a7bd3695ab3b268562bf2d2363fa09b01c"
+  },
+  {
+    "migration_name": "20271231080000_fix_client_profile_fill_finding_source_check",
+    "checksum": "e7ca429c993d8b7131c29b499ca89e31ac399eec1d82630859f07b62b1ae106c"
+  },
+  {
+    "migration_name": "20271231090000_regulatory_comment",
+    "checksum": "20c83a0fe8b11c85596c60a2b0386331c5cbfe92a30cb30ee4e5c5cc9d2018aa"
+  },
+  {
+    "migration_name": "20280101010000_defense_budget_cycle_manifest_registry",
+    "checksum": "884638fd95d74b217ab18461509b885c872ffeca4535db287d8d7306b54ec074"
+  },
+  {
+    "migration_name": "20280101020000_outcome_event_regulatory_correlation",
+    "checksum": "1de9337640a890dfc2f6e24a875f426ac286b1c287c4150fbe7c1c1e9956273d"
+  },
+  {
+    "migration_name": "20280101030000_cpf_cds_canonical_ingestion",
+    "checksum": "d6d1184b120b978a0b868abd172e917ec529cb6b332bc5f3a8b9ad7f8eb3cc65"
+  },
+  {
+    "migration_name": "20280101040000_client_profile_fill_advocacy_review_durability",
+    "checksum": "c817755ecfa02fc31dc7b28af78911794f29f91621dfc0ccd3104366aeb38406"
+  },
+  {
+    "migration_name": "20280102010000_outreach_v3_template_seed_state",
+    "checksum": "b70ec84081c4ba67c7be335c6447d8c9b4b369290966c857c32404dd174ff38c"
+  },
+  {
+    "migration_name": "20280103010000_phase10b18_source_bundle_members",
+    "checksum": "93217aafbb87168ee70ca44aed0107c2ef605bb9df4f41ff3ded491a0c1c439c"
+  },
+  {
+    "migration_name": "20280201010000_canonical_provenance_disposition",
+    "checksum": "11203cbdc50cd26efc488350dcc7c9db81b478244beb9847637f25d9804f45c0"
+  },
+  {
+    "migration_name": "20280210010000_meri_analytics_ro_role",
+    "checksum": "5fd01e75918186eac635534169c748191d372be273e6c5d1eb0b40c0d91a55ef"
+  },
+  {
+    "migration_name": "20280211010000_engagement_task_action_source_uniq",
+    "checksum": "bb36a60fb7ac5574b35cda2cd932162a000159b39c9611967f49d698996e2e3a"
+  },
+  {
+    "migration_name": "20280212010000_legiwatch_v2_wave1",
+    "checksum": "53be067e2397fa02e83f83604a7b6a5259af1b1153c81e3593baf21c61059496"
+  },
+  {
+    "migration_name": "20280213010000_legiwatch_v2_wave2",
+    "checksum": "6455135cf88e5f3e4fca353b1ad15a498cbb4b34b205e4eee586850f7c0dbf72"
+  },
+  {
+    "migration_name": "20280214010000_legiwatch_v2_wave3",
+    "checksum": "ec736e939440371e51a84d8598126b46a2fe0ecb9805fb19099c694f0784036a"
+  },
+  {
+    "migration_name": "20280908010000_tango_subaward_checkpoint_pagination",
+    "checksum": "d30eb4126cc280c41d5ae97b75597c4a5cb498a58588bd8c315d90258efe0fc8"
+  },
+  {
+    "migration_name": "20280909010000_client_target_staff_kind",
+    "checksum": "7ec4c825b4a6c91d2669c3762358c0a7d2b4c22311d4baefd66935d8a94596c2"
+  },
+  {
+    "migration_name": "20280909010000_phase10b35_scoped_fact_review",
+    "checksum": "dba76d46ed582d2be95ec3d71dab7377f1ddc8ecac1ff3aade62096e8ef4e5cc"
+  },
+  {
+    "migration_name": "20280909020000_phase10b35c_candidate_correction",
+    "checksum": "b892b6478704bfd090ccd0ec9263c03e4016a413ea9426ccc88119bae6b42593"
+  },
+  {
+    "migration_name": "20280910010000_legiwatch_published_records",
+    "checksum": "32ddf5c7210e0babac2919af6f81f87679ebea12d31bec13a34b572cf8544580"
+  },
+  {
+    "migration_name": "20280911010000_clio_attachments_pptx_kind",
+    "checksum": "71e071530d86b8bd33ac2d87fd2dd9e40f5132a2d99494497a7dcfd65491abd8"
+  },
+  {
+    "migration_name": "20280911010000_legiwatch_calendar_preparation",
+    "checksum": "e29393c80fc7f8e074e2847d719c8cf9e1b886fb9e87a45fe74e4571ba7e68fd"
+  },
+  {
+    "migration_name": "20280911020000_legiwatch_agenda_notifications",
+    "checksum": "d2eb33678172b4b3672fbb39670e9f3c9b208cb968830b950603ee3557710469"
+  },
+  {
+    "migration_name": "20280911030000_legiwatch_official_state_bodies",
+    "checksum": "c210e8530b47192f3e24ad50f8b566863f9d907ad37afbc619de17d4cdca5194"
+  },
+  {
+    "migration_name": "20280911040000_legiwatch_federal_read_boundary",
+    "checksum": "0474332a2d75f89809ff0a5d5abe97104b26388359816d1b762047fa4a73d5fd"
+  },
+  {
+    "migration_name": "20280911050000_legiwatch_notice_identity_index",
+    "checksum": "e411003f075d9e65007de63eb08bc550cee16c2b48b883097ce8669ad6eccdc8"
+  },
+  {
+    "migration_name": "20280912180000_legiwatch_hearing_media_runtime",
+    "checksum": "6f0e9a3c18ed4cab0073a0636806096272c523d1a0e77adbb34e485785f33afd"
+  },
+  {
+    "migration_name": "20280912181000_approved_document_provenance",
+    "checksum": "6641641c5cb8417387572b4ab430bf83b87a78d69c484fa5418900722203d67b"
+  },
+  {
+    "migration_name": "20280912182000_hearing_delivery_runtime",
+    "checksum": "36942bbbd6867327359840c0d73e769d0751ed384fe33daa07f0c09583f6b60f"
+  },
+  {
+    "migration_name": "20280912183000_hearing_publication_inbox",
+    "checksum": "b78ebe3a774cf8c6a2c7db2920a2ae5bc2470d07c14dd060fef9cc2af94b5b05"
+  },
+  {
+    "migration_name": "20280913010000_governed_review_reextraction",
+    "checksum": "08ca6825546b8249ccc3a1ca4f6b26a17cec7918e2779f2ae20457faa03409d4"
+  },
+  {
+    "migration_name": "20280913010000_legiwatch_record_revisions",
+    "checksum": "2c046357077d4747dd814c8afea9c95052639303cefca66b30d08e20535b7fe8"
+  },
+  {
+    "migration_name": "20280913011000_legiwatch_record_checks",
+    "checksum": "e1b257bfd422549ed3c5a47db04210d3aa001756d9c619db78072e030e9976c0"
+  },
+  {
+    "migration_name": "20280913012000_legiwatch_official_transcript_revisions",
+    "checksum": "0f8753c4948340e50c57c9ca2a424b351ece2b164785f3aeb3fe15d8637468cc"
+  },
+  {
+    "migration_name": "20280913013000_legiwatch_record_commit_boundary",
+    "checksum": "7666223710faf51dd299e05fa2838e2a3a98261fd4570d4daa93eba53f48f64b"
+  },
+  {
+    "migration_name": "20280913014000_legiwatch_record_documents",
+    "checksum": "0eb83556cd10c86284cd723b498bdda9d995cef17002e358b3eacaee59b79e86"
+  },
+  {
+    "migration_name": "20280913015000_legiwatch_record_inbox",
+    "checksum": "3a2e1f9e5b3c6725437d9e8ed3f81ddd20667e4dbed37068ca371927609c0e98"
+  },
+  {
+    "migration_name": "20280913016000_legiwatch_record_refresh",
+    "checksum": "1f596bab87b96c1f156540acefb56fa23775dce1095e785b6b5c5eb9c5cad929"
+  },
+  {
+    "migration_name": "20280913017000_legiwatch_transcript_checks",
+    "checksum": "e326b5ae6a7d116334461fd48df7e3f4a1799c9aa40e86ed27f68f148092913d"
+  },
+  {
+    "migration_name": "20280913018000_legiwatch_govinfo_checkpoints",
+    "checksum": "8af700039db93450708ade4b81aba933d90b32299749aef0a9a204f0aada329b"
+  },
+  {
+    "migration_name": "20280913019000_legiwatch_source_observations",
+    "checksum": "84164f6258db35693cfc4a5786fe5f402df222d5d495032ffc550ebe1964c1d4"
+  },
+  {
+    "migration_name": "20280913020000_legiwatch_keyword_source_projection",
+    "checksum": "537c418e6bfd616970188c7e3ef6167986a4149321306b7379317a5a2608931f"
+  },
+  {
+    "migration_name": "20280913021000_legiwatch_workflow_source_projection",
+    "checksum": "98f8ced667bdbc39dfc2ff7280f6fc88c25834b3e7f734fb9fe8b570485df186"
+  },
+  {
+    "migration_name": "20280913022000_legiwatch_keyword_inbox",
+    "checksum": "2efb92200609d4235f42a942bfc8b46c86d0e01f48120454882033db975de668"
+  },
+  {
+    "migration_name": "20280913030000_legiwatch_research_evidence",
+    "checksum": "b620320c21a8a23378aefae304a23805139f056a37feb5c8766eb117f5aa8905"
+  },
+  {
+    "migration_name": "20280914030000_legiwatch_news_fiscal",
+    "checksum": "1c5bbc43a6a355dc3c6e9c38d4b7b055d32029ad8e96ccf7bf25fe3f0ac3faf5"
+  },
+  {
+    "migration_name": "20280915010000_hearing_canonical_alias",
+    "checksum": "d492cdbd3ecfa1d112bbb5d8caf8dfdc37a114dbe55e11383e3250ac714751e0"
+  },
+  {
+    "migration_name": "20280916010000_drop_legiwatch_saved_view",
+    "checksum": "fef4ffe770a2bcbbee8c5f5f7ee0d6a21de8461f1333d6158f3601749cb05979"
+  },
+  {
+    "migration_name": "20280917010000_drop_legiwatch_watch_presets",
+    "checksum": "0a5c341dba7e0dc4ab7e4c136e9b0250732ae9073239ea3275f266896f6a2730"
+  },
+  {
+    "migration_name": "20280918010000_procurement_line_canonical",
+    "checksum": "8e9d472b230cc39f9189a5a928421a51d2a22bd02ccf95c9409e8f5764a02ff1"
+  },
+  {
+    "migration_name": "20280919010000_committee_follow_alerts",
+    "checksum": "d7df024bc89a369f37b1071d9539c1a10ce934c20b42d9652bf979e558d6fd84"
+  },
+  {
+    "migration_name": "20280919020000_approval_replacement_commit_guards",
+    "checksum": "f70789494119257622c74e65d2baf0be40b461fd4d0339180183fb858f35a097"
+  },
+  {
+    "migration_name": "20280920010000_meri_hermes_durable_runs",
+    "checksum": "f3c196e2b9af62d92bc552d12d1db3d78c8a23ae1f3b0f9147ce90167d5d6f39"
+  },
+  {
+    "migration_name": "20280920020000_meri_hermes_admission_fencing",
+    "checksum": "a3cec803871ac522d51b33ccef34619aa240d532855b855ff0ef6e1646ad3654"
+  },
+  {
+    "migration_name": "20280920030000_meri_hermes_cross_replica_coordination",
+    "checksum": "53c7ac61c31b8268abc19edd9b96fdc55203713ee38e1e883a7368bbdcdc6830"
+  },
+  {
+    "migration_name": "20280920040000_meri_hermes_scaling_controls",
+    "checksum": "fcfdce78eda295bc39015c45353ff5e98e9a57c8b5a1751f0e71907a2113dfa2"
+  },
+  {
+    "migration_name": "20280920050000_meri_hermes_profile_state",
+    "checksum": "f53ead2262c1fef763d8b325165488d626e971d28ee19afae976c8e00d12986d"
+  },
+  {
+    "migration_name": "20280920060000_florida_directory_pdf_enrichment",
+    "checksum": "66baa266f16b594567cc138c8ba7ace1d18849d206ad5e7f3c32f2efa75c8750"
+  },
+  {
+    "migration_name": "20280920060000_governed_ingestion_manifest_v1",
+    "checksum": "e0a043e6b875c29147132f673ce07217fcd3ade4881df9f3eb41489eb5266b80"
+  },
+  {
+    "migration_name": "20280920060100_budget_line_relationship_lineage",
+    "checksum": "cd3672ab5c48cf0ca0f36df0d84dc85a14937480c6936703cbfe7c72d6d9f98f"
+  },
+  {
+    "migration_name": "20280920070000_legiwatch_florida_runtime_jobs",
+    "checksum": "0536e63143e1b96d7faefa78b4faa8358c74f1e51f634a4f2edcb3f3e05274f2"
+  },
+  {
+    "migration_name": "20280921000100_federal_award_date_semantics",
+    "checksum": "6482058c4270934e9552d6eb37fe3ba0999bc243cdb28af7df2f4d505941820d"
+  },
+  {
+    "migration_name": "20280922100000_legiwatch_capture_all_system_wide",
+    "checksum": "6727517df99450886a8369dc652b771c030d9d9d007156147939cca9a145c7e9"
+  },
+  {
+    "migration_name": "20280922100100_public_hearing_speaker",
+    "checksum": "1cdea63a035925ba7c4e5198500f89802c467c0501be49d491d3fcb7fa612579"
+  },
+  {
+    "migration_name": "20280923010000_meri_mobile_device_tokens",
+    "checksum": "da324e84b059bc5eede0aba6869a860129e50ed7b482e1de5861bfcf4d4f695c"
+  },
+  {
+    "migration_name": "20280924010000_business_development_phase1",
+    "checksum": "9a4c8c9aeabbf21ff42d0d1d30505d222eb8c24ddccb948d2902a04f8483fc02"
+  },
+  {
+    "migration_name": "20280924020000_governed_ingestion_manifest_member_guard_v1",
+    "checksum": "392e7334f29758ccecf50783040431d79b4fda48eb45319abc59883582651d73"
+  },
+  {
+    "migration_name": "20280924030000_federal_legislative_evidence",
+    "checksum": "92ffbefb4acbbe14bb1c238695a74120780e9b2cfe74e49761acee8fc8c2e98f"
+  },
+  {
+    "migration_name": "20280924040000_district_actions",
+    "checksum": "7acef84a8b9f42fbd6e9d7bd875a6d1b940d8efc78aeddb5a703e670883dd6b7"
+  },
+  {
+    "migration_name": "20280924040000_district_nexus_r5_meeting_prep_reviewed",
+    "checksum": "b4067151de13ce35d50926aff2fb19b47fa4c2e15b36268f5a1c46b754a6aa0e"
+  },
+  {
+    "migration_name": "20280924040000_program_identity_continuity",
+    "checksum": "31d23a4de810978dd1f1d95716d003ab08dd14e410253ac591609b56a43c60a2"
+  },
+  {
+    "migration_name": "20280924050000_acquisition_continuity_ledger",
+    "checksum": "4f90ad5cc5f41474ec33e810847744f33ef4a8b4ee7e8dafd33972e925e82503"
+  },
+  {
+    "migration_name": "20280924050000_district_nexus_alert_payload",
+    "checksum": "f21ace1b6f66a86a20c9b2edb152f177e1c2abdb20a42a14c34493999f017487"
+  },
+  {
+    "migration_name": "20280924060000_package6_funding_execution_accounting",
+    "checksum": "aef02064c93a506db2ab86b83099dccafc7a680ba8a0e93eaeadbe64e2897fe8"
+  },
+  {
+    "migration_name": "20280924070000_package7_client_budget_watch",
+    "checksum": "97cd13b69383de8c90c25d6c5b967c3e8b3d635b6b365be5232db95554e38a7f"
+  },
+  {
+    "migration_name": "20280925010000_business_development_phase3_jev",
+    "checksum": "466680630cc823905eeb5c3845bae1df89528ad442592b77d4fcc2a5809ef0a1"
+  },
+  {
+    "migration_name": "20280925020000_package9_source_bundle_reader_grant",
+    "checksum": "2b9fff0438cb24781931a71bf8de1e53a7819ebf84964bf496823d86733eb182"
+  },
+  {
+    "migration_name": "20280926010000_business_development_phase3_shadow_null_recovery",
+    "checksum": "8c661679e822ef069991b98c6c0483f504546895c42d40d6d7fa200d930e6918"
+  },
+  {
+    "migration_name": "20280927010000_business_development_phase4_brief",
+    "checksum": "6f10a89fa8ee11e7a3e21aa50c2e76ed5a179fd4dd14885fbb250b06c8b66605"
+  },
+  {
+    "migration_name": "20280928010000_business_development_phase5_watch_alerts",
+    "checksum": "bcd142429b27329cf1f5e17abac27e923eb88842890a915046c000783aefdd58"
+  },
+  {
+    "migration_name": "20280929010000_remove_meri_hermes_runtime",
+    "checksum": "348c8b057ecb0c52141f55af3518e69e15c76301c2d84a6921482d2dbd536c34"
+  },
+  {
+    "migration_name": "20280929010000_research_portfolios_phase1",
+    "checksum": "2587cf6424db3fa6b8b4397480a675ce24a1dcf69814117b5850049abed73e03"
+  },
+  {
+    "migration_name": "20280929020000_research_portfolios_phase2_rules",
+    "checksum": "f4db6ac2d2b92021f3ce9fdfd6778fc6a960004e2fd6100a33301edfa5abcdfd"
+  },
+  {
+    "migration_name": "20280929040000_defense_context_documents",
+    "checksum": "3678344c3ede8cffe8965cea94e1141753b17fe26e616336a7400eb26a8a311e"
+  },
+  {
+    "migration_name": "20280930010000_business_development_watch_scan_checkpoint",
+    "checksum": "56b118655c188ab2cc90a6cbeb399e61997d4c4bb12a96ad2ebf788e57d65d65"
+  },
+  {
+    "migration_name": "20280930010000_research_portfolios_phase7_reviews_imports_continuity",
+    "checksum": "b017c7b201a3849c85c822e2404e205e4bfb4204e2fd3cc2ad080a8ab67cdb8c"
+  },
+  {
+    "migration_name": "20281001010000_research_portfolios_phase9_analytics_outputs",
+    "checksum": "ba1127dd9553b4ce2ff3fe9062bcde57ffe2f993142d473c3aa006b8dcada85a"
+  },
+  {
+    "migration_name": "20281002010000_research_portfolios_phase10_watch_delivery",
+    "checksum": "0d0d25dbb8d6ba507eea14367d40d36b689e13efa25b3828548513da4ca93950"
+  },
+  {
+    "migration_name": "20281003010000_dedup_client_intel_mapping",
+    "checksum": "e77d1375ef1cb2c28547815b089ee4a196d01084f5ddb500dd7c56445b36452e"
+  },
+  {
+    "migration_name": "20281003010000_research_portfolios_phase11_bookmarks_tour_notes",
+    "checksum": "01708b01a043a161681a6fd5dc7bf79ce1aa31064784131a69462f6724f5b4bd"
+  },
+  {
+    "migration_name": "20281004010000_research_portfolio_tenant_policy_alignment",
+    "checksum": "c490d8bbb205be06427c9d94a9ddb4e4260fe9cca3ea88bb0acadb494e90522e"
+  },
+  {
+    "migration_name": "20281004020000_research_portfolio_fit_versions",
+    "checksum": "b4cb91acc04dca8a4814ea032555eecdfe133cd0297d6e75084384663666d211"
+  },
+  {
+    "migration_name": "20281004030000_defense_saved_comparisons",
+    "checksum": "9cb69645602b1edad41071efddf865d80e0f2a90465d1a9cfb6b9885bb136b64"
+  },
+  {
+    "migration_name": "20281004040000_research_portfolio_client_filing_jobs",
+    "checksum": "0556eccdbd76d38e8ca00ef42ba44bea894e70d135ae78a110541c7e8c5eeeac"
+  },
+  {
+    "migration_name": "20281005010000_memory_version_candidate_source_kinds",
+    "checksum": "6476718df7b6f247c87c755323dc7b48da26c6edabe66dc6b4b36dd467f44719"
+  },
+  {
+    "migration_name": "20281006010000_mail_threads_owned_connection_covering",
+    "checksum": "70ecc4c9d0b0bdce4890e69a93885e4bd1e88c13a8fc8ce76500fd869c631673"
+  },
+  {
+    "migration_name": "20281007010000_mail_messages_owned_connection_active",
+    "checksum": "3d7d9adec1821e0e35014955b9ad968aacf4195b7895fc540fea4b3125a4fa42"
+  },
+  {
+    "migration_name": "20281007020000_clio_attachments_xlsx_kind",
+    "checksum": "49704ec2279af746ea7a861e3e577fddc6e2cf46b8489b7dc16b78691d7fb714"
+  },
+  {
+    "migration_name": "20281008010000_clio_research_sessions_jobs",
+    "checksum": "b7dccbfb062d1b08c38b8fa574bb8a36d5c4692b604843bb888b9923c7293390"
+  },
+  {
+    "migration_name": "20281008020000_legiwatch_committee_news_update_type",
+    "checksum": "026416136405df978e97eb3bd40164a2e4777f3467baec761ed718e3fe57c6fe"
+  },
+  {
+    "migration_name": "20281008030000_committee_url_official_review",
+    "checksum": "863db1541246bf9872a5b0cf2924e9a397383c667b5e3a97efe3276e3d150de0"
+  },
+  {
+    "migration_name": "20281008040000_federal_evidence_passage_search",
+    "checksum": "60191a0675817bd50be2cbd42ca1df56ad7ad66f203df657196ec468fa8007ae"
+  },
+  {
+    "migration_name": "20281011010000_client_objectives",
+    "checksum": "9372173047c2f4cc6e4b43c74f2a78978849c56ca5902d3dc178b00be5c4984e"
+  },
+  {
+    "migration_name": "20281011020000_portfolio_prospect_stages",
+    "checksum": "64bfa06d34943b5bc575e52510fa40dee9f6e1ad2c8a6eb4b5d0d26311a70ef6"
+  },
+  {
+    "migration_name": "20281011030000_prospect_contacts",
+    "checksum": "4b9d299c8c5868c3c1560666976981e9dd01522ce5cc6d9618dc2327f4d6ef26"
+  },
+  {
+    "migration_name": "20281012010000_client_activity_commands",
+    "checksum": "bc46b73db4036de57b34a77a3da5084dda77bcd2cdee5778ed9f5deea883579a"
+  },
+  {
+    "migration_name": "20281012020000_client_ordered_owners",
+    "checksum": "734c0cd8432c4b7194991fe993fd24fd3b6f9924316447f3f8389eef75f570fe"
+  },
+  {
+    "migration_name": "20281012030000_prospect_resource_origin",
+    "checksum": "02a946caa1ddfd13ed568e7c24eb70b0eab7f11b4bd35a39568382a88fcd7277"
+  },
+  {
+    "migration_name": "20281012060000_federal_register_effective_evidence",
+    "checksum": "bcf0e82b5f1976918738649c356e90dd0715b0caa8036604438acd486b6999d0"
+  },
+  {
+    "migration_name": "20281015010000_client_objective_work_intents",
+    "checksum": "f547d286ee728c199a5dc7008dbb53ff86314182f3bc62f6e3da6b96888ca711"
+  },
+  {
+    "migration_name": "20281015020000_client_objective_canonical_plans",
+    "checksum": "6d2af8f05738cb0e3430a1b30b1c57789656b918d1ab6d600171de849cc77d0c"
+  },
+  {
+    "migration_name": "20281015030000_client_objective_operational_links",
+    "checksum": "05da51ffc3debb0fa863050cbd2b2b0ce4ae93e740b647a50eaf164e6dd63236"
+  },
+  {
+    "migration_name": "20281015050000_client_objective_work_reconsent",
+    "checksum": "0846209bd02b33826a8951a71e1281b121320b600fcfc95d541314b7022c3d62"
+  },
+  {
+    "migration_name": "20281016020000_clio_conversation_bootstrap_receipts",
+    "checksum": "943ef85f23922de246c4ec53771630f586f4ad4d99b8a871504c341ee66e9ff0"
+  }
+]

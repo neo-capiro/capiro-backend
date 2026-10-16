@@ -42,6 +42,10 @@ test('renders a held service with only four public POST paths and an unscheduled
     Object.values(repo.Resources).filter((r: any) => r.Type === 'AWS::ECR::Repository').length,
     1,
   );
+  const ecrRepository = Object.values(repo.Resources).find(
+    (r: any) => r.Type === 'AWS::ECR::Repository',
+  ) as any;
+  assert.equal(ecrRepository.Properties.ImageTagMutability, 'IMMUTABLE');
   const tasks = resources.filter((r) => r.Type === 'AWS::ECS::TaskDefinition');
   assert.equal(tasks.length, 2);
   const containers = tasks.map((task) => task.Properties.ContainerDefinitions[0]);

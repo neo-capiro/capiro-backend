@@ -1,0 +1,53 @@
+# Source-only CodeBuild buildspec for the PR43 first-chat Core image.
+# Define APPROVED_SOURCE_BUCKET and APPROVED_SOURCE_VERSION_ID on a dedicated
+# project after uploading the exact Git archive ZIP. No StartBuild overrides.
+version: 0.2
+env:
+  shell: bash
+  variables:
+    DOCKER_BUILDKIT: "1"
+phases:
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        SOURCE_SHA=13d12a7d7bdbe0be021cb218dd4cf7690cc4420b
+        SOURCE_KEY=inputs/core-13d12a7d7bdbe0be021cb218dd4cf7690cc4420b.zip
+        ARCHIVE_SHA256=8643d671d641fb6379c442931e2ed953c2654b418580e7274116d2e4c4d68b16
+        REPOSITORY=capiro/preview-core
+        REGISTRY=967807252336.dkr.ecr.us-east-1.amazonaws.com
+        IMAGE="$REGISTRY/$REPOSITORY:$SOURCE_SHA"
+        test "$(uname -m)" = x86_64
+        test "${AWS_REGION:-${AWS_DEFAULT_REGION:-}}" = us-east-1
+        test "$(aws sts get-caller-identity --query Account --output text)" = 967807252336
+        test "${CODEBUILD_SOURCE_REPO_URL:-}" = "s3://${APPROVED_SOURCE_BUCKET:?}/$SOURCE_KEY"
+        test "${CODEBUILD_SOURCE_VERSION:-}" = "${APPROVED_SOURCE_VERSION_ID:?}"
+        test -z "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}"
+        test "$(aws ecr describe-repositories --repository-names "$REPOSITORY" --query 'repositories[0].imageTagMutability' --output text)" = IMMUTABLE
+        existing="$(aws ecr describe-images --repository-name "$REPOSITORY" --filter tagStatus=TAGGED --query "imageDetails[?contains(imageTags, '$SOURCE_SHA')].imageDigest" --output text)"
+        test -z "$existing"
+        command -v unzip >/dev/null
+        mkdir -p "$CODEBUILD_SRC_DIR/verified"
+        observed_version="$(aws s3api get-object --bucket "$APPROVED_SOURCE_BUCKET" --key "$SOURCE_KEY" --version-id "$APPROVED_SOURCE_VERSION_ID" "$CODEBUILD_SRC_DIR/pinned-source.zip" --query VersionId --output text)"
+        test "$observed_version" = "$APPROVED_SOURCE_VERSION_ID"
+        printf '%s  %s\n' "$ARCHIVE_SHA256" "$CODEBUILD_SRC_DIR/pinned-source.zip" | sha256sum -c -
+        unzip -q "$CODEBUILD_SRC_DIR/pinned-source.zip" -d "$CODEBUILD_SRC_DIR/verified"
+        cd "$CODEBUILD_SRC_DIR/verified"
+        test -f apps/api/prisma/migrations/20281016020000_clio_conversation_bootstrap_receipts/migration.sql
+        if compgen -G 'apps/api/prisma/migrations/20281016010000*' >/dev/null; then
+          echo 'Objective migration is outside this image source' >&2
+          exit 1
+        fi
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
+        docker build --pull --platform linux/amd64 \
+          --label "org.opencontainers.image.revision=$SOURCE_SHA" \
+          --label org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend \
+          -f apps/api/Dockerfile -t "$IMAGE" .
+        test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = amd64
+        docker run --rm --network none --entrypoint node "$IMAGE" -e \
+          "const a=require('node:assert/strict'); a.equal(process.arch,'x64'); a.equal(process.version,'v22.23.3'); require('@prisma/client'); require('./dist/meri/meri.service.js');"
+        docker push "$IMAGE"
+        digest="$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=$SOURCE_SHA" --query 'imageDetails[0].imageDigest' --output text)"
+        [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+        docker image inspect "$IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | grep -Fx "$REGISTRY/$REPOSITORY@$digest"
+        printf 'source=%s s3Version=%s archiveSha256=%s imageDigest=%s\n' "$SOURCE_SHA" "$observed_version" "$ARCHIVE_SHA256" "$digest"

@@ -72,6 +72,7 @@ export class FirstChatCoreRegistryStack extends cdk.Stack {
     const repo = new ecr.Repository(this, 'Repository', {
       repositoryName: imageRepoName,
       imageScanOnPush: true,
+      imageTagMutability: ecr.TagMutability.IMMUTABLE,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       emptyOnDelete: false,
     });
