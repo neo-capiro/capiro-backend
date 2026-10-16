@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
+import { ObjectiveCurrentSourceUnavailable } from './objective-workload-current.js';
 import {
   issueObjectiveWorkloadJwt,
+  ObjectiveWorkloadJwtError,
   type ObjectiveWorkloadIssuerSigner,
   type ObjectiveWorkloadPhase,
   type ObjectiveWorkloadRequestBinding,
@@ -33,7 +35,6 @@ export class ObjectiveWorkloadIssuanceError extends Error {
 
 function unavailable(): never { throw new ObjectiveWorkloadIssuanceError('UNAVAILABLE'); }
 function conflict(): never { throw new ObjectiveWorkloadIssuanceError('CONFLICT'); }
-function expired(): never { throw new ObjectiveWorkloadIssuanceError('EXPIRED'); }
 const seconds = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= MAX_TIME;
 const uuid = (value: unknown): value is string => typeof value === 'string' && UUID.test(value);
@@ -128,21 +129,38 @@ export interface ObjectiveWorkloadIssuanceRecord {
 }
 
 export interface ObjectiveWorkloadProofUseRecord {
-  readonly tenantId: string;
+  readonly tenantId: string | null;
   readonly callerIssuer: string;
   readonly callerSubject: string;
   readonly callerKeyId: string;
   readonly proofJti: string;
   readonly operationId: string;
+  readonly operationDecision: 'issued' | 'denied';
+  readonly proofOutcome: 'issued' | 'denied';
   readonly proofRequestSha256: string;
   readonly proofIatSeconds: bigint;
   readonly proofNbfSeconds: bigint;
   readonly proofExpSeconds: bigint;
 }
 
+/** Global operation identity survives source revocation or delegation deletion.
+ * A denied decision is terminal; later proofs for the operation remain denied. */
+export interface ObjectiveWorkloadIssueDecisionRecord {
+  readonly operationId: string;
+  readonly callerIssuer: string;
+  readonly callerSubject: string;
+  readonly issuanceRequestSha256: string;
+  readonly decision: 'issued' | 'denied';
+  readonly tenantId: string | null;
+  readonly generationJobId: string | null;
+  readonly phase: ObjectiveWorkloadPhase | null;
+}
+
 export interface ObjectiveIssuanceTransaction {
   /** Must serialize this operation ID across processes until commit/rollback. */
   lockOperation(operationId: string): Promise<void>;
+  findDecision(operationId: string): Promise<ObjectiveWorkloadIssueDecisionRecord | null>;
+  insertDecision(row: ObjectiveWorkloadIssueDecisionRecord): Promise<void>;
   findIssuance(operationId: string): Promise<ObjectiveWorkloadIssuanceRecord | null>;
   insertIssuance(row: ObjectiveWorkloadIssuanceRecord): Promise<void>;
   findProofUse(callerIssuer: string, proofJti: string): Promise<ObjectiveWorkloadProofUseRecord | null>;
@@ -194,8 +212,9 @@ function sameTuple(
   return IMMUTABLE_TUPLE.every((key) => saved[key] === expected[key]);
 }
 
-function sameProofUse(saved: ObjectiveWorkloadProofUseRecord, expected: ObjectiveWorkloadProofUseRecord) {
+function sameProofIdentity(saved: ObjectiveWorkloadProofUseRecord, expected: ObjectiveWorkloadProofUseRecord) {
   return (Object.keys(expected) as Array<keyof ObjectiveWorkloadProofUseRecord>)
+    .filter((key) => key !== 'proofOutcome')
     .every((key) => saved[key] === expected[key]);
 }
 
@@ -266,30 +285,80 @@ export function createObjectiveWorkloadIssuanceAdapter(
     requireAdmitTargetBody(binding.body, selector.generationJobId);
     const bodySha256 = createHash('sha256').update(binding.body).digest('hex');
 
-    return port.withTenantTransaction(selector.tenantId, async (tx) => {
-      const requireCurrent = (facts: CurrentObjectiveIssuanceSource): void => {
-        if (!facts || facts.enabled !== true || !seconds(facts.databaseNowSeconds) ||
-            !seconds(facts.validUntilSeconds) ||
-            facts.validUntilSeconds <= facts.databaseNowSeconds ||
-            facts.tenantId !== selector.tenantId ||
-            facts.delegationRef !== selector.delegationRef ||
-            facts.consentId !== selector.consentId ||
-            facts.generationJobId !== selector.generationJobId ||
-            facts.workAction !== binding.operation ||
-            facts.serviceSubject !== binding.subject || facts.audience !== binding.audience ||
-            !uuid(facts.clientId) || !uuid(facts.objectiveId) || !uuid(facts.controlId) ||
-            proof.iatSeconds > facts.databaseNowSeconds ||
-            proof.nbfSeconds > facts.databaseNowSeconds ||
-            proof.expSeconds <= facts.databaseNowSeconds) unavailable();
+    type Outcome =
+      | { readonly kind: 'issued'; readonly token: string; readonly authorizationJti: string;
+          readonly iatSeconds: number; readonly expSeconds: number }
+      | { readonly kind: 'denied'; readonly code: ObjectiveWorkloadIssuanceError['code'] };
+    const outcome = await port.withTenantTransaction<Outcome>(selector.tenantId, async (tx) => {
+      const isCurrent = (facts: CurrentObjectiveIssuanceSource): boolean =>
+        !!facts && facts.enabled === true && seconds(facts.databaseNowSeconds) &&
+            seconds(facts.validUntilSeconds) &&
+            facts.validUntilSeconds > facts.databaseNowSeconds &&
+            facts.tenantId === selector.tenantId &&
+            facts.delegationRef === selector.delegationRef &&
+            facts.consentId === selector.consentId &&
+            facts.generationJobId === selector.generationJobId &&
+            facts.workAction === binding.operation &&
+            facts.serviceSubject === binding.subject && facts.audience === binding.audience &&
+            uuid(facts.clientId) && uuid(facts.objectiveId) && uuid(facts.controlId) &&
+            proof.iatSeconds <= facts.databaseNowSeconds &&
+            proof.nbfSeconds <= facts.databaseNowSeconds &&
+            proof.expSeconds > facts.databaseNowSeconds;
+      const currentOrNull = async (): Promise<CurrentObjectiveIssuanceSource | null> => {
+        try {
+          const facts = await port.loadCurrent(tx, selector);
+          return isCurrent(facts) ? facts : null;
+        } catch (error) {
+          // Only the source loader's own semantic unavailability is a durable
+          // denial. Adapter, SQL and transaction faults roll back fail closed.
+          if (error instanceof ObjectiveCurrentSourceUnavailable) return null;
+          throw error;
+        }
       };
-      // The source loader acquires the job lock first. An operation-lock wait
-      // can age the proof or consent, so repeat the source and DB clock check
-      // after the advisory lock before reading or writing either ledger row.
-      requireCurrent(await port.loadCurrent(tx, selector));
+      // Keep the source job lock before the operation lock. An operation wait
+      // can age the proof or source, so only a second locked read can issue.
+      const first = await currentOrNull();
       await tx.lockOperation(proof.operationId);
-      const facts = await port.loadCurrent(tx, selector);
-      requireCurrent(facts);
-      const saved = await tx.findIssuance(proof.operationId);
+      const decision = await tx.findDecision(proof.operationId);
+      if (decision && (decision.callerIssuer !== proof.issuer ||
+          decision.callerSubject !== proof.subject ||
+          decision.issuanceRequestSha256 !== proof.requestSha256 ||
+          decision.tenantId !== selector.tenantId ||
+          (decision.decision === 'issued' &&
+            (decision.generationJobId !== selector.generationJobId ||
+             decision.phase !== selector.phase)))) conflict();
+      const priorProof = await tx.findProofUse(proof.issuer, proof.jti);
+      const proofUse = (operationDecision: 'issued' | 'denied', proofOutcome: 'issued' | 'denied'):
+          ObjectiveWorkloadProofUseRecord => ({
+        tenantId: selector.tenantId, callerIssuer: proof.issuer,
+        callerSubject: proof.subject, callerKeyId: proof.keyId,
+        proofJti: proof.jti, operationId: proof.operationId,
+        operationDecision, proofOutcome,
+        proofRequestSha256: proof.requestSha256,
+        proofIatSeconds: BigInt(proof.iatSeconds),
+        proofNbfSeconds: BigInt(proof.nbfSeconds),
+        proofExpSeconds: BigInt(proof.expSeconds),
+      });
+      if (priorProof && (!decision ||
+          !sameProofIdentity(priorProof, proofUse(decision.decision, priorProof.proofOutcome)))) conflict();
+      const deny = async (code: ObjectiveWorkloadIssuanceError['code']): Promise<Outcome> => {
+        const finalDecision = decision ?? {
+          operationId: proof.operationId, callerIssuer: proof.issuer,
+          callerSubject: proof.subject, issuanceRequestSha256: proof.requestSha256,
+          decision: 'denied' as const, tenantId: selector.tenantId,
+          generationJobId: null, phase: null,
+        };
+        if (!decision) await tx.insertDecision(finalDecision);
+        if (!priorProof) await tx.insertProofUse(proofUse(finalDecision.decision, 'denied'));
+        return { kind: 'denied', code };
+      };
+      if (decision?.decision === 'denied' || priorProof?.proofOutcome === 'denied')
+        return deny('UNAVAILABLE');
+      if (!first) return deny('UNAVAILABLE');
+      const facts = await currentOrNull();
+      if (!facts) return deny('UNAVAILABLE');
+      const saved = decision ? await tx.findIssuance(proof.operationId) : null;
+      if (decision?.decision === 'issued' && !saved) return deny('UNAVAILABLE');
       const activeSigner = saved ? null : pins.active();
       const expected = {
         operationId: proof.operationId, tenantId: facts.tenantId,
@@ -305,11 +374,11 @@ export function createObjectiveWorkloadIssuanceAdapter(
         targetBodySha256: bodySha256, attemptId: binding.attemptId,
         runId: binding.runId, acceptedBindingSha256: binding.acceptedBindingSha256,
       } satisfies Pick<ObjectiveWorkloadIssuanceRecord, (typeof IMMUTABLE_TUPLE)[number]>;
-      if (saved && !sameTuple(saved, expected)) conflict();
+      if (saved && !sameTuple(saved, expected)) return deny('CONFLICT');
 
       const signer = saved ? pins.byKid(saved.signerKeyId) : activeSigner;
       if (!signer || signer.issuer !== expected.tokenIssuer ||
-          (saved && signer.kid !== saved.signerKeyId)) unavailable();
+          (saved && signer.kid !== saved.signerKeyId)) return deny('UNAVAILABLE');
       let issuance = saved;
       if (saved) {
         if (!seconds(Number(saved.iatSeconds)) || !seconds(Number(saved.nbfSeconds)) ||
@@ -319,11 +388,11 @@ export function createObjectiveWorkloadIssuanceAdapter(
             saved.expSeconds - saved.iatSeconds > 60n ||
             facts.databaseNowSeconds >= Number(saved.expSeconds) ||
             facts.validUntilSeconds < Number(saved.expSeconds) ||
-            !uuid(saved.authorizationJti)) expired();
+            !uuid(saved.authorizationJti)) return deny('EXPIRED');
       } else {
         const jti = allocateJti();
         const exp = Math.min(facts.validUntilSeconds, facts.databaseNowSeconds + 60);
-        if (!uuid(jti) || exp <= facts.databaseNowSeconds) unavailable();
+        if (!uuid(jti) || exp <= facts.databaseNowSeconds) return deny('UNAVAILABLE');
         issuance = {
           ...expected, authorizationJti: jti, signerKeyId: signer.kid,
           iatSeconds: BigInt(facts.databaseNowSeconds),
@@ -331,27 +400,32 @@ export function createObjectiveWorkloadIssuanceAdapter(
         };
       }
       const row = issuance ?? unavailable();
-      const token = issueObjectiveWorkloadJwt(binding, signer, {
-        jti: row.authorizationJti, nowSeconds: Number(row.iatSeconds),
-        expiresAtSeconds: Number(row.expSeconds),
-      });
-      const proofUse: ObjectiveWorkloadProofUseRecord = {
-        tenantId: facts.tenantId, callerIssuer: proof.issuer,
-        callerSubject: proof.subject, callerKeyId: proof.keyId,
-        proofJti: proof.jti, operationId: proof.operationId,
-        proofRequestSha256: proof.requestSha256,
-        proofIatSeconds: BigInt(proof.iatSeconds),
-        proofNbfSeconds: BigInt(proof.nbfSeconds),
-        proofExpSeconds: BigInt(proof.expSeconds),
-      };
-      const priorProof = await tx.findProofUse(proof.issuer, proof.jti);
-      if (priorProof && !sameProofUse(priorProof, proofUse)) conflict();
-      if (!saved) await tx.insertIssuance(row);
-      if (!priorProof) await tx.insertProofUse(proofUse);
+      let token: string;
+      try {
+        token = issueObjectiveWorkloadJwt(binding, signer, {
+          jti: row.authorizationJti, nowSeconds: Number(row.iatSeconds),
+          expiresAtSeconds: Number(row.expSeconds),
+        });
+      } catch (error) {
+        if (error instanceof ObjectiveWorkloadJwtError) return deny('UNAVAILABLE');
+        throw error;
+      }
+      if (!decision) {
+        await tx.insertDecision({ operationId: proof.operationId,
+          callerIssuer: proof.issuer, callerSubject: proof.subject,
+          issuanceRequestSha256: proof.requestSha256,
+          decision: 'issued', tenantId: facts.tenantId,
+          generationJobId: facts.generationJobId, phase: binding.phase });
+        await tx.insertIssuance(row);
+      }
+      if (!priorProof) await tx.insertProofUse(proofUse('issued', 'issued'));
       return Object.freeze({
-        token, authorizationJti: row.authorizationJti,
+        kind: 'issued' as const, token, authorizationJti: row.authorizationJti,
         iatSeconds: Number(row.iatSeconds), expSeconds: Number(row.expSeconds),
       });
     });
+    if (outcome.kind === 'denied') throw new ObjectiveWorkloadIssuanceError(outcome.code);
+    return Object.freeze({ token: outcome.token, authorizationJti: outcome.authorizationJti,
+      iatSeconds: outcome.iatSeconds, expSeconds: outcome.expSeconds });
   };
 }

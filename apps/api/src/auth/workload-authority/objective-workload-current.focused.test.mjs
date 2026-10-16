@@ -133,3 +133,19 @@ test('memory wall and exact native membership are required', async () => {
   const mismatch = fixture(); mismatch.rows.member.membershipId = id(88);
   await assert.rejects(load(mismatch.tx, mismatch.selector, mismatch.options), denied);
 });
+
+test('missing source remains unavailable while database faults escape unchanged', async () => {
+  const missing = fixture(); delete missing.rows.job;
+  await assert.rejects(load(missing.tx, missing.selector, missing.options), denied);
+
+  for (const failedTable of ['sp_draft_job', 'client_objective_workload_delegations']) {
+    const f = fixture();
+    const originalQuery = f.tx.$queryRaw;
+    const fault = Object.assign(new Error(`database failure at ${failedTable}`), { code: 'P2034' });
+    f.tx.$queryRaw = async (parts, ...values) => {
+      if (parts.join('?').includes(`FROM ${failedTable}`)) throw fault;
+      return originalQuery(parts, ...values);
+    };
+    await assert.rejects(load(f.tx, f.selector, f.options), error => error === fault);
+  }
+});

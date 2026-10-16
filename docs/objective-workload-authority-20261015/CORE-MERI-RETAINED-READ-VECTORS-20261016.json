@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "kind": "UNSIGNED_OFFLINE_CORE_MERI_RETAINED_READ_CANDIDATE",
+  "status": "proposed; no production issuer, key, route, or authorization",
+  "sourcePins": {
+    "core": "apps/api/src/auth/workload-authority/objective-workload-jwt.ts on draft PR 42",
+    "meriRepository": "neo-capiro/meri-greenfield",
+    "meriCommit": "5b166bf49bf4871138e3c02eebf04a8d6f04a5e2",
+    "meriGate": "apps/control/objective-generation/workload-reader-gate.mjs"
+  },
+  "fixtureRules": {
+    "serialization": "Use the listed Core header and payload insertion order; reject extra or duplicate keys. JSON fixture members are ordered for readability but signed compact bytes must be generated explicitly.",
+    "mutationSigning": "For a semantic denial vector, re-sign its mutated compact header and payload with a disposable RSA-3072 fixture key. Bad-signature cases change bytes without re-signing. Never persist or ship the fixture private key.",
+    "sourceCanonicalization": "Meri canonicalSha256(source) uses canonicalize 5.1.0 over only the source object, excluding outer schemaVersion; independently check against Core Strategy applicationHash for this finite string/integer fixture domain",
+    "bindingCanonicalization": "Core generationBindingKey(parseAcceptedRunBinding(full binding)); independently verify the golden value in Meri",
+    "rawBody": "Exact UTF-8 bytes, never parsed-JSON reserialization for bodySha256",
+    "sourceVariant": "Apply its source patch, regenerate rawBodyUtf8 as JSON.stringify({schemaVersion:1,source}) in the base member order, then use the listed golden digests for selected digest claim updates; non-digest selected claims come from the mutated source/binding",
+    "successRequires": "Current native actor/membership, original consent/delegation/source, accepted run, retained custody, fixed result owner and durable runOnce"
+  },
+  "base": {
+    "source": {
+      "generationJobId": "00000000-0000-4000-8000-000000000006",
+      "binding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "user_synthetic_clerk",
+        "conversationId": "00000000-0000-4000-8000-000000000002",
+        "runId": "00000000-0000-4000-8000-000000000003",
+        "attemptId": "00000000-0000-4000-8000-000000000004",
+        "workerId": "00000000-0000-4000-8000-000000000005",
+        "writerFence": 1
+      },
+      "sourceAdmissionSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "rawBodyUtf8": "{\"schemaVersion\":1,\"source\":{\"generationJobId\":\"00000000-0000-4000-8000-000000000006\",\"binding\":{\"tenantId\":\"00000000-0000-4000-8000-000000000001\",\"actorId\":\"user_synthetic_clerk\",\"conversationId\":\"00000000-0000-4000-8000-000000000002\",\"runId\":\"00000000-0000-4000-8000-000000000003\",\"attemptId\":\"00000000-0000-4000-8000-000000000004\",\"workerId\":\"00000000-0000-4000-8000-000000000005\",\"writerFence\":1},\"sourceAdmissionSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}",
+    "canonicalSourceUtf8": "{\"binding\":{\"actorId\":\"user_synthetic_clerk\",\"attemptId\":\"00000000-0000-4000-8000-000000000004\",\"conversationId\":\"00000000-0000-4000-8000-000000000002\",\"runId\":\"00000000-0000-4000-8000-000000000003\",\"tenantId\":\"00000000-0000-4000-8000-000000000001\",\"workerId\":\"00000000-0000-4000-8000-000000000005\",\"writerFence\":1},\"generationJobId\":\"00000000-0000-4000-8000-000000000006\",\"sourceAdmissionSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+    "canonicalBindingUtf8": "{\"actorId\":\"user_synthetic_clerk\",\"attemptId\":\"00000000-0000-4000-8000-000000000004\",\"conversationId\":\"00000000-0000-4000-8000-000000000002\",\"runId\":\"00000000-0000-4000-8000-000000000003\",\"tenantId\":\"00000000-0000-4000-8000-000000000001\",\"workerId\":\"00000000-0000-4000-8000-000000000005\",\"writerFence\":1}",
+    "header": {
+      "alg": "RS256",
+      "typ": "capiro-objective-workload+jwt",
+      "kid": "fixture-core-rsa-1"
+    },
+    "claims": {
+      "iss": "urn:capiro:objective:core-reader-issuer:v1",
+      "sub": "capiro-objective-core-result-reader:v1",
+      "aud": "capiro:objective-meri-retained-result:v1",
+      "iat": 1800000000,
+      "nbf": 1800000000,
+      "exp": 1800000030,
+      "jti": "00000000-0000-4000-8000-000000000009",
+      "method": "POST",
+      "path": "/v1/internal/objective-generation/retained-result/read",
+      "query": "",
+      "bodySha256": "9bfacc0fb70261356d723e038c317c76499c385f422691330ddce74fddb80f7c",
+      "operation": "objective.retained-result.read",
+      "phase": "retained-result-read",
+      "tenantId": "00000000-0000-4000-8000-000000000001",
+      "generationJobId": "00000000-0000-4000-8000-000000000006",
+      "delegationRef": "00000000-0000-4000-8000-000000000007",
+      "consentId": "00000000-0000-4000-8000-000000000008",
+      "attemptId": "00000000-0000-4000-8000-000000000004",
+      "runId": "00000000-0000-4000-8000-000000000003",
+      "acceptedBindingSha256": "f73a2e7ccef63ca74a064f77b6437004ba74cf6b6e388303bab115f6a93d42bb",
+      "sourceSha256": "292fce5b4e5d89233fe20998076a26c89efdc354d9d776aa03e5f5370dc0c651"
+    },
+    "nowSeconds": 1800000000,
+    "expectedAfterSyntheticSigning": "allow_only_if_all_current_and_runOnce_ports_succeed"
+  },
+  "sourceVariants": {
+    "writerFence2": {
+      "patch": { "pointer": "/base/source/binding/writerFence", "value": 2 },
+      "bodySha256": "edcb307bde8943497350f3a7be6a81c676af6e3e34c2e6da5b777ac29e37d577",
+      "sourceSha256": "1885858addee616bcf48472db520cbf3e217c866a7755df7758c9d8302252da7",
+      "acceptedBindingSha256": "9788722ba919051433dcc73d99c6c97120ff037e8b7b101f07f29864357e0657"
+    },
+    "otherTenant": {
+      "patch": { "pointer": "/base/source/binding/tenantId", "value": "00000000-0000-4000-8000-000000000010" },
+      "bodySha256": "55749245e1112a24d9473d7716c1c0e4ab626ed6ad3171864dcd9ee73e8d2b57",
+      "sourceSha256": "aceb801737462e5ea6bc3b8c41ff7b30d4210ecf578797622995d87ab3d9a8d9",
+      "acceptedBindingSha256": "3b44347b9046c7c9e3ce7e8a17c78a9d24bad400ec5403e0ddac12eaaea29418"
+    },
+    "otherActor": {
+      "patch": { "pointer": "/base/source/binding/actorId", "value": "user_other_synthetic_clerk" },
+      "bodySha256": "caf6122de4dd2cfd4f77a26a9b88c125f6c01680cc2db36013f24ec239bd9447",
+      "sourceSha256": "4d00fd7172433c673c1039a06c04c70411f6ae9cc4be4d88682296e9c21780d8",
+      "acceptedBindingSha256": "1ef2de05e18c58ef8af2a739c2ce1a5c7bf84660cf274272f1a0aa3746b35bc9"
+    },
+    "otherConversation": {
+      "patch": { "pointer": "/base/source/binding/conversationId", "value": "00000000-0000-4000-8000-000000000010" },
+      "bodySha256": "244692cb560ac247a71f85799550df3e517e377ababcd4fe27fa256f908b2e5f",
+      "sourceSha256": "b0fd5ab328832d0456c6e185131568152a5e6d9bb32499f532adbd652cd6aaae",
+      "acceptedBindingSha256": "3119598790803fde8255c5e6c1023cba827329d9e4edb9052339df0ef8090642"
+    },
+    "otherRun": {
+      "patch": { "pointer": "/base/source/binding/runId", "value": "00000000-0000-4000-8000-000000000010" },
+      "bodySha256": "3a10a8f74006efd2b89daa459754d528dfc299db188bb8d0c7a88bb532ba11a0",
+      "sourceSha256": "864f54777bf28ea8617434f0ef58a8668fcadd93744b6ebdffab48ace1943eba",
+      "acceptedBindingSha256": "3912e2baca536365b704f2e296ce2d380787b561fd87777d5fc3b917df6984d1"
+    },
+    "otherAttempt": {
+      "patch": { "pointer": "/base/source/binding/attemptId", "value": "00000000-0000-4000-8000-000000000010" },
+      "bodySha256": "e77f10ef7b11fd3898ff2c1bddcaab870079ccd5340919f84730423c58095164",
+      "sourceSha256": "0ff5f13196dbdc93d143fa1effe114809af7588cef50f9d67c34eb712761329e",
+      "acceptedBindingSha256": "3160529cd7f69c1c1f68f6944412cd6d415cee424aefb9fb9d6b828b06158495"
+    },
+    "otherWorker": {
+      "patch": { "pointer": "/base/source/binding/workerId", "value": "00000000-0000-4000-8000-000000000010" },
+      "bodySha256": "c89461d8e12c65336bc5e2e7336d29b87c26fc60500218372beeb0d516e74887",
+      "sourceSha256": "3119ca4055e3181bd918f5804908bab1d932bc4f0b3ed7508f13302ce4b5964c",
+      "acceptedBindingSha256": "38c296565946d312b99b93e47f09935d872727cb94dd81f485feaabd485d3135"
+    },
+    "admissionB": {
+      "patch": { "pointer": "/base/source/sourceAdmissionSha256", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+      "bodySha256": "33f626c1f3685d57430688f24a248699936d5c4985e03eea4dcf1a6dde61eb3b",
+      "sourceSha256": "775c29831c95408c56d21538bc9a904991c47d608a2f293b9223d4ecc9fba7c8",
+      "acceptedBindingSha256": "f73a2e7ccef63ca74a064f77b6437004ba74cf6b6e388303bab115f6a93d42bb"
+    },
+    "jobOther": {
+      "patch": { "pointer": "/base/source/generationJobId", "value": "00000000-0000-4000-8000-000000000007" },
+      "bodySha256": "0bfcd8247e5b64ca6c4392824da814d088410be81a4b70cab4f73f229c6b6c9d",
+      "sourceSha256": "0aad8bf297c485334a38008d02a9f7cd8c2b4b98e590e94e5728eea28ba6faf3",
+      "acceptedBindingSha256": "f73a2e7ccef63ca74a064f77b6437004ba74cf6b6e388303bab115f6a93d42bb"
+    }
+  },
+  "cases": [
+    { "id": "current-baseline", "action": "sign-base-and-read", "expected": "allow_if_current" },
+    { "id": "identical-replay", "action": "repeat-same-signed-token-and-raw-body", "expected": "same_saved_result_one_owner_read" },
+    { "id": "revoked-during-read", "action": "revoke-current-before-result-release", "expected": "deny_result_one_owner_read_at_most" },
+    { "id": "old-meri-layout", "mutations": [{ "pointer": "/base/header/alg", "value": "EdDSA" }, { "pointer": "/base/header/typ", "value": "JWT" }, { "pointer": "/base/claims", "operation": "wrap-in-objective" }], "expected": "deny_before_current" },
+    { "id": "wrong-algorithm", "mutations": [{ "pointer": "/base/header/alg", "value": "HS256" }], "expected": "deny_before_current" },
+    { "id": "wrong-type", "mutations": [{ "pointer": "/base/header/typ", "value": "JWT" }], "expected": "deny_before_current" },
+    { "id": "unknown-kid", "mutations": [{ "pointer": "/base/header/kid", "value": "unknown" }], "expected": "deny_before_current" },
+    { "id": "token-key-url", "mutations": [{ "pointer": "/base/header/jku", "value": "https://attacker.invalid/key" }], "expected": "deny_before_current" },
+    { "id": "wrong-issuer", "mutations": [{ "pointer": "/base/claims/iss", "value": "urn:capiro:objective:other:v1" }], "expected": "deny_before_current" },
+    { "id": "wrong-subject", "mutations": [{ "pointer": "/base/claims/sub", "value": "capiro-objective-generation-worker:v1" }], "expected": "deny_before_current" },
+    { "id": "wrong-audience", "mutations": [{ "pointer": "/base/claims/aud", "value": "capiro:objective-strategy-api:v1" }], "expected": "deny_before_current" },
+    { "id": "draft-operation", "mutations": [{ "pointer": "/base/claims/operation", "value": "objective.strategy.draft" }], "expected": "deny_before_current" },
+    { "id": "wrong-phase", "mutations": [{ "pointer": "/base/claims/phase", "value": "accept" }], "expected": "deny_before_current" },
+    { "id": "wrong-method", "mutations": [{ "pointer": "/base/claims/method", "value": "GET" }], "expected": "deny_before_current" },
+    { "id": "wrong-path", "mutations": [{ "pointer": "/base/claims/path", "value": "/v1/internal/objective-generation/retained-result/other" }], "expected": "deny_before_current" },
+    { "id": "nonempty-query", "mutations": [{ "pointer": "/base/claims/query", "value": "x=1" }], "expected": "deny_before_current" },
+    { "id": "raw-body-whitespace", "mutations": [{ "pointer": "/base/rawBodyUtf8", "operation": "append", "value": " " }], "observedBodySha256": "09f8c2f593106e0a75a4cc24da2a40d82ecbfd15ae4fc3580484cc91baa3574b", "expected": "deny_before_current" },
+    { "id": "wrong-source-sha", "mutations": [{ "pointer": "/base/claims/sourceSha256", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }], "expected": "deny_before_current" },
+    { "id": "wrong-binding-sha", "mutations": [{ "pointer": "/base/claims/acceptedBindingSha256", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }], "expected": "deny_before_current" },
+    { "id": "wrong-tenant", "mutations": [{ "pointer": "/base/claims/tenantId", "value": "00000000-0000-4000-8000-000000000010" }], "expected": "deny_before_current_or_current" },
+    { "id": "wrong-consent", "mutations": [{ "pointer": "/base/claims/consentId", "value": "00000000-0000-4000-8000-000000000010" }], "expected": "deny_current_authority" },
+    { "id": "wrong-delegation", "mutations": [{ "pointer": "/base/claims/delegationRef", "value": "00000000-0000-4000-8000-000000000010" }], "expected": "deny_current_authority" },
+    { "id": "wrong-run", "mutations": [{ "pointer": "/base/claims/runId", "value": "00000000-0000-4000-8000-000000000010" }], "expected": "deny_before_current" },
+    { "id": "wrong-attempt", "mutations": [{ "pointer": "/base/claims/attemptId", "value": "00000000-0000-4000-8000-000000000010" }], "expected": "deny_before_current" },
+    { "id": "other-full-binding", "sourceVariant": "writerFence2", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-tenant-binding", "sourceVariant": "otherTenant", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256", "tenantId"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-actor-binding", "sourceVariant": "otherActor", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-conversation-binding", "sourceVariant": "otherConversation", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-run-binding", "sourceVariant": "otherRun", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256", "runId"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-attempt-binding", "sourceVariant": "otherAttempt", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256", "attemptId"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-worker-binding", "sourceVariant": "otherWorker", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "acceptedBindingSha256"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-source-admission", "sourceVariant": "admissionB", "updateClaimsFromVariant": ["bodySha256", "sourceSha256"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "other-job", "sourceVariant": "jobOther", "updateClaimsFromVariant": ["bodySha256", "sourceSha256", "generationJobId"], "expected": "deny_fixed_trusted_source_even_with_consistent_signed_hashes" },
+    { "id": "future-not-before", "mutations": [{ "pointer": "/base/claims/nbf", "value": 1800000001 }], "expected": "deny_before_current" },
+    { "id": "expired", "nowSeconds": 1800000030, "expected": "deny_before_current" },
+    { "id": "overlong-life", "mutations": [{ "pointer": "/base/claims/exp", "value": 1800000061 }], "expected": "deny_before_current" },
+    { "id": "non-v4-jti", "mutations": [{ "pointer": "/base/claims/jti", "value": "00000000-0000-1000-8000-000000000009" }], "expected": "deny_before_current" },
+    { "id": "same-jti-different-valid-token", "action": "re-sign-with-same-jti-and-changed-nbf-after-first-read", "expected": "deny_runOnce_conflict" },
+    { "id": "pending-replay", "action": "repeat-identical-while-runOnce-pending", "expected": "unavailable_no_second_owner_read" },
+    { "id": "revoked-replay", "action": "revoke-current-before-identical-replay", "expected": "deny_result_no_second_owner_read" },
+    { "id": "unavailable-owner", "action": "set-result-owner-unavailable", "expected": "deny_without_owner_read" },
+    { "id": "bad-signature", "action": "flip-last-signature-byte-without-resigning", "expected": "deny_before_current" },
+    { "id": "duplicate-claim", "action": "insert-second-jti-json-member-and-resign", "expected": "deny_before_current" }
+  ]
+}

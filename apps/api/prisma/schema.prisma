@@ -16931,11 +16931,33 @@ model ClientObjectiveWorkloadDelegation {
   @@map("client_objective_workload_delegations")
 }
 
+/// Immutable operation result. Denied decisions may precede tenant resolution;
+/// those NULL-tenant receipts require a separately reviewed system writer.
+/// They survive consent-linked issuance deletion to preserve replay identity.
+/// SQL owns the partial unique mutating-phase fence on tenant, job and phase.
+model ClientObjectiveWorkloadIssueDecision {
+  operationId           String   @id @map("operation_id") @db.Uuid
+  callerIssuer          String   @map("caller_issuer") @db.VarChar(128)
+  callerSubject         String   @map("caller_subject") @db.VarChar(128)
+  issuanceRequestSha256 String   @map("issuance_request_sha256") @db.Char(64)
+  decision              String   @db.VarChar(6)
+  tenantId              String?  @map("resolved_tenant_id") @db.Uuid
+  generationJobId        String?  @map("generation_job_id") @db.Uuid
+  phase                  String?  @db.VarChar(32)
+  decidedAt             DateTime @default(dbgenerated("clock_timestamp()")) @map("decided_at") @db.Timestamptz(6)
+
+  @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision], map: "objective_workload_issue_decisions_proof_key")
+  @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision, tenantId], map: "objective_workload_issue_decisions_issuance_key")
+  @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision, tenantId, generationJobId, phase], map: "objective_workload_issue_decisions_claim_key")
+  @@map("client_objective_workload_issue_decisions")
+}
+
 /// Immutable saved JWT claim tuple for Core operation-level issuance replay.
 /// SQL owns the composite delegation FK, fixed phase/routes and raw-body hash
 /// checks; the issuer still has to recheck current database authority.
 model ClientObjectiveWorkloadIssuance {
   operationId            String   @id @map("operation_id") @db.Uuid
+  decision               String   @default("issued") @db.VarChar(6)
   tenantId               String   @map("tenant_id") @db.Uuid
   clientId               String   @map("client_id") @db.Uuid
   objectiveId            String   @map("objective_id") @db.Uuid
@@ -16970,15 +16992,18 @@ model ClientObjectiveWorkloadIssuance {
   @@map("client_objective_workload_issuances")
 }
 
-/// Successful caller-proof use, bound to the same original issuance request.
-/// Denied-proof replay needs a separate receipt design before production use.
+/// Every verified proof use binds the exact operation and request. A later
+/// proof may be denied while the original operation decision remains issued.
+/// NULL-tenant denial rows need a future narrowly authorized system writer.
 model ClientObjectiveWorkloadProofUse {
-  tenantId            String   @map("tenant_id") @db.Uuid
+  tenantId            String?  @map("tenant_id") @db.Uuid
   callerIssuer        String   @map("caller_issuer") @db.VarChar(128)
   callerSubject       String   @map("caller_subject") @db.VarChar(128)
   callerKeyId         String   @map("caller_key_id") @db.VarChar(64)
   proofJti            String   @map("proof_jti") @db.Uuid
   operationId         String   @map("operation_id") @db.Uuid
+  operationDecision   String   @map("operation_decision") @db.VarChar(6)
+  proofOutcome        String   @map("proof_outcome") @db.VarChar(6)
   proofRequestSha256  String   @map("proof_request_sha256") @db.Char(64)
   proofIatSeconds     BigInt   @map("proof_iat_seconds")
   proofNbfSeconds     BigInt   @map("proof_nbf_seconds")
@@ -16986,6 +17011,6 @@ model ClientObjectiveWorkloadProofUse {
   usedAt              DateTime @default(dbgenerated("clock_timestamp()")) @map("used_at") @db.Timestamptz(6)
 
   @@id([callerIssuer, proofJti], map: "objective_workload_proof_uses_pkey")
-  @@index([tenantId, operationId], map: "objective_workload_proof_uses_operation_idx")
+  @@index([callerIssuer, operationId], map: "objective_workload_proof_uses_operation_idx")
   @@map("client_objective_workload_proof_uses")
 }

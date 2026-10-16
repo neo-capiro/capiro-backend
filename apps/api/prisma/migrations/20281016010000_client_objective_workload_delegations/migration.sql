@@ -51,12 +51,55 @@ CREATE TABLE client_objective_workload_delegations (
 CREATE INDEX objective_workload_delegations_scope_idx ON client_objective_workload_delegations
   (tenant_id,client_id,objective_id,control_id,consent_id);
 
+-- A verified issuance request has one permanent operation decision. A denial
+-- is saved even when the job is absent and no tenant can be resolved; a later
+-- source change must not turn the same operation or proof into an issuance.
+-- Unknown-tenant denial writes require a future narrowly authorized system
+-- transaction. No such issuer is mounted by this migration; until its owner
+-- and native privileges are reviewed, these failures remain unavailable.
+-- This global receipt is deliberately independent of the consent cascade so
+-- hard deletion cannot release an old operation_id for reuse.
+CREATE TABLE client_objective_workload_issue_decisions (
+  operation_id UUID PRIMARY KEY,
+  caller_issuer VARCHAR(128) NOT NULL
+    CHECK (caller_issuer ~ '^[a-z][a-z0-9:._-]{0,127}$'),
+  caller_subject VARCHAR(128) NOT NULL
+    CHECK (caller_subject ~ '^[a-z][a-z0-9:._-]{0,127}$'),
+  issuance_request_sha256 CHAR(64) NOT NULL
+    CHECK (issuance_request_sha256 ~ '^[0-9a-f]{64}$'),
+  decision VARCHAR(6) NOT NULL CHECK (decision IN ('issued','denied')),
+  resolved_tenant_id UUID,
+  generation_job_id UUID,
+  phase VARCHAR(32),
+  decided_at TIMESTAMPTZ(6) NOT NULL DEFAULT clock_timestamp(),
+  CONSTRAINT objective_workload_issue_decisions_scope_check CHECK (
+    (decision='denied' AND generation_job_id IS NULL AND phase IS NULL)
+    OR (decision='issued' AND resolved_tenant_id IS NOT NULL
+      AND generation_job_id IS NOT NULL AND phase IS NOT NULL)),
+  CONSTRAINT objective_workload_issue_decisions_phase_check CHECK (
+    phase IS NULL OR phase IN ('admit','admission-read','publish','request-read',
+      'accept','complete','completion-read','terminal-account','terminal-read','retained-result-read')),
+  CONSTRAINT objective_workload_issue_decisions_proof_key UNIQUE
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision),
+  CONSTRAINT objective_workload_issue_decisions_issuance_key UNIQUE
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,resolved_tenant_id),
+  CONSTRAINT objective_workload_issue_decisions_claim_key UNIQUE
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,
+      resolved_tenant_id,generation_job_id,phase)
+);
+-- The decision survives consent/issuance deletion, so mutating jobs retain
+-- their phase fence even if an inherited owner can DELETE an issuance row.
+CREATE UNIQUE INDEX objective_workload_issue_decisions_effect_phase_key
+  ON client_objective_workload_issue_decisions (resolved_tenant_id,generation_job_id,phase)
+  WHERE decision='issued' AND phase IN ('admit','publish','accept','complete','terminal-account');
+
 -- Persist the original, exact JWT claims rather than a bearer token. A retry
 -- of operation_id must compare every saved source, caller and target field and
 -- may only reproduce the original, still-live signature using its original
 -- signer key. A new operation cannot silently replace an uncertain one.
 CREATE TABLE client_objective_workload_issuances (
   operation_id UUID PRIMARY KEY,
+  decision VARCHAR(6) NOT NULL DEFAULT 'issued' CHECK (decision='issued'),
   tenant_id UUID NOT NULL,
   client_id UUID NOT NULL,
   objective_id UUID NOT NULL,
@@ -87,6 +130,13 @@ CREATE TABLE client_objective_workload_issuances (
   nbf_seconds BIGINT NOT NULL,
   exp_seconds BIGINT NOT NULL,
   recorded_at TIMESTAMPTZ(6) NOT NULL DEFAULT clock_timestamp(),
+  CONSTRAINT objective_workload_issuances_decision_fk FOREIGN KEY
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,
+      tenant_id,generation_job_id,phase)
+    REFERENCES client_objective_workload_issue_decisions
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,
+      resolved_tenant_id,generation_job_id,phase)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT objective_workload_issuances_delegation_fk FOREIGN KEY
     (tenant_id,client_id,objective_id,work_action,control_id,consent_id,generation_job_id,delegation_ref)
     REFERENCES client_objective_workload_delegations
@@ -151,11 +201,15 @@ CREATE UNIQUE INDEX objective_workload_issuances_effect_phase_key ON client_obje
 CREATE INDEX objective_workload_issuances_job_idx ON client_objective_workload_issuances
   (tenant_id,generation_job_id,recorded_at);
 
--- This ledger records authenticated proofs tied to a committed issuance. A
--- source-resolved denial has no issuance row; its proof-use semantics require
--- a separately reviewed denial receipt/transaction before production ingress.
+-- A proof use belongs to the immutable issued OR denied operation decision.
+-- It does not FK to the consent-linked issuance: an Objective hard-delete may
+-- erase claims, but must never release the consumed proof jti or decision.
+-- A denied proof may have a Core-derived tenant and use the tenant transaction.
+-- An unknown-tenant denial has NULL tenant and requires a separately reviewed
+-- system transaction. The issuer returns a tagged denial from the transaction,
+-- commits it, and sends the generic denial afterwards.
 CREATE TABLE client_objective_workload_proof_uses (
-  tenant_id UUID NOT NULL,
+  tenant_id UUID,
   caller_issuer VARCHAR(128) NOT NULL
     CHECK (caller_issuer ~ '^[a-z][a-z0-9:._-]{0,127}$'),
   caller_subject VARCHAR(128) NOT NULL
@@ -163,6 +217,8 @@ CREATE TABLE client_objective_workload_proof_uses (
   caller_key_id VARCHAR(64) NOT NULL CHECK (caller_key_id ~ '^[A-Za-z0-9._-]{1,64}$'),
   proof_jti UUID NOT NULL,
   operation_id UUID NOT NULL,
+  operation_decision VARCHAR(6) NOT NULL CHECK (operation_decision IN ('issued','denied')),
+  proof_outcome VARCHAR(6) NOT NULL CHECK (proof_outcome IN ('issued','denied')),
   proof_request_sha256 CHAR(64) NOT NULL
     CHECK (proof_request_sha256 ~ '^[0-9a-f]{64}$'),
   proof_iat_seconds BIGINT NOT NULL,
@@ -170,11 +226,21 @@ CREATE TABLE client_objective_workload_proof_uses (
   proof_exp_seconds BIGINT NOT NULL,
   used_at TIMESTAMPTZ(6) NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT objective_workload_proof_uses_pkey PRIMARY KEY (caller_issuer,proof_jti),
-  CONSTRAINT objective_workload_proof_uses_issuance_fk FOREIGN KEY
-    (tenant_id,operation_id,caller_issuer,caller_subject,proof_request_sha256)
-    REFERENCES client_objective_workload_issuances
-    (tenant_id,operation_id,caller_issuer,caller_subject,issuance_request_sha256)
-    ON DELETE CASCADE ON UPDATE NO ACTION,
+  CONSTRAINT objective_workload_proof_uses_scope_check CHECK (
+    (operation_decision='issued' AND tenant_id IS NOT NULL)
+    OR (operation_decision='denied' AND proof_outcome='denied')),
+  CONSTRAINT objective_workload_proof_uses_decision_fk FOREIGN KEY
+    (operation_id,caller_issuer,caller_subject,proof_request_sha256,operation_decision)
+    REFERENCES client_objective_workload_issue_decisions
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  -- This second FK applies when Core resolves a tenant. MATCH SIMPLE skips
+  -- it for NULL, so a deferred constraint trigger below compares NULLs too.
+  CONSTRAINT objective_workload_proof_uses_tenant_fk FOREIGN KEY
+    (operation_id,caller_issuer,caller_subject,proof_request_sha256,operation_decision,tenant_id)
+    REFERENCES client_objective_workload_issue_decisions
+    (operation_id,caller_issuer,caller_subject,issuance_request_sha256,decision,resolved_tenant_id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT objective_workload_proof_uses_time_check CHECK (
     proof_iat_seconds BETWEEN 0 AND 253402300799
     AND proof_nbf_seconds BETWEEN proof_iat_seconds AND 253402300799
@@ -182,7 +248,60 @@ CREATE TABLE client_objective_workload_proof_uses (
     AND proof_exp_seconds-proof_iat_seconds<=30)
 );
 CREATE INDEX objective_workload_proof_uses_operation_idx ON client_objective_workload_proof_uses
-  (tenant_id,operation_id);
+  (caller_issuer,operation_id);
+
+-- Every proof must have exactly its operation decision's resolved tenant,
+-- including NULL for a future system-scoped unknown-tenant denial. The
+-- composite FK alone cannot enforce this when proof.tenant_id is NULL.
+CREATE FUNCTION objective_workload_proof_use_tenant_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM client_objective_workload_issue_decisions d
+      WHERE d.operation_id=NEW.operation_id AND d.caller_issuer=NEW.caller_issuer
+        AND d.caller_subject=NEW.caller_subject
+        AND d.issuance_request_sha256=NEW.proof_request_sha256
+        AND d.decision=NEW.operation_decision
+        AND NEW.tenant_id IS NOT DISTINCT FROM d.resolved_tenant_id) THEN
+    RAISE EXCEPTION 'Objective workload proof tenant differs from operation decision' USING ERRCODE='23514';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER objective_workload_proof_uses_tenant_guard
+  AFTER INSERT ON client_objective_workload_proof_uses
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION objective_workload_proof_use_tenant_guard();
+
+-- The first decision and its issued claim row or denied proof receipt commit
+-- together. Later denied proofs for an already-issued operation do not change
+-- that operation decision. A consent hard-delete may later remove issuance
+-- claims; the independent decision and proof records remain replay fences.
+CREATE FUNCTION objective_workload_issue_decision_receipt_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.decision='issued' THEN
+    IF NOT EXISTS (SELECT 1 FROM client_objective_workload_issuances i
+      WHERE i.operation_id=NEW.operation_id AND i.tenant_id=NEW.resolved_tenant_id
+        AND i.generation_job_id=NEW.generation_job_id AND i.phase=NEW.phase
+        AND i.caller_issuer=NEW.caller_issuer AND i.caller_subject=NEW.caller_subject
+        AND i.issuance_request_sha256=NEW.issuance_request_sha256 AND i.decision='issued') THEN
+      RAISE EXCEPTION 'Objective workload issued decision lacks its claim record' USING ERRCODE='23514';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM client_objective_workload_proof_uses p
+      WHERE p.operation_id=NEW.operation_id AND p.tenant_id=NEW.resolved_tenant_id
+        AND p.caller_issuer=NEW.caller_issuer AND p.caller_subject=NEW.caller_subject
+        AND p.proof_request_sha256=NEW.issuance_request_sha256
+        AND p.operation_decision='issued' AND p.proof_outcome='issued') THEN
+      RAISE EXCEPTION 'Objective workload issued decision lacks its successful proof receipt' USING ERRCODE='23514';
+    END IF;
+  ELSIF NOT EXISTS (SELECT 1 FROM client_objective_workload_proof_uses p
+      WHERE p.operation_id=NEW.operation_id AND p.caller_issuer=NEW.caller_issuer
+        AND p.caller_subject=NEW.caller_subject AND p.proof_request_sha256=NEW.issuance_request_sha256
+        AND p.operation_decision='denied' AND p.proof_outcome='denied'
+        AND p.tenant_id IS NOT DISTINCT FROM NEW.resolved_tenant_id) THEN
+    RAISE EXCEPTION 'Objective workload denied decision lacks its proof receipt' USING ERRCODE='23514';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER objective_workload_issue_decisions_receipt_guard
+  AFTER INSERT ON client_objective_workload_issue_decisions
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION objective_workload_issue_decision_receipt_guard();
 
 -- A disabled delegation may only advance to cancelled once. All issuance and
 -- proof records are immutable; no replay may rewrite the saved claim tuple.
@@ -199,11 +318,14 @@ END $$;
 CREATE TRIGGER objective_workload_delegations_cancel_guard
   BEFORE UPDATE ON client_objective_workload_delegations
   FOR EACH ROW EXECUTE FUNCTION objective_workload_delegation_cancel_guard();
+CREATE TRIGGER objective_workload_issue_decisions_immutable
+  BEFORE UPDATE OR DELETE ON client_objective_workload_issue_decisions
+  FOR EACH ROW EXECUTE FUNCTION objective_work_record_immutable();
 CREATE TRIGGER objective_workload_issuances_immutable
   BEFORE UPDATE ON client_objective_workload_issuances
   FOR EACH ROW EXECUTE FUNCTION objective_work_record_immutable();
 CREATE TRIGGER objective_workload_proof_uses_immutable
-  BEFORE UPDATE ON client_objective_workload_proof_uses
+  BEFORE UPDATE OR DELETE ON client_objective_workload_proof_uses
   FOR EACH ROW EXECUTE FUNCTION objective_work_record_immutable();
 
 ALTER TABLE client_objective_workload_delegations ENABLE ROW LEVEL SECURITY;
@@ -211,6 +333,11 @@ ALTER TABLE client_objective_workload_delegations FORCE ROW LEVEL SECURITY;
 CREATE POLICY objective_workload_delegations_isolation ON client_objective_workload_delegations
   USING (rls_bypass() OR tenant_id=current_tenant_id())
   WITH CHECK (rls_bypass() OR tenant_id=current_tenant_id());
+ALTER TABLE client_objective_workload_issue_decisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_objective_workload_issue_decisions FORCE ROW LEVEL SECURITY;
+CREATE POLICY objective_workload_issue_decisions_isolation ON client_objective_workload_issue_decisions
+  USING (rls_bypass() OR resolved_tenant_id=current_tenant_id())
+  WITH CHECK (rls_bypass() OR resolved_tenant_id=current_tenant_id());
 ALTER TABLE client_objective_workload_issuances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_objective_workload_issuances FORCE ROW LEVEL SECURITY;
 CREATE POLICY objective_workload_issuances_isolation ON client_objective_workload_issuances
@@ -228,7 +355,8 @@ CREATE POLICY objective_workload_proof_uses_isolation ON client_objective_worklo
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='capiro_app') THEN
     REVOKE DELETE,TRUNCATE ON client_objective_workload_delegations FROM capiro_app;
-    REVOKE UPDATE,DELETE,TRUNCATE ON client_objective_workload_issuances,
+    REVOKE UPDATE,DELETE,TRUNCATE ON client_objective_workload_issue_decisions,
+      client_objective_workload_issuances,
       client_objective_workload_proof_uses FROM capiro_app;
   END IF;
 END $$;
