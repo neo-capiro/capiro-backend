@@ -84,10 +84,13 @@ export async function requireCanonicalApplicationFence(
   tx: ClientObjectiveDestinationTx,
   grant: CanonicalApplicationGrant,
   request: CanonicalApplicationRequest,
+  expectedRequestSha256 = applicationHash(request),
 ): Promise<void> {
   const c = request.canonical;
   grantScope(grant, c);
-  if (grant.requestSha256 !== applicationHash(request)) return unavailable();
+  // Producer uses its closed phase+work envelope hash. The only other caller
+  // uses the unchanged nine-field application hash. Both are server-derived.
+  if (grant.requestSha256 !== expectedRequestSha256) return unavailable();
   const source = await requireClientObjectiveDestinationRevision(tx, {
     tenantId: grant.tenantId, clerkUserId: grant.clerkUserId, userId: grant.actorUserId,
   }, { clientId: c.clientId, objectiveId: c.objectiveId, objectiveVersion: c.requestedObjectiveVersion }).catch(error => {

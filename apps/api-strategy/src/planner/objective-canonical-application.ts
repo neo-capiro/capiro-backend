@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
-import type { CanonicalMaterializationBinding, MaterializationResult, StoredCanonicalMaterialization } from './strategy-materialization.js';
+import type { CanonicalMaterializationBinding, MaterializationResult, CanonicalMaterializationResult, StoredCanonicalMaterialization } from './strategy-materialization.js';
 
 /** Private server contract. A reservation, digest or posted actor is never a credential. */
 export type CanonicalToken = CanonicalMaterializationBinding['canonical'];
@@ -139,7 +139,7 @@ export interface CanonicalApplicationObservation {
   applicationRequestId: string;
   creation: { availability: 'available'; ack: CanonicalCreationAck; sha256: string } |
     { availability: 'unavailable'; ack: null; sha256: null };
-  current: MaterializationResult;
+  current: CanonicalMaterializationResult;
 }
 /** The real receiving service supplies these ports from ONE already-open
  * Prisma transaction. No network, model work, retries or new tx may occur here. */
@@ -177,6 +177,8 @@ export async function executeCanonicalApplicationTransaction(request: CanonicalA
 }
 export function creationAck(request: CanonicalApplicationRequest, grant: CanonicalApplicationGrant,
   owner: StoredCanonicalMaterialization, ownerReceiptId: string, recordedAt: string): CanonicalCreationAck {
+  if (owner.receiptVersion !== 2 && owner.receiptVersion !== 3)
+    throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
   const r = owner.result;
   if (grant.tenantId !== request.canonical.tenantId || grant.requestSha256 !== applicationHash(request) ||
       grant.canonicalSha256 !== applicationHash(request.canonical) ||
@@ -193,7 +195,13 @@ export function creationAck(request: CanonicalApplicationRequest, grant: Canonic
       r.projects.length !== 1 || r.projects[0]!.groupKey !== 'default' ||
       r.projects[0]!.output.id !== request.canonical.canonicalProjectId ||
       [...r.projects, ...r.tasks].some(p => p.output.availability !== 'available' || p.output.id === null ||
-        p.output.createdVersion !== 1 || p.output.currentVersion !== 1))
+        p.output.createdVersion !== 1 || !Number.isInteger(p.output.currentVersion) || p.output.currentVersion! < 1) ||
+      (owner.receiptVersion === 2 && (r.counts.createdProjects !== 1 || r.counts.createdTasks !== r.tasks.length ||
+        [...r.projects, ...r.tasks].some(p => p.output.currentVersion !== 1))) ||
+      (owner.receiptVersion === 3 && (r.counts.createdProjects !== 0 ||
+        r.projects[0]!.output.currentVersion !== owner.reconciliation.project.appliedVersion ||
+        r.tasks.some(t => t.output.currentVersion !== owner.reconciliation.tasks.find(w => w.sourceNodeId === t.sourceNodeId)?.appliedVersion) ||
+        r.counts.createdTasks !== owner.reconciliation.counts.createdTasks)))
     throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
   return { schemaVersion: 1, operation: CANONICAL_APPLICATION_OPERATION,
     applicationRequestId: request.applicationRequestId, requestSha256: applicationHash(request),
@@ -226,7 +234,7 @@ export function checkStoredApplication(raw: unknown, owner: StoredCanonicalMater
     return { receiptVersion: 1, request, ack: rebuilt, ackSha256: applicationHash(rebuilt) };
   } catch { throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED'); }
 }
-export function applicationObservation(stored: StoredCanonicalApplication, current: MaterializationResult): CanonicalApplicationObservation {
+export function applicationObservation(stored: StoredCanonicalApplication, current: CanonicalMaterializationResult): CanonicalApplicationObservation {
   if (applicationHash(current.source) !== applicationHash(stored.ack.source) ||
       current.requestId !== stored.request.applicationRequestId ||
       current.projects.length !== stored.ack.projects.length || current.tasks.length !== stored.ack.tasks.length ||

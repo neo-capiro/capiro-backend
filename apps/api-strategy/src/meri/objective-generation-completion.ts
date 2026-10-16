@@ -4,6 +4,8 @@ import { admitObjective } from './objective-generation-admission.js';
 import { lockObjectiveSources, readObjectiveSources } from './objective-generation-sources.js';
 import { digest, SAFE_FAILURES, type ObjectiveAdmission } from './objective-generation.types.js';
 import type { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
+import { generationAssociation, generationMarker, recordCanonicalGenerationProducer } from './objective-canonical-producer-ledger.js';
+import { requireCanonicalGenerationEffectWithinTx } from './objective-canonical-generation-fence.js';
 
 export interface ObjectiveClaim {
   id: string;
@@ -87,6 +89,14 @@ export function objectivePersistence(
       const deadline = await tx.$queryRaw<Array<{ valid: boolean }>>`
         SELECT deadline_at > clock_timestamp() AS valid FROM sp_draft_job WHERE id=${job.id}::uuid AND tenant_id=${job.tenantId}::uuid`;
       if (!deadline[0]?.valid) throw new ObjectiveLeaseLost();
+      if (row.input.canonicalGeneration) {
+        const associated = await generationAssociation(tx, job.tenantId, job.ownerUserId, job.id);
+        if (digest(row.input.canonicalGeneration) !== digest(generationMarker(associated.admission)) ||
+            job.claimToken !== `canonical:${associated.acceptance.issuance.issuanceKey}` || job.attempt !== 2)
+          throw new ObjectiveLeaseLost();
+        await requireCanonicalGenerationEffectWithinTx(tx, associated.admission, {
+          generationJobId: job.id, generationRequestId: envelope.request.requestId });
+      }
       lockedInput = row.input;
     },
     afterWrite: async (tx, saved) => {
@@ -117,6 +127,14 @@ export function objectivePersistence(
           AND claimed_by=${job.claimToken} AND attempt=${job.attempt} AND strategy_id IS NULL
           AND deadline_at > clock_timestamp() AND (input #> '{objectiveGeneration,receipt,result}')='null'::jsonb`;
       if (updated !== 1) throw new ObjectiveLeaseLost();
+      if (lockedInput.canonicalGeneration) {
+        const producer = await recordCanonicalGenerationProducer(tx, job.tenantId, job.ownerUserId, job.id);
+        await requireCanonicalGenerationEffectWithinTx(tx, producer.sourceAdmission, {
+          generationJobId: job.id, generationRequestId: envelope.request.requestId }, 'after-write');
+        const fresh = await tx.$queryRaw<Array<{ valid: boolean }>>`
+          SELECT ceil(extract(epoch FROM clock_timestamp())*1000) < ${producer.acceptance.issuance.expiresAtMs} AS valid`;
+        if (!fresh[0]?.valid) throw new ObjectiveLeaseLost();
+      }
     },
   };
 }

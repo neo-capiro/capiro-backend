@@ -57,6 +57,12 @@ import type {
 } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
 import { DRAFT_JOB_STAGE_TEXT, type DraftJobRuntime } from './draft-job.types.js';
+import type { NormalizedCanonicalDraft } from './objective-canonical-draft.js';
+import { deriveCanonicalJobInput } from './objective-canonical-job-input.js';
+import { generationAssociation, recordCanonicalNormalization } from './objective-canonical-producer-ledger.js';
+import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
+import { canonicalGenerationAdmissionSha256, generationUuid, parseCanonicalGenerationAdmission,
+  type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -283,10 +289,63 @@ export class MeriService {
       jobRuntime,
     );
 
+    return this.persistDraftResponse(tenantId, clerkUserId, dto, resp, ground, docs.length, jobRuntime);
+  }
+
+  /** Core application adapter only. The actual result-custody owner must verify
+   * the original Meri run/request/result before calling. This method NEVER
+   * invokes a model or the legacy orchestrator. The existing transaction hooks
+   * revalidate the durable admission/acceptance/job and publish the real result.
+   * Regeneration is refused until its typed request has a genuine saved basis;
+   * the reviewed 4d8 draft request still requires basis:null. */
+  async applyCanonicalDraft(tenantId: string, clerkUserId: string,
+    sourceAdmission: CanonicalGenerationAdmission, normalized: NormalizedCanonicalDraft, jobRuntime: DraftJobRuntime) {
+    const a = parseCanonicalGenerationAdmission(sourceAdmission);
+    if (a.canonical.tenantId !== tenantId || a.clerkUserId !== clerkUserId ||
+        !jobRuntime?.objective || !jobRuntime.persistence ||
+        jobRuntime.objective.envelope.request.requestId !== a.generationRequestId ||
+        normalized.normalizationWitness.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(a) ||
+        normalized.normalizationWitness.normalizedResponseSha256 !== applicationHash(normalized.response) ||
+        normalized.normalizationWitness.nodeIdsSha256 !== applicationHash(normalized.nodeIds) ||
+        normalized.normalizationWitness.sourceKeysSha256 !== applicationHash(normalized.sourceKeys) ||
+        normalized.normalizationWitness.expectedStrategyVersionId !== a.expectedStrategyVersionId ||
+        normalized.normalizationWitness.identityBasis !== 'initial-reservation' ||
+        normalized.nodeIds.length !== normalized.response.nodes.length || new Set(normalized.nodeIds).size !== normalized.nodeIds.length)
+      throw new CanonicalApplicationError('REQUEST_CONFLICT');
+    if (a.expectedStrategyVersionId !== null) throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+    normalized.nodeIds.forEach(generationUuid);
+    const actualInput = async (tx: Tx) => {
+      const association = await generationAssociation(tx, tenantId, clerkUserId, a.generationJobId);
+      if (applicationHash(association.admission) !== applicationHash(a)) throw new CanonicalApplicationError('REQUEST_CONFLICT');
+      const job = await tx.spDraftJob.findFirst({ where: { tenantId, id: a.generationJobId, ownerUserId: clerkUserId } });
+      if (!job) throw new CanonicalApplicationError('NOT_AVAILABLE');
+      return deriveCanonicalJobInput(job, a, jobRuntime.objective!.envelope,
+        `canonical:${association.acceptance.issuance.issuanceKey}`);
+    };
+    // DTO values are read from the actual owner job, never accepted from this
+    // adapter's caller. Repeat the immutable input comparison after the real
+    // Objective hook obtains its job/source locks, before any Strategy write.
+    const input = await this.prisma.withTenantUser(tenantId, clerkUserId, actualInput);
+    const dto = input.dto;
+    if (normalized.normalizationWitness.strategyType !== dto.type) throw new CanonicalApplicationError('REQUEST_CONFLICT');
+    const originalPersistence = jobRuntime.persistence!;
+    const runtime: DraftJobRuntime = { ...jobRuntime, persistence: { ...originalPersistence, beforeWrite: async tx => {
+      await originalPersistence.beforeWrite(tx);
+      if ((await actualInput(tx)).inputHash !== input.inputHash) throw new CanonicalApplicationError('REQUEST_CONFLICT');
+    } } };
+    return this.persistDraftResponse(tenantId, clerkUserId, dto, normalized.response,
+      await this.grounding(tenantId), 0, runtime, { strategyId: a.canonical.canonicalStrategyId, nodeIds: normalized.nodeIds,
+        generationJobId: a.generationJobId, normalized });
+  }
+
+  private async persistDraftResponse(tenantId: string, clerkUserId: string, dto: DraftStrategyDto,
+    resp: StrategyDraftResponse, ground: Grounding, attachmentCount: number, jobRuntime?: DraftJobRuntime,
+    canonical?: { strategyId: string; nodeIds: readonly string[]; generationJobId: string; normalized: NormalizedCanonicalDraft }) {
+
     // A7.5 / Phase 5 §4.3: never silently persist an empty draft — typed 422
     // (before the timeline route ever loads) so the Goal flow can show a
     // specific next step instead of a bare "try rephrasing" dead end.
-    const rawNodes = (resp.nodes ?? []).slice(0, 60);
+    const rawNodes = canonical ? resp.nodes : (resp.nodes ?? []).slice(0, 60);
     if (rawNodes.length === 0) {
       const body: StrategyDraftErrorBody = {
         code: 'STRATEGY_DRAFT_INPUT_REQUIRED',
@@ -303,14 +362,19 @@ export class MeriService {
     }
     // A3: pre-generate ids so dependsOn INDEXES map to real uuids; createMany with
     // explicit ids keeps the edges valid. draftNode validates each (throws pre-write).
-    const ids = rawNodes.map(() => randomUUID());
+    const ids = canonical ? [...canonical.nodeIds] : rawNodes.map(() => randomUUID());
     const nodeData = rawNodes.map((n, idx) => {
+      if (canonical && (!Array.isArray(n.dependsOn) || new Set(n.dependsOn).size !== n.dependsOn.length ||
+          n.dependsOn.some(d => !Number.isInteger(d) || d < 0 || d >= rawNodes.length || d === idx) ||
+          typeof n.title !== 'string' || !n.title.trim() || Array.from(n.title).length > 300))
+        throw new CanonicalApplicationError('INPUT_INVALID');
       const deps = Array.isArray(n.dependsOn)
         ? [...new Set(n.dependsOn)]
             .filter((d) => Number.isInteger(d) && d >= 0 && d < rawNodes.length && d !== idx)
             .map((d) => ids[d]!)
         : [];
-      return this.draftNode(n, tenantId, clerkUserId, ids[idx]!, deps);
+      const row = this.draftNode(n, tenantId, clerkUserId, ids[idx]!, deps);
+      return canonical ? { ...row, title: n.title } : row;
     });
     const title = deriveTitle(dto.goal, dto.type);
     const targetDate = dto.targetDate ? parseDbDate(dto.targetDate, 'targetDate') : null;
@@ -328,7 +392,7 @@ export class MeriService {
     jobRuntime?.onStage('verifying', DRAFT_JOB_STAGE_TEXT.verifying);
     let violations = this.verify(dto.type, nodeData, ground, dto.goal ?? '');
     let errs = violations.filter((v) => v.severity === 'error');
-    if (errs.length > 0) {
+    if (errs.length > 0 && !canonical) {
       jobRuntime?.onStage('repairing', DRAFT_JOB_STAGE_TEXT.repairing);
       const repair = repairDependencyOrder(toVerifierNodes(nodeData));
       if (!repair.refused && repair.changedIds.length > 0) {
@@ -364,13 +428,14 @@ export class MeriService {
       await jobRuntime?.persistence?.beforeWrite(tx);
       const strategy = await tx.spStrategy.create({
         data: {
+          ...(canonical ? { id: canonical.strategyId } : {}),
           tenantId,
           clientId: dto.clientId,
           title,
           type: dto.type,
-          goal: dto.goal?.trim() || null,
-          meriContext: dto.meriContext?.trim() || null,
-          meriSummary: resp.summary?.trim() || null,
+          goal: canonical ? dto.goal ?? null : dto.goal?.trim() || null,
+          meriContext: canonical ? dto.meriContext ?? null : dto.meriContext?.trim() || null,
+          meriSummary: canonical ? resp.summary : resp.summary?.trim() || null,
           draftedByMeri: true,
           targetDate,
           ownerUserId: owner,
@@ -388,10 +453,12 @@ export class MeriService {
         authorKind: 'meri',
         authorUserId: clerkUserId,
         note: `Drafted ${nodeData.length} step${nodeData.length === 1 ? '' : 's'} from goal${
-          docs.length ? ` and ${docs.length} document${docs.length === 1 ? '' : 's'}` : ''
+          attachmentCount ? ` and ${attachmentCount} document${attachmentCount === 1 ? '' : 's'}` : ''
         }`,
         coalesce: false,
       });
+      if (canonical) await recordCanonicalNormalization(tx, tenantId, clerkUserId, canonical.generationJobId,
+        { strategyId: strategy.id, strategyVersionId }, canonical.normalized);
       await this.versioning.logActivity(tx, {
         tenantId,
         actorUserId: clerkUserId,

@@ -78,6 +78,9 @@ export function computeDraftRequestKey(dto: Pick<DraftStrategyDto, 'clientId' | 
  *  after a ~60s Clerk session token has expired. Never returned to the client
  *  (the public job DTO below omits it). */
 export interface DraftJobInput {
+  /** Only an authenticated server admission may set this private marker. The
+   * legacy model worker must never claim/reclaim these canonical runs. */
+  canonicalGeneration?: { admissionId: string };
   objectiveGeneration?: ObjectiveJobEnvelope;
   dto: DraftStrategyDto;
   bearer: string | null;

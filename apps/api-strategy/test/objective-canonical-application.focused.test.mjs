@@ -89,6 +89,15 @@ test('closed request retains exactly the nine declared fields', () => {
   assert.equal(Object.keys(parseCanonicalApplication(request)).length, 9);
 });
 
+test('unknown owner receipt versions cannot bypass creation or reconstruction guards', () => {
+  const { request, grant, owner, ownerReceiptId, stored } = fixture();
+  owner.receiptVersion = 4;
+  owner.result.projects[0].output.currentVersion = 7;
+  owner.result.counts.createdProjects = 0;
+  reject(() => creationAck(request, grant, owner, ownerReceiptId, at), 'OUTCOME_UNCONFIRMED');
+  reject(() => checkStoredApplication(stored, owner, ownerReceiptId), 'OUTCOME_UNCONFIRMED');
+});
+
 for (const field of ['schemaVersion', 'canonical', 'applicationRequestId', 'generationJobId',
   'generationRequestId', 'strategyId', 'strategyVersionId', 'objectiveReceiptSha256', 'snapshotDigest']) {
   test(`request rejects missing ${field}`, () => {

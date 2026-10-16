@@ -134,13 +134,14 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
       await tx.$executeRaw`UPDATE sp_draft_job SET status='failed', stage='failed', strategy_id=NULL,
         error_message=${failure.message}, stream_preview=NULL, progress_text=NULL,
         input=jsonb_set(input,'{objectiveGeneration,receipt,failure}',${JSON.stringify(failure)}::jsonb), updated_at=clock_timestamp()
-        WHERE input ? 'objectiveGeneration' AND status IN ('queued','running') AND deadline_at <= clock_timestamp()`;
+        WHERE input ? 'objectiveGeneration' AND NOT (input ? 'canonicalGeneration')
+          AND status IN ('queued','running') AND deadline_at <= clock_timestamp()`;
       // A deadline can cross between statements, and the host clock may be
       // ahead of PostgreSQL. Never let the legacy projection consume an
       // Objective job without atomically recording its safe receipt.
       return tx.$executeRaw`UPDATE sp_draft_job SET status='failed', stage='failed',
         error_message=${DEADLINE_MESSAGE}, updated_at=clock_timestamp()
-        WHERE NOT (input ? 'objectiveGeneration') AND status IN ('queued','running')
+        WHERE NOT (input ? 'objectiveGeneration') AND NOT (input ? 'canonicalGeneration') AND status IN ('queued','running')
           AND deadline_at <= clock_timestamp()`;
     });
   }
@@ -152,12 +153,13 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
    *  which bumps updatedAt. */
   private async reclaimStale(): Promise<void> {
     const cutoff = new Date(Date.now() - this.staleMs);
-    await this.prisma.withSystem((tx) =>
-      tx.spDraftJob.updateMany({
-        where: { status: 'running', updatedAt: { lt: cutoff }, deadlineAt: { gt: new Date() } },
-        data: { status: 'queued', claimedBy: null, claimedAt: null },
-      }),
-    );
+    // Canonical work is owned by the original Meri run/issuance association.
+    // A stale heartbeat is never permission for this legacy model loop to run
+    // it again, nor evidence that an uncertain external operation did not run.
+    await this.prisma.withSystem((tx) => tx.$executeRaw`
+      UPDATE sp_draft_job SET status='queued',claimed_by=NULL,claimed_at=NULL,updated_at=clock_timestamp()
+      WHERE status='running' AND updated_at < ${cutoff} AND deadline_at > ${new Date()}
+        AND NOT (input ? 'canonicalGeneration')`);
   }
 
   /** Atomically claim the oldest eligible queued job (pool + replica safe). */
@@ -168,7 +170,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
         `UPDATE sp_draft_job SET status='running', claimed_by=$1, claimed_at=NOW(), attempt = attempt + 1, updated_at = NOW()
          WHERE id IN (
            SELECT id FROM sp_draft_job
-           WHERE status = 'queued' AND deadline_at > NOW()
+           WHERE status = 'queued' AND deadline_at > NOW() AND NOT (input ? 'canonicalGeneration')
            ORDER BY created_at
            LIMIT 1
            FOR UPDATE SKIP LOCKED
