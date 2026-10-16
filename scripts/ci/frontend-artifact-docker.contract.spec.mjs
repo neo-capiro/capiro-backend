@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { restoreReviewedPeManifest } from '../lib/reviewed-pe-manifest-contract.mjs';
+import {
+  restoreBackendWorkspaceSource, BACKEND_WORKSPACE_TRANSITION_SOURCE,
+  BACKEND_WORKSPACE_TRANSITION_HASHES,
+} from '../lib/backend-workspace-retirement.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = '523ef9167f05a33efdbdfbbfc08d5fc2e2679012';
 const read = file => readFileSync(path.join(ROOT, file), 'utf8');
-const DOCKER = read('apps/web/Dockerfile.frontend-artifact');
+const canonicalDockerText = text => text.replace(/\r\n/g, '\n');
+const DOCKER = canonicalDockerText(read('apps/web/Dockerfile'));
 const RUNTIME = `FROM base AS runtime
 ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
 COPY --from=artifact-check --chown=node:node /workspace/release-artifacts/capiro-frontend/rootfs ./
@@ -45,15 +51,34 @@ function validate(source) {
   assert.doesNotMatch(source, /npm (?:ci|install)|pnpm|COPY apps\/web\/|COPY packages\/|--from=build|--from=frontend_artifact|^ARG FRONTEND_ARTIFACT_[^\n]*=/m);
 }
 
-test('opt-in Docker consumes only an explicit validated rootfs using the frontend-owned runtime profile', () => {
+test('default Web Docker consumes only an explicit validated frontend-owned rootfs', () => {
   validate(DOCKER);
+  const compatible = canonicalDockerText(read('apps/web/Dockerfile.frontend-artifact'));
+  assert.equal(
+    DOCKER.slice(DOCKER.indexOf('FROM ')),
+    compatible.slice(compatible.indexOf('FROM ')),
+    'existing artifact compatibility recipe retains the same byte gate and runtime',
+  );
 });
 
-test('default Web Docker, release operator, workspace, lock and Onboard default remain unchanged', () => {
-  for (const file of ['apps/web/Dockerfile',
-    'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/onboard-api/Dockerfile']) {
-    const before = execFileSync('git', ['show', `${BASE}:${file}`], { cwd: ROOT, encoding: 'utf8' });
-    assert.equal(file === 'package.json' ? restoreReviewedPeManifest(read(file), 'root') : read(file), before, file);
+test('backend ownership transition retains release operator, dependency graph and Onboard default', () => {
+  for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/onboard-api/Dockerfile']) {
+    const reference = file === 'pnpm-lock.yaml' ? BACKEND_WORKSPACE_TRANSITION_SOURCE : BASE;
+    const before = execFileSync('git', ['show', `${reference}:${file}`], { cwd: ROOT, encoding: 'utf8' });
+    if (file === 'pnpm-lock.yaml') {
+      // The sealed runtime source already moved the same Prisma version into
+      // API and Onboard production dependencies before cleanup began.
+      const identity = createHash('sha256').update(before).digest('hex');
+      assert.equal(identity, BACKEND_WORKSPACE_TRANSITION_HASHES[file].before);
+      assert.equal(identity, '01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c');
+      assert.equal(before, execFileSync('git', ['show', '3f747849a1d037806faa819f7c174d8b29675947:pnpm-lock.yaml'], { cwd: ROOT, encoding: 'utf8' }));
+    }
+    const restored = file === 'package.json'
+      ? restoreReviewedPeManifest(read(file), 'root')
+      : ['pnpm-lock.yaml', 'pnpm-workspace.yaml'].includes(file)
+        ? restoreBackendWorkspaceSource(read(file), file)
+        : canonicalDockerText(read(file));
+    assert.equal(restored, before, file);
   }
   // The current canonical builder only assembles explicit already-built inputs; deployment defaults stay untouched.
   assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), true);
@@ -62,6 +87,10 @@ test('default Web Docker, release operator, workspace, lock and Onboard default 
   assert.match(builder, /exec \/usr\/bin\/env -i PATH=\/usr\/bin:\/bin/);
   assert.doesNotMatch(builder, /aws |ecr|docker (?:build|run|push)|npm (?:ci|install)|pnpm/);
   assert.match(read('apps/web/Dockerfile'), /^EXPOSE 8080$/m);
+  assert.equal(existsSync(path.join(ROOT, 'apps/web/package.json')), false);
+  assert.equal(existsSync(path.join(ROOT, 'apps/web/src')), false);
+  for (const directory of ['apps/web/public', 'apps/web/nginx', 'apps/onboard-web/src'])
+    assert.equal(existsSync(path.join(ROOT, directory)), true, directory);
 });
 
 test('missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify', () => {
@@ -79,5 +108,8 @@ test('missing pins, bypassed byte gate, guessed image stage and changed runtime 
     DOCKER.replace('--target-platform "$TARGETPLATFORM"', '--target-platform linux/amd64'),
     DOCKER.replace('--target-libc musl', '--target-libc glibc'),
     DOCKER.replace('FROM base AS runtime', 'COPY apps/web/src apps/web/src\nFROM base AS runtime'),
-  ]) assert.throws(() => validate(changed));
+  ]) {
+    assert.notEqual(changed, DOCKER, 'negative control mutates its source operand');
+    assert.throws(() => validate(changed));
+  }
 });

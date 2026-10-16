@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveSpawn } from './lib/resolve-tool.mjs';
 import { PHASE1_LOCAL_OPTIONS, requireLocalRun } from './lib/engagement-local-cli.mjs';
+import { requireLegacyWebWorkspace } from '../tests/support/legacy-web/workspace.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(requireLocalRun(
@@ -21,6 +22,7 @@ const args = parse(requireLocalRun(
   'Usage: node scripts/run-engagement-phase1-local.mjs --run [--sha SHA] [--evidence-dir DIR] [--db-port PORT] [--background-observe-ms MS]',
   PHASE1_LOCAL_OPTIONS,
 ));
+requireLegacyWebWorkspace(ROOT);
 const ACTUAL_SHA = (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const SHA = args.sha ?? ACTUAL_SHA;
 if (!/^[0-9a-f]{40}$/i.test(SHA)) {
@@ -332,7 +334,7 @@ async function main() {
 
         process.execPath,
 
-        ['apps/web/scripts/engagement-phase1-browser-parity.mjs', '--run'],
+        ['tests/support/legacy-web/engagement-phase1-browser-parity.mjs', '--run'],
 
         browserEnv(mainEnv),
 
@@ -696,7 +698,7 @@ async function rehearseNc8(env) {
   const code = await run(
     'NC8 rehearsal: routing verifier must reject injected shadow traffic',
     process.execPath,
-    ['apps/web/scripts/engagement-phase1-browser-parity.mjs', '--run'],
+    ['tests/support/legacy-web/engagement-phase1-browser-parity.mjs', '--run'],
     {
       ...env,
       ENGAGEMENT_PHASE1_NC8_REHEARSAL: '1',

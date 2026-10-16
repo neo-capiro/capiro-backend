@@ -1,0 +1,296 @@
+Γ£ö the backend consumer inventory retains its exact historical input bytes (1.9129ms)
+Γ£û the committed manifest passes every invariant (2.9604ms)
+Γ£ö backend inventory validation is deterministic and does not mutate its input (2.2251ms)
+Γ£ö the inventory is non-trivial (0.1433ms)
+Γ£û every request maps to a Phase 0 route manifest entry (0.2487ms)
+Γ£û every request belongs to a declared surface (0.2045ms)
+Γ£û every user-facing route is either consumed or explicitly api_only (0.1229ms)
+Γ£ö classification is driven by @EngagementRuntimeAction, not by URL shape (0.1686ms)
+Γ£ö the decorator scan finds the real runtime actions (84.6752ms)
+Γ£ö every send endpoint is external, including send-batch and jobs/send (0.5399ms)
+Γ£ö a GET is never classified as a local write (0.1442ms)
+Γ£ö every heuristic exemption cites evidence and names a live route (0.2235ms)
+Γ£ö Outreach v2 is the sole production wizard and OutreachView is inventoried (0.0601ms)
+Γ£û no Outreach V3 route or component exists (0.1832ms)
+Γ£ö every surface declares loading, empty, error and permission states (0.0884ms)
+Γ£ö NEGATIVE CONTROL: a fake missing route is rejected (1.5244ms)
+Γ£ö NEGATIVE CONTROL: an unmapped request is rejected (0.8997ms)
+Γ£ö NEGATIVE CONTROL: a send endpoint classified read is rejected (1.2057ms)
+Γ£ö NEGATIVE CONTROL: omitting OutreachView is rejected (0.9946ms)
+Γ£ö NEGATIVE CONTROL: a request with no surface is rejected (0.9764ms)
+Γ£ö NEGATIVE CONTROL: an undecorated external route is rejected (1.0435ms)
+Γ£ö NEGATIVE CONTROL: a V3 consumer is rejected (1.2091ms)
+Γ£ö NEGATIVE CONTROL: a missing route-coverage entry is rejected (0.8314ms)
+Γ£ö NEGATIVE CONTROL: a surface missing a required state is rejected (0.7968ms)
+Γ£ö NEGATIVE CONTROL: tampered totals are rejected (0.8787ms)
+Γ£ö NEGATIVE CONTROL: an unresolved scanner finding is rejected (1.1958ms)
+Γ£ö NEGATIVE CONTROL: a consumed route with no consumers is rejected (1.4176ms)
+Γ£ö normalizePath collapses dynamic segments and drops query strings (0.1935ms)
+Γ£ö template literals resolve through module constants (0.3354ms)
+Γ£ö matchRoute prefers a literal segment over a parameter segment (0.1384ms)
+Γ£ö classifyRequest defers to the decorator over the method (0.05ms)
+Γ£ö the heuristic still recognises send-batch, which an anchored /send$/ would miss (0.0903ms)
+Γä╣ tests 32
+Γä╣ suites 0
+Γä╣ pass 27
+Γä╣ fail 5
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 130.2889
+
+Γ£û failing tests:
+
+test at scripts\engagement-phase3-ui-inventory.spec.mjs:77:1
+Γ£û the committed manifest passes every invariant (2.9604ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'apps/web/src/pages/dashboard/DashboardWorkQueue.tsx:outreach GET /api/engagement/outreach has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/meetings/PrepTab.tsx:mailboxes GET /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/meetings/PrepTab.tsx:preparePdf POST /api/engagement/meeting-preps/:param/pdf-attachment has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/LegiWatchOutreachHandoff.tsx:integrations GET /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v2/StepGenerate.tsx:clientFilesQuery GET /api/engagement/attachments has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx:templatesQuery GET /api/engagement/outreach/ai-templates has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx:createMutation POST /api/engagement/outreach/ai-templates has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v2/useContextPlan.ts:res POST /api/engagement/attachments/:param/extract-text has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:data GET /api/engagement/outreach-v3/:param does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:data GET /api/engagement/outreach-v3/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:data GET /api/engagement/outreach-v3/reasoning/conversations/:param/turns does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:data GET /api/engagement/outreach-v3/reasoning/conversations/:param/turns has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:data GET /api/engagement/outreach/context-library has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:sendOutreachV3Turn POST /api/engagement/outreach-v3/reasoning/conversations/:param/turns does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:sendOutreachV3Turn POST /api/engagement/outreach-v3/reasoning/conversations/:param/turns has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:response POST /api/engagement/outreach-v3/sessions does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:response POST /api/engagement/outreach-v3/sessions has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts:meetings GET /api/engagement/meetings has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts:outreach GET /api/engagement/outreach has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts:dispatchNotetaker POST /api/engagement/meetings/:param/notetaker has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/adapters/legacy/useMailboxSyncStatus.ts:query GET /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx:connections GET /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx:reusableId POST /api/engagement/integrations/google/start has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx:reusableId POST /api/engagement/integrations/microsoft/start has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx:docs GET /api/engagement/attachments has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx:s3Res POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx:presigned POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx:confirmed POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx:s3Res POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/mail-api.ts:listMailThreads GET /api/engagement/mail-threads has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/mail-api.ts:getMailThread GET /api/engagement/mail-threads/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/mail-api.ts:rewriteEmail POST /api/engagement/mail/rewrite has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/mail-api.ts:result POST /api/engagement/mail/send has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx:remove DELETE /api/engagement/attachments/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx:filesQuery GET /api/engagement/attachments has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx:attachment POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:listOutreachAttachments GET /api/engagement/attachments has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:listSavedOutreachAudiences GET /api/engagement/outreach/audiences has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:response POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:upload POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:createSavedOutreachAudience POST /api/engagement/outreach/audiences has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-step-context.tsx:s3Res POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-step-context.tsx:contentType POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:response GET /api/engagement/outreach-v3/templates/:param does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:response GET /api/engagement/outreach-v3/templates/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:response GET /api/engagement/outreach-v3/templates/provenance/:param does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:response GET /api/engagement/outreach-v3/templates/provenance/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:updateOutreachTemplateMetadata PATCH /api/engagement/outreach-v3/templates/:param does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:updateOutreachTemplateMetadata PATCH /api/engagement/outreach-v3/templates/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:replaceOutreachTemplateDraft PATCH /api/engagement/outreach-v3/templates/:param/draft does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:replaceOutreachTemplateDraft PATCH /api/engagement/outreach-v3/templates/:param/draft has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:archiveOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/archive does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:archiveOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/archive has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:duplicateOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/duplicate does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:duplicateOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/duplicate has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:publishOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/publish does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:publishOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/publish has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:useOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/use does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:useOutreachTemplate POST /api/engagement/outreach-v3/templates/:param/use has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:createOutreachTemplateVersionFromSession POST /api/engagement/outreach-v3/templates/:param/versions/from-session does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:createOutreachTemplateVersionFromSession POST /api/engagement/outreach-v3/templates/:param/versions/from-session has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:createOutreachTemplateFromScratch POST /api/engagement/outreach-v3/templates/from-scratch does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:createOutreachTemplateFromScratch POST /api/engagement/outreach-v3/templates/from-scratch has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:createOutreachTemplateFromSession POST /api/engagement/outreach-v3/templates/from-session does not map to any Phase 0 route manifest entry',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:createOutreachTemplateFromSession POST /api/engagement/outreach-v3/templates/from-session has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts:connections GET /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts:kind POST /api/engagement/integrations/google/:param/sync has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts:kind POST /api/engagement/integrations/microsoft/:param/calendar-window has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts:kind POST /api/engagement/integrations/microsoft/:param/sync has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx:capabilities GET /api/engagement/capabilities has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx:createMeeting POST /api/engagement/meetings has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextOutreachClassic.tsx:capabilities GET /api/engagement/capabilities has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:archiveTargetOffice DELETE /api/engagement/reports/target-offices/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:restoreOverride DELETE /api/engagement/reports/target-offices/overrides has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:report GET /api/engagement/reports/overview has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:changed PATCH /api/engagement/reports/target-offices/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:createTargetOffice POST /api/engagement/reports/target-offices has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:linkTargetOffice POST /api/engagement/reports/target-offices/link has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:markRowComplete POST /api/engagement/reports/target-offices/overrides has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx:updateOverride POST /api/engagement/reports/target-offices/overrides has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx:presigned POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/portfolio/usePortfolioIndexModel.ts:meetings GET /api/engagement/meetings has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextClientsPage.tsx:presigned POST /api/engagement/attachments/confirm has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextClientsPage.tsx:presigned POST /api/engagement/attachments/upload-url has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:disconnectGoogle DELETE /api/engagement/integrations/google/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:disconnectMicrosoft DELETE /api/engagement/integrations/microsoft/:param has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:integrations GET /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:googleCapabilities GET /api/engagement/integrations/google/capabilities has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:microsoftCapabilities GET /api/engagement/integrations/microsoft/capabilities has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:createIntegration POST /api/engagement/integrations has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:syncGoogle POST /api/engagement/integrations/google/:param/sync has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:startGoogleOAuth POST /api/engagement/integrations/google/start has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:enableMicrosoftRealtime POST /api/engagement/integrations/microsoft/:param/subscriptions has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:syncMicrosoft POST /api/engagement/integrations/microsoft/:param/sync has no surface; add its file to the SURFACES table',
+  +   'apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx:startMicrosoftOAuth POST /api/engagement/integrations/microsoft/start has no surface; add its file to the SURFACES table',
+  +   'Outreach V3 consumer found: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'Outreach V3 consumer found: apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts',
+  +   'route GET /api/clio/krisp-notetaker has no coverage entry (neither consumed nor api_only)',
+  +   'route GET /api/clio/krisp-notetaker/folders has no coverage entry (neither consumed nor api_only)',
+  +   'route GET /api/clio/krisp-notetaker/imports/:id/candidates has no coverage entry (neither consumed nor api_only)',
+  +   'route POST /api/clio/krisp-notetaker/imports/:id/match has no coverage entry (neither consumed nor api_only)',
+  +   'route POST /api/clio/krisp-notetaker/preferences has no coverage entry (neither consumed nor api_only)',
+  +   'route GET /api/engagement/mail/mailboxes has no coverage entry (neither consumed nor api_only)',
+  +   'route GET /api/engagement/plans has no coverage entry (neither consumed nor api_only)',
+  +   'route POST /api/engagement/plans has no coverage entry (neither consumed nor api_only)',
+  +   'route GET /api/engagement/plans/:planId has no coverage entry (neither consumed nor api_only)',
+  +   'route PATCH /api/engagement/plans/:planId has no coverage entry (neither consumed nor api_only)',
+  +   'route GET /api/engagement/plans/:planId/history has no coverage entry (neither consumed nor api_only)',
+  +   'route POST /api/engagement/plans/:planId/reviews has no coverage entry (neither consumed nor api_only)',
+  +   'route POST /api/engagement/plans/:planId/waves has no coverage entry (neither consumed nor api_only)',
+  +   'route PATCH /api/engagement/plans/:planId/waves/:waveId has no coverage entry (neither consumed nor api_only)',
+  +   'route POST /api/engagement/plans/:planId/waves/reorder has no coverage entry (neither consumed nor api_only)',
+  +   'apps/web/src/pages/engagement/meetings/meetings-api.ts:98 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<MeetingLibraryResponse>(`${BASE}/meetings/library`, {',
+  +   'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts:67 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3SessionEnvelope>(outreachV3SessionPath(sessionId))).data;',
+  +   "apps/web/src/vnext/pages/engagement/engagement-api.ts:281 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3GenerationPlan>(sessionPath(sessionId, '/generation/plan'))).d",
+  +   "apps/web/src/vnext/pages/engagement/engagement-api.ts:286 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3SampleGenerationResult>(sessionPath(sessionId, '/generation/s",
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:292 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3ApproachApproval | null>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:304 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3ApproachApprovalResult>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:324 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3FullGenerationResponse>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:386 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3GenerationJob>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:404 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<{ job: OutreachV3GenerationJob | null }>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:416 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post(sessionPath(sessionId, `/generation/jobs/${encodeURIComponent(jobId)}/c',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:427 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post(',
+  +   "apps/web/src/vnext/pages/engagement/engagement-api.ts:437 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3DraftArtifact[]>(sessionPath(sessionId, '/drafts'))).data;",
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:447 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3DraftVersion>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:465 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3DraftVersion>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:486 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3DraftVersion>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:499 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post(sessionPath(sessionId, `/drafts/${encodeURIComponent(versionId)}/approv',
+  +   "apps/web/src/vnext/pages/engagement/engagement-api.ts:504 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3SendSettings | null>(sessionPath(sessionId, '/send/settings'))",
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:514 unresolvable_request_url ΓÇö could not resolve the URL argument of api.put<{',
+  +   "apps/web/src/vnext/pages/engagement/engagement-api.ts:534 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3ServerPreflight>(sessionPath(sessionId, '/send/preflight'), i",
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:544 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<{',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:558 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<{',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:572 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachV3SendIntentView>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:584 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3SendIntentView>(',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:596 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post(sessionPath(sessionId, `/send/intents/${encodeURIComponent(intentId)}/c',
+  +   'apps/web/src/vnext/pages/engagement/engagement-api.ts:743 unresolvable_request_url ΓÇö could not resolve the URL argument of api.post<OutreachV3ReviewPacketApprovalResult>(',
+  +   'apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts:369 unresolvable_request_url ΓÇö could not resolve the URL argument of api.get<OutreachTemplateSummary[]>(ROOT, {'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/engagement-phase3-ui-inventory.spec.mjs:78:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\engagement-phase3-ui-inventory.spec.mjs:98:1
+Γ£û every request maps to a Phase 0 route manifest entry (0.2487ms)
+  AssertionError [ERR_ASSERTION]: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts /api/engagement/outreach-v3/:param is unmapped
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/engagement-phase3-ui-inventory.spec.mjs:101:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\engagement-phase3-ui-inventory.spec.mjs:106:1
+Γ£û every request belongs to a declared surface (0.2045ms)
+  AssertionError [ERR_ASSERTION]: apps/web/src/pages/dashboard/DashboardWorkQueue.tsx has surface "null"
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/engagement-phase3-ui-inventory.spec.mjs:109:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\engagement-phase3-ui-inventory.spec.mjs:113:1
+Γ£û every user-facing route is either consumed or explicitly api_only (0.1229ms)
+  AssertionError [ERR_ASSERTION]: GET /api/clio/krisp-notetaker has no coverage entry
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/engagement-phase3-ui-inventory.spec.mjs:117:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\engagement-phase3-ui-inventory.spec.mjs:207:1
+Γ£û no Outreach V3 route or component exists (0.1832ms)
+  AssertionError [ERR_ASSERTION]: V3 consumer: apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/engagement-phase3-ui-inventory.spec.mjs:209:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts',
+    expected: /outreach\/v3|outreach-v3/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

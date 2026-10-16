@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "purpose": "Historical qualification operands and harness relocation; no current frontend or deployed acceptance claim",
+  "files": [
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase0-browser-acceptance.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase0-browser-acceptance.mjs",
+      "bytes": 8804,
+      "sha256": "f3a2265a49ecca09b6872a294d3cc7498e6ed3df6941ef66a18948544b285876",
+      "gitBlob": "c0e436edf87109f41529454366dbc2c1062e3ee7"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase1-browser-parity.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase1-browser-parity.mjs",
+      "bytes": 34537,
+      "sha256": "ca9221396586f87cd7e80881ce76ff95bda9952dd659b7be553cb945ea5869cd",
+      "gitBlob": "659a6bdda7321fd115de91f46d31a37e952ca153"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase1-post-acceptance.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase1-post-acceptance.mjs",
+      "bytes": 14675,
+      "sha256": "6b8189e8b503fdc34c4913abb8aeacfde7fc5f9175c0288355abfba8194cf8b9",
+      "gitBlob": "3162fdc82d0cafb937604540d3bd7faa1d5b9f1c"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-browser-interactions.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-browser-interactions.mjs",
+      "bytes": 42550,
+      "sha256": "226c30ffeac243817d8cf1275029510aadf5b74d07e04f18a1ece587b2946f29",
+      "gitBlob": "57de2f5d7e0443f60d775687857c2932ae859385"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-browser-parity-with-replay.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-browser-parity-with-replay.mjs",
+      "bytes": 2163,
+      "sha256": "2269ebe5f8dc97669f69a97d07d5af073c80cfc6a5101db47c965ea7a5f41f9c",
+      "gitBlob": "bce8a0e45b07070fb12a8318348dbbb1ab6f7e85"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-browser-parity.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-browser-parity.mjs",
+      "bytes": 21373,
+      "sha256": "750b3b975d04ad5e4a0db433868fd270856c1beec56631c85f1e7589b5873495",
+      "gitBlob": "e393544d28d1ccaae43d3ff7ca0108c008c2826b"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-browser-parity.spec.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-browser-parity.spec.mjs",
+      "bytes": 5230,
+      "sha256": "4a50e05791486f0c2c8e489c5d2562c0e4f05e9b99d63cfe9bcdb5b9ca66b8f2",
+      "gitBlob": "bee6a71f88871c789fdbfb82f744ba1f24a8bdf3"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-browser-scenarios.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-browser-scenarios.mjs",
+      "bytes": 8135,
+      "sha256": "4fe1700d81f5dd354f8b9641f9e369da499eab117fee9607017702b14105fd77",
+      "gitBlob": "8f2ed66ad6e597dc4b9a2475811562a56b2d6024"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-browser-scenarios.spec.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-browser-scenarios.spec.mjs",
+      "bytes": 3647,
+      "sha256": "02ffdce6a9ac5c7c596ba8831e02e3fb2756d10fb8a358a63a74ffc4e419a6be",
+      "gitBlob": "ec33d350e75ae361c5abde96efac821608d55a7a"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-refresh-token.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-refresh-token.mjs",
+      "bytes": 6575,
+      "sha256": "bd8483e1fd5463dba5f4e8b0513b95390e631ef51dcf9b1a97a7f2a11d86f265",
+      "gitBlob": "95f040908cbbd8f3f021a18b40a216a0c24da25e"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/phase19-cdp.mjs",
+      "destination": "tests/support/legacy-web/phase19-cdp.mjs",
+      "bytes": 15862,
+      "sha256": "e96739fcddbba5d4d9f3b407eaf90074a1020d3496f817804ce1a3aa6b3af206",
+      "gitBlob": "2fb7d87d3254902b65eddbbedc49939e7e945d10"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-network-recorder.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-network-recorder.mjs",
+      "bytes": 3222,
+      "sha256": "0af7e12fa96470d9610393479d0ffa116b4e5937b525cb04d85c15c53278c248",
+      "gitBlob": "0f4af7b20ce2ed9dc801c95a4bef2fa7ecbeb76b"
+    },
+    {
+      "action": "move",
+      "source": "apps/web/scripts/engagement-phase3-dom-normalizer.mjs",
+      "destination": "tests/support/legacy-web/engagement-phase3-dom-normalizer.mjs",
+      "bytes": 1861,
+      "sha256": "303d4f04b0fd67a62703f58512e7493c23159253c6c31788e3b5bb8e0a9996d4",
+      "gitBlob": "0bc894a5a13ca7459a036d6d7f5206c89768f821"
+    },
+    {
+      "action": "copy-as-historical-source-data",
+      "source": "apps/web/src/App.tsx",
+      "destination": "tests/support/legacy-web/source-inputs/App.tsx.txt",
+      "bytes": 30256,
+      "sha256": "a7b1ff2a7cb9945af55ba58c5849cfe18cf5f89a47c195d99e7edac1fcbfe2cc",
+      "gitBlob": "24d75b1bd4d3e22d4eb0027b9412b33281a84c85"
+    },
+    {
+      "action": "copy-as-historical-source-data",
+      "source": "apps/web/src/lib/hearing-recording-transport.ts",
+      "destination": "tests/support/legacy-web/source-inputs/hearing-recording-transport.ts.txt",
+      "bytes": 4488,
+      "sha256": "7e7c755fb2ab2894a87509f525a194e88078425603c8d158322768460265fa04",
+      "gitBlob": "d1a0a1640572db302a6bbb795392f3857a61216c"
+    },
+    {
+      "action": "copy-as-historical-source-data",
+      "source": "apps/web/src/lib/engagement-api-preview-routes.generated.ts",
+      "destination": "tests/support/legacy-web/source-inputs/engagement-api-preview-routes.generated.ts.txt",
+      "bytes": 10476,
+      "sha256": "52d4860d305acd1c34774cde5f5eeabbd36aadbdd1b0de487f4311bd7262421f",
+      "gitBlob": "bd370fe927dbfb9ee3d19199b4de399ed275736e"
+    }
+  ]
+}

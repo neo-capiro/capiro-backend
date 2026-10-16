@@ -16,6 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPhase3Proxy } from './engagement-phase3-local-proxy.mjs';
+import { requireLegacyWebWorkspace } from '../tests/support/legacy-web/workspace.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const USAGE = 'Usage: node scripts/run-engagement-phase3-local.mjs (--run | --sha <exact-head>) [--evidence-dir DIR] [--db-port N] [--main-port N] [--engagement-port N] [--proxy-port N] [--web-port N]';
@@ -38,6 +39,7 @@ try {
   console.error(USAGE);
   process.exit(2);
 }
+requireLegacyWebWorkspace(ROOT);
 const ACTUAL_SHA = (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const SHA = args.sha ?? ACTUAL_SHA;
 if (!/^[0-9a-f]{40}$/i.test(SHA)) throw new Error('Phase 3 requires an exact 40-character SHA');
@@ -307,7 +309,7 @@ async function main() {
     await run(
       'phase3-browser-and-read-parity',
       'node',
-      ['apps/web/scripts/engagement-phase3-browser-parity-with-replay.mjs'],
+      ['tests/support/legacy-web/engagement-phase3-browser-parity-with-replay.mjs'],
     );
 
     const previewDecisions = proxyDecisions.filter((entry) => entry.owner === 'engagement-api');

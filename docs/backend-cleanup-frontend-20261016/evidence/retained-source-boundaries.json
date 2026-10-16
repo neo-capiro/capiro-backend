@@ -1,0 +1,19 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-cleanup-frontend-20261016/verify-retained-boundaries.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:47:01.6642590Z",
+  "endedAt": "2026-10-16T02:47:03.4505486Z",
+  "ownedPID": 32812,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 49836032,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "9038dd6c1682fea6f4a2a6fc7d0923dac14be3e749376fb551bb9e51b97ab1ff"
+}

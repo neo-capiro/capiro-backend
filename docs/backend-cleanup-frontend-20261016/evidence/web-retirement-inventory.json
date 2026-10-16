@@ -1,0 +1,18 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "prepare-web-retirement.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10",
+  "startedAt": "2026-10-16T02:24:28.8447882Z",
+  "endedAt": "2026-10-16T02:24:29.8691951Z",
+  "ownedPID": 11728,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 39940096,
+  "hardWallSeconds": 60,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "1ba72e935368e2550f01d98771de7ffe7f4e8977a34ee67eba2d1515cf3aae6a",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

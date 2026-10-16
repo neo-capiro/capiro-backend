@@ -129,8 +129,8 @@ const fullSteps = [
     'node',
     [
       '--test',
-      'apps/web/scripts/engagement-phase3-browser-parity.spec.mjs',
-      'apps/web/scripts/engagement-phase3-browser-scenarios.spec.mjs',
+      'tests/support/legacy-web/engagement-phase3-browser-parity.spec.mjs',
+      'tests/support/legacy-web/engagement-phase3-browser-scenarios.spec.mjs',
       'scripts/engagement-phase3-local-proxy.spec.mjs',
       'scripts/engagement-phase3-faults.spec.mjs',
       'scripts/verify-engagement-phase3-prototype-boundary.spec.mjs',
@@ -161,27 +161,27 @@ const fullSteps = [
   [
     'Phase 3 browser harness syntax',
     'node',
-    ['--check', 'apps/web/scripts/engagement-phase3-browser-parity.mjs'],
+    ['--check', 'tests/support/legacy-web/engagement-phase3-browser-parity.mjs'],
   ],
   [
     'Phase 3 interaction harness syntax',
     'node',
-    ['--check', 'apps/web/scripts/engagement-phase3-browser-interactions.mjs'],
+    ['--check', 'tests/support/legacy-web/engagement-phase3-browser-interactions.mjs'],
   ],
   [
     'Phase 3 scenario catalog syntax',
     'node',
-    ['--check', 'apps/web/scripts/engagement-phase3-browser-scenarios.mjs'],
+    ['--check', 'tests/support/legacy-web/engagement-phase3-browser-scenarios.mjs'],
   ],
   [
     'Phase 3 bearer refresh syntax',
     'node',
-    ['--check', 'apps/web/scripts/engagement-phase3-refresh-token.mjs'],
+    ['--check', 'tests/support/legacy-web/engagement-phase3-refresh-token.mjs'],
   ],
   [
     'Phase 3 browser+replay wrapper syntax',
     'node',
-    ['--check', 'apps/web/scripts/engagement-phase3-browser-parity-with-replay.mjs'],
+    ['--check', 'tests/support/legacy-web/engagement-phase3-browser-parity-with-replay.mjs'],
   ],
   ['Phase 3 read replay syntax', 'node', ['--check', 'scripts/engagement-phase3-api-replay.mjs']],
   [

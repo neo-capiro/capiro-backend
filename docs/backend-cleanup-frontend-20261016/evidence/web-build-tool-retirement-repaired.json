@@ -1,0 +1,19 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "finalize-web-tools.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10",
+  "startedAt": "2026-10-16T02:45:15.3857563Z",
+  "endedAt": "2026-10-16T02:45:17.2250890Z",
+  "ownedPID": 37272,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 39596032,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "6805bca6aeac802d2548cc3a7f7977fffa94a4b32a197f972701d6f2297cb5c7",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

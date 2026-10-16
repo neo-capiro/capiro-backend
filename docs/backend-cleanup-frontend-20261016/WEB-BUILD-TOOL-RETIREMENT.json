@@ -1,0 +1,228 @@
+{
+  "baseline": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "entries": [
+    {
+      "path": "apps/web/context-inspector-a11y-fixture.html",
+      "mode": "100644",
+      "blob": "0f7cfd2d75de9c666d4b8fb77217b791efdb76e7",
+      "bytes": 370,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/funding-opportunities-v2-preview.html",
+      "mode": "100644",
+      "blob": "d7364422cc2a7dde431cbf7c3a111cacf24242e7",
+      "bytes": 546,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/index.html",
+      "mode": "100644",
+      "blob": "6c74f0d407337ee41a04dd6e3cdd373802683706",
+      "bytes": 2086,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/legiwatch-qa.html",
+      "mode": "100644",
+      "blob": "137456b153c7d4942b53d87c4e1c0f30d65158ce",
+      "bytes": 655,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/legiwatch-reports-parity.html",
+      "mode": "100644",
+      "blob": "68e9352c341c1934ca01db63b2cb6cbedcd28125",
+      "bytes": 315,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/package.json",
+      "mode": "100644",
+      "blob": "f6ff939f15e33fa1f4a9e2268e701c66b01741c7",
+      "bytes": 2250,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/parity.html",
+      "mode": "100644",
+      "blob": "e1168bdd7cf7b4433a6c5d905649294a252bfecb",
+      "bytes": 3323,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/phase19-assurance-fixture.html",
+      "mode": "100644",
+      "blob": "33d2e680943b9a087e9c1427e94f7fac8cdac9b3",
+      "bytes": 352,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/planner-qa.html",
+      "mode": "100644",
+      "blob": "f51cbae1207e518696d48ada1b7f05ff2db7168f",
+      "bytes": 291,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/tsconfig.json",
+      "mode": "100644",
+      "blob": "a0b9ef1c869976a5a77c84f7bc2e6ad7b2be989b",
+      "bytes": 437,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.config.ts",
+      "mode": "100644",
+      "blob": "1646b9bd33b6e37369fef2699a500ab9479aec79",
+      "bytes": 6237,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.funding-visual.config.ts",
+      "mode": "100644",
+      "blob": "8c3485f22225019e5a65e9b273d995ca7fd7192b",
+      "bytes": 1747,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.harness.config.ts",
+      "mode": "100644",
+      "blob": "7de29b60b904c2f8d5255b4a7be5122e385b8410",
+      "bytes": 1862,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.legiwatch-qa.config.ts",
+      "mode": "100644",
+      "blob": "d3f78c643100ad382d3c2af488b15d1eb8e22adb",
+      "bytes": 1158,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.legiwatch-reports.config.ts",
+      "mode": "100644",
+      "blob": "d004551ccfbffc7e1292b496f52feb8a79816f2e",
+      "bytes": 586,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.meri-visual.config.ts",
+      "mode": "100644",
+      "blob": "b92e6c04981d5b2a700a28b6f3cfec3bfa5214c1",
+      "bytes": 1187,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.parity.config.ts",
+      "mode": "100644",
+      "blob": "f18c1ca59f030396437d783da3c1c1dd3e76c4b1",
+      "bytes": 2923,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.planner-qa.config.ts",
+      "mode": "100644",
+      "blob": "abba464c52765d4e9ad60a3a419646d38791d755",
+      "bytes": 814,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vite.visual.config.ts",
+      "mode": "100644",
+      "blob": "bd7358ad13ada1576070cb8db5568ecd4824ded2",
+      "bytes": 924,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vitest.config.ts",
+      "mode": "100644",
+      "blob": "e5c86bffe6e3618760648454131f16e93b2e8e12",
+      "bytes": 1030,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vnext-dash.html",
+      "mode": "100644",
+      "blob": "b89cc416721312d908a27d4e2bcf1580c5f35204",
+      "bytes": 689,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vnext-meri-visual.html",
+      "mode": "100644",
+      "blob": "2aff62108f3198e5270f287ffe473da230d39820",
+      "bytes": 1928,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vnext-shell.html",
+      "mode": "100644",
+      "blob": "ffb1ee22dbc18a03ef55bf894d4fb2de18ea7f1e",
+      "bytes": 1091,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/vnext-workshop.html",
+      "mode": "100644",
+      "blob": "553f0d25a0e86d3dcc0c5d85e866ba25c76035bd",
+      "bytes": 769,
+      "action": "retire-main-web-build-input"
+    },
+    {
+      "path": "apps/web/scripts/engagement-phase3-browser-recovery.mjs",
+      "mode": "100644",
+      "blob": "1e9c4900403e4ca6e4798bad6594259085fbf464",
+      "bytes": 13942,
+      "action": "retire-obsolete-web-browser-tool"
+    },
+    {
+      "path": "apps/web/scripts/funding-opportunities-v2-capture.mjs",
+      "mode": "100644",
+      "blob": "bd328fc7148c4b21f6944b7340f26ab2b8ffde36",
+      "bytes": 4110,
+      "action": "retire-obsolete-web-browser-tool"
+    },
+    {
+      "path": "apps/web/scripts/hillday-visual-capture.mjs",
+      "mode": "100644",
+      "blob": "fc5f3b6e406048e4c2d731f88afdccf301fa3823",
+      "bytes": 3678,
+      "action": "retire-obsolete-web-browser-tool"
+    },
+    {
+      "path": "apps/web/scripts/legiwatch-ux-acceptance.mjs",
+      "mode": "100644",
+      "blob": "76da3fb7db28e60207f5164aa6f69b0f2e31f538",
+      "bytes": 15312,
+      "action": "retire-obsolete-web-browser-tool"
+    },
+    {
+      "path": "apps/web/scripts/lighthouse-pe-watch.mjs",
+      "mode": "100644",
+      "blob": "ea19f0832c97de01c57e9ad36c9568bf8ac36212",
+      "bytes": 4218,
+      "action": "retire-obsolete-web-browser-tool"
+    },
+    {
+      "path": "apps/web/scripts/meriv2-phase19-browser-acceptance.mjs",
+      "mode": "100644",
+      "blob": "a2b4b39ddaf974648b8b83697db6cb87900e78fd",
+      "bytes": 22221,
+      "action": "retire-obsolete-web-browser-tool"
+    },
+    {
+      "path": "apps/web/scripts/vnext-visual-capture.mjs",
+      "mode": "100644",
+      "blob": "16efc724ca0105bfa19d58b779eceb9439d086e1",
+      "bytes": 19072,
+      "action": "retire-obsolete-web-browser-tool"
+    }
+  ],
+  "referenceScan": {
+    "patterns": "remaining-web-tool-patterns.txt",
+    "result": "remaining-web-tool-references.stdout",
+    "sha256": "4e0821231e2d4206e2d26dea500d58a5d3bf37e949e795cfc36f615cc58fd2b3"
+  },
+  "disposition": "Five old UI browser/capture tools have no external source consumers. Two visual CLI bodies and their original package remain sealed qualification data for grammar/resource-denial controls. All seven retired executable paths remain available in immutable Git history. No current browser coverage is claimed."
+}

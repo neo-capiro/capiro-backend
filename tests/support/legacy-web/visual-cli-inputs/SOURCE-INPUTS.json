@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "purpose": "Immutable historical CLI and package inputs only; no current UI, browser or performance acceptance",
+  "files": [
+    {
+      "source": "apps/web/scripts/lighthouse-pe-watch.mjs",
+      "destination": "lighthouse-pe-watch.mjs.txt",
+      "bytes": 4218,
+      "sha256": "a95097927f22979b5b80f3127df7f26b6305e96c89a9e88a4864ee53e20cc796",
+      "gitBlob": "ea19f0832c97de01c57e9ad36c9568bf8ac36212"
+    },
+    {
+      "source": "apps/web/scripts/vnext-visual-capture.mjs",
+      "destination": "vnext-visual-capture.mjs.txt",
+      "bytes": 19072,
+      "sha256": "614c77b847793ac7ca6b2cc6ebab0cdcbb02a27d6c52f1c0ff3b0bad38406ee8",
+      "gitBlob": "16efc724ca0105bfa19d58b779eceb9439d086e1"
+    },
+    {
+      "source": "apps/web/package.json",
+      "destination": "package.json",
+      "bytes": 2250,
+      "sha256": "a4ffe437457263846283ee7b8eebd4f920ad6bd37ebd60fff8240bb92c3c1bff",
+      "gitBlob": "f6ff939f15e33fa1f4a9e2268e701c66b01741c7"
+    }
+  ]
+}

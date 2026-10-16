@@ -18,3 +18,9 @@ apps/api/Dockerfile.alpine-qualification text eol=lf
 
 # Binary fixtures/assets — never apply text/EOL normalization (would corrupt them).
 *.pdf       binary
+
+# Byte-pinned qualification operands must survive Windows checkout unchanged.
+apps/intel-api/src/tracker/__fixtures__/email-cta-app-source.txt text eol=lf
+tests/support/legacy-web/source-inputs/*.txt text eol=lf
+tests/support/legacy-web/visual-cli-inputs/*.txt text eol=lf
+tests/support/legacy-web/source-data/** -text

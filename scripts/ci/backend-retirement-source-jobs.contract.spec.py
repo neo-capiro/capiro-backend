@@ -6,6 +6,7 @@ They do not restore the donor carrier's absent full preservation check identity.
 """
 from copy import deepcopy
 import fnmatch
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 PATH = ".github/workflows/backend-cleanup-preservation.yml"
+QUARANTINE = "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/"
 BASE = "523ef9167f05a33efdbdfbbfc08d5fc2e2679012"
+PRE_CLEANUP = "016e79b585c14f20d13669e13c987c01e3dd29dd"
+RUNTIME_DEPENDENCY_SOURCE = "3f747849a1d037806faa819f7c174d8b29675947"
+PRE_CLEANUP_LOCK_SHA256 = "01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c"
 PATTERNS = ["package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "apps/**",
             "packages/**", "scripts/**", "infra/**", "tests/**", "docs/**",
             ".github/workflows/**"]
@@ -59,6 +64,12 @@ def load(source):
     return json.loads(source, object_pairs_hook=unique_pairs)
 
 
+def current_source_path(file):
+    if file.startswith(".github/workflows/"):
+        return ROOT / (QUARANTINE + file.removeprefix(".github/workflows/") + ".disabled")
+    return ROOT / file
+
+
 def validate(document):
     assert set(document) == {"name", "on", "permissions", "jobs"}
     assert document["name"] == "Backend artifact source contracts"
@@ -80,7 +91,7 @@ def validate(document):
 class SourceJobsContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.document = load((ROOT / PATH).read_text())
+        cls.document = load(current_source_path(PATH).read_text())
 
     def test_current_receiving_job_and_dependency_closure(self):
         job = validate(self.document)
@@ -163,11 +174,29 @@ class SourceJobsContract(unittest.TestCase):
                     self.assertEqual("CAPIRO_ARTIFACT_SOURCE_FIXTURES_COMPLETE" in result.stdout,
                                      fail_at == -1)
 
-    def test_existing_defaults_and_full_acceptance_gates_stay_byte_exact(self):
+    def test_backend_transition_preserves_existing_gates_and_explicit_artifact_consumer(self):
         for file in DEFAULTS:
-            before = subprocess.run(["git", "show", f"{BASE}:{file}"], cwd=ROOT,
+            reference = PRE_CLEANUP if file == "pnpm-lock.yaml" else BASE
+            before = subprocess.run(["git", "show", f"{reference}:{file}"], cwd=ROOT,
                                     check=True, capture_output=True).stdout
-            current = (ROOT / file).read_bytes()
+            if file == "pnpm-lock.yaml":
+                # Cleanup removes only Web's importer from the already approved
+                # runtime lock, including its two production Prisma operands.
+                self.assertEqual(hashlib.sha256(before).hexdigest(), PRE_CLEANUP_LOCK_SHA256)
+                runtime = subprocess.run(["git", "show", f"{RUNTIME_DEPENDENCY_SOURCE}:{file}"],
+                                         cwd=ROOT, check=True, capture_output=True).stdout
+                self.assertEqual(before, runtime)
+            current = current_source_path(file).read_bytes()
+            if file == "apps/web/Dockerfile":
+                compatible = (ROOT / "apps/web/Dockerfile.frontend-artifact").read_bytes()
+                self.assertEqual(current[current.index(b"FROM "):], compatible[compatible.index(b"FROM "):])
+                self.assertNotIn(b"COPY apps/web/src", current)
+                continue
+            if file in ["pnpm-workspace.yaml", "pnpm-lock.yaml"]:
+                source = "import {restoreBackendWorkspaceSource} from './scripts/lib/backend-workspace-retirement.mjs'; import {readFileSync} from 'node:fs'; process.stdout.write(restoreBackendWorkspaceSource(readFileSync(0), process.argv[1]));"
+                current = subprocess.run(["node", "--max-old-space-size=128", "--no-addons", "--input-type=module", "-e", source, file],
+                                         cwd=ROOT, input=current, check=True, capture_output=True,
+                                         env={"PATH": os.environ["PATH"]}).stdout
             if file in ["package.json", "apps/api/package.json"]:
                 kind = "root" if file == "package.json" else "api"
                 source = "import {restoreReviewedPeManifest} from './scripts/lib/reviewed-pe-manifest-contract.mjs'; import {readFileSync} from 'node:fs'; process.stdout.write(restoreReviewedPeManifest(readFileSync(0), process.argv[1]));"

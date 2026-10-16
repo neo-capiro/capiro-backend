@@ -3,13 +3,17 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { outreachCodeScope } from './lib/outreach-code-scope.mjs';
 
-const usage = 'Usage: node scripts/verify-outreach-v3-phase2-code.mjs (--run | --help)';
+const usage = 'Usage: node scripts/verify-outreach-v3-phase2-code.mjs (--run [--backend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(usage);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let scope;
+try {
+  scope = outreachCodeScope(process.argv.slice(2));
+} catch {
   console.error(usage);
   process.exit(2);
 }
@@ -167,7 +171,7 @@ try {
   for (const [label, command, args, extraEnv] of steps) {
     run(label, command, args, extraEnv);
   }
-  console.log('\nOUTREACH_V3_PHASE2_DB_FREE_COMPLETE');
+  console.log(scope === 'backend-only' ? '\nOUTREACH_V3_PHASE2_BACKEND_DB_FREE_COMPLETE' : '\nOUTREACH_V3_PHASE2_DB_FREE_COMPLETE');
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

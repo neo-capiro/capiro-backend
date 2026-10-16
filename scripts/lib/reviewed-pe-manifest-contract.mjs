@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
+import { restoreBackendWorkspaceSource } from './backend-workspace-retirement.mjs';
 
 // Exact PR2444/PR2446 declaration inverse for preservation guards, never a general
 // manifest exception. No I/O, process, environment or application imports.
 export const REVIEWED_PE_MANIFEST_SOURCE = '457e84e7d50f401985355cf22eedc480fd72ad8b';
 export const REVIEWED_PE_API_MANIFEST_SOURCE = 'e25b2c9ad93ae8d63ffb5332c41d7af1623d4400';
+export const REVIEWED_RUNTIME_PRISMA_MANIFEST_SOURCE = '3f747849a1d037806faa819f7c174d8b29675947';
+const runtimePrismaAfter = '10a90b3357aad5c52dc04ae2e00d25dadd5a501ee49a9eb8fd25e6904c501c40';
 const profiles = Object.freeze({
   root: Object.freeze({
     after: 'ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824',
@@ -27,12 +30,47 @@ const profiles = Object.freeze({
 });
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 
+// The approved runtime source moved the same Prisma CLI version from dev to
+// production dependencies. Reconstruct only its exact former manifest bytes;
+// this inverse does not change the current manifest or its runtime dependency.
+export function restoreReviewedRuntimePrismaManifest(source) {
+  if (!(typeof source === 'string' || Buffer.isBuffer(source)))
+    throw new Error('Exact reviewed runtime Prisma manifest bytes required');
+  const bytes = typeof source === 'string' ? Buffer.from(source) : source;
+  if (sha(bytes) !== runtimePrismaAfter)
+    throw new Error('Unreviewed runtime Prisma manifest change refused');
+  let text = bytes.toString('utf8');
+  for (const [from, to] of [
+    [
+      '    "pptxgenjs": "^3",\n    "prisma": "^5.20.0",\n    "reflect-metadata": "^0.2.2",\n',
+      '    "pptxgenjs": "^3",\n    "reflect-metadata": "^0.2.2",\n',
+    ],
+    [
+      '    "jest": "^29.7.0",\n    "supertest": "^7.3.0",\n',
+      '    "jest": "^29.7.0",\n    "prisma": "^5.20.0",\n    "supertest": "^7.3.0",\n',
+    ],
+  ]) {
+    if (text.split(from).length !== 2)
+      throw new Error('Exact single reviewed runtime Prisma operand required');
+    text = text.replace(from, to);
+  }
+  if (sha(Buffer.from(text)) !== profiles.api.after)
+    throw new Error('Prior reviewed API manifest byte identity did not reconstruct');
+  return text;
+}
+
 export function restoreReviewedPeManifest(source, kind) {
   if (!['root', 'api'].includes(kind) ||
       !(typeof source === 'string' || Buffer.isBuffer(source)))
     throw new Error('Exact reviewed PE manifest bytes and literal kind required');
-  const bytes = typeof source === 'string' ? Buffer.from(source) : source;
+  let bytes = typeof source === 'string' ? Buffer.from(source) : source;
   const profile = profiles[kind];
+  // Admit exactly the reviewed backend-workspace transition before applying
+  // the unchanged PE declaration inverse. The original exact root remains valid.
+  if (kind === 'root' && sha(bytes) !== profile.after)
+    bytes = Buffer.from(restoreBackendWorkspaceSource(bytes, 'package.json'));
+  if (kind === 'api' && sha(bytes) !== profile.after)
+    bytes = Buffer.from(restoreReviewedRuntimePrismaManifest(bytes));
   if (sha(bytes) !== profile.after)
     throw new Error('Unreviewed PE manifest change refused');
   let text = bytes.toString('utf8');

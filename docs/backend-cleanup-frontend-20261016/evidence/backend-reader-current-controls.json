@@ -1,0 +1,27 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "tests/support/legacy-web/inputs.spec.mjs",
+    "scripts/lib/outreach-code-scope.spec.mjs",
+    "apps/intel-api/src/tracker/email-cta-route-input-parity.spec.mjs",
+    "apps/intel-api/test/qualification/hearing-recording-transport-parity.spec.mjs",
+    "scripts/engagement-phase3-qualification-plan.spec.mjs",
+    "tests/support/legacy-web/engagement-phase3-browser-parity.spec.mjs",
+    "tests/support/legacy-web/engagement-phase3-browser-scenarios.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:47:51.6309410Z",
+  "endedAt": "2026-10-16T02:47:51.8559632Z",
+  "ownedPID": 27120,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 41881600,
+  "hardWallSeconds": 120,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "5ab8f8c21ec48bba464b3c71578a13ad081363a54b9c6fd106cfaf29c2b1b822",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

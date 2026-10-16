@@ -22,6 +22,9 @@ const FRONTEND_ONLY_LABELS = new Set([
   'Phase 3 scenario catalog syntax',
   'Phase 3 bearer refresh syntax',
   'Phase 3 browser+replay wrapper syntax',
+  // This main gate proves the historical UI exists and v2 was not removed.
+  // Its pure backend/source negative controls remain in CONTROL_LABEL below.
+  'Phase 3 V3/prototype boundary',
   'Web production typecheck',
   'Web production build',
   'Web complete regression suite',
@@ -53,16 +56,16 @@ export function engagementPhase3QualificationPlan(scope, steps) {
     } else if (label === CONTROL_LABEL) {
       // The original batch owns both browser tests and API/scope negative
       // controls. Split only their argv; keep every original test identity.
-      const browser = args.filter((arg) => arg.startsWith('apps/web/'));
+      const browser = args.filter((arg) => arg.startsWith('tests/support/legacy-web/'));
       const root = args.filter((arg) => arg.startsWith('scripts/'));
       if (scope === 'frontend-only') {
         planned.push(['Phase 3 browser negative controls', command, ['--test', ...browser], ...options]);
       }
       planned.push([label, command, ['--test', ...root], ...options]);
     } else {
-      // Mixed UI/API route coverage, classification, prototype ownership and
-      // scope/findings guards retain their complete source context in both
-      // modes. They still read Web files and must precede frontend retirement.
+      // Backend inventory reads its sealed owned manifest. Scope/findings keeps
+      // current backend infra/runtime/ledger enforcement. Historical UI main is
+      // frontend-only; its pure source-boundary controls are retained above.
       planned.push([label, command, args, ...options]);
     }
   }

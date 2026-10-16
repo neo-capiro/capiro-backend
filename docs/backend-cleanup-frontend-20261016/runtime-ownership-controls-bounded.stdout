@@ -1,0 +1,27 @@
+Γ£ö one canonical code owner preserves all original test twins and retained data (4.1471ms)
+Γ£ö missing canonical runtime source fails ownership (2.541ms)
+Γ£ö missing canonical regression spec fails instead of dropping its twin (2.2108ms)
+Γ£ö reintroduced TypeScript or Python implementations fail the retained-data boundary (2.1545ms)
+Γ£ö changed retained fixture bytes fail their immutable digest (1.7423ms)
+Γ£ö canonical fixture drift fails parity even when retained bytes are intact (2.1566ms)
+Γ£ö missing retained fixture is reported without removing its acceptance row (1.7174ms)
+Γ£ö an unavailable canonical data file fails closed (2.0357ms)
+Γ£ö a self-consistent manifest cannot omit a regression twin from the independent baseline (2.3958ms)
+Γ£ö changing a retired blob cannot rewrite its immutable canonical proof (2.1655ms)
+Γ£ö a different implementation owner cannot replace a canonical mapping (2.2739ms)
+Γ£ö historical source tree hashes must match their immutable Git objects (2.3772ms)
+Γ£ö removing a replay identity or non-replay data cannot shrink retained scope (2.3706ms)
+Γ£ö canonical API entrypoints satisfy operator ownership without copied implementations (0.1903ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/phase6-stage-cycle.ts (0.163ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/plan-defense-budget-promotion-v1.ts (0.0341ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/status-defense-budget-promotion-v1.ts (0.0259ms)
+Γ£ö rejects reintroduced copied operators, including previously unknown filenames (0.0465ms)
+Γ£ö current checkout retains canonical entrypoints and has no copied operator tree (1.2254ms)
+Γä╣ tests 19
+Γä╣ suites 0
+Γä╣ pass 19
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 53.2444

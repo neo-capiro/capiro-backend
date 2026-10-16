@@ -5,18 +5,23 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runApprovedPreviewMaintenance } from './outreach-phase6-approved-preview-maintenance.mjs';
+import { outreachCodeScope } from './lib/outreach-code-scope.mjs';
 
-const usage = 'Usage: node scripts/verify-outreach-v3-phase6-code.mjs (--run | --help)';
+const usage = 'Usage: node scripts/verify-outreach-v3-phase6-code.mjs (--run [--backend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(usage);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let scope;
+try {
+  scope = outreachCodeScope(process.argv.slice(2));
+} catch {
   console.error(usage);
   process.exit(2);
 }
 
 const root = process.cwd();
+const backendOnly = scope === 'backend-only';
 const phase5Base = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
 // Retain the original phase-only scope; all source/functional checks use this checkout.
 const phase6ScopeEnd =
@@ -61,7 +66,7 @@ function assert(condition, message) {
   }
 }
 
-if (runApprovedPreviewMaintenance(root, run)) process.exit(0);
+if (!backendOnly && runApprovedPreviewMaintenance(root, run)) process.exit(0);
 
 const required = [
   'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md',
@@ -82,7 +87,10 @@ const required = [
   'apps/web/src/pages/engagement/outreach/v3/target-workspace.css',
   'apps/web/src/pages/engagement/outreach/v3/context-review-surface.css',
 ];
-for (const file of required) assert(existsSync(resolve(root, file)), `missing:${file}`);
+for (const file of required) {
+  if (backendOnly && file.startsWith('apps/web/')) continue;
+  assert(existsSync(resolve(root, file)), `missing:${file}`);
+}
 
 const changedIn = (range) =>
   output('git', ['diff', '--name-only', range]).split(/\r?\n/).filter(Boolean);
@@ -142,6 +150,10 @@ if (phase6ScopeBase) {
   assertPhase6Scope(changedIn(`${phase6ScopeBase}...HEAD`), { allowRecoveryCloseout: true });
 }
 
+// Phase 6 adds UI behavior; its full source/UI obligations remain in the full
+// historical frontend qualification. Backend scope retains the API/package/
+// infrastructure/migration boundaries above and current route contract below.
+if (!backendOnly) {
 const v3Dir = resolve(root, 'apps/web/src/pages/engagement/outreach/v3');
 const productionFiles = readdirSync(v3Dir)
   .filter((name) => /\.(ts|tsx)$/.test(name))
@@ -242,10 +254,13 @@ for (const node of [
   assert(manifest.includes(node), `missing-figma-node:${node}`);
 }
 
+}
+
 run('Preview route manifest drift', 'node', [
   'scripts/engagement-phase3-preview-route-patterns.mjs',
   '--check',
 ]);
+if (!backendOnly) {
 run('vNext outreach-decision css generator controls', 'node', [
   '--test',
   'scripts/port-outreach-decision-vnext-css.spec.mjs',
@@ -278,6 +293,7 @@ run('Outreach V3 focused tests', 'pnpm', [
   'src/lib/engagement-api-preview.spec.ts',
 ]);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
+}
 const whitespaceExclusions = [
   ':(exclude)docs/plans/**/*.md',
   ':(exclude).github/**/*.yml',
@@ -304,4 +320,4 @@ if (phase6ScopeBase) {
 
 run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
-process.stdout.write('\nOUTREACH_V3_PHASE6_COMPLETE\n');
+process.stdout.write(backendOnly ? '\nOUTREACH_V3_PHASE6_BACKEND_COMPLETE\n' : '\nOUTREACH_V3_PHASE6_COMPLETE\n');

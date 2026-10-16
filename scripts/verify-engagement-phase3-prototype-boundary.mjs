@@ -16,11 +16,6 @@ import { comparePaths, fingerprintOf, MEASURED_INPUTS } from '../apps/e2e/lib/so
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
-const BASE = resolvePhase3ScopeBase({
-  git,
-  end: END,
-  explicitBase: process.env.ENGAGEMENT_PHASE3_BASE_SHA,
-});
 
 export const FORBIDDEN_NEW_PATHS = [
   /^apps\/web\/.*(?:outreach(?:-|\/)v3|OutreachV3)/i,
@@ -150,6 +145,11 @@ export function verifyBoundary({ changed = [], addedLines = '', deleted = [] }) 
 }
 
 function main() {
+  const BASE = resolvePhase3ScopeBase({
+    git,
+    end: END,
+    explicitBase: process.env.ENGAGEMENT_PHASE3_BASE_SHA,
+  });
   git(['cat-file', '-e', `${BASE}^{commit}`]);
   git(['cat-file', '-e', `${END}^{commit}`]);
   const range = `${BASE}..${END}`;

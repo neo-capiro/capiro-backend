@@ -195,7 +195,7 @@ async function isolatedShadowProbe({ port, token, envOverrides, label }) {
 
 async function assertNoCurrentStreamingConsumer() {
   const inventoryPath = path.resolve(
-    'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+    'apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
   );
   const inventory = JSON.parse(await readFile(inventoryPath, 'utf8'));
   const patterns = [

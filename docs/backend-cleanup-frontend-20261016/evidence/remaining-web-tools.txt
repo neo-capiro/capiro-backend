@@ -1,0 +1,7 @@
+apps/web/scripts/engagement-phase3-browser-recovery.mjs
+apps/web/scripts/funding-opportunities-v2-capture.mjs
+apps/web/scripts/hillday-visual-capture.mjs
+apps/web/scripts/legiwatch-ux-acceptance.mjs
+apps/web/scripts/lighthouse-pe-watch.mjs
+apps/web/scripts/meriv2-phase19-browser-acceptance.mjs
+apps/web/scripts/vnext-visual-capture.mjs
