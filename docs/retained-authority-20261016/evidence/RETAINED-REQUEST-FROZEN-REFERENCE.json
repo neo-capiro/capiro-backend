@@ -1,0 +1,411 @@
+{
+  "upstream": {
+    "repository": "neo-capiro/meri-greenfield",
+    "commit": "75a6bd646a7df70bb650afe6b5827cd5aeb88542"
+  },
+  "defs": {
+    "RunBinding": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "runId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attemptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "workerId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "writerFence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "tenantId",
+        "actorId",
+        "conversationId",
+        "runId",
+        "attemptId",
+        "workerId",
+        "writerFence"
+      ],
+      "additionalProperties": false
+    },
+    "Scope": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tenant",
+            "client",
+            "mailbox",
+            "memory",
+            "document",
+            "private-user",
+            "public"
+          ]
+        },
+        "resourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "tenantId",
+        "kind",
+        "resourceId",
+        "policyRevision"
+      ],
+      "additionalProperties": false
+    },
+    "ResolvedSubject": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "client",
+            "portfolio",
+            "personal",
+            "entity"
+          ]
+        },
+        "entityType": {
+          "type": "string",
+          "enum": [
+            "client",
+            "person",
+            "organization",
+            "program-element",
+            "bill",
+            "docket",
+            "funding-opportunity",
+            "research-portfolio",
+            "prospect",
+            "user"
+          ]
+        },
+        "entityIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "authorizationDecisionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:meri:contracts:0.1.0#/$defs/Scope"
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "rosterVersionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "entityType",
+        "entityIds",
+        "tenantId",
+        "actorId",
+        "authorizationDecisionId",
+        "policyRevision",
+        "scopes",
+        "rosterVersionId"
+      ],
+      "additionalProperties": false
+    },
+    "ResearchPortfolioDetailInput": {
+      "type": "object",
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ResearchPortfolioChangesInput": {
+      "type": "object",
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ResearchPortfolioContext": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding"
+        },
+        "subject": {
+          "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject"
+        }
+      },
+      "required": [
+        "binding",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    "FloridaBudgetRequest": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fiscalYear": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sessionKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "clientId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "FloridaBudgetInput": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string"
+        },
+        "fiscalYear": {
+          "type": "string",
+          "pattern": "^20[0-9]{2}-[0-9]{2}$"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "sessionKey": {
+          "type": "string"
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "clientId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "q",
+        "fiscalYear",
+        "projectId",
+        "offset",
+        "sessionKey",
+        "folderId",
+        "clientId"
+      ],
+      "additionalProperties": false
+    },
+    "FloridaBudgetContext": {
+      "type": "object",
+      "properties": {
+        "asOf": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "effectiveScope": {
+          "$ref": "#/$defs/FloridaBudgetScope"
+        },
+        "clientResolution": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "selector": {
+                  "type": "string"
+                },
+                "clientId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "selector",
+                "clientId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "asOf",
+        "effectiveScope",
+        "clientResolution"
+      ],
+      "additionalProperties": false
+    },
+    "FloridaBudgetScope": {
+      "type": "object",
+      "properties": {
+        "jurisdiction": {
+          "const": "FL"
+        },
+        "sessionKey": {
+          "type": "string"
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "clientId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "jurisdiction",
+        "sessionKey",
+        "folderId",
+        "clientId"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

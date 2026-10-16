@@ -35,6 +35,13 @@ import {
   type ApplicationAuthorityIdentityEvidence,
   type ApplicationAuthorityIdentityProof,
 } from '../auth/application-authority.js';
+import {
+  captureRetainedNativeAuthority,
+  requiresVerifiedRetainedNativeAuthority,
+  type RetainedNativeAuthorityCapture,
+  type RetainedNativeAuthorityCurrent,
+  type VerifiedRetainedNativeAuthority,
+} from '../auth/retained-native-authority.js';
 
 type SystemTx = Prisma.TransactionClient;
 type MembershipWithTenant = Prisma.TenantMembershipGetPayload<{ include: { tenant: true } }>;
@@ -90,6 +97,16 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
       '/clio/application-authority/identity', '/clio/application-authority/context',
       '/api/clio/application-authority/membership', '/clio/application-authority/membership',
+      '/api/clio/application-authority/retained-research-portfolio', '/clio/application-authority/retained-research-portfolio',
+      '/api/clio/application-authority/retained-research-portfolio-changes', '/clio/application-authority/retained-research-portfolio-changes',
+      '/api/clio/application-authority/retained-florida-budget', '/clio/application-authority/retained-florida-budget',
+      '/api/clio/application-authority/retained-research-portfolio-principal', '/clio/application-authority/retained-research-portfolio-principal',
+      '/api/clio/application-authority/retained-research-portfolio-changes-principal', '/clio/application-authority/retained-research-portfolio-changes-principal',
+      '/api/clio/application-authority/retained-florida-principal', '/clio/application-authority/retained-florida-principal',
+      '/api/clio/application-authority/retained-florida-native-current', '/clio/application-authority/retained-florida-native-current',
+      '/api/clio/application-authority/retained-florida-current', '/clio/application-authority/retained-florida-current',
+      '/api/clio/retained-reads/research-portfolio', '/clio/retained-reads/research-portfolio',
+      '/api/clio/retained-reads/research-portfolio-changes', '/clio/retained-reads/research-portfolio-changes',
     ];
     if ([req.path, (req.originalUrl ?? req.url ?? '').split('?')[0]].some(
       // Express defaults accept case variants and one trailing slash. Cover
@@ -423,6 +440,28 @@ export class TenantContextMiddleware implements NestMiddleware {
     const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
     const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
     return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
+  }
+
+  /** Core-only capture from an actual natively authenticated request/context pair. */
+  async captureRetainedNativeAuthority(req: Request, ctx: TenantContext): Promise<RetainedNativeAuthorityCapture> {
+    const provenance = applicationAuthorityRequests.get(req);
+    if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) {
+      throw new ForbiddenException('Application authority unavailable');
+    }
+    const evidence = await this.readApplicationAuthority(req, ctx);
+    return captureRetainedNativeAuthority(provenance, evidence);
+  }
+
+  /** Only the receiving signed-codec closure can supply this runtime proof.
+   * Every invocation makes a new online session call and uses the same local owner. */
+  async requiresVerifiedRetainedNativeAuthority(verified: VerifiedRetainedNativeAuthority): Promise<RetainedNativeAuthorityCurrent> {
+    return requiresVerifiedRetainedNativeAuthority(verified, async (provenance) => {
+      if (Date.now() >= verified.originalExpiresAtMs) throw new UnauthorizedException('Application authority unavailable');
+      this.clerk.assertRetainedApplicationAuthorityIssuer(provenance.claims.iss);
+      const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+      if (Date.now() >= verified.originalExpiresAtMs) throw new UnauthorizedException('Application authority unavailable');
+      return this.readCurrentApplicationAuthority(provenance, provenance.context, session);
+    });
   }
 
   private async readCurrentApplicationAuthority(

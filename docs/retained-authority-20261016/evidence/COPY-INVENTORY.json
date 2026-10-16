@@ -1,0 +1,164 @@
+[
+  {
+    "path": "retained-codec-real-jcs-check.cjs",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-codec-real-jcs-check.cjs",
+    "bytes": 25313,
+    "workingFileSha256": "daa8e475cd21ad57c236a91fc5a53e92926c1965192a89d1ad91f2463c547671"
+  },
+  {
+    "path": "retained-codec-real-jcs-check.receipt.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-codec-real-jcs-check.receipt.json",
+    "bytes": 7893,
+    "workingFileSha256": "245deefbe8fc0bb59e9a8b2d4faae92c70020e2d750d9c28f64e53b28236c3fe"
+  },
+  {
+    "path": "retained-codec-real-jcs-check.preflight-failure.receipt.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-codec-real-jcs-check.preflight-failure.receipt.json",
+    "bytes": 1918,
+    "workingFileSha256": "f463dde5792cf03762433706c078f3cd2d876d02574544efbd1a0a82ebbef8bb"
+  },
+  {
+    "path": "retained-read-parser.check.cjs",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\retained-read-parser.check.cjs",
+    "bytes": 8883,
+    "workingFileSha256": "7fd8bd2d0271b21fa3a81e1f4014a2f8ba8a066c218a09885a66615f861c6ee5"
+  },
+  {
+    "path": "retained-read-parser.pure.receipt.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\retained-read-parser.pure.receipt.json",
+    "bytes": 2746,
+    "workingFileSha256": "2e5af2fd6865350f3a4ab392881cd4b818bcfd7b02ce90e0e1ba97953e074f19"
+  },
+  {
+    "path": "RETAINED-REQUEST-FROZEN-REFERENCE.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\RETAINED-REQUEST-FROZEN-REFERENCE.json",
+    "bytes": 8742,
+    "workingFileSha256": "ce3ed97b379ec3fa410c68a2ef7c9b3f7b17ca7114c8424ac6d8aaa9455fca9f"
+  },
+  {
+    "path": "TRANSPORT-VALIDATION.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\TRANSPORT-VALIDATION.json",
+    "bytes": 3338,
+    "workingFileSha256": "2848e11424c1d90c104c77c316ea5e99389f9804e9698af9258e6d249593067f"
+  },
+  {
+    "path": "run-http-tests.cjs",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\run-http-tests.cjs",
+    "bytes": 1958,
+    "workingFileSha256": "8d96cc532d70a1ece32f2f39a71de1b290895f831f0655f6c0eaf76844995c38"
+  },
+  {
+    "path": "transport-attempt-final.stdout.log",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\attempt-final.stdout.log",
+    "bytes": 3437,
+    "workingFileSha256": "21ec109466949f7a36767111589b4d06e6e470b3bbebbeccd61f6598cf36ae79"
+  },
+  {
+    "path": "transport-attempt-final.stderr.log",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\attempt-final.stderr.log",
+    "bytes": 0,
+    "workingFileSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "check-shared-server.cjs",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\check-shared-server.cjs",
+    "bytes": 5714,
+    "workingFileSha256": "5a9dce5c22cd581a1e9473d61947bf72fc38c74dd59d440113f0098bfdd35ed2"
+  },
+  {
+    "path": "shared-server-semantic.receipt.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic.receipt.json",
+    "bytes": 33524,
+    "workingFileSha256": "60c14fbf3e6b5debc805ce3faf7e5951214f495ddd61eab211b3ca9557e775cf"
+  },
+  {
+    "path": "SHARED-SERVER-SEMANTIC-CHECK.md",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\SHARED-SERVER-SEMANTIC-CHECK.md",
+    "bytes": 3000,
+    "workingFileSha256": "b49eb029cf80ac4a2db8b3f833e0432c9b7b947f7031b3fc2079243c30d765bc"
+  },
+  {
+    "path": "shared-server-semantic-256.stdout.txt",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic-256.stdout.txt",
+    "bytes": 480,
+    "workingFileSha256": "6b0146013ea69cb7310bd6f162fa8d959f05a277dfdf3b5a92d5f098b49ff046"
+  },
+  {
+    "path": "shared-server-semantic-256.stderr.txt",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic-256.stderr.txt",
+    "bytes": 0,
+    "workingFileSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "shared-server-semantic.stdout.txt",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic.stdout.txt",
+    "bytes": 0,
+    "workingFileSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "shared-server-semantic.stderr.txt",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic.stderr.txt",
+    "bytes": 1205,
+    "workingFileSha256": "3dce41736157fb4829e3be39449f130165419bf39f2edc9ca39b4205b85cc615"
+  },
+  {
+    "path": "RETAINED-CURRENT-SOURCE-REVIEW.md",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\RETAINED-CURRENT-SOURCE-REVIEW.md",
+    "bytes": 9990,
+    "workingFileSha256": "ef81f8633005243a2e9723dc441be146fb75a8e14d37d5ee77df52274e1b9ce8"
+  },
+  {
+    "path": "TRANSPORT-MICROTASK-VALIDATION.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\TRANSPORT-MICROTASK-VALIDATION.json",
+    "bytes": 2399,
+    "workingFileSha256": "459dd079883697735c7a935886020527ea730222b8891d2f236457b7992a7b87"
+  },
+  {
+    "path": "transport-attempt-microtask.stdout.log",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\attempt-microtask.stdout.log",
+    "bytes": 3535,
+    "workingFileSha256": "7cafebb233d87fa4cd0731c51da0b80bae4de0dc5c250675d03455bb77f1201c"
+  },
+  {
+    "path": "transport-attempt-microtask.stderr.log",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-transport-runtime\\attempt-microtask.stderr.log",
+    "bytes": 0,
+    "workingFileSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "FIXTURE-REVIEW.md",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\FIXTURE-REVIEW.md",
+    "bytes": 2965,
+    "workingFileSha256": "951dbf2b1c0f29cabfad9e36c93691d66c863126add9f413a3bd8b36f67d8207"
+  },
+  {
+    "path": "fixture-date-realm-proof.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\fixture-date-realm-proof.json",
+    "bytes": 391,
+    "workingFileSha256": "8fa26342471256af5331a21f7978881557504e74951cd29300238fec8604fe93"
+  },
+  {
+    "path": "shared-server-semantic-after-http-microtask.receipt.json",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic-after-http-microtask.receipt.json",
+    "bytes": 33524,
+    "workingFileSha256": "0cefd476467f3921150d0f740ae2da4ca17541ebb291826ceada64427730b592"
+  },
+  {
+    "path": "shared-server-semantic-256-after-http-microtask.stdout.txt",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic-256-after-http-microtask.stdout.txt",
+    "bytes": 480,
+    "workingFileSha256": "e8afad0490c394e1c5f28c3b5d5522e550e6835c2570fb0225aa3ba726ccdd61"
+  },
+  {
+    "path": "shared-server-semantic-256-after-http-microtask.stderr.txt",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\shared-server-semantic-256-after-http-microtask.stderr.txt",
+    "bytes": 0,
+    "workingFileSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "SHARED-SERVER-SEMANTIC-AFTER-HTTP-MICROTASK.md",
+    "originalTaskPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-authority-runtime\\SHARED-SERVER-SEMANTIC-CHECK.md",
+    "bytes": 4149,
+    "workingFileSha256": "3dcdb5eb75d07c522078a37bd2b66dbbbd2be6e90d1ba4e355592dc0550abc3d"
+  }
+]

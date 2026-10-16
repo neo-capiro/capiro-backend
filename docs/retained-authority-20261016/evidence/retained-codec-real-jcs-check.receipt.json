@@ -1,0 +1,276 @@
+{
+  "command": "node --max-old-space-size=128 retained-codec-real-jcs-check.cjs",
+  "startedAt": "2026-10-16T04:07:56.207Z",
+  "node": "v24.19.0",
+  "maxOldSpaceSizeMiB": 128,
+  "observedHeapSizeLimitBytes": 335544320,
+  "baselineStructuralChecks": 62,
+  "realJcsChecks": [
+    {
+      "name": "real JCS fixed selector Unicode/null/version vector",
+      "passed": true
+    },
+    {
+      "name": "data resource vector and actual raw/normalized/context digests round-trip",
+      "passed": true
+    },
+    {
+      "name": "data pinned operation get_research_portfolio",
+      "passed": true
+    },
+    {
+      "name": "data pinned operation get_research_portfolio_changes",
+      "passed": true
+    },
+    {
+      "name": "data pinned operation get_florida_budget_project",
+      "passed": true
+    },
+    {
+      "name": "probe round-trip obtains selector commitment without data/resource claims",
+      "passed": true
+    },
+    {
+      "name": "data actual newline domain and independent Node Ed25519 verification",
+      "passed": true
+    },
+    {
+      "name": "probe actual newline domain and independent Node Ed25519 verification",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering identityRevision",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering resourceRevision",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering currentAuthority",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering rawRequestSha256",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering normalizedArgsSha256",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering normalizationContextSha256",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering issuedAtMs",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering originalExpiresAtMs",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering keyId",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering issuer",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering audienceOrigin",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering recipientPath",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering operation",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering purpose",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering algorithm",
+      "passed": true
+    },
+    {
+      "name": "data denies tampering schemaVersion",
+      "passed": true
+    },
+    {
+      "name": "data denies principal tampering tenantId",
+      "passed": true
+    },
+    {
+      "name": "data denies principal tampering actorId",
+      "passed": true
+    },
+    {
+      "name": "data denies principal tampering clerkUserId",
+      "passed": true
+    },
+    {
+      "name": "data binds actual expected rawRequestSha256",
+      "passed": true
+    },
+    {
+      "name": "data binds actual expected normalizedArgsSha256",
+      "passed": true
+    },
+    {
+      "name": "data binds actual expected normalizationContextSha256",
+      "passed": true
+    },
+    {
+      "name": "probe denies signed-fact tampering identityRevision",
+      "passed": true
+    },
+    {
+      "name": "probe denies signed-fact tampering currentAuthority",
+      "passed": true
+    },
+    {
+      "name": "probe denies signed-fact tampering issuedAtMs",
+      "passed": true
+    },
+    {
+      "name": "probe denies signed-fact tampering originalExpiresAtMs",
+      "passed": true
+    },
+    {
+      "name": "probe denies signed-fact tampering selectorSha256",
+      "passed": true
+    },
+    {
+      "name": "probe binds actual selector field sessionKey",
+      "passed": true
+    },
+    {
+      "name": "probe binds actual selector field folderId",
+      "passed": true
+    },
+    {
+      "name": "probe binds actual selector field clientSelector",
+      "passed": true
+    },
+    {
+      "name": "valid signed envelopes reject cross-purpose schemes and relabelled schemes",
+      "passed": true
+    },
+    {
+      "name": "valid shape and correct selector cannot reuse a data signature for probe domain",
+      "passed": true
+    },
+    {
+      "name": "wrong independently generated Ed25519 key rejects both valid envelopes",
+      "passed": true
+    },
+    {
+      "name": "data exact 30-second lease, expiry boundary and shorter original deadline",
+      "passed": true
+    },
+    {
+      "name": "probe exact 30-second lease, expiry boundary and shorter original deadline",
+      "passed": true
+    },
+    {
+      "name": "data rejects duplicate keys/non-JCS whitespace/extra fields/base64 padding",
+      "passed": true
+    },
+    {
+      "name": "probe rejects duplicate keys/non-JCS whitespace/extra fields/base64 padding",
+      "passed": true
+    },
+    {
+      "name": "non-ASCII identifiers/authority/context and an internationalized pinned origin round-trip",
+      "passed": true
+    },
+    {
+      "name": "Unicode and exact session bytes remain in the probe whole-selector hash",
+      "passed": true
+    },
+    {
+      "name": "data real JCS signs 256-character identifiers and exact 4096-byte authority",
+      "passed": true
+    },
+    {
+      "name": "probe real JCS signs 256-character identifiers and exact 4096-byte authority",
+      "passed": true
+    },
+    {
+      "name": "cryptographic acceptance makes no live authority decision",
+      "passed": true
+    }
+  ],
+  "sourceEdits": false,
+  "network": false,
+  "install": false,
+  "jest": false,
+  "build": false,
+  "database": false,
+  "provider": false,
+  "syntheticInMemoryKeysOnly": true,
+  "keyPersistence": false,
+  "tokensOrKeysEmitted": false,
+  "qualification": "Pure actual-source crypto/codec regression; not live authority, transport, business, deployment or integration qualification.",
+  "earlierUnrunRecord": "Earlier 62-check run had no installed JCS in its checked runtime. That historical unrun result is preserved; this separate run uses newly supplied read-only dependency evidence.",
+  "jcs": {
+    "path": "C:/Users/neoma/Documents/Codex/2026-10-15/task-4/meri-greenfield/node_modules/canonicalize/lib/canonicalize.js",
+    "bytes": 7145,
+    "sha256": "c1d0195af2a0748454b06af8f218e5c90415c19d39154d0058fee8229c12d859",
+    "package": {
+      "path": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-4\\meri-greenfield\\node_modules\\canonicalize\\package.json",
+      "bytes": 1553,
+      "sha256": "ca7454aac0f76429b5d56bbc3bd61fa706fb1088a19f45d64cf38e055fbf4670"
+    },
+    "version": "5.1.0"
+  },
+  "typescriptVersion": "5.9.3",
+  "sources": [
+    {
+      "name": "core-retained-principal.ts",
+      "bytes": 16568,
+      "sha256": "334eb08cd9518bc871e8d943f841ba103c7a84ecfca9ab81593eaebb560197d9"
+    },
+    {
+      "name": "core-retained-principal.spec.ts",
+      "bytes": 18584,
+      "sha256": "5aacc604a438d31965810ae826f5bee3055089d903e97aa6df0e2247a69f3718"
+    },
+    {
+      "name": "core-retained-authority-probe.ts",
+      "bytes": 18132,
+      "sha256": "62037476acf41009263015c877a34c78c8c2996a83ebf0a3c0476d33a1777a62"
+    },
+    {
+      "name": "core-retained-authority-probe.spec.ts",
+      "bytes": 17412,
+      "sha256": "789c8505a7d475bc4b4fa149a319a9115d5203ae88a0508121e87814d7ba16c3"
+    }
+  ],
+  "syntaxDiagnosticCount": 0,
+  "sourcesUnchanged": true,
+  "dependencyUnchanged": true,
+  "realJcsPassed": 50,
+  "realJcsFailed": 0,
+  "totalChecks": 112,
+  "exitCode": 0,
+  "finishedAt": "2026-10-16T04:07:56.479Z",
+  "memoryUsageBytes": {
+    "rss": 87994368,
+    "heapTotal": 48930816,
+    "heapUsed": 37466712,
+    "external": 3018202,
+    "arrayBuffers": 864683
+  },
+  "helper": {
+    "path": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\retained-codec-real-jcs-check.cjs",
+    "bytes": 25313,
+    "sha256": "daa8e475cd21ad57c236a91fc5a53e92926c1965192a89d1ad91f2463c547671"
+  }
+}

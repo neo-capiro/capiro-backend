@@ -147,6 +147,12 @@ export class ClerkService {
     }
   }
 
+  /** Reuse the native namespace pin for a verified Core-only retained frame. */
+  assertRetainedApplicationAuthorityIssuer(issuer: string): void {
+    try { this.assertIssuer({ iss: issuer }); }
+    catch { throw new UnauthorizedException('Application authority unavailable'); }
+  }
+
   private assertIssuer(raw: Record<string, unknown>): void {
     if (!this.issuer) return;
     if (raw.iss !== this.issuer) {

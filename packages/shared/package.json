@@ -6,6 +6,12 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
+      "core-retained-read-request": ["dist/core-retained-read-request.d.ts"],
+      "core-retained-authority-probe": ["dist/core-retained-authority-probe.d.ts"],
+      "core-retained-authority-http": ["dist/core-retained-authority-http.d.ts"],
+      "core-retained-principal": [
+        "dist/core-retained-principal.d.ts"
+      ],
       "ai-model-policy": [
         "dist/ai-model-policy.d.ts"
       ],
@@ -42,6 +48,30 @@
     }
   },
   "exports": {
+    "./core-retained-read-request": {
+      "types": "./dist/core-retained-read-request.d.ts",
+      "require": "./dist/core-retained-read-request.js",
+      "import": "./dist/core-retained-read-request.js",
+      "default": "./dist/core-retained-read-request.js"
+    },
+    "./core-retained-authority-probe": {
+      "types": "./dist/core-retained-authority-probe.d.ts",
+      "require": "./dist/core-retained-authority-probe.js",
+      "import": "./dist/core-retained-authority-probe.js",
+      "default": "./dist/core-retained-authority-probe.js"
+    },
+    "./core-retained-authority-http": {
+      "types": "./dist/core-retained-authority-http.d.ts",
+      "require": "./dist/core-retained-authority-http.js",
+      "import": "./dist/core-retained-authority-http.js",
+      "default": "./dist/core-retained-authority-http.js"
+    },
+    "./core-retained-principal": {
+      "types": "./dist/core-retained-principal.d.ts",
+      "require": "./dist/core-retained-principal.js",
+      "import": "./dist/core-retained-principal.js",
+      "default": "./dist/core-retained-principal.js"
+    },
     "./ai-model-policy": {
       "types": "./dist/ai-model-policy.d.ts",
       "require": "./dist/ai-model-policy.js",
@@ -122,6 +152,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@types/node": "^20.16.10",
     "typescript": "^5.5.4"
   }
 }
