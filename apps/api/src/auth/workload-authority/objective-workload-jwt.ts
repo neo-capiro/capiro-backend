@@ -279,13 +279,14 @@ export function verifyObjectiveWorkloadJwt(
     if (parts.length !== 3 || parts.some(part => !BASE64URL.test(part))) denied();
     const headerText = decoded(parts[0]!);
     const header: unknown = JSON.parse(headerText);
+    const kidValue = header && typeof header === 'object' && !Array.isArray(header)
+      ? (header as Record<string, unknown>).kid : null;
     if (!header || typeof header !== 'object' || Array.isArray(header) ||
         (header as Record<string, unknown>).alg !== ALGORITHM ||
         (header as Record<string, unknown>).typ !== OBJECTIVE_WORKLOAD_JWT_TYPE ||
-        typeof (header as Record<string, unknown>).kid !== 'string' ||
-        !KID.test((header as Record<string, string>).kid) ||
-        headerText !== headerJson((header as Record<string, string>).kid)) denied();
-    const kid = (header as Record<string, string>).kid;
+        typeof kidValue !== 'string' || !KID.test(kidValue) ||
+        headerText !== headerJson(kidValue)) denied();
+    const kid: string = typeof kidValue === 'string' ? kidValue : denied();
     const pins = pinned.publicKeys;
     if (!pins || typeof pins !== 'object' || nodeTypes.isProxy(pins) ||
         !Object.hasOwn(pins, kid)) denied();
