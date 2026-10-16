@@ -1,0 +1,13 @@
+{
+  "publicationMethod": "GitHub connector, metadata-only reauthor; exact source tree matched local0c764a41",
+  "mainChanged": false,
+  "originalLocalSource": "0c764a41cb3ff38e1f9cfb727eb8fe7fab86eb81",
+  "priorUnreferencedUpload": {
+    "issue": "UTF8 transfer did not match expected Git blob; ref not updated",
+    "path": "apps/api/src/clients/clients.module.ts",
+    "resolution": "raw Git bytes in base64 matched expected blob07cd884cef6ef62e5d86d22d3b01f71eff77a17f"
+  },
+  "schemaVersion": 1,
+  "finalSource": "53b5932f08f867581a0671f5c256935b1429a129",
+  "tree": "ccf98e37370a50b483774e13140be467f7329ea0"
+}

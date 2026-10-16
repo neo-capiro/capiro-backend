@@ -20,6 +20,12 @@ function fill(group: string, value: Record<string, any>) {
 }
 function fixture() {
   const f = objectiveFixture();
+  const originalQuery = f.tx.$queryRaw;
+  f.tx.$queryRaw = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    if (strings.join('').includes('objective_background_evidence'))
+      return [{ background: { runs: [], tasks: [], findings: [] } }];
+    return originalQuery(strings, ...values);
+  }) as typeof f.tx.$queryRaw;
   for (const [group, rows] of Object.entries(f.state.sources)) {
     if (group in OBJECTIVE_FIELD_INVENTORY)
       (f.state.sources as any)[group] = rows.map((row) => fill(group, row));
@@ -87,13 +93,16 @@ function fixture() {
       retrieval: { coverage: { complete: true, paginationComplete: true, truncated: false } },
     },
   };
-  return { ...f, directory, representation, service, input, bundle };
+  const prompt = { steering: 'STEERING', retrieval: 'HISTORY',
+    compose: (intent: string, records: string) =>
+      `GOVERNED STEERING:\n${intent}\nSTEERING\nAUTHORIZED RETRIEVAL:\n${records}\nHISTORY\n</capiro_strategy_context_plane>` };
+  return { ...f, directory, representation, service, input, bundle, prompt };
 }
 describe('Objective required context observation and budget coverage', () => {
   test('saved source keys, current staff classification and all five intent fields survive governed binding', async () => {
     const f = fixture();
     const observed = await f.service.observe(f.input);
-    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64));
+    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
     const prompt = f.bundle.governedContext.prompt;
     for (const sentinel of [
       'OUTCOME',
@@ -139,7 +148,7 @@ describe('Objective required context observation and budget coverage', () => {
           code: 'REQUIRED_CONTEXT_UNAVAILABLE',
           message: 'Required relationship context could not be completely observed.',
         });
-      expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64))).toThrow();
+      expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt)).toThrow();
     },
   );
   test('Directory failure is distinct from legitimate absent field and refuses complete context', async () => {
@@ -148,7 +157,7 @@ describe('Objective required context observation and budget coverage', () => {
     const observed = await f.service.observe(f.input);
     expect(observed.issues).toHaveLength(1);
     expect(JSON.stringify(observed.issues)).not.toContain('private upstream');
-    expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64))).toThrow();
+    expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt)).toThrow();
   });
   test('source reader copies and field inventory remain aligned, including intake JSON and actual table mappings', () => {
     const root = resolve(__dirname, '../../../..');

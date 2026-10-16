@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "source": "new-consent-and-canonical-receiving-candidate-pinned-separately",
+  "admission": {
+    "observedAt": "2026-10-16T02:44:21Z",
+    "observedNotPeakGuarantee": true,
+    "source": "Shipping relay of existing approved normal sample; no new security probe",
+    "stage": "one128MiB120s-source-stripped-process",
+    "availableVirtualBytes": 3319373824
+  },
+  "node": "C:\\Program Files\\nodejs\\node.exe",
+  "arguments": [
+    "--max-old-space-size=128",
+    "--require",
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-14\\task-6\\objective-canonical-reconsent-evidence\\work-hash-successor\\offline-source-guard.cjs",
+    "--require",
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-14\\task-6\\objective-canonical-reconsent-evidence\\work-hash-successor\\physical-admission.cjs",
+    "--experimental-strip-types",
+    "--test",
+    "--test-isolation=none",
+    "--test-concurrency=1",
+    "apps/api/test/objective-work-command.focused.test.mjs"
+  ],
+  "environmentNames": [
+    "SystemRoot",
+    "WINDIR",
+    "PATH",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "NO_COLOR",
+    "NODE_ENV"
+  ],
+  "pid": 21740,
+  "startedAt": "2026-10-16T03:59:26.0589698Z",
+  "completedAt": "2026-10-16T03:59:26.2177385Z",
+  "elapsedSeconds": 0.1504985,
+  "exitCode": 0,
+  "timedOut": false,
+  "ownedProcessExited": true,
+  "peakWorkingSetBytes": null,
+  "outputWithin4MiB": true,
+  "compiler": false,
+  "database": false,
+  "provider": false,
+  "childrenAllowed": false
+}

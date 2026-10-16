@@ -1,0 +1,182 @@
+[
+  {
+    "workingBytes": 1057,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/objective-canonical-application.controller.ts",
+    "workingSha256": "112dd49f83922b018ed7d3d5b24a94a889aed5d933e874c939c8197a748e09a0",
+    "blob": "4b773b1ceae6c55a14f707573ff83446b781e137",
+    "committedSha256": "112dd49f83922b018ed7d3d5b24a94a889aed5d933e874c939c8197a748e09a0",
+    "committedBytes": 1057
+  },
+  {
+    "workingBytes": 13238,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/objective-canonical-application.service.ts",
+    "workingSha256": "8d540c34b29936826482ddb9d6fc047007221a1288d383e46c07b75af26991fd",
+    "blob": "2bf30f14fceb9bb9e7fdc80809a93462f2b33b5b",
+    "committedSha256": "8d540c34b29936826482ddb9d6fc047007221a1288d383e46c07b75af26991fd",
+    "committedBytes": 13238
+  },
+  {
+    "workingBytes": 15177,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+    "workingSha256": "0785ba9f6446fc552a2153ced3b61f4c4cb22e724ac8df8a10408d8b64048b60",
+    "blob": "a98d4003ec271410709413623944587c95b8d437",
+    "committedSha256": "0785ba9f6446fc552a2153ced3b61f4c4cb22e724ac8df8a10408d8b64048b60",
+    "committedBytes": 15177
+  },
+  {
+    "workingBytes": 1591,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/objective-canonical-authority.ts",
+    "workingSha256": "c6481bb5c433703492dd6f0bfc3eafebb8054739f265215957c4a20370877d23",
+    "blob": "a81a56cb307a762d51d0bd824fcd4757e03a1a70",
+    "committedSha256": "c6481bb5c433703492dd6f0bfc3eafebb8054739f265215957c4a20370877d23",
+    "committedBytes": 1591
+  },
+  {
+    "workingBytes": 12600,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/objective-canonical-fence.ts",
+    "workingSha256": "1f1cb8ae29718fbb7eb2663163ff31ad3c735159f3c6637c4de92ed82f1606b1",
+    "blob": "aedc67a01072486f7bad9a92fc42785ad403fd5d",
+    "committedSha256": "1f1cb8ae29718fbb7eb2663163ff31ad3c735159f3c6637c4de92ed82f1606b1",
+    "committedBytes": 12600
+  },
+  {
+    "workingBytes": 1716,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/planner.module.ts",
+    "workingSha256": "1a16440dc7569135cd55d9bec9b65b8de3908922f07701dc54fc51f4080f6c08",
+    "blob": "02b5c7dbc407a5b8820f58b27249222716b00e5a",
+    "committedSha256": "1a16440dc7569135cd55d9bec9b65b8de3908922f07701dc54fc51f4080f6c08",
+    "committedBytes": 1716
+  },
+  {
+    "workingBytes": 253506,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/planner.service.ts",
+    "workingSha256": "6c0c5fcd848a8e6855bba9257121b9a6ce1a620dfc47bc54bf1fc5974ff8fd29",
+    "blob": "75b604ecd907aac54b80fd7294cb111165bc8e19",
+    "committedSha256": "6c0c5fcd848a8e6855bba9257121b9a6ce1a620dfc47bc54bf1fc5974ff8fd29",
+    "committedBytes": 253506
+  },
+  {
+    "workingBytes": 6963,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/strategy-materialization-canonical.spec.ts",
+    "workingSha256": "71f1ea6b2fefab389a94937d42c2979c79b22075e8398b384688f0a9743ddd83",
+    "blob": "ced58ea663fdd297542f581f181962cc9457bc71",
+    "committedSha256": "71f1ea6b2fefab389a94937d42c2979c79b22075e8398b384688f0a9743ddd83",
+    "committedBytes": 6963
+  },
+  {
+    "workingBytes": 23555,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+    "workingSha256": "b31789a0f06de7487dae60908bc50604e3e9e0f2b1d578380b34208abf527432",
+    "blob": "5f2618d5556afe82d04d428321dca4b7dc649ab5",
+    "committedSha256": "b31789a0f06de7487dae60908bc50604e3e9e0f2b1d578380b34208abf527432",
+    "committedBytes": 23555
+  },
+  {
+    "workingBytes": 23702,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api-strategy/test/objective-canonical-application.focused.test.mjs",
+    "workingSha256": "dcc4597480f5b5e023b32698662f63e2bb656046e965d9cc57a8746fd6960150",
+    "blob": "7970f2e5eb7673bf66772d042270e2b3d46e5c4b",
+    "committedSha256": "dcc4597480f5b5e023b32698662f63e2bb656046e965d9cc57a8746fd6960150",
+    "committedBytes": 23702
+  },
+  {
+    "workingBytes": 22831,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+    "workingSha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+    "blob": "6a479d02c90063158dcccc32af6cdc34e0c94db7",
+    "committedSha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+    "committedBytes": 22831
+  },
+  {
+    "workingBytes": 4621,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/src/auth/workload-authority/objective-consent-policy.ts",
+    "workingSha256": "d2eaa6856e03a944eb3494c1e379caa704ce86fd1ebdd75abf3b67343ae13c02",
+    "blob": "7ec87a6f4f58db50b4c05d212ca176cf2a2e567e",
+    "committedSha256": "d2eaa6856e03a944eb3494c1e379caa704ce86fd1ebdd75abf3b67343ae13c02",
+    "committedBytes": 4621
+  },
+  {
+    "workingBytes": 8813,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/src/clients/clients.module.ts",
+    "workingSha256": "d0abac8d54c15d21b6b021b13e90baf75134e683592033332fa2d60d165697ec",
+    "blob": "07cd884cef6ef62e5d86d22d3b01f71eff77a17f",
+    "committedSha256": "d0abac8d54c15d21b6b021b13e90baf75134e683592033332fa2d60d165697ec",
+    "committedBytes": 8813
+  },
+  {
+    "workingBytes": 23548,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/src/clients/objectives/work/objective-work-command.ts",
+    "workingSha256": "325eaf75fd548d8dc5bba5dc6eda29871ed8c70b8055b5d7e45710931f687a42",
+    "blob": "afe46f6a749e0f43970621f600b8c06254f2e0dc",
+    "committedSha256": "325eaf75fd548d8dc5bba5dc6eda29871ed8c70b8055b5d7e45710931f687a42",
+    "committedBytes": 23548
+  },
+  {
+    "workingBytes": 2011,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/src/clients/objectives/work/objective-work.controller.ts",
+    "workingSha256": "f292133e75139d12286c73e45d124cb2d1c5bb648ac074a08314c8ee15b86759",
+    "blob": "2e56c549100f4aa7e5eba9604f1813a6ad63f1a0",
+    "committedSha256": "f292133e75139d12286c73e45d124cb2d1c5bb648ac074a08314c8ee15b86759",
+    "committedBytes": 2011
+  },
+  {
+    "workingBytes": 447,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/src/clients/objectives/work/objective-work.module.ts",
+    "workingSha256": "4e6e8f681f877007c92f1399d330bcca849db2e0b93a1b90a42647fe5c222347",
+    "blob": "03bdfa8bbda71d3efe10b0c27ffad29597eaafd0",
+    "committedSha256": "4e6e8f681f877007c92f1399d330bcca849db2e0b93a1b90a42647fe5c222347",
+    "committedBytes": 447
+  },
+  {
+    "workingBytes": 26238,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/src/clients/objectives/work/objective-work.service.ts",
+    "workingSha256": "acf7dd57d9129d5b5ac636c62456c56ba7e7dd8d22f14a279f9de86a3b0ce30d",
+    "blob": "b5d6e401fd48bbe6a936bdfd606a27bed5e9ff0a",
+    "committedSha256": "acf7dd57d9129d5b5ac636c62456c56ba7e7dd8d22f14a279f9de86a3b0ce30d",
+    "committedBytes": 26238
+  },
+  {
+    "workingBytes": 13480,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/test/objective-consent-policy.focused.test.mjs",
+    "workingSha256": "08636b00bc412e715ff03f60f599dc1aa71cdc61ef9ee64584d71265f3caaca7",
+    "blob": "c76def8dbee66d2c55a705046c06db195f43b376",
+    "committedSha256": "08636b00bc412e715ff03f60f599dc1aa71cdc61ef9ee64584d71265f3caaca7",
+    "committedBytes": 13480
+  },
+  {
+    "workingBytes": 36486,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/test/objective-work-command.focused.test.mjs",
+    "workingSha256": "7b9724715114c021a828ffb8ea73cd6df8f8eb47c9d6658f62905d4f970e9441",
+    "blob": "446f5f42823d20a79fd52ad3877549c7c5926003",
+    "committedSha256": "7b9724715114c021a828ffb8ea73cd6df8f8eb47c9d6658f62905d4f970e9441",
+    "committedBytes": 36486
+  },
+  {
+    "workingBytes": 25040,
+    "normalizedWorkingMatchesCommit": true,
+    "path": "apps/api/test/objective-work-reconsent-migration.focused.test.mjs",
+    "workingSha256": "780784d6930b1f3f7e7fd766f7204a75add8dbfd704921a0c8ddfc25cea15fd9",
+    "blob": "49e2c00dbcdc8ce1e14f517732fd1ff2992b5975",
+    "committedSha256": "780784d6930b1f3f7e7fd766f7204a75add8dbfd704921a0c8ddfc25cea15fd9",
+    "committedBytes": 25040
+  }
+]

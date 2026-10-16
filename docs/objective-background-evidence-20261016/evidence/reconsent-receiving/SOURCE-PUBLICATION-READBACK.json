@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "53b5932f08f867581a0671f5c256935b1429a129",
+  "tree": "ccf98e37370a50b483774e13140be467f7329ea0",
+  "method": "Fetch each remote file body as base64, compute Git blob SHA1 over exact bytes, compare with committed local Git blob; empty-blob known-vector verifier check passed.",
+  "files": [
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.controller.ts",
+      "bytes": 1057,
+      "blob": "4b773b1ceae6c55a14f707573ff83446b781e137",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.service.ts",
+      "bytes": 13238,
+      "blob": "2bf30f14fceb9bb9e7fdc80809a93462f2b33b5b",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "bytes": 15177,
+      "blob": "a98d4003ec271410709413623944587c95b8d437",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-authority.ts",
+      "bytes": 1591,
+      "blob": "a81a56cb307a762d51d0bd824fcd4757e03a1a70",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-fence.ts",
+      "bytes": 12600,
+      "blob": "aedc67a01072486f7bad9a92fc42785ad403fd5d",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.module.ts",
+      "bytes": 1716,
+      "blob": "02b5c7dbc407a5b8820f58b27249222716b00e5a",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "bytes": 253506,
+      "blob": "75b604ecd907aac54b80fd7294cb111165bc8e19",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization-canonical.spec.ts",
+      "bytes": 6963,
+      "blob": "ced58ea663fdd297542f581f181962cc9457bc71",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "bytes": 23555,
+      "blob": "5f2618d5556afe82d04d428321dca4b7dc649ab5",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api-strategy/test/objective-canonical-application.focused.test.mjs",
+      "bytes": 23702,
+      "blob": "7970f2e5eb7673bf66772d042270e2b3d46e5c4b",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+      "bytes": 22831,
+      "blob": "6a479d02c90063158dcccc32af6cdc34e0c94db7",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/src/auth/workload-authority/objective-consent-policy.ts",
+      "bytes": 4621,
+      "blob": "7ec87a6f4f58db50b4c05d212ca176cf2a2e567e",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "bytes": 8813,
+      "blob": "07cd884cef6ef62e5d86d22d3b01f71eff77a17f",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work-command.ts",
+      "bytes": 23548,
+      "blob": "afe46f6a749e0f43970621f600b8c06254f2e0dc",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.controller.ts",
+      "bytes": 2011,
+      "blob": "2e56c549100f4aa7e5eba9604f1813a6ad63f1a0",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.module.ts",
+      "bytes": 447,
+      "blob": "03bdfa8bbda71d3efe10b0c27ffad29597eaafd0",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.service.ts",
+      "bytes": 26238,
+      "blob": "b5d6e401fd48bbe6a936bdfd606a27bed5e9ff0a",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/test/objective-consent-policy.focused.test.mjs",
+      "bytes": 13480,
+      "blob": "c76def8dbee66d2c55a705046c06db195f43b376",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/test/objective-work-command.focused.test.mjs",
+      "bytes": 36486,
+      "blob": "446f5f42823d20a79fd52ad3877549c7c5926003",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "apps/api/test/objective-work-reconsent-migration.focused.test.mjs",
+      "bytes": 25040,
+      "blob": "49e2c00dbcdc8ce1e14f517732fd1ff2992b5975",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/CANONICAL-APPLICATION.schema.json",
+      "bytes": 27253,
+      "blob": "65ddc0a1ff298607ca1da91b64d5af90aeb5c018",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/RECEIVING-TRUST-ALLOCATION.md",
+      "bytes": 12186,
+      "blob": "ce15c160528cc9abb899b12dcf3267d63d11a98e",
+      "remoteBodyHashVerified": true
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/RECONSENT-RECEIVING-IMPLEMENTATION.md",
+      "bytes": 7308,
+      "blob": "7a19ea1472fc234ebfa96b29fa861a24788fdfff",
+      "remoteBodyHashVerified": true
+    }
+  ]
+}

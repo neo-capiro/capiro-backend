@@ -41,6 +41,7 @@ import { ClientOrderedOwnerService } from './client-ordered-owner.service.js';
 import { ClientTeamController } from './client-team.controller.js';
 import { ClientTeamService } from './client-team.service.js';
 import { ClientObjectivesModule } from './objectives/objectives.module.js';
+import { ObjectiveWorkModule } from './objectives/work/objective-work.module.js';
 import { InternalClientBrandingController } from './internal-client-branding.controller.js';
 import { RepresentationModule } from './representation.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
@@ -65,6 +66,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
   // imports IntelligenceModule + EngagementModule; FO module imports MemoryModule.
   imports: [
     ClientObjectivesModule,
+    ObjectiveWorkModule,
     EmbeddingsModule,
     IntelligenceModule,
     DirectoryModule,

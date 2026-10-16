@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "outcome": "ACCEPT_SOURCE_ONLY_RUNTIME_HOLD",
+  "draftPullRequest": "https://github.com/neo-capiro/capiro-backend/pull/31",
+  "branch": "feat/objective-background-evidence",
+  "canonicalBase": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "localSource": {
+    "commit": "0c764a41cb3ff38e1f9cfb727eb8fe7fab86eb81",
+    "tree": "ccf98e37370a50b483774e13140be467f7329ea0",
+    "parent": "0ff04de02693fe52336d243a82f6dbbf98e2cc15"
+  },
+  "publishedSource": {
+    "commit": "53b5932f08f867581a0671f5c256935b1429a129",
+    "tree": "ccf98e37370a50b483774e13140be467f7329ea0",
+    "parent": "8a37a0ae2d2061a1022920052bf544204a3e2bd7",
+    "note": "Connector author metadata differs; exact genuine source tree is identical. Public source parent roots through19ac/97286 to canonical622."
+  },
+  "priorAcceptedBackground": {
+    "localCommit": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+    "publishedCommit": "97286c5848be5e2101d8eb7872e77ec2b0cddd76",
+    "tree": "005806a89c89d039aacd32a6bcbd54ba20c2ca6c",
+    "focusedTests": 68
+  },
+  "ownedSuccessor": {
+    "applicationFiles": 20,
+    "production": 14,
+    "migration": 1,
+    "testFiles": 5,
+    "schemaSha256": "0b3fb823aeeb6b811946a647c4f82b47652c21065855316c7fff1eb1d23e8bc0",
+    "publicBodyUnchanged": true,
+    "privateOperation": "objective.plan.prepare",
+    "routes": [
+      "POST /internal/objective-canonical/planner-applications",
+      "GET /internal/objective-canonical/planner-applications/:applicationRequestId"
+    ],
+    "coreCommands": "/clients/:clientId/objectives/:objectiveId/generation[/commands]",
+    "policy": {
+      "id": "capiro.objective-generation-consent",
+      "revision": 1,
+      "defaultAndMaxConfiguredMs": 1800000
+    },
+    "exclusiveMigration": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql"
+  },
+  "review": {
+    "originalSha256": "e41ed7d5269e481b04fb9fd20077bb08cc2eed3f417f956e75c727a2354d8fde",
+    "hashSuccessorSha256": "babfc1e8bb746eb095d386e5f5c5b310a9e67365717eb4eb0c33e1b50dc8aa4a",
+    "independentExecution": false,
+    "productionSourceAccepted": true
+  },
+  "validation": {
+    "uniqueCases": 138,
+    "runs": [
+      {
+        "cases": 136,
+        "pass": 136,
+        "exit": 0,
+        "seconds": 0.2298269
+      },
+      {
+        "cases": 13,
+        "pass": 13,
+        "exit": 0,
+        "seconds": 0.1176094
+      },
+      {
+        "cases": 26,
+        "pass": 26,
+        "exit": 0,
+        "seconds": 0.1562951
+      },
+      {
+        "cases": 27,
+        "pass": 27,
+        "exit": 0,
+        "seconds": 0.1504985
+      }
+    ],
+    "affectedRunsOverlap": true,
+    "ownedProcessesExited": true,
+    "heapCapMiB": 128,
+    "wallCapSeconds": 120,
+    "nativeDatabase": "UNRUN/ACL STOP preserved",
+    "fullSemanticTypecheck": "UNRUN",
+    "NestHttp": "UNRUN",
+    "newOwnerJestCases8": "UNRUN",
+    "machineSchemaValidation": "UNRUN",
+    "noPeakMemoryClaim": true,
+    "remoteBodyReadbackFiles": 23
+  },
+  "remainingDependencies": [
+    "Named authenticated workload issuer/audience/delegation and transaction-local current-claim binding; current authority port denies before DB access.",
+    "Actual original owner reconciliation and stricter settings binding; new consent retry fails closed while unavailable.",
+    "Trusted immutable canonical-intent/actor/consent to Meri run/attempt/generation-job association and reserved canonical Strategy persistence seam; legacy jobs have no such binding.",
+    "Existing canonical project regeneration/update semantics preserving IDs and human edits; current automatic output collisions refuse.",
+    "Exact semantic typing, owner HTTP regressions, native transaction/RLS/grants/deferred-trigger/concurrency qualification before activation."
+  ],
+  "effects": {
+    "liveSql": false,
+    "migrationsExecuted": false,
+    "AWS": false,
+    "providerCalls": false,
+    "deployed": false,
+    "merged": false,
+    "mainChanged": false
+  },
+  "evidence": "evidence/reconsent-receiving/"
+}
