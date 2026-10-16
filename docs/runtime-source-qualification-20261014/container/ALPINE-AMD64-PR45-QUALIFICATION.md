@@ -45,4 +45,4 @@ node apps/api/scripts/qualification/verify-alpine-amd64-scan.cjs \
   describe-images.json describe-image-scan-findings.json
 ```
 
-The offline verifier requires one matching repository/digest detail, a `COMPLETE` scan of the same digest completed after its push, complete finding rows and severity counts, and zero CRITICAL/HIGH findings. A pending, unsupported, absent, stale, mismatched, or positive finding result is HOLD. Retain the full JSON and source/archive/image digest mapping. A scan pass alone does not waive full startup or authority checks.
+The offline verifier requires one matching repository/digest detail, a `COMPLETE` scan of the same digest completed after its push, complete finding rows and severity counts, no continuation token, and zero CRITICAL/HIGH findings. Let AWS CLI collect every page; a truncated or single-page response is HOLD. A pending, unsupported, absent, stale, mismatched, or positive finding result is also HOLD. Retain the full JSON and source/archive/image digest mapping. A scan pass alone does not waive full startup or authority checks.

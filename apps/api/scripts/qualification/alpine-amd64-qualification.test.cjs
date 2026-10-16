@@ -93,6 +93,9 @@ test('scan admission binds immutable digest, complete fresh findings, and zero h
   const scan = { repositoryName: repository, imageId: { imageDigest: digest }, imageScanStatus: { status: 'COMPLETE' },
     imageScanFindings: { imageScanCompletedAt: '2026-10-16T20:05:00Z', findingSeverityCounts: {}, findings: [] } };
   assert.equal(verify(digest, repository, images, scan).status, 'PASS_EXACT_DIGEST_SCAN');
+  assert.throws(() => verify(digest, repository, { ...images, nextToken: 'more' }, scan), /paginated/);
+  assert.throws(() => verify(digest, repository, images, { ...scan, nextToken: 'more' }), /paginated/);
+  assert.throws(() => verify(digest, repository, images, { ...scan, imageScanFindings: { ...scan.imageScanFindings, nextToken: 'more' } }), /paginated/);
   assert.throws(() => verify(digest, repository, images, { ...scan, imageScanStatus: { status: 'IN_PROGRESS' } }), /incomplete/);
   assert.throws(() => verify(digest, repository, images, { ...scan, imageId: { imageDigest: 'sha256:' + 'b'.repeat(64) } }), /Expected values/);
   assert.throws(() => verify(digest, repository, images, { ...scan, imageScanFindings: { ...scan.imageScanFindings, findingSeverityCounts: { HIGH: 1 } } }), /HIGH/);

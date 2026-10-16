@@ -12,6 +12,8 @@ function timestamp(value) {
 function verify(digest, repository, imageResponse, scanResponse) {
   assert(/^sha256:[a-f0-9]{64}$/.test(digest), 'exact image digest required');
   assert(/^[a-z0-9._/-]+$/.test(repository), 'repository name required');
+  assert(!imageResponse.nextToken && !scanResponse.nextToken && !scanResponse.imageScanFindings?.nextToken,
+    'paginated image metadata or scan findings are incomplete');
   const details = imageResponse.imageDetails;
   assert(Array.isArray(details) && details.length === 1, 'one exact image detail required');
   assert.equal(details[0].repositoryName, repository);
