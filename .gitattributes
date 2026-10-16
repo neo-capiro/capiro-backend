@@ -15,6 +15,7 @@ apps/api/Dockerfile.alpine-qualification text eol=lf
 *.cjs       text eol=lf
 *.mjs       text eol=lf
 *.md        text eol=lf
+infra/deploy/first-chat-core-preview.buildspec.yml text eol=lf
 
 # Binary fixtures/assets — never apply text/EOL normalization (would corrupt them).
 *.pdf       binary
