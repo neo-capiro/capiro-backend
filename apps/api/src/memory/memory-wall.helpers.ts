@@ -120,7 +120,12 @@ export async function fetchAccessibleClientRevisionsForClerkActor(
   tx: Tx,
   tenantId: string,
   actorId: string,
+  maxRows?: number,
 ): Promise<Array<{ id: string; revision: string }>> {
+  // Optional server-owned resource bound; NULL preserves existing full-roster callers.
+  if (maxRows !== undefined && (!Number.isSafeInteger(maxRows) || maxRows < 1 || maxRows > 4097)) {
+    throw new Error('invalid client roster bound');
+  }
   return tx.$queryRaw<Array<{ id: string; revision: string }>>`
     SELECT c.id::text, md5(to_jsonb(c)::text) AS revision FROM clients c
     JOIN tenant_memberships m ON m.tenant_id=c.tenant_id AND m.status::text='active'
@@ -129,7 +134,7 @@ export async function fetchAccessibleClientRevisionsForClerkActor(
     AND (NOT c.memory_wall OR EXISTS (
       SELECT 1 FROM client_memory_access a
       WHERE a.tenant_id=c.tenant_id AND a.client_id=c.id AND a.user_id=u.id
-    )) ORDER BY c.id`;
+    )) ORDER BY c.id LIMIT ${maxRows ?? null}::integer`;
 }
 
 /**

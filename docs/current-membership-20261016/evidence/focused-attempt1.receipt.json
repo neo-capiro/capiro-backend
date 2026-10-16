@@ -1,0 +1,258 @@
+{
+  "startedAtUtc": "2026-10-16T02:51:13.889Z",
+  "suite": "primary",
+  "testPaths": [
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.spec.ts",
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.module.spec.ts"
+  ],
+  "sourceRoot": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority",
+  "configPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\jest.config.cjs",
+  "nodeVersion": "v24.19.0",
+  "nodeHeapArgument": "--max-old-space-size=512",
+  "serial": true,
+  "sourceCopies": [],
+  "sourceEdits": false,
+  "databaseSetupHooks": false,
+  "state": "Failed",
+  "sourceHead": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "sourceBefore": [
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority-boundary.spec.ts",
+      "sha256": "48752673b936aa2fd147e198b392da0cb4a2fcb650c053507c74178236ef0aef"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.controller.ts",
+      "sha256": "34509c16b1c7fdf9fb2bf0c0d8f1e9fabb0990c081084daea645db5f104652d1"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.module.spec.ts",
+      "sha256": "aff3e70651d6177e18c9664a66b41fc34d22432933b58a01ec26ee784e4dca0f"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.module.ts",
+      "sha256": "a9a450297f1c37b5f6c3164e3fa370542172470f843c43017457ce9f8f51b1f3"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.spec.ts",
+      "sha256": "3e1d8a501484675e0b5e332f36638544f547d9c76d0b90299a6725621b426325"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.ts",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership-request.ts",
+      "sha256": "f1ff3779a9817dc0fee330f1a8eb67faeea971f8e4e1a18109936377324ff340"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.controller.ts",
+      "sha256": "81b4e23fe2a5596cf4daaacf0fcc08af747ca58aa17e8853500c25e3a4553386"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.service.ts",
+      "sha256": "8d4f301d8674c006aaeebee76c1137b66c1dd5d3743ceed041a2984b51538440"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.spec.ts",
+      "sha256": "7fd36c83e66019d516294f250e2595fbc69dc4b858a0dfb11a3a6fb40a4c2905"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.ts",
+      "sha256": "c40054c008e5d710be904cbd285e39aad3d5bc7623bb3c05cf08690e6857f0c6"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\auth.module.ts",
+      "sha256": "678d559f329735b77ebacbdea6cf9e3466e19ffe8ab0ddc5640f52b17f5f384d"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk-provisioning.service.ts",
+      "sha256": "3cffe8602a97820ffeafe12bc2173fc74b791b418987d0bdbe55897d631ec4bd"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk-role.util.spec.ts",
+      "sha256": "d5b81c365ded335e3153a3da7524f4b7b6fdfba12eac0c3f4d75a16f0eb9a68c"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk-role.util.ts",
+      "sha256": "01ef5660e55db04465edbfc553318a50e2cd47414a6ca50e37874c2dbcb8ca6d"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk.service.ts",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\identity-outbox.service.spec.ts",
+      "sha256": "b2a1c135997a5cd1e73e7c96d8eb39bdf4a468c447374829a7317d3af300c294"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\identity-outbox.service.ts",
+      "sha256": "72843b3c191616b8fc7fef06f6400e22d880ec7fa6e5e8655de1ca2942a01142"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\internal-service.guard.spec.ts",
+      "sha256": "dc39a56dfd31e5deb0bb28f6517b64581329e78276c5ff7d103660fa687b34c9"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\internal-service.guard.ts",
+      "sha256": "3660a50cd463764fd865ddffc3d6ae5e2a6f20101bea1fb72393453124e29eec"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\roles.decorator.ts",
+      "sha256": "48273cb64384cd3b22c90e3abc8a0a0e0c77d774ac1d30602e1d0a1a26715a62"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\roles.guard.spec.ts",
+      "sha256": "936f1942b9b69e6406282a65477e022f4d41091cf028e1ba717f7d90b38abb1e"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\roles.guard.ts",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\context\\context-security-scope.service.ts",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\memory\\memory-wall.helpers.ts",
+      "sha256": "c94ceeb0687fa09c3673aa1a97022439d15d4686e4e7b80f580231092350b294"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\tenant\\tenant-context.middleware.ts",
+      "sha256": "80511693576467e56004fd7147f3c79c23f9ad79f9cc543c88a381489b40c907"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\packages\\shared\\src\\client-memory-wall.ts",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\packages\\shared\\src\\index.ts",
+      "sha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887"
+    }
+  ],
+  "configSha256": "876145c567caa3718be47764e921999bca4a36247f902f35079eb70cd72c15bf",
+  "sourceAfter": [
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority-boundary.spec.ts",
+      "sha256": "48752673b936aa2fd147e198b392da0cb4a2fcb650c053507c74178236ef0aef"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.controller.ts",
+      "sha256": "34509c16b1c7fdf9fb2bf0c0d8f1e9fabb0990c081084daea645db5f104652d1"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.module.spec.ts",
+      "sha256": "aff3e70651d6177e18c9664a66b41fc34d22432933b58a01ec26ee784e4dca0f"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.module.ts",
+      "sha256": "a9a450297f1c37b5f6c3164e3fa370542172470f843c43017457ce9f8f51b1f3"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.spec.ts",
+      "sha256": "3e1d8a501484675e0b5e332f36638544f547d9c76d0b90299a6725621b426325"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-authority.ts",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership-request.ts",
+      "sha256": "f1ff3779a9817dc0fee330f1a8eb67faeea971f8e4e1a18109936377324ff340"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.controller.ts",
+      "sha256": "81b4e23fe2a5596cf4daaacf0fcc08af747ca58aa17e8853500c25e3a4553386"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.service.ts",
+      "sha256": "8d4f301d8674c006aaeebee76c1137b66c1dd5d3743ceed041a2984b51538440"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.spec.ts",
+      "sha256": "7fd36c83e66019d516294f250e2595fbc69dc4b858a0dfb11a3a6fb40a4c2905"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\application-membership.ts",
+      "sha256": "c40054c008e5d710be904cbd285e39aad3d5bc7623bb3c05cf08690e6857f0c6"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\auth.module.ts",
+      "sha256": "678d559f329735b77ebacbdea6cf9e3466e19ffe8ab0ddc5640f52b17f5f384d"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk-provisioning.service.ts",
+      "sha256": "3cffe8602a97820ffeafe12bc2173fc74b791b418987d0bdbe55897d631ec4bd"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk-role.util.spec.ts",
+      "sha256": "d5b81c365ded335e3153a3da7524f4b7b6fdfba12eac0c3f4d75a16f0eb9a68c"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk-role.util.ts",
+      "sha256": "01ef5660e55db04465edbfc553318a50e2cd47414a6ca50e37874c2dbcb8ca6d"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\clerk.service.ts",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\identity-outbox.service.spec.ts",
+      "sha256": "b2a1c135997a5cd1e73e7c96d8eb39bdf4a468c447374829a7317d3af300c294"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\identity-outbox.service.ts",
+      "sha256": "72843b3c191616b8fc7fef06f6400e22d880ec7fa6e5e8655de1ca2942a01142"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\internal-service.guard.spec.ts",
+      "sha256": "dc39a56dfd31e5deb0bb28f6517b64581329e78276c5ff7d103660fa687b34c9"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\internal-service.guard.ts",
+      "sha256": "3660a50cd463764fd865ddffc3d6ae5e2a6f20101bea1fb72393453124e29eec"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\roles.decorator.ts",
+      "sha256": "48273cb64384cd3b22c90e3abc8a0a0e0c77d774ac1d30602e1d0a1a26715a62"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\roles.guard.spec.ts",
+      "sha256": "936f1942b9b69e6406282a65477e022f4d41091cf028e1ba717f7d90b38abb1e"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\auth\\roles.guard.ts",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\context\\context-security-scope.service.ts",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\memory\\memory-wall.helpers.ts",
+      "sha256": "c94ceeb0687fa09c3673aa1a97022439d15d4686e4e7b80f580231092350b294"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\apps\\api\\src\\tenant\\tenant-context.middleware.ts",
+      "sha256": "80511693576467e56004fd7147f3c79c23f9ad79f9cc543c88a381489b40c907"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\packages\\shared\\src\\client-memory-wall.ts",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\packages\\shared\\src\\index.ts",
+      "sha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887"
+    }
+  ],
+  "sourcesUnchangedDuringRun": true,
+  "result": {
+    "success": false,
+    "suitesPassed": 0,
+    "suitesFailed": 2,
+    "testsPassed": 0,
+    "testsFailed": 0,
+    "testsPending": 0,
+    "runtimeErrorSuites": 2
+  },
+  "finishedAtUtc": "2026-10-16T02:51:29.720Z"
+}
