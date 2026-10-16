@@ -1,0 +1,31 @@
+Γ£û scripts\ci\meri-current-turn-dispatch.contract.spec.mjs (0.7449ms)
+Γä╣ tests 1
+Γä╣ suites 0
+Γä╣ pass 0
+Γä╣ fail 1
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 51.8749
+
+Γ£û failing tests:
+
+test at scripts\ci\meri-current-turn-dispatch.contract.spec.mjs:1:1
+Γ£û scripts\ci\meri-current-turn-dispatch.contract.spec.mjs (0.7449ms)
+  AssertionError [ERR_ASSERTION]: unowned actual import: @capiro/meriv2-core
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/meri-current-turn-dispatch.contract.spec.mjs:29:5
+      at String.replace (<anonymous>)
+      at isolated (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/meri-current-turn-dispatch.contract.spec.mjs:28:22)
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/meri-current-turn-dispatch.contract.spec.mjs:61:21
+      at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+      at async node:internal/modules/esm/loader:643:26
+      at async node:internal/test_runner/runner:1071:15
+      at async runFiles (node:internal/test_runner/runner:1037:9)
+      at async runChain (node:internal/test_runner/runner:1115:5) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

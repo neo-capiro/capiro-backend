@@ -1,0 +1,31 @@
+{
+  "source": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "executable": "git",
+  "argv": [
+    "grep",
+    "-n",
+    "-I",
+    "-F",
+    "-e",
+    "meriv2-chat.client",
+    "-e",
+    "meriv2-routing.helpers",
+    "-e",
+    "shouldRouteMeriV2FullChat",
+    "-e",
+    "ResolvedAiForChatHeader",
+    "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+    "--",
+    "apps",
+    "packages",
+    "scripts",
+    "tests",
+    "infra"
+  ],
+  "exitCode": 0,
+  "scope": "Finite exact import/type/helper names across tracked apps/packages/scripts/tests/infra; no tests/framework",
+  "stdout": "meri-loop-v2-consumers-f3ede4.stdout",
+  "stdoutSha256": "4067aee3f9f6a2b1ffbf48874a1c9659fd614d2dc1d31403050b1f968566ae21",
+  "stderr": "meri-loop-v2-consumers-f3ede4.stderr",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

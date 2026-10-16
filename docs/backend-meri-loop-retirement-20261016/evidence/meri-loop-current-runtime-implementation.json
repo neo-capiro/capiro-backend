@@ -1,0 +1,57 @@
+{
+  "status": "SourceReviewClearPendingExecution",
+  "baseline": "bca4368306defae1495ab69f088171a3fccfaf56",
+  "v3HelpersIdenticalLF": true,
+  "v3HelpersSha256LF": "8e44ea843ebd3c36efceff4ca7753a2c69b884a6235b42863a150f4548d7b363",
+  "factoryRoutingIdenticalAfterTypeOnlyInverse": true,
+  "factoryRoutingSha256LF": "00c8278ca04b899dc6b9d5ecb862d63e3aca86e13745e9447960178d5b931e11",
+  "builtinTopCases": 18,
+  "execution": "Not run: parent owns single-process stage",
+  "files": [
+    {
+      "path": "apps/api/src/meri/meri-runtime.contract.ts",
+      "bytes": 697,
+      "sha256": "7499ad4989ce4ed82f23000b27374ba26d7f5c8f58a99b8a331749cc724989ac"
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-ai.types.ts",
+      "bytes": 250,
+      "sha256": "087369829bc1006ba7a466c9ef3954d438d19ed4ed8250ad0b2e29f7c8ba76e8"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-chat.client.ts",
+      "bytes": 12304,
+      "sha256": "d6e191cf4cf671df402332c88ee6d5564123c83660619d601ff72e7a8ab270b9"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "bytes": 8320,
+      "sha256": "ffebcbd664a250b5cfa060bfd4a6d7fbe66f54f60fd4a272d68d5549eac88979"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "bytes": 44446,
+      "sha256": "b99d2af0a6ea341dc09466f1deee9d0bc52958dae33b0d26720d8fecd9eaff68"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.spec.ts",
+      "bytes": 4564,
+      "sha256": "3c695f66c3498cd7674519fb4aa251d7bd31d9b665d91f8b21ed33bcfadf99fd"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.coverage.spec.ts",
+      "bytes": 4592,
+      "sha256": "0a788582d1062936db437e6d5d8646349b4a03430707d4f729245b4d14b78e2c"
+    },
+    {
+      "path": "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+      "bytes": 5488,
+      "sha256": "15c6ce04d93e917126c7e4215349531d6ef845d5e9a6d68d4306fabc688a99be"
+    },
+    {
+      "path": "scripts/ci/meri-loop-current-runtime.contract.spec.mjs",
+      "bytes": 24898,
+      "sha256": "b4dfa94986c46ea444a6e33d45ca46ba400f4cd1a79e7df393363a5a63495320"
+    }
+  ]
+}

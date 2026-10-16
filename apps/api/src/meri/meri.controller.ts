@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   Logger,
   Param,
   Patch,
@@ -43,6 +44,7 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
+import type { MeriRuntimeService } from './meri-runtime.contract.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MERI_JOB_KINDS, type MeriJobKind } from './meri-job.js';
@@ -314,7 +316,7 @@ export class MeriController {
   private readonly logger = new Logger(MeriController.name);
 
   constructor(
-    private readonly service: MeriService,
+    @Inject(MeriService) private readonly service: MeriRuntimeService,
     private readonly tools: MeriToolsService,
     private readonly research: MeriResearchService,
     private readonly kb: ClientKbService,
@@ -406,19 +408,9 @@ export class MeriController {
     res.once('close', onClose);
     res.once('error', onAbort);
     if (req.aborted || res.destroyed) onAbort();
-    // The raw bearer rides along for the MeriV2 full-chat proxy branch only
-    // (delegated tool execution + action-proposal creation re-authenticate
-    // with it); the legacy in-process path ignores it.
-    //
-    // IMPERSONATED turns (x-capiro-impersonate-tenant) route to the contained
-    // legacy in-process path, NOT MeriV2: Phase 0 containment (264b351af,
-    // 2026-07-28, pinned by meriv2-routing.helpers.spec.ts) keeps them out of
-    // the orchestrator until one unified effective actor/tenant/impersonation
-    // context is carried end-to-end. The earlier Wave 2.5 gate-flip comment
-    // claimed impersonated turns route to MeriV2 — that was reverted by the
-    // containment fix; the spec is the contract. The impersonated tenant id is
-    // still extracted below because the legacy path scopes persistence/billing
-    // through the middleware-swapped ctx.
+    // Forward bearer and impersonation headers to the current V3 runtime for
+    // delegated requests. The runtime gate uses the middleware-swapped tenant
+    // context; a closed gate refuses the turn before governed preparation.
     const impersonateHeader = req.headers['x-capiro-impersonate-tenant'];
     const impersonateTenantId =
       typeof impersonateHeader === 'string' && impersonateHeader.trim().length > 0

@@ -1,0 +1,161 @@
+{
+  "sourceCheckpoint": "0a83ced7744932c42e17db084b30b0a9810c4699",
+  "scope": "Actual finite source/data operands of passed builtin controls; read as source data does not imply native execution",
+  "stages": [
+    "meri-loop-current-runtime-controls",
+    "meri-loop-rp-current-pass",
+    "meri-loop-replay-catalog-corrected"
+  ],
+  "inputs": [
+    {
+      "path": "scripts/ci/meri-loop-current-runtime.contract.spec.mjs",
+      "workingBytesSHA256": "b4dfa94986c46ea444a6e33d45ca46ba400f4cd1a79e7df393363a5a63495320",
+      "workingBytes": 24898
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "workingBytesSHA256": "ffebcbd664a250b5cfa060bfd4a6d7fbe66f54f60fd4a272d68d5549eac88979",
+      "workingBytes": 8320
+    },
+    {
+      "path": "apps/api/src/meri/meri-turn-progress.ts",
+      "workingBytesSHA256": "c22b4762a5ae72cb96504db05a12d22043f55014343e5d61181dcfac13a308a8",
+      "workingBytes": 4611
+    },
+    {
+      "path": "apps/api/src/meri/meri-runtime.contract.ts",
+      "workingBytesSHA256": "7499ad4989ce4ed82f23000b27374ba26d7f5c8f58a99b8a331749cc724989ac",
+      "workingBytes": 697
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-ai.types.ts",
+      "workingBytesSHA256": "087369829bc1006ba7a466c9ef3954d438d19ed4ed8250ad0b2e29f7c8ba76e8",
+      "workingBytes": 250
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-chat.client.ts",
+      "workingBytesSHA256": "d6e191cf4cf671df402332c88ee6d5564123c83660619d601ff72e7a8ab270b9",
+      "workingBytes": 12304
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "workingBytesSHA256": "eb5c8654a63a82f526c3b6b6c862de2a56572741bb407c54ea6f0ac4173e5e0b",
+      "workingBytes": 12206
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "workingBytesSHA256": "b99d2af0a6ea341dc09466f1deee9d0bc52958dae33b0d26720d8fecd9eaff68",
+      "workingBytes": 44446
+    },
+    {
+      "path": "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+      "workingBytesSHA256": "15c6ce04d93e917126c7e4215349531d6ef845d5e9a6d68d4306fabc688a99be",
+      "workingBytes": 5488
+    },
+    {
+      "path": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs",
+      "workingBytesSHA256": "66ab68cb2c9b62877b7ad4761d28d084cdf21d43d8c1ff14f085ba395bf80d3d",
+      "workingBytes": 11604
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/request-credentials.store.ts",
+      "workingBytesSHA256": "8f5372a45f806a76b41c2214b0541504d0a4c5ab04db6daf9a4fb48a0a61966b",
+      "workingBytes": 2320
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "workingBytesSHA256": "0f1e991b78cfb6727d3605fd0a6e57c6a27b780f619e8145b4b915e247435311",
+      "workingBytes": 782
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/current-turn-tool-scope.ts",
+      "workingBytesSHA256": "8b2e6be81d97c868471d43b92ce752159030afdd7156af8b8549ae2cabb3ecc9",
+      "workingBytes": 2226
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/rp-tool-transport.ts",
+      "workingBytesSHA256": "47a1f66630a40fba6b38ff4a139836d8588efa201c15598a0241bc1a75a867d6",
+      "workingBytes": 1606
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "workingBytesSHA256": "0e413376f4a50f07cbe8b7bd8e5b47fc6117be162e78389e2061a32da24f71e0",
+      "workingBytes": 605
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-execution-control.ts",
+      "workingBytesSHA256": "033daf9826a1741c5b09c3dda0a3617a8b5b26e21a10c5c965772cc785f52e01",
+      "workingBytes": 1342
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "workingBytesSHA256": "66f1cc4fb2bd6226ea56774e70dd981e3f80e12f61ab915d63d10c3646c4731f",
+      "workingBytes": 35738
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "workingBytesSHA256": "a2547d208293c4fd4750bcd79aeab53258a8aa78020303d43cdf95edef40eaaf",
+      "workingBytes": 12548
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "workingBytesSHA256": "671de1204c141bc48691222a155eb78e6808ce618b5e4e33c0ad43e97888f894",
+      "workingBytes": 5102
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.mjs",
+      "workingBytesSHA256": "90e25caaf30341006a68af6abdfef6f5b50ad89177ee14ee62055e4e5e01e6de",
+      "workingBytes": 13018
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.spec.mjs",
+      "workingBytesSHA256": "af0fba5ebe052334defc2b4f21071e999847d0e5c1c89441de8b9caff660c085",
+      "workingBytes": 13685
+    },
+    {
+      "path": "tests/support/legacy-meri/CASE-OWNERSHIP.json",
+      "workingBytesSHA256": "1c3759f5bf048c1785c035deea17f2df07d550c7e846d271abe7e105152b6c74",
+      "workingBytes": 78969
+    },
+    {
+      "path": "tests/support/legacy-meri/SOURCE-INPUTS.json",
+      "workingBytesSHA256": "c9a6ca99bee505c62fc19ee9f6846e96b4a70a187c77ef182328b4b58006cf72",
+      "workingBytes": 7511
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "workingBytesSHA256": "12dbc0ba95a9f4285634503e520764cddb3932799d121d08ddf1946607d85531",
+      "workingBytes": 15568
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "workingBytesSHA256": "82f226ab32d7e5dd50ae69f819c1f07bf149bdff9b7bbc2d71ee13d340dfd644",
+      "workingBytes": 11484
+    },
+    {
+      "path": "package.json",
+      "workingBytesSHA256": "5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0",
+      "workingBytes": 14391
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "workingBytesSHA256": "72713cfac133d8a446ae651a1ea4043b2bbce9d15b14048cc671f77eccc8bee7",
+      "workingBytes": 75
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "workingBytesSHA256": "113ec790b45ce20eda92dd1d4a7578a304ad6085011f747180ceefa22a830ff3",
+      "workingBytes": 745108
+    },
+    {
+      "path": "tests/support/legacy-web/qualification-owner.mjs",
+      "workingBytesSHA256": "dd149d66292c1f6ebe94f402973a5417ee541b9c827bdfc955360f57188da5a6",
+      "workingBytes": 433
+    },
+    {
+      "path": "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
+      "workingBytesSHA256": "dac89a2d28bf815073b747af317906505e012db757bab9841428789b3b4ec9b9",
+      "workingBytes": 12382
+    }
+  ]
+}

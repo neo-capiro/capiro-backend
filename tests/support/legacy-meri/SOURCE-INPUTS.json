@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "sourceTree": "1bc72c2b95867d997d4d5063096822fd41892205",
+  "scope": "Finite pinned historical replay operands; not a full transitive dependency closure",
+  "requiredFiles": [
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "mode": "100644",
+      "gitBlobSha1": "8878d515849c36ce037a9fc8591e46bbb06e65b2",
+      "sha256": "1de375a7617352f862acc367ee68b34ef783376ddbad5acacaa0c8486a6e04af",
+      "bytes": 293118
+    },
+    {
+      "path": "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+      "mode": "100644",
+      "gitBlobSha1": "88a482005990d910c9dbaa7bbff3836f51b6dad6",
+      "sha256": "ed198c48767cbdd119337b9d2d21cf6dbfc8bc6f2d0d1e9c2e7454afbfa72f9b",
+      "bytes": 9499
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-chat.client.ts",
+      "mode": "100644",
+      "gitBlobSha1": "326a4dccf53d71e68260d6d5bbb4c065e274235f",
+      "sha256": "d32302d759eac000bd1a84e5ec348553d86d4b7a6d70c6593c1d843c7c8f356f",
+      "bytes": 8255
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-chat.client.spec.ts",
+      "mode": "100644",
+      "gitBlobSha1": "2e781b64cdf9b593e12d1c4a42a1107682fa6598",
+      "sha256": "9d79c221d8d1f99f33bebd39043f7a1d05fd78a0ecb0b9ec2b86ed2990dd4c87",
+      "bytes": 4700
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-routing.helpers.ts",
+      "mode": "100644",
+      "gitBlobSha1": "505dfa5bfc5cc4a8e9c852916e6f90edc51366aa",
+      "sha256": "433e76158f217c885c5d29b0e8de76019bd14d1f7e9769fed4fe427895e9b0f0",
+      "bytes": 556
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-routing.helpers.spec.ts",
+      "mode": "100644",
+      "gitBlobSha1": "6456b9ba255094a1141641e5005661403d778a03",
+      "sha256": "c8e75d66fac8c85df51131d7858d30e742342950a81f0de64e6789abadec584d",
+      "bytes": 822
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-routing.matrix.spec.ts",
+      "mode": "100644",
+      "gitBlobSha1": "5e578a6b60add25d054610efb68b8f109476d202",
+      "sha256": "e1316691e16a562e9e6d4423e97394dbd3827acbc0570a100b2de86737d92172",
+      "bytes": 8545
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-portfolio-tool-scope.ts",
+      "mode": "100644",
+      "gitBlobSha1": "a437f3539cf982b32dfe0b4798cd211ec93327f5",
+      "sha256": "cb85d5dc2e1d4b19570bbeeda06278ad2f305deb7082b3b30196596d28f2b44f",
+      "bytes": 834
+    },
+    {
+      "path": "apps/api/src/meri/ResearchPortfolioMeriTurnBinding.spec.ts",
+      "mode": "100644",
+      "gitBlobSha1": "7abf804a8d4b4b8fbd98abdefcadbc10eab627fe",
+      "sha256": "8c67b1cac13c7f93c1bd31102bdcec4fded9898cf92beb6d3c2cd3a8e8d1cdaa",
+      "bytes": 5707
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "mode": "100644",
+      "gitBlobSha1": "801b2a4bb4d2910e23e13e584da988b11d10bc05",
+      "sha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "bytes": 392207
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "mode": "100644",
+      "gitBlobSha1": "c82626227ef07ae685975cdaded238d4af92ac27",
+      "sha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "bytes": 23905
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "mode": "100644",
+      "gitBlobSha1": "d8d84b0ee1e4a52a4cfd2c3557c6b630fff0dc98",
+      "sha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "bytes": 977
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-meri-tools.service.ts",
+      "mode": "100644",
+      "gitBlobSha1": "74023cee501890091d3efc9ec9d1ab4d2b613e93",
+      "sha256": "adaf540aca6c9f757558d7cf50faf0c487f47a5e76fa146af2e93371842598d5",
+      "bytes": 12620
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "mode": "100644",
+      "gitBlobSha1": "00998e78899becc7dc52818f3f81c2cb88f46f39",
+      "sha256": "94f1692af740ef12a085d86b7d19ece1bed2fbaa84709ad4a1fbd6f0d8ff7d95",
+      "bytes": 6357
+    },
+    {
+      "path": "apps/api/jest.native-runtime-environment.cjs",
+      "mode": "100644",
+      "gitBlobSha1": "5682accba9ead35890424577759e84c50ebc7514",
+      "sha256": "31f62c69f865af50dd442d681cb031f55b83aad85170104bcfd180888b6898ae",
+      "bytes": 6917
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "mode": "100644",
+      "gitBlobSha1": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd",
+      "sha256": "3da640a20f09c14764dbb33eeda2b15bb65ddf21ffbdef048e220bf0ec6ae5f7",
+      "bytes": 12850
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "mode": "100644",
+      "gitBlobSha1": "75f042fb3b96b7d4fbbcbc10f2d131198319d789",
+      "sha256": "0ecbfb2a53e9154e3d5677b68467e0e8b82563dec4fa1b71fa98c14d230c6475",
+      "bytes": 2580
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "mode": "100644",
+      "gitBlobSha1": "6c60698125878c4497d68ea8d6d7f32496dd8cae",
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220",
+      "bytes": 624
+    },
+    {
+      "path": "apps/api/package.json",
+      "mode": "100644",
+      "gitBlobSha1": "7fa0f785eaa48abdf361eb7a82fcea934c6ae3fe",
+      "sha256": "10a90b3357aad5c52dc04ae2e00d25dadd5a501ee49a9eb8fd25e6904c501c40",
+      "bytes": 29061
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "gitBlobSha1": "239885efbbdb940372d6c8a68ff1364f3523bff0",
+      "sha256": "5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0",
+      "bytes": 14391
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "mode": "100644",
+      "gitBlobSha1": "88d3bff652c22a7d9139a1a46bafd68411b3d4fe",
+      "sha256": "c40a4e5d624cf42f498a1ec0fb87851d970a7395d55afdb3c9e7cbbe38ced948",
+      "bytes": 723468
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "mode": "100644",
+      "gitBlobSha1": "bef9bfeb6b9840a272a71ae5b0c6debf85d527f8",
+      "sha256": "9d56f16020e0229e5724e629b4b9db4eec960f69c571cff5659585b839c2de07",
+      "bytes": 70
+    },
+    {
+      "path": "tsconfig.base.json",
+      "mode": "100644",
+      "gitBlobSha1": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "bytes": 471
+    }
+  ],
+  "manualRequirements": [
+    "Shared local queue reservation and explicit owner approval before native execution",
+    "Existing full source root at the exact sourceCommit/sourceTree with clean tracked source; verify HEAD/tree/clean state manually",
+    "Already available dependencies/toolchain consistent with pinned lock and native configuration; no automatic install/extraction",
+    "Current cleanup checkout is not a substitute for the supplied original full source"
+  ],
+  "historicalExecution": "UNRUN",
+  "realPinnedRootPreflight": {
+    "status": "UNRUN_MISSING_EXPLICIT_INPUT",
+    "sourceRoot": null,
+    "reason": "No existing full checkout at exact f3 commit/tree has been supplied. Immutable Git source objects are retained; no checkout, object extraction or installation was created."
+  },
+  "requiredCheckoutRepresentation": "Exact recorded raw Git blob bytes, including the pinned LF text representation. A merely clean Windows CRLF checkout is insufficient and is rejected. No normalization, checkout or extraction is performed."
+}

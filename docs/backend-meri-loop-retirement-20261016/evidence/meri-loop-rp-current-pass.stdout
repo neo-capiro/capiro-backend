@@ -1,0 +1,36 @@
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio (1.5203ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_analytics (0.2157ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_changes (0.1002ms)
+Γ£ö current dispatch refuses model retargeting: create_research_portfolio_snapshot (0.0735ms)
+Γ£ö current dispatch refuses model retargeting: request_research_portfolio_output (0.1177ms)
+Γ£ö current dispatch refuses model retargeting: save_research_portfolio_output_to_client (0.0919ms)
+Γ£ö current dispatch refuses model retargeting: watch_research_portfolio (0.0879ms)
+Γ£ö current dispatch refuses model retargeting: update_research_portfolio_change_state (0.0514ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_bookmarks (0.0817ms)
+Γ£ö current dispatch refuses model retargeting: create_research_portfolio_bookmark (0.1346ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_fit (0.0795ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_reviews (0.0527ms)
+Γ£ö current dispatch refuses model retargeting: add_research_portfolio_review_note (0.0428ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_rules (0.0696ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_imports (0.0443ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_operations (0.0784ms)
+Γ£ö current dispatch refuses model retargeting: prepare_research_portfolio_brief (0.0378ms)
+Γ£ö current dispatch refuses model retargeting: prepare_research_portfolio_meeting (0.0481ms)
+Γ£ö current dispatch refuses model retargeting: manage_research_portfolio (0.0304ms)
+Γ£ö current dispatch injects omitted and preserves exact current conversation (18.4377ms)
+Γ£ö ordinary delegated tool preserves supplied conversation treatment (0.4804ms)
+Γ£ö current dispatch rejects null/empty/non-string scope attempts (0.1973ms)
+Γ£ö actual executor refuses absent trusted scope before network (0.1036ms)
+Γ£ö actual typed transport refuses malformed trusted actor before network (0.1754ms)
+Γ£ö actual executor refuses missing service identity before network (0.1899ms)
+Γ£ö actual executor refuses absent request credential before network (0.0795ms)
+Γ£ö trusted scope is immutable and does not escape its request (0.3313ms)
+Γ£ö current native landing retains all twenty-two old safety identities without raw extraction (0.7448ms)
+Γä╣ tests 28
+Γä╣ suites 0
+Γä╣ pass 28
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 98.5164

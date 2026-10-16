@@ -59,7 +59,6 @@ function buildService() {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
   );
   return { service, create, prisma, rows };
 }

@@ -75,7 +75,6 @@ function buildHarness(options: {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
     bizdevScope,
   );
   return { service, conversationCreate, resolve };
@@ -206,7 +205,6 @@ describe('MeriService.createConversation — prospect-scoped creation', () => {
     };
     const service = new MeriService(
       prisma as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,
