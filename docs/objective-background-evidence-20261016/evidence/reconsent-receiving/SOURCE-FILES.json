@@ -1,0 +1,102 @@
+[
+  {
+    "path": "apps/api-strategy/src/planner/objective-canonical-application.controller.ts",
+    "sha256": "112dd49f83922b018ed7d3d5b24a94a889aed5d933e874c939c8197a748e09a0",
+    "bytes": 1057
+  },
+  {
+    "path": "apps/api-strategy/src/planner/objective-canonical-application.service.ts",
+    "sha256": "8d540c34b29936826482ddb9d6fc047007221a1288d383e46c07b75af26991fd",
+    "bytes": 13238
+  },
+  {
+    "path": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+    "sha256": "0785ba9f6446fc552a2153ced3b61f4c4cb22e724ac8df8a10408d8b64048b60",
+    "bytes": 15177
+  },
+  {
+    "path": "apps/api-strategy/src/planner/objective-canonical-authority.ts",
+    "sha256": "c6481bb5c433703492dd6f0bfc3eafebb8054739f265215957c4a20370877d23",
+    "bytes": 1591
+  },
+  {
+    "path": "apps/api-strategy/src/planner/objective-canonical-fence.ts",
+    "sha256": "1f1cb8ae29718fbb7eb2663163ff31ad3c735159f3c6637c4de92ed82f1606b1",
+    "bytes": 12600
+  },
+  {
+    "path": "apps/api-strategy/src/planner/planner.module.ts",
+    "sha256": "1a16440dc7569135cd55d9bec9b65b8de3908922f07701dc54fc51f4080f6c08",
+    "bytes": 1716
+  },
+  {
+    "path": "apps/api-strategy/src/planner/planner.service.ts",
+    "sha256": "6c0c5fcd848a8e6855bba9257121b9a6ce1a620dfc47bc54bf1fc5974ff8fd29",
+    "bytes": 253506
+  },
+  {
+    "path": "apps/api-strategy/src/planner/strategy-materialization-canonical.spec.ts",
+    "sha256": "71f1ea6b2fefab389a94937d42c2979c79b22075e8398b384688f0a9743ddd83",
+    "bytes": 6963
+  },
+  {
+    "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+    "sha256": "b31789a0f06de7487dae60908bc50604e3e9e0f2b1d578380b34208abf527432",
+    "bytes": 23555
+  },
+  {
+    "path": "apps/api-strategy/test/objective-canonical-application.focused.test.mjs",
+    "sha256": "dcc4597480f5b5e023b32698662f63e2bb656046e965d9cc57a8746fd6960150",
+    "bytes": 23702
+  },
+  {
+    "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+    "sha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+    "bytes": 22831
+  },
+  {
+    "path": "apps/api/src/auth/workload-authority/objective-consent-policy.ts",
+    "sha256": "d2eaa6856e03a944eb3494c1e379caa704ce86fd1ebdd75abf3b67343ae13c02",
+    "bytes": 4621
+  },
+  {
+    "path": "apps/api/src/clients/clients.module.ts",
+    "sha256": "d0abac8d54c15d21b6b021b13e90baf75134e683592033332fa2d60d165697ec",
+    "bytes": 8813
+  },
+  {
+    "path": "apps/api/src/clients/objectives/work/objective-work-command.ts",
+    "sha256": "ddecfae67401c2af6c59fab7b9ddaae6df726e1605303395daa51925f08d144c",
+    "bytes": 23392
+  },
+  {
+    "path": "apps/api/src/clients/objectives/work/objective-work.controller.ts",
+    "sha256": "f292133e75139d12286c73e45d124cb2d1c5bb648ac074a08314c8ee15b86759",
+    "bytes": 2011
+  },
+  {
+    "path": "apps/api/src/clients/objectives/work/objective-work.module.ts",
+    "sha256": "4e6e8f681f877007c92f1399d330bcca849db2e0b93a1b90a42647fe5c222347",
+    "bytes": 447
+  },
+  {
+    "path": "apps/api/src/clients/objectives/work/objective-work.service.ts",
+    "sha256": "acf7dd57d9129d5b5ac636c62456c56ba7e7dd8d22f14a279f9de86a3b0ce30d",
+    "bytes": 26238
+  },
+  {
+    "path": "apps/api/test/objective-consent-policy.focused.test.mjs",
+    "sha256": "08636b00bc412e715ff03f60f599dc1aa71cdc61ef9ee64584d71265f3caaca7",
+    "bytes": 13480
+  },
+  {
+    "path": "apps/api/test/objective-work-command.focused.test.mjs",
+    "sha256": "e27e7d29606875da7539e2c6a10c7714db4039a2de050e400b8672059416344a",
+    "bytes": 35722
+  },
+  {
+    "path": "apps/api/test/objective-work-reconsent-migration.focused.test.mjs",
+    "sha256": "780784d6930b1f3f7e7fd766f7204a75add8dbfd704921a0c8ddfc25cea15fd9",
+    "bytes": 25040
+  }
+]

@@ -1,0 +1,35 @@
+Γ£ö source custody records hashes of the original kernel and actual policy (0.7587ms)
+Γä╣ {"kernelSha256":"ddecfae67401c2af6c59fab7b9ddaae6df726e1605303395daa51925f08d144c","policySha256":"d2eaa6856e03a944eb3494c1e379caa704ce86fd1ebdd75abf3b67343ae13c02"}
+Γ£ö closed command/read parsers normalize UUIDs and retain the exact eight-field identity (0.7646ms)
+Γ£ö newline-suffixed work UUIDs are rejected before parsing or digest identity is produced (0.2796ms)
+Γ£ö parsers reject unknown, missing, nested, symbolic, accessor, proxy and inherited input without invoking it (0.5201ms)
+Γ£ö versions/actions/UUIDs are bounded and full normalized request digest is order independent (0.6588ms)
+Γ£ö new retry locks owner before write authority, uses actual 30-minute rev1 policy and preserves root actor (1.3491ms)
+Γ£ö fresh authority precedes historical exact replay; replay preserves committed bytes across later source versions (0.7905ms)
+Γ£ö authority is resolved again after entering the write transaction (0.3189ms)
+Γ£ö same-action UUID payload conflict wins over stale expected versions; other actions have separate identities (0.631ms)
+Γ£ö receipt appearing at the locked state boundary is rechecked before policy, CAS or consent creation (0.6033ms)
+Γ£ö two writers with the same expected head admit one retry and make the other reload (0.447ms)
+Γ£ö a newly authorized actor consents without rewriting old actor, membership, expiry or canonical lineage (0.3839ms)
+Γ£ö UNKNOWN, missing owner evidence and applied original outcome create no identities, consent or CAS (0.6792ms)
+Γ£ö only authoritative not-started or bound failed/cancelled original accounting permits retry (2.3547ms)
+Γ£ö current source, Objective, canonical and target conflicts fail without writes (0.821ms)
+Γ£ö real policy selects the strictest duration and rejects token expiry equality or unavailable facts (1.634ms)
+Γ£ö expiry reached between confirmation and commit rolls back consent and head atomically (0.2333ms)
+Γ£ö cancel fences expired UNKNOWN work while preserving consent and unresolved owner facts (0.335ms)
+Γ£ö null-head original cancellation advances once; exact replay and new repeated cancel do not advance again (0.3367ms)
+Γ£ö cancellation pins current command revision separately from old saved-work source (0.1367ms)
+Γ£ö control version overflow cannot wrap; already-cancelled max-version head may remain unchanged (0.4157ms)
+Γ£ö CAS loss and receipt insertion failure roll back every staged local change (0.3726ms)
+Γ£ö GET is read-only, minimal, and uses authoritative reconciliation rather than inferring absence (0.3833ms)
+Γ£ö GET reports expiry equality, recovers only current actor/action receipt and never revives consent (0.518ms)
+Γ£ö GET rejects an inconsistent ledger head instead of projecting missing consent as authority (0.1313ms)
+Γ£ö historical receipts with a false digest or invalid confirmation/commit/expiry window are unverifiable (1.0953ms)
+Γä╣ tests 26
+Γä╣ suites 0
+Γä╣ pass 26
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 79.8127

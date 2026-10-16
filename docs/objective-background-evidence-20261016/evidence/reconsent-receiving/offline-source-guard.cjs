@@ -1,0 +1,13 @@
+'use strict';
+const refuse = () => { throw new Error('Source fixture forbids network, servers and child execution'); };
+const net = require('node:net');
+net.Socket.prototype.connect = refuse;
+net.Server.prototype.listen = refuse;
+require('node:dgram').createSocket = refuse;
+const dns = require('node:dns');
+for (const name of ['lookup', 'resolve', 'resolve4', 'resolve6', 'reverse']) dns[name] = refuse;
+for (const name of ['lookup', 'resolve', 'resolve4', 'resolve6', 'reverse']) dns.promises[name] = refuse;
+const cp = require('node:child_process');
+for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']) cp[name] = refuse;
+require('node:worker_threads').Worker = class { constructor() { refuse(); } };
+globalThis.fetch = refuse;
