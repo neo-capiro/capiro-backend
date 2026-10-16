@@ -1,0 +1,717 @@
+{
+  "status": "REVIEWED_SOURCE_CANDIDATE_NOT_DEPLOYED",
+  "repository": "neo-capiro/capiro-backend",
+  "branch": "feat/engagement-manual-plans",
+  "parent": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+  "pullRequestBase": "fix/bookworm-clean-production-store",
+  "acceptedContract": "f41be1774131d5a51ed5eaaafdcdade4f50781e3",
+  "focused": {
+    "passed": 158,
+    "failed": 0,
+    "pending": 0,
+    "suites": 6,
+    "nativePostgresCasesIncluded": 18,
+    "postgres": "16.14",
+    "nativeFixture": "guarded disposable engagement_plan_acceptance on127.0.0.1:60009; actual PrismaService/frozen generated client/current target writers"
+  },
+  "migration": {
+    "reservation": "20281015040000_engagement_plans",
+    "distinctCoordinatedObjectiveReservation": "20281015030000_client_objective_operational_links",
+    "objectivePublishedSource": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+    "existingModelsEdited": ["Tenant.engagementPlans", "Client.engagementPlans"],
+    "newModels": [
+      "EngagementPlan",
+      "EngagementPlanWave",
+      "EngagementPlanCommandReceipt",
+      "EngagementPlanRevision"
+    ],
+    "sqlSha256": "39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f",
+    "sqlNativeConstraintChecks": 79,
+    "liveMigrationExecuted": false,
+    "executedFixtureScript": "evidence/migration-constraints.executed.cjs",
+    "executedFixtureScriptSha256": "b0b2bc285d20893519d378c6a8b07f5b47b712d38da966a2c2cd9933525f5b5c"
+  },
+  "targetedSemantic": {
+    "passed": true,
+    "strict": true,
+    "files": 10,
+    "programSourceFiles": 1468,
+    "diagnostics": 0,
+    "actualSourceAndDependencyTypes": true,
+    "sourceCheckpointSha256": "3e0c7fa026b25e3e405c056ed9391391df47bcdb64c3ad8f992f568127362a63",
+    "baselineImportedBodySemanticAcceptance": false,
+    "canonicalFullBackendSemanticAcceptance": false
+  },
+  "nativeRuntime": {
+    "stopped": true,
+    "ready": false,
+    "stoppedAtUtc": "2026-10-16T00:12:52.6179170Z",
+    "receipt": "implementation-runtime/postgres-plan.json"
+  },
+  "schemaValidation": {
+    "passed": true,
+    "receipt": {
+      "command": "Prisma5.22 validate --schema backend-plan-implementation/apps/api/prisma/schema.prisma",
+      "exitCode": 0,
+      "schemaSha256": "0FB3818D79A87504F35A40191F4FC5838A0E4D042DB0CBD92CAF79191CC4C028",
+      "unchangedDuringCheck": true,
+      "databaseConnected": false,
+      "migrationOrGeneration": false,
+      "cacheDir": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\prisma-cache",
+      "processAppData": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\appdata"
+    }
+  },
+  "offlineAggregate": {
+    "baselinePassed": 25,
+    "featurePassed": 25,
+    "initialFeatureMissingFixtureFailuresRetained": true,
+    "source": {
+      "baselineOffline": {
+        "passed": 25,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "featureOfflineInitial": {
+        "passed": 20,
+        "failed": 5,
+        "cause": "Sparse checkout excluded the unchanged infra ownership fixture; source and gate failure retained."
+      },
+      "featureOfflineFinal": {
+        "passed": 25,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "materialization": {
+        "source": "feature own HEAD",
+        "path": "infra/cdk/fixtures/engagement-runtime-ownership.v1.json",
+        "headGitBlob": "100644 blob 904181121473538686f684ffc3b260d9819130b3\tinfra/cdk/fixtures/engagement-runtime-ownership.v1.json",
+        "materializedGitBlob": "904181121473538686f684ffc3b260d9819130b3",
+        "featureSha256": "206f59095c479f9b4f7df884a8d686dd345423712ca6ba7ced55ed1e104b9462",
+        "frozenSha256": "206f59095c479f9b4f7df884a8d686dd345423712ca6ba7ced55ed1e104b9462",
+        "fixtureGitDiff": "",
+        "scope": "Exactly one unchanged required fixture materialized; no infra execution. Existing non-cone add was used because this Git version rejects --no-cone on sparse-checkout add. The pre-materialization rerun failure is retained separately."
+      },
+      "controllerCoverage": {
+        "inheritedMissing": ["NewsletterOutreachController", "NewsletterPublicController"],
+        "introducedMissing": [],
+        "baselineGatePassClaimed": false
+      },
+      "previewGate": {
+        "frozenExit": 1,
+        "featureExit": 1,
+        "inheritedExactFailures": [
+          "FAIL  manifest path /api/clio/krisp-notetaker is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table",
+          "FAIL  manifest path /api/clio/krisp-notetaker/folders is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table",
+          "FAIL  manifest path /api/clio/krisp-notetaker/imports/:id/candidates is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table",
+          "FAIL  manifest path /api/clio/krisp-notetaker/imports/:id/match is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table",
+          "FAIL  manifest path /api/clio/krisp-notetaker/preferences is outside /api/engagement/ and is not in the reviewed EXCLUSIONS table"
+        ],
+        "introducedReportedFailures": [],
+        "generatedArtifactPassClaimed": false
+      },
+      "routeMetadata": {
+        "baselineGeneratedCount": 135,
+        "featureGeneratedCount": 144,
+        "existingEntriesEqualInAllFieldsAndOrder": true,
+        "baselineGeneratedExistingRoutesSha256": "9611be3a85a0d630c73a1c85a00c2081ad372131e5619266ec8d7ebfeff25274",
+        "featureGeneratedExistingRoutesSha256": "9611be3a85a0d630c73a1c85a00c2081ad372131e5619266ec8d7ebfeff25274",
+        "shippingArtifactDriftedEntries": 112,
+        "shippingArtifactDriftedFields": 113,
+        "fieldCounts": {
+          "sourceLine": 112,
+          "parameterNames": 1
+        },
+        "nonLineDrift": [
+          {
+            "route": "GET /api/engagement/attachments EngagementController.attachments",
+            "fields": {
+              "sourceLine": {
+                "committed": 2882,
+                "generated": 2897
+              },
+              "parameterNames": {
+                "committed": ["ctx", "clientId", "meetingId", "mailMessageId", "unlinked"],
+                "generated": [
+                  "ctx",
+                  "clientId",
+                  "meetingId",
+                  "mailMessageId",
+                  "unlinked",
+                  "prospectId"
+                ]
+              }
+            }
+          }
+        ],
+        "featureCommittedEqualsOwnGenerator": true,
+        "classification": "Inherited canonical-generator reconciliation: 112 sourceLine fields and one existing attachments prospectId parameter; no old route behavior, scope, role or classification change."
+      },
+      "previewDerivedReadOnlyAnalysis": {
+        "frozen": {
+          "firstGateStopsBeforeGeneratedArtifactComparison": true,
+          "primaryManifestSha256": "390f1f6819af5dc8e3059721ab961571be3815f48b75f69e6d46e51bcc0e1d74",
+          "derivedModuleSha256": "042872e7371a53935b7d2b5fa124910bf3a7d31a5d0d565103c9efa23408057a",
+          "currentModuleSha256": "52d4860d305acd1c34774cde5f5eeabbd36aadbdd1b0de487f4311bd7262421f",
+          "currentEqualsDerived": false,
+          "derivedPatternCount": 158,
+          "coveredPaths": [
+            "/api/engagement/associations/override",
+            "/api/engagement/attachments",
+            "/api/engagement/attachments/:id",
+            "/api/engagement/attachments/:id/context-source",
+            "/api/engagement/attachments/:id/context-text",
+            "/api/engagement/attachments/:id/extract-text",
+            "/api/engagement/attachments/confirm",
+            "/api/engagement/attachments/upload-url",
+            "/api/engagement/campaigns",
+            "/api/engagement/campaigns/:id",
+            "/api/engagement/campaigns/:id/generate",
+            "/api/engagement/campaigns/:id/recipients",
+            "/api/engagement/campaigns/:id/recipients/:recipientId",
+            "/api/engagement/campaigns/:id/send",
+            "/api/engagement/campaigns/:id/send-test",
+            "/api/engagement/capabilities",
+            "/api/engagement/clients/:id/notetaker",
+            "/api/engagement/contacts",
+            "/api/engagement/context/:clientId",
+            "/api/engagement/debriefs",
+            "/api/engagement/integrations",
+            "/api/engagement/integrations/google/:connectionId",
+            "/api/engagement/integrations/google/:connectionId/sync",
+            "/api/engagement/integrations/google/callback",
+            "/api/engagement/integrations/google/capabilities",
+            "/api/engagement/integrations/google/start",
+            "/api/engagement/integrations/microsoft/:connectionId",
+            "/api/engagement/integrations/microsoft/:connectionId/calendar-window",
+            "/api/engagement/integrations/microsoft/:connectionId/subscriptions",
+            "/api/engagement/integrations/microsoft/:connectionId/sync",
+            "/api/engagement/integrations/microsoft/callback",
+            "/api/engagement/integrations/microsoft/capabilities",
+            "/api/engagement/integrations/microsoft/notifications",
+            "/api/engagement/integrations/microsoft/start",
+            "/api/engagement/mail-threads",
+            "/api/engagement/mail-threads/:id",
+            "/api/engagement/mail/mailboxes",
+            "/api/engagement/mail/rewrite",
+            "/api/engagement/mail/send",
+            "/api/engagement/meeting-preps/:id",
+            "/api/engagement/meeting-preps/:id/pdf-attachment",
+            "/api/engagement/meetings",
+            "/api/engagement/meetings/:id",
+            "/api/engagement/meetings/:id/artifacts/share",
+            "/api/engagement/meetings/:id/artifacts/unshare",
+            "/api/engagement/meetings/:id/attachments/:attachmentId/approve",
+            "/api/engagement/meetings/:id/debrief-draft",
+            "/api/engagement/meetings/:id/debriefs",
+            "/api/engagement/meetings/:id/debriefs/:debriefId",
+            "/api/engagement/meetings/:id/debriefs/:debriefId/approve",
+            "/api/engagement/meetings/:id/notes",
+            "/api/engagement/meetings/:id/notes/:noteId",
+            "/api/engagement/meetings/:id/notes/:noteId/approve",
+            "/api/engagement/meetings/:id/notetaker",
+            "/api/engagement/meetings/:id/prep",
+            "/api/engagement/meetings/:id/prep-jobs/:jobId",
+            "/api/engagement/meetings/:id/prep-jobs/:jobId/resume",
+            "/api/engagement/meetings/:id/prep-jobs/latest",
+            "/api/engagement/meetings/:id/prep-monday-mapping",
+            "/api/engagement/meetings/:id/share",
+            "/api/engagement/meetings/:id/unshare",
+            "/api/engagement/meetings/library",
+            "/api/engagement/outcomes",
+            "/api/engagement/outreach",
+            "/api/engagement/outreach-v3/reasoning/conversations/:conversationId",
+            "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/archive",
+            "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns",
+            "/api/engagement/outreach-v3/sessions",
+            "/api/engagement/outreach-v3/sessions/:sessionId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/archive",
+            "/api/engagement/outreach-v3/sessions/:sessionId/commands",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/document",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/government/search",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/memory/search",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/review",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/strategy",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/refine",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval",
+            "/api/engagement/outreach-v3/sessions/:sessionId/events",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/approach-approval",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/full",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/cancel",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/items/:itemId/retry",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/latest",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/plan",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/review-packet-approval",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/samples",
+            "/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging",
+            "/api/engagement/outreach-v3/sessions/:sessionId/objective-destination",
+            "/api/engagement/outreach-v3/sessions/:sessionId/proposals",
+            "/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/apply",
+            "/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/reject",
+            "/api/engagement/outreach-v3/sessions/:sessionId/reasoning/conversations",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intent",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/cancel",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/refresh",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/preflight",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/settings",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/test",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/coverage",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/profile",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/relationships",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/search",
+            "/api/engagement/outreach-v3/sessions/:sessionId/versions",
+            "/api/engagement/outreach-v3/sessions/:sessionId/versions/:version",
+            "/api/engagement/outreach-v3/templates",
+            "/api/engagement/outreach-v3/templates/:templateId",
+            "/api/engagement/outreach-v3/templates/:templateId/archive",
+            "/api/engagement/outreach-v3/templates/:templateId/draft",
+            "/api/engagement/outreach-v3/templates/:templateId/duplicate",
+            "/api/engagement/outreach-v3/templates/:templateId/publish",
+            "/api/engagement/outreach-v3/templates/:templateId/use",
+            "/api/engagement/outreach-v3/templates/:templateId/versions/from-session",
+            "/api/engagement/outreach-v3/templates/from-scratch",
+            "/api/engagement/outreach-v3/templates/from-session",
+            "/api/engagement/outreach-v3/templates/provenance/:sessionId",
+            "/api/engagement/outreach/:id",
+            "/api/engagement/outreach/:id/generate-draft",
+            "/api/engagement/outreach/:id/open-email",
+            "/api/engagement/outreach/:id/restore",
+            "/api/engagement/outreach/:id/send-campaign",
+            "/api/engagement/outreach/:outreachRecordId/draft-artifacts",
+            "/api/engagement/outreach/ai-templates",
+            "/api/engagement/outreach/ai-templates/:id",
+            "/api/engagement/outreach/ai-templates/:id/preview",
+            "/api/engagement/outreach/audiences",
+            "/api/engagement/outreach/context-library",
+            "/api/engagement/outreach/draft-artifacts/:artifactId/versions",
+            "/api/engagement/outreach/draft-artifacts/:artifactId/versions/:candidateVersionId/accept",
+            "/api/engagement/outreach/draft-versions/:versionId",
+            "/api/engagement/outreach/generate-batch",
+            "/api/engagement/outreach/insights",
+            "/api/engagement/outreach/insights/talking-points",
+            "/api/engagement/outreach/jobs/:id",
+            "/api/engagement/outreach/jobs/:id/cancel",
+            "/api/engagement/outreach/jobs/:id/items/:itemId/retry",
+            "/api/engagement/outreach/jobs/generate",
+            "/api/engagement/outreach/jobs/send",
+            "/api/engagement/outreach/outbound/contact-data",
+            "/api/engagement/outreach/prior-contact",
+            "/api/engagement/outreach/send-batch",
+            "/api/engagement/outreach/send-intents",
+            "/api/engagement/outreach/send-intents/:id",
+            "/api/engagement/outreach/send-intents/:id/cancel",
+            "/api/engagement/outreach/templates",
+            "/api/engagement/reports/overview",
+            "/api/engagement/reports/target-offices",
+            "/api/engagement/reports/target-offices/:id",
+            "/api/engagement/reports/target-offices/link",
+            "/api/engagement/reports/target-offices/overrides",
+            "/api/engagement/shared-meetings",
+            "/api/engagement/tasks",
+            "/api/engagement/tasks/:id"
+          ],
+          "unaccounted": [
+            "/api/clio/krisp-notetaker",
+            "/api/clio/krisp-notetaker/folders",
+            "/api/clio/krisp-notetaker/imports/:id/candidates",
+            "/api/clio/krisp-notetaker/imports/:id/match",
+            "/api/clio/krisp-notetaker/preferences"
+          ]
+        },
+        "feature": {
+          "firstGateStopsBeforeGeneratedArtifactComparison": true,
+          "primaryManifestSha256": "162901efd77490e3a00d4cec8245c2c03fbefd58338422f6cef86a65bb35f8e9",
+          "derivedModuleSha256": "f2598db374a8b1b8edfb48059fd67b58ac17980e073190d1abb6bc62dc2b9cbd",
+          "currentModuleSha256": "52d4860d305acd1c34774cde5f5eeabbd36aadbdd1b0de487f4311bd7262421f",
+          "currentEqualsDerived": false,
+          "derivedPatternCount": 165,
+          "coveredPaths": [
+            "/api/engagement/associations/override",
+            "/api/engagement/attachments",
+            "/api/engagement/attachments/:id",
+            "/api/engagement/attachments/:id/context-source",
+            "/api/engagement/attachments/:id/context-text",
+            "/api/engagement/attachments/:id/extract-text",
+            "/api/engagement/attachments/confirm",
+            "/api/engagement/attachments/upload-url",
+            "/api/engagement/campaigns",
+            "/api/engagement/campaigns/:id",
+            "/api/engagement/campaigns/:id/generate",
+            "/api/engagement/campaigns/:id/recipients",
+            "/api/engagement/campaigns/:id/recipients/:recipientId",
+            "/api/engagement/campaigns/:id/send",
+            "/api/engagement/campaigns/:id/send-test",
+            "/api/engagement/capabilities",
+            "/api/engagement/clients/:id/notetaker",
+            "/api/engagement/contacts",
+            "/api/engagement/context/:clientId",
+            "/api/engagement/debriefs",
+            "/api/engagement/integrations",
+            "/api/engagement/integrations/google/:connectionId",
+            "/api/engagement/integrations/google/:connectionId/sync",
+            "/api/engagement/integrations/google/callback",
+            "/api/engagement/integrations/google/capabilities",
+            "/api/engagement/integrations/google/start",
+            "/api/engagement/integrations/microsoft/:connectionId",
+            "/api/engagement/integrations/microsoft/:connectionId/calendar-window",
+            "/api/engagement/integrations/microsoft/:connectionId/subscriptions",
+            "/api/engagement/integrations/microsoft/:connectionId/sync",
+            "/api/engagement/integrations/microsoft/callback",
+            "/api/engagement/integrations/microsoft/capabilities",
+            "/api/engagement/integrations/microsoft/notifications",
+            "/api/engagement/integrations/microsoft/start",
+            "/api/engagement/mail-threads",
+            "/api/engagement/mail-threads/:id",
+            "/api/engagement/mail/mailboxes",
+            "/api/engagement/mail/rewrite",
+            "/api/engagement/mail/send",
+            "/api/engagement/meeting-preps/:id",
+            "/api/engagement/meeting-preps/:id/pdf-attachment",
+            "/api/engagement/meetings",
+            "/api/engagement/meetings/:id",
+            "/api/engagement/meetings/:id/artifacts/share",
+            "/api/engagement/meetings/:id/artifacts/unshare",
+            "/api/engagement/meetings/:id/attachments/:attachmentId/approve",
+            "/api/engagement/meetings/:id/debrief-draft",
+            "/api/engagement/meetings/:id/debriefs",
+            "/api/engagement/meetings/:id/debriefs/:debriefId",
+            "/api/engagement/meetings/:id/debriefs/:debriefId/approve",
+            "/api/engagement/meetings/:id/notes",
+            "/api/engagement/meetings/:id/notes/:noteId",
+            "/api/engagement/meetings/:id/notes/:noteId/approve",
+            "/api/engagement/meetings/:id/notetaker",
+            "/api/engagement/meetings/:id/prep",
+            "/api/engagement/meetings/:id/prep-jobs/:jobId",
+            "/api/engagement/meetings/:id/prep-jobs/:jobId/resume",
+            "/api/engagement/meetings/:id/prep-jobs/latest",
+            "/api/engagement/meetings/:id/prep-monday-mapping",
+            "/api/engagement/meetings/:id/share",
+            "/api/engagement/meetings/:id/unshare",
+            "/api/engagement/meetings/library",
+            "/api/engagement/outcomes",
+            "/api/engagement/outreach",
+            "/api/engagement/outreach-v3/reasoning/conversations/:conversationId",
+            "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/archive",
+            "/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns",
+            "/api/engagement/outreach-v3/sessions",
+            "/api/engagement/outreach-v3/sessions/:sessionId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/archive",
+            "/api/engagement/outreach-v3/sessions/:sessionId/commands",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/document",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/government/search",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/memory/search",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/review",
+            "/api/engagement/outreach-v3/sessions/:sessionId/context/strategy",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/refine",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval",
+            "/api/engagement/outreach-v3/sessions/:sessionId/events",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/approach-approval",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/full",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/cancel",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/items/:itemId/retry",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/latest",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/plan",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/review-packet-approval",
+            "/api/engagement/outreach-v3/sessions/:sessionId/generation/samples",
+            "/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging",
+            "/api/engagement/outreach-v3/sessions/:sessionId/objective-destination",
+            "/api/engagement/outreach-v3/sessions/:sessionId/proposals",
+            "/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/apply",
+            "/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/reject",
+            "/api/engagement/outreach-v3/sessions/:sessionId/reasoning/conversations",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intent",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/cancel",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/refresh",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/preflight",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/settings",
+            "/api/engagement/outreach-v3/sessions/:sessionId/send/test",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/coverage",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/profile",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/relationships",
+            "/api/engagement/outreach-v3/sessions/:sessionId/targets/search",
+            "/api/engagement/outreach-v3/sessions/:sessionId/versions",
+            "/api/engagement/outreach-v3/sessions/:sessionId/versions/:version",
+            "/api/engagement/outreach-v3/templates",
+            "/api/engagement/outreach-v3/templates/:templateId",
+            "/api/engagement/outreach-v3/templates/:templateId/archive",
+            "/api/engagement/outreach-v3/templates/:templateId/draft",
+            "/api/engagement/outreach-v3/templates/:templateId/duplicate",
+            "/api/engagement/outreach-v3/templates/:templateId/publish",
+            "/api/engagement/outreach-v3/templates/:templateId/use",
+            "/api/engagement/outreach-v3/templates/:templateId/versions/from-session",
+            "/api/engagement/outreach-v3/templates/from-scratch",
+            "/api/engagement/outreach-v3/templates/from-session",
+            "/api/engagement/outreach-v3/templates/provenance/:sessionId",
+            "/api/engagement/outreach/:id",
+            "/api/engagement/outreach/:id/generate-draft",
+            "/api/engagement/outreach/:id/open-email",
+            "/api/engagement/outreach/:id/restore",
+            "/api/engagement/outreach/:id/send-campaign",
+            "/api/engagement/outreach/:outreachRecordId/draft-artifacts",
+            "/api/engagement/outreach/ai-templates",
+            "/api/engagement/outreach/ai-templates/:id",
+            "/api/engagement/outreach/ai-templates/:id/preview",
+            "/api/engagement/outreach/audiences",
+            "/api/engagement/outreach/context-library",
+            "/api/engagement/outreach/draft-artifacts/:artifactId/versions",
+            "/api/engagement/outreach/draft-artifacts/:artifactId/versions/:candidateVersionId/accept",
+            "/api/engagement/outreach/draft-versions/:versionId",
+            "/api/engagement/outreach/generate-batch",
+            "/api/engagement/outreach/insights",
+            "/api/engagement/outreach/insights/talking-points",
+            "/api/engagement/outreach/jobs/:id",
+            "/api/engagement/outreach/jobs/:id/cancel",
+            "/api/engagement/outreach/jobs/:id/items/:itemId/retry",
+            "/api/engagement/outreach/jobs/generate",
+            "/api/engagement/outreach/jobs/send",
+            "/api/engagement/outreach/outbound/contact-data",
+            "/api/engagement/outreach/prior-contact",
+            "/api/engagement/outreach/send-batch",
+            "/api/engagement/outreach/send-intents",
+            "/api/engagement/outreach/send-intents/:id",
+            "/api/engagement/outreach/send-intents/:id/cancel",
+            "/api/engagement/outreach/templates",
+            "/api/engagement/plans",
+            "/api/engagement/plans/:planId",
+            "/api/engagement/plans/:planId/history",
+            "/api/engagement/plans/:planId/reviews",
+            "/api/engagement/plans/:planId/waves",
+            "/api/engagement/plans/:planId/waves/:waveId",
+            "/api/engagement/plans/:planId/waves/reorder",
+            "/api/engagement/reports/overview",
+            "/api/engagement/reports/target-offices",
+            "/api/engagement/reports/target-offices/:id",
+            "/api/engagement/reports/target-offices/link",
+            "/api/engagement/reports/target-offices/overrides",
+            "/api/engagement/shared-meetings",
+            "/api/engagement/tasks",
+            "/api/engagement/tasks/:id"
+          ],
+          "unaccounted": [
+            "/api/clio/krisp-notetaker",
+            "/api/clio/krisp-notetaker/folders",
+            "/api/clio/krisp-notetaker/imports/:id/candidates",
+            "/api/clio/krisp-notetaker/imports/:id/match",
+            "/api/clio/krisp-notetaker/preferences"
+          ]
+        },
+        "newlyDerivedFeaturePaths": [
+          "/api/engagement/plans",
+          "/api/engagement/plans/:planId",
+          "/api/engagement/plans/:planId/history",
+          "/api/engagement/plans/:planId/reviews",
+          "/api/engagement/plans/:planId/waves",
+          "/api/engagement/plans/:planId/waves/:waveId",
+          "/api/engagement/plans/:planId/waves/reorder"
+        ],
+        "currentArtifactsChangedByAudit": false,
+        "limit": "Both CLI gates stop on five inherited Krisp exclusions before comparing generated artifact text. Separate in-memory derivation is diagnostic evidence only; no gate, route permissions or generated artifact was changed."
+      }
+    }
+  },
+  "manifestJest": {
+    "passed": 16,
+    "failed": 1,
+    "pending": 0,
+    "failure": "Inherited NewsletterOutreachController and NewsletterPublicController omitted from primary manifest; no new plan-controller omission"
+  },
+  "routeInventory": {
+    "baselineGenerated": 135,
+    "featureGenerated": 144,
+    "addedPlanRoutes": 9,
+    "existingEntriesUnchangedAgainstBaselineGenerated": true,
+    "inheritedCommittedArtifactMetadataReconciled": {
+      "sourceLineFields": 112,
+      "existingProspectIdParameter": 1
+    }
+  },
+  "inheritedLimits": [
+    "Full/transitive backend semantic attempts OOM before diagnostics",
+    "Five inherited Krisp preview gate failures remain; no permission/exclusion broadening",
+    "Preview generated artifact drift exists in frozen baseline; feature additionally derives seven plan patterns, artifact unchanged",
+    "Two inherited Newsletter controller omissions remain"
+  ],
+  "unqualified": [
+    "live JWT/auth middleware",
+    "full AppModule/provider runtime",
+    "production schema and deployed database roles",
+    "full migration chain",
+    "live/provider effects",
+    "deployment"
+  ],
+  "automaticReviewDenial": {
+    "action": "implementation-runtime/provision-links.ps1 dependency junction setup",
+    "status": "denied_known_not_executed",
+    "reason": "Reviewer interpreted instructions as forbidding junction mutations",
+    "response": "No links created/retried; environment module lookup and runtime-owned compiler resolver used"
+  },
+  "earlierAttempts": "Sandbox cache EPERM before tests; absent DB guard before DDL; initial strict test tuple diagnostic fixed without changing assertions; OOM and missing fixture attempts retained",
+  "productionAndFrozenPinsUnchanged": true,
+  "frontendAndMeriSourceChanges": false,
+  "mergeOrDeployment": false,
+  "sources": [
+    {
+      "path": "apps/api/prisma/migrations/20281015040000_engagement_plans/migration.sql",
+      "bytes": 13352,
+      "sha256": "39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "bytes": 985457,
+      "sha256": "0fb3818d79a87504f35a40191f4fc5838a0e4d042db0cbd92caf79191cc4c028"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase0-route-manifest.ts",
+      "bytes": 10893,
+      "sha256": "4cb972543a3b691acea32902900b18607537db62ddfb9262a09809c4e032b305"
+    },
+    {
+      "path": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "bytes": 94918,
+      "sha256": "162901efd77490e3a00d4cec8245c2c03fbefd58338422f6cef86a65bb35f8e9"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.module.ts",
+      "bytes": 12439,
+      "sha256": "696c437276cfb5785cfce2d579a54475a0c3ed086ee84bf17cf23844c61c7ae0"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-access.spec.ts",
+      "bytes": 12916,
+      "sha256": "5abaf0e8fb9b91d80c0d43e1faccc7e020f15c0e27c5851a806391521b21e653"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-access.ts",
+      "bytes": 7033,
+      "sha256": "63a2f5de8294d0353976f14ff9f1a5489959e10102a0f523525e967332cef6e0"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-postgres.fixture.ts",
+      "bytes": 13880,
+      "sha256": "d33706e44900c25c0612ecc5e57317353aef4748399c5fb63f0d4d24557ecfad"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-store.ts",
+      "bytes": 8985,
+      "sha256": "ea132ac4ce3329520c0702ced263e750c4efad157caef17f2df13f9908321bf3"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan.rules.spec.ts",
+      "bytes": 15295,
+      "sha256": "949675fb98c99a433f28713e253a3e0b40abebab2abfc29a48788253a892a137"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan.rules.ts",
+      "bytes": 14660,
+      "sha256": "ed2cd05c9652622822bdfeab267281575cd4b7f21f149fa1f3df448e09516a40"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.controller.spec.ts",
+      "bytes": 12058,
+      "sha256": "7cfc307ae789e71f5240d6ae92c819655b3479244359aa50d0eecf9292d5903d"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.controller.ts",
+      "bytes": 3768,
+      "sha256": "469a72b31e1d6e53ffcb81ec33e4185af9b8471a2e147404d854daaafff41ac3"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.postgres.spec.ts",
+      "bytes": 25577,
+      "sha256": "3a229d3b6c3d34edcd3e51950171e559916b262065f5de201fdd64ec647ad76b"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.service.ts",
+      "bytes": 19981,
+      "sha256": "4e19c284968d36d31982e8dc2b0ddc9317f02e4ea5010027a24121b67ff05c82"
+    },
+    {
+      "path": "apps/api/src/engagement/report-targets.ts",
+      "bytes": 17892,
+      "sha256": "b09dc9fc032883e13c05412b5cca6f4fe3e1b6a3aecb77052e14f1810b014db8"
+    }
+  ],
+  "evidence": [
+    {
+      "taskRuntimePath": "implementation-runtime/final-focused.json",
+      "sha256": "abe89036b760d0384b51d4f2f204cdb7887888556c41218a42f169703fdc1760"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/final-focused.log",
+      "sha256": "04bf2efccb8425e97767b1b4182893b60ebc007193d135b5630d9d7a6dad32fa"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/final-attempt2.json",
+      "sha256": "d51780c9cb6a83db808c578a96dc942d919a4b39eda3ad51cdaee193853035f4"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/final-attempt2.log",
+      "sha256": "f0d50e264c3ace5880bc5b2089dfa8c3527d956a8a630556e47d570797fc18fe"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/final-qualified-checkpoint.json",
+      "sha256": "3e0c7fa026b25e3e405c056ed9391391df47bcdb64c3ad8f992f568127362a63"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/prisma-validate-final.json",
+      "sha256": "dc46e4f31bd86fdd1a7ae7ce579db37d7c943f62bcaa798a0d42150e7e70f11d"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/prisma-validate-final.log",
+      "sha256": "1e6679e0b1afe0867861ff6319cc2fbe2e4ad53ad12ca9e1bb54eb900c2755a9"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/aggregate/final-summary.json",
+      "sha256": "5fb573ce0b9a33e37ed82658e897b0556a3a9e5cef4706f4a1d43bc223c23e4e"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/aggregate/AGGREGATE.md",
+      "sha256": "e0f9bf67816dd18f329610a857aa230dd4d37f83b3c02cdd7045527f27ed522e"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/final-manifest-jest.json",
+      "sha256": "1defccaa0064c486d2950fac5a78111a47cffb94b6dde787f92871741d4917a8"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/final-manifest-jest.log",
+      "sha256": "1678136f4a12a418076259721e21db9ed5c64d5ff915e76e8022b2b9f19d9757"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/denials.json",
+      "sha256": "ca6aa87a1d16d4780ec9e4a005a3e5d908a21fde16c7d2580cfb223a082f8f50"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/engine-cache-incident.json",
+      "sha256": "db70c307029c4b532943ef69b5b03d791a3c184fb552b12b345ecb83b399e95a"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/compiler-attempts.json",
+      "sha256": "4bedd622d1a84fd4e683d8ddf326ac5e20b810d5090a586ea13362b92aec5f79"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres-acceptance-attempt1.json",
+      "sha256": "9016e2b717ae7007bfbf9c7f72cd98a2bc0cf422d71c235766b06c24ed9c0cff"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres-acceptance-attempt2.json",
+      "sha256": "b42b314af9994e426f076a1855a0488c79177c9bed846cf6d91e26bde4d124ac"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres-plan.json",
+      "sha256": "1bf1157eed242704fda2e6398dcc5810391f9edec2a9bcc12cb2336a1b54e95c"
+    },
+    {
+      "taskRuntimePath": "implementation-runtime/postgres/launch-session-completion.json",
+      "sha256": "074bda9d9b38b1fdeb22fd0ec553d2fb44559f5defad40868618cde71e1ab43e"
+    }
+  ]
+}
