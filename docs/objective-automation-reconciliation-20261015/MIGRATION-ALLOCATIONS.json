@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "CENTRAL_SOURCE_ALLOCATION_RECORD",
   "coordinatorThread": "01a0ff18-26cd-7609-beba-87726d0300c6",
-  "recordedAt": "2026-10-16T18:03:15Z",
+  "recordedAt": "2026-10-16T18:10:26Z",
   "reservations": [
     {
       "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
@@ -105,6 +105,29 @@
         "credential or key creation and production issuer activation",
         "Strategy replay schema allocation",
         "grant expansion or deployment"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281016020000_clio_conversation_bootstrap_receipts/migration.sql",
+      "owner": "Core first-chat idempotent conversation allocation",
+      "workstream": "feat/core-first-chat-bootstrap",
+      "base": "560e3068b67101b68d8675c55835bcc6521110f7",
+      "allocation": "task-owned source-only reservation after fresh remote migration collision check; separate from Objective PR42 slot",
+      "allocatedAt": "2026-10-16T18:10:26Z",
+      "checks": {
+        "remoteBranchHeads": 52,
+        "proposedPrefixPresent": false,
+        "latestObservedCoreMigration": "20281015050000_client_objective_work_reconsent"
+      },
+      "scope": [
+        "Core first-chat request receipt with tenant/actor/request uniqueness",
+        "Core conversation and receipt same-transaction insert",
+        "active owned conversation and current client memory-wall checks on every replay"
+      ],
+      "excluded": [
+        "live migration execution or native database qualification",
+        "Objective workload delegation and Strategy replay migrations",
+        "new credentials or deployment"
       ]
     }
   ]
