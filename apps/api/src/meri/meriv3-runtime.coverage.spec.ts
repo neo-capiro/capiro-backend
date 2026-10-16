@@ -38,12 +38,7 @@ function fixture() {
   jest
     .mocked(currentMeriGovernedRuntime)
     .mockReturnValue({ context: governed, activeClient: null });
-  const raw = {
-    orchestrateContext: jest.fn(),
-    loadRelevantMemories: jest.fn(),
-    meriV2Chat: { streamChat: jest.fn() },
-    clientKb: { buildSnapshot: jest.fn() },
-  };
+  const raw = {};
   const streamChat = jest.fn(async ({ onEvent }: { onEvent: (event: unknown) => void }) => {
     onEvent(upstream);
   });

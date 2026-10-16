@@ -21,11 +21,13 @@ describe('Knowledge Plane Phase 19 Meri adoption contract', () => {
     expect(runtime).not.toContain('ContextCompilerService');
   });
 
-  test('legacy chat prewarms are suppressed on governed turns', () => {
+  test('current V3 prewarms are suppressed on governed turns', () => {
     const runtime = read(join(API_ROOT, 'src/meri/meriv3-runtime.proxy.ts'));
 
-    expect(runtime).toContain('loadRelevantMemories');
-    expect(runtime).toContain('currentMeriGovernedRuntime() ? []');
+    expect(runtime).toContain('installV3Phase19Adapters(meriv3)');
+    expect(runtime).not.toContain('installRawPhase19Adapters');
+    expect(runtime).not.toContain('RawMeriInternals');
+    expect(runtime).toContain('currentMeriGovernedRuntime() ? undefined');
     expect(runtime).toContain('governedClientKbProxy');
     expect(runtime).toContain('governedContext: governed.context');
   });
