@@ -15,6 +15,7 @@ const decorator = () => () => undefined;
 const nest = { Injectable: decorator, Optional: decorator, Controller: decorator, UseGuards: decorator,
   Post: decorator, HttpCode: decorator, Header: decorator, Body: decorator, Req: decorator, Logger: class { log() {} warn() {} error() {} },
   UnauthorizedException: Refusal, ForbiddenException: Refusal, BadRequestException: Refusal,
+  ConflictException: Refusal, RequestTimeoutException: Refusal,
   NotFoundException: Refusal };
 function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
   const module = { exports: {} as any };
@@ -361,10 +362,10 @@ describe('actual Meri and scope-owner source integration', () => {
     expect(events).toEqual(['canonicalWall', 'facts', 'canonicalWall']); allowed = false; events.length = 0;
     await expect(owner.resolveApplicationAuthorityClient(tenantId, actorId, clientId)).rejects.toThrow(); expect(events).toEqual(['canonicalWall']);
   });
-  it('pins both POST200 no-store routes under existing role guard and provider wiring', () => {
+  it('pins all three POST200 no-store routes under existing role guard and provider wiring', () => {
     const controller = sources('auth/application-authority.controller.ts');
     expect(controller).toContain("@Controller('clio/application-authority')");
-    for (const route of ['identity', 'context']) expect(controller).toContain(`@Post('${route}')\n  @HttpCode(200)\n  @Header('Cache-Control', 'no-store')`);
+    for (const route of ['identity', 'membership', 'context']) expect(controller).toContain(`@Post('${route}')\n  @HttpCode(200)\n  @Header('Cache-Control', 'no-store')`);
     expect(sources('meri/meri.controller.ts')).not.toContain("@Post('application-authority/");
     expect(controller).toContain("@Roles('standard_user')");
     const module = sources('context/context.module.ts');

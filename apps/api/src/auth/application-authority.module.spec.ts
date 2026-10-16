@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { UnauthorizedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { ApplicationAuthorityModule } from './application-authority.module.js';
@@ -30,17 +31,36 @@ async function fixture() {
     role: 'standard_user', tenant, updatedAt: new Date(2), lastSeenAt: new Date(3) };
   const row: any = { id: conversationId, tenantId, userId: actorId, clientId, status: 'active', archivedAt: null, metadata: {} };
   let wallAllowed = true;
+  let clientRows = [{ id: clientId }];
   let onSession = () => {};
   const tx: any = {
     user: { findUnique: async () => user, findFirst: async () => user, update: async () => user },
     tenant: { findUnique: async () => tenant },
-    tenantMembership: { findMany: async () => [membership], findFirst: async () => membership },
+    tenantMembership: { findMany: async ({ where }: any) => {
+      expect(where).toEqual({ userId: actorId, status: 'active' });
+      return membership.status === 'active' ? [membership] : [];
+    }, findUnique: async () => membership, findFirst: async ({ where, select }: any) => {
+      if (select) {
+        expect(where).toEqual({ tenantId, userId: actorId, status: 'active' });
+        events.push('membershipFacts');
+      }
+      return membership.status === 'active' ? membership : null;
+    } },
     clioConversation: { findFirst: async ({ where }: any) => {
       events.push('conversation');
       return row && Object.entries(where).every(([key, value]) => row[key] === value) ? row : null;
     } },
     client: {
-      findMany: async () => { events.push('wall'); return wallAllowed ? [{ id: clientId }] : []; },
+      findMany: async ({ where, take }: any) => {
+        if (where.status) {
+          expect(where).toEqual({ tenantId, status: { not: 'archived' },
+            OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { tenantId, userId: actorId } } }] });
+          expect(take).toBe(4097);
+          events.push('membershipRoster');
+          return wallAllowed ? clientRows : [];
+        }
+        events.push('wall'); return wallAllowed ? [{ id: clientId }] : [];
+      },
       findFirst: async ({ where, select }: any) => {
         expect(where).toEqual({ id: clientId, tenantId, status: { not: 'archived' } });
         events.push(select.memoryWall ? 'wallFacts' : 'visible');
@@ -70,8 +90,9 @@ async function fixture() {
   // Authenticate through a separate middleware instance; controller uses the Nest provider.
   const middleware = new TenantContextMiddleware(clerk as any, prisma as any, module.get(TenantContextStore));
   const router = app.getHttpAdapter().getInstance()._router;
-  async function request(path: 'identity' | 'context', body: unknown, bearer = true) {
-    const headers: Record<string, string> = bearer ? { authorization: 'Bearer synthetic' } : {};
+  async function request(path: 'identity' | 'context' | 'membership', body: unknown, bearer = true,
+    extraHeaders: Record<string, string> = {}) {
+    const headers: Record<string, string> = { ...(bearer ? { authorization: 'Bearer synthetic' } : {}), ...extraHeaders };
     const req: any = { method: 'POST', path: `/api/clio/application-authority/${path}`,
       originalUrl: `/api/clio/application-authority/${path}`, url: `/api/clio/application-authority/${path}`,
       headers, body, header: (name: string) => headers[name], hostname: 'localhost' };
@@ -92,7 +113,8 @@ async function fixture() {
     return response;
   }
   return { module, app, request, row, membership, tenant, events, tx,
-    revokeWall() { wallAllowed = false; }, onSession(fn: () => void) { onSession = fn; } };
+    revokeWall() { wallAllowed = false; }, setClientRows(rows: Array<{ id: string }>) { clientRows = rows; },
+    onSession(fn: () => void) { onSession = fn; } };
 }
 
 describe('actual narrow authority Nest composition and synthetic HTTP', () => {
@@ -129,6 +151,52 @@ describe('actual narrow authority Nest composition and synthetic HTTP', () => {
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.headers['content-type']).toBe('application/json; charset=utf-8');
     expect(response.body.expiresAtMs).toBeLessThanOrEqual(Date.now() + 60_000);
+  });
+
+  it('serves current membership200 with exact Meri receipt, scoped roster and bounded expiry', async () => {
+    const deadlineMs = Date.now() + 30_000;
+    const response = await f.request('membership', {}, true, { 'x-meri-deadline-at': String(deadlineMs) });
+    expect(response.statusCode).toBe(200);
+    expect(Object.keys(response.body).sort()).toEqual([
+      'actorId', 'checkedAtMs', 'clientIds', 'expiresAtMs', 'membershipRevision',
+      'permissions', 'role', 'status', 'tenantId',
+    ]);
+    expect(response.body).toMatchObject({ tenantId, actorId, status: 'active', role: 'standard_user',
+      permissions: [], clientIds: [clientId] });
+    expect(response.body.membershipRevision).toMatch(/^[0-9a-f]{64}$/);
+    expect(response.body.expiresAtMs).toBeLessThanOrEqual(deadlineMs);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['content-type']).toBe('application/json; charset=utf-8');
+    expect(f.events.filter((event) => event === 'membershipRoster')).toHaveLength(2);
+  });
+
+  it('refuses malformed membership body and a wall revocation during the online identity reread', async () => {
+    expect((await f.request('membership', { grant: true })).statusCode).toBe(400);
+    let reads = 0;
+    f.onSession(() => { if (++reads === 2) f.revokeWall(); });
+    expect((await f.request('membership', {})).statusCode).toBe(409);
+    expect(f.events.filter((event) => event === 'membershipRoster')).toHaveLength(2);
+  });
+
+  it('refuses removed membership and oversized roster', async () => {
+    f.membership.status = 'removed';
+    expect((await f.request('membership', {})).statusCode).toBe(403);
+    f.membership.status = 'active';
+    f.setClientRows(Array.from({ length: 4097 }, (_, index) => ({
+      id: `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`,
+    })));
+    expect((await f.request('membership', {})).statusCode).toBe(403);
+  });
+
+  it('returns408 for an expired caller deadline before membership reads', async () => {
+    expect((await f.request('membership', {}, true,
+      { 'x-meri-deadline-at': String(Date.now() - 1) })).statusCode).toBe(408);
+    expect(f.events).toEqual([]);
+  });
+
+  it('preserves current-session 401 when the online Clerk read refuses', async () => {
+    f.onSession(() => { throw new UnauthorizedException('Session expired'); });
+    expect((await f.request('membership', {})).statusCode).toBe(401);
   });
 
   it('returns400 before authority ports for malformed bodies and never exposes private failure payloads', async () => {
