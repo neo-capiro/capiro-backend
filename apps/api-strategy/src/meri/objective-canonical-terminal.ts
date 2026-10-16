@@ -4,7 +4,7 @@ import {
   canonicalGenerationAdmissionSha256, GENERATION_ADMISSION, generationLedgerId,
   parseCanonicalGenerationAdmission, requireGenerationAcceptanceForAdmission,
 } from './objective-canonical-generation.js';
-import { SAFE_FAILURES, validObjectiveOutcome } from './objective-generation.types.js';
+import { SAFE_FAILURES, validObjectiveOutcome, type ObjectiveReceipt } from './objective-generation.types.js';
 import type { DraftJobInput } from './draft-job.types.js';
 
 export type CanonicalTerminalOutcome = 'needs-information' | 'refused' | 'failed' | 'cancelled';
@@ -200,6 +200,7 @@ function ownerJob(raw: CanonicalTerminalJob, e: ReturnType<typeof expected>, rep
     if (failure.code !== 'OBJECTIVE_GENERATION_FAILED' || failure.message !== ERROR_MESSAGE) return fail();
   } else if (receipt.failure !== null) return fail();
   const dto = input.dto;
+  // The exact-shape scan above precedes the receipt validator's value checks.
   if (request.requestId !== a.generationRequestId || request.clientId !== a.canonical.clientId ||
       objective.objectiveId !== a.canonical.objectiveId || objective.objectiveVersion !== a.canonical.requestedObjectiveVersion ||
       envelope.fingerprint !== applicationHash(request) || receipt.requestId !== a.generationRequestId ||
@@ -207,7 +208,7 @@ function ownerJob(raw: CanonicalTerminalJob, e: ReturnType<typeof expected>, rep
       source.objectiveVersion !== a.canonical.requestedObjectiveVersion || source.objectiveRevisionId !== a.canonical.requestedObjectiveRevisionId ||
       !dto || typeof dto !== 'object' || Array.isArray(dto) || dto.clientId !== request.clientId || dto.type !== request.type ||
       receipt.result !== null || receipt.context?.reobservedAt !== null ||
-      !validObjectiveOutcome(receipt, replay ? 'failed' : 'running', null, replay ? ERROR_MESSAGE : null) ||
+      !validObjectiveOutcome(receipt as unknown as ObjectiveReceipt, replay ? 'failed' : 'running', null, replay ? ERROR_MESSAGE : null) ||
       (replay && (receipt.failure?.code !== 'OBJECTIVE_GENERATION_FAILED' || receipt.failure.message !== ERROR_MESSAGE))) return fail();
   return { input, receipt };
 }
