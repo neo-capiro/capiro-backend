@@ -15,7 +15,8 @@
     "bindingCanonicalization": "Core generationBindingKey(parseAcceptedRunBinding(full binding)); independently verify the golden value in Meri",
     "rawBody": "Exact UTF-8 bytes, never parsed-JSON reserialization for bodySha256",
     "sourceVariant": "Apply its source patch, regenerate rawBodyUtf8 as JSON.stringify({schemaVersion:1,source}) in the base member order, then use the listed golden digests for selected digest claim updates; non-digest selected claims come from the mutated source/binding",
-    "successRequires": "Current native actor/membership, original consent/delegation/source, accepted run, retained custody, fixed result owner and durable runOnce"
+    "successRequires": "Current native actor/membership, original consent/delegation/source, accepted run, retained custody, fixed result owner and durable runOnce",
+    "expectedTrace": "Counts are per request unless a case explicitly names first and second requests. currentAuthorityCalls counts invocations of the native current-authority callback; runOnceCalls counts durable replay-store admission attempts; ownerReads counts retained-result owner callbacks, including an attempted callback whose outcome becomes UNKNOWN. Assert the named rejection stage as well as the public denial. Synthetic malformed wire cases must have zero current-authority, replay-store and owner callbacks."
   },
   "base": {
     "source": {
@@ -159,11 +160,31 @@
     { "id": "expired", "nowSeconds": 1800000030, "expected": "deny_before_current" },
     { "id": "overlong-life", "mutations": [{ "pointer": "/base/claims/exp", "value": 1800000061 }], "expected": "deny_before_current" },
     { "id": "non-v4-jti", "mutations": [{ "pointer": "/base/claims/jti", "value": "00000000-0000-1000-8000-000000000009" }], "expected": "deny_before_current" },
-    { "id": "same-jti-different-valid-token", "action": "re-sign-with-same-jti-and-changed-nbf-after-first-read", "expected": "deny_runOnce_conflict" },
+    { "id": "same-jti-different-valid-token", "action": "complete-first-read-then-re-sign-second-token-with-same-jti-and-exp-1800000029", "mutations": [{ "pointer": "/base/claims/exp", "value": 1800000029 }], "nowSeconds": 1800000000, "expected": "deny_runOnce_conflict", "expectedTrace": { "first": { "stage": "allowed", "runOnceCalls": 1, "ownerReads": 1 }, "second": { "stage": "replay_store_fingerprint_conflict", "runOnceCalls": 1, "ownerReads": 0 } } },
     { "id": "pending-replay", "action": "repeat-identical-while-runOnce-pending", "expected": "unavailable_no_second_owner_read" },
     { "id": "revoked-replay", "action": "revoke-current-before-identical-replay", "expected": "deny_result_no_second_owner_read" },
     { "id": "unavailable-owner", "action": "set-result-owner-unavailable", "expected": "deny_without_owner_read" },
     { "id": "bad-signature", "action": "flip-last-signature-byte-without-resigning", "expected": "deny_before_current" },
-    { "id": "duplicate-claim", "action": "insert-second-jti-json-member-and-resign", "expected": "deny_before_current" }
+    { "id": "duplicate-claim", "action": "insert-second-jti-json-member-and-resign", "expected": "deny_before_current" },
+    { "id": "unavailable-current-authority", "action": "unset-required-current-authority-port-before-read", "expected": "unavailable_without_admission", "expectedTrace": { "stage": "current_authority_unavailable", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "revoked-membership", "action": "revoke-native-actor-membership-before-read", "expected": "deny_current_authority", "expectedTrace": { "stage": "current_membership", "currentAuthorityCalls": 1, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "unknown-trusted-source", "action": "trusted-source-resolver-returns-unknown-job-or-accepted-run", "expected": "deny_without_admission", "expectedTrace": { "stage": "trusted_source", "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "unknown-retained-custody", "action": "trusted-custody-resolver-returns-unknown-owner", "expected": "deny_without_admission", "expectedTrace": { "stage": "retained_custody", "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "unknown-before-owner", "action": "runOnce-records-UNKNOWN-before-owner-callback-starts", "expected": "unavailable_no_result_release", "expectedTrace": { "stage": "replay_store_unknown", "runOnceCalls": 1, "ownerReads": 0 } },
+    { "id": "unknown-after-owner", "action": "runOnce-records-UNKNOWN-after-owner-callback-starts-but-before-durable-result", "expected": "unavailable_no_result_release", "expectedTrace": { "stage": "replay_store_unknown", "runOnceCalls": 1, "ownerReads": 1 } },
+    { "id": "unknown-identical-replay", "action": "repeat-identical-token-after-runOnce-UNKNOWN", "expected": "unavailable_no_second_owner_read", "expectedTrace": { "stage": "replay_store_unknown", "runOnceCalls": 1, "ownerReads": 0 } },
+    { "id": "noncanonical-header-base64url", "action": "append-padding-equals-to-header-segment-and-resign-the-resulting-signing-input", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_base64url", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "noncanonical-payload-base64url", "action": "append-padding-equals-to-payload-segment-and-resign-the-resulting-signing-input", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_base64url", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "invalid-header-utf8", "action": "replace-header-json-bytes-with-invalid-utf8-and-sign-the-resulting-signing-input", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_utf8", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "invalid-payload-utf8", "action": "replace-payload-json-bytes-with-invalid-utf8-and-sign-the-resulting-signing-input", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_utf8", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "extra-header-member", "action": "append-unknown-x-header-member-and-resign", "expected": "deny_before_current", "expectedTrace": { "stage": "strict_header", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "extra-payload-member", "action": "append-unknown-x-payload-member-and-resign", "expected": "deny_before_current", "expectedTrace": { "stage": "strict_payload", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "wrong-header-serialization", "action": "reorder-alg-typ-kid-members-with-identical-values-and-resign", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_serialization", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "wrong-payload-serialization", "action": "reorder-iss-sub-aud-members-with-identical-values-and-resign", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_serialization", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "oversize-header", "action": "pad-header-json-to-1025-utf8-bytes-and-sign", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_header_size", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "oversize-payload", "action": "pad-payload-json-to-4097-utf8-bytes-and-sign", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_payload_size", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "oversize-signing-input", "action": "pad-header-and-payload-json-within-their-individual-size-limits-until-signing-input-is-4097-characters-and-sign", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_signing_input_size", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "oversize-compact-token", "action": "append-signature-segment-padding-until-compact-token-is-8193-characters", "expected": "deny_before_current", "expectedTrace": { "stage": "wire_token_size", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } },
+    { "id": "oversize-raw-body", "action": "append-whitespace-to-raw-body-until-it-is-65537-utf8-bytes", "expected": "deny_before_current", "expectedTrace": { "stage": "raw_body_size", "currentAuthorityCalls": 0, "runOnceCalls": 0, "ownerReads": 0 } }
   ]
 }
