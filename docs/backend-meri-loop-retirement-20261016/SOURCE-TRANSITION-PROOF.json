@@ -1,6 +1,6 @@
 {
   "parent": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
-  "sourceCheckpoint": "0a83ced7744932c42e17db084b30b0a9810c4699",
+  "sourceCheckpoint": "4b13d36757797ca498a098c02adf1ff749679341",
   "rawOwnedRegions": [
     {
       "name": "raw-stream-owned-region",
@@ -389,6 +389,308 @@
       "path": "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
       "workingBytesSHA256": "dac89a2d28bf815073b747af317906505e012db757bab9841428789b3b4ec9b9",
       "workingBytes": 12382
+    }
+  ],
+  "capturedGitBytes": [
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/MEMORY-OBSERVATION-INTERPRETATION.json",
+      "gitBlob": "730a68cd79a54a1e41cccbfb2c655ce118e27e5e",
+      "bytes": 761,
+      "sha256": "a5f4bf452ee472e789d4cc1ce5c1b37da944a0f668de616010d69257c83ee03d"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-case-ownership-corrected.json",
+      "gitBlob": "0863628b2236ab88c66e7d93a8b2731c96744126",
+      "bytes": 78969,
+      "sha256": "1c3759f5bf048c1785c035deea17f2df07d550c7e846d271abe7e105152b6c74"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-case-ownership.json",
+      "gitBlob": "e164654e3dbcf8acc4ee5f65a78896e0b121786a",
+      "bytes": 78467,
+      "sha256": "5ed932d15b5326d9262bfce4fc9d8fbeb59e3cd7747987446bfcc59f81a2517d"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-catalog-plan.json",
+      "gitBlob": "27b78cb4804347f4677fd5fa647e4e5c61cda16e",
+      "bytes": 830,
+      "sha256": "113173d22c1fe830edca8d317fce25cf4bc2b29871339bc5fa0586e1e8f59812"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-catalog-plan.stderr",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-catalog-plan.stdout",
+      "gitBlob": "e969c97c90d87cf99b05e0cd4e37e19c44297e61",
+      "bytes": 6012,
+      "sha256": "5d36d4cfde8e30ec3dc1cac7151d73c1d387fe02ff6e263986011e6a2e4e1204"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-contract-map.md",
+      "gitBlob": "3cab883eda0cb9b03bc4bdcbd2112b17c5513abe",
+      "bytes": 12999,
+      "sha256": "373ad1d80261fa3a054c923bc6f1b6ecc9585df391d645051c340d2c96ac76fd"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-runtime-controls.json",
+      "gitBlob": "071f7c659a24b070ccd671a836fb217ce43566ed",
+      "bytes": 878,
+      "sha256": "909339e348620c1add7b15365e14c71f4a53b6b657de6c19d2e96d75beac685f"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-runtime-controls.stderr",
+      "gitBlob": "d442c392513acf58a2fac0cf85ef315b54799c83",
+      "bytes": 183,
+      "sha256": "42bd6e905287bdfecbeee32ee9cb641b7c3b2a16a16e69ba6de4917f26744afc"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-runtime-controls.stdout",
+      "gitBlob": "c4be1055804e7e8f4613575bd5095097e83b18c6",
+      "bytes": 2019,
+      "sha256": "ca7b548617f6bc8b7c3ebb003d4315a49cff388261cf943443a5187efd73a13d"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-runtime-implementation.json",
+      "gitBlob": "73ba87d089948766fc229dded605c87cc3713a0b",
+      "bytes": 2167,
+      "sha256": "47a510c50684cd00f9120a516a1aa6b33f8fc1573bd340138e6ce8dff27ae389"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-current-runtime-implementation.md",
+      "gitBlob": "52f27ddafa4bc968d81524fc017fff98d019355f",
+      "bytes": 4395,
+      "sha256": "5b6d3831468a42d606d755faa1d73be7c9ebf35cce0daa167d6cf300fcf810e1"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-historical-unrun-corrected.json",
+      "gitBlob": "6e4d5afce66a4102f7afc1513d33e28f12188a1d",
+      "bytes": 2682,
+      "sha256": "e0c0cf13b9a64fe10788f39afcfce133bdaee2fb2f5e22688898802b9766a469"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-historical-unrun.json",
+      "gitBlob": "3bfd0afc20dbdddf91b50fc14db04b2c4f007e22",
+      "bytes": 2139,
+      "sha256": "62a7fddd38a493d7ec6b166c8cdada577a47c5a01c718aac334535d9af5ff808"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-memory-before.json",
+      "gitBlob": "d3d365539a1aa45ed58a902bd7d6ab7d6042597e",
+      "bytes": 177,
+      "sha256": "8e63fecd60aaa48709b39c0923a4c071f8b089e9c5c7167151fb804432b80973"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-native-split.json",
+      "gitBlob": "a8da311cc1fb38bd3315c5b1eded2993f573694c",
+      "bytes": 794,
+      "sha256": "3fd488e7cc339296d5d66a03273377471421d4e53e93c6aab4181a09617706bf"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-raw-service-implementation-review.md",
+      "gitBlob": "0bdeb13bdba4193ce240e8d1ac942837ad660d33",
+      "bytes": 5838,
+      "sha256": "aa15ec0c31784e60b86ed8e6ffb3d60456e251f8ada0e330999e39b78f352791"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-raw-service-implementation.json",
+      "gitBlob": "b3e94e4555a21f486d89d22b0913112a2300a2f0",
+      "bytes": 18456,
+      "sha256": "9bd162bc16539c6410497ea60c047c6aa5b31ce452b2bd45f8c81174d303e000"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-raw-service-removal-map.md",
+      "gitBlob": "6c2e0608a8f82e120b2e30e23675cd157affc0c0",
+      "bytes": 15844,
+      "sha256": "0f3f6755e6a7597e2cc5226ce88ab171618429516d6afbf869df0d960a27c33f"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-catalog-controls.json",
+      "gitBlob": "fa813d0f89f76ec792417555c1da677a13adeeb5",
+      "bytes": 923,
+      "sha256": "6a0da6d7beaa7fd35fc8d0d062f503c5ce8e5efbe2a911d751c6973232a8520b"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-catalog-controls.stderr",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-catalog-controls.stdout",
+      "gitBlob": "f24597ef107f989571f4b255ba6457d880080772",
+      "bytes": 20154,
+      "sha256": "2030df146be7c0aefea72e5d3cbaad033c1d9d055a375d559249a7770bf50caa"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-catalog-corrected.json",
+      "gitBlob": "8b9ebe973f2ec20a962a15d76e950341b7bf7c2f",
+      "bytes": 924,
+      "sha256": "74e6afa6c86b8a58be8049b0a0fb077a893ca37ceff1bcd1044cfc076cf90963"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-catalog-corrected.stderr",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-catalog-corrected.stdout",
+      "gitBlob": "494f3f4864217af28ad537363cf3c7e93276ffbf",
+      "bytes": 3584,
+      "sha256": "f2f0f98dd916e38a2f2cd4b724530220c1b7a6cb6126b7381ef68162c590a6eb"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-replay-metadata-correction.json",
+      "gitBlob": "864812f78dd62fba17cb1e94775a34b3c7721ff5",
+      "bytes": 3351,
+      "sha256": "2fb4b93984bdcfcd1c8dea87d4feaa1e5f64b82174283a8dfa33012898fe88c4"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-corrected.json",
+      "gitBlob": "ae24ab2fdbc161fe54a55c55d69f7791e9df8770",
+      "bytes": 879,
+      "sha256": "b1b120abbfb07de622149e9dbcbfc759acbbeb7d34a594459c701fdf9f4ba616"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-corrected.stderr",
+      "gitBlob": "f1f15e89f2d9d3caf99b781fce1bc5f9c7657c2b",
+      "bytes": 183,
+      "sha256": "908cba4115fa3b01f5728bce4422f91d837ce869ac2708cb6c1fc3af4f1b9904"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-corrected.stdout",
+      "gitBlob": "20c996ac3b8f3e3e70e3b8055a675282004a7f0a",
+      "bytes": 210328,
+      "sha256": "61d8368b1f62a4847a012719915c773b32f46fee2de5495b52028c6e46afef21"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-first.json",
+      "gitBlob": "11234f4aa4eb0b7b097f8c2f29943ae3a63559ef",
+      "bytes": 875,
+      "sha256": "a36a54df02aacb9f046a5c11bd9b73e7f8b8173bda779e237b8aca9e69950082"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-first.stderr",
+      "gitBlob": "2698dc1852c40a96bf2ad81a79814cd8c28f414b",
+      "bytes": 183,
+      "sha256": "732e418796f185b4405fd75d94324998a59220901248d70ab4c336d2b6929856"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-first.stdout",
+      "gitBlob": "e8bc340cd8475eab20ddf1d098f0ceb4e577958f",
+      "bytes": 1396,
+      "sha256": "3d37754f59f503820d67ea30c8f1e85248bf6ccdc378f4fdb1af3f0a307b308d"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-pass.json",
+      "gitBlob": "b26ba7d068d2502702235cec817add28ee685b9a",
+      "bytes": 879,
+      "sha256": "f010f574993f18fecbca049c39dbddb4a38f47935502dba1195e7edbee6ed3c8"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-pass.stderr",
+      "gitBlob": "17dc2bac7d5e65bc41b386bb4c832587bd29fcf7",
+      "bytes": 183,
+      "sha256": "a2ba4018458e5169cd30ff11dcbc493847db2c97081b286853e51e77870feaa3"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-current-pass.stdout",
+      "gitBlob": "358008d9243ff1cd722f7e7b58345a1b2a172593",
+      "bytes": 2708,
+      "sha256": "015113a4ba95191f4a1521d213345f201ce2d3321e043465088accf076c7ec27"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-rp-independent-review.md",
+      "gitBlob": "8ef4a54e737fd0dfcb0a51201cdb3de6960091fb",
+      "bytes": 9042,
+      "sha256": "db0303366213baa3024d6e5dbd59a104bf1ab7c870bfee6f21385a87687ff865"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-count-delta.json",
+      "gitBlob": "a5d8da4fbb024df0c93050615b28f19030d9cf95",
+      "bytes": 844,
+      "sha256": "5040094fc4e482638d7dfddd759c9482448ad8e77c8ba0bbce6ee818a7604b28"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-count-delta.stderr",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-count-delta.stdout",
+      "gitBlob": "580f39d8e3713389eb54155eb17021475e71eb92",
+      "bytes": 1146,
+      "sha256": "e305754c4afd681a1b68979b5f1bb2209850bee2db6e4763cb8134f533b36816"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-transition-corrected.json",
+      "gitBlob": "4f63864fde485c7e44de21d70f7e8ef73ee307ab",
+      "bytes": 864,
+      "sha256": "5d1ea30068d7a55403eec3bda929746118d388d478a4341f4cb927ef91f2fe04"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-transition-corrected.stderr",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-transition-corrected.stdout",
+      "gitBlob": "e8b601ad03b4bd6ed9fc4c0b2bbd4e85bb0111b0",
+      "bytes": 360,
+      "sha256": "d7016448eeec7fff922057a6862599ff0e2003b0536f83f8988483c1bc1778cd"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-transition-proof.json",
+      "gitBlob": "459a261b1404d9e6fd3249071439a2ee31573513",
+      "bytes": 864,
+      "sha256": "22ce17a26bc8dc2076b15efe0a86c00b20017fa4cef524b58effb0a46af69080"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-transition-proof.stderr",
+      "gitBlob": "7a5ebb889a783bef903094afc96fea19215afd6f",
+      "bytes": 8539,
+      "sha256": "df630a705c29ee51061b0515376dddebf3b57f44820cc619f67fac4eb4439fe7"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-source-transition-proof.stdout",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-test-ownership-map.md",
+      "gitBlob": "f02d981548b47ba3ff70e62c5ba1a9ffdf2eae7d",
+      "bytes": 21598,
+      "sha256": "e4d175c34078470cd0a91ea46a5ac2e6a9cb349786844681c0af4434280547db"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-transition-independent-review.md",
+      "gitBlob": "40bb3752c5d86f239932d8e93854f8a2ff7fa028",
+      "bytes": 7055,
+      "sha256": "ff5576d36a1a1b1985bee4ac7b19bc015c5e802e4c36edef1aa8d2cabfdac5b9"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-v2-consumers-f3ede4.receipt.json",
+      "gitBlob": "4165b14dbf440610ff36b8cd554a5ed6c1048be7",
+      "bytes": 872,
+      "sha256": "3ca7a425c087cddbefe5bb9c0c3cc6ac7a5a0f18424d3d519d55ab702a0796ca"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-v2-consumers-f3ede4.stderr",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/evidence/meri-loop-v2-consumers-f3ede4.stdout",
+      "gitBlob": "6a4c8e94d1a7f0e1d42fe383047583ec031f873b",
+      "bytes": 4020,
+      "sha256": "4067aee3f9f6a2b1ffbf48874a1c9659fd614d2dc1d31403050b1f968566ae21"
     }
   ],
   "countedSourceHead": "0a83ced7744932c42e17db084b30b0a9810c4699",

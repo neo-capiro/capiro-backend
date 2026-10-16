@@ -9,6 +9,7 @@
     { "receipt": "evidence/meri-loop-replay-catalog-corrected.json", "cases": 35, "breakdown": { "planner": 16, "catalogWorkspace": 19 }, "exit": 0, "ownedPID": 18492, "peakOwnedWorkingSetBytes": 85798912 }
   ],
   "sourceProof": { "receipt": "evidence/meri-loop-source-transition-corrected.json", "exit": 0, "ownedPID": 16112, "protectedIdentities": 38, "applicationPaths": 23, "constructorSites": 5, "archiveCasesPreserved": 3, "currentRpMappedIdentities": 22, "report": "SOURCE-TRANSITION-PROOF.json" },
+  "finalSourceProof": { "receipt": "evidence/meri-loop-final-source-proof.json", "exit": 0, "ownedPID": 37620, "checkpoint": "4b13d36757797ca498a098c02adf1ff749679341", "applicationSourceCheckpointUnchanged": "0a83ced7744932c42e17db084b30b0a9810c4699", "protectedIdentities": 38, "testedInputIdentities": 30, "capturedRawGitByteIdentities": 50, "peakOwnedWorkingSetBytes": 51499008 },
   "count": { "receipt": "evidence/meri-loop-source-count-delta.json", "exit": 0, "ownedPID": 23196, "method": "changed Git-blob deltas from sealed PR34 under original016e rules; no full scan", "beforeNonblank": 1811365, "afterNonblank": 1809228, "deltaNonblank": -2137 },
   "catalog": { "planReceipt": "evidence/meri-loop-current-catalog-plan.json", "planExit": 0, "aggregateRun": "UNRUN" },
   "failuresPreserved": [
