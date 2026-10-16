@@ -8,7 +8,17 @@ It is deliberately outside `src/` so the dark HTTP image does not accidentally c
 
 - defense-budget contracts, parser routing, semantic extractors, verification, stage composition, projection planning, Phase 6 certification, Phase 7 eligibility and inspect planning;
 - Program Element snapshot, source-document, delta and outbox lineage needed by the trusted pipeline;
-- read-only/inspect operator entrypoints for Phase 6 composition and Phase 7 planning/status.
+
+## Canonical operator entrypoints
+
+Phase 6 composition and Phase 7 planning/status commands remain in
+`apps/api/scripts/{phase6-stage-cycle,plan-defense-budget-promotion-v1,status-defense-budget-promotion-v1}.ts`.
+Their API package commands, dispatcher, image inputs and working-directory
+requirements are unchanged. This mirror carries no duplicate `operators/` tree;
+the Session 4 verifier requires those canonical files and rejects copied CLIs.
+The runtime trees, outbox pair and dual-path FY27 fixtures retain their existing
+parity checks. This source ownership change does not retire an operator command
+or qualify production decommission.
 
 ## Deliberately excluded from the HTTP task
 

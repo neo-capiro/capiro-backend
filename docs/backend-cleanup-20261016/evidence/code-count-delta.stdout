@@ -1,0 +1,39 @@
+{
+  "baseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "sourceHead": "967b0e4b67862f780a5a41cb8891b74ef379df07",
+  "before": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 10138,
+      "nonblankLines": 2473087,
+      "physicalLines": 2640561
+    },
+    "mirror": {
+      "files": 727,
+      "nonblankLines": 191226,
+      "physicalLines": 205344
+    },
+    "physical": {
+      "files": 10865,
+      "nonblankLines": 2664313,
+      "physicalLines": 2845905
+    }
+  },
+  "changedCodeFiles": 6
+}

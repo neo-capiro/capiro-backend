@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { inspectPhase17OperatorOwnership } from './lib/phase17-operator-ownership.mjs';
 
 function resolveRepoRoot(start = process.cwd()) {
   let dir = path.resolve(start);
@@ -70,9 +71,6 @@ for (const [source, mirror] of treePairs) {
 const blobPairs = [
   ['apps/api/src/program-element/program-element-change-outbox.service.ts', 'apps/defense-api/runtime-source/program-element/program-element-change-outbox.service.ts'],
   ['apps/api/src/program-element/program-element-change-outbox.service.spec.ts', 'apps/defense-api/runtime-source/program-element/program-element-change-outbox.service.spec.ts'],
-  ['apps/api/scripts/phase6-stage-cycle.ts', 'apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts'],
-  ['apps/api/scripts/plan-defense-budget-promotion-v1.ts', 'apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts'],
-  ['apps/api/scripts/status-defense-budget-promotion-v1.ts', 'apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts'],
 ];
 for (const [source, mirror] of blobPairs) {
   if (!exists(source) || !exists(mirror)) {
@@ -81,6 +79,10 @@ for (const [source, mirror] of blobPairs) {
   }
   if (read(source) !== read(mirror)) fail(`Trusted runtime blob drift: ${source} -> ${mirror}`);
 }
+
+// Keep one executable CLI owner; the runtime and fixture mirror pairs above
+// retain their existing parity requirements.
+failures.push(...inspectPhase17OperatorOwnership(exists));
 
 const requiredSlices = [
   'contracts',

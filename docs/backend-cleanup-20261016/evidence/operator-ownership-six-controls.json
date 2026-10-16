@@ -1,0 +1,20 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/lib/phase17-operator-ownership.test.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:07:41.6340228Z",
+  "endedAt": "2026-10-16T02:07:41.7336356Z",
+  "ownedPID": 40064,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 0,
+  "hardWallSeconds": 60,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "944ef2bafe84a9409fe0fa20d236d083a93c1c51af8cba5ee8052cd3bf19546e",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,1 @@
+Usage: node scripts/verify-phase8-session4.mjs [--enforce-replay] (no arguments runs the existing verifier)

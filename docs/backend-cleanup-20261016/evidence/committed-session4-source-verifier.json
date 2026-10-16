@@ -1,0 +1,18 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "scripts/verify-phase8-session4.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:10:28.6543282Z",
+  "endedAt": "2026-10-16T02:10:29.0652569Z",
+  "ownedPID": 22664,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 40734720,
+  "hardWallSeconds": 60,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "b93cb36ce317586c3c062b7964d1805ecbcbeb629ecf35c6e1fbf0d0e70d5731",
+  "stderrSHA256": "323510f499d46873701d3ed39a1da292f7b091fa068f9ace2a11fb48a2278050"
+}
