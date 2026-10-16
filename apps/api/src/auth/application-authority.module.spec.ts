@@ -222,9 +222,12 @@ describe('actual narrow authority Nest composition and synthetic HTTP', () => {
     expect((await f.request('identity', { grant: true })).statusCode).toBe(400);
   });
 
-  it('keeps no-store on absent bearer and refuses unknown roles through actual existing guards', async () => {
+  it('keeps no-store on precontroller membership and identity denials', async () => {
     const response = await f.request('identity', {}, false);
     expect(response.statusCode).toBe(401); expect(response.headers['cache-control']).toBe('no-store');
+    const membership = await f.request('membership', {}, false);
+    expect(membership.statusCode).toBe(401);
+    expect(membership.headers['cache-control']).toBe('no-store');
     f.membership.role = 'unknown';
     expect((await f.request('identity', {})).statusCode).toBe(403);
   });
