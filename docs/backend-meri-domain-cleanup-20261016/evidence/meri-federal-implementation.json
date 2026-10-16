@@ -1,0 +1,197 @@
+{
+  "source": "0483963adc5382202408e8398d8b1601f53d8525",
+  "premapCommit": "4f26d7c9867dfaa5ccb07dc0e4994a045e437353",
+  "sourceBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+  "sourceCanonicalSha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267",
+  "paths": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "canonicalSha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "checkoutSha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "bytes": 392207,
+      "physicalLines": 9784,
+      "nonblankLines": 9399
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "canonicalSha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "checkoutSha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "bytes": 23905,
+      "physicalLines": 659,
+      "nonblankLines": 633
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "canonicalSha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "checkoutSha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "bytes": 977,
+      "physicalLines": 24,
+      "nonblankLines": 20
+    }
+  ],
+  "methods": [
+    {
+      "name": "resolveBillId",
+      "originalFirstLine": 3636,
+      "originalLastLine": 3642,
+      "visibility": "private",
+      "originalSha256": "14e680446a1e93f4deebbb3c5d5ae07046ad37606df3ae2c20e01834f9f3a2b0",
+      "newDeclarationAndMethodSha256": "14e680446a1e93f4deebbb3c5d5ae07046ad37606df3ae2c20e01834f9f3a2b0",
+      "unchangedBodySha256": "dd6de953cf9fc3c4f944e6b06a6da749f2890213240e5b5ac0c0a02c98beadef"
+    },
+    {
+      "name": "searchCongressBills",
+      "originalFirstLine": 3702,
+      "originalLastLine": 3766,
+      "visibility": "public",
+      "originalSha256": "0db50d04f8fce9f3bafc9aa9952f9f670a73eaaaae9ffbaf92a9e3b35dbe6c4b",
+      "newDeclarationAndMethodSha256": "8008d762d895a8e0f38ef4f0c6585ce0cbb8138bafbd20c09ef08e0302d194eb",
+      "unchangedBodySha256": "0f51ad130aa191d8f36546ad082ea80c806fc608033cf257630a9b03550e5e4d"
+    },
+    {
+      "name": "readBillText",
+      "originalFirstLine": 3828,
+      "originalLastLine": 3954,
+      "visibility": "public",
+      "originalSha256": "9c2ce6b10795c2ea773e141719f953ff4b7c8fbb5736e796fc5617330b210cf8",
+      "newDeclarationAndMethodSha256": "ca8ebac63865364c0c35aaebf40ca32bb0d474c9b583c3dd227b117c83bd3999",
+      "unchangedBodySha256": "0ae146bcc562371d7d3496c17bc2f8ab66478e1bca80ffd81d7cca147be65111"
+    },
+    {
+      "name": "locatedBillText",
+      "originalFirstLine": 3961,
+      "originalLastLine": 4018,
+      "visibility": "private",
+      "originalSha256": "ffbea06194a0b35d078655a3a03ceb7770c26d05c0417430726fa6af77db48cb",
+      "newDeclarationAndMethodSha256": "ffbea06194a0b35d078655a3a03ceb7770c26d05c0417430726fa6af77db48cb",
+      "unchangedBodySha256": "50fd18046f05e5a007f671cff992e94728bea90873fcae4a605b0ed1f8e39e50"
+    },
+    {
+      "name": "getBillStatus",
+      "originalFirstLine": 4020,
+      "originalLastLine": 4155,
+      "visibility": "public",
+      "originalSha256": "20ac939231529e140205cab5d5beb4bfd058cee92a4ab570f7419e9baa336aee",
+      "newDeclarationAndMethodSha256": "1b57252970ad6769322e14b2217cf36a846cf35cffd5cc4f1b9b79009b172d0b",
+      "unchangedBodySha256": "dc58e19b8087d695ea6d82b4cd69224df69acf2f841275d9d3be8accf1b0e58a"
+    },
+    {
+      "name": "searchFloorVotes",
+      "originalFirstLine": 4161,
+      "originalLastLine": 4317,
+      "visibility": "public",
+      "originalSha256": "d457a373142ee9a128143f2f8c3fe9d1d92af6a295c662d8c9dfcb6a229784f6",
+      "newDeclarationAndMethodSha256": "4dad47d186c619fe2a3406d32183c244a3bc993892fa58efc7fe7f4836f8ca4a",
+      "unchangedBodySha256": "005b104c457a58692491efa2d5c9ab70d10839ca91c8099df77a11655fe63e94"
+    },
+    {
+      "name": "searchCboCostEstimates",
+      "originalFirstLine": 4323,
+      "originalLastLine": 4364,
+      "visibility": "public",
+      "originalSha256": "17031476d9f397b10cefa72c07b9868f77fbd37561c63323d76550ab7ede7c84",
+      "newDeclarationAndMethodSha256": "9fc4b932a9fa8b39092e34896c7fcfe85c38b4652e1ed53551f8e462ab3db4e4",
+      "unchangedBodySha256": "7cec576889c526d5ecc6af9d617331b59a8e83fc8922bbe90f1b73112924c155"
+    }
+  ],
+  "canonicalInputDeclarations": [
+    {
+      "name": "UUID_V4_RE",
+      "originalFirstLine": 342,
+      "originalLastLine": 342,
+      "originalSha256": "5701a0f50cf185a1f1b9a17e04f8874621f22d37dc4aa8ff12b91408f6d2f5a9",
+      "exportedSha256": "102c9f0ee8b50330e4d9f549b762a17e2b96d58dd157a901101eecc70119480a",
+      "onlyChange": "export prefix"
+    },
+    {
+      "name": "requiredString",
+      "originalFirstLine": 9867,
+      "originalLastLine": 9871,
+      "originalSha256": "812a80b7ef7ff0b83f074de363ef476dc457ebe7c8ffaf3e3b0d3c6beb29eb97",
+      "exportedSha256": "b318e535f6648b02361d3dc5282b53719ca4b291e601925834892cfaa4872fcf",
+      "onlyChange": "export prefix"
+    },
+    {
+      "name": "optionalString",
+      "originalFirstLine": 9873,
+      "originalLastLine": 9879,
+      "originalSha256": "86dd7fe6dad1e058be971528215a2ec64663f80e31553759a63433bb40602327",
+      "exportedSha256": "0c1b8f5a224a916eefdf6a263b8e3fa1406693efe3c712d43c7cbc06616c65e2",
+      "onlyChange": "export prefix"
+    },
+    {
+      "name": "clampInt",
+      "originalFirstLine": 9969,
+      "originalLastLine": 9974,
+      "originalSha256": "8a8e3a94a1e68419981891046a8c8d411830cc23f65b9be0578232012f19ad70",
+      "exportedSha256": "39de53937c2cd9ee94f37ba870c9eaa89034bc43abc0c2bef3d93a069c7acc45",
+      "onlyChange": "export prefix"
+    }
+  ],
+  "legacyFacades": [
+    {
+      "name": "searchCongressBills",
+      "exactForwarder": "  private async searchCongressBills(input: Record<string, unknown>) {\n    return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).searchCongressBills(input);\n  }",
+      "sha256": "33a19ce1d62254312d5f37f41257e1c9ccbb39f1a7f3ada09375dfe9f25042cc"
+    },
+    {
+      "name": "readBillText",
+      "exactForwarder": "  private async readBillText(input: Record<string, unknown>) {\n    return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).readBillText(input);\n  }",
+      "sha256": "0db6eb77077607922812f8eea04f4d9eb3ea9ccc26ae5750e1b8c97c6e6ada43"
+    },
+    {
+      "name": "getBillStatus",
+      "exactForwarder": "  private async getBillStatus(input: Record<string, unknown>) {\n    return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).getBillStatus(input);\n  }",
+      "sha256": "ec935860cda6578778767b64aa98d18d060fafd82e811b2b353f421f2d192fe2"
+    },
+    {
+      "name": "searchFloorVotes",
+      "exactForwarder": "  private async searchFloorVotes(input: Record<string, unknown>) {\n    return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).searchFloorVotes(input);\n  }",
+      "sha256": "b8780ad452aa68a94cedf95e3d3cc7ef265bf81cd11754432983cc05513f0869"
+    },
+    {
+      "name": "searchCboCostEstimates",
+      "exactForwarder": "  private async searchCboCostEstimates(input: Record<string, unknown>) {\n    return new MeriFederalLegislationTools(this.prisma, this.ldaIntel).searchCboCostEstimates(input);\n  }",
+      "sha256": "be9997595a330c5a1828be8769156a71aa5469f4b712b800cc88e47c060998eb"
+    }
+  ],
+  "movedType": {
+    "name": "FederalBillTextRow",
+    "originalFirstLine": 299,
+    "originalLastLine": 314,
+    "sha256": "21e967d98fa44d73b1b82794de1711bf76ea19e416cb6d28fc61bc8c1d19f542"
+  },
+  "movedPrivateComments": [
+    {
+      "method": "resolveBillId",
+      "firstLine": 3630,
+      "lastLine": 3635,
+      "sha256": "3efa747538908f80ed16ac46400ab85f8ae642bfb49c97ae616ff179a9188aa4"
+    },
+    {
+      "method": "locatedBillText",
+      "firstLine": 3956,
+      "lastLine": 3960,
+      "sha256": "ce35a7cad2bc109ed4bc2e263018df690c6620139c0dcc2c9fc6af3ccbe8634c"
+    }
+  ],
+  "unchangedConstructor": {
+    "firstLine": 395,
+    "lastLine": 438,
+    "sha256": "4222fa4e785f61422648d0879c7235962569d4915efa89a61a3165a73ad6fe27",
+    "mechanicalEditOperandPresent": true
+  },
+  "inverse": {
+    "source": "Use the exact 048/32a7 Git blob as the original, not a body copy committed as evidence.",
+    "methods": "Replace five exact facade forwarders with original methods; remove public prefix on five moved domain signatures only when comparing to original; two private methods retain exact declarations and bodies.",
+    "comments": "Restore the two private helper doc comments at their original ranges; legacy floor/CBO facade comments remain.",
+    "inputs": "Remove only export prefix to compare the three original functions and UUID declaration; restore original declarations in the facade.",
+    "imports": "Remove two new facade imports; restore original bill-text import block plus currentCongress and billStatusLabel lines; formatBillId and parseBillDesignation remain throughout.",
+    "type": "Restore the unchanged 16-line FederalBillTextRow interface and separator at original location.",
+    "protected": "Original constructor, RP/Florida dispatch/adapter seams, registry, provider wiring, schemas, guards and native tests are not edited."
+  },
+  "verification": {
+    "executed": false,
+    "reason": "Source editing and manifest preparation only; parent owns independent review and explicitly scheduled tests/parsing/typechecking."
+  }
+}
