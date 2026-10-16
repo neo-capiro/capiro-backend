@@ -97,6 +97,17 @@ class CreateMeriConversationDto {
   title?: string;
 }
 
+class BootstrapMeriConversationDto {
+  @IsIn([1])
+  schemaVersion!: 1;
+
+  @IsUUID()
+  requestId!: string;
+
+  @IsUUID()
+  clientId!: string;
+}
+
 class SendMeriMessageDto {
   // Length 0 allowed: 'regenerate' re-runs the last user turn with an empty body.
   // The service rejects an empty body for a 'new' message.
@@ -340,6 +351,17 @@ export class MeriController {
   @Post('conversations')
   createConversation(@CurrentTenant() ctx: TenantContext, @Body() body: CreateMeriConversationDto) {
     return this.service.createConversation(ctx, body);
+  }
+
+  // One Core-owned conversation per authenticated New Chat intent. Keep this
+  // literal route ahead of the parameterized conversation routes.
+  @Post('conversations/bootstrap')
+  @HttpCode(200)
+  bootstrapConversation(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: BootstrapMeriConversationDto,
+  ) {
+    return this.service.bootstrapConversation(ctx, body);
   }
 
   // History search (F2). Declared before `conversations/:id` so the literal
