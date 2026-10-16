@@ -1,0 +1,77 @@
+{
+  "parent": "0483963adc5382202408e8398d8b1601f53d8525",
+  "premap": "4f26d7c9867dfaa5ccb07dc0e4994a045e437353",
+  "sourceHead": "322b2f30cd30488631dc5acb20e14b12995c48ca",
+  "engagementCommit": "322646895536b00a795f2b02adf1f1e185a6272c",
+  "federalCommit": "926d0c2cac576cdd90f6a06bcd657c0a07fd21fe",
+  "stages": [
+    {
+      "name": "meri-domain-transition-source-proof",
+      "receipt": "evidence/meri-domain-transition-source-proof.json",
+      "actualExit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Initial harness used wrong manifest field; exit1 before any application write. Preserved; corrected to canonicalInputDeclarations."
+    },
+    {
+      "name": "meri-domain-transition-source-proof-manifest-repaired",
+      "receipt": "evidence/meri-domain-transition-source-proof-manifest-repaired.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 59318272,
+      "note": "Bounded source/plan evidence only"
+    },
+    {
+      "name": "meri-domain-focused-controls",
+      "receipt": "evidence/meri-domain-focused-controls.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 107216896,
+      "note": "42 pass/0fail/0skip/cancel/todo:24new domain/source fixtures +18existing catalog controls. No child/provider/framework."
+    },
+    {
+      "name": "meri-domain-current-catalog-plan",
+      "receipt": "evidence/meri-domain-current-catalog-plan.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Bounded source/plan evidence only"
+    },
+    {
+      "name": "meri-domain-source-count-delta",
+      "receipt": "evidence/meri-domain-source-count-delta.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 52187136,
+      "note": "Bounded source/plan evidence only"
+    },
+    {
+      "name": "meri-domain-final-source-proof",
+      "receipt": "evidence/meri-domain-final-source-proof.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 51855360,
+      "note": "Both complete source inverses;33protectedtree/blob identities;8actualtestedinputSHA256s;37capturedGitbyteidentities;includedsourceunchangedfromcounted322b2checkpoint"
+    }
+  ],
+  "isolatedBindings": "Actual domain/input/bill-text and actual5facade methods execute. Nest exception and shared normalization/status are finite declared fixture bindings; SQL is inspected through spies. This is not native/shared normalization/database/type/startup acceptance.",
+  "resourcePolicy": "Sequential one Node per stage, <=128MiB V8, <=120s hard wall, owned cleanup/observed pressure stop; finite Git source children only for source proof/count. No fresh memory-probe/denied retry or escalation; actual parent RSS retained.",
+  "nativeTests": "All existing native test files unchanged, including7status/floor,2CBO,11billtext and textrevision/dispatch,7Engagementenrichment,11batch,2scrubber cases; identities retained, NOT executed here.",
+  "unrun": [
+    "aggregate source catalog",
+    "native Nest/API/HTTP/Jest suites",
+    "actual shared normalization and DB/SQL",
+    "strict application typing",
+    "build/install/image/artifact/platform qualification",
+    "protected feature integration",
+    "current frontend/browser parity"
+  ],
+  "noHeavyLocalReservation": true,
+  "noCloudSecurityDatabaseMergeDeployment": true
+}

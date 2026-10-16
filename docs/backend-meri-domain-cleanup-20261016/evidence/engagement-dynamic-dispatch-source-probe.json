@@ -1,0 +1,19 @@
+{
+  "source": "048 source plus exact225line removal",
+  "target": "apps/api/src/engagement/engagement.service.ts",
+  "argv": [
+    "rg",
+    "-n",
+    "-e",
+    "this\\s*\\[",
+    "-e",
+    "Reflect\\.",
+    "-e",
+    "getOwnPropertyNames",
+    "-e",
+    "getOwnPropertyDescriptors",
+    "apps/api/src/engagement/engagement.service.ts"
+  ],
+  "actualExit": 1,
+  "meaning": "No matches for finite dynamic-self/Reflect/prototype-enumeration patterns; source evidence only, not universal dynamic-call proof"
+}

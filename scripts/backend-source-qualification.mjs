@@ -175,6 +175,7 @@ export function backendSourcePlan() {
       ['Canonical runtime source ownership', ['scripts/verify-defense-budget-mirror-parity.mjs']],
       ['Canonical session4 source ownership', ['scripts/verify-phase8-session4.mjs']],
       ['Current Directory mapper contracts', ['--test', '--test-isolation=none', 'scripts/ci/directory-detail-mappers.contract.spec.mjs']],
+      ['Current Meri domain and Engagement cleanup contracts', ['--test', '--test-isolation=none', 'scripts/ci/meri-domain-cleanup.contract.spec.mjs']],
     ],
     historical: [
       { path: 'scripts/engagement-phase3-ui-inventory.spec.mjs', cases: 32,

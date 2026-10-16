@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "status": "implemented-source-only",
+  "sourcePath": "apps/api/src/engagement/engagement.service.ts",
+  "sourceCommit": "0483963adc5382202408e8398d8b1601f53d8525",
+  "premapCommit": "4f26d7c9867dfaa5ccb07dc0e4994a045e437353",
+  "before": {
+    "gitBlobSha1": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+    "sha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9",
+    "bytes": 506538,
+    "physicalLines": 12528
+  },
+  "after": {
+    "gitBlobSha1": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383",
+    "sha256": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a",
+    "bytes": 496964,
+    "physicalLines": 12303
+  },
+  "removed": {
+    "physicalLines": 225,
+    "nonblankLines": 220,
+    "bytes": 9574,
+    "blocks": [
+      {
+        "name": "outreachContext",
+        "originalStartLine": 9595,
+        "originalEndLine": 9644,
+        "physicalLines": 50,
+        "nonblankLines": 49,
+        "originalStartByteOffset": 391739,
+        "originalEndByteOffsetExclusive": 393870,
+        "removedBytes": 2131,
+        "removedBytesSha256": "91b8f149d26aa693527a72802c8d0184bfa0dc4f260eeded89266b50e42be07e",
+        "inverseInsertionByteOffset": 391739
+      },
+      {
+        "name": "outreachVoiceFewShots",
+        "originalStartLine": 10281,
+        "originalEndLine": 10342,
+        "physicalLines": 62,
+        "nonblankLines": 62,
+        "originalStartByteOffset": 421533,
+        "originalEndByteOffsetExclusive": 424220,
+        "removedBytes": 2687,
+        "removedBytesSha256": "47011d25aa89c51eb331c4b0ac5a5acf5630034c34f8a275baa0effc912978c6",
+        "inverseInsertionByteOffset": 419402
+      },
+      {
+        "name": "batchRecipientCorrespondence",
+        "originalStartLine": 10416,
+        "originalEndLine": 10528,
+        "physicalLines": 113,
+        "nonblankLines": 109,
+        "originalStartByteOffset": 427164,
+        "originalEndByteOffsetExclusive": 431920,
+        "removedBytes": 4756,
+        "removedBytesSha256": "6047cad8bed4362852cf4741e4a7ec5dabb963e8bd3a1719e87a8674c4cfccac",
+        "inverseInsertionByteOffset": 422346
+      }
+    ]
+  },
+  "inverseProof": {
+    "algorithm": "Reinsert each original Git-pinned block at its recorded after-file byte offset; compare every reconstructed byte to the original before any source write",
+    "reconstructedBytes": 506538,
+    "reconstructedSha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9",
+    "everyByteEqual": true,
+    "allOtherBytesPreserved": true,
+    "persistedAfterHashVerified": true,
+    "originalBodiesPersisted": false,
+    "recoverOriginalBlocksFrom": "git show 0483963adc5382202408e8398d8b1601f53d8525:apps/api/src/engagement/engagement.service.ts"
+  },
+  "scope": {
+    "applicationFilesChanged": [
+      "apps/api/src/engagement/engagement.service.ts"
+    ],
+    "importsChanged": false,
+    "testsChanged": false,
+    "providersOrDtoOrModulesChanged": false,
+    "nodeTestsCompilerServicesGitCommitRun": false
+  },
+  "notes": [
+    "Only the three sealed inclusive blocks were removed; blank separators outside those blocks were preserved.",
+    "All seven direct enrichment cases/helpers, eleven batch cases/assignment-only stubs, exported scrubber, public billTruthBlock, canonical gateway, providers and constructor are outside the removed byte ranges.",
+    "No whole original body is stored in this receipt; immutable source commit/blob and offsets recover it for review."
+  ]
+}

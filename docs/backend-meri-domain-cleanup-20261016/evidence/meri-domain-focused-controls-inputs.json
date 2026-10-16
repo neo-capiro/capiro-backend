@@ -1,0 +1,40 @@
+{
+  "parent": "0483963adc5382202408e8398d8b1601f53d8525",
+  "premap": "4f26d7c9867dfaa5ccb07dc0e4994a045e437353",
+  "expectedCases": 42,
+  "scope": "24new builtin fixtures/source contracts plus18existing catalog controls; no native application/DB/shared normalization qualification",
+  "inputs": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372"
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "sha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "sha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bill-text-search.ts",
+      "sha256": "e8bbb52c50714cff87ab5ddd0dcd54c293a063e0410f95b0bf2cb6f840efec14"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "sha256": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a"
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "sha256": "e63a3582ca6b12433490407dc370e7e32a3e498cadd7fae60a086c7e6bbe654c"
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "sha256": "478014a4d3a33bf26ffb6e7eacff3ba1490afd883f252ee673197db241a8778b"
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "sha256": "5043be2a209a788f306b1a5dad221ad14a3db9e4aa0d7d244d5cb59cbe98eafd"
+    }
+  ]
+}
