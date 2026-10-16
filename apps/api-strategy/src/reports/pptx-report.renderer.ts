@@ -14,15 +14,13 @@ import {
   focusAreas,
   formatDate,
   isAmendmentStrategy,
-  kindLabel,
   leadershipAgenda,
   roadmap,
   routeAndVehicleItems,
-  statusLabel,
-  strategyTypeLabel,
   targetBudgetLineItems,
   validationSummary,
 } from "./report-content.js";
+import { kindLabel, statusLabel, strategyTypeLabel } from "./report-labels.js";
 import { containBox, readRasterSize } from "./report-image.js";
 import {
   narrativeSection,

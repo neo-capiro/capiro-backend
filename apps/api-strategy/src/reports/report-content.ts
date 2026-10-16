@@ -1,4 +1,5 @@
 import { isCommittedStrategyStep, isStrategyStepOverdue, strategyStepDueDate } from '@capiro/strategy-verifier';
+import { kindLabel, statusLabel, strategyTypeLabel } from "./report-labels.js";
 import type {
   ExecutiveReportSnapshot,
   ReportContextFact,
@@ -7,6 +8,8 @@ import type {
   ReportNode,
   ReportSectionReadiness,
 } from "./report.types.js";
+
+export { kindLabel, statusLabel, strategyTypeLabel } from "./report-labels.js";
 
 export interface RoadmapGroup {
   label:
@@ -379,34 +382,6 @@ export function nodeDetail(
   return parts.join(" | ");
 }
 
-export function statusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    draft: "Draft",
-    in_progress: "In progress",
-    internal_review: "Internal review",
-    active: "Active",
-    suggested: "Suggested",
-  };
-  return labels[status] ?? titleCase(status);
-}
-
-export function kindLabel(kind: string): string {
-  return titleCase(kind);
-}
-
-export function strategyTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    appropriations: "Appropriations",
-    authorization: "Authorization",
-    regulatory: "Regulatory / policy",
-    coalition: "Coalition / positioning",
-    procurement: "Contract / procurement",
-    earmark: "Grant / earmark",
-    amendment: "Amendment ask",
-  };
-  return labels[type] ?? titleCase(type);
-}
-
 /*
  * ---------------------------------------------------------------------------
  * Amendment-type content (deterministic, no LLM).
@@ -690,10 +665,4 @@ function priority(node: ReportNode, asOf: number): number {
 
 function dueMs(node: ReportNode): number {
   return strategyStepDueDate(node) ?? Number.MAX_SAFE_INTEGER;
-}
-
-function titleCase(value: string): string {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
