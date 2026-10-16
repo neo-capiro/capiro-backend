@@ -96,7 +96,7 @@
       "scope": [
         "Core first-chat request receipt with tenant/actor/request uniqueness",
         "Core conversation and receipt same-transaction insert",
-        "active owned conversation and current client checks on every replay"
+        "active owned conversation and current client memory-wall checks on every replay"
       ],
       "excluded": [
         "live migration execution or native database qualification",

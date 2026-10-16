@@ -26,8 +26,8 @@ separate non-idempotent operation.
 For every successful replay, Core checks that the exact conversation still
 belongs to the authenticated tenant and actor, is active and unarchived, is
 still assigned to the original client, and that the client is currently active
-within that tenant. The latter is Core's existing current-client predicate;
-this route does not claim a separate per-user client-membership check. A
+within that tenant and visible to the actor under Core's client memory wall.
+This matches the existing `/context` client predicate. A
 request ID reused with a different client returns 409. An archived, moved, or
 deleted conversation also returns 409; a deleted conversation leaves a poisoned
 receipt and is never replaced under the same request ID. A no-longer-visible

@@ -559,7 +559,15 @@ export class MeriService implements MeriTurnMaintenance {
     try {
       return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const client = await tx.client.findFirst({
-          where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          where: {
+            id: clientId,
+            tenantId: ctx.tenantId,
+            status: { not: 'archived' },
+            OR: [
+              { memoryWall: false },
+              { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+            ],
+          },
           select: { id: true },
         });
         if (!client) throw new NotFoundException('Client not found');
@@ -650,7 +658,15 @@ export class MeriService implements MeriTurnMaintenance {
         throw new ConflictException('New Chat conversation is no longer active in this client');
       }
       const client = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        where: {
+          id: clientId,
+          tenantId: ctx.tenantId,
+          status: { not: 'archived' },
+          OR: [
+            { memoryWall: false },
+            { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+          ],
+        },
         select: { id: true },
       });
       if (!client) throw new NotFoundException('Client not found');

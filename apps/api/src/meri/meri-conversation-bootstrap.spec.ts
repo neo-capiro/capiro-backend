@@ -19,6 +19,8 @@ interface ClientRow {
   id: string;
   tenantId: string;
   status: string;
+  memoryWall: boolean;
+  memoryAccessGrants: Array<{ tenantId: string; userId: string }>;
 }
 
 interface ConversationRow {
@@ -50,9 +52,9 @@ interface Store {
 function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
   const store: Store = {
     clients: [
-      { id: CLIENT, tenantId: TENANT, status: 'active' },
-      { id: OTHER_CLIENT, tenantId: TENANT, status: 'active' },
-      { id: FOREIGN_CLIENT, tenantId: OTHER_TENANT, status: 'active' },
+      { id: CLIENT, tenantId: TENANT, status: 'active', memoryWall: false, memoryAccessGrants: [] },
+      { id: OTHER_CLIENT, tenantId: TENANT, status: 'active', memoryWall: false, memoryAccessGrants: [] },
+      { id: FOREIGN_CLIENT, tenantId: OTHER_TENANT, status: 'active', memoryWall: false, memoryAccessGrants: [] },
     ],
     conversations: [],
     receipts: [],
@@ -69,13 +71,32 @@ function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
           findUnique: async () => ({ email: 'actor@example.test', firstName: null, lastName: null }),
         },
         client: {
-          findFirst: async ({ where }: { where: { id: string; tenantId: string; status?: { not: string } } }) => {
+          findFirst: async ({ where }: {
+            where: {
+              id: string;
+              tenantId: string;
+              status?: { not: string };
+              OR?: Array<
+                | { memoryWall: false }
+                | { memoryAccessGrants: { some: { tenantId: string; userId: string } } }
+              >;
+            };
+          }) => {
             const row = snapshot.clients.find(
               (client) =>
                 client.id === where.id &&
                 client.tenantId === tenantId &&
                 client.tenantId === where.tenantId &&
-                client.status !== where.status?.not,
+                client.status !== where.status?.not &&
+                (where.OR?.some((branch) =>
+                  'memoryWall' in branch
+                    ? client.memoryWall === branch.memoryWall
+                    : client.memoryAccessGrants.some(
+                        (grant) =>
+                          grant.tenantId === branch.memoryAccessGrants.some.tenantId &&
+                          grant.userId === branch.memoryAccessGrants.some.userId,
+                      ),
+                ) ?? false),
             );
             return row ? { id: row.id } : null;
           },
@@ -286,6 +307,51 @@ describe('MeriService.bootstrapConversation', () => {
     h.store.clients.find((client) => client.id === CLIENT)!.status = 'archived';
     await expect(h.service.bootstrapConversation(context(), request)).rejects.toBeInstanceOf(NotFoundException);
     await expect(h.service.bootstrapConversation(context(), input())).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.store.conversations).toHaveLength(1);
+    expect(h.store.receipts).toHaveLength(1);
+  });
+
+  test('denies initial creation and replay when a client has a memory wall without an actor grant', async () => {
+    const h = harness();
+    const currentClient = () => {
+      const row = h.store.clients.find((client) => client.id === CLIENT);
+      if (!row) throw new Error('test client missing');
+      return row;
+    };
+    currentClient().memoryWall = true;
+
+    await expect(h.service.bootstrapConversation(context(), input())).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.store.conversations).toHaveLength(0);
+    expect(h.store.receipts).toHaveLength(0);
+
+    currentClient().memoryWall = false;
+    const request = input();
+    await h.service.bootstrapConversation(context(), request);
+    currentClient().memoryWall = true;
+    await expect(h.service.bootstrapConversation(context(), request)).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.store.conversations).toHaveLength(1);
+    expect(h.store.receipts).toHaveLength(1);
+  });
+
+  test('an exact actor grant permits a walled client and revocation blocks replay', async () => {
+    const h = harness();
+    const currentClient = () => {
+      const row = h.store.clients.find((client) => client.id === CLIENT);
+      if (!row) throw new Error('test client missing');
+      return row;
+    };
+    currentClient().memoryWall = true;
+    currentClient().memoryAccessGrants.push({ tenantId: TENANT, userId: ACTOR });
+    const request = input();
+
+    const created = await h.service.bootstrapConversation(context(), request);
+    expect(await h.service.bootstrapConversation(context(), request)).toEqual(created);
+    await expect(
+      h.service.bootstrapConversation(context(TENANT, OTHER_ACTOR), input()),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    currentClient().memoryAccessGrants.length = 0;
+    await expect(h.service.bootstrapConversation(context(), request)).rejects.toBeInstanceOf(NotFoundException);
     expect(h.store.conversations).toHaveLength(1);
     expect(h.store.receipts).toHaveLength(1);
   });
