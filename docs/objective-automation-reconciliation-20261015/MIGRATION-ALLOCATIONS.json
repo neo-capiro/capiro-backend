@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "CENTRAL_SOURCE_ALLOCATION_RECORD",
   "coordinatorThread": "01a0ff18-26cd-7609-beba-87726d0300c6",
-  "recordedAt": "2026-10-15T13:09:28.722Z",
+  "recordedAt": "2026-10-16T18:03:15Z",
   "reservations": [
     {
       "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
@@ -79,6 +79,32 @@
         "public contract freeze",
         "Strategy/Planner output or applied-pointer writes",
         "manual project/group restrictions"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281016010000_client_objective_workload_delegations/migration.sql",
+      "owner": "backend Objective workload delegation and Core operation replay",
+      "workstream": "feat/objective-retained-result-bridge",
+      "base": "e03f7cf2093066e7f0c3f7b10536a5d81ed7639b",
+      "allocation": "coordinator authorized source-only reservation after fresh central record and remote branch migration collision check",
+      "allocatedAt": "2026-10-16T18:03:15Z",
+      "checks": {
+        "remoteBranchHeads": 51,
+        "uniqueCoreMigrationTrees": 7,
+        "proposedPrefixPresent": false,
+        "latestObservedCoreMigration": "20281015050000_client_objective_work_reconsent",
+        "centralRecordBeforeAllocationSha": "fbbfde6ddf77bda120bd6709641904805abb38f6"
+      },
+      "scope": [
+        "disabled Core delegation bound to exact consent/action and generation job",
+        "Core issuer operation and caller-proof replay records",
+        "source-only transaction adapter and focused offline checks"
+      ],
+      "excluded": [
+        "live SQL execution or native transaction qualification",
+        "credential or key creation and production issuer activation",
+        "Strategy replay schema allocation",
+        "grant expansion or deployment"
       ]
     }
   ]
