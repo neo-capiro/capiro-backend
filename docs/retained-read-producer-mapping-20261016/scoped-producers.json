@@ -1,0 +1,1962 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Source-only producer and trusted-context ownership map; no activation, policy change or retained-operation expansion.",
+  "ledger": {
+    "commit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+    "path": "docs/coordination/ledgers/scope-ledger.json",
+    "gitBlob": "1546e9566cb0719261ca660bd5402732f65146e7",
+    "inputFile": "MISSING-READS.json"
+  },
+  "backend": {
+    "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+    "tree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+    "note": "Pinned git blobs inspected; frozen staged checkout/HEAD is not used as an alternate authority."
+  },
+  "coverage": {
+    "families": [
+      "data-search",
+      "client-knowledge-search",
+      "intelligence-summary",
+      "facility-representation",
+      "district-nexus",
+      "tracked-bills",
+      "outreach-query",
+      "business-development",
+      "public-web"
+    ],
+    "operationCount": 14,
+    "testsRun": 0,
+    "networkCalls": 0,
+    "databaseCalls": 0,
+    "sourceEdits": 0,
+    "outputFileOnly": "scoped-producers.json"
+  },
+  "findings": [
+    "Every listed operation has an existing legacy native producer. Ledger adapter-missing does not mean producer absent.",
+    "Data search already delegates to ContextPlane's current per-page server client/mailbox authorization and canonical provenance/coverage; it is the clearest existing authenticated reuse seam, not a completed Meri installation.",
+    "Representation, R5 District Nexus and manual tracked-bill native tool methods do not themselves perform actor client-wall authorization. Separate ContextPlane adapters must not be credited to these paths.",
+    "Outreach has two different owners: private actor-owned record detail versus tenant campaign rows. Business development requires an owned legacy Clio conversation and saved current prospect scope; native Meri conversation identity is not interchangeable.",
+    "Public web performs external provider/live-fetch network work. This mapping makes no recommendation to activate it.",
+    "No new routes, private permissions, timing policy, account-assignment model or claim of installed current Meri adapter is proposed."
+  ],
+  "commonEntry": {
+    "method": "POST",
+    "path": "/api/clio/tools/:name",
+    "nativeBody": "Ordinary tool input object, not a new retained envelope. Common entry plus each native handler's checks applies.",
+    "chain": "TenantContextMiddleware -> RolesGuard minimum standard_user -> ToolServiceSecretGuard -> withMeriToolRequestControl -> executeFromAuthenticatedUser -> executeScoped registry.",
+    "principalOwner": "TenantContextMiddleware verifies bearer/tenant membership and installs req.tenantContext. A new native retained capture/current authority is separate and is not implied by generic tool ingress.",
+    "serviceIdentity": "Production/staging require x-internal-service-secret against configured INTERNAL_SERVICE_SECRET in addition to ordinary user authentication. Development/test observe mode can permit absent/wrong secret unless MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. No broker audience contract is supplied by this guard.",
+    "canonicalClientWall": {
+      "owner": "packages/shared/src/client-memory-wall.ts:9 clientMemoryAllowed, reexported by API memory-wall.helpers.ts:116",
+      "semantics": "Exact tenant/client must exist; allowed when not walled OR current user has exact tenant/client grant. Grants are hard-deleted on revocation. No administrator bypass or invented grant expiry/status. This predicate does not itself check client archive status or active membership.",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/client-memory-wall.ts#L9"
+    },
+    "legacyConversation": "Legacy Meri chat fills omitted client from its selected conversation and rejects a conflicting client before dispatch. Direct tools ingress does not establish that conversation binding.",
+    "retainedBoundary": "Current retained operation union/parser admits ONLY get_research_portfolio, get_research_portfolio_changes, get_florida_budget_project. All14 mapped operations remain outside ALL3.",
+    "refs": [
+      {
+        "source": "s04",
+        "line": 81,
+        "purpose": "/api global prefix"
+      },
+      {
+        "source": "s58",
+        "line": 163,
+        "purpose": "native bearer verification and tenant membership resolution"
+      },
+      {
+        "source": "s58",
+        "line": 263,
+        "purpose": "active membership selection"
+      },
+      {
+        "source": "s58",
+        "line": 419,
+        "purpose": "trusted request context and private provenance"
+      },
+      {
+        "source": "s03",
+        "line": 19,
+        "purpose": "minimum role and unknown-role denial"
+      },
+      {
+        "source": "s50",
+        "line": 310,
+        "purpose": "controller role registration"
+      },
+      {
+        "source": "s50",
+        "line": 506,
+        "purpose": "generic tools route, service guard and authenticated dispatch"
+      },
+      {
+        "source": "s53",
+        "line": 31,
+        "purpose": "actual header/config enforcement"
+      },
+      {
+        "source": "s49",
+        "line": 2467,
+        "purpose": "native authenticated input admission"
+      },
+      {
+        "source": "s51",
+        "line": 2045,
+        "purpose": "legacy conversation client binding"
+      },
+      {
+        "source": "s01",
+        "line": 13,
+        "purpose": "closed ALL3 operation union"
+      },
+      {
+        "source": "s59",
+        "line": 245,
+        "purpose": "closed retained parser admission"
+      }
+    ],
+    "tests": [
+      {
+        "source": "s52",
+        "line": 37,
+        "purpose": "environment-specific secret enforcement",
+        "execution": "not run; source inspection only"
+      },
+      {
+        "source": "s02",
+        "line": 1,
+        "purpose": "role guard suite; inspected source owner, not executed",
+        "execution": "not run; source inspection only"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "search_capiro_data",
+      "family": "data-search",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService -> searchCapiroData -> MeriContextPlaneService.searchToolData",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2631,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s43",
+            "line": 83,
+            "purpose": "canonical wrapper"
+          },
+          {
+            "source": "s41",
+            "line": 89,
+            "purpose": "shared plane owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "query:string <=4000 (empty allowed for enumeration)",
+          "domains:nonempty supported RetrievalDomain[]"
+        ],
+        "optional": [
+          "clientId:UUID",
+          "queryClass:lookup|semantic_recall|comparison|entity_history|change_detection|exhaustive_search|federal_market_analysis (default lookup)",
+          "pageSize:integer 1..100 (default50)",
+          "cursors:requested-domain -> nonempty string <=8192",
+          "windowStart/windowEnd:paired ISO dates, end>start",
+          "memoryItemId:UUID, institutional_knowledge only, lookup or semantic_recall"
+        ],
+        "normalization": "Query is trimmed; domains deduplicated; dates parsed. Caller authority fields do not supply securityScope.",
+        "refs": [
+          {
+            "source": "s43",
+            "line": 32,
+            "purpose": "actual admission, including exact-item narrowing"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "RetrievalResponse in retrieval-v2.types.ts",
+        "shape": "{tool:'search_capiro_data',records:RetrievalRecord[],coverage:CoverageManifest,observability:RetrievalObservability}; wrapper preserves provenance, coverage and returned cursors",
+        "refs": [
+          {
+            "source": "s57",
+            "line": 185,
+            "purpose": "record provenance"
+          },
+          {
+            "source": "s57",
+            "line": 241,
+            "purpose": "coverage manifest"
+          },
+          {
+            "source": "s57",
+            "line": 349,
+            "purpose": "canonical response"
+          },
+          {
+            "source": "s43",
+            "line": 104,
+            "purpose": "verbatim projection"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Authenticated TenantContext is used, then a server-built client/mailbox envelope; no model-supplied permission list.",
+        "clientWall": "securityEnvelope reads exact-tenant clients with memoryWall=false OR actor memory grant. Mailboxes require actor-created connection and mailbox provider. Explicit client outside envelope is404. ContextSecurityScopeService re-resolves current clients/mailboxes; explicit empty remains empty and partial requested client scope rejects.",
+        "resourceIdentity": "Native RetrievalRecord IDs/source references and per-domain cursors; exact institutional memory UUID when requested.",
+        "limits": "These helper predicates do not themselves establish fresh active membership/archive filtering or a native Meri retained capture. Fresh authorization is per request/page; do not claim a transaction spanning provider work.",
+        "refs": [
+          {
+            "source": "s41",
+            "line": 400,
+            "purpose": "server envelope"
+          },
+          {
+            "source": "s15",
+            "line": 54,
+            "purpose": "current canonical envelope"
+          },
+          {
+            "source": "s15",
+            "line": 92,
+            "purpose": "client wall resolver"
+          },
+          {
+            "source": "s14",
+            "line": 113,
+            "purpose": "envelope consistency before resolution"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "ContextPlane owns tenant/actor/securityScope and retrieval provenance. No additional ledger context key is required.",
+        "gap": "Current Meri source adapter and receiving capture/binding are missing; preserve canonical cursors/coverage rather than manufacture a new result envelope."
+      },
+      "behavior": {
+        "unavailable": "Missing contextPlane or migration_exception/no retrieval fails503, explicitly no search performed.",
+        "sideEffects": "Retrieval adapters may invoke their configured search/embedding providers; this audit invoked none."
+      },
+      "tests": [
+        {
+          "source": "s42",
+          "line": 61,
+          "purpose": "server authority, provenance/coverage;83 revoked follow-up;93 empty scope;102 fail-closed authorization;109 missing service",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s47",
+          "line": 1671,
+          "purpose": "active registry/shared plane;1705 unauthorized scope before adapters;1725 unavailable wiring",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Bind a new explicitly admitted Meri adapter to this existing authenticated shared plane; retain server envelope, per-page reauthorization, record provenance and coverage. No producer rewrite or ALL3 expansion is implied."
+    },
+    {
+      "operation": "search_client_knowledge",
+      "family": "client-knowledge-search",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": false,
+        "requiredContextKeys": [
+          "asOf"
+        ],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.searchClientKnowledge -> ClientKbService.search",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2634,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 2274,
+            "purpose": "wrapper"
+          },
+          {
+            "source": "s24",
+            "line": 654,
+            "purpose": "search owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "query:nonempty trimmed string"
+        ],
+        "optional": [
+          "clientId:string; missing gives explicit no-client empty result",
+          "kind:client_doc_chunk|client_profile|client_facility|client_person",
+          "limit:clamped 1..20, default8"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 1042,
+            "purpose": "advertised schema"
+          },
+          {
+            "source": "s49",
+            "line": 2274,
+            "purpose": "actual wrapper admission"
+          },
+          {
+            "source": "s24",
+            "line": 654,
+            "purpose": "canonical search input"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "ClientKbService.search inline typed rows; wrapper adds client name/query/time",
+        "shape": "{tool,generatedAt,clientId,clientName,query,results:[{kind,id,title<=110,snippet<=280,score}]}; optional note on no-client/unavailability",
+        "refs": [
+          {
+            "source": "s24",
+            "line": 654,
+            "purpose": "typed result"
+          },
+          {
+            "source": "s24",
+            "line": 669,
+            "purpose": "source-type, model and score query"
+          },
+          {
+            "source": "s49",
+            "line": 2292,
+            "purpose": "result projection/error fallback"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "ctx tenant/user supplied to ClientKbService; no caller ACL list.",
+        "clientWall": "clientMemoryAllowed gates exact client inside tenant transaction. Visible attachment IDs use viewer-mode/uploader and canonical meeting/mail ownership predicates, plus unsuperseded document readiness/scanning.",
+        "resourceIdentity": "Embedding source_type/source_id; doc chunk identity is source-id prefix of currently visible document IDs; document identity/readiness is owned by attachment policy helpers.",
+        "limits": "Wrapper reads clientName before the KB wall check; wall-denied search returns[] rather than a distinct denial. Query embedding happens before wall check. This is not proof of whole-wrapper wall masking or post-provider resource revision.",
+        "refs": [
+          {
+            "source": "s24",
+            "line": 97,
+            "purpose": "visibleDocuments owner"
+          },
+          {
+            "source": "s24",
+            "line": 661,
+            "purpose": "embedding before transaction"
+          },
+          {
+            "source": "s24",
+            "line": 664,
+            "purpose": "canonical wall"
+          },
+          {
+            "source": "s34",
+            "line": 116,
+            "purpose": "canonical wall helper"
+          },
+          {
+            "source": "s49",
+            "line": 2287,
+            "purpose": "client metadata lookup before KB search"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [
+          "asOf"
+        ],
+        "actual": "Wrapper generates new Date().toISOString().",
+        "gap": "No trusted asOf parameter/capture is supplied by this producer; an adapter must obtain the contract's trusted clock and preserve canonical document authorization. Do not treat clientId/name input as a grant."
+      },
+      "behavior": {
+        "unavailable": "Wrapper catches KB failures and returns successful empty results plus explicit temporary-unavailability note; missing client returns a different note.",
+        "sideEffects": "Search calls embedding provider. No provider call was made by this audit."
+      },
+      "tests": [
+        {
+          "source": "s22",
+          "line": 83,
+          "purpose": "private owner versus colleague;92 readiness/threat/superseded;107 walled client/missing document actor",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s23",
+          "line": 45,
+          "purpose": "filename-only versus indexed text;97 transient extraction retains prior chunks",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Use ClientKbService as content owner, retain document/wall/readiness filters and surface unavailable/denied-empty distinctions honestly; define the missing trusted asOf/adapter projection with READS before activation."
+    },
+    {
+      "operation": "query_knowledge_graph",
+      "family": "client-knowledge-search",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": false,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.queryKnowledgeGraph -> loadGraphForCtx",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2637,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 3273,
+            "purpose": "tool owner"
+          },
+          {
+            "source": "s49",
+            "line": 3157,
+            "purpose": "graph source owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [],
+        "optional": [
+          "seed:string <=120",
+          "depth:parseInt clamped1..4, default2",
+          "clientId:string <=80 accepted by handler although absent from advertised schema; UUID required"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 1084,
+            "purpose": "advertised seed/depth schema"
+          },
+          {
+            "source": "s49",
+            "line": 3273,
+            "purpose": "actual client narrowing"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "MeriToolsService with memory graph helpers",
+        "shape": "Nonempty {summary,nodes:[{id,type,label}],connections:first120 formatted edges}; empty {summary,nodes:[],edges:[]}; invalid/foreign seed returns in-band {error}.",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 3273,
+            "purpose": "projection and error forms"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "withTenantUser(ctx.tenantId,ctx.userId) owns source queries.",
+        "clientWall": "fetchDeniedClientIds excludes denied client roots from memory items/edges and tracked-bill/people associations; memory items are shared-owner or current-user. Client-scoped graph is restricted to that client; foreign client seed is refused. Cache traversal excludes archived and denied clients.",
+        "resourceIdentity": "Graph node IDs, including client:<UUID>, canonical memory/source identities and edges; traversal source selected from tenant settings/env.",
+        "limits": "Source comments retain legacy memory-status filtering limitations; no current retained resourceRevision or before/after provider capture. Client narrowing is not itself a grant.",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 3138,
+            "purpose": "traversal source selection"
+          },
+          {
+            "source": "s49",
+            "line": 3165,
+            "purpose": "canonical denied-client filter"
+          },
+          {
+            "source": "s49",
+            "line": 3175,
+            "purpose": "legacy status limitation"
+          },
+          {
+            "source": "s49",
+            "line": 3249,
+            "purpose": "cache path and current client filtering"
+          },
+          {
+            "source": "s49",
+            "line": 3282,
+            "purpose": "scoped subgraph and seed refusal"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Tenant/actor comes from native context; legacy chat may inject selected client.",
+        "gap": "No current Meri adapter/capture. Native Meri conversation UUID must not be substituted for legacy Core conversation authority."
+      },
+      "behavior": {
+        "unavailable": "Cache-enrichment failure falls back to baseline graph; no provider-wide completeness/absence assertion follows from that result."
+      },
+      "tests": [
+        {
+          "source": "s39",
+          "line": 155,
+          "purpose": "source-contract assertions for scoped graph, foreign seed161 and invalid UUID169; these are not native end-to-end qualification",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Reuse existing graph/wall owners and preserve in-band errors, output differences and degraded fallback. Any normalized typed contract/capture remains missing."
+    },
+    {
+      "operation": "query_intelligence",
+      "family": "intelligence-summary",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": false,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.queryIntelligence(input), no TenantContext argument",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2636,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 3498,
+            "purpose": "aggregate producer"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [],
+        "optional": [
+          "clientName:optional string <=200, public contractor-name search only"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 1081,
+            "purpose": "advertised schema"
+          },
+          {
+            "source": "s49",
+            "line": 3498,
+            "purpose": "actual normalization"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Inline aggregate of LobbyIntelService, LdaIntelligenceService, FederalSpendingService and global table counts",
+        "shape": "{tool:'query_intelligence',generatedAt,data:string}; top8 surging issues/top10 topics, Congress bill summary and optional contractor spending; global source counts.",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 3504,
+            "purpose": "lobby summary"
+          },
+          {
+            "source": "s49",
+            "line": 3530,
+            "purpose": "Congress summary"
+          },
+          {
+            "source": "s49",
+            "line": 3558,
+            "purpose": "contractor-name spending"
+          },
+          {
+            "source": "s49",
+            "line": 3584,
+            "purpose": "global source counts"
+          },
+          {
+            "source": "s49",
+            "line": 3624,
+            "purpose": "inline response"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Common HTTP middleware/roles protect ingress; producer reads public/global intelligence and does not consume private tenant/client authority.",
+        "clientWall": "No private client lookup or wall predicate is performed; clientName is free text for global contractor search, not resolved Capiro client identity.",
+        "resourceIdentity": "Public source records are summarized to text, not retained as a structured per-record provenance DTO.",
+        "limits": "No structured source-health proof or authoritative absence: each source failure is caught/omitted and all missing data can return 'No intelligence data currently available.'"
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Producer owns generatedAt only.",
+        "gap": "Missing current contract declaration, typed per-source projection/provenance and source adapter; no private client authority can be inferred from the name."
+      },
+      "behavior": {
+        "unavailable": "Best-effort per-source catches can produce partial or fallback text.",
+        "sideEffects": "Existing upstream services may perform configured reads; this audit invoked no service/provider."
+      },
+      "tests": [
+        {
+          "source": "s48",
+          "line": 135,
+          "purpose": "registration coverage only; no focused aggregate authorization/provenance test established in this bounded audit",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "An owner must first specify the current aggregate contract and honest partial-source/provenance projection. Existing public aggregate producer is present; do not invent an endpoint or private-client scope."
+    },
+    {
+      "operation": "get_representation",
+      "family": "facility-representation",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [
+          "binding",
+          "subject"
+        ],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.getRepresentation -> RepresentationResolverService.representationForClient; same resolver as GET /api/clients/:clientId/representation",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2662,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 6070,
+            "purpose": "tool projection"
+          },
+          {
+            "source": "s13",
+            "line": 8,
+            "purpose": "related native controller"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [],
+        "optional": [
+          "clientId:string <=64; missing returns explicit empty note",
+          "state:string <=2, uppercased, filters facilities"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 6070,
+            "purpose": "actual input"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "RepresentationResolverService",
+        "shape": "{tool,generatedAt,facilities,note}; each facility preserves UUID/name/city/state and federal/state representative IDs/districts, or explicit unresolved reason.",
+        "refs": [
+          {
+            "source": "s12",
+            "line": 261,
+            "purpose": "tenant/client facility read"
+          },
+          {
+            "source": "s12",
+            "line": 141,
+            "purpose": "batched current public representative joins"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "TenantContext provides tenant; resolver signature takes tenantId/clientId only.",
+        "clientWall": "Exact-tenant clientFacility query; no actor, client-wall or current client-status predicate in wrapper/resolver.",
+        "resourceIdentity": "Facility UUID, stored district codes, federal bioguideId and state legislator ID; manual district records retained and at-large00 maps House NULL.",
+        "limits": "No resourceRevision/native capture/retained receipt. Tenant-private representation is deliberately excluded from the public research producer allowlist.",
+        "refs": [
+          {
+            "source": "s45",
+            "line": 51,
+            "purpose": "tenant-private exclusion"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [
+          "binding",
+          "subject"
+        ],
+        "actual": "Native authenticated ctx and optional legacy selected-client injection only.",
+        "gap": "These native producers do not create the required current Meri binding/resolved-subject capture or wall authorization."
+      },
+      "behavior": {
+        "unavailable": "Missing districts remain explicit unresolved facilities; missing client selector produces a no-client note, not authoritative no representation."
+      },
+      "tests": [
+        {
+          "source": "s40",
+          "line": 254,
+          "purpose": "projection, unresolved facilities, state filter, empty result",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s11",
+          "line": 75,
+          "purpose": "manual districts, current names and at-large normalization",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Retain resolver/output identity; coordinate an authenticated current client/wall and binding/subject bridge before admitting a new family. Do not classify it as public-web/public-only data."
+    },
+    {
+      "operation": "get_district_nexus_context",
+      "family": "district-nexus",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [
+          "binding",
+          "subject"
+        ],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService -> optional R5MeriDistrictTools.getContext -> R5DistrictContextService.getContext",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2669,
+            "purpose": "active optional registry"
+          },
+          {
+            "source": "s20",
+            "line": 52,
+            "purpose": "tool owner"
+          },
+          {
+            "source": "s16",
+            "line": 50,
+            "purpose": "canonical R5 context owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "clientId:nonempty trimmed string",
+          "state:two-letter uppercase",
+          "district:two digits"
+        ],
+        "optional": [],
+        "refs": [
+          {
+            "source": "s20",
+            "line": 12,
+            "purpose": "actual scope admission"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "R5 context fact/gap types and existing district rail owners",
+        "shape": "{available:true,clientId,clientName,state,district,generatedAt,facts<=40,gaps<=30,truncated}; source fact identities retain record/amount-stage/geography/asOf/freshness/coverage/caveats.",
+        "refs": [
+          {
+            "source": "s21",
+            "line": 34,
+            "purpose": "native fact identities"
+          },
+          {
+            "source": "s20",
+            "line": 22,
+            "purpose": "honest output bounds"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Native ctx tenant passed to R5 flag and context services.",
+        "clientWall": "Tenant master/R5 feature flags and exact-tenant nonarchived client are checked. R5 methods do not accept actor or apply client memory wall.",
+        "resourceIdentity": "Client UUID plus normalized state/district and per-rail source record IDs.",
+        "limits": "Separate DistrictNexusRetrievalAdapter DOES apply visibleGovernmentClients and post-read wall recheck; these R5 tool handlers do not call it.",
+        "refs": [
+          {
+            "source": "s18",
+            "line": 36,
+            "purpose": "tenant feature flags"
+          },
+          {
+            "source": "s55",
+            "line": 63,
+            "purpose": "separate authorized adapter"
+          },
+          {
+            "source": "s55",
+            "line": 166,
+            "purpose": "separate record IDs, recheck188 and incomplete coverage212"
+          },
+          {
+            "source": "s56",
+            "line": 5,
+            "purpose": "canonical visible-client owner"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [
+          "binding",
+          "subject"
+        ],
+        "actual": "R5 supplies resource facts/time/gaps; existing ContextPlane adapter supplies its own caller/client envelope.",
+        "gap": "No retained binding/subject/resource capture on the R5 native path. Do not attribute the separate adapter's wall check to the tool."
+      },
+      "behavior": {
+        "unavailable": "Absent optional service/disabled flag returns available:false feature_disabled; individual rail failures become explicit gaps, not empty proof."
+      },
+      "tests": [
+        {
+          "source": "s19",
+          "line": 37,
+          "purpose": "flags and tool parity",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s17",
+          "line": 72,
+          "purpose": "page parity, foreign-client refusal, stages/zero/gaps",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s54",
+          "line": 171,
+          "purpose": "separate adapter mid-read wall revocation",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Choose and preserve the actual R5 projection plus canonical current wall/binding owner. Existing retrieval adapter is a reusable authorization example, not an already installed retained tool adapter."
+    },
+    {
+      "operation": "get_district_nexus_changes",
+      "family": "district-nexus",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [
+          "binding",
+          "subject"
+        ],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService -> optional R5MeriDistrictTools.getChanges",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2677,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s20",
+            "line": 64,
+            "purpose": "actual changes owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "clientId:nonempty trimmed string",
+          "state:two-letter uppercase",
+          "district:two digits"
+        ],
+        "optional": [
+          "since:parseable ISO timestamp"
+        ],
+        "refs": [
+          {
+            "source": "s20",
+            "line": 12,
+            "purpose": "scope admission"
+          },
+          {
+            "source": "s20",
+            "line": 67,
+            "purpose": "since admission"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Global public districtNexusChange ledger after R5 client context check",
+        "shape": "{available:true,clientId,state,district,generatedAt,changes:[{changeKind,source,sourceRecordId,observedAt,effectiveAt,severity}],gaps,truncated}; newest20 observationKind=change, optional since; GSA FIPS/numeric district normalization.",
+        "refs": [
+          {
+            "source": "s20",
+            "line": 74,
+            "purpose": "canonical ledger query and projection"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Same R5 tenant flags/client context as context operation.",
+        "clientWall": "Exact-tenant nonarchived client is checked by context; no actor/wall check in this R5 method. Ledger is global public geography, not a tenant-private client change ledger.",
+        "resourceIdentity": "Source/sourceRecordId plus observed/effective time and normalized geography.",
+        "limits": "No snapshot revision/current capture; exactly20 rows marks truncated, not a count-based complete history."
+      },
+      "contextOwner": {
+        "requiredKeys": [
+          "binding",
+          "subject"
+        ],
+        "actual": "R5 context owns generatedAt and qualified rail gaps.",
+        "gap": "Required trusted Meri binding/subject and current client-wall corroboration absent; separate retrieval adapter is not called."
+      },
+      "behavior": {
+        "unavailable": "Disabled returns available:false; ledger errors return changes[] with explicit 'Change ledger unavailable' gap."
+      },
+      "tests": [
+        {
+          "source": "s19",
+          "line": 37,
+          "purpose": "tool behavior/flags",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s17",
+          "line": 72,
+          "purpose": "shared client/context parity",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Preserve public-ledger geography/time/truncation and explicit gaps; add no new client-change semantics. A new trusted family capture/adapter still needs coordination."
+    },
+    {
+      "operation": "search_public_web",
+      "family": "public-web",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.searchPublicWeb(input), no ctx",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2685,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 6539,
+            "purpose": "producer"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "query:nonempty string <=240"
+        ],
+        "optional": [
+          "limit:1..12, default6"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 6539,
+            "purpose": "native input/provider selection"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Existing public web search wrapper",
+        "shape": "{tool:'search_public_web',contentStatus:'discovered',generatedAt,provider,total,results}; discovery results are not consulted source text.",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 6539,
+            "purpose": "projection and provider fallback"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Common authenticated ingress; producer does not consume tenant/actor/client/conversation or wall.",
+        "clientWall": "Public search only; a client-looking query is not private client authority.",
+        "resourceIdentity": "Search result URLs/provider metadata; no private resource capture."
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Producer owns generatedAt/provider/discovered status.",
+        "gap": "Current Meri adapter is absent. Existing research-source admission is a different pipeline, not retained current authority."
+      },
+      "behavior": {
+        "sideEffects": "PERFORMS EXTERNAL NETWORK CALLS through configured Tavily/Serper, falling back to DuckDuckGo. This source-only audit made none.",
+        "unavailable": "Provider fallback and discovery semantics must remain explicit; do not claim fetched/consulted content."
+      },
+      "tests": [
+        {
+          "source": "s44",
+          "line": 443,
+          "purpose": "discovered versus consulted output",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Mapping only: no next-family activation recommendation. Any adapter must preserve discovery-only semantics and explicit provider/network execution ownership."
+    },
+    {
+      "operation": "scrape_web_page",
+      "family": "public-web",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.scrapeWebPage -> hardenedWebTransport",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2686,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 6586,
+            "purpose": "producer"
+          },
+          {
+            "source": "s36",
+            "line": 59,
+            "purpose": "guarded transport"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "url:string <=2000"
+        ],
+        "optional": [
+          "mode (accepted by implementation)",
+          "maxChars:500..20000 (accepted by implementation)"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 6586,
+            "purpose": "actual input"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Scrape wrapper plus hardened HTML/PDF transport",
+        "shape": "Final URL, consulted text, content type, raw-byte SHA256, locator/coverage/truncation; authoritativeOwner:'public_url', trust:'external_untrusted'.",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 6586,
+            "purpose": "consulted source projection"
+          },
+          {
+            "source": "s36",
+            "line": 59,
+            "purpose": "URL/DNS/redirect/pinning/size/deadline owner"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Common authenticated ingress; public source producer has no tenant/actor/client input.",
+        "clientWall": "No private client authorization implied by URL.",
+        "resourceIdentity": "Final admitted public URL plus consulted projection/raw bytes hash.",
+        "limits": "Research replay provenance exists: rereads and compares final URL/kind/title/content type/pages/consulted text/totalChars/truncation; tolerates clock/raw markup/link churn. It is not a retained current-authority adapter.",
+        "refs": [
+          {
+            "source": "s46",
+            "line": 262,
+            "purpose": "existing replay projection/comparison"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Transport owns fetched URL/bytes and producer consultation metadata; research replay owns its separately defined comparison.",
+        "gap": "Current Meri retained/source adapter is absent; do not relabel untrusted web text or promote replay to authorization."
+      },
+      "behavior": {
+        "sideEffects": "PERFORMS LIVE EXTERNAL HTTP/DNS/redirect/PDF fetches with size/deadline limits. This audit made none.",
+        "unavailable": "Transport rejects unsafe destinations/redirects and oversize/deadline conditions; caller output must preserve truncation and external-untrusted label."
+      },
+      "tests": [
+        {
+          "source": "s44",
+          "line": 443,
+          "purpose": "consultation/hash/untrusted status",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s44",
+          "line": 613,
+          "purpose": "replay projection drift",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s35",
+          "line": 307,
+          "purpose": "private redirect/DNS, streaming bounds and deadline denials",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Mapping only: no next-family activation recommendation. Reuse the hardened fetch owner and retain consultation/provenance/size/deadline semantics rather than add an unguarded URL reader."
+    },
+    {
+      "operation": "search_tracked_bills",
+      "family": "tracked-bills",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [
+          "binding",
+          "subject",
+          "clientReference"
+        ],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.searchTrackedBills -> IntelligenceService.listTrackedBills -> manual bill tracking owner",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2735,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 8405,
+            "purpose": "native wrapper"
+          },
+          {
+            "source": "s33",
+            "line": 296,
+            "purpose": "manual-list facade"
+          },
+          {
+            "source": "s31",
+            "line": 36,
+            "purpose": "actual canonical read"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "clientId:string <=80; UUID or unique case-insensitive client name resolved to canonical UUID"
+        ],
+        "optional": [],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 1771,
+            "purpose": "advertised input"
+          },
+          {
+            "source": "s49",
+            "line": 9714,
+            "purpose": "native tenant/nonarchived name-or-ID resolver"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Manual trackedBill rows joined to public Congress bill detail",
+        "shape": "{tool,generatedAt,clientId,total,bills:[{id,billId,note,createdAt,bill:BillDetail|null}]}; createdAt descending; detail includes identifier/title/latest actions/status/sponsor/subjects.",
+        "refs": [
+          {
+            "source": "s31",
+            "line": 23,
+            "purpose": "public bill hydration"
+          },
+          {
+            "source": "s28",
+            "line": 152,
+            "purpose": "BillDetail projection"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Native ctx tenant passed to client resolver and tenant transaction.",
+        "clientWall": "ensureClientVisible means same tenant + not archived, with unique exact-name resolution; it has no actor/wall predicate. Manual list uses tenant/client only, not current actor.",
+        "resourceIdentity": "Canonical client UUID, tenant trackedBill UUID and canonical public bill ID; note belongs to tenant tracking row.",
+        "limits": "Related GET /api/intelligence/clients/:clientId/tracked-bills calls getTrackedBills/trackedBillDiscovery, not this manual listTrackedBills producer.",
+        "refs": [
+          {
+            "source": "s32",
+            "line": 332,
+            "purpose": "related but different native UI route"
+          },
+          {
+            "source": "s33",
+            "line": 288,
+            "purpose": "distinct discovery facade"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [
+          "binding",
+          "subject",
+          "clientReference"
+        ],
+        "actual": "Native helper resolves canonical client ID from selector; common native principal exists.",
+        "gap": "No current retained binding/subject/clientReference receipt or actor wall check. A name match is a resolution candidate, not client permission."
+      },
+      "behavior": {
+        "unavailable": "Missing/foreign/archived/ambiguous client fails404; canonical owner errors propagate. No pagination; total is current returned array count."
+      },
+      "tests": [
+        {
+          "source": "s47",
+          "line": 828,
+          "purpose": "required client and visible-client wrapper mapping",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s29",
+          "line": 26,
+          "purpose": "manual read order/projection/empty/native errors",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s30",
+          "line": 29,
+          "purpose": "canonical owner extraction contract",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Keep the manual tracked-bill owner distinct from discovery. Coordinate current client/wall authorization and trusted binding/subject/clientReference capture before new retained admission."
+    },
+    {
+      "operation": "query_outreach",
+      "family": "outreach-query",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": false,
+        "requiredContextKeys": [
+          "clientResolution"
+        ],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService.queryOutreach -> EngagementService.getOutreachRecord OR listCampaigns",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2741,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 8848,
+            "purpose": "branch owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [],
+        "optional": [
+          "outreachId:string <=80 selects detail branch",
+          "clientId:string <=80 (UUID or unique exact name)",
+          "status:string <=40",
+          "limit:clamped1..50, default20"
+        ],
+        "refs": [
+          {
+            "source": "s49",
+            "line": 1871,
+            "purpose": "advertised schema"
+          },
+          {
+            "source": "s49",
+            "line": 8848,
+            "purpose": "actual branches"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "EngagementService canonical outreach record/campaign owners",
+        "shape": "Detail {tool,generatedAt,record:{...native record,body:summarized<=2000}}. List {tool,generatedAt,total,campaigns:[id,name,type,status,subject,clientId,clientName,recipientCount,createdBy(email),sentAt,createdAt]}; slice limit after full native list.",
+        "refs": [
+          {
+            "source": "s27",
+            "line": 2690,
+            "purpose": "detail owner"
+          },
+          {
+            "source": "s27",
+            "line": 10530,
+            "purpose": "campaign list owner"
+          },
+          {
+            "source": "s26",
+            "line": 2746,
+            "purpose": "GET /api/engagement/outreach/:id"
+          },
+          {
+            "source": "s26",
+            "line": 2960,
+            "purpose": "GET /api/engagement/campaigns"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Native ctx tenant/user supplied to both branches.",
+        "clientWall": "Detail is exact-tenant, not-deleted, createdByUserId=current actor and excludes internal record types through ownOutreachRecordWhere. Campaign list is tenant-scoped with optional client/status, but no actor ownership/wall filter in that query. Optional client resolver is same-tenant/nonarchived only.",
+        "resourceIdentity": "Outreach record UUID versus campaign UUID; campaign client UUID and recipient associations are different resource shapes.",
+        "limits": "Do not equate private owned outreach records with tenant campaign rows, or claim list authorization from detail ownership.",
+        "refs": [
+          {
+            "source": "s25",
+            "line": 96,
+            "purpose": "canonical owned outreach predicate"
+          },
+          {
+            "source": "s49",
+            "line": 9714,
+            "purpose": "client resolution semantics"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [
+          "clientResolution"
+        ],
+        "actual": "ensureClientVisible can resolve an optional native selector to a canonical client UUID.",
+        "gap": "No trusted clientResolution receipt is returned; detail may have no selector at all. Missing current contract declaration/adapter and branch-specific current resource scope must be explicit."
+      },
+      "behavior": {
+        "unavailable": "Owned detail missing/foreign/deleted/internal returns404. List total is full tenant-filter result length and payload is only first limit; no cursor or complete-history guarantee."
+      },
+      "tests": [
+        {
+          "source": "s47",
+          "line": 1052,
+          "purpose": "campaign mapping/recipient counts;1079 detail owner call",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Coordinate a closed current contract distinguishing owned record detail from tenant campaign query, preserve each canonical owner, and provide trusted client resolution/current scope without silently adding new access policy."
+    },
+    {
+      "operation": "get_business_development_context",
+      "family": "business-development",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": false,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriToolsService -> optional MeriBizDevToolsService.getContext",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2812,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s38",
+            "line": 196,
+            "purpose": "tool producer"
+          },
+          {
+            "source": "s38",
+            "line": 163,
+            "purpose": "shared scope owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "conversationId:existing Core Clio conversation ID, despite optional advertised schema"
+        ],
+        "optional": [],
+        "rejected": "Authority-like keys are rejected.",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2116,
+            "purpose": "advertised schema"
+          },
+          {
+            "source": "s38",
+            "line": 163,
+            "purpose": "actual owned conversation requirement"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "BusinessDevelopmentService.get/getPreferences/history",
+        "shape": "{tool,generatedAt,prospect:{id,displayName,ownerUserId,stage,serviceHypothesis,geography,nextAction,canonicalEntityId,linkedClientId},firmPreferences:{practiceServiceAreas,agenciesIssues,geographies},history:{entries:newest20 projected id/kind/body/at/actorUserId,total,returned,truncated}}",
+        "refs": [
+          {
+            "source": "s38",
+            "line": 220,
+            "purpose": "bounded safe projection"
+          },
+          {
+            "source": "s10",
+            "line": 275,
+            "purpose": "native get/history owner"
+          },
+          {
+            "source": "s10",
+            "line": 1394,
+            "purpose": "tenant-owned prospect lookup"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Legacy conversation must match ctx tenant/user and archivedAt:null; prospect is only server-resolved from conversation metadata.",
+        "clientWall": "BizDev scope resolver requires both businessDevelopment.enabled and meriProspectTools.enabled plus exact-tenant prospect. assertCurrent recomputes scopeVersion over prospect/canonical organization/linked client and rejects retargeting. No actor wall predicate in this resolver; ownerUserId is returned data, not a new account-assignment grant.",
+        "resourceIdentity": "Prospect UUID + canonicalEntityId/linkedClientId in saved MeriProspectScope; tenant-owned prospect differs from user-owned conversation.",
+        "limits": "Native Meri conversation IDs have no proved mapping to legacy clioConversation. Do not substitute a new ID or accept model prospect/client authority.",
+        "refs": [
+          {
+            "source": "s06",
+            "line": 17,
+            "purpose": "saved scope admission"
+          },
+          {
+            "source": "s08",
+            "line": 133,
+            "purpose": "flag/tenant resolver"
+          },
+          {
+            "source": "s08",
+            "line": 188,
+            "purpose": "current scope drift check"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Existing server-owned legacy conversation metadata is the actual scope owner.",
+        "gap": "Current native Meri trusted prospect capture/conversation mapping and declared current output contract/adapter are absent; no ledger context key fills this gap."
+      },
+      "behavior": {
+        "unavailable": "Missing optional tools/flags/foreign conversation or prospect returns404; missing/nonprospect saved scope rejects; changed saved scope conflicts."
+      },
+      "tests": [
+        {
+          "source": "s37",
+          "line": 257,
+          "purpose": "only server-resolved prospect;281 bounded context;316 arbitrary conflicting/provider fields excluded",
+          "execution": "not run; source inspection only"
+        },
+        {
+          "source": "s07",
+          "line": 256,
+          "purpose": "unchanged accepted;266 linked-client retarget conflicts;278 ordinary edits retain identity;286 removed prospect refuses",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Reuse saved-prospect/current resolver, but coordinate an actual trusted native Meri prospect subject bridge. Do not invent legacy conversation identity or reinterpret ownerUserId."
+    },
+    {
+      "operation": "get_business_development_evidence",
+      "family": "business-development",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": false,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriBizDevToolsService.getEvidence -> BizDevDossierService.prospectDossier(ctx,prospectId,undefined,true)",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2813,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s38",
+            "line": 397,
+            "purpose": "producer"
+          },
+          {
+            "source": "s05",
+            "line": 750,
+            "purpose": "canonical dossier owner"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "conversationId:owned current legacy Clio conversation with saved prospect scope"
+        ],
+        "optional": [],
+        "refs": [
+          {
+            "source": "s38",
+            "line": 163,
+            "purpose": "same legacy scope gate"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Dossier evidence/section states through bounded evidenceDataRow projection",
+        "shape": "{tool,generatedAt:dossier time,identityBasis,canonicalEntityId,canonicalName,sectionStates,data,evidence:{total,returned,truncated},coverage:{complete,partial,note}}; first24 evidence rows, bounded/omitted marked facts.",
+        "refs": [
+          {
+            "source": "s38",
+            "line": 405,
+            "purpose": "canonical dossier call with suppressJev=true"
+          },
+          {
+            "source": "s38",
+            "line": 425,
+            "purpose": "evidence/coverage projection"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Same owned legacy conversation + current saved prospect scope as BD context.",
+        "clientWall": "Exact-tenant prospect read and existing dossier source policies; no new client-wall grant is supplied by tool. LinkedClientId changes are caught by saved scope comparison, not a blanket wall authorization.",
+        "resourceIdentity": "Prospect/canonical entity plus citable dossier evidence IDs/source references.",
+        "limits": "Related GET /api/business-development/prospects/:prospectId/dossier defaults suppressJev=false and may schedule Jev; tool intentionally passes true. Do not swap UI route into a read-only adapter.",
+        "refs": [
+          {
+            "source": "s05",
+            "line": 760,
+            "purpose": "tenant-owned prospect"
+          },
+          {
+            "source": "s05",
+            "line": 813,
+            "purpose": "conditional detached Jev scheduling"
+          },
+          {
+            "source": "s09",
+            "line": 279,
+            "purpose": "related dossier route"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Legacy saved prospect scope owns selected resource; dossier owns evidence time/identity/coverage.",
+        "gap": "Missing trusted native Meri prospect/conversation bridge, current contract declaration and adapter; ordinary generatedAt is not a new lease."
+      },
+      "behavior": {
+        "sideEffects": "Tool suppresses detached Jev scheduling; do not use ordinary UI dossier open as an equivalent source read.",
+        "unavailable": "Unresolved identity and unavailable sections stay qualified; evidence/fact truncation explicitly makes partial coverage."
+      },
+      "tests": [
+        {
+          "source": "s37",
+          "line": 385,
+          "purpose": "24-row evidence cap/partial;400 bounded facts;438 omission;483 coverage;502 citations",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Reuse the suppressJev evidence call and exact safe projection after coordinating native current prospect subject mapping; preserve unresolved/partial status."
+    },
+    {
+      "operation": "get_business_development_recent_changes",
+      "family": "business-development",
+      "ledger": {
+        "state": "adapter-missing",
+        "currentContractDeclared": true,
+        "requiredContextKeys": [],
+        "adapterPaths": [],
+        "sourceAdmittedOperations": [],
+        "generalOperations": []
+      },
+      "entry": "commonEntry",
+      "producerPresent": true,
+      "dispatch": {
+        "owner": "MeriBizDevToolsService.getRecentChanges -> BizDevWatchService.listProspectAlerts",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2814,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s38",
+            "line": 626,
+            "purpose": "actual producer"
+          }
+        ]
+      },
+      "nativePayload": {
+        "required": [
+          "conversationId:owned current legacy Clio conversation with saved prospect scope"
+        ],
+        "optional": [
+          "limit:strict numeric integer1..25, default10"
+        ],
+        "rejected": "Unknown keys rejected before reads.",
+        "refs": [
+          {
+            "source": "s38",
+            "line": 626,
+            "purpose": "closed admitted tool keys"
+          },
+          {
+            "source": "s38",
+            "line": 163,
+            "purpose": "shared owned conversation scope"
+          }
+        ]
+      },
+      "canonicalProducerDto": {
+        "owner": "Already-ingested prospect watch alerts plus selected material-diff fields",
+        "shape": "{tool,generatedAt,prospect:{id,name},alerts:{items,returned,unreadCount,truncated,limit,note}}; page.nextCursor controls truncated; selected diff rows scoped exact tenant/returned alert IDs.",
+        "refs": [
+          {
+            "source": "s38",
+            "line": 667,
+            "purpose": "watch flag and canonical list"
+          },
+          {
+            "source": "s38",
+            "line": 678,
+            "purpose": "returned-ID-bound diff reads"
+          },
+          {
+            "source": "s38",
+            "line": 724,
+            "purpose": "response/projection"
+          }
+        ]
+      },
+      "authority": {
+        "principal": "Same current legacy conversation/saved-prospect validation plus explicit watch feature flag.",
+        "clientWall": "No new client grant or actor wall is created; prospect remains server-resolved current tenant resource.",
+        "resourceIdentity": "Current prospect UUID, alert UUID/source and canonical returned-alert IDs; all reads target already-ingested alerts.",
+        "limits": "No native Meri -> legacy conversation mapping proof. UI GET prospect alerts has independent prospect param; it does not establish this tool's conversation binding.",
+        "refs": [
+          {
+            "source": "s09",
+            "line": 439,
+            "purpose": "related watch list route"
+          }
+        ]
+      },
+      "contextOwner": {
+        "requiredKeys": [],
+        "actual": "Legacy saved prospect scope/current resolver; watch service owns alert facts/page state.",
+        "gap": "Declared current contract exists in ledger, but current Meri source adapter/trusted native subject capture still absent."
+      },
+      "behavior": {
+        "sideEffects": "Read does not mark read/dismiss/refresh/enqueue providers; note expressly denies bid/win-intent inference.",
+        "unavailable": "Missing watch services/flags reject404; no provider fallback or invented current alert."
+      },
+      "tests": [
+        {
+          "source": "s37",
+          "line": 1129,
+          "purpose": "native page projection;1166 truncation;1172 defaults/bounds;1190 closed input;1206 flags;1234 read-only;1243 missing wiring",
+          "execution": "not run; source inspection only"
+        }
+      ],
+      "minimalBinding": "Reuse bounded already-ingested watch owner and current saved prospect gate after a real native Meri subject bridge; preserve read-only and non-intent semantics."
+    }
+  ],
+  "actionableHandoff": {
+    "reuse": "Bind the exact native owner named for each operation. Preserve error/unavailable/partial/provenance semantics and canonical current authorization; do not substitute neighboring UI endpoints with different owners or side effects.",
+    "missingAdapter": "All14 ledger rows have no adapterPaths/sourceAdmittedOperations/generalOperations. This map does not create any of those.",
+    "missingAuthority": "For binding/subject/clientReference/clientResolution/asOf keys, named current receiving capture/resolution must come from its actual owner; generated clocks, a model selector or legacy conversation ID do not supply it.",
+    "tests": "Referenced existing tests were read only. Counts, native runtimes and current qualification are intentionally not claimed.",
+    "boundedSearch": "A statement that no current adapter/proof was found is bounded to this ledger and pinned active dispatch/source paths; it is not a claim that every historical repository implementation was searched."
+  },
+  "referenceFormat": "Each ref names sourceIndex key and exact starting line. sourceIndex links immutable pinned files; append #L<line> for an anchored link. Tests are source references only and were not executed.",
+  "sourceIndex": {
+    "s01": {
+      "path": "apps/api/src/auth/retained-read-authority.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/auth/retained-read-authority.ts"
+    },
+    "s02": {
+      "path": "apps/api/src/auth/roles.guard.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/auth/roles.guard.spec.ts"
+    },
+    "s03": {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/auth/roles.guard.ts"
+    },
+    "s04": {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/bootstrap/configure-api-http-app.ts"
+    },
+    "s05": {
+      "path": "apps/api/src/business-development/bizdev-dossier.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/business-development/bizdev-dossier.service.ts"
+    },
+    "s06": {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/business-development/bizdev-meri-scope.authorization.ts"
+    },
+    "s07": {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/business-development/bizdev-meri-scope.service.spec.ts"
+    },
+    "s08": {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/business-development/bizdev-meri-scope.service.ts"
+    },
+    "s09": {
+      "path": "apps/api/src/business-development/business-development.controller.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/business-development/business-development.controller.ts"
+    },
+    "s10": {
+      "path": "apps/api/src/business-development/business-development.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/business-development/business-development.service.ts"
+    },
+    "s11": {
+      "path": "apps/api/src/clients/representation-resolver.service.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/clients/representation-resolver.service.spec.ts"
+    },
+    "s12": {
+      "path": "apps/api/src/clients/representation-resolver.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/clients/representation-resolver.service.ts"
+    },
+    "s13": {
+      "path": "apps/api/src/clients/representation.controller.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/clients/representation.controller.ts"
+    },
+    "s14": {
+      "path": "apps/api/src/context/context-plane-gateway.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/context/context-plane-gateway.service.ts"
+    },
+    "s15": {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/context/context-security-scope.service.ts"
+    },
+    "s16": {
+      "path": "apps/api/src/district-nexus/r5-action-layer/r5-district-context.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/district-nexus/r5-action-layer/r5-district-context.service.ts"
+    },
+    "s17": {
+      "path": "apps/api/src/district-nexus/r5-action-layer/r5-district-context.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/district-nexus/r5-action-layer/r5-district-context.spec.ts"
+    },
+    "s18": {
+      "path": "apps/api/src/district-nexus/r5-action-layer/r5-flag.guard.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/district-nexus/r5-action-layer/r5-flag.guard.ts"
+    },
+    "s19": {
+      "path": "apps/api/src/district-nexus/r5-action-layer/r5-meri-district-tools.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/district-nexus/r5-action-layer/r5-meri-district-tools.spec.ts"
+    },
+    "s20": {
+      "path": "apps/api/src/district-nexus/r5-action-layer/r5-meri-district-tools.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/district-nexus/r5-action-layer/r5-meri-district-tools.ts"
+    },
+    "s21": {
+      "path": "apps/api/src/district-nexus/r5-action-layer/r5-types.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/district-nexus/r5-action-layer/r5-types.ts"
+    },
+    "s22": {
+      "path": "apps/api/src/embeddings/client-kb-access.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/embeddings/client-kb-access.spec.ts"
+    },
+    "s23": {
+      "path": "apps/api/src/embeddings/client-kb-readability.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/embeddings/client-kb-readability.spec.ts"
+    },
+    "s24": {
+      "path": "apps/api/src/embeddings/client-kb.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/embeddings/client-kb.service.ts"
+    },
+    "s25": {
+      "path": "apps/api/src/engagement/engagement-access.helpers.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/engagement/engagement-access.helpers.ts"
+    },
+    "s26": {
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/engagement/engagement.controller.ts"
+    },
+    "s27": {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/engagement/engagement.service.ts"
+    },
+    "s28": {
+      "path": "apps/api/src/intelligence/intelligence-bill-discovery.shared.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/intelligence/intelligence-bill-discovery.shared.ts"
+    },
+    "s29": {
+      "path": "apps/api/src/intelligence/intelligence-bills-manual-lifecycle.characterization.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/intelligence/intelligence-bills-manual-lifecycle.characterization.spec.ts"
+    },
+    "s30": {
+      "path": "apps/api/src/intelligence/intelligence-bills-ownership.contract.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/intelligence/intelligence-bills-ownership.contract.spec.ts"
+    },
+    "s31": {
+      "path": "apps/api/src/intelligence/intelligence-manual-bill-tracking.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/intelligence/intelligence-manual-bill-tracking.ts"
+    },
+    "s32": {
+      "path": "apps/api/src/intelligence/intelligence.controller.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/intelligence/intelligence.controller.ts"
+    },
+    "s33": {
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/intelligence/intelligence.service.ts"
+    },
+    "s34": {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/memory/memory-wall.helpers.ts"
+    },
+    "s35": {
+      "path": "apps/api/src/meri/hardenedWebTransport.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/hardenedWebTransport.spec.ts"
+    },
+    "s36": {
+      "path": "apps/api/src/meri/hardenedWebTransport.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/hardenedWebTransport.ts"
+    },
+    "s37": {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bizdev-tools.service.spec.ts"
+    },
+    "s38": {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bizdev-tools.service.ts"
+    },
+    "s39": {
+      "path": "apps/api/src/meri/meri-client-scope-fail-closed.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-client-scope-fail-closed.spec.ts"
+    },
+    "s40": {
+      "path": "apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts"
+    },
+    "s41": {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-context-plane.service.ts"
+    },
+    "s42": {
+      "path": "apps/api/src/meri/meri-data-search.helpers.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-data-search.helpers.spec.ts"
+    },
+    "s43": {
+      "path": "apps/api/src/meri/meri-data-search.helpers.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-data-search.helpers.ts"
+    },
+    "s44": {
+      "path": "apps/api/src/meri/meri-remaining-source-families.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-remaining-source-families.spec.ts"
+    },
+    "s45": {
+      "path": "apps/api/src/meri/meri-research-producer-inputs.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-research-producer-inputs.ts"
+    },
+    "s46": {
+      "path": "apps/api/src/meri/meri-research-replay-authorization.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-research-replay-authorization.ts"
+    },
+    "s47": {
+      "path": "apps/api/src/meri/meri-tools.firmdata.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.firmdata.spec.ts"
+    },
+    "s48": {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts"
+    },
+    "s49": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts"
+    },
+    "s50": {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts"
+    },
+    "s51": {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.service.ts"
+    },
+    "s52": {
+      "path": "apps/api/src/meri/tool-service-secret.guard.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/tool-service-secret.guard.spec.ts"
+    },
+    "s53": {
+      "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/tool-service-secret.guard.ts"
+    },
+    "s54": {
+      "path": "apps/api/src/retrieval/adapters/district-nexus-retrieval.adapter.spec.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/adapters/district-nexus-retrieval.adapter.spec.ts"
+    },
+    "s55": {
+      "path": "apps/api/src/retrieval/adapters/district-nexus-retrieval.adapter.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/adapters/district-nexus-retrieval.adapter.ts"
+    },
+    "s56": {
+      "path": "apps/api/src/retrieval/adapters/government-work-retrieval.helpers.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/adapters/government-work-retrieval.helpers.ts"
+    },
+    "s57": {
+      "path": "apps/api/src/retrieval/retrieval-v2.types.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/retrieval-v2.types.ts"
+    },
+    "s58": {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/tenant/tenant-context.middleware.ts"
+    },
+    "s59": {
+      "path": "packages/shared/src/core-retained-read-request.ts",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/core-retained-read-request.ts"
+    }
+  }
+}

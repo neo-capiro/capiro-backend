@@ -1,0 +1,1547 @@
+{
+  "schemaVersion": 1,
+  "scope": "Source-only mapping of eight requested families; no implementation or protocol expansion",
+  "repository": "neo-capiro/capiro-backend",
+  "sourceCommit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+  "sourceTree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+  "pinExplanation": "References identify the frozen immutable source commit/tree; this mapping makes no deployment claim.",
+  "ledger": {
+    "input": "MISSING-READS.json",
+    "commit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+    "path": "docs/coordination/ledgers/scope-ledger.json",
+    "blob": "1546e9566cb0719261ca660bd5402732f65146e7",
+    "selectedFamilyCount": 8,
+    "selectedOperationCount": 11,
+    "allSelectedRows": "adapter-missing; sourceAdmittedSkills, sourceAdmittedOperations, generalOperations and adapterPaths are empty",
+    "inputSha256": "8319101141697febe5ea115f6376c02260da8516c1e23db037832386c401fd8c"
+  },
+  "executed": {
+    "sourceAndLedgerReadsOnly": true,
+    "testsRun": false,
+    "nativeEndpointCalls": false,
+    "providerCalls": false,
+    "databaseCalls": false,
+    "sourceEdits": false,
+    "onlyWrittenDeliverable": "state-research-producers.json"
+  },
+  "findingsFirst": [
+    "All eleven requested operations have working native tool dispatch entries, but the ledger admits none as a retained source adapter. Existence of a tool/controller is not retained authority.",
+    "get_state_bill_status and search_state_floor_votes can spend LegiScan quota and write sync rows/bills after an exact designation misses the stored corpus. Reusing their entire methods as a provider-free retained read would import those side effects.",
+    "search_state_bills, get_state_legislator, get_state_rule_status, query_regulatory_dockets and search_intel_articles read global records. They do not themselves receive a delegated principal or produce a resource-authority receipt.",
+    "Intel ResearchService and Phase8EvidenceService already own current feature/membership/folder/client-wall checks, source identity and qualified DTOs. Their service-secret native bridge is control-only and accepts tenant/actor in its payload; it is not signed retained principal proof.",
+    "search_research_sources combines tenant records, own meetings/mail and own Meri notes. Its optional client resolver checks same-tenant/non-archived visibility, not client-memory-wall authority; unscoped client results and tenant directory notes have no demonstrated per-result wall recheck in this method.",
+    "Real context calculations exist for client/citation resolution, news scope/window, personnel default year and private monitor ownership. Frozen retained context receipts and current-use rechecks are missing for these eleven operations; no generic trust or new business policy is inferred."
+  ],
+  "commonBoundaries": {
+    "nativeApi": {
+      "route": "POST /api/clio/tools/:name",
+      "registration": "API AppModule imports MeriModule; MeriModule registers MeriController and a governed MeriToolsService proxy; configureApiHttpApp installs /api prefix.",
+      "principal": "TenantContextMiddleware authenticates a native request and attaches tenant/user/role context. Class RolesGuard requires standard_user; ToolServiceSecretGuard is an additional production/staging service-identity check. Neither an accepted tool name nor service secret creates retained authority.",
+      "payload": "executeTool passes the body through attachment/RP-specific admission and request-lifetime control. executeFromAuthenticatedUser normalizes the name and validates side-effecting tools, but these ordinary read inputs use objectInput. objectInput accepts any non-array object or substitutes {}; optionalString trims/truncates; requiredString rejects absence; clampInt coerces finite numbers/numeric strings. Advertised Anthropic object schemas are not a closed runtime read-body parser for these families.",
+      "governedProxy": "The registered proxy adds chart ownership checks, memory-control presentation and federal-market dispatch. For the mapped methods it delegates to the raw service; it does not add a generic per-result client-wall or signed context receipt.",
+      "lifetime": "withMeriToolRequestControl/assertMeriToolRequestActive guard native request lifetime. The LegiWatch fetch carries its abort signal. These controls are not a retained identity/resource correlation contract.",
+      "evidence": [
+        "apiRegistration",
+        "apiPrefix",
+        "apiMiddlewareMount",
+        "apiController",
+        "nativeExecute",
+        "nativeReadDispatch",
+        "readCoercions",
+        "clamp",
+        "governedProxy",
+        "serviceSecret",
+        "nativeCurrentAuthority"
+      ]
+    },
+    "intelBridge": {
+      "route": "POST /intel-api/internal/legiwatch/meri/read",
+      "registration": "Intel bootstrap /intel-api prefix; AppModule imports TrackerModule; TrackerModule registers KeywordMeriController, ResearchController, Phase8Controller and their canonical providers.",
+      "caller": "MeriToolsService.legiwatchTool requires configured INTERNAL_SERVICE_SECRET and ctx.clerkUserId, resolves optional clientId via ensureClientVisible and sends {tenantId, actor:ctx.clerkUserId, tool, input:{...input,clientId}} using x-internal-service-secret.",
+      "receiver": "WorkflowSourceGuard compares the service secret. KeywordMeriController.route uses permissive object coercion, requires a nonempty actor string <=200 and tenantId matching /^[0-9a-f-]{36}$/i, constructs {tenantId,clerkUserId:actor,role:null}, dispatches a fixed tool list and rejects read/apply mismatch. It does not verify a signed retained actor envelope.",
+      "errorBehavior": "Missing bridge secret/clerk subject ->502; any non-OK Intel HTTP response becomes Core400 with the HTTP status in a review message. Do not assume native HTTP status preservation across this bridge.",
+      "nativeUiAlternative": "Intel ResearchController and Phase8Controller use native TenantGuard plus FolderTrackerGuard. These bearer controls are separate from the internal service-secret route and from retained proof.",
+      "evidence": [
+        "legiwatchBridge",
+        "intelPrefix",
+        "intelAppRegistration",
+        "trackerRegistration",
+        "intelReadRoute",
+        "workflowSecret",
+        "researchUiRoutes",
+        "newsUiRoutes",
+        "intelNativeGuard",
+        "folderGuard"
+      ]
+    },
+    "intelCurrentOwners": {
+      "membershipFeature": "ReportService.authorize checks the requested feature flag and FolderSourceDataRepository.activeMember using tenant_memberships joined to users by ctx.clerkUserId and status active.",
+      "actorScope": "FolderTrackerService.withActor uses a tenant transaction and app.folder_actor/app.folder_admin; folder() reads the tenant folder. Explicit write checks are separate; read access also depends on the existing database policies and actor transaction, not an invented owner-only read policy.",
+      "clientWall": "KeywordRuleService.folder checks a folder-linked non-archived client against active membership and client_memory_access when memory_wall. ResearchService.context repeats the current client check for explicit clientId and rejects folder/client mismatch. Phase8EvidenceService.context additionally replaces null clientId with the actual folder client before ResearchService.context.",
+      "retainedGap": "These are real current business owners, but their existing methods do not emit a closed identity/resource revision envelope for these new retained operations or perform the retained before/after correlation protocol. Native feature/member/wall checks cannot be relabeled ALL3 proof.",
+      "evidence": [
+        "intelFeatureMembership",
+        "intelActiveMember",
+        "folderActor",
+        "folderClientWall",
+        "researchCurrentContext",
+        "phase8Context"
+      ]
+    },
+    "currentAll3": {
+      "operations": [
+        "get_research_portfolio",
+        "get_research_portfolio_changes",
+        "get_florida_budget_project"
+      ],
+      "disposition": "The frozen shared retained data codec accepts exactly these three operations. None of the eleven mapped operations is in that set. This artifact adds no generic tool route, allowlist entry, codec operation, recipient, trust provider or retained adapter.",
+      "evidence": [
+        "all3ClosedOperations"
+      ]
+    }
+  },
+  "families": [
+    {
+      "family": "state-legislation",
+      "ledgerRequiredContextKeys": [],
+      "contextDisposition": "No ledger context keys declared; this does not waive current retained principal, exact request, source-revision or expiry correlation.",
+      "operations": [
+        {
+          "operation": "search_state_bills",
+          "dispatch": "MeriToolsService registry -> searchStateBills(input); ctx is not passed into this producer.",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.searchStateBills",
+          "input": "query<=240, state<=2, session<=60, status<=30 via optionalString; limit coerced/clamped1..50 default20. State uppercased. No runtime enum check on status. The actual filter reads stateBill.session, while getStateBillStatus reads sessionKey; do not silently reconcile them.",
+          "source": "withSystem stateBill.findMany/count; query matches title/identifier/subjects, optional state/session/status, latestActionDate descending.",
+          "dto": "{tool,generatedAt,total,data:[id,state,session,identifier,title<=240,chamber,subjects,status,statusLabel,sponsorName,sponsorParty,sponsorCount,latestActionDate,latestActionText,stateUrl,url],note?}. Zero total carries explicit no-record honesty.",
+          "principalWallCorrelation": "Global source read via system scope; no tenant/client/private owner filter or current delegated-principal receipt. Existing row status and URL are evidence, generatedAt is presentation time rather than an authority expiry/version.",
+          "effects": "Stored DB reads only in this method.",
+          "existingTests": [
+            {
+              "evidence": "registrationTests",
+              "coverage": "Advertised operation has a callable dispatch target; not producer query, wall, signed receipt or source completeness qualification."
+            }
+          ],
+          "evidence": [
+            "stateDispatch",
+            "stateSchemas",
+            "stateBillSearch"
+          ],
+          "ledgerRequiredContextKeys": [],
+          "ledgerCurrentContractDeclared": false
+        },
+        {
+          "operation": "get_state_legislator",
+          "dispatch": "MeriToolsService registry -> getStateLegislator(input); no ctx argument.",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.getStateLegislator",
+          "input": "query<=120; optional state<=2 uppercased; limit1..8 default5. Missing query returns an explicit empty note (although model schema requires query).",
+          "source": "Exact case-insensitive entityCrosswalk idValue/entityType state_legislator take1, then withSystem stateLegislator.findUnique. Otherwise name contains with optional state, active desc/name asc. Exact crosswalk branch does not apply supplied state hint.",
+          "dto": "{tool,generatedAt,matchesFound,matches:[id,name,state,chamber,district,party,committees,active,matchedBy],ambiguousLegislator?,note?}. Multiple name matches return matchesFound0 and explicit candidates, never pick one.",
+          "principalWallCorrelation": "Public/global crosswalk and legislator records; native actor context is control-only and not consumed in producer. No retained revision receipt.",
+          "effects": "Stored DB reads only.",
+          "existingTests": [
+            {
+              "evidence": "stateLegislatorTests",
+              "coverage": "External-ID crosswalk, ambiguous names, honest no-match with synthetic Prisma."
+            }
+          ],
+          "evidence": [
+            "stateDispatch",
+            "stateSchemas",
+            "stateLegislator"
+          ],
+          "ledgerRequiredContextKeys": [],
+          "ledgerCurrentContractDeclared": true
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "state-status-votes",
+      "ledgerRequiredContextKeys": [],
+      "contextDisposition": "No declared context keys. Canonical bill-key and designation paths have materially different effects and session selection; the native resolver is the actual owner of those choices.",
+      "sharedResolution": {
+        "owner": "MeriToolsService.resolveStateBillKey",
+        "behavior": "Normalize/validate canonical stateBillKey first. Otherwise parse designation with optional state hint; require a state; stored candidates match parsed state/billNumber and choose most recently syncedAt take1. If none, call lookupStateBillLive. Invalid or absent resolution returns an explicit note.",
+        "sideEffectBoundary": "The live helper requires a configured key, reserves four shared monthly quota units under advisory lock, upserts/updates state_sync_cursor, calls LegiScan session/masterlist/bill APIs and normalizes/upserts state bill rows. It caches misses for one hour. Do not invoke this fallback in provider-free qualification or silently call it a pure read.",
+        "evidence": [
+          "stateBillResolution",
+          "stateBillLiveQuota",
+          "stateBillLiveLookup",
+          "stateBillLiveTests"
+        ]
+      },
+      "operations": [
+        {
+          "operation": "get_state_bill_status",
+          "dispatch": "MeriToolsService registry -> getStateBillStatus(input)",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.getStateBillStatus",
+          "input": "billId<=60, fallback query<=60 (implementation only), optional state<=2; shared resolver above. Model schema requires billId.",
+          "source": "withSystem exact stateBill id, then most recent15 actions and15 votes plus links; companion bills are looked up separately and preserve their own statuses.",
+          "dto": "Not found: {tool,generatedAt,found:false,note,billId?}. Found: {tool,generatedAt,billId,found:true,state,session:sessionKey,identifier,title,status,statusLabel,statusAt,latestAction,sponsor,recentActions,votes,companions,url,note?}. Missing votes never imply passage/failure; dead_by_deadline adds sine-die note.",
+          "principalWallCorrelation": "Global corpus, ctx not consumed. billId and companion relatedBillKey correlate sources, but independent system transactions have no shared frozen revision or retained before/after receipt.",
+          "effects": "Stored reads for canonical-key hits; designation miss may make provider calls and persist bill/quota state via shared resolver.",
+          "existingTests": [
+            {
+              "evidence": "stateStatusTests",
+              "coverage": "Canonical dead-by-deadline/no-vote honesty, state-hinted and embedded designation resolution, missing-state/no-bill; synthetic DB."
+            },
+            {
+              "evidence": "stateLiveToolTests",
+              "coverage": "Live fallback stored-row result and provider-unavailable honesty, mocked provider helper."
+            }
+          ],
+          "evidence": [
+            "stateDispatch",
+            "stateSchemas",
+            "stateStatus"
+          ],
+          "ledgerRequiredContextKeys": [],
+          "ledgerCurrentContractDeclared": false
+        },
+        {
+          "operation": "search_state_floor_votes",
+          "dispatch": "MeriToolsService registry -> searchStateFloorVotes(input)",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.searchStateFloorVotes",
+          "input": "Optional billId<=60/state<=2 via resolver; query<=200 over motion; chamber<=10 lowercased and applied only for upper/lower; limit1..25 default10.",
+          "source": "withSystem stateRollCallVote; resolved billKey exact, otherwise state-lowercase prefix; date desc. A supplied unresolved billId returns empty immediately and never broadens to statewide votes.",
+          "dto": "{tool,generatedAt,votesFound,votes:[id,billKey,chamber,motion,date,yeas,nays,nv,absent,passed,sourceUrl],note?}; no-match explicitly says member-level filtering unavailable.",
+          "principalWallCorrelation": "Public/global votes; exact bill key or declared state/query filters, no current retained principal or corpus revision receipt. No invented member-level vote model.",
+          "effects": "Same designation-miss provider/quota/write risk as get_state_bill_status.",
+          "existingTests": [
+            {
+              "evidence": "stateVoteTests",
+              "coverage": "Vote shape/no-match, supplied unresolved bill never broadens, open-ended state prefix preserved."
+            }
+          ],
+          "evidence": [
+            "stateDispatch",
+            "stateSchemas",
+            "stateVotes"
+          ],
+          "ledgerRequiredContextKeys": [],
+          "ledgerCurrentContractDeclared": false
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "rule-status",
+      "operations": [
+        {
+          "operation": "get_state_rule_status",
+          "dispatch": "MeriToolsService registry -> getStateRuleStatus(input) -> formatRuleStatus(jurisdiction,row)",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.getStateRuleStatus/formatRuleStatus; shared deriveRuleLifecycleStage/isRuleCommentOpen",
+          "input": "query<=200; state<=2 uppercased. No query returns found:false note. No state: exact FederalRegister document number first, then stateRule exact ID. A supplied state suppresses federal search and rejects an exact stateRule from a different state. Keyword title OR abstract over state and, if unscoped, federal tables, up to6 each; multiple candidates require disambiguation.",
+          "source": "Global stateRule and federalRegisterDocument, direct Prisma reads.",
+          "dto": "{tool,generatedAt,found,jurisdiction,id,title,abstract,agencyNames,ruleType,stage,stageLabel,publicationDate,commentPeriod:{start,end,isOpen},effectiveDate,docketIds,sourceUrl,linkedBillKeys,note?}; state adds filingDate,linkedRuleNumbers,sourceRevision and metadata-only coverage. Empty/ambiguous paths have explicit notes/candidates.",
+          "principalWallCorrelation": "No ctx/client scope in producer. State sourceRevision is a source field, not a signed retained authority receipt. Stage and comment openness are separately derived from current clock.",
+          "existingTests": [
+            {
+              "evidence": "ruleStatusTests",
+              "coverage": "Exact state/federal lookup, state-only search, one/many/zero matches and missing query, synthetic DB."
+            },
+            {
+              "evidence": "ruleLifecycleTests",
+              "coverage": "Shared stage derivation uses explicit today test dates for federal/state type/date combinations; does not qualify frozen retained stage/comment clock capture."
+            }
+          ],
+          "evidence": [
+            "stateDispatch",
+            "ruleSchema",
+            "ruleLookup",
+            "ruleDto",
+            "ruleStageOwner",
+            "ruleCommentOwner"
+          ],
+          "ledgerRequiredContextKeys": [
+            "stageAsOf",
+            "commentAsOf"
+          ],
+          "ledgerCurrentContractDeclared": true
+        }
+      ],
+      "contextKeys": [
+        {
+          "key": "stageAsOf",
+          "realOwner": "deriveRuleLifecycleStage optional today; formatRuleStatus omits it, so helper creates new Date internally.",
+          "status": "real-calculation-owner; retained-capture-and-correlation-missing",
+          "missing": "No stageAsOf input/DTO receipt or same-instant retained replay binding. generatedAt is produced later and cannot be substituted.",
+          "evidence": [
+            "ruleDto",
+            "ruleStageOwner"
+          ]
+        },
+        {
+          "key": "commentAsOf",
+          "realOwner": "isRuleCommentOpen optional today; formatRuleStatus omits it. Open only for notice/nprm, real end strictly after now and start absent or <=now.",
+          "status": "real-calculation-owner; retained-capture-and-correlation-missing",
+          "missing": "No commentAsOf input/DTO receipt; stage and comment helpers can observe different instants. No new cutoff or scheduling rule is defined here.",
+          "evidence": [
+            "ruleDto",
+            "ruleCommentOwner"
+          ]
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "regulatory-dockets",
+      "ledgerRequiredContextKeys": [],
+      "operations": [
+        {
+          "operation": "query_regulatory_dockets",
+          "dispatch": "MeriToolsService registry -> queryRegulatoryDockets(input) -> RegulatoryDocketService.listDockets or getUpcomingDeadlines",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "RegulatoryDocketService",
+          "input": "upcomingOnly only accepts a boolean; truthy true selects days clamped1..365 default30 and limit1..50 default20. List path agencyId<=40,documentType<=80 and limit. Native tool does not expose page and returns first page.",
+          "source": "regulatoryDocket is explicitly global/no tenant_id/no RLS, populated by sync. listDockets filters exact agencyId/documentType, postedDate desc, count/page. getUpcomingDeadlines computes now and now+days*24h; selects commentEndDate inclusively gte/lte and withdrawn:false, date asc, max50.",
+          "dto": "Tool list {tool,generatedAt,total:result.total,results:result.data}; upcoming {tool,generatedAt,windowDays,total:deadlines.length,results:deadlines.slice(0,limit)}. Upcoming total is bounded fetched count, not a separate full corpus count. Canonical service list DTO is {data,total,page,limit}.",
+          "relatedNativeRoutes": "GET /api/regulatory-dockets, /upcoming-deadlines (fixed30days), /:documentId use same service with RolesGuard standard_user. List DTO validates strings<=200, optional integer page>=1 and limit1..100. These controller limits differ from the tool's normalization.",
+          "principalWallCorrelation": "Public global records; no client wall required by this producer, but no retained principal/current-resource proof exists for the operation. Clock-dependent upcoming path has no captured window-as-of even though ledger declares no context key.",
+          "effects": "Stored DB reads only; this service does not run the sync.",
+          "existingTests": [
+            {
+              "evidence": "docketToolTests",
+              "coverage": "List filters and upcoming45days dispatched to canonical service; synthetic service mocks, not DB time-window qualification."
+            }
+          ],
+          "evidence": [
+            "docketDispatch",
+            "docketSchema",
+            "docketProducer",
+            "docketRoutes",
+            "docketRegistration"
+          ],
+          "ledgerRequiredContextKeys": [],
+          "ledgerCurrentContractDeclared": true
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "research-legal-candidates",
+      "operations": [
+        {
+          "operation": "search_research_sources",
+          "dispatch": "MeriToolsService registry -> searchResearchSources(ctx,input)",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.searchResearchSources",
+          "input": "required trimmed query<=240; optional clientId<=80 resolved by ensureClientVisible; limit1..25 default8.",
+          "source": "One tenant transaction launches six reads: active clients; own meetings; own mail threads; own mail messages; ctx.userId Meri notes; tenant directoryContactNotes. Optional client filters apply to first five, but directory notes remain tenant-wide. Own meetings use the tool's local createdByUserId/connection-owner predicate; imported ownMailThreadWhere/ownMailMessageWhere also apply active mail state.",
+          "dto": "{tool,query,generatedAt,results:[{type,id,clientId,title,snippet<=360,occurredAt,metadata?}]}. Types client,meeting,mail_thread,mail_message,clio_note,directory_contact_note; sort occurredAt desc, cap limit*3 after per-type limit. Directory notes have clientId:null.",
+          "principalWallCorrelation": "ctx.tenantId and ctx.userId drive real tenant/private-user filters. ensureClientVisible proves same-tenant non-archived client, not memory-wall grant; the candidate queries do not visibly recheck clientMemoryAllowed for each returned client. The nearby ensureScheduleClientAuthorized explicitly adds that check, but is not called here. No generic proxy supplies it. This is a concrete reuse gap, not authorization to copy the search into a retained adapter.",
+          "effects": "Stored tenant DB reads only in this method.",
+          "existingTests": [
+            {
+              "evidence": "registrationTests",
+              "coverage": "Registration/callable dispatch and advertised query requirement only. No direct searchResearchSources producer/wall regression test was located in apps/** specs during this scoped search."
+            }
+          ],
+          "evidence": [
+            "candidateDispatch",
+            "candidateSchema",
+            "candidateQueries",
+            "candidateDto",
+            "clientResolver",
+            "ownMeetingPredicate",
+            "ownMailPredicates",
+            "scheduleWallContrast",
+            "tenantTransaction"
+          ],
+          "ledgerRequiredContextKeys": [
+            "clientResolution"
+          ],
+          "ledgerCurrentContractDeclared": false
+        }
+      ],
+      "contextKeys": [
+        {
+          "key": "clientResolution",
+          "realOwner": "MeriToolsService.ensureClientVisible: trim selector; UUID -> same-tenant non-archived exact ID; otherwise exact case-insensitive client name, exactly one match; multiple or absent ->404.",
+          "status": "real-native-resolution-owner; retained-resolution-and-wall-owner-missing",
+          "missing": "Does not return requested selector plus chosen ID in a closed context receipt, does not recheck wall grant, and no captured revision/current-use comparison. Private candidate sources need their own existing ownership checks preserved.",
+          "evidence": [
+            "clientResolver",
+            "candidateQueries",
+            "scheduleWallContrast"
+          ]
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "research-legal-legislation",
+      "routeProfile": "commonBoundaries.intelBridge",
+      "currentOwnerProfile": "commonBoundaries.intelCurrentOwners",
+      "operations": [
+        {
+          "operation": "search_legislative_research",
+          "dispatch": "MeriToolsService.legiwatchTool -> fixed Intel read route -> ResearchService.search(ctx,input)",
+          "canonicalProducer": "ResearchService.search through run/authorize/context",
+          "input": "scopeOf defaults jurisdiction FL but requires two uppercase letters, sessionKey<=60 and private scope strings<=100; search requires explicit nonempty session. Compile lexical expression and reject unreviewable grammar. Policy any_retained/current_extractions/newest_dated_text, versionStage all/enrolled/chaptered, kind all/text/amendment/supplement; billIds1..30 strings<=180, deduplicated/sorted; title/sponsor/chamber/action filters<=160. Tool schema advertises a narrower subset than actual owner.",
+          "source": "legiwatch_research_document_source exact jurisdiction/session plus selected bill/filter/reference occurrence. Page scans26 source IDs, returns25 before lexical matching. ResearchVersion preserves document/bill IDs, revision/contentHash/extractorVersion/sourceUrl/kind/date/observedAt and complete extraction evidence.",
+          "dto": "{scope,items:[ResearchVersion plus title,billTitle,billIdentifier,sponsor,chamber,lastAction,versionType,isCurrent,excerpt,evaluation],interpretedQuery,versionPolicy,searchedKinds,scanned,cursor,coverage,message}; Core wraps as {tool,generatedAt,result,authority} without remapping source identity.",
+          "correlation": "Cursor binds scope, billIds, expression, policy,stage,kind,filters,referenceId,tenantId,clerkUserId and source+metadata fingerprints; mismatch ->409 SEARCH_CHANGED_RESTART. Coverage complete only when an explicit selected-bill inventory receipt agrees with source and inventory fingerprints and no referenceId filter. Otherwise explicit retained-only/incomplete reason. This pagination fingerprint is not a retained identity/resource authorization receipt.",
+          "principalWall": "ResearchService.run checks research feature and active membership, tenant/actor transaction, folder/client correlation and current client wall. Scope DTO reflects research scope input; unlike Phase8 context, ResearchService.context validates folder client but does not replace null scope.clientId with folder client.",
+          "relatedNativeRoutes": "POST /intel-api/legiwatch/research/search reaches the same ResearchService under native TenantGuard+FolderTrackerGuard.",
+          "existingTests": [
+            {
+              "evidence": "researchDomainTests",
+              "coverage": "Pure exact legal identity/version evidence helpers, not ResearchService SQL/cursor/member/wall integration."
+            },
+            {
+              "evidence": "registrationTests",
+              "coverage": "Tool schema dispatch wiring only."
+            }
+          ],
+          "evidence": [
+            "legiwatchDispatch",
+            "researchToolSchemas",
+            "researchSearch",
+            "researchSearchDto",
+            "researchVersionDto",
+            "researchCurrentContext",
+            "researchUiRoutes"
+          ],
+          "ledgerRequiredContextKeys": [
+            "clientResolution",
+            "citationResolution"
+          ],
+          "ledgerCurrentContractDeclared": false
+        },
+        {
+          "operation": "get_legal_reference",
+          "dispatch": "Fixed Intel read route: input.view rules -> ResearchService.rules; versions -> versions; otherwise references. Model schema limits view statutes/rules/versions, but runtime route falls through other values to references.",
+          "canonicalProducer": "ResearchService.references/rules/versions via same run/authorize/context",
+          "input": "references: citation<=180, explicit referenceId or parsed Florida statute/constitution identity, optional edition20xx (constitution forces no edition), optional code. rules: ruleNumber<=60,noticeId<=100. versions: string billId plus explicit session. Preserve citation strings and trailing zeros; do not invent numeric citation normalization.",
+          "source": "references joins legal_reference to latest legal_text_revision for optional edition and emits related legislative_legal_occurrence/document source rows; rules joins rule_notice_revision/state_rule and optional adopted administrative_rule revisions; versions exact bill/jurisdiction/session source document inventory limit201.",
+          "dto": "references:{scope,referenceId,edition:null|string,rows,related,coverage:{complete:false,reason:SELECTED_INGESTED_REFERENCES_ONLY}}. rules:{scope,rows,adopted,coverage:{complete:false,reason:SELECTED_NOTICES_AND_HISTORY_ONLY}}. versions:{scope,versions:[ResearchVersion sans sections plus title/isCurrent],complete:rows<=200,order:source_identity_not_legislative_sequence}. Bridge adds tool/generatedAt/result/authority wrapper.",
+          "principalWallCorrelation": "Same feature/membership/folder/client wall as search. Reference selection and revision hashes belong to actual legal corpus; no retained context proof or current-use revision comparison exists for this operation. Newest ingested revision is not asserted current law.",
+          "relatedNativeRoutes": "GET /intel-api/legiwatch/research/references, /rules, /versions use same owners under native guards.",
+          "existingTests": [
+            {
+              "evidence": "researchDomainTests",
+              "coverage": "Exact chapter/section/subsection and constitutional article identity, zeros, proposed repeal, ambiguity and extraction completeness; pure helpers only."
+            }
+          ],
+          "evidence": [
+            "intelReadRoute",
+            "researchToolSchemas",
+            "researchReferences",
+            "researchRules",
+            "researchVersions",
+            "legalIdentityOwner",
+            "researchUiRoutes"
+          ],
+          "ledgerRequiredContextKeys": [
+            "clientResolution",
+            "citationResolution"
+          ],
+          "ledgerCurrentContractDeclared": true
+        }
+      ],
+      "contextKeys": [
+        {
+          "key": "clientResolution",
+          "realOwner": "Core ensureClientVisible resolves selector to ID before bridge; Intel ResearchService.context independently validates explicit client/folder and current wall through KeywordRuleService.folder.",
+          "status": "real-resolution-and-current-wall-owners; retained-receipt-missing",
+          "missing": "No closed selector->resolved client plus folder/version proof is returned for these operations, no signed-context current-use comparison. Research scope must not silently adopt Phase8's different null-client inheritance.",
+          "evidence": [
+            "legiwatchBridge",
+            "clientResolver",
+            "researchCurrentContext",
+            "folderClientWall"
+          ]
+        },
+        {
+          "key": "citationResolution",
+          "realOwner": "parseFloridaCitation/parseFloridaConstitutionCitation -> legalReferenceKey in ResearchService.references; explicit referenceId wins. Search uses explicit referenceId occurrence filter; rules uses noticeId/ruleNumber; versions uses bill/session.",
+          "status": "real-branch-specific-identity-owner; retained-context-missing",
+          "missing": "No unified frozen citationResolution receipt binds original citation, explicit override, edition, jurisdiction, canonical reference/document IDs and current revision. Do not turn lexical search or a rule number into an assumed generic canonical citation resolver.",
+          "evidence": [
+            "legalIdentityOwner",
+            "researchReferences",
+            "researchRules",
+            "researchVersions",
+            "researchSearch"
+          ]
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "research-legal-news",
+      "operations": [
+        {
+          "operation": "search_legiwatch_news",
+          "routeProfile": "commonBoundaries.intelBridge",
+          "currentOwnerProfile": "commonBoundaries.intelCurrentOwners",
+          "dispatch": "KeywordMeriController fixed read branch: view source -> Phase8EvidenceService.run+exact; personnel -> personnel; monitors -> monitors; otherwise news. Model schema advertises articles/monitors/personnel/source but runtime has a default news path.",
+          "canonicalProducer": "Phase8EvidenceService.news/monitors/personnel/exact through feature/current context owners",
+          "input": "phase8Scope forces FL, sessionKey string default empty, optional folder/client<=100. news days1/3/7/14 default7, integer offset0..10000, limit1..100 default50, q<=500, publisher string, optional exact monitorId. personnel kind change/registration defaultchange, year Number(input.year??currentYear), offset coerced/truncated, branch empty/legislative/executive, q<=200. Tool schema does not advertise all owner parameters (notably year/branch/limit).",
+          "source": "news: current legiwatch_news_source in since window; tenant+actor+folder tracking annotations, optional exact current monitor version/matches; coverage inventory and publisher intake receipts remain distinct from articles. monitors: own tenant/actor monitor rows, each current configured scope rechecked; inaccessible ones omitted. personnel: newest source-linked personnel observations plus private tracking. source: exact typed news/budget/personnel/research source; unknown kind400, absent source404.",
+          "dto": "news:{scope,matchDefinition|null,items,nextOffset,coverage,window:{since,days},coverageMessage}; monitors:{monitors:[row+interpretation]}; personnel:{items,nextOffset,year,notice}; exact:{id,revision,title,sourceUrl,text,observedAt,complete,authority,rights,...source fields}. Core wraps tool/generatedAt/result/authority.",
+          "principalWallCorrelation": "Feature news (budget only for source kind budget), active member, actor transaction and current folder/client wall. Folder-linked scope adopts actual folder client; monitors/track records bound tenant+ctx.clerkUserId. Monitor listing ignores requested folder input and checks each monitor's stored config. No retained resource envelope/correlation for this multiplexed operation.",
+          "crossViewCaution": "view source can return budget/personnel/research, not just news. This mapping does not authorize copying all branches into a news-only retained adapter or expanding ALL3. Exact-source metadata preserves rights/complete/authority; no body rights or completeness is inferred.",
+          "relatedNativeRoutes": "GET /intel-api/legiwatch/evidence/news, /news/monitors, /personnel and /source/:kind/:id under native TenantGuard+FolderTrackerGuard.",
+          "existingTests": [
+            {
+              "evidence": "publisherCoverageTests",
+              "coverage": "Configured publisher failures stay separate from retained article counts, exact host identity, latest endpoint receipt identity/failure, bounded intake query. Does not qualify native/retained principal or full news query/monitor isolation."
+            },
+            {
+              "evidence": "registrationTests",
+              "coverage": "Tool dispatcher/schema wiring only."
+            }
+          ],
+          "evidence": [
+            "legiwatchDispatch",
+            "newsToolSchema",
+            "intelReadRoute",
+            "phase8Context",
+            "newsProducer",
+            "newsMonitorOwner",
+            "personnelProducer",
+            "exactEvidence",
+            "newsUiRoutes",
+            "phase8FeatureNames"
+          ],
+          "ledgerRequiredContextKeys": [
+            "clientResolution",
+            "effectiveScope",
+            "windowAsOf",
+            "defaultYear",
+            "owner"
+          ],
+          "ledgerCurrentContractDeclared": false
+        }
+      ],
+      "contextKeys": [
+        {
+          "key": "clientResolution",
+          "realOwner": "Core ensureClientVisible and Intel Phase8EvidenceService.context -> ResearchService.context. Folder client replaces missing scope client, mismatches404; current wall checked.",
+          "status": "real-owner; retained-selector-resolution-receipt-missing",
+          "missing": "No returned closed original selector/resolved ID/revision context or retained before/after comparison; monitors use their own persisted scopes.",
+          "evidence": [
+            "legiwatchBridge",
+            "clientResolver",
+            "phase8Context",
+            "researchCurrentContext",
+            "newsMonitorOwner"
+          ]
+        },
+        {
+          "key": "effectiveScope",
+          "realOwner": "phase8Scope forces FL; context resolves folder's actual client and checks it. News returns resulting scope; exact run uses same context; monitors check each stored config.",
+          "status": "real-effective-scope-owner; retained-proof-missing",
+          "missing": "No frozen signed scope+folder/client current-revision projection. Do not use the raw body as authoritative effective scope or substitute ResearchService's different inheritance semantics.",
+          "evidence": [
+            "phase8Context",
+            "newsProducer",
+            "newsMonitorOwner"
+          ]
+        },
+        {
+          "key": "windowAsOf",
+          "realOwner": "Phase8EvidenceService.news calculates since=new Date(Date.now()-days*86400000), returns {since,days}; fixed supported day windows.",
+          "status": "real-clock-calculation-owner; explicit-as-of-receipt-missing",
+          "missing": "No accepted captured windowAsOf or upper-bound timestamp, no stable replay clock; generatedAt wrapper is later and not equivalent. No different day-window criteria proposed.",
+          "evidence": [
+            "newsProducer"
+          ]
+        },
+        {
+          "key": "defaultYear",
+          "realOwner": "Phase8EvidenceService.personnel uses new Date().getFullYear() only if year absent; actual integer is returned.",
+          "status": "real-default-owner-for-personnel-view; retained-default-capture-missing",
+          "missing": "No captured clock/year before signing or current-use comparison; year is not an articles/monitors context and is not advertised in this tool's schema. Preserve branch specificity.",
+          "evidence": [
+            "personnelProducer",
+            "newsToolSchema"
+          ]
+        },
+        {
+          "key": "owner",
+          "realOwner": "Native bridge actor=ctx.clerkUserId; ReportService verifies active local member. news monitor and tracking SQL key tenant_id plus owner_clerk_id. Exact/public source ownership differs from private tracking ownership.",
+          "status": "real-private-record-owner; cryptographic-retained-owner-binding-missing",
+          "missing": "Service-secret body actor is control-only, not a verified delegated principal. No owner may be taken from model input or inferred from a tool name for retained execution.",
+          "evidence": [
+            "legiwatchBridge",
+            "intelReadRoute",
+            "intelFeatureMembership",
+            "newsProducer",
+            "newsMonitorOwner",
+            "personnelProducer"
+          ]
+        }
+      ],
+      "retainedState": "adapter-missing"
+    },
+    {
+      "family": "stored-intelligence",
+      "ledgerRequiredContextKeys": [],
+      "operations": [
+        {
+          "operation": "search_intel_articles",
+          "dispatch": "MeriToolsService registry -> searchIntelArticles(input), no ctx argument",
+          "routeProfile": "commonBoundaries.nativeApi",
+          "canonicalProducer": "MeriToolsService.searchIntelArticles",
+          "input": "query<=240,source<=60 optionalString; limit1..50 default20. Keyword OR over title/summary/categories/topics, exact source filter.",
+          "source": "withSystem intelArticle.findMany/count ordered publishedAt desc; no live fetch and no private news monitor/tracking join.",
+          "dto": "{tool,generatedAt,total,data:[id,source,title<=240,url,author,publishedAt,summary<=400,categories,topics]}.",
+          "principalWallCorrelation": "Global stored intelligence source; ctx is not consumed in producer. This is a different source/DTO from Phase8 LegiWatch news and must not inherit that service's owner/scope/window contract. No signed source revision/current retained principal check in this method.",
+          "effects": "Stored DB reads only.",
+          "existingTests": [
+            {
+              "evidence": "registrationTests",
+              "coverage": "Callable registered dispatch/schema only. No direct searchIntelArticles producer test located by scoped apps/** spec search."
+            }
+          ],
+          "evidence": [
+            "stateDispatch",
+            "storedIntelSchema",
+            "storedIntelProducer"
+          ],
+          "ledgerRequiredContextKeys": [],
+          "ledgerCurrentContractDeclared": false
+        }
+      ],
+      "retainedState": "adapter-missing"
+    }
+  ],
+  "actionableReuseBoundaries": [
+    {
+      "families": [
+        "state-legislation",
+        "stored-intelligence",
+        "regulatory-dockets"
+      ],
+      "existingCode": "Reuse the actual stored read normalization and DTO owner only under a separately defined bounded retained principal/request/current-use contract. No client-assignment or generic tool trust is supplied by these global-source handlers.",
+      "missing": "Dedicated adapter, exact input/context normalization receipt, current-principal check and resource/version correlation; docket window clock receipt where applicable."
+    },
+    {
+      "families": [
+        "state-status-votes"
+      ],
+      "existingCode": "Preserve exact stored bill/vote identity and honesty notes.",
+      "missing": "Must resolve whether the retained source is restricted to already canonical stored keys or explicitly includes provider/write fallback. Existing fallback effects are proven; this artifact chooses no new policy and executes none."
+    },
+    {
+      "families": [
+        "rule-status"
+      ],
+      "existingCode": "Reuse shared stage/comment predicates with their existing semantics.",
+      "missing": "Canonical captured stageAsOf/commentAsOf and current-use comparison; do not substitute generatedAt."
+    },
+    {
+      "families": [
+        "research-legal-candidates"
+      ],
+      "existingCode": "Preserve each source's tenant and private-user predicates and actual client resolution.",
+      "missing": "Current per-result client wall/authority recheck and captured selector resolution; directory notes remain tenant scope, not silently client-scoped."
+    },
+    {
+      "families": [
+        "research-legal-legislation",
+        "research-legal-news"
+      ],
+      "existingCode": "Reuse actual Intel service methods/context owners, source identities, coverage/rights and typed DTOs rather than copying SQL or trusting the service-secret bridge.",
+      "missing": "Branch-specific retained input/context/current-resource producer seams and rechecks; closed client/citation/scope/window/year/owner projections where relevant. Native routes are evidence of working producers only; ALL3 stays unchanged."
+    }
+  ],
+  "evidence": {
+    "apiRegistration": {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "startLine": 100,
+      "endLine": 165,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "a17e94efba349979236ed1dbada4be4c17cf8f02",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.module.ts#L100-L165"
+    },
+    "apiPrefix": {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "startLine": 77,
+      "endLine": 86,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/bootstrap/configure-api-http-app.ts#L77-L86"
+    },
+    "apiMiddlewareMount": {
+      "path": "apps/api/src/app.module.ts",
+      "startLine": 100,
+      "endLine": 175,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/app.module.ts#L100-L175"
+    },
+    "apiController": {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "startLine": 310,
+      "endLine": 313,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts#L310-L313"
+    },
+    "nativeExecute": {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "startLine": 506,
+      "endLine": 574,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts#L506-L574"
+    },
+    "readCoercions": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 9861,
+      "endLine": 9883,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L9861-L9883"
+    },
+    "clamp": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 9969,
+      "endLine": 9973,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L9969-L9973"
+    },
+    "governedProxy": {
+      "path": "apps/api/src/meri/governed-meri-tools.proxy.ts",
+      "startLine": 150,
+      "endLine": 203,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "88c7c163a62959ea3b631b2116e3db3f8cca3e1b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/governed-meri-tools.proxy.ts#L150-L203"
+    },
+    "serviceSecret": {
+      "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+      "startLine": 20,
+      "endLine": 62,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "0c51c7a5da122fcff2f2b5c4cef8b9c92765c35c",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/tool-service-secret.guard.ts#L20-L62"
+    },
+    "nativeCurrentAuthority": {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "startLine": 433,
+      "endLine": 489,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "e21dfb6f5f9e473b6fda7ebe35a6e07006a46c42",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/tenant/tenant-context.middleware.ts#L433-L489"
+    },
+    "nativeReadDispatch": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 2467,
+      "endLine": 2478,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2467-L2478"
+    },
+    "legiwatchBridge": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 2505,
+      "endLine": 2566,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2505-L2566"
+    },
+    "legiwatchDispatch": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 2595,
+      "endLine": 2633,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2595-L2633"
+    },
+    "intelPrefix": {
+      "path": "apps/intel-api/src/main.ts",
+      "startLine": 29,
+      "endLine": 34,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "207163d02be04ab74421fcd11a7add2d4d7f700d",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/main.ts#L29-L34"
+    },
+    "intelAppRegistration": {
+      "path": "apps/intel-api/src/app.module.ts",
+      "startLine": 25,
+      "endLine": 34,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "a89f3724e7622e17842db3b7b5054afb48f7690a",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/app.module.ts#L25-L34"
+    },
+    "trackerRegistration": {
+      "path": "apps/intel-api/src/tracker/tracker.module.ts",
+      "startLine": 84,
+      "endLine": 123,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "8eece5f1b549bbbbee23bbd47b26727db6c99701",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/tracker.module.ts#L84-L123"
+    },
+    "intelReadRoute": {
+      "path": "apps/intel-api/src/tracker/keywords/keyword-meri.controller.ts",
+      "startLine": 18,
+      "endLine": 87,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "890922b0c4ab130a0eb93b1406200c2b8aa21bd9",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/keywords/keyword-meri.controller.ts#L18-L87"
+    },
+    "workflowSecret": {
+      "path": "apps/intel-api/src/tracker/keywords/internal-workflow.controller.ts",
+      "startLine": 20,
+      "endLine": 30,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "13c4b888669c6245d2de5db80d5ac08305d21403",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/keywords/internal-workflow.controller.ts#L20-L30"
+    },
+    "intelNativeGuard": {
+      "path": "apps/intel-api/src/auth/tenant.guard.ts",
+      "startLine": 74,
+      "endLine": 174,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "83f1c898c5d748d55ca494d6268f6b8e39cb36b0",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/auth/tenant.guard.ts#L74-L174"
+    },
+    "folderGuard": {
+      "path": "apps/intel-api/src/tracker/folders/folder-tracker.controller.ts",
+      "startLine": 35,
+      "endLine": 49,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "481f0dc7a8e1f0d050ca9ddf7b1b7f520347435b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/folders/folder-tracker.controller.ts#L35-L49"
+    },
+    "intelFeatureMembership": {
+      "path": "apps/intel-api/src/tracker/reports/report.service.ts",
+      "startLine": 41,
+      "endLine": 45,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "9ca4b418dc3085b8f2397f1d192ba4bcd469db13",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/reports/report.service.ts#L41-L45"
+    },
+    "intelActiveMember": {
+      "path": "apps/intel-api/src/sourcedata/folder-source-data.repository.ts",
+      "startLine": 345,
+      "endLine": 359,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "f77ff9337012ba86697d6bd67dfa2b02ca66d932",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/sourcedata/folder-source-data.repository.ts#L345-L359"
+    },
+    "folderActor": {
+      "path": "apps/intel-api/src/tracker/folders/folder-tracker.service.ts",
+      "startLine": 82,
+      "endLine": 112,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "54d6b4d39312ee00a39a07d586225a67663562aa",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/folders/folder-tracker.service.ts#L82-L112"
+    },
+    "folderClientWall": {
+      "path": "apps/intel-api/src/tracker/keywords/keyword-rule.service.ts",
+      "startLine": 50,
+      "endLine": 66,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "306eff20a66e20e091839fbcfbbe1de68a00e808",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/keywords/keyword-rule.service.ts#L50-L66"
+    },
+    "researchCurrentContext": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 70,
+      "endLine": 181,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L70-L181"
+    },
+    "phase8Context": {
+      "path": "apps/intel-api/src/tracker/editorial/evidence.service.ts",
+      "startLine": 48,
+      "endLine": 103,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "dcad88537fa3890ee0e0298ef345c235ef3a78a1",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/evidence.service.ts#L48-L103"
+    },
+    "all3ClosedOperations": {
+      "path": "packages/shared/src/core-retained-principal.ts",
+      "startLine": 14,
+      "endLine": 18,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "d6d634b20d09520b870c653a9930f7b5a186c9d6",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/core-retained-principal.ts#L14-L18"
+    },
+    "stateDispatch": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 2657,
+      "endLine": 2665,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2657-L2665"
+    },
+    "stateSchemas": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 1298,
+      "endLine": 1328,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1298-L1328"
+    },
+    "stateBillSearch": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 5413,
+      "endLine": 5470,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5413-L5470"
+    },
+    "stateLegislator": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 5761,
+      "endLine": 5863,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5761-L5863"
+    },
+    "stateBillResolution": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 3652,
+      "endLine": 3699,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3652-L3699"
+    },
+    "stateBillLiveQuota": {
+      "path": "apps/api/src/meri/meri-state-bill-live.ts",
+      "startLine": 71,
+      "endLine": 108,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "01c312dfa17bfa0838c06e1ee2bc59fa6c58187f",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-live.ts#L71-L108"
+    },
+    "stateBillLiveLookup": {
+      "path": "apps/api/src/meri/meri-state-bill-live.ts",
+      "startLine": 111,
+      "endLine": 166,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "01c312dfa17bfa0838c06e1ee2bc59fa6c58187f",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-live.ts#L111-L166"
+    },
+    "stateStatus": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 5478,
+      "endLine": 5608,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5478-L5608"
+    },
+    "stateVotes": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 5616,
+      "endLine": 5680,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5616-L5680"
+    },
+    "ruleSchema": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 1350,
+      "endLine": 1358,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1350-L1358"
+    },
+    "ruleLookup": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 6118,
+      "endLine": 6201,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6118-L6201"
+    },
+    "ruleDto": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 6204,
+      "endLine": 6271,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6204-L6271"
+    },
+    "ruleStageOwner": {
+      "path": "packages/shared/src/index.ts",
+      "startLine": 1825,
+      "endLine": 1857,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/index.ts#L1825-L1857"
+    },
+    "ruleCommentOwner": {
+      "path": "packages/shared/src/index.ts",
+      "startLine": 1867,
+      "endLine": 1890,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/index.ts#L1867-L1890"
+    },
+    "docketDispatch": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 8418,
+      "endLine": 8447,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8418-L8447"
+    },
+    "docketSchema": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 1772,
+      "endLine": 1781,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1772-L1781"
+    },
+    "docketProducer": {
+      "path": "apps/api/src/regulatory-docket/regulatory-docket.service.ts",
+      "startLine": 18,
+      "endLine": 68,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "fefc3cf2296c81f965be2d4b632b169969563534",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/regulatory-docket/regulatory-docket.service.ts#L18-L68"
+    },
+    "docketRoutes": {
+      "path": "apps/api/src/regulatory-docket/regulatory-docket.controller.ts",
+      "startLine": 8,
+      "endLine": 60,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "ff185fdcc4a0976febd1a1caed448ac313d35ec4",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/regulatory-docket/regulatory-docket.controller.ts#L8-L60"
+    },
+    "docketRegistration": {
+      "path": "apps/api/src/regulatory-docket/regulatory-docket.module.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "93db7f4bc5e97385e48e35b01b9c13e46eb81e5f",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/regulatory-docket/regulatory-docket.module.ts#L1-L10"
+    },
+    "candidateDispatch": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 2633,
+      "endLine": 2633,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2633"
+    },
+    "candidateSchema": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 1034,
+      "endLine": 1041,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1034-L1041"
+    },
+    "candidateQueries": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 6701,
+      "endLine": 6829,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6701-L6829"
+    },
+    "candidateDto": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 6832,
+      "endLine": 6896,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6832-L6896"
+    },
+    "clientResolver": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 9714,
+      "endLine": 9754,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L9714-L9754"
+    },
+    "ownMeetingPredicate": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 10078,
+      "endLine": 10081,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L10078-L10081"
+    },
+    "ownMailPredicates": {
+      "path": "apps/api/src/engagement/engagement-access.helpers.ts",
+      "startLine": 67,
+      "endLine": 78,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "c0a8cbd27b8a87ff02f8dd36577dcce2d6537992",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/engagement/engagement-access.helpers.ts#L67-L78"
+    },
+    "scheduleWallContrast": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 9756,
+      "endLine": 9772,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L9756-L9772"
+    },
+    "tenantTransaction": {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "startLine": 142,
+      "endLine": 169,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "d071939ac0f18deccab65794b9be20222c5887e8",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/prisma/prisma.service.ts#L142-L169"
+    },
+    "researchToolSchemas": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 761,
+      "endLine": 784,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L761-L784"
+    },
+    "researchSearch": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 251,
+      "endLine": 339,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L251-L339"
+    },
+    "researchSearchDto": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 341,
+      "endLine": 421,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L341-L421"
+    },
+    "researchVersionDto": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 89,
+      "endLine": 118,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L89-L118"
+    },
+    "researchReferences": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 425,
+      "endLine": 458,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L425-L458"
+    },
+    "researchRules": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 461,
+      "endLine": 482,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L461-L482"
+    },
+    "researchVersions": {
+      "path": "apps/intel-api/src/tracker/research/research.service.ts",
+      "startLine": 228,
+      "endLine": 247,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.service.ts#L228-L247"
+    },
+    "legalIdentityOwner": {
+      "path": "packages/shared/src/legislative-research.ts",
+      "startLine": 1,
+      "endLine": 94,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "ce3c93ae310885884a20f0a169062a9378dcdfb0",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/legislative-research.ts#L1-L94"
+    },
+    "researchUiRoutes": {
+      "path": "apps/intel-api/src/tracker/research/research.controller.ts",
+      "startLine": 20,
+      "endLine": 104,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "690994b816e4a6995dadc7cf0d716aa26d212408",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research.controller.ts#L20-L104"
+    },
+    "newsToolSchema": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 675,
+      "endLine": 688,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L675-L688"
+    },
+    "newsProducer": {
+      "path": "apps/intel-api/src/tracker/editorial/evidence.service.ts",
+      "startLine": 188,
+      "endLine": 237,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "dcad88537fa3890ee0e0298ef345c235ef3a78a1",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/evidence.service.ts#L188-L237"
+    },
+    "newsMonitorOwner": {
+      "path": "apps/intel-api/src/tracker/editorial/evidence.service.ts",
+      "startLine": 363,
+      "endLine": 398,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "dcad88537fa3890ee0e0298ef345c235ef3a78a1",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/evidence.service.ts#L363-L398"
+    },
+    "personnelProducer": {
+      "path": "apps/intel-api/src/tracker/editorial/evidence.service.ts",
+      "startLine": 301,
+      "endLine": 324,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "dcad88537fa3890ee0e0298ef345c235ef3a78a1",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/evidence.service.ts#L301-L324"
+    },
+    "exactEvidence": {
+      "path": "apps/intel-api/src/tracker/editorial/evidence.service.ts",
+      "startLine": 105,
+      "endLine": 186,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "dcad88537fa3890ee0e0298ef345c235ef3a78a1",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/evidence.service.ts#L105-L186"
+    },
+    "newsUiRoutes": {
+      "path": "apps/intel-api/src/tracker/editorial/editorial.controller.ts",
+      "startLine": 9,
+      "endLine": 58,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "2db889bcbe5fa3b208b17c5ad228394437ed9771",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/editorial.controller.ts#L9-L58"
+    },
+    "phase8FeatureNames": {
+      "path": "packages/shared/src/legiwatch-phase8.ts",
+      "startLine": 3,
+      "endLine": 8,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "fac862c0a96fdc47d92800629b566c0caef78981",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/legiwatch-phase8.ts#L3-L8"
+    },
+    "storedIntelSchema": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 1359,
+      "endLine": 1363,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1359-L1363"
+    },
+    "storedIntelProducer": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "startLine": 6274,
+      "endLine": 6316,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6274-L6316"
+    },
+    "registrationTests": {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "startLine": 677,
+      "endLine": 807,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "4e79ee826a4d39d3b4e4c684a20ee29cc5ceae60",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts#L677-L807"
+    },
+    "stateLegislatorTests": {
+      "path": "apps/api/src/meri/meri-state-bill-status-tool.spec.ts",
+      "startLine": 216,
+      "endLine": 309,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "609a25e82ed3cf9f994ff352b3c90586486554a8",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-status-tool.spec.ts#L216-L309"
+    },
+    "stateBillLiveTests": {
+      "path": "apps/api/src/meri/meri-state-bill-live.spec.ts",
+      "startLine": 69,
+      "endLine": 176,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "13ebf00fdcf7cd2cc2d5d3897f5a92bf12c879bd",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-live.spec.ts#L69-L176"
+    },
+    "stateStatusTests": {
+      "path": "apps/api/src/meri/meri-state-bill-status-tool.spec.ts",
+      "startLine": 51,
+      "endLine": 129,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "609a25e82ed3cf9f994ff352b3c90586486554a8",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-status-tool.spec.ts#L51-L129"
+    },
+    "stateLiveToolTests": {
+      "path": "apps/api/src/meri/meri-state-bill-status-tool.spec.ts",
+      "startLine": 311,
+      "endLine": 357,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "609a25e82ed3cf9f994ff352b3c90586486554a8",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-status-tool.spec.ts#L311-L357"
+    },
+    "stateVoteTests": {
+      "path": "apps/api/src/meri/meri-state-bill-status-tool.spec.ts",
+      "startLine": 131,
+      "endLine": 214,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "609a25e82ed3cf9f994ff352b3c90586486554a8",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-state-bill-status-tool.spec.ts#L131-L214"
+    },
+    "ruleStatusTests": {
+      "path": "apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts",
+      "startLine": 404,
+      "endLine": 547,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "650bd98be9fb723a8bf97a9afaa1ac1df9a26fd6",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts#L404-L547"
+    },
+    "ruleLifecycleTests": {
+      "path": "apps/api/src/ingestion/rule-lifecycle-stage.spec.ts",
+      "startLine": 1,
+      "endLine": 168,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "eefa1fc1488d476baa0358cba74c0e76957332b1",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/ingestion/rule-lifecycle-stage.spec.ts#L1-L168"
+    },
+    "docketToolTests": {
+      "path": "apps/api/src/meri/meri-tools.firmdata.spec.ts",
+      "startLine": 846,
+      "endLine": 867,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "cb845b2c9111a86af7c787fb28a59ea3f9e91666",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.firmdata.spec.ts#L846-L867"
+    },
+    "researchDomainTests": {
+      "path": "apps/intel-api/src/tracker/research/research-domain.spec.ts",
+      "startLine": 31,
+      "endLine": 175,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "584f901a1fe1a49df166adac43ea086dc3207343",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/research/research-domain.spec.ts#L31-L175"
+    },
+    "publisherCoverageTests": {
+      "path": "apps/intel-api/src/tracker/editorial/publisher-coverage.spec.ts",
+      "startLine": 20,
+      "endLine": 166,
+      "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+      "gitBlob": "7086a4381b4ac561228cef7cdd8afce84db0c251",
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/intel-api/src/tracker/editorial/publisher-coverage.spec.ts#L20-L166"
+    }
+  },
+  "sourceVerification": {
+    "method": "Immutable commit/tree and cited blob/line evidence inspected; exact ledger operation/context inventory checked.",
+    "tree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+    "citedEvidenceCount": 84,
+    "citedFileCount": 41,
+    "operations": 11,
+    "families": 8,
+    "testsExecuted": false,
+    "sourceFiles": [
+      {
+        "path": "apps/api/src/app.module.ts",
+        "gitBlob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+        "workingSha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3"
+      },
+      {
+        "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+        "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+        "workingSha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c"
+      },
+      {
+        "path": "apps/api/src/engagement/engagement-access.helpers.ts",
+        "gitBlob": "c0a8cbd27b8a87ff02f8dd36577dcce2d6537992",
+        "workingSha256": "a7d28dcb3db441049d7f93a89b54cc21b097af3757a66f2934b0e5a2a560d0bf"
+      },
+      {
+        "path": "apps/api/src/ingestion/rule-lifecycle-stage.spec.ts",
+        "gitBlob": "eefa1fc1488d476baa0358cba74c0e76957332b1",
+        "workingSha256": "cea28da264471eeb673083b2be4ea6a488f3483a692224abf919b01aabfe1393"
+      },
+      {
+        "path": "apps/api/src/meri/governed-meri-tools.proxy.ts",
+        "gitBlob": "88c7c163a62959ea3b631b2116e3db3f8cca3e1b",
+        "workingSha256": "546290f7aaa4f179320022f94479b36147c0e2f518ea34595abb424f17c4da1a"
+      },
+      {
+        "path": "apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts",
+        "gitBlob": "650bd98be9fb723a8bf97a9afaa1ac1df9a26fd6",
+        "workingSha256": "e63975be01cc7240fc3d18c365f8ed6b888eb86d31b640ae15e29ff9a643ec0c"
+      },
+      {
+        "path": "apps/api/src/meri/meri-state-bill-live.spec.ts",
+        "gitBlob": "13ebf00fdcf7cd2cc2d5d3897f5a92bf12c879bd",
+        "workingSha256": "0ccc00e57be715a3d8ad8b4bf3c3068aaaa67da30047094a4cab99447f3a76cf"
+      },
+      {
+        "path": "apps/api/src/meri/meri-state-bill-live.ts",
+        "gitBlob": "01c312dfa17bfa0838c06e1ee2bc59fa6c58187f",
+        "workingSha256": "3692b6ec053f80d085fe4c47185eb7b2bcd528181ddb01d6f86a82782cf09049"
+      },
+      {
+        "path": "apps/api/src/meri/meri-state-bill-status-tool.spec.ts",
+        "gitBlob": "609a25e82ed3cf9f994ff352b3c90586486554a8",
+        "workingSha256": "5a03f936e0817a350dcb65cb79f2a909169a082da00884c122d0f7e3c879aae4"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.firmdata.spec.ts",
+        "gitBlob": "cb845b2c9111a86af7c787fb28a59ea3f9e91666",
+        "workingSha256": "e4cc3b37ed612d388be6cec24cbe3859f47c4f4c1c147e7bd233c31acb1f65da"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+        "gitBlob": "4e79ee826a4d39d3b4e4c684a20ee29cc5ceae60",
+        "workingSha256": "bf4e65f471aba4524987f9d5e883dd99dc893d6461ef02a196877977d8d81b20"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.service.ts",
+        "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+        "workingSha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267"
+      },
+      {
+        "path": "apps/api/src/meri/meri.controller.ts",
+        "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+        "workingSha256": "c9562a30e6a67ed75eaf74850d1e4d67c133f040035fb4df8ac80605a3123586"
+      },
+      {
+        "path": "apps/api/src/meri/meri.module.ts",
+        "gitBlob": "a17e94efba349979236ed1dbada4be4c17cf8f02",
+        "workingSha256": "c015614c72266e181c77740cbad366cf56eb9280b91dd5bb21790b8c218f6065"
+      },
+      {
+        "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+        "gitBlob": "0c51c7a5da122fcff2f2b5c4cef8b9c92765c35c",
+        "workingSha256": "75eb2806606057758c0b5e56741bcc97cdb7ef29f94f6a472d9d01ea26bf15ca"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.ts",
+        "gitBlob": "d071939ac0f18deccab65794b9be20222c5887e8",
+        "workingSha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+      },
+      {
+        "path": "apps/api/src/regulatory-docket/regulatory-docket.controller.ts",
+        "gitBlob": "ff185fdcc4a0976febd1a1caed448ac313d35ec4",
+        "workingSha256": "92006380aa6d680ff36686f46fbe5eddfc7479f3368c8872838a0b0e83fbd252"
+      },
+      {
+        "path": "apps/api/src/regulatory-docket/regulatory-docket.module.ts",
+        "gitBlob": "93db7f4bc5e97385e48e35b01b9c13e46eb81e5f",
+        "workingSha256": "48ba7a21151feb7635a36fc2ec84e11319fcfd542b9f732cf2fd4cf70c53f716"
+      },
+      {
+        "path": "apps/api/src/regulatory-docket/regulatory-docket.service.ts",
+        "gitBlob": "fefc3cf2296c81f965be2d4b632b169969563534",
+        "workingSha256": "74767e7652be0b3fa7b375df9e895180e9eb0c4599ef580e3985c2492d1c5607"
+      },
+      {
+        "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+        "gitBlob": "e21dfb6f5f9e473b6fda7ebe35a6e07006a46c42",
+        "workingSha256": "d8091a0fb1d09e1475a68c86664ab5a51126d6a03c42d13dbf3779f25e6c9e7d"
+      },
+      {
+        "path": "apps/intel-api/src/app.module.ts",
+        "gitBlob": "a89f3724e7622e17842db3b7b5054afb48f7690a",
+        "workingSha256": "eda01063bcd7d89ba77fe6800026f7747df8a5d0e73fb513f954d9e0fcd4e877"
+      },
+      {
+        "path": "apps/intel-api/src/auth/tenant.guard.ts",
+        "gitBlob": "83f1c898c5d748d55ca494d6268f6b8e39cb36b0",
+        "workingSha256": "836a1126cb1a834be265f4f5f4eac812bbc11e724bc858d02165aeaf62f834fe"
+      },
+      {
+        "path": "apps/intel-api/src/main.ts",
+        "gitBlob": "207163d02be04ab74421fcd11a7add2d4d7f700d",
+        "workingSha256": "8bc4a3a7e7c2568daf7c37c131c9a6390add15fda6efde5c43e6df49ec03a8d6"
+      },
+      {
+        "path": "apps/intel-api/src/sourcedata/folder-source-data.repository.ts",
+        "gitBlob": "f77ff9337012ba86697d6bd67dfa2b02ca66d932",
+        "workingSha256": "6dbc40304584fbc2c31b4045c1ee6fb7f94c2097400cb7ffa199b20099ea5d4a"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/editorial/editorial.controller.ts",
+        "gitBlob": "2db889bcbe5fa3b208b17c5ad228394437ed9771",
+        "workingSha256": "e1140de838bb132a97707fae6ff7552160a36466e889c5b78bbad83b738523cc"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/editorial/evidence.service.ts",
+        "gitBlob": "dcad88537fa3890ee0e0298ef345c235ef3a78a1",
+        "workingSha256": "eadf0323ef6862e0122e6088cc88658d1f2b4eadb701599829df0a21813ff92e"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/editorial/publisher-coverage.spec.ts",
+        "gitBlob": "7086a4381b4ac561228cef7cdd8afce84db0c251",
+        "workingSha256": "616581ddb4d2366caa348b4a0869abb7caf703c946103a6172fb822ffada3dc5"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/folders/folder-tracker.controller.ts",
+        "gitBlob": "481f0dc7a8e1f0d050ca9ddf7b1b7f520347435b",
+        "workingSha256": "2c7b96f8c728f64c7740383c2bad230a5586d3bd7b2807c0aab76d100f7cc710"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/folders/folder-tracker.service.ts",
+        "gitBlob": "54d6b4d39312ee00a39a07d586225a67663562aa",
+        "workingSha256": "94c30c05db367ce4dfe7b526d1ed6d8693c157321fac70a3cf83c6a858ecedac"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/keywords/internal-workflow.controller.ts",
+        "gitBlob": "13c4b888669c6245d2de5db80d5ac08305d21403",
+        "workingSha256": "741ec7710ee6d95136d85262da48ad0b7b113daf06e1ab5e51163deeec4509ed"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/keywords/keyword-meri.controller.ts",
+        "gitBlob": "890922b0c4ab130a0eb93b1406200c2b8aa21bd9",
+        "workingSha256": "eeef2903f2bb7e017941b122ed125ec223a9e3ae50e7cace5e09afa7f3a4305e"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/keywords/keyword-rule.service.ts",
+        "gitBlob": "306eff20a66e20e091839fbcfbbe1de68a00e808",
+        "workingSha256": "fc56b23146338711645744cb4787a1d9b0d8c6ce189082c3cc289f4833cf68f8"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/reports/report.service.ts",
+        "gitBlob": "9ca4b418dc3085b8f2397f1d192ba4bcd469db13",
+        "workingSha256": "bde15d5d3bc45437ac915f64bcea3b9242e74a644d25a157dd301ae9f24c83c2"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/research/research-domain.spec.ts",
+        "gitBlob": "584f901a1fe1a49df166adac43ea086dc3207343",
+        "workingSha256": "3c0dd5e07da7d300ea45cf3fdf2e65d979187de0b022efb8693cf9d4c1659aec"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/research/research.controller.ts",
+        "gitBlob": "690994b816e4a6995dadc7cf0d716aa26d212408",
+        "workingSha256": "f47d2ed9a8d85dc04aa16876eae358bf342d62f1a48c35b1aaa30f24c4b6461c"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/research/research.service.ts",
+        "gitBlob": "2f7be267858af4de0039f33c73d139b7dd7bb562",
+        "workingSha256": "a11102bd18d875af9ff8af0dc7673a1471ad7f5708f2ab3ac0e8840db8395285"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/tracker.module.ts",
+        "gitBlob": "8eece5f1b549bbbbee23bbd47b26727db6c99701",
+        "workingSha256": "0c7473caa250750410f96800f1e934e53e63996ea901ac54dd2e0107b1e4463e"
+      },
+      {
+        "path": "packages/shared/src/core-retained-principal.ts",
+        "gitBlob": "d6d634b20d09520b870c653a9930f7b5a186c9d6",
+        "workingSha256": "334eb08cd9518bc871e8d943f841ba103c7a84ecfca9ab81593eaebb560197d9"
+      },
+      {
+        "path": "packages/shared/src/index.ts",
+        "gitBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+        "workingSha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887"
+      },
+      {
+        "path": "packages/shared/src/legislative-research.ts",
+        "gitBlob": "ce3c93ae310885884a20f0a169062a9378dcdfb0",
+        "workingSha256": "1ca1772ecb3ac924660f41eb181bf252c4d7989747287af7e238402491295826"
+      },
+      {
+        "path": "packages/shared/src/legiwatch-phase8.ts",
+        "gitBlob": "fac862c0a96fdc47d92800629b566c0caef78981",
+        "workingSha256": "11ea686e845a02f022f2bd2fc0687b08a2a0be464ada912e0ae40e94f616f6f0"
+      }
+    ]
+  }
+}
