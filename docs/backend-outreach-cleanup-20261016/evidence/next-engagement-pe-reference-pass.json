@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "-c",
+    "grep.threads=1",
+    "grep",
+    "-n",
+    "-F",
+    "peTruthBlock",
+    "HEAD",
+    "--",
+    "apps/api/src/engagement",
+    "scripts",
+    "tests"
+  ],
+  "exit": 0,
+  "stdout": [
+    "HEAD:apps/api/src/engagement/engagement.service.ts:4324:          const block = peCode ? await this.truth.peTruthBlock(peCode) : null;",
+    "HEAD:apps/api/src/engagement/engagement.service.ts:9734:            const block = peCode ? await this.peTruthBlock(peCode) : null;",
+    "HEAD:apps/api/src/engagement/engagement.service.ts:9794:  private async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {",
+    "HEAD:apps/api/src/engagement/engagement.service.ts:9795:    return this.truth.peTruthBlock(peCode);",
+    "HEAD:apps/api/src/engagement/generation/evidence-source.service.spec.ts:57:    peTruthBlock: jest.fn(async () => opts.pe ?? null),",
+    "HEAD:apps/api/src/engagement/generation/evidence-source.service.ts:371:    const block = await this.truth.peTruthBlock(peCode);",
+    "HEAD:apps/api/src/engagement/generation/outreach-truth.service.ts:145:  async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {"
+  ],
+  "scope": "Disambiguate dead private Engagement facade from retained canonical OutreachTruthService method"
+}
