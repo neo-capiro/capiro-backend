@@ -104,5 +104,46 @@ const report={parent,workingSourceIdentities:manifest.paths,methods:methodProofs
   approvedFacadeHunks:hunks.map(({oldStart,oldCount,newStart,newCount,removed,added})=>({oldStart,oldCount,newStart,newCount,removedSHA256:sha(removed.join('\n')),addedSHA256:sha(added.join('\n'))})),
   engagement:{removedMethods:engagementReceipt.removed.blocks.map(row=>row.name),physicalLines:225,nonblankLines:220,inverseSHA256:sha(engagementInverse),otherBytesUnchanged:true},
   scope:'one-time source transition proof; not evergreen CI, native typing, router, database or runtime acceptance'};
+const checkpoint=git('rev-parse','HEAD').toString().trim();
+const applicationPaths=git('diff','--no-renames','--name-only',parent,checkpoint,'--','apps','packages').toString().trim().split('\n').filter(Boolean).sort();
+assert.deepEqual(applicationPaths,[
+  'apps/api/src/engagement/engagement.service.ts','apps/api/src/meri/meri-federal-legislation-tools.ts',
+  'apps/api/src/meri/meri-tool-input.helpers.ts','apps/api/src/meri/meri-tools.service.ts',
+]);
+const protectedPaths=[
+  'apps/api/prisma','packages','apps/defense-api','apps/intel-api','apps/api-strategy',
+  'apps/onboard-api','apps/onboard-web','apps/e2e','apps/api/src/auth','apps/api/src/tenant',
+  'apps/api/src/memory','apps/api/src/research-portfolios','apps/api/src/clients/objectives',
+  'apps/api/src/app.module.ts','apps/api/src/engagement/plans','apps/api/src/engagement/meetings',
+  'apps/api/src/engagement/generation','apps/api/src/engagement/engagement.module.ts',
+  'apps/api/src/engagement/engagement.controller.ts','apps/api/src/meri/meri.module.ts',
+  'apps/api/src/meri/meri.controller.ts','apps/api/src/meri/meri-rp-tool-transport.ts',
+  'apps/api/src/meri/governed-meri-tools.proxy.ts','apps/api/src/meri/meri.service.ts',
+  'apps/api/src/meri/meriv3-runtime.proxy.ts','apps/api/src/meri/meri-research.service.ts',
+  'package.json','pnpm-lock.yaml','pnpm-workspace.yaml','.github',
+  'docs/backend-cleanup-20261016','docs/backend-cleanup-frontend-20261016','docs/backend-runtime-cleanup-20261016',
+];
+report.protectedIdentities=protectedPaths.map(file=>{
+  const before=git('ls-tree',parent,'--',file).toString().trim();
+  assert.equal(git('ls-tree',checkpoint,'--',file).toString().trim(),before,'Protected source drift: '+file);
+  return {path:file,gitTreeEntry:before||'absent at both pins'};
+});
+assert.equal(git('rev-parse','cleanup/backend-runtime-simplification-20261016').toString().trim(),parent);
+const counted=evidence('../CODE-COUNTS.json');
+assert.equal(git('diff',counted.sourceHead,checkpoint,'--','apps','packages','scripts','tests','infra','evals','docker').length,0,'Source changed after count');
+const stageInputs=evidence('meri-domain-focused-controls-inputs.json');
+report.testedSourceIdentities=stageInputs.inputs.map(row=>{
+  assert.equal(sha(fs.readFileSync(path.join(root,row.path))),row.sha256,'Tested source drift: '+row.path);
+  return row;
+});
+const rawTree=git('ls-tree','-r',checkpoint,'--','docs/backend-meri-domain-cleanup-20261016/evidence').toString().trim().split('\n').filter(Boolean);
+report.capturedGitBytes=rawTree.map(row=>{
+  const entry=/^100644 blob ([a-f0-9]{40})\t(.+)$/.exec(row);assert(entry,'Nonregular captured source');
+  const bytes=fs.readFileSync(path.join(root,entry[2]));
+  assert.equal(createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex'),entry[1],'Captured raw bytes differ from Git: '+entry[2]);
+  return {path:entry[2],blob:entry[1],bytes:bytes.length,sha256:sha(bytes)};
+});
+report.sourceCheckpoint=checkpoint;report.applicationPaths=applicationPaths;
+report.sealedPR32LocalRefUnchanged=true;report.countedSourceHead=counted.sourceHead;
 fs.writeFileSync(path.join(__dirname,'SOURCE-TRANSITION-PROOF.json'),JSON.stringify(report,null,2)+'\n');
-console.log('MERI_DOMAIN_SOURCE_TRANSITION_OK '+JSON.stringify({methods:7,facades:5,inputDefinitions:4,approvedFacadeHunks:hunks.length,engagementRemovedMethods:3,engagementRemovedPhysicalLines:225,wholeFacadeInverse:true,wholeEngagementInverse:true,scope:report.scope}));
+console.log('MERI_DOMAIN_SOURCE_TRANSITION_OK '+JSON.stringify({methods:7,facades:5,inputDefinitions:4,approvedFacadeHunks:hunks.length,engagementRemovedMethods:3,engagementRemovedPhysicalLines:225,wholeFacadeInverse:true,wholeEngagementInverse:true,protectedIdentities:report.protectedIdentities.length,testedSourceIdentities:report.testedSourceIdentities.length,capturedGitBytes:report.capturedGitBytes.length,sourceCheckpoint:checkpoint,countedSourceHead:counted.sourceHead,scope:report.scope}));

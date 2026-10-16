@@ -49,6 +49,15 @@
       "ownedProcessExited": true,
       "observedPeakWorkingSetBytes": 52187136,
       "note": "Bounded source/plan evidence only"
+    },
+    {
+      "name": "meri-domain-final-source-proof",
+      "receipt": "evidence/meri-domain-final-source-proof.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 51855360,
+      "note": "Both complete source inverses;33protectedtree/blob identities;8actualtestedinputSHA256s;37capturedGitbyteidentities;includedsourceunchangedfromcounted322b2checkpoint"
     }
   ],
   "isolatedBindings": "Actual domain/input/bill-text and actual5facade methods execute. Nest exception and shared normalization/status are finite declared fixture bindings; SQL is inspected through spies. This is not native/shared normalization/database/type/startup acceptance.",
