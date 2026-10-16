@@ -9,6 +9,7 @@ async function runCollector(verifyInstalledClosure) {
   const module = { exports: {} };
   const missing = () => { throw Object.assign(new Error('synthetic unreadable artifact'), { code: 'ENOENT' }); };
   const fakeRequire = name => {
+    if (name === './qualification-platform.cjs') return require('./qualification-platform.cjs');
     if (name === './runtime-closure-contract.cjs') return { verifyInstalledClosure, artifactOwner: () => { throw new Error('unexplained artifact'); } };
     if (name === 'node:fs') return { existsSync: file => file === '/lib/ld-musl-aarch64.so.1', realpathSync: file => file, statSync: missing };
     if (name === 'node:module') return { createRequire: () => () => { counts.packageExecution++; throw new Error('package execution forbidden'); } };

@@ -8,6 +8,8 @@ const { execFileSync, spawn, spawnSync } = require('node:child_process');
 const http = require('node:http');
 const https = require('node:https');
 const { createHash } = require('node:crypto');
+const { selectedPlatform } = require('./qualification-platform.cjs');
+const platform = selectedPlatform();
 const run = (file, args) => execFileSync(file, args, { encoding: 'utf8', timeout: 30000 });
 function assertDumbInitVersion(file = 'dumb-init', args = ['--version'], { timeout = 30000 } = {}) {
   const result = spawnSync(file, args, {
@@ -164,7 +166,7 @@ const unwindSymbols = ['_Unwind_Resume', '_Unwind_GetIP', '_Unwind_GetCFA', '_Un
   '_Unwind_GetTextRelBase', '_Unwind_GetDataRelBase', '__deregister_frame', '__register_frame', '_Unwind_Resume_or_Rethrow', '_Unwind_RaiseException'];
 // Inspection only: definitions and calculated addresses never establish actual process symbol lookup.
 function elfSymbolFacts(data, names = unwindSymbols) {
-  const elf = elfMetadata(data); assert.equal(elf.machine, 183, 'provider must be ARM64');
+  const elf = elfMetadata(data); assert.equal(elf.machine, platform.machine, `provider must be ${platform.cpu}`);
   assert(names.length <= 64 && names.every(name => /^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(name)), 'bounded symbol names required');
   const wanted = new Set(names), number = offset => { assert(offset >= 0 && offset + 8 <= data.length); const n = data.readBigUInt64LE(offset); assert(n <= BigInt(Number.MAX_SAFE_INTEGER)); return Number(n); };
   const range = (offset, size) => assert(Number.isSafeInteger(offset + size) && offset >= 0 && size >= 0 && offset + size <= data.length, 'ELF table outside bytes');
@@ -275,15 +277,16 @@ function assertRuntimeLibc(receipt, evidence) {
   } catch (error) { error.evidence = { receipt, runtimeEvidence: evidence }; throw error; }
 }
 function verifyRuntimeLibc(receipt, evidence) {
-  assert.equal(receipt.elf.machine, 183); assert.notEqual(receipt.state, 'INCOMPATIBLE');
+  assert.equal(receipt.elf.machine, platform.machine); assert.notEqual(receipt.state, 'INCOMPATIBLE');
   assert.equal(evidence.addon.file, receipt.file); assert.equal(evidence.addon.sha256, receipt.sha256);
   assert(evidence.dlopen.some(row => row.file === receipt.file && row.sha256 === receipt.sha256), 'exact addon dlopen identity missing');
   assert(evidence.mapped.some(row => row.file === receipt.file && row.sha256 === receipt.sha256), 'actual mapped addon identity missing');
-  assert.equal(evidence.runtime.platform, 'linux'); assert.equal(evidence.runtime.arch, 'arm64');
+  assert.equal(evidence.runtime.platform, 'linux'); assert.equal(evidence.runtime.arch, platform.cpu);
   assert.equal(evidence.runtime.glibc, null, 'glibc runtime contradicts musl');
   const musl = evidence.musl;
   assert.equal(musl.file, evidence.expectedLoader.file); assert.equal(musl.sha256, evidence.expectedLoader.sha256);
-  assert.equal(musl.elf.machine, 183); assert.match(evidence.banner, /^musl libc \(aarch64\)\s+Version \d+\.\d+\.\d+/);
+  assert.equal(musl.elf.machine, platform.machine);
+  assert.match(evidence.banner, new RegExp(`^musl libc \\(${platform.bannerCpu}\\)\\s+Version \\d+\\.\\d+\\.\\d+`));
   assert(['/lib', '/usr/lib'].some(root => contained(root, musl.file)), 'musl runtime escapes system library roots');
   assert(evidence.mapped.some(row => row.file === musl.file && row.sha256 === musl.sha256), 'actual mapped musl identity missing');
   assert(!evidence.mapped.some(row => row.elf.libc === 'glibc' || row.elf.soname === 'libc.so.6'), 'mapped glibc evidence contradicts musl');
@@ -300,10 +303,10 @@ function verifyRuntimeLibc(receipt, evidence) {
   return { ...receipt, staticState: receipt.state, state: 'COMPATIBLE', libc: 'musl', runtimeEvidence: evidence };
 }
 async function observeNativeLoad(file, operation = () => require(file)) {
-  const addon = fileIdentity(file), expectedLoader = fileIdentity('/lib/ld-musl-aarch64.so.1');
-  const bannerResult = boundedChild('/lib/ld-musl-aarch64.so.1', ['--version'], { maxBuffer: 128 * 1024 });
+  const addon = fileIdentity(file), expectedLoader = fileIdentity(platform.loader);
+  const bannerResult = boundedChild(platform.loader, ['--version'], { maxBuffer: 128 * 1024 });
   const banner = (bannerResult.stdout + bannerResult.stderr).trim();
-  const list = boundedChild('/lib/ld-musl-aarch64.so.1', ['--list', addon.file], { maxBuffer: 256 * 1024 });
+  const list = boundedChild(platform.loader, ['--list', addon.file], { maxBuffer: 256 * 1024 });
   const nodeSymbols = [], unexplained = [];
   for (const line of list.stderr.split('\n').filter(Boolean)) {
     const prefix = `Error relocating ${addon.file}: `;
@@ -331,7 +334,7 @@ async function observeNativeLoad(file, operation = () => require(file)) {
   if (mappings.length > 256) inspectionErrors.push({ source: 'loader stdout', message: 'resolved object count exceeds bound' });
   const resolved = mappings.slice(0, 256).map(row => ({ dependency: row.dependency, ...inspect(row.file) }));
   const symbolProviders = unexplained.length ? collectSymbolProviders(mapped, maps, addon) : null;
-  const evidence = { addon, expectedLoader, musl: inspect('/lib/ld-musl-aarch64.so.1'), banner, bannerResult,
+  const evidence = { addon, expectedLoader, musl: inspect(platform.loader), banner, bannerResult,
     runtime: { platform: process.platform, arch: process.arch, glibc: process.report.getReport().header.glibcVersionRuntime || null },
     mapped, mappedPaths: paths.slice(0, 256), resolved, dlopen, inspectionErrors, symbolProviders,
     operationCompleted: !operationError, addonAfter: inspect(addon.file),
@@ -363,15 +366,18 @@ async function libsqlChild(manifest) {
   assert(contained(path.dirname(manifest), entry), 'LibSQL entry escapes owner');
   const entrySha256 = createHash('sha256').update(fs.readFileSync(entry)).digest('hex');
   assert.equal(entrySha256, 'cc6f0fb815d302185ba69d4f749b423dfe304add1c58d6ff687842f8c1e39152', 'LibSQL dispatcher differs from integrity-verified vendor source');
-  const dependencyName = '@libsql/linux-arm64-musl';
+  const dependencyName = platform.libsql;
   assert.equal(metadata.optionalDependencies?.[dependencyName], metadata.version);
   const bindingManifest = resolveInstalledManifest(manifest, dependencyName, root);
   assert(bindingManifest, 'LibSQL selected optional package missing');
   const native = fs.realpathSync(ownerRequire.resolve(dependencyName)), receipt = classifyNativeArtifact(native);
   assert.equal(receipt.owner.root, path.dirname(bindingManifest)); assert.equal(receipt.owner.name, dependencyName);
   assert.equal(receipt.owner.version, metadata.version);
-  assert.equal(receipt.sha256, 'e4a292a56e0b4baf88f22ab5ade36e4ea0991a11577b1c31a6fe19f5e4218fb9', 'LibSQL native bytes differ from integrity-verified vendor artifact');
-  assert.equal(receipt.bytes, 8731816);
+  const nativeProof = platform.cpu === 'arm64'
+    ? { sha256: 'e4a292a56e0b4baf88f22ab5ade36e4ea0991a11577b1c31a6fe19f5e4218fb9', bytes: 8731816 }
+    : { sha256: 'bed7fdfd3f4139dab101ebafdec8a74ec62799fd65714f1a98918c905597e63d', bytes: 9906912 };
+  assert.equal(receipt.sha256, nativeProof.sha256, 'LibSQL native bytes differ from integrity-verified vendor artifact');
+  assert.equal(receipt.bytes, nativeProof.bytes);
   assert.notEqual(receipt.state, 'INCOMPATIBLE', 'incompatible LibSQL binding load forbidden');
   const observed = await observeNativeLoad(native, () => {
     const Database = ownerRequire(entry), db = new Database(':memory:');
@@ -539,7 +545,7 @@ async function retainedDispatcher(manifest) {
   assert(contained(path.dirname(manifest), entry), 'dispatcher entry escapes owner');
   const result = { relation: 'RETAINED_STORE_DISPATCHER', manifest, entry, name: metadata.name, version: metadata.version };
   if (metadata.name !== 'esbuild') {
-    const dependencyName = metadata.name === '@napi-rs/canvas' ? '@napi-rs/canvas-linux-arm64-musl' : '@swc/core-linux-arm64-musl';
+    const dependencyName = metadata.name === '@napi-rs/canvas' ? platform.canvas : platform.swc;
     const expected = resolvedNativeBinding(manifest, dependencyName, { root });
     const observed = await observeNativeLoad(expected.receipt.file, () => {
       const dispatcher = ownerRequire(entry);
@@ -552,13 +558,13 @@ async function retainedDispatcher(manifest) {
   } else {
     const dispatcher = ownerRequire(entry);
     assert(dispatcher.transformSync('const value: number = 1', { loader: 'ts' }).code);
-    const name = '@esbuild/linux-arm64';
+    const name = platform.esbuild;
     assert.equal(metadata.optionalDependencies?.[name], metadata.version);
     const binaryManifest = resolveInstalledManifest(manifest, name, root); assert(binaryManifest, 'esbuild native optional missing');
     const nativePackage = JSON.parse(fs.readFileSync(binaryManifest, 'utf8'));
     assert.equal(nativePackage.name, name); assert.equal(nativePackage.version, metadata.version);
     const binary = fileIdentity(path.join(path.dirname(binaryManifest), 'bin', 'esbuild'));
-    assert(contained(path.dirname(binaryManifest), binary.file)); assert.equal(binary.elf.machine, 183);
+    assert(contained(path.dirname(binaryManifest), binary.file)); assert.equal(binary.elf.machine, platform.machine);
     const execution = boundedChild(binary.file, ['--version']);
     assert(!execution.error && !execution.signal && execution.status === 0, 'esbuild binary version execution failed');
     assert.equal(execution.stdout.trim(), metadata.version);
@@ -606,7 +612,7 @@ function classifyNativeArtifact(file, { root = '/app/node_modules/.pnpm' } = {})
   if (elf.libc) assert(allows(owner.libc, elf.libc), 'package/ELF libc constraint disagreement');
   const reasons = [];
   if (!allows(owner.os, 'linux')) reasons.push('package-os');
-  if (!allows(owner.cpu, 'arm64') || elf.machine !== 183) reasons.push('package-or-elf-cpu');
+  if (!allows(owner.cpu, platform.cpu) || elf.machine !== platform.machine) reasons.push('package-or-elf-cpu');
   const positiveLibc = owner.libc && owner.libc.filter(value => !value.startsWith('!'));
   const declaredLibc = positiveLibc && positiveLibc.length === 1 && ['glibc', 'musl'].includes(positiveLibc[0]) ? positiveLibc[0] : null;
   if (declaredLibc && elf.libc) assert.equal(declaredLibc, elf.libc, 'package/ELF libc disagreement');
@@ -617,7 +623,7 @@ function classifyNativeArtifact(file, { root = '/app/node_modules/.pnpm' } = {})
 }
 function assertActiveBinding(file, options) {
   const receipt = classifyNativeArtifact(file, options);
-  assert.equal(receipt.state, 'COMPATIBLE', `active native binding is not proven ARM64/musl: ${receipt.owner.name}`);
+  assert.equal(receipt.state, 'COMPATIBLE', `active native binding is not proven ${platform.cpu}/musl: ${receipt.owner.name}`);
   return receipt;
 }
 function resolveInstalledManifest(parentManifest, dependencyName, root) {
@@ -710,7 +716,7 @@ async function sharpDispatcherProbe(manifest, { root = '/app/node_modules/.pnpm'
   assert.equal(metadata.name, 'sharp'); assert.equal(metadata.version, '0.35.5');
   const ownerRequire = createRequire(manifest), entry = fs.realpathSync(ownerRequire.resolve('./'));
   assert(contained(ownerRoot, entry) && fs.statSync(entry).isFile(), 'Sharp entry escapes owner');
-  const expectedName = '@img/sharp-linuxmusl-arm64';
+  const expectedName = platform.sharp;
   assert.equal(metadata.optionalDependencies?.[expectedName], metadata.version, 'Sharp optional binding pin mismatch');
   const bindingManifest = fs.realpathSync(ownerRequire.resolve(`${expectedName}/package`));
   assert(contained(root, bindingManifest) && fs.statSync(bindingManifest).isFile(), 'Sharp optional owner escapes store');
@@ -775,9 +781,9 @@ async function signalProbe() {
 }
 async function main() {
   const appRequire = createRequire('/app/apps/api/package.json');
-  assert.equal(process.platform, 'linux'); assert.equal(process.arch, 'arm64');
+  assert.equal(process.platform, 'linux'); assert.equal(process.arch, platform.cpu);
   assert.equal(process.version, 'v22.23.3'); assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
-  assert(fs.existsSync('/lib/ld-musl-aarch64.so.1'), 'musl loader missing');
+  assert(fs.existsSync(platform.loader), 'musl loader missing');
   assert(!process.report.getReport().header.glibcVersionRuntime, 'glibc runtime detected');
   const stream = createReceiptStream();
   report.gates = []; report.artifacts = []; report.sharp = []; report.libsql = []; report.npmPackages = []; report.wasm = [];
@@ -904,7 +910,7 @@ async function main() {
     const pdfEntry = appRequire.resolve('pdf-parse'), pdfRequire = createRequire(pdfEntry);
     const root = fs.realpathSync('/app/node_modules/.pnpm');
     const manifest = resolveInstalledManifest(pdfEntry, '@napi-rs/canvas', root); assert(manifest, 'API-selected Canvas owner missing');
-    const expected = resolvedNativeBinding(manifest, '@napi-rs/canvas-linux-arm64-musl', { root });
+    const expected = resolvedNativeBinding(manifest, platform.canvas, { root });
     const observed = await observeNativeLoad(expected.receipt.file, () => { const canvas = pdfRequire('@napi-rs/canvas'); assert.equal(canvas.createCanvas(2, 2).width, 2); });
     assert(observed.evidence.dlopen.every(row => contained(expected.receipt.owner.root, row.file)), 'Canvas loaded unexplained native binding');
     report.canvas = { relation: 'API_PDF_PARSE_SELECTED_CANVAS', manifest, bindingManifest: expected.bindingManifest, binding: assertRuntimeLibc(expected.receipt, observed.evidence) };
@@ -915,11 +921,11 @@ async function main() {
     assert(tsxRequire('esbuild').transformSync('const value: number = 1', { loader: 'ts' }).code);
   });
   await check('prisma-runtime', () => {
-  assert(fs.readFileSync('/app/apps/api/prisma/schema.prisma', 'utf8').includes('linux-musl-arm64-openssl-3.0.x'));
-  const engines = files.filter(file => /(?:libquery_engine|schema-engine).*linux-musl-arm64-openssl-3\.0\.x/.test(path.basename(file)));
+  assert(fs.readFileSync('/app/apps/api/prisma/schema.prisma', 'utf8').includes(platform.prisma));
+  const engines = files.filter(file => [ `libquery_engine-${platform.prisma}.so.node`, `schema-engine-${platform.prisma}` ].includes(path.basename(file)));
   assert(engines.some(file => file.endsWith('.so.node')), 'musl query engine absent');
   assert(engines.some(file => path.basename(file).startsWith('schema-engine')), 'musl migration engine absent');
-  assert(!files.some(file => /(?:libquery_engine|schema-engine).*linux-arm64-openssl-3\.0\.x/.test(path.basename(file))), 'glibc Prisma engine retained');
+  assert(!files.some(file => [ `libquery_engine-${platform.glibcPrisma}.so.node`, `schema-engine-${platform.glibcPrisma}` ].includes(path.basename(file))), 'glibc Prisma engine retained');
   for (const file of engines.filter(file => path.basename(file).startsWith('schema-engine'))) assert.match(run(file, ['--version']), /schema-engine/);
   const cli = fs.realpathSync('/app/apps/api/node_modules/prisma/build/index.js');
   assert.match(run(process.execPath, [cli, '--version']), /5\.22\.0/);

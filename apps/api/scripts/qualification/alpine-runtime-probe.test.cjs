@@ -45,7 +45,7 @@ test('provider dynsym retains exact definition, binding, visibility and version 
   assert.deepEqual(facts.missingNames, ['_Unwind_GetIP']); assert.equal(facts.loads[0].virtualAddress, '0x1000');
 });
 test('provider parser rejects wrong machine, missing symbols, truncated/version/offset corruption', () => {
-  const wrong = symbolElf(); wrong.writeUInt16LE(62, 18); assert.throws(() => elfSymbolFacts(wrong), /ARM64/);
+  const wrong = symbolElf(); wrong.writeUInt16LE(62, 18); assert.throws(() => elfSymbolFacts(wrong), /arm64/);
   const absent = symbolElf(); absent.writeUInt32LE(1, 512 + 2 * 64 + 4); assert.throws(() => elfSymbolFacts(absent), /dynamic symbol table/);
   assert.throws(() => elfSymbolFacts(symbolElf().subarray(0, 700)), /truncated ELF/);
   const bad = symbolElf(); bad.writeUInt32LE(20000, 364); assert.throws(() => elfSymbolFacts(bad), /auxiliary outside/);
@@ -135,7 +135,7 @@ test('Sharp glibc owner lacking -gnu is retained inactive using positive package
   const receipt = classifyNativeArtifact(file, options);
   assert.equal(receipt.state, 'INCOMPATIBLE'); assert.equal(receipt.owner.name, '@img/sharp-linux-arm64');
   assert.equal(receipt.elf.machine, 183); assert.match(receipt.sha256, /^[a-f0-9]{64}$/);
-  assert.throws(() => assertActiveBinding(file, options), /not proven ARM64\/musl/);
+  assert.throws(() => assertActiveBinding(file, options), /not proven arm64\/musl/);
 });
 test('musl Sharp package is compatible and passes the active binding identity gate', t => {
   const { file, options } = artifact(t, { name: '@img/sharp-linuxmusl-arm64', version: '0.35.5', os: ['linux'], cpu: ['arm64'], libc: ['musl'] });

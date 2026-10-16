@@ -1,13 +1,15 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
+const { selectedPlatform } = require('./qualification-platform.cjs');
 const file = process.argv[2];
 assert(file, 'schema path required');
 const source = fs.readFileSync(file, 'utf8');
 const generator = /generator client\s*\{[^}]*\}/.exec(source);
 assert(generator, 'expected client generator');
+const platform = selectedPlatform();
 const from = '"linux-arm64-openssl-3.0.x"';
-const to = '"linux-musl-arm64-openssl-3.0.x"';
+const to = `"${platform.prisma}"`;
 assert.equal(generator[0].split(from).length - 1, 1, 'expected exactly one glibc generator target');
 const revised = generator[0].replace(from, to);
 fs.writeFileSync(file, source.replace(generator[0], revised));
-console.log('Selected image-local Prisma musl ARM64 OpenSSL3 target; models unchanged');
+console.log(`Selected image-local Prisma musl ${platform.cpu} OpenSSL3 target; models unchanged`);

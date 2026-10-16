@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
+const { selectedPlatform } = require('./qualification-platform.cjs');
 const CONTRACT_SHA256 = '78dfcb0a438c74df4c0778e1316bef4b15874fedad4e8c4ecbd7ae5361305def';
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
@@ -109,6 +110,26 @@ const archivePlatforms = Object.freeze({
     "libc": [
       "musl"
     ]
+  },
+  "@napi-rs/canvas-linux-x64-gnu@0.1.80": {
+    "integrity": "sha512-BeXAmhKg1kX3UCrJsYbdQd3hIMDH/K6HnP/pG2LuITaXhXBiNdh//TVVVVCBbJzVQaV5gK/4ZOCMrQW9mvuTqA==",
+    "manifestSHA256": "4784efb91449657a0cd0d7753a98c50888687dd4ef4ac1ee78a12183da7a3a31",
+    "os": ["linux"], "cpu": ["x64"], "libc": ["glibc"]
+  },
+  "@napi-rs/canvas-linux-x64-gnu@1.0.9": {
+    "integrity": "sha512-6kaz3w0QMy77PDWk6rJ1ksIihdad3qzEyX2o2oGT8GwCaypfT5mhjr8buOO5hstyLxcWXDScuz56RsINLtBPIQ==",
+    "manifestSHA256": "ff5183ad72e20d10dceb4f18d59a4326edf023b5ae2d022a2f2b8ed8a693ffc2",
+    "os": ["linux"], "cpu": ["x64"], "libc": ["glibc"]
+  },
+  "@napi-rs/canvas-linux-x64-musl@0.1.80": {
+    "integrity": "sha512-x0XvZWdHbkgdgucJsRxprX/4o4sEed7qo9rCQA9ugiS9qE2QvP0RIiEugtZhfLH3cyI+jIRFJHV4Fuz+1BHHMg==",
+    "manifestSHA256": "479e39e8af197977ffa141231f01a4a5a693b1785eb6593ece45a4d9ddd4cfe3",
+    "os": ["linux"], "cpu": ["x64"], "libc": ["musl"]
+  },
+  "@napi-rs/canvas-linux-x64-musl@1.0.9": {
+    "integrity": "sha512-xrGvmS3v55hmZ86ls/kBLVNMUTYio3f6Ik0DireemG994VfPAwiA3ZXA0Uf1bByctkB3NQ1Sfb+H5bkdUnnzfQ==",
+    "manifestSHA256": "49ce74c87cb8a8800da596426a309ecc072178616261d4e3c4aefb2e16bba387",
+    "os": ["linux"], "cpu": ["x64"], "libc": ["musl"]
   }
 });
 function reconciledPlatform(node, owner) {
@@ -315,7 +336,7 @@ function verifyInstalledClosure(options = {}) {
   try { return verifyInstalledClosureWithDiagnostics(options, diagnostic); }
   catch (error) { error.evidence = diagnosticEvidence(diagnostic); throw error; }
 }
-function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { os: 'linux', cpu: 'arm64', libc: 'musl' }, resolve = resolveDependency, ...options }, diagnostic) {
+function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { os: 'linux', cpu: selectedPlatform().cpu, libc: 'musl' }, resolve = resolveDependency, ...options }, diagnostic) {
   imageRoot = fs.realpathSync(imageRoot); const store = fs.realpathSync(path.join(imageRoot, 'node_modules/.pnpm'));
   diagnostic.imageRoot = imageRoot;
   diagnostic.payload.target = Object.fromEntries(['os', 'cpu', 'libc'].map(field => [field, diagnosticText(target[field], 32)]));
@@ -409,9 +430,28 @@ function artifactOwner(file, closure) {
   }
   if (name.startsWith('@napi-rs/canvas-')) { expected = `skia.${name.slice('@napi-rs/canvas-'.length)}.node`; fixture = 'CANVAS_REAL_PIXEL'; }
   if (name.startsWith('@esbuild/')) { expected = 'bin/esbuild'; fixture = 'ESBUILD_REAL_TRANSFORM'; }
+  // These are exact members of lock-SRI-verified vendor archives. The image
+  // probe still has to observe their actual resolution/load and operations.
+  const amd64Native = {
+    '@napi-rs/canvas-linux-x64-musl@0.1.80': ['skia.linux-x64-musl.node', 28798328, 'f84fb53d2362daac1bc17bf7af0e3a3e970231ada84f5e5fae84b03639561448', 'CANVAS_REAL_PIXEL'],
+    '@napi-rs/canvas-linux-x64-musl@1.0.9': ['skia.linux-x64-musl.node', 31014168, '52227736fb518b3f367bf56bcf7eb86c4f6d5f1b500a4f1e6f2abbb6b68cd460', 'CANVAS_REAL_PIXEL'],
+    '@libsql/linux-x64-musl@0.5.29': ['index.node', 9906912, 'bed7fdfd3f4139dab101ebafdec8a74ec62799fd65714f1a98918c905597e63d', 'LIBSQL_MEMORY_QUERY'],
+    '@swc/core-linux-x64-musl@1.16.2': ['swc.linux-x64-musl.node', 39591464, 'f43d35411329023ef3469624cb38250fe31b6317cec8b741a9db9702b74adbd4', 'SWC_TRANSFORM'],
+    '@img/sharp-linuxmusl-x64@0.35.5': ['lib/sharp-linuxmusl-x64-0.35.5.node', 301328, '14ce8ddd283c101f225089152da805632568bfa372d336ccbfdd811f4f1dca02', 'SHARP_REAL_PIXEL'],
+    '@img/sharp-libvips-linuxmusl-x64@1.3.4': ['lib/libvips-cpp.so.8.18.7', 18911144, '979b625437190a1970b835164e0e30d47dc60159ce6a394ce78cc40cb9d59ab8', 'SHARP_REAL_PIXEL'],
+  };
+  if (selectedPlatform().cpu === 'x64' && amd64Native[`${name}@${owner.metadata.version}`]) {
+    const [member, bytes, sha256, operation] = amd64Native[`${name}@${owner.metadata.version}`];
+    assert.equal(relative, member, 'unexpected AMD64 vendor artifact member');
+    const data = readBounded(real, owner.root, 64 * 1024 * 1024);
+    assert.equal(data.length, bytes, 'AMD64 vendor artifact length differs from locked archive');
+    assert.equal(hash(data), sha256, 'AMD64 vendor artifact bytes differ from locked archive');
+    expected = member; fixture = operation;
+  }
   if (name === '@prisma/engines' || owner.generatedBy) {
     assert(owner.metadata.version === '5.22.0', 'unreviewed Prisma native version');
-    expected = /^libquery_engine-linux-musl-arm64-openssl-3\.0\.x\.so\.node$|^schema-engine-linux-musl-arm64-openssl-3\.0\.x$/.test(relative) ? relative : null;
+    const target = selectedPlatform().prisma;
+    expected = [ `libquery_engine-${target}.so.node`, `schema-engine-${target}` ].includes(relative) ? relative : null;
     fixture = 'PRISMA_MUSL_ENGINE_AND_ISOLATED_DATABASE_STARTUP';
   }
   assert(expected && relative === expected && fixture, `unreviewed native artifact owner/path: ${name} ${relative}`);
