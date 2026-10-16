@@ -1,0 +1,280 @@
+TAP version 13
+# Subtest: pin packet remains bound to exact 016e candidate
+ok 1 - pin packet remains bound to exact 016e candidate
+  ---
+  duration_ms: 2207.5368
+  type: 'test'
+  ...
+# Subtest: every current pinned source equals reviewed candidate bytes after CRLF normalization
+ok 2 - every current pinned source equals reviewed candidate bytes after CRLF normalization
+  ---
+  duration_ms: 3531.8074
+  type: 'test'
+  ...
+# Subtest: all tracked and untracked changes stay inside the inactive proposal packet
+ok 3 - all tracked and untracked changes stay inside the inactive proposal packet
+  ---
+  duration_ms: 395.211
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: controller role guard removed
+ok 4 - source preservation rejects: controller role guard removed
+  ---
+  duration_ms: 3.0159
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: controller standard-user requirement removed
+ok 5 - source preservation rejects: controller standard-user requirement removed
+  ---
+  duration_ms: 1.1978
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: a CurrentTenant injection removed
+ok 6 - source preservation rejects: a CurrentTenant injection removed
+  ---
+  duration_ms: 1.2608
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: CurrentTenant missing-context rejection bypassed
+ok 7 - source preservation rejects: CurrentTenant missing-context rejection bypassed
+  ---
+  duration_ms: 1.294
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: core middleware registration removed
+ok 8 - source preservation rejects: core middleware registration removed
+  ---
+  duration_ms: 1.2125
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: engagement middleware registration removed
+ok 9 - source preservation rejects: engagement middleware registration removed
+  ---
+  duration_ms: 1.2332
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: Clerk token verification removed
+ok 10 - source preservation rejects: Clerk token verification removed
+  ---
+  duration_ms: 1.3896
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: Clerk issuer assertion removed
+ok 11 - source preservation rejects: Clerk issuer assertion removed
+  ---
+  duration_ms: 2.2194
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: tenant claim cross-check removed
+ok 12 - source preservation rejects: tenant claim cross-check removed
+  ---
+  duration_ms: 1.0368
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: missing-context role rejection bypassed
+ok 13 - source preservation rejects: missing-context role rejection bypassed
+  ---
+  duration_ms: 1.1257
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: unknown caller role rejection bypassed
+ok 14 - source preservation rejects: unknown caller role rejection bypassed
+  ---
+  duration_ms: 1.2247
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: role rank requirement bypassed
+ok 15 - source preservation rejects: role rank requirement bypassed
+  ---
+  duration_ms: 1.3179
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: client tenant predicate removed
+ok 16 - source preservation rejects: client tenant predicate removed
+  ---
+  duration_ms: 1.3397
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: client archive predicate removed
+ok 17 - source preservation rejects: client archive predicate removed
+  ---
+  duration_ms: 1.4218
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: client lock removed
+ok 18 - source preservation rejects: client lock removed
+  ---
+  duration_ms: 1.3524
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: current tenant active requirement removed
+ok 19 - source preservation rejects: current tenant active requirement removed
+  ---
+  duration_ms: 1.2796
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: current membership active requirement removed
+ok 20 - source preservation rejects: current membership active requirement removed
+  ---
+  duration_ms: 1.5344
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: current actor Clerk correlation removed
+ok 21 - source preservation rejects: current actor Clerk correlation removed
+  ---
+  duration_ms: 1.5581
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: current actor minimum role bypassed
+ok 22 - source preservation rejects: current actor minimum role bypassed
+  ---
+  duration_ms: 1.1737
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: actor share locks removed
+ok 23 - source preservation rejects: actor share locks removed
+  ---
+  duration_ms: 0.9406
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: current actor recheck removed from aggregate authority helper
+ok 24 - source preservation rejects: current actor recheck removed from aggregate authority helper
+  ---
+  duration_ms: 0.9428
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: grant stability lock removed
+ok 25 - source preservation rejects: grant stability lock removed
+  ---
+  duration_ms: 1.0388
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: canonical wall decision replaced by unconditional approval
+ok 26 - source preservation rejects: canonical wall decision replaced by unconditional approval
+  ---
+  duration_ms: 1.7251
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: wall failure no longer denies aggregate access
+ok 27 - source preservation rejects: wall failure no longer denies aggregate access
+  ---
+  duration_ms: 1.2342
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: empty discovery actor recheck removed
+ok 28 - source preservation rejects: empty discovery actor recheck removed
+  ---
+  duration_ms: 1.3806
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: selected inaccessible client allowed to broaden
+ok 29 - source preservation rejects: selected inaccessible client allowed to broaden
+  ---
+  duration_ms: 0.8971
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: per-client wall recheck removed from discovery
+ok 30 - source preservation rejects: per-client wall recheck removed from discovery
+  ---
+  duration_ms: 0.8478
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: list current authority discovery removed
+ok 31 - source preservation rejects: list current authority discovery removed
+  ---
+  duration_ms: 0.8666
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: list cursor actor binding removed
+ok 32 - source preservation rejects: list cursor actor binding removed
+  ---
+  duration_ms: 1.0846
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: list SQL permitted-client predicate removed
+ok 33 - source preservation rejects: list SQL permitted-client predicate removed
+  ---
+  duration_ms: 1.4699
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: create current actor and wall gate removed
+ok 34 - source preservation rejects: create current actor and wall gate removed
+  ---
+  duration_ms: 2.0082
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: withPlan current actor and wall gate removed
+ok 35 - source preservation rejects: withPlan current actor and wall gate removed
+  ---
+  duration_ms: 1.4367
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: withPlan target fence removed
+ok 36 - source preservation rejects: withPlan target fence removed
+  ---
+  duration_ms: 1.1424
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: history aggregate authority wrapper replaced
+ok 37 - source preservation rejects: history aggregate authority wrapper replaced
+  ---
+  duration_ms: 0.9325
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: history client SQL predicate removed
+ok 38 - source preservation rejects: history client SQL predicate removed
+  ---
+  duration_ms: 1.4164
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: aggregate lookup tenant predicate removed
+ok 39 - source preservation rejects: aggregate lookup tenant predicate removed
+  ---
+  duration_ms: 1.2708
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: canonical wall true-only result bypassed
+ok 40 - source preservation rejects: canonical wall true-only result bypassed
+  ---
+  duration_ms: 1.068
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: canonical wall actor grant correlation removed
+ok 41 - source preservation rejects: canonical wall actor grant correlation removed
+  ---
+  duration_ms: 1.2366
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: Clerk discovery grant actor correlation removed
+ok 42 - source preservation rejects: Clerk discovery grant actor correlation removed
+  ---
+  duration_ms: 1.3089
+  type: 'test'
+  ...
+# Subtest: source preservation rejects: tenant transaction setting removed
+ok 43 - source preservation rejects: tenant transaction setting removed
+  ---
+  duration_ms: 1.5174
+  type: 'test'
+  ...
+# Subtest: source preservation fails closed on a missing pinned source
+ok 44 - source preservation fails closed on a missing pinned source
+  ---
+  duration_ms: 1.5832
+  type: 'test'
+  ...
+# Subtest: source preservation does not silently ignore an additional source
+ok 45 - source preservation does not silently ignore an additional source
+  ---
+  duration_ms: 1.0963
+  type: 'test'
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8641.0715

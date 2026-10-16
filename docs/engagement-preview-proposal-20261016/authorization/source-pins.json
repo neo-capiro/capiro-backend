@@ -1,0 +1,143 @@
+{
+  "format": "engagement-preview-authorization-source-preservation-v1",
+  "baseCommit": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "hashDomain": "Exact Git blob UTF-8 bytes, compared to working files after CRLF-to-LF normalization; SHA-256 plus Git blob OID.",
+  "coverage": "Offline static preservation only. No application authorization, database privileges or live HTTP executed.",
+  "files": [
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.controller.ts",
+      "gitBlob": "2a39e12ef0f83224e7b1056f515e18123490384b",
+      "sha256": "469a72b31e1d6e53ffcb81ec33e4185af9b8471a2e147404d854daaafff41ac3"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-access.ts",
+      "gitBlob": "a4ae41a24c49a83bfb7c367f5b9775d7ef8fe324",
+      "sha256": "63a2f5de8294d0353976f14ff9f1a5489959e10102a0f523525e967332cef6e0"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.service.ts",
+      "gitBlob": "6ffe25bb053066222197f8793b2f037dd0091a6b",
+      "sha256": "4e19c284968d36d31982e8dc2b0ddc9317f02e4ea5010027a24121b67ff05c82"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-store.ts",
+      "gitBlob": "e30af6a4ac907d190c0c7d33ef4ca9ba010a490a",
+      "sha256": "ea132ac4ce3329520c0702ced263e750c4efad157caef17f2df13f9908321bf3"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "gitBlob": "60fbbc8a1de21962a95af60842d25087f58a612d",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "path": "apps/api/src/auth/roles.decorator.ts",
+      "gitBlob": "ec576399d6ad69e4a42f8e87eb08df43663edde9",
+      "sha256": "48273cb64384cd3b22c90e3abc8a0a0e0c77d774ac1d30602e1d0a1a26715a62"
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "path": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "gitBlob": "40fbcf7d5ad5c4bf1b75963c97ac41207ebf64b6",
+      "sha256": "4709acfb1164a4e71fa508e03534a9015a0c8e7fc4ccc452264099e913281647"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.store.ts",
+      "gitBlob": "5442923946ee98648b76b50700ca049ddff107e6",
+      "sha256": "33b46f43722694f12986ff4d535e1ee31f8834c2e8cec0d70e319cfe91be5181"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.module.ts",
+      "gitBlob": "edb4697bb0c21f5ab3b726cbc49457f1156373c1",
+      "sha256": "696c437276cfb5785cfce2d579a54475a0c3ed086ee84bf17cf23844c61c7ae0"
+    },
+    {
+      "path": "apps/api/src/engagement-api.app.module.ts",
+      "gitBlob": "74b1f4400160b5eea810fd5fc946a705c0d0031f",
+      "sha256": "4cbde413677717948e1404ea591df64d41db31e733a7a80dc145d03ef90dd95e"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "gitBlob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+      "sha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3"
+    },
+    {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "gitBlob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "gitBlob": "42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "gitBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "sha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "gitBlob": "d071939ac0f18deccab65794b9be20222c5887e8",
+      "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+    },
+    {
+      "path": "apps/api/src/engagement/report-targets.ts",
+      "gitBlob": "e6214f378c182643ca3ac8dabaa47345b53282c7",
+      "sha256": "b09dc9fc032883e13c05412b5cca6f4fe3e1b6a3aecb77052e14f1810b014db8"
+    },
+    {
+      "path": "apps/web/src/lib/engagement-api-preview.ts",
+      "gitBlob": "0fc13a6c4c4fab93225175f5b9920d24d946bff0",
+      "sha256": "cdfc69cdc33988e53c42886f2c494a067abadaa202b3687b387ac15d15fd6195"
+    },
+    {
+      "path": "apps/web/src/lib/engagement-api-preview-routes.generated.ts",
+      "gitBlob": "bd370fe927dbfb9ee3d19199b4de399ed275736e",
+      "sha256": "52d4860d305acd1c34774cde5f5eeabbd36aadbdd1b0de487f4311bd7262421f"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime.guard.ts",
+      "gitBlob": "e2c052d44ad347837ca99109e4cd3419282a1501",
+      "sha256": "17714352188538219003fafd4ea8e260768ce1116b8cb3d2b09414c0f4c7f890"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts",
+      "gitBlob": "104cf85aef102b2d4fd4cc7be61c4af416f2bde3",
+      "sha256": "0e24effe12ea407d7a44650724b86c34324fc81ddbb9a12ec0559e478b317ae5"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.controller.spec.ts",
+      "gitBlob": "41cfad68fe0cf77bee7b7fd74fe309f6359fc857",
+      "sha256": "7cfc307ae789e71f5240d6ae92c819655b3479244359aa50d0eecf9292d5903d"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plan-access.spec.ts",
+      "gitBlob": "2f3874b85a1fbbe5890e28cb352ab657793d2e8d",
+      "sha256": "5abaf0e8fb9b91d80c0d43e1faccc7e020f15c0e27c5851a806391521b21e653"
+    },
+    {
+      "path": "apps/api/src/engagement/plans/engagement-plans.postgres.spec.ts",
+      "gitBlob": "b4fd96cca8e7348ab9dd85018a2aecd8c60418ca",
+      "sha256": "3a229d3b6c3d34edcd3e51950171e559916b262065f5de201fdd64ec647ad76b"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.spec.ts",
+      "gitBlob": "5fdd64b6b029503b7bcd65f4b202a6a7973b30d2",
+      "sha256": "936f1942b9b69e6406282a65477e022f4d41091cf028e1ba717f7d90b38abb1e"
+    }
+  ]
+}

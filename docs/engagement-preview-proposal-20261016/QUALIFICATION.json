@@ -1,0 +1,213 @@
+{
+  "schema": 1,
+  "status": "INACTIVE_SOURCE_PROPOSAL_OFFLINE_CHECKS_PASS",
+  "sealedAt": "2026-10-16T01:13:31.691Z",
+  "baseCommit": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "baseTree": "aae45db5f9464559739fd8eb0ad6374852b1351b",
+  "branch": "proposal/engagement-plan-preview-20261016",
+  "allowedPrefix": "docs/engagement-preview-proposal-20261016/",
+  "wire": {
+    "path": "docs/engagement-manual-plans-20261015/WIRE.md",
+    "sha256": "64181558d22ccd71bf1b09f5644a2431e591567cd2b77913f9a6471b7004e8e2",
+    "unchanged": true
+  },
+  "preservedRepositories": [
+    {
+      "directory": "backend",
+      "head": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+      "tree": "49644b0d1b65b3f0beff2b69cf1a4cfaaaeacca3",
+      "clean": true
+    },
+    {
+      "directory": "frontend",
+      "head": "2758775ddf0e3b17898370be61540498344a9f57",
+      "tree": "76ed3426ab9007477af4c09e6fd1b994d273fdcf",
+      "clean": true
+    },
+    {
+      "directory": "backend-plan-implementation",
+      "head": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+      "tree": "aae45db5f9464559739fd8eb0ad6374852b1351b",
+      "clean": true
+    }
+  ],
+  "checks": {
+    "routing": {
+      "tests": 10,
+      "passed": 10,
+      "failed": 0,
+      "kind": "pure matcher against preserved manifest",
+      "receipt": "docs/engagement-preview-proposal-20261016/routing/offline-node-results.json"
+    },
+    "authorization": {
+      "tests": 45,
+      "passed": 45,
+      "failed": 0,
+      "sourcePins": 27,
+      "sourceRemovalMutations": 40,
+      "kind": "static source preservation; no runtime authorization",
+      "receipt": "docs/engagement-preview-proposal-20261016/authorization/offline-node-results.json"
+    },
+    "preflight": {
+      "tests": 87,
+      "passed": 87,
+      "failed": 0,
+      "assessorSynthetic": 65,
+      "sqlLexical": 22,
+      "kind": "pure synthetic assessor and SQL source checks; no PostgreSQL parsing or execution",
+      "receipt": "docs/engagement-preview-proposal-20261016/preflight/offline-node-results.json"
+    },
+    "totalOffline": 142,
+    "currentPreservationFindings": [],
+    "nonPacketChanges": []
+  },
+  "attemptNotes": [
+    "Initial routing run had 9 pass and one ENOENT from an incorrect relative manifest fixture path; fixed the relative path, then all 10 passed. Actual manifest fields were inspected; no route expectation was weakened.",
+    "Historical preflight offline-v8-results.json predates the four-statement search-path revision and is not current-byte qualification.",
+    "Execution-server transport interruption was reconciled before this branch initialization; no uncertain root mutation remains."
+  ],
+  "coordination": {
+    "frontendOwner": "01a13c71-7ff1-7660-a7c8-de25cc94401c",
+    "shipping": "01a1383e-0c6b-778e-8893-2359c0da802e",
+    "conflictingLegacyMapClaimReported": false,
+    "futureActiveOwnerAllocated": false,
+    "note": "Collision-review receipts only; neither transfers an active map claim or authorizes activation."
+  },
+  "constraints": {
+    "applicationBytesChanged": false,
+    "activeMapChanged": false,
+    "previewPlanOperationsRemainHeld503": 9,
+    "productDatabaseCalls": 0,
+    "nativeSqlExecuted": false,
+    "httpOrBrowserExecuted": false,
+    "heavyCompilerExecuted": false,
+    "cloudOrPaidAction": false,
+    "activation": false,
+    "merge": false,
+    "deployment": false
+  },
+  "adoptionBlockers": [
+    "Allocate active legacy caller/map and any new-frontend server-preview changes with exact method/operation contract and dedicated reviewed source/target binding.",
+    "Native PostgreSQL16 parsing/execution of the new catalog query remains unperformed; current role/ACL posture and product endpoint identity are unknown.",
+    "Any future target read requires separate authorization; no target action is queued or pending.",
+    "Dynamic auth, route/HTTP/browser and exact runtime integration qualification require separately allocated source/configuration. Prior implementation qualification limits are not repaired or inherited as passes."
+  ],
+  "fileHashScope": "Every packet file present at seal except this self-referential QUALIFICATION.json and separately authored REVIEW.md. Final commit/tree and full publication manifest are external receipts.",
+  "files": [
+    {
+      "path": "docs/engagement-preview-proposal-20261016/.gitattributes",
+      "bytes": 152,
+      "sha256": "797d4bd1b9ad5909845fb11349c8022a41667ebb4619a03d4c2c63b00a4b6e48"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/FRONTEND-COORDINATION.md",
+      "bytes": 21239,
+      "sha256": "471c508c2f5316921fbbd5aefaac871b07e9777a94556910f90fffe616410d14"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/README.md",
+      "bytes": 8436,
+      "sha256": "53eaf3330958a80bf033dff6a4a16017bda22d90d538133a419eb2fc6dcb498b"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/STATUS.md",
+      "bytes": 1482,
+      "sha256": "4670a7c6a681ab0f927e4a894e2b04016b6dfeb23e017792d7b5b46f031c5eba"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/README.md",
+      "bytes": 7925,
+      "sha256": "caa3083e0ff2618afb634d35b068435497eb4ef425a350cee3921541da49e3f4"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/offline-node-results.json",
+      "bytes": 901,
+      "sha256": "0bcd573b4a5f7137ab7f2405f019e028c4d012ce9b9af8bb23146ba3f43a79d7"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/offline-node.tap",
+      "bytes": 9331,
+      "sha256": "04e27a70ae46cc6de61eab0ae94bc139cab5a4a4d6b28861b536f42dcb2a6b93"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/run-offline.cjs",
+      "bytes": 2182,
+      "sha256": "36dad8706ad0debea8088d25fb4ced64664afc5cee87d0b35c91653075969d8c"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/source-pins.json",
+      "bytes": 6397,
+      "sha256": "10a6989cc226fa141aae8008bd74a824420666d5630468b76ebe32281fbb1f0c"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/source-preservation.cjs",
+      "bytes": 2423,
+      "sha256": "d4ee4c0342cd0844fbe84dd3fa85a74a21f5d4a7dad075c99b26782cb2fb881e"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/authorization/source-preservation.test.cjs",
+      "bytes": 8055,
+      "sha256": "4db635db800aa6f65e7fe52d81e2b980f45d6f926d0376b76acb199ecee757d0"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/README.md",
+      "bytes": 10804,
+      "sha256": "5f1102cb215fd625c2ce776d9b7ebf9c7d8f057fe51375534fb83426235b42d5"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/assess-role-acl.cjs",
+      "bytes": 12913,
+      "sha256": "9691248638009dbca88b1a084f84eb6e5b6ff21ae76dfcc1474c406bfbfe6d4b"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/assess-role-acl.test.cjs",
+      "bytes": 11320,
+      "sha256": "229a15dd9f6e6f131b7b1554693db7409723ed87cb15b7fb42af4e7f068e580f"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/offline-node-results.json",
+      "bytes": 11502,
+      "sha256": "46e52ec07d1f716740a902e8d858d0c6e1d4e2abeabe232878238e9c73bd9c0b"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/offline-v8-results.json",
+      "bytes": 7048,
+      "sha256": "76312e09777ea29dd1e4eb786ed379cc819562938b9837b24af4265527434c94"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/role-acl-snapshot.sql",
+      "bytes": 6762,
+      "sha256": "d4b6c988c7a0550535919905067043cf986c62077377032a4c339e367baf73b1"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/run-offline.cjs",
+      "bytes": 1720,
+      "sha256": "c12dc24bf8a439977dc6149be6b277a9b5f3e99d86a91d1eccd61453e2d9dc35"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/preflight/sql-source.test.cjs",
+      "bytes": 4281,
+      "sha256": "896a987c42bbe0180fce738a89de8cc3583651a751d62afdf3c7fff7e95f4715"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/routing/offline-node-results.json",
+      "bytes": 728,
+      "sha256": "bb28b265d96e17ad0a739de9c5db81bc0fa84251f2cffd389b41f29884db03bd"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/routing/offline-node.tap",
+      "bytes": 2284,
+      "sha256": "16781b3e8eb7e57bbad2c758f40d06b37b7758535de7900fc3823c50a5692b15"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/routing/plan-preview-candidate.mjs",
+      "bytes": 2693,
+      "sha256": "158843a31e0afcb6cbef2fd076111e6422c7709e84f266b7d9484f22f500a7d6"
+    },
+    {
+      "path": "docs/engagement-preview-proposal-20261016/routing/plan-preview-candidate.spec.mjs",
+      "bytes": 6258,
+      "sha256": "1b950e0cb1b9c932c2e64741560927d8b535d90484c8e15f7eac1fed136e1cbb"
+    }
+  ]
+}
