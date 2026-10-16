@@ -1,0 +1,1104 @@
+{
+  "schemaVersion": 1,
+  "ledgerCommit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+  "ledgerPath": "docs/coordination/ledgers/scope-ledger.json",
+  "ledgerGitBlob": "1546e9566cb0719261ca660bd5402732f65146e7",
+  "backendCommit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+  "backendTree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+  "counts": {
+    "selectedCapabilities": 96,
+    "excludedCapabilities": 43,
+    "selectedSourceReads": 82,
+    "selectedProductOrGoverned": 14,
+    "registeredGeneralOperations": 21,
+    "registeredFamilies": 15,
+    "generalSelectedSourceReads": 19,
+    "generalSelectedProductStateReads": 1,
+    "generalHistoricalOperations": 1,
+    "sourceReadsWithSkillDeclarations": 53,
+    "sourceReadsWithCurrentContractDeclarations": 52,
+    "sourceReadsWithHistoricalOnlySkillDeclaration": 1,
+    "sourceReadsWithAdmittedSkillSourceRoute": 11,
+    "existingSourceAdaptersWithoutGeneralExposure": 0,
+    "missingSourceAdapters": 63,
+    "missingAdaptersDeclaredBySkills": 39,
+    "missingAdaptersWithoutSkillDeclaration": 24,
+    "live": 0
+  },
+  "missingRows": [
+    {
+      "id": "search_capiro_data",
+      "operation": "search_capiro_data",
+      "family": "data-search",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.portfolio_changes",
+        "quick_skill.portfolio_overlap"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_research_sources",
+      "operation": "search_research_sources",
+      "family": "research-legal-candidates",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "clientResolution"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_client_knowledge",
+      "operation": "search_client_knowledge",
+      "family": "client-knowledge-search",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "query_intelligence",
+      "operation": "query_intelligence",
+      "family": "intelligence-summary",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "query_knowledge_graph",
+      "operation": "query_knowledge_graph",
+      "family": "client-knowledge-search",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_congress_bills",
+      "operation": "search_congress_bills",
+      "family": "bill-text",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_bill_status",
+      "operation": "get_bill_status",
+      "family": "federal-legislation",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.bill_watch",
+        "quick_skill.client_changes",
+        "quick_skill.hearing_watch",
+        "quick_skill.meeting_prep",
+        "quick_skill.pe_deep_dive",
+        "quick_skill.portfolio_changes",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "read_bill_text",
+      "operation": "read_bill_text",
+      "family": "bill-text",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.bill_watch",
+        "quick_skill.hearing_watch",
+        "quick_skill.pe_deep_dive",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_certification_status",
+      "operation": "get_certification_status",
+      "family": "certification-status",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "comparisonLocale"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_floor_votes",
+      "operation": "search_floor_votes",
+      "family": "federal-legislation",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_cbo_cost_estimates",
+      "operation": "search_cbo_cost_estimates",
+      "family": "public-reports",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_lda_filings",
+      "operation": "search_lda_filings",
+      "family": "disclosures",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "query_global_data",
+      "operation": "query_global_data",
+      "family": "public-domain-query",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "defaultAsOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_sec_filings",
+      "operation": "search_sec_filings",
+      "family": "disclosures",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_fara_registrations",
+      "operation": "search_fara_registrations",
+      "family": "disclosures",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_federal_grants",
+      "operation": "search_federal_grants",
+      "family": "public-data",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_federal_awards",
+      "operation": "search_federal_awards",
+      "family": "public-data",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_gao_reports",
+      "operation": "search_gao_reports",
+      "family": "public-reports",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_state_bills",
+      "operation": "search_state_bills",
+      "family": "state-legislation",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_state_bill_status",
+      "operation": "get_state_bill_status",
+      "family": "state-status-votes",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_state_floor_votes",
+      "operation": "search_state_floor_votes",
+      "family": "state-status-votes",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_state_legislator",
+      "operation": "get_state_legislator",
+      "family": "state-legislation",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.representation_lookup"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_committee_roster",
+      "operation": "get_committee_roster",
+      "family": "legislative-directory",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.hearing_watch",
+        "quick_skill.representation_lookup"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_representation",
+      "operation": "get_representation",
+      "family": "facility-representation",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.representation_lookup"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "binding",
+        "subject"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "list_members",
+      "operation": "list_members",
+      "family": "legislative-directory",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.hearing_watch",
+        "quick_skill.representation_lookup"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_state_rule_status",
+      "operation": "get_state_rule_status",
+      "family": "rule-status",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.regulatory_docket_brief"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "stageAsOf",
+        "commentAsOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_intel_articles",
+      "operation": "search_intel_articles",
+      "family": "stored-intelligence",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_committee_hearings",
+      "operation": "search_committee_hearings",
+      "family": "public-domain-hearings",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.hearing_watch",
+        "quick_skill.meeting_prep"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "tenantId",
+        "clientResolution"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_legiwatch_news",
+      "operation": "search_legiwatch_news",
+      "family": "research-legal-news",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "clientResolution",
+        "effectiveScope",
+        "windowAsOf",
+        "defaultYear",
+        "owner"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_legislative_research",
+      "operation": "search_legislative_research",
+      "family": "research-legal-legislation",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "clientResolution",
+        "citationResolution"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_legal_reference",
+      "operation": "get_legal_reference",
+      "family": "research-legal-legislation",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.regulatory_docket_brief"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "clientResolution",
+        "citationResolution"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_crs_reports",
+      "operation": "search_crs_reports",
+      "family": "public-reports",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "query_economic_data",
+      "operation": "query_economic_data",
+      "family": "public-data",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_district_nexus_context",
+      "operation": "get_district_nexus_context",
+      "family": "district-nexus",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.portfolio_overlap",
+        "quick_skill.representation_lookup"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "binding",
+        "subject"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_district_nexus_changes",
+      "operation": "get_district_nexus_changes",
+      "family": "district-nexus",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.client_changes",
+        "quick_skill.portfolio_changes"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "binding",
+        "subject"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_public_web",
+      "operation": "search_public_web",
+      "family": "public-web",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.portfolio_overlap",
+        "quick_skill.regulatory_docket_brief",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "scrape_web_page",
+      "operation": "scrape_web_page",
+      "family": "public-web",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.portfolio_overlap",
+        "quick_skill.regulatory_docket_brief",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_program_elements",
+      "operation": "search_program_elements",
+      "family": "program-elements",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive",
+        "quick_skill.portfolio_overlap",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_program_element",
+      "operation": "get_program_element",
+      "family": "program-elements",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive",
+        "quick_skill.portfolio_overlap",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_pe_budget_timeline",
+      "operation": "get_pe_budget_timeline",
+      "family": "program-elements",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.bill_watch",
+        "quick_skill.pe_deep_dive",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_pe_contractors",
+      "operation": "get_pe_contractors",
+      "family": "pe-references",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_pe_bills",
+      "operation": "get_pe_bills",
+      "family": "pe-references",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_pe_report_language",
+      "operation": "get_pe_report_language",
+      "family": "pe-references",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.pe_deep_dive"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_acquisition_personnel",
+      "operation": "search_acquisition_personnel",
+      "family": "acquisition-personnel",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "actorRole"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_acquisition_person",
+      "operation": "get_acquisition_person",
+      "family": "acquisition-personnel",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "actorRole"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_tracked_bills",
+      "operation": "search_tracked_bills",
+      "family": "tracked-bills",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.client_changes",
+        "quick_skill.hearing_watch",
+        "quick_skill.meeting_prep",
+        "quick_skill.portfolio_changes",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "binding",
+        "subject",
+        "clientReference"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "query_regulatory_dockets",
+      "operation": "query_regulatory_dockets",
+      "family": "regulatory-dockets",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.regulatory_docket_brief"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_sam_opportunities",
+      "operation": "search_sam_opportunities",
+      "family": "sam-opportunities",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf",
+        "evidenceAccuracyMode",
+        "sourceStatusAsOf",
+        "sourceHealthAsOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "query_outreach",
+      "operation": "query_outreach",
+      "family": "outreach-query",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "clientResolution"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "lookup_client_registry",
+      "operation": "lookup_client_registry",
+      "family": "client-registry",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_funding_opportunities",
+      "operation": "search_funding_opportunities",
+      "family": "funding-opportunities",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_funding_opportunity_requirements",
+      "operation": "get_funding_opportunity_requirements",
+      "family": "funding-opportunities",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_funding_opportunity",
+      "operation": "get_funding_opportunity",
+      "family": "funding-opportunities",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_opportunity_client_context",
+      "operation": "get_opportunity_client_context",
+      "family": "funding-opportunities",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_opportunity_government_landscape",
+      "operation": "get_opportunity_government_landscape",
+      "family": "funding-opportunities",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.funding_opportunity_match"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_federal_contract_awards",
+      "operation": "search_federal_contract_awards",
+      "family": "federal-market",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.portfolio_overlap",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_federal_subawards",
+      "operation": "search_federal_subawards",
+      "family": "federal-market",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.portfolio_overlap",
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_contract_vehicles",
+      "operation": "search_contract_vehicles",
+      "family": "federal-market",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "search_procurement_forecasts",
+      "operation": "search_procurement_forecasts",
+      "family": "federal-market",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.research_company"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_business_development_context",
+      "operation": "get_business_development_context",
+      "family": "business-development",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_business_development_evidence",
+      "operation": "get_business_development_evidence",
+      "family": "business-development",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_business_development_recent_changes",
+      "operation": "get_business_development_recent_changes",
+      "family": "business-development",
+      "kind": "source-read",
+      "currentContractDeclared": true,
+      "declaredBySkills": [
+        "quick_skill.client_changes",
+        "quick_skill.portfolio_changes"
+      ],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    },
+    {
+      "id": "get_district_federal_market",
+      "operation": "get_district_federal_market",
+      "family": "federal-market",
+      "kind": "source-read",
+      "currentContractDeclared": false,
+      "declaredBySkills": [],
+      "sourceAdmittedSkills": [],
+      "sourceAdmittedOperations": [],
+      "generalOperations": [],
+      "adapterPaths": [],
+      "requiredContextKeys": [],
+      "state": "adapter-missing"
+    }
+  ]
+}

@@ -1,0 +1,1224 @@
+{
+  "schemaVersion": 1,
+  "status": "SOURCE_MAPPING_COMPLETE_NO_RUNTIME_ADOPTION",
+  "ledger": {
+    "commit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+    "path": "docs/coordination/ledgers/scope-ledger.json",
+    "gitBlob": "1546e9566cb0719261ca660bd5402732f65146e7",
+    "inputFile": "MISSING-READS.json",
+    "inputSha256": "8319101141697febe5ea115f6376c02260da8516c1e23db037832386c401fd8c"
+  },
+  "backend": {
+    "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+    "tree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+    "base": "68da33ac6ad9264c60d867dbaed41c1b8fdcf08f",
+    "pullRequest": "https://github.com/neo-capiro/capiro-backend/pull/35"
+  },
+  "coverage": {
+    "missingSelectedReads": 63,
+    "families": 33,
+    "exactOnce": true,
+    "missing": [],
+    "duplicates": [],
+    "sourceFiles": [
+      {
+        "file": "federal-producers.json",
+        "sha256": "61e2dccc226548abe41ab6103c054fccb87f198386a601f19cbf1f1bc46b2ce5",
+        "bytes": 84012,
+        "originalSha256": "19aa0a0a3daef6dfcab37541a08b6d9f3aeccadaaa016982e2495719a1b6806e",
+        "originalBytes": 84429
+      },
+      {
+        "file": "market-producers.json",
+        "sha256": "ddb07f7fb31968a654a836713eacf0e53a3b259b2a0fb4a495a02783c1c416fb",
+        "bytes": 128238,
+        "originalSha256": "0a4458bfaf3e277a5f5bdce2d0bb7619e6d1aad6d4c557e8cad8257a4671b6aa",
+        "originalBytes": 128371
+      },
+      {
+        "file": "state-research-producers.json",
+        "sha256": "f2e95feccffdf5d6107b3d9b372ce6e64eb93ff534bda4c1a416a4a8c2e024b6",
+        "bytes": 92196,
+        "originalSha256": "d294db825ee3e7c03a873489d091b69cab54bff6f7dec579b23d3fdcf2cd5b9f",
+        "originalBytes": 92492
+      },
+      {
+        "file": "scoped-producers.json",
+        "sha256": "2b929c4b8ebe3c06e43b31c8e8a13b4896876dc70e32a2a13208fcad02653cc5",
+        "bytes": 82635,
+        "originalSha256": "61fc978bc31d651372340b7c15ebde71317a06716ce79974a9afc7d213c10255",
+        "originalBytes": 82796
+      }
+    ]
+  },
+  "recommendedSourceBatches": {
+    "first": {
+      "family": "bill-text",
+      "operations": [
+        "search_congress_bills",
+        "read_bill_text"
+      ],
+      "implementationOwner": "READS",
+      "boundary": "Passive Meri adapter only after exact native/frozen compatibility agreement. Native CONTROL user bearer plus existing service secret; default unavailable; flat native bodies, actual JSON date serialization, canonical read ID, explicit search defaultCongress handling. No ALL3 envelope expansion."
+    },
+    "parallelProposals": [
+      {
+        "family": "public-reports",
+        "operations": [
+          "search_cbo_cost_estimates",
+          "search_crs_reports",
+          "search_gao_reports"
+        ],
+        "boundary": "Three existing stored public report producers; finite native tool route instances, no model-selected endpoint, preserve each canonical DTO; exact frozen receiving compatibility/context review required before binding."
+      },
+      {
+        "family": "acquisition-personnel",
+        "operations": [
+          "search_acquisition_personnel",
+          "get_acquisition_person"
+        ],
+        "boundary": "Existing standalone native GET owners; current Core ctx.role controls contact/upload projection, never model actorRole or assumed role mapping; exact frozen DTO and native principal/role correlation still required."
+      }
+    ]
+  },
+  "crossFamilyLimits": [
+    "A source producer is not an adapter, admitted capability, current-fact receipt, trusted credential owner or qualified/live service. All63 adapter states and43 owner exclusions stay unchanged.",
+    "Native tools/:name route instances below describe existing controller expansion only; new consumer descriptors must fix exact allowed operation/path/method and never forward arbitrary tool names. No native bearer/service secret reaches a worker.",
+    "The signed CapiroRetained operation set stays exactly Portfolio detail, Portfolio changes and Florida budget; keys/origins/current native trust remain separately unallocated/default off.",
+    "State-bill designation misses can invoke provider/quota/upsert effects; public-web/certification fetch providers, and global-data query can audit-write. Preserve those actual producer boundaries rather than labeling every selected read effect-free.",
+    "Client/folder/conversation/membership/resource mapping gaps are explicit in source reports. Meri and legacy Core conversation IDs must never be equated by UUID shape.",
+    "Only bill-text received literal frozen receiving-schema comparison here. Other family DTO descriptions are source mappings; their frozen receiving compatibility and runtime qualification remain unrun."
+  ],
+  "rows": [
+    {
+      "operation": "get_acquisition_person",
+      "family": "acquisition-personnel",
+      "requiredContextKeys": [
+        "actorRole"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/8"
+      },
+      "producer": "MeriToolsService.getAcquisitionPerson -> AcquisitionPersonnelReadService.getPersonDetail(ctx,id)."
+    },
+    {
+      "operation": "search_acquisition_personnel",
+      "family": "acquisition-personnel",
+      "requiredContextKeys": [
+        "actorRole"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/7"
+      },
+      "producer": "MeriToolsService.searchAcquisitionPersonnel -> AcquisitionPersonnelReadService.listPersonnel(ctx)."
+    },
+    {
+      "operation": "read_bill_text",
+      "family": "bill-text",
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/1"
+      },
+      "producer": "MeriToolsService.readBillText and locatedBillText; federal_evidence_current joined to federal_evidence_revision, present/current complete bill text only."
+    },
+    {
+      "operation": "search_congress_bills",
+      "family": "bill-text",
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/0"
+      },
+      "producer": "MeriToolsService.searchCongressBills; text mode uses BILL_TEXT_PASSAGE_SEARCH_SQL over stored current federal evidence; metadata direct bill lookup or LdaIntelService.getCongressBills."
+    },
+    {
+      "operation": "get_business_development_context",
+      "family": "business-development",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/11"
+      },
+      "producer": {
+        "owner": "MeriToolsService -> optional MeriBizDevToolsService.getContext",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2812,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s38",
+            "line": 196,
+            "purpose": "tool producer"
+          },
+          {
+            "source": "s38",
+            "line": 163,
+            "purpose": "shared scope owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_business_development_evidence",
+      "family": "business-development",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/12"
+      },
+      "producer": {
+        "owner": "MeriBizDevToolsService.getEvidence -> BizDevDossierService.prospectDossier(ctx,prospectId,undefined,true)",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2813,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s38",
+            "line": 397,
+            "purpose": "producer"
+          },
+          {
+            "source": "s05",
+            "line": 750,
+            "purpose": "canonical dossier owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_business_development_recent_changes",
+      "family": "business-development",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/13"
+      },
+      "producer": {
+        "owner": "MeriBizDevToolsService.getRecentChanges -> BizDevWatchService.listProspectAlerts",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2814,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s38",
+            "line": 626,
+            "purpose": "actual producer"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_certification_status",
+      "family": "certification-status",
+      "requiredContextKeys": [
+        "comparisonLocale"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/0"
+      },
+      "producer": [
+        "s018"
+      ]
+    },
+    {
+      "operation": "query_knowledge_graph",
+      "family": "client-knowledge-search",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/2"
+      },
+      "producer": {
+        "owner": "MeriToolsService.queryKnowledgeGraph -> loadGraphForCtx",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2637,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 3273,
+            "purpose": "tool owner"
+          },
+          {
+            "source": "s49",
+            "line": 3157,
+            "purpose": "graph source owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "search_client_knowledge",
+      "family": "client-knowledge-search",
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/1"
+      },
+      "producer": {
+        "owner": "MeriToolsService.searchClientKnowledge -> ClientKbService.search",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2634,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 2274,
+            "purpose": "wrapper"
+          },
+          {
+            "source": "s24",
+            "line": 654,
+            "purpose": "search owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "lookup_client_registry",
+      "family": "client-registry",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/9"
+      },
+      "producer": [
+        "s110"
+      ]
+    },
+    {
+      "operation": "search_capiro_data",
+      "family": "data-search",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/0"
+      },
+      "producer": {
+        "owner": "MeriToolsService -> searchCapiroData -> MeriContextPlaneService.searchToolData",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2631,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s43",
+            "line": 83,
+            "purpose": "canonical wrapper"
+          },
+          {
+            "source": "s41",
+            "line": 89,
+            "purpose": "shared plane owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "search_fara_registrations",
+      "family": "disclosures",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/4"
+      },
+      "producer": [
+        "s060"
+      ]
+    },
+    {
+      "operation": "search_lda_filings",
+      "family": "disclosures",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/1"
+      },
+      "producer": [
+        "s030"
+      ]
+    },
+    {
+      "operation": "search_sec_filings",
+      "family": "disclosures",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/3"
+      },
+      "producer": [
+        "s055"
+      ]
+    },
+    {
+      "operation": "get_district_nexus_changes",
+      "family": "district-nexus",
+      "requiredContextKeys": [
+        "binding",
+        "subject"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/6"
+      },
+      "producer": {
+        "owner": "MeriToolsService -> optional R5MeriDistrictTools.getChanges",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2677,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s20",
+            "line": 64,
+            "purpose": "actual changes owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_district_nexus_context",
+      "family": "district-nexus",
+      "requiredContextKeys": [
+        "binding",
+        "subject"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/5"
+      },
+      "producer": {
+        "owner": "MeriToolsService -> optional R5MeriDistrictTools.getContext -> R5DistrictContextService.getContext",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2669,
+            "purpose": "active optional registry"
+          },
+          {
+            "source": "s20",
+            "line": 52,
+            "purpose": "tool owner"
+          },
+          {
+            "source": "s16",
+            "line": 50,
+            "purpose": "canonical R5 context owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_representation",
+      "family": "facility-representation",
+      "requiredContextKeys": [
+        "binding",
+        "subject"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/4"
+      },
+      "producer": {
+        "owner": "MeriToolsService.getRepresentation -> RepresentationResolverService.representationForClient; same resolver as GET /api/clients/:clientId/representation",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2662,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 6070,
+            "purpose": "tool projection"
+          },
+          {
+            "source": "s13",
+            "line": 8,
+            "purpose": "related native controller"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_bill_status",
+      "family": "federal-legislation",
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/2"
+      },
+      "producer": "MeriToolsService.getBillStatus; congressBill status plus action, vote and governing-rule relations."
+    },
+    {
+      "operation": "search_floor_votes",
+      "family": "federal-legislation",
+      "requiredContextKeys": [
+        "defaultCongress"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/3"
+      },
+      "producer": "MeriToolsService.searchFloorVotes; stored Congress vote/member-vote rows."
+    },
+    {
+      "operation": "get_district_federal_market",
+      "family": "federal-market",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/19"
+      },
+      "producer": [
+        "s147",
+        "s173"
+      ]
+    },
+    {
+      "operation": "search_contract_vehicles",
+      "family": "federal-market",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/17"
+      },
+      "producer": [
+        "s147",
+        "s165"
+      ]
+    },
+    {
+      "operation": "search_federal_contract_awards",
+      "family": "federal-market",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/15"
+      },
+      "producer": [
+        "s147",
+        "s148"
+      ]
+    },
+    {
+      "operation": "search_federal_subawards",
+      "family": "federal-market",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/16"
+      },
+      "producer": [
+        "s147",
+        "s161"
+      ]
+    },
+    {
+      "operation": "search_procurement_forecasts",
+      "family": "federal-market",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/18"
+      },
+      "producer": [
+        "s147",
+        "s158"
+      ]
+    },
+    {
+      "operation": "get_funding_opportunity",
+      "family": "funding-opportunities",
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/12"
+      },
+      "producer": [
+        "s133"
+      ]
+    },
+    {
+      "operation": "get_funding_opportunity_requirements",
+      "family": "funding-opportunities",
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/11"
+      },
+      "producer": [
+        "s127"
+      ]
+    },
+    {
+      "operation": "get_opportunity_client_context",
+      "family": "funding-opportunities",
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/13"
+      },
+      "producer": [
+        "s138"
+      ]
+    },
+    {
+      "operation": "get_opportunity_government_landscape",
+      "family": "funding-opportunities",
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/14"
+      },
+      "producer": [
+        "s142"
+      ]
+    },
+    {
+      "operation": "search_funding_opportunities",
+      "family": "funding-opportunities",
+      "requiredContextKeys": [
+        "asOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/10"
+      },
+      "producer": [
+        "s117"
+      ]
+    },
+    {
+      "operation": "query_intelligence",
+      "family": "intelligence-summary",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/3"
+      },
+      "producer": {
+        "owner": "MeriToolsService.queryIntelligence(input), no TenantContext argument",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2636,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 3498,
+            "purpose": "aggregate producer"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_committee_roster",
+      "family": "legislative-directory",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/15"
+      },
+      "producer": "MeriToolsService.getCommitteeRoster dispatches federalCommitteeRoster/stateCommitteeRoster; global stored canonical registries/membership."
+    },
+    {
+      "operation": "list_members",
+      "family": "legislative-directory",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/16"
+      },
+      "producer": "MeriToolsService.listMembers; current CongressMember registry isCurrent:true, filtered by state and/or chamber, canonical order."
+    },
+    {
+      "operation": "query_outreach",
+      "family": "outreach-query",
+      "requiredContextKeys": [
+        "clientResolution"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/10"
+      },
+      "producer": {
+        "owner": "MeriToolsService.queryOutreach -> EngagementService.getOutreachRecord OR listCampaigns",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2741,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 8848,
+            "purpose": "branch owner"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_pe_bills",
+      "family": "pe-references",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/13"
+      },
+      "producer": "MeriToolsService.getPeBills -> ProgramElementReadService.getBills."
+    },
+    {
+      "operation": "get_pe_contractors",
+      "family": "pe-references",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/12"
+      },
+      "producer": "MeriToolsService.getPeContractors -> ProgramElementReadService.getContractors."
+    },
+    {
+      "operation": "get_pe_report_language",
+      "family": "pe-references",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/14"
+      },
+      "producer": "MeriToolsService.getPeReportLanguage -> ProgramElementReadService.getProvisionsForPe; reportLanguageNoteForModel."
+    },
+    {
+      "operation": "get_pe_budget_timeline",
+      "family": "program-elements",
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/11"
+      },
+      "producer": "MeriToolsService.getPeBudgetTimeline -> ProgramElementReadService.getTimeline, then model-safe funding years/claim and optional lineage."
+    },
+    {
+      "operation": "get_program_element",
+      "family": "program-elements",
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/10"
+      },
+      "producer": "MeriToolsService.getProgramElementDetail -> ProgramElementReadService.getProgramElement plus model funding and optional lineage."
+    },
+    {
+      "operation": "search_program_elements",
+      "family": "program-elements",
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/9"
+      },
+      "producer": "MeriToolsService.searchProgramElements -> ProgramElementReadService.listProgramElements, followed by model funding-line projection."
+    },
+    {
+      "operation": "query_economic_data",
+      "family": "public-data",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/7"
+      },
+      "producer": [
+        "s082"
+      ]
+    },
+    {
+      "operation": "search_federal_awards",
+      "family": "public-data",
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/6"
+      },
+      "producer": [
+        "s074"
+      ]
+    },
+    {
+      "operation": "search_federal_grants",
+      "family": "public-data",
+      "requiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/5"
+      },
+      "producer": [
+        "s065"
+      ]
+    },
+    {
+      "operation": "search_committee_hearings",
+      "family": "public-domain-hearings",
+      "requiredContextKeys": [
+        "tenantId",
+        "clientResolution"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/17"
+      },
+      "producer": "MeriToolsService.searchCommitteeHearings -> MeriContextPlaneService.searchToolData -> governed hearings retrieval / published record owner."
+    },
+    {
+      "operation": "query_global_data",
+      "family": "public-domain-query",
+      "requiredContextKeys": [
+        "defaultAsOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/2"
+      },
+      "producer": [
+        "s041"
+      ]
+    },
+    {
+      "operation": "search_cbo_cost_estimates",
+      "family": "public-reports",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/4"
+      },
+      "producer": "MeriToolsService.searchCboCostEstimates; global cboCostEstimate rows ordered pubDate descending."
+    },
+    {
+      "operation": "search_crs_reports",
+      "family": "public-reports",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/6"
+      },
+      "producer": "MeriToolsService.searchCrsReports; Prisma.withSystem active:true global crsReport findMany/count."
+    },
+    {
+      "operation": "search_gao_reports",
+      "family": "public-reports",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "federal-producers.json",
+        "jsonPointer": "#/operations/5"
+      },
+      "producer": "MeriToolsService.searchGaoReports; Prisma.withSystem global gaoReport findMany/count."
+    },
+    {
+      "operation": "scrape_web_page",
+      "family": "public-web",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/8"
+      },
+      "producer": {
+        "owner": "MeriToolsService.scrapeWebPage -> hardenedWebTransport",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2686,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 6586,
+            "purpose": "producer"
+          },
+          {
+            "source": "s36",
+            "line": 59,
+            "purpose": "guarded transport"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "search_public_web",
+      "family": "public-web",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/7"
+      },
+      "producer": {
+        "owner": "MeriToolsService.searchPublicWeb(input), no ctx",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2685,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 6539,
+            "purpose": "producer"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "query_regulatory_dockets",
+      "family": "regulatory-dockets",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/3/operations/0"
+      },
+      "producer": "MeriToolsService registry -> queryRegulatoryDockets(input) -> RegulatoryDocketService.listDockets or getUpcomingDeadlines"
+    },
+    {
+      "operation": "search_research_sources",
+      "family": "research-legal-candidates",
+      "requiredContextKeys": [
+        "clientResolution"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/4/operations/0"
+      },
+      "producer": "MeriToolsService registry -> searchResearchSources(ctx,input)"
+    },
+    {
+      "operation": "get_legal_reference",
+      "family": "research-legal-legislation",
+      "requiredContextKeys": [
+        "clientResolution",
+        "citationResolution"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/5/operations/1"
+      },
+      "producer": "Fixed Intel read route: input.view rules -> ResearchService.rules; versions -> versions; otherwise references. Model schema limits view statutes/rules/versions, but runtime route falls through other values to references."
+    },
+    {
+      "operation": "search_legislative_research",
+      "family": "research-legal-legislation",
+      "requiredContextKeys": [
+        "clientResolution",
+        "citationResolution"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/5/operations/0"
+      },
+      "producer": "MeriToolsService.legiwatchTool -> fixed Intel read route -> ResearchService.search(ctx,input)"
+    },
+    {
+      "operation": "search_legiwatch_news",
+      "family": "research-legal-news",
+      "requiredContextKeys": [
+        "clientResolution",
+        "effectiveScope",
+        "windowAsOf",
+        "defaultYear",
+        "owner"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/6/operations/0"
+      },
+      "producer": "KeywordMeriController fixed read branch: view source -> Phase8EvidenceService.run+exact; personnel -> personnel; monitors -> monitors; otherwise news. Model schema advertises articles/monitors/personnel/source but runtime has a default news path."
+    },
+    {
+      "operation": "get_state_rule_status",
+      "family": "rule-status",
+      "requiredContextKeys": [
+        "stageAsOf",
+        "commentAsOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/2/operations/0"
+      },
+      "producer": "MeriToolsService registry -> getStateRuleStatus(input) -> formatRuleStatus(jurisdiction,row)"
+    },
+    {
+      "operation": "search_sam_opportunities",
+      "family": "sam-opportunities",
+      "requiredContextKeys": [
+        "asOf",
+        "evidenceAccuracyMode",
+        "sourceStatusAsOf",
+        "sourceHealthAsOf"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "market-producers.json",
+        "jsonPointer": "#/operations/8"
+      },
+      "producer": [
+        "s092"
+      ]
+    },
+    {
+      "operation": "get_state_legislator",
+      "family": "state-legislation",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/0/operations/1"
+      },
+      "producer": "MeriToolsService registry -> getStateLegislator(input); no ctx argument."
+    },
+    {
+      "operation": "search_state_bills",
+      "family": "state-legislation",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/0/operations/0"
+      },
+      "producer": "MeriToolsService registry -> searchStateBills(input); ctx is not passed into this producer."
+    },
+    {
+      "operation": "get_state_bill_status",
+      "family": "state-status-votes",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/1/operations/0"
+      },
+      "producer": "MeriToolsService registry -> getStateBillStatus(input)"
+    },
+    {
+      "operation": "search_state_floor_votes",
+      "family": "state-status-votes",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/1/operations/1"
+      },
+      "producer": "MeriToolsService registry -> searchStateFloorVotes(input)"
+    },
+    {
+      "operation": "search_intel_articles",
+      "family": "stored-intelligence",
+      "requiredContextKeys": [],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "state-research-producers.json",
+        "jsonPointer": "#/families/7/operations/0"
+      },
+      "producer": "MeriToolsService registry -> searchIntelArticles(input), no ctx argument"
+    },
+    {
+      "operation": "search_tracked_bills",
+      "family": "tracked-bills",
+      "requiredContextKeys": [
+        "binding",
+        "subject",
+        "clientReference"
+      ],
+      "adapterState": "missing: unchanged by mapping",
+      "record": {
+        "file": "scoped-producers.json",
+        "jsonPointer": "#/operations/9"
+      },
+      "producer": {
+        "owner": "MeriToolsService.searchTrackedBills -> IntelligenceService.listTrackedBills -> manual bill tracking owner",
+        "refs": [
+          {
+            "source": "s49",
+            "line": 2735,
+            "purpose": "active registry"
+          },
+          {
+            "source": "s49",
+            "line": 8405,
+            "purpose": "native wrapper"
+          },
+          {
+            "source": "s33",
+            "line": 296,
+            "purpose": "manual-list facade"
+          },
+          {
+            "source": "s31",
+            "line": 36,
+            "purpose": "actual canonical read"
+          }
+        ]
+      }
+    }
+  ],
+  "evidenceMeaning": "Offline immutable source inspection and static index completeness checks only. Cited existing tests were not executed by this mapping. Operational test-run records, logs and receiving copies are outside this publication.",
+  "supersedes": {
+    "historicalIndexSha256": "128cc6248ba8a25c117220226d7a4a6f8f2a5000ff3a306364918b6fa88066ba",
+    "reason": "The original v2 index superseded an earlier index after the scoped source report was finalized. Original report/index hashes are preserved as provenance; source and test evidence were unchanged.",
+    "changedSourceReports": [
+      {
+        "file": "scoped-producers.json",
+        "before": {
+          "file": "scoped-producers.json",
+          "sha256": "33ae9aadc77be1ea747bfc4bcbba4f45f7f7fb7a437942fa2653ebd84bf5eb2d",
+          "bytes": 82181
+        },
+        "after": {
+          "file": "scoped-producers.json",
+          "sha256": "61fc978bc31d651372340b7c15ebde71317a06716ce79974a9afc7d213c10255",
+          "bytes": 82796
+        }
+      }
+    ],
+    "backendProductionChanged": false,
+    "testEvidenceChanged": false
+  },
+  "publication": {
+    "kind": "Sanitized docs-only derivative; no source/runtime adoption",
+    "repositoryDirectory": "docs/retained-read-producer-mapping-20261016",
+    "originalV2Sha256": "5a498e4cd2e06a118d54bae3e0caba44e9418c524b57f9d27481a51c37c2dad8",
+    "originalInputs": [
+      {
+        "file": "MISSING-READS.json",
+        "sha256": "8319101141697febe5ea115f6376c02260da8516c1e23db037832386c401fd8c",
+        "bytes": 32567
+      },
+      {
+        "file": "federal-producers.json",
+        "sha256": "19aa0a0a3daef6dfcab37541a08b6d9f3aeccadaaa016982e2495719a1b6806e",
+        "bytes": 84429
+      },
+      {
+        "file": "market-producers.json",
+        "sha256": "0a4458bfaf3e277a5f5bdce2d0bb7619e6d1aad6d4c557e8cad8257a4671b6aa",
+        "bytes": 128371
+      },
+      {
+        "file": "state-research-producers.json",
+        "sha256": "d294db825ee3e7c03a873489d091b69cab54bff6f7dec579b23d3fdcf2cd5b9f",
+        "bytes": 92492
+      },
+      {
+        "file": "scoped-producers.json",
+        "sha256": "61fc978bc31d651372340b7c15ebde71317a06716ce79974a9afc7d213c10255",
+        "bytes": 82796
+      },
+      {
+        "file": "MAPPING-HANDOFF-v2.json",
+        "sha256": "5a498e4cd2e06a118d54bae3e0caba44e9418c524b57f9d27481a51c37c2dad8",
+        "bytes": 36869
+      },
+      {
+        "file": "MAPPING-REVIEW.md",
+        "sha256": "53c2504919ea0742ba6b83f584649393f5af4a98515c70cc21fd2db3c164c01a",
+        "bytes": 6543
+      }
+    ],
+    "reviewFile": "MAPPING-REVIEW.md",
+    "sourceReviewFile": "SOURCE-REVIEW.md",
+    "sanitization": "Machine/checkout metadata, thread IDs, operational timestamps/denial details, receiving-copy references and unrelated test-run links removed or generalized; source facts/limits retained.",
+    "publicationReview": "Pending independent review of sanitized derivative; original source-only review is identified by its immutable input hash."
+  }
+}
