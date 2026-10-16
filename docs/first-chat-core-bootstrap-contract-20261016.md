@@ -48,3 +48,9 @@ Meri run in this operation.
 This source change uses the separately reserved Core migration
 `20281016020000_clio_conversation_bootstrap_receipts`. The migration has not
 been executed; native database and full app qualification remain pending.
+Ordinary first chat does not depend on Objective workload activation. If both
+reserved migrations are in one deployment, apply Objective `20281016010000`
+before first-chat `20281016020000`. If first chat must deploy alone before
+Objective, reallocate the still-unapplied Objective migration to a later
+prefix before it is applied. Preserve committed bootstrap receipts on an app
+rollback so a request ID cannot remap to another conversation.
