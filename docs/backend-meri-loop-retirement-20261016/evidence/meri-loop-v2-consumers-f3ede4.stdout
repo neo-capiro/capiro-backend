@@ -1,0 +1,26 @@
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meri.controller.ts:415:    // 2026-07-28, pinned by meriv2-routing.helpers.spec.ts) keeps them out of
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meri.module.ts:73:import { MeriV2ChatClient } from './meriv2-chat.client.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meri.service.ts:176:import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meri.service.ts:241:import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meri.service.ts:1509:    // context is carried end-to-end (see meriv2-routing.helpers.ts + its
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meri.service.ts:1518:      shouldRouteMeriV2FullChat({
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-chat.client.spec.ts:1:import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-chat.client.ts:5:export interface ResolvedAiForChatHeader {
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-chat.client.ts:160:    aiProvider?: ResolvedAiForChatHeader;
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.helpers.spec.ts:1:import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.helpers.spec.ts:3:describe('shouldRouteMeriV2FullChat', () => {
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.helpers.spec.ts:7:    expect(shouldRouteMeriV2FullChat(ready)).toBe(true);
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.helpers.spec.ts:19:    expect(shouldRouteMeriV2FullChat(input)).toBe(false);
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.helpers.ts:12:export function shouldRouteMeriV2FullChat(input: MeriV2FullChatRoutingInput): boolean {
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:3:  shouldRouteMeriV2FullChat,
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:5:} from './meriv2-routing.helpers.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:8: * Exhaustive routing truth table for `shouldRouteMeriV2FullChat` — the single
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:27: * meriv2-routing.helpers.spec.ts carries the five canonical contract cases
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:44:  return shouldRouteMeriV2FullChat(input) ? 'meriv2-orchestrator' : 'contained-legacy';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:104:describe('shouldRouteMeriV2FullChat — exhaustive 16-cell truth table', () => {
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:132:    const routedByHelper = CORE_TABLE.filter((cell) => shouldRouteMeriV2FullChat(inputFor(cell)));
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:205:    expect(shouldRouteMeriV2FullChat(READY)).toBe(true);
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:206:    expect(shouldRouteMeriV2FullChat({ ...READY, bearerToken: undefined })).toBe(false);
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv2-routing.matrix.spec.ts:207:    expect(shouldRouteMeriV2FullChat({ ...READY, bearerToken: null })).toBe(false);
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv3-chat.client.ts:12:import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
+f3ede4fe8d88ba686a81c59f71e44319c0f45fd1:apps/api/src/meri/meriv3-chat.client.ts:273:    aiProvider?: ResolvedAiForChatHeader;

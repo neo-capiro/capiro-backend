@@ -1,0 +1,425 @@
+{
+  "sourceCommit": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "premapCommit": "bca4368306defae1495ab69f088171a3fccfaf56",
+  "sourceBlob": "8878d515849c36ce037a9fc8591e46bbb06e65b2",
+  "applicationFiles": [
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "beforeSha256": "1de375a7617352f862acc367ee68b34ef783376ddbad5acacaa0c8486a6e04af",
+      "afterSha256": "127aa2b5eb65265e2190b4cdcc1ecd4c77ad12fabf4d94bd241876425ef41c92",
+      "beforeBytes": 293118,
+      "afterBytes": 187035,
+      "beforePhysicalLines": 6898,
+      "afterPhysicalLines": 4554
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "beforeSha256": "c015614c72266e181c77740cbad366cf56eb9280b91dd5bb21790b8c218f6065",
+      "afterSha256": "eb5c8654a63a82f526c3b6b6c862de2a56572741bb407c54ea6f0ac4173e5e0b",
+      "beforeBytes": 12288,
+      "afterBytes": 12206,
+      "beforePhysicalLines": 269,
+      "afterPhysicalLines": 267
+    },
+    {
+      "path": "apps/api/src/meri/meri-feedback-learning-signal-resilience.spec.ts",
+      "beforeSha256": "5e05aa45d1cbc67d155d927fc22faca7e0aa3bd2bd7ae751f26e025791c9e54e",
+      "afterSha256": "3b797d902c686bdfa64cd50057e877e9a54c9541bd1fccd128e471aee3d370fc",
+      "beforeBytes": 10073,
+      "afterBytes": 10056,
+      "beforePhysicalLines": 232,
+      "afterPhysicalLines": 231
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-legal-hold.spec.ts",
+      "beforeSha256": "4e3aa80b945a5862b6a1e9be6dc954a6d116185fad7d22b46bd7c68283d7048d",
+      "afterSha256": "9a404355d0a69050cc3029caa103b30682d14a8596346992e2465d690c30e494",
+      "beforeBytes": 6983,
+      "afterBytes": 6966,
+      "beforePhysicalLines": 162,
+      "afterPhysicalLines": 161
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.create-conversation.spec.ts",
+      "beforeSha256": "ea39c89d319a62f1b8ef99d88b066d387d4cf1c6f9a7e6c3a619ce31899edced",
+      "afterSha256": "bfa58c20b05e0e320d111782b2bbded5c079706a29bdcd07e494021bd414b4d6",
+      "beforeBytes": 9414,
+      "afterBytes": 9378,
+      "beforePhysicalLines": 253,
+      "afterPhysicalLines": 251
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.upload-attachment.spec.ts",
+      "beforeSha256": "1c5ead36a632442e9dc4751a45a91cb3a467d3eb4b86412d1818b533c5df69bc",
+      "afterSha256": "d85d6d8f8d5b6f98b6928c636854701769934fed93879dd51053fc0a021e5093",
+      "beforeBytes": 11759,
+      "afterBytes": 11742,
+      "beforePhysicalLines": 362,
+      "afterPhysicalLines": 361
+    }
+  ],
+  "removedRegions": [
+    {
+      "name": "raw-stream-owned-region",
+      "originalFirstLine": 963,
+      "originalLastLine": 2727,
+      "physicalLines": 1765,
+      "bytes": 80732,
+      "sha256": "9367e226c72c3b44065ea7ee42d473e14f89dde27cd58a08d2a9d9634285ac03"
+    },
+    {
+      "name": "raw-v2-bridge-owned-region",
+      "originalFirstLine": 2729,
+      "originalLastLine": 3250,
+      "physicalLines": 522,
+      "bytes": 22813,
+      "sha256": "25b936134797a1a69a3f880121e90cb1c19d241a60f764c1d89de87f9b20f725"
+    }
+  ],
+  "removedImports": [
+    {
+      "specifier": "'./meri-research-portfolio-tool-scope.js'",
+      "removedBindings": [
+        "bindResearchPortfolioToolConversation"
+      ],
+      "before": "import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-attachment-continuity.js'",
+      "removedBindings": [
+        "assertAttachmentConversation",
+        "authorizedAttachmentSources",
+        "compactedAttachmentContext"
+      ],
+      "before": "import {\n  assertAttachmentConversation,\n  authorizedAttachmentSources,\n  compactedAttachmentContext,\n} from './meri-attachment-continuity.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'@capiro/shared'",
+      "removedBindings": [
+        "recordAiUsageEvent"
+      ],
+      "before": "import {\n  recordAiUsageEvent,\n  MERI_GROUNDING_INVARIANT,\n  meriGroundingSurfaceBlock,\n  meriGroundingDateBlock,\n  type TenantContext,\n} from '@capiro/shared';\n",
+      "after": "import {\n  MERI_GROUNDING_INVARIANT,\n  meriGroundingSurfaceBlock,\n  meriGroundingDateBlock,\n  type TenantContext,\n} from '@capiro/shared';\n"
+    },
+    {
+      "specifier": "'@capiro/meriv2-core'",
+      "removedBindings": [
+        "runAuditor",
+        "ledgerToToolResultMap",
+        "LedgerEntry",
+        "AuditorMode"
+      ],
+      "before": "import {\n  contextPacketV2Overrides,\n  runAuditor,\n  ledgerToToolResultMap,\n  sanitizeToolResultText,\n  charsToTokens,\n  truncateToTokens,\n  type LedgerEntry,\n  type AuditorMode,\n} from '@capiro/meriv2-core';\n",
+      "after": "import {\n  contextPacketV2Overrides,\n  sanitizeToolResultText,\n  charsToTokens,\n  truncateToTokens,\n} from '@capiro/meriv2-core';\n"
+    },
+    {
+      "specifier": "'./meri-prospect-scope.helpers.js'",
+      "removedBindings": [
+        "prospectTurnScopeReceipt"
+      ],
+      "before": "import {\n  prospectScopeDirective,\n  prospectTurnScopeReceipt,\n} from './meri-prospect-scope.helpers.js';\n",
+      "after": "import {\n  prospectScopeDirective,\n} from './meri-prospect-scope.helpers.js';\n"
+    },
+    {
+      "specifier": "'../business-development/bizdev-meri-scope.authorization.js'",
+      "removedBindings": [
+        "authorizeMeriProspectScope"
+      ],
+      "before": "import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'../research-portfolios/research-portfolio-meri-scope.service.js'",
+      "removedBindings": [
+        "researchPortfolioTurnScopeReceipt"
+      ],
+      "before": "import {\n  authorizeMeriResearchPortfolioScope,\n  MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY,\n  readMeriResearchPortfolioScope,\n  ResearchPortfolioMeriScopeService,\n  researchPortfolioScopeDirective,\n  researchPortfolioTurnScopeReceipt,\n  type MeriResearchPortfolioScope,\n} from '../research-portfolios/research-portfolio-meri-scope.service.js';\n",
+      "after": "import {\n  authorizeMeriResearchPortfolioScope,\n  MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY,\n  readMeriResearchPortfolioScope,\n  ResearchPortfolioMeriScopeService,\n  researchPortfolioScopeDirective,\n  type MeriResearchPortfolioScope,\n} from '../research-portfolios/research-portfolio-meri-scope.service.js';\n"
+    },
+    {
+      "specifier": "'./meri-prompt.helpers.js'",
+      "removedBindings": [
+        "addUsage",
+        "applyRoundUsageEvent",
+        "applyToolCacheControl",
+        "emptyUsage"
+      ],
+      "before": "import {\n  addUsage,\n  applyRoundUsageEvent,\n  applyToolCacheControl,\n  buildMeriSystemBlocks,\n  clientScopeDirective,\n  clientScopeRefusal,\n  isMeriMailReadTool,\n  CLIENT_ID_UUID_RE,\n  meriCapabilityBlock,\n  emptyUsage,\n  validateFormBCitations,\n  type SystemTextBlock,\n} from './meri-prompt.helpers.js';\n",
+      "after": "import {\n  buildMeriSystemBlocks,\n  clientScopeDirective,\n  clientScopeRefusal,\n  isMeriMailReadTool,\n  CLIENT_ID_UUID_RE,\n  meriCapabilityBlock,\n  validateFormBCitations,\n  type SystemTextBlock,\n} from './meri-prompt.helpers.js';\n"
+    },
+    {
+      "specifier": "'./meri-tool-exec.helpers.js'",
+      "removedBindings": [
+        "runToolsConcurrently"
+      ],
+      "before": "import { runToolsConcurrently } from './meri-tool-exec.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-citations.helpers.js'",
+      "removedBindings": [
+        "extractCitationsFromToolResult",
+        "formatCitationsForPrompt",
+        "validateCitationMarkers",
+        "MeriCitation"
+      ],
+      "before": "import {\n  extractCitationsFromToolResult,\n  formatCitationsForPrompt,\n  validateCitationMarkers,\n  type MeriCitation,\n} from './meri-citations.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./skills/skill-registry.js'",
+      "removedBindings": [
+        "CLIO_SKILLS"
+      ],
+      "before": "import { CLIO_SKILLS, matchSkill } from './skills/skill-registry.js';\n",
+      "after": "import { matchSkill } from './skills/skill-registry.js';\n"
+    },
+    {
+      "specifier": "'./meri-firm-skills.helpers.js'",
+      "removedBindings": [
+        "matchFirmSkillForTurn"
+      ],
+      "before": "import { matchFirmSkillForTurn } from './meri-firm-skills.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-mcp.helpers.js'",
+      "removedBindings": [
+        "parseBridgedToolName"
+      ],
+      "before": "import { parseBridgedToolName } from './meri-mcp.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-trace.helpers.js'",
+      "removedBindings": [
+        "summarizeTurnTrace",
+        "traceLogLine",
+        "MeriRoundTrace"
+      ],
+      "before": "import { summarizeTurnTrace, traceLogLine, type MeriRoundTrace } from './meri-trace.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-plan.helpers.js'",
+      "removedBindings": [
+        "buildPlanSteps"
+      ],
+      "before": "import { buildPlanSteps } from './meri-plan.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-circuit-breaker.js'",
+      "removedBindings": [
+        "ToolCircuitBreaker",
+        "CircuitOpenError"
+      ],
+      "before": "import { ToolCircuitBreaker, CircuitOpenError } from './meri-circuit-breaker.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-budget.helpers.js'",
+      "removedBindings": [
+        "loopBudgetExceeded",
+        "LoopStopReason"
+      ],
+      "before": "import { loopBudgetExceeded, type LoopStopReason } from './meri-budget.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-compliance.helpers.js'",
+      "removedBindings": [
+        "screenComplianceRisk",
+        "screenComplianceBlock",
+        "complianceRefusalBody"
+      ],
+      "before": "import {\n  COMPLIANCE_GUARDRAILS,\n  screenComplianceRisk,\n  screenComplianceBlock,\n  complianceRefusalBody,\n} from './meri-compliance.helpers.js';\n",
+      "after": "import {\n  COMPLIANCE_GUARDRAILS,\n} from './meri-compliance.helpers.js';\n"
+    },
+    {
+      "specifier": "'./meri-confidence.helpers.js'",
+      "removedBindings": [
+        "confidenceLevel"
+      ],
+      "before": "import { confidenceLevel } from './meri-confidence.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-actions.helpers.js'",
+      "removedBindings": [
+        "classifyToolAction",
+        "isSideEffectingTool"
+      ],
+      "before": "import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-research-promote.helpers.js'",
+      "removedBindings": [
+        "detectDeliverableReportRequest"
+      ],
+      "before": "import { detectDeliverableReportRequest } from './meri-research-promote.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-stream-preflight.helpers.js'",
+      "removedBindings": [
+        "meriProviderConfigurationError"
+      ],
+      "before": "import { meriProviderConfigurationError } from './meri-stream-preflight.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-grounding-statement.js'",
+      "removedBindings": [
+        "buildMeriGroundingStatement"
+      ],
+      "before": "import { buildMeriGroundingStatement } from './meri-grounding-statement.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'../common/tenant-flags.js'",
+      "removedBindings": [
+        "MERIV2_FLAGS"
+      ],
+      "before": "import {\n  MERIV2_FLAGS,\n  MERI_ALERTS_IMPORTANT_ONLY_FLAG,\n  MERI_ALERT_IMPORTANT_PRIORITIES,\n} from '../common/tenant-flags.js';\n",
+      "after": "import {\n  MERI_ALERTS_IMPORTANT_ONLY_FLAG,\n  MERI_ALERT_IMPORTANT_PRIORITIES,\n} from '../common/tenant-flags.js';\n"
+    },
+    {
+      "specifier": "'./meriv2-chat.client.js'",
+      "removedBindings": [
+        "MeriV2ChatClient",
+        "MeriV2ChatStreamEvent"
+      ],
+      "before": "import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-thinking.helpers.js'",
+      "removedBindings": [
+        "applyThinkingStreamEvent",
+        "createThinkingState",
+        "thinkingReplayBlocks",
+        "thinkingRequestParams",
+        "ThinkingSettings"
+      ],
+      "before": "import {\n  applyThinkingStreamEvent,\n  createThinkingState,\n  thinkingReplayBlocks,\n  thinkingRequestParams,\n  type ThinkingSettings,\n} from './meri-thinking.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meri-compaction.helpers.js'",
+      "removedBindings": [
+        "allocateBoundedReplayHistory",
+        "MAX_REPLAY_HISTORY_CHARS",
+        "MAX_REPLAY_MESSAGES"
+      ],
+      "before": "import {\n  allocateBoundedReplayHistory,\n  buildProtocolCompactionState,\n  estimateTokens,\n  formatSummaryBlockForPrompt,\n  MERI_PROTOCOL_COMPACTION_METADATA_KEY,\n  MAX_REPLAY_HISTORY_CHARS,\n  MAX_REPLAY_MESSAGES,\n  planCompaction,\n  protocolCompactionReplay,\n} from './meri-compaction.helpers.js';\n",
+      "after": "import {\n  buildProtocolCompactionState,\n  estimateTokens,\n  formatSummaryBlockForPrompt,\n  MERI_PROTOCOL_COMPACTION_METADATA_KEY,\n  planCompaction,\n  protocolCompactionReplay,\n} from './meri-compaction.helpers.js';\n"
+    },
+    {
+      "specifier": "'./meri-turn.helpers.js'",
+      "removedBindings": [
+        "planTurnRerun"
+      ],
+      "before": "import { planTurnRerun } from './meri-turn.helpers.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "'./meriv2-routing.helpers.js'",
+      "removedBindings": [
+        "shouldRouteMeriV2FullChat"
+      ],
+      "before": "import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';\n",
+      "after": ""
+    }
+  ],
+  "removedV2Constructor": {
+    "zeroBasedSlot": 10,
+    "exactParameter": "    private readonly meriV2Chat: MeriV2ChatClient,\n",
+    "otherParameters": "unchanged in order and bytes"
+  },
+  "removedToolBreaker": {
+    "sha256": "6d0e3f97c12df13b1ca4456f693c937457f04dc19ebe409cc4f8d0a06eb6eae1",
+    "bytes": 252,
+    "physicalLines": 3,
+    "includes": "Two immediately owned comments plus initializer"
+  },
+  "fixtureSites": [
+    {
+      "path": "apps/api/src/meri/meri-feedback-learning-signal-resilience.spec.ts",
+      "constructors": [
+        {
+          "originalLine": 44,
+          "removedZeroBasedSlot": 10,
+          "removedExactArgument": "    {} as never,",
+          "beforeSha256": "e7584bcfdb2b0c6f292bb9c5305c3afb294f500afa0b936bf348fcd9fd2b168d",
+          "afterSha256": "bcefceee100fa74a951829bc1f01b74ba5fb78e5f025a3cdfbb0ab88897ff803",
+          "inverse": "Reinsert the original exact dummy argument line at index10; every other constructor and file byte stays unchanged."
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-legal-hold.spec.ts",
+      "constructors": [
+        {
+          "originalLine": 54,
+          "removedZeroBasedSlot": 10,
+          "removedExactArgument": "    {} as never,",
+          "beforeSha256": "8b255d0fc8e114e83d36b3f9859fc6c4093810f37450f6ea6e39ecacd881a6ba",
+          "afterSha256": "ae157f87e52f6f1566ba7f3c206a4a29ebd6f89d9f362bd18b29026616965af6",
+          "inverse": "Reinsert the original exact dummy argument line at index10; every other constructor and file byte stays unchanged."
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.create-conversation.spec.ts",
+      "constructors": [
+        {
+          "originalLine": 62,
+          "removedZeroBasedSlot": 10,
+          "removedExactArgument": "    {} as never,",
+          "beforeSha256": "c4aa6c0fe76216319f47e718e4615301580eb11856c9027572afaec4079a35c4",
+          "afterSha256": "40f579618ee99aee9082dc0e439ddf2e8c138d2b85941973d8eb231a8db18b60",
+          "inverse": "Reinsert the original exact dummy argument line at index10; every other constructor and file byte stays unchanged."
+        },
+        {
+          "originalLine": 207,
+          "removedZeroBasedSlot": 10,
+          "removedExactArgument": "      {} as never,",
+          "beforeSha256": "48b74f1430ad87c3a07715000e9c35867b1147de4b4929f8b84bd557a1a05ab8",
+          "afterSha256": "67bf3a576b8f57ec7d63ecab3783421b1de2f92355241cd52db9e8f56d769f83",
+          "inverse": "Reinsert the original exact dummy argument line at index10; every other constructor and file byte stays unchanged."
+        }
+      ]
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.upload-attachment.spec.ts",
+      "constructors": [
+        {
+          "originalLine": 49,
+          "removedZeroBasedSlot": 10,
+          "removedExactArgument": "    {} as never,",
+          "beforeSha256": "1d2202cc62cb0578f93590f3b6886a36bf479db3e021300513d2ae82701bf7d1",
+          "afterSha256": "1d610a3b8db32d3781d1321792902f8ab405249c0146795a7837c48ea3273834",
+          "inverse": "Reinsert the original exact dummy argument line at index10; every other constructor and file byte stays unchanged."
+        }
+      ]
+    }
+  ],
+  "scope": {
+    "rawStreamStubAdded": false,
+    "V2ClientHelperSpecDeleted": false,
+    "protectedRpHelperSpecEdited": false,
+    "otherPrivateBodiesEdited": false,
+    "moduleDelta": "Only V2 import and provider removed; RAW/maintenance/factory retained",
+    "testsNodeParserCompilerGitCommitExecuted": false
+  },
+  "inverse": {
+    "source": "Recover removed region bodies from sealed f3 Git blob at recorded lines; no body copy persisted in this manifest.",
+    "service": "Undo import edits, reinsert exactV2 parameter/toolBreaker block from f3, then restore exact two owned regions; all other service bytes are retained.",
+    "fixtures": "Five former slot10 dummy lines only; reinsert exact indent/line at each recorded constructor; no assertion/body/collaborator rewrite.",
+    "module": "Reinsert exact V2 import/provider lines at original positions."
+  }
+}

@@ -1,0 +1,397 @@
+{
+  "parent": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "sourceCheckpoint": "0a83ced7744932c42e17db084b30b0a9810c4699",
+  "rawOwnedRegions": [
+    {
+      "name": "raw-stream-owned-region",
+      "originalFirstLine": 963,
+      "originalLastLine": 2727,
+      "physicalLines": 1765,
+      "bytes": 80732,
+      "sha256": "9367e226c72c3b44065ea7ee42d473e14f89dde27cd58a08d2a9d9634285ac03"
+    },
+    {
+      "name": "raw-v2-bridge-owned-region",
+      "originalFirstLine": 2729,
+      "originalLastLine": 3250,
+      "physicalLines": 522,
+      "bytes": 22813,
+      "sha256": "25b936134797a1a69a3f880121e90cb1c19d241a60f764c1d89de87f9b20f725"
+    }
+  ],
+  "removedRawPhysicalLines": 2287,
+  "rawServiceOtherBytesUnchanged": true,
+  "constructorSites": 5,
+  "otherConstructorAndNativeFixtureBytesUnchanged": true,
+  "currentV3AdaptersAndRoutingUnchanged": true,
+  "controllerBehaviorUnchanged": true,
+  "headerShapeUnchanged": true,
+  "currentArchiveCasesPreserved": 3,
+  "currentRpMappedIdentities": 22,
+  "retiredPaths": [
+    "meriv2-chat.client.ts",
+    "meriv2-chat.client.spec.ts",
+    "meriv2-routing.helpers.ts",
+    "meriv2-routing.helpers.spec.ts",
+    "meriv2-routing.matrix.spec.ts",
+    "meri-research-portfolio-tool-scope.ts",
+    "ResearchPortfolioMeriTurnBinding.spec.ts"
+  ],
+  "consumerPass": {
+    "argv": [
+      "-c",
+      "grep.threads=1",
+      "grep",
+      "-n",
+      "-E",
+      "from ['\"][^'\"]*(meriv2-chat.client|meriv2-routing.helpers|meri-research-portfolio-tool-scope)|MeriService\\[.streamMessage|installRawPhase19Adapters\\(",
+      "HEAD",
+      "--",
+      "apps",
+      "packages",
+      "scripts",
+      "infra",
+      "tests",
+      ":!tests/support/legacy-meri",
+      ":!scripts/ci/meri-loop-current-runtime.contract.spec.mjs"
+    ],
+    "exit": 1,
+    "meaning": "no matches",
+    "stdout": "",
+    "stderr": ""
+  },
+  "applicationPaths": [
+    "apps/api/src/meri/ResearchPortfolioMeriTurnBinding.spec.ts",
+    "apps/api/src/meri/meri-chat-ai.types.ts",
+    "apps/api/src/meri/meri-feedback-learning-signal-resilience.spec.ts",
+    "apps/api/src/meri/meri-memory-legal-hold.spec.ts",
+    "apps/api/src/meri/meri-research-portfolio-tool-scope.ts",
+    "apps/api/src/meri/meri-runtime.contract.ts",
+    "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+    "apps/api/src/meri/meri.controller.ts",
+    "apps/api/src/meri/meri.module.ts",
+    "apps/api/src/meri/meri.service.create-conversation.spec.ts",
+    "apps/api/src/meri/meri.service.ts",
+    "apps/api/src/meri/meri.service.upload-attachment.spec.ts",
+    "apps/api/src/meri/meriv2-chat.client.spec.ts",
+    "apps/api/src/meri/meriv2-chat.client.ts",
+    "apps/api/src/meri/meriv2-routing.helpers.spec.ts",
+    "apps/api/src/meri/meriv2-routing.helpers.ts",
+    "apps/api/src/meri/meriv2-routing.matrix.spec.ts",
+    "apps/api/src/meri/meriv3-chat.client.ts",
+    "apps/api/src/meri/meriv3-runtime.coverage.spec.ts",
+    "apps/api/src/meri/meriv3-runtime.proxy.spec.ts",
+    "apps/api/src/meri/meriv3-runtime.proxy.ts",
+    "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts"
+  ],
+  "protectedIdentities": [
+    {
+      "path": "apps/api/prisma",
+      "entry": "040000 tree 40b9c0f80bdcb7b41033281e20d2a92d8d9f59cd\tapps/api/prisma"
+    },
+    {
+      "path": "packages",
+      "entry": "040000 tree 5a2a5d76b4401685bc7d9c7fa4c46ce33f515e51\tpackages"
+    },
+    {
+      "path": "apps/defense-api",
+      "entry": "040000 tree d6876c77d256f29b7231a2cdcba7d5f4701035c7\tapps/defense-api"
+    },
+    {
+      "path": "apps/intel-api",
+      "entry": "040000 tree 0c83e0cd28e95d85b98b0fffafdc1b405be32ef4\tapps/intel-api"
+    },
+    {
+      "path": "apps/api-strategy",
+      "entry": "040000 tree 7b81261a4e5306eb95a35a3dec8eec0332a8c38c\tapps/api-strategy"
+    },
+    {
+      "path": "apps/onboard-api",
+      "entry": "040000 tree 4055d9e9c7ac9b5d47ddab41bc3c00c34e35c364\tapps/onboard-api"
+    },
+    {
+      "path": "apps/onboard-web",
+      "entry": "040000 tree 95650827ae2643bfe862874fc215712309945d33\tapps/onboard-web"
+    },
+    {
+      "path": "apps/e2e",
+      "entry": "040000 tree 37b1d7c0c65a2523417dc2855fa687264ba7170b\tapps/e2e"
+    },
+    {
+      "path": "apps/api/src/auth",
+      "entry": "040000 tree e0a8335dec2e40ea4dbc34b7a0c7b0cf051c7c0e\tapps/api/src/auth"
+    },
+    {
+      "path": "apps/api/src/tenant",
+      "entry": "040000 tree 2f3c0c3a569515adc583cb595a62e6e9df215fab\tapps/api/src/tenant"
+    },
+    {
+      "path": "apps/api/src/memory",
+      "entry": "040000 tree 238bfbdf5e1bcacbe3561b30b630e30f14c03231\tapps/api/src/memory"
+    },
+    {
+      "path": "apps/api/src/research-portfolios",
+      "entry": "040000 tree 199475e9f675eeb16d6bd7dd820621f1476c2148\tapps/api/src/research-portfolios"
+    },
+    {
+      "path": "apps/api/src/business-development",
+      "entry": "040000 tree 80e148db0dd9c691df5504bf5ff4e4ac77875a20\tapps/api/src/business-development"
+    },
+    {
+      "path": "apps/api/src/clients/objectives",
+      "entry": "040000 tree bf6a82037d66abe7b150c40838bfd77817c0e742\tapps/api/src/clients/objectives"
+    },
+    {
+      "path": "apps/api/src/engagement",
+      "entry": "040000 tree d8829603895fcbbacd26f42d045ea82a43e6c14d\tapps/api/src/engagement"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "entry": "100644 blob 6b867553bed4ffd1376279414ce4fa892bb896e7\tapps/api/src/app.module.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "entry": "100644 blob 801b2a4bb4d2910e23e13e584da988b11d10bc05\tapps/api/src/meri/meri-tools.service.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "entry": "100644 blob c82626227ef07ae685975cdaded238d4af92ac27\tapps/api/src/meri/meri-federal-legislation-tools.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "entry": "100644 blob d8d84b0ee1e4a52a4cfd2c3557c6b630fff0dc98\tapps/api/src/meri/meri-tool-input.helpers.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-rp-tool-transport.ts",
+      "entry": "100644 blob 4bca739696cbed54cda61f53173e0c6489a4a181\tapps/api/src/meri/meri-rp-tool-transport.ts"
+    },
+    {
+      "path": "apps/api/src/meri/governed-meri-tools.proxy.ts",
+      "entry": "100644 blob 88c7c163a62959ea3b631b2116e3db3f8cca3e1b\tapps/api/src/meri/governed-meri-tools.proxy.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-research.service.ts",
+      "entry": "100644 blob aaa52e7b1dc0a158844e738056d805e5f3667f7b\tapps/api/src/meri/meri-research.service.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "entry": "100644 blob 87b8d9b925fd76e48f3acd6970da9dfb22278713\tapps/api/src/meri/meriv3-proxy.service.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-chat.client.spec.ts",
+      "entry": "100644 blob 013033ac00815507a8fda76f40fad6173a739eea\tapps/api/src/meri/meriv3-chat.client.spec.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.spec.ts",
+      "entry": "100644 blob 761aa99b18749406bd72eb4655b7c1a2ed028148\tapps/api/src/meri/meriv3-proxy.service.spec.ts"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "entry": "100644 blob 74e97630367936881dd5d4ff5227579791ee1207\tapps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/current-turn-tool-scope.ts",
+      "entry": "100644 blob 9d7ad357b2bfd4391eb42da77a9fb68c4682c361\tapps/meriv2-orchestrator/src/meri/current-turn-tool-scope.ts"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/rp-tool-transport.ts",
+      "entry": "100644 blob 5f7c8dc563f0c958d31d5aea8e8b8c689060002e\tapps/meriv2-orchestrator/src/meri/rp-tool-transport.ts"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request",
+      "entry": "040000 tree 7855f13d3972f31f2607d60e4b7b48e13d651ed3\tapps/meriv2-orchestrator/src/request"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts",
+      "entry": "100644 blob 21abf2617c9b5ac892005513267513a4fcbe8c45\tapps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts"
+    },
+    {
+      "path": "package.json",
+      "entry": "100644 blob 239885efbbdb940372d6c8a68ff1364f3523bff0\tpackage.json"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "entry": "100644 blob 88d3bff652c22a7d9139a1a46bafd68411b3d4fe\tpnpm-lock.yaml"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "entry": "100644 blob bef9bfeb6b9840a272a71ae5b0c6debf85d527f8\tpnpm-workspace.yaml"
+    },
+    {
+      "path": ".github",
+      "entry": "absent at both pins"
+    },
+    {
+      "path": "docs/backend-cleanup-20261016",
+      "entry": "040000 tree ca98ff0b2280fad97b22b77cdee31220903f693a\tdocs/backend-cleanup-20261016"
+    },
+    {
+      "path": "docs/backend-cleanup-frontend-20261016",
+      "entry": "040000 tree 060fa7a9eff3d23af9816070ed05bc3edbb60ca3\tdocs/backend-cleanup-frontend-20261016"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016",
+      "entry": "040000 tree c0f49d8537439e233c2e98057c1e69fc42d2f26c\tdocs/backend-runtime-cleanup-20261016"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016",
+      "entry": "040000 tree 1a4a491a83a62a826720c2dbdba96efd1134ac50\tdocs/backend-meri-domain-cleanup-20261016"
+    }
+  ],
+  "testedInputIdentities": [
+    {
+      "path": "scripts/ci/meri-loop-current-runtime.contract.spec.mjs",
+      "workingBytesSHA256": "b4dfa94986c46ea444a6e33d45ca46ba400f4cd1a79e7df393363a5a63495320",
+      "workingBytes": 24898
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "workingBytesSHA256": "ffebcbd664a250b5cfa060bfd4a6d7fbe66f54f60fd4a272d68d5549eac88979",
+      "workingBytes": 8320
+    },
+    {
+      "path": "apps/api/src/meri/meri-turn-progress.ts",
+      "workingBytesSHA256": "c22b4762a5ae72cb96504db05a12d22043f55014343e5d61181dcfac13a308a8",
+      "workingBytes": 4611
+    },
+    {
+      "path": "apps/api/src/meri/meri-runtime.contract.ts",
+      "workingBytesSHA256": "7499ad4989ce4ed82f23000b27374ba26d7f5c8f58a99b8a331749cc724989ac",
+      "workingBytes": 697
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-ai.types.ts",
+      "workingBytesSHA256": "087369829bc1006ba7a466c9ef3954d438d19ed4ed8250ad0b2e29f7c8ba76e8",
+      "workingBytes": 250
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-chat.client.ts",
+      "workingBytesSHA256": "d6e191cf4cf671df402332c88ee6d5564123c83660619d601ff72e7a8ab270b9",
+      "workingBytes": 12304
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "workingBytesSHA256": "eb5c8654a63a82f526c3b6b6c862de2a56572741bb407c54ea6f0ac4173e5e0b",
+      "workingBytes": 12206
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "workingBytesSHA256": "b99d2af0a6ea341dc09466f1deee9d0bc52958dae33b0d26720d8fecd9eaff68",
+      "workingBytes": 44446
+    },
+    {
+      "path": "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+      "workingBytesSHA256": "15c6ce04d93e917126c7e4215349531d6ef845d5e9a6d68d4306fabc688a99be",
+      "workingBytes": 5488
+    },
+    {
+      "path": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs",
+      "workingBytesSHA256": "66ab68cb2c9b62877b7ad4761d28d084cdf21d43d8c1ff14f085ba395bf80d3d",
+      "workingBytes": 11604
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/request-credentials.store.ts",
+      "workingBytesSHA256": "8f5372a45f806a76b41c2214b0541504d0a4c5ab04db6daf9a4fb48a0a61966b",
+      "workingBytes": 2320
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/request/trusted-current-turn-scope.ts",
+      "workingBytesSHA256": "0f1e991b78cfb6727d3605fd0a6e57c6a27b780f619e8145b4b915e247435311",
+      "workingBytes": 782
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/current-turn-tool-scope.ts",
+      "workingBytesSHA256": "8b2e6be81d97c868471d43b92ce752159030afdd7156af8b8549ae2cabb3ecc9",
+      "workingBytes": 2226
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/rp-tool-transport.ts",
+      "workingBytesSHA256": "47a1f66630a40fba6b38ff4a139836d8588efa201c15598a0241bc1a75a867d6",
+      "workingBytes": 1606
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "workingBytesSHA256": "0e413376f4a50f07cbe8b7bd8e5b47fc6117be162e78389e2061a32da24f71e0",
+      "workingBytes": 605
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-execution-control.ts",
+      "workingBytesSHA256": "033daf9826a1741c5b09c3dda0a3617a8b5b26e21a10c5c965772cc785f52e01",
+      "workingBytes": 1342
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "workingBytesSHA256": "66f1cc4fb2bd6226ea56774e70dd981e3f80e12f61ab915d63d10c3646c4731f",
+      "workingBytes": 35738
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts",
+      "workingBytesSHA256": "a2547d208293c4fd4750bcd79aeab53258a8aa78020303d43cdf95edef40eaaf",
+      "workingBytes": 12548
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "workingBytesSHA256": "671de1204c141bc48691222a155eb78e6808ce618b5e4e33c0ad43e97888f894",
+      "workingBytes": 5102
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.mjs",
+      "workingBytesSHA256": "90e25caaf30341006a68af6abdfef6f5b50ad89177ee14ee62055e4e5e01e6de",
+      "workingBytes": 13018
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.spec.mjs",
+      "workingBytesSHA256": "af0fba5ebe052334defc2b4f21071e999847d0e5c1c89441de8b9caff660c085",
+      "workingBytes": 13685
+    },
+    {
+      "path": "tests/support/legacy-meri/CASE-OWNERSHIP.json",
+      "workingBytesSHA256": "1c3759f5bf048c1785c035deea17f2df07d550c7e846d271abe7e105152b6c74",
+      "workingBytes": 78969
+    },
+    {
+      "path": "tests/support/legacy-meri/SOURCE-INPUTS.json",
+      "workingBytesSHA256": "c9a6ca99bee505c62fc19ee9f6846e96b4a70a187c77ef182328b4b58006cf72",
+      "workingBytes": 7511
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "workingBytesSHA256": "12dbc0ba95a9f4285634503e520764cddb3932799d121d08ddf1946607d85531",
+      "workingBytes": 15568
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "workingBytesSHA256": "82f226ab32d7e5dd50ae69f819c1f07bf149bdff9b7bbc2d71ee13d340dfd644",
+      "workingBytes": 11484
+    },
+    {
+      "path": "package.json",
+      "workingBytesSHA256": "5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0",
+      "workingBytes": 14391
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "workingBytesSHA256": "72713cfac133d8a446ae651a1ea4043b2bbce9d15b14048cc671f77eccc8bee7",
+      "workingBytes": 75
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "workingBytesSHA256": "113ec790b45ce20eda92dd1d4a7578a304ad6085011f747180ceefa22a830ff3",
+      "workingBytes": 745108
+    },
+    {
+      "path": "tests/support/legacy-web/qualification-owner.mjs",
+      "workingBytesSHA256": "dd149d66292c1f6ebe94f402973a5417ee541b9c827bdfc955360f57188da5a6",
+      "workingBytes": 433
+    },
+    {
+      "path": "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
+      "workingBytesSHA256": "dac89a2d28bf815073b747af317906505e012db757bab9841428789b3b4ec9b9",
+      "workingBytes": 12382
+    }
+  ],
+  "countedSourceHead": "0a83ced7744932c42e17db084b30b0a9810c4699",
+  "sealedPR34RefUnchanged": true,
+  "scope": "One-time source transition only; not native DI/typing/auth/admission/grant/provider/DB/build/image/live acceptance"
+}

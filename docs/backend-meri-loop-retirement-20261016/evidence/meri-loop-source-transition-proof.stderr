@@ -1,0 +1,133 @@
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: All three archive bodies unchanged
++ actual - expected
+... Skipped lines
+
+  "import type { TenantContext } from '@capiro/shared';\n" +
+    "import { MeriService } from './meri.service.js';\n" +
+    '\n' +
+    '// These injected ports use the fixture implementations below; loading their\n' +
+    '// unrelated client/learning/embedding graphs is unnecessary for turn receipts.\n' +
+...
+    '  });\n' +
++   '});\n'
+-   '});\n' +
+-   '\n'
+
+    at Object.<anonymous> (C:\Users\neoma\Documents\Codex\2026-10-15\task-10\backend-cleanup\docs\backend-meri-loop-retirement-20261016\verify-source-transition.cjs:85:8)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: "import type { TenantContext } from '@capiro/shared';\n" +
+    "import { MeriService } from './meri.service.js';\n" +
+    '\n' +
+    '// These injected ports use the fixture implementations below; loading their\n' +
+    '// unrelated client/learning/embedding graphs is unnecessary for turn receipts.\n' +
+    "jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));\n" +
+    "jest.mock('../engagement/ai-credential-resolver.service.js', () => ({ AiCredentialResolverService: class {} }));\n" +
+    "jest.mock('../context/context-compiler.service.js', () => ({ ContextCompilerService: class {} }));\n" +
+    '\n' +
+    "const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222' } as TenantContext;\n" +
+    '\n' +
+    "describe('archived Meri thread deep-link recovery', () => {\n" +
+    '  function archivedHarness() {\n' +
+    "    const row = { id: 'conversation', tenantId: ctx.tenantId, userId: ctx.userId,\n" +
+    "      archivedAt: new Date('2026-09-10T10:00:00Z'), status: 'archived', clientId: null };\n" +
+    '    const tx = {\n' +
+    '      clioConversation: {\n' +
+    '        findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>\n' +
+    '          where.tenantId === row.tenantId && where.userId === row.userId &&\n' +
+    "          where.id === row.id && (!('archivedAt' in where) || row.archivedAt === where.archivedAt) ? row : null),\n" +
+    '        update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(row, data)),\n' +
+    '      },\n' +
+    "      clioMessage: { findMany: jest.fn(async () => [{ id: 'saved-answer', body: 'Saved before archive.' }]) },\n" +
+    '    };\n' +
+    '    const service = Object.assign(Object.create(MeriService.prototype), {\n' +
+    '      prisma: { withTenant: jest.fn(async (_id: string, fn: (db: typeof tx) => unknown) => fn(tx)) },\n' +
+    '    }) as MeriService;\n' +
+    '    return { service, tx, row };\n' +
+    '  }\n' +
+    '\n' +
+    "  it('discovers the owned archived row without restoring or reading its messages, then restores the saved conversation', async () => {\n" +
+    '    const h = archivedHarness();\n' +
+    "    await expect(h.service.getConversation(ctx, 'conversation')).resolves.toMatchObject({ status: 'archived' });\n" +
+    '    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();\n' +
+    '    expect(h.tx.clioMessage.findMany).not.toHaveBeenCalled();\n' +
+    "    await expect(h.service.listMessages(ctx, 'conversation')).rejects.toThrow('Meri conversation not found');\n" +
+    "    await h.service.restoreConversation(ctx, 'conversation');\n" +
+    "    expect(h.row).toMatchObject({ archivedAt: null, status: 'active' });\n" +
+    "    await expect(h.service.listMessages(ctx, 'conversation')).resolves.toEqual([{ id: 'saved-answer', body: 'Saved before archive.' }]);\n" +
+    '  });\n' +
+    '\n' +
+    "  it.each([{ tenantId: 'other-tenant' }, { userId: 'other-user' }])('rejects archive discovery and restore outside the owner (%j)', async (scope) => {\n" +
+    '    const h = archivedHarness();\n' +
+    '    const foreign = { ...ctx, ...scope };\n' +
+    "    await expect(h.service.getConversation(foreign, 'conversation')).rejects.toThrow('Meri conversation not found');\n" +
+    "    await expect(h.service.restoreConversation(foreign, 'conversation')).rejects.toThrow('Meri conversation not found');\n" +
+    '    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();\n' +
+    '  });\n' +
+    '});\n',
+  expected: "import type { TenantContext } from '@capiro/shared';\n" +
+    "import { MeriService } from './meri.service.js';\n" +
+    '\n' +
+    '// These injected ports use the fixture implementations below; loading their\n' +
+    '// unrelated client/learning/embedding graphs is unnecessary for turn receipts.\n' +
+    "jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));\n" +
+    "jest.mock('../engagement/ai-credential-resolver.service.js', () => ({ AiCredentialResolverService: class {} }));\n" +
+    "jest.mock('../context/context-compiler.service.js', () => ({ ContextCompilerService: class {} }));\n" +
+    '\n' +
+    "const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222' } as TenantContext;\n" +
+    '\n' +
+    "describe('archived Meri thread deep-link recovery', () => {\n" +
+    '  function archivedHarness() {\n' +
+    "    const row = { id: 'conversation', tenantId: ctx.tenantId, userId: ctx.userId,\n" +
+    "      archivedAt: new Date('2026-09-10T10:00:00Z'), status: 'archived', clientId: null };\n" +
+    '    const tx = {\n' +
+    '      clioConversation: {\n' +
+    '        findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>\n' +
+    '          where.tenantId === row.tenantId && where.userId === row.userId &&\n' +
+    "          where.id === row.id && (!('archivedAt' in where) || row.archivedAt === where.archivedAt) ? row : null),\n" +
+    '        update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(row, data)),\n' +
+    '      },\n' +
+    "      clioMessage: { findMany: jest.fn(async () => [{ id: 'saved-answer', body: 'Saved before archive.' }]) },\n" +
+    '    };\n' +
+    '    const service = Object.assign(Object.create(MeriService.prototype), {\n' +
+    '      prisma: { withTenant: jest.fn(async (_id: string, fn: (db: typeof tx) => unknown) => fn(tx)) },\n' +
+    '    }) as MeriService;\n' +
+    '    return { service, tx, row };\n' +
+    '  }\n' +
+    '\n' +
+    "  it('discovers the owned archived row without restoring or reading its messages, then restores the saved conversation', async () => {\n" +
+    '    const h = archivedHarness();\n' +
+    "    await expect(h.service.getConversation(ctx, 'conversation')).resolves.toMatchObject({ status: 'archived' });\n" +
+    '    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();\n' +
+    '    expect(h.tx.clioMessage.findMany).not.toHaveBeenCalled();\n' +
+    "    await expect(h.service.listMessages(ctx, 'conversation')).rejects.toThrow('Meri conversation not found');\n" +
+    "    await h.service.restoreConversation(ctx, 'conversation');\n" +
+    "    expect(h.row).toMatchObject({ archivedAt: null, status: 'active' });\n" +
+    "    await expect(h.service.listMessages(ctx, 'conversation')).resolves.toEqual([{ id: 'saved-answer', body: 'Saved before archive.' }]);\n" +
+    '  });\n' +
+    '\n' +
+    "  it.each([{ tenantId: 'other-tenant' }, { userId: 'other-user' }])('rejects archive discovery and restore outside the owner (%j)', async (scope) => {\n" +
+    '    const h = archivedHarness();\n' +
+    '    const foreign = { ...ctx, ...scope };\n' +
+    "    await expect(h.service.getConversation(foreign, 'conversation')).rejects.toThrow('Meri conversation not found');\n" +
+    "    await expect(h.service.restoreConversation(foreign, 'conversation')).rejects.toThrow('Meri conversation not found');\n" +
+    '    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();\n' +
+    '  });\n' +
+    '});\n' +
+    '\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
