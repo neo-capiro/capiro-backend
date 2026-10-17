@@ -61,13 +61,15 @@ export function createPrismaObjectiveIssuancePort(
           },
           async findDecision(operationId) {
             if (!UUID.test(operationId)) unavailable();
+            // The issuer holds its operation gate. Immutable ledger reads
+            // require SELECT only; row locks would require revoked UPDATE.
             const rows = await native.$queryRaw<ObjectiveWorkloadIssueDecisionRecord[]>`
               SELECT operation_id::text AS "operationId",caller_issuer AS "callerIssuer",
                 caller_subject AS "callerSubject",issuance_request_sha256 AS "issuanceRequestSha256",
                 decision,resolved_tenant_id::text AS "tenantId",
                 generation_job_id::text AS "generationJobId",phase
               FROM client_objective_workload_issue_decisions
-              WHERE resolved_tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid FOR SHARE`;
+              WHERE resolved_tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid`;
             return atMostOne<ObjectiveWorkloadIssueDecisionRecord>(rows);
           },
           async insertDecision(row) {
@@ -104,7 +106,7 @@ export function createPrismaObjectiveIssuancePort(
                 source_sha256 AS "sourceSha256",
                 iat_seconds AS "iatSeconds", nbf_seconds AS "nbfSeconds", exp_seconds AS "expSeconds"
               FROM client_objective_workload_issuances
-              WHERE tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid FOR SHARE`;
+              WHERE tenant_id=${tenantId}::uuid AND operation_id=${operationId}::uuid`;
             return atMostOne<ObjectiveWorkloadIssuanceRecord>(rows);
           },
           async insertIssuance(row) {
@@ -172,7 +174,7 @@ export function createPrismaObjectiveIssuancePort(
                 proof_exp_seconds AS "proofExpSeconds"
               FROM client_objective_workload_proof_uses
               WHERE tenant_id=${tenantId}::uuid AND caller_issuer=${callerIssuer}
-                AND proof_jti=${proofJti}::uuid FOR SHARE`;
+                AND proof_jti=${proofJti}::uuid`;
             return atMostOne<ObjectiveWorkloadProofUseRecord>(rows);
           },
           async insertProofUse(row) {
