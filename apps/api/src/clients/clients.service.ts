@@ -1111,6 +1111,36 @@ export class ClientsService {
     return this.withLogoUrls(clients);
   }
 
+  /** Preview-only native roster: narrow the database read before logo signing. */
+  async listPreviewVisible(
+    ctx: TenantContext,
+    filter: Pick<ListClientsFilter, 'profileStatus' | 'sectorTag'>,
+    visibleClientIds: readonly string[],
+  ) {
+    if (visibleClientIds.length === 0) return [];
+    const where: Prisma.ClientWhereInput = {
+      tenantId: ctx.tenantId,
+      id: { in: [...visibleClientIds] },
+      status: { not: 'archived' },
+    };
+    if (filter.profileStatus) where.profileStatus = filter.profileStatus;
+    if (filter.sectorTag) where.sectorTag = filter.sectorTag;
+    const clients = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findMany({ where, orderBy: { createdAt: 'desc' } }),
+    );
+    return this.withLogoUrls(clients);
+  }
+
+  /** Absent, foreign, archived and wall-hidden IDs have the same response. */
+  async getPreviewVisible(ctx: TenantContext, id: string, visibleClientIds: readonly string[]) {
+    if (!visibleClientIds.includes(id)) throw new NotFoundException('Client not found');
+    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({ where: { id, tenantId: ctx.tenantId, status: { not: 'archived' } } }),
+    );
+    if (!client) throw new NotFoundException('Client not found');
+    return this.withLogoUrl(client);
+  }
+
   async get(ctx: TenantContext, id: string) {
     // findFirst with an explicit tenantId (not findUnique by id alone): the app
     // role bypasses RLS, so a bare id lookup would let any tenant fetch any
