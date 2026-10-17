@@ -14,6 +14,11 @@ export const FIRST_CHAT_CORE_SOURCE = '6542f5b089656b6d255465edd464d06c2a0b408f'
 export const FIRST_CHAT_CORE_IMAGE_DIGEST =
   'sha256:722a483259ebb5e9162b9294c26895bafa890fcfee45dc927ff1d2ec35fa071b';
 export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
+// Reserved alongside Meri and the hand-managed rules in
+// infra/routing/capiro-prod-alb-priorities.json. Neither rule is live merely
+// because this source is rendered; the retained guard is deployed separately.
+export const FIRST_CHAT_CORE_READ_PRIORITY = 3;
+export const FIRST_CHAT_CORE_GUARD_PRIORITY = 4;
 export const FIRST_CHAT_CORE_GUARD_STACK_NAME = 'Capiro-Preview-First-Chat-Core-Guard';
 export const FIRST_CHAT_CORE_GUARD_RULE_EXPORT =
   'Capiro-Preview-First-Chat-Core-Guard-RuleArn';
@@ -77,7 +82,7 @@ export class FirstChatCoreGuardStack extends cdk.Stack {
     super(scope, id, { env });
     const guard = new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
       listenerArn: live.listenerArn,
-      priority: 4,
+      priority: FIRST_CHAT_CORE_GUARD_PRIORITY,
       conditions: [{ field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } }],
       actions: [
         {
@@ -274,7 +279,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     // It must rank ahead of the independently retained host-only 404 guard.
     new elb.CfnListenerRule(this, 'FirstChatReadsOnly', {
       listenerArn: live.listenerArn,
-      priority: 3,
+      priority: FIRST_CHAT_CORE_READ_PRIORITY,
       conditions: [
         { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
         {

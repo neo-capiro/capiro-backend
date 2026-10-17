@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "source": "aws elbv2 describe-rules --listener-arn <listenerArn> --region us-east-1 --output json",
+    "observedOnUtc": "2026-10-17",
+    "rawJsonPowerShellOutStringSha256": "82e86aef0c5f84de9da0b9148c753b3b9ae8217958282106e59ceda05148cec0",
+    "normalization": "All 17 live priorities, exact condition values and action types are retained. Logical action targets and rule IDs resolve to the observed non-secret ARNs below. Duplicate AWS Values and ForwardConfig projections and empty Transforms are omitted; no credentials or traffic are included."
+  },
+  "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440",
+  "ruleArnSuffixes": {
+    "core-post": "7b2114d8ca65b042",
+    "core-membership": "daee7daa9866aff3",
+    "core-guard": "e6aded81b8a7e13d",
+    "engagement-callbacks": "42d5a986d7bc6183",
+    "engagement-preview": "31705c7bdd372a94",
+    "recall-webhook": "0e2faafaa4c69a9d",
+    "onboard-host": "878247ea681750a9",
+    "onboard-path": "dac3fbd914769700",
+    "prod-api": "41a54ee9cf0e579c",
+    "prod-strategy": "4e4154f18f64b67d",
+    "prod-workspace": "eb4eff203ad0fb47",
+    "prod-meriv2": "14d2a8c17043a736",
+    "dev-intel": "ffe016a2e4ea40a9",
+    "prod-webhooks": "7f35c5f92b95b9ad",
+    "marketing-host": "2fdc2da83160a20d",
+    "os-host": "e1760f1c2c8ed3ec",
+    "default": "48817b4560c2c442"
+  },
+  "targetGroupArns": {
+    "core-preview": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-CoreT-NHA4DBPHLZ2E/11512f9487ee2f54",
+    "engagement-api": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9",
+    "onboard-api": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-onboardapi-albtg/23e641b281a28f2e",
+    "prod-api": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
+    "prod-strategy-api": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-strategy-tg/201cbb6a7e39491c",
+    "prod-workspace-api": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-workspace-tg/078f0cc5251ef03c",
+    "prod-meriv2-orchestrator": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-meriv2-orch-tg/9c49e0a42493ce64",
+    "dev-intel-api": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-intelapi-albtg/5dff8081c597be23",
+    "prod-marketing": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-marketing-tg/389a4a891d9f97ea",
+    "web-vnext": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-WebVN-NF4THUBAPLB6/1d31ba8b99313644",
+    "prod-web": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-web-tg/387a5af982c1707e"
+  },
+  "rules": [
+    {
+      "id": "core-post",
+      "priority": 1,
+      "conditions": { "methods": ["POST"], "hosts": ["first-chat-preview.app-dev.capiro.ai"], "paths": ["/api/clio/application-authority/identity", "/api/clio/conversations/bootstrap", "/api/clio/application-authority/context"] },
+      "action": { "type": "forward", "target": "core-preview" }
+    },
+    {
+      "id": "core-membership",
+      "priority": 2,
+      "conditions": { "methods": ["POST"], "hosts": ["first-chat-preview.app-dev.capiro.ai"], "paths": ["/api/clio/application-authority/membership"] },
+      "action": { "type": "forward", "target": "core-preview" }
+    },
+    {
+      "id": "core-guard",
+      "priority": 3,
+      "conditions": { "hosts": ["first-chat-preview.app-dev.capiro.ai"] },
+      "action": { "type": "fixed-response", "statusCode": 404, "contentType": "application/json", "body": "{\"error\":\"PREVIEW_ROUTE_NOT_FOUND\"}" }
+    },
+    {
+      "id": "engagement-callbacks",
+      "priority": 5,
+      "conditions": { "hosts": ["app.capiro.ai"], "paths": ["/api/engagement/integrations/microsoft/callback", "/api/engagement/integrations/microsoft/notifications", "/api/engagement/integrations/google/callback"] },
+      "action": { "type": "forward", "target": "engagement-api" }
+    },
+    {
+      "id": "engagement-preview",
+      "priority": 6,
+      "conditions": { "headers": { "X-Capiro-Engagement-Preview": ["v3"] }, "paths": ["/api/engagement/*"] },
+      "action": { "type": "forward", "target": "engagement-api" }
+    },
+    {
+      "id": "recall-webhook",
+      "priority": 7,
+      "conditions": { "paths": ["/webhooks/recall", "/webhooks/recall/*"] },
+      "action": { "type": "forward", "target": "engagement-api" }
+    },
+    {
+      "id": "onboard-host",
+      "priority": 8,
+      "conditions": { "hosts": ["onboarding.capiro.ai"] },
+      "action": { "type": "forward", "target": "onboard-api" }
+    },
+    {
+      "id": "onboard-path",
+      "priority": 9,
+      "conditions": { "paths": ["/onboard-api/*"] },
+      "action": { "type": "forward", "target": "onboard-api" }
+    },
+    {
+      "id": "prod-api",
+      "priority": 10,
+      "conditions": { "paths": ["/api/*"] },
+      "action": { "type": "forward", "target": "prod-api" }
+    },
+    {
+      "id": "prod-strategy",
+      "priority": 11,
+      "conditions": { "paths": ["/strategy-api/*"] },
+      "action": { "type": "forward", "target": "prod-strategy-api" }
+    },
+    {
+      "id": "prod-workspace",
+      "priority": 12,
+      "conditions": { "paths": ["/workspace-api/*"] },
+      "action": { "type": "forward", "target": "prod-workspace-api" }
+    },
+    {
+      "id": "prod-meriv2",
+      "priority": 13,
+      "conditions": { "paths": ["/meri-api/*"] },
+      "action": { "type": "forward", "target": "prod-meriv2-orchestrator" }
+    },
+    {
+      "id": "dev-intel",
+      "priority": 14,
+      "conditions": { "paths": ["/intel-api/*"] },
+      "action": { "type": "forward", "target": "dev-intel-api" }
+    },
+    {
+      "id": "prod-webhooks",
+      "priority": 15,
+      "conditions": { "paths": ["/webhooks/*"] },
+      "action": { "type": "forward", "target": "prod-api" }
+    },
+    {
+      "id": "marketing-host",
+      "priority": 20,
+      "conditions": { "hosts": ["capiro.ai", "www.capiro.ai"] },
+      "action": { "type": "forward", "target": "prod-marketing" }
+    },
+    {
+      "id": "os-host",
+      "priority": 50,
+      "conditions": { "hosts": ["os.capiro.ai"] },
+      "action": { "type": "forward", "target": "web-vnext" }
+    },
+    {
+      "id": "default",
+      "priority": "default",
+      "conditions": {},
+      "action": { "type": "forward", "target": "prod-web" }
+    }
+  ]
+}
