@@ -3,7 +3,7 @@
  * Every observed LegiStorm person field is exposed through these typed sections —
  * NOT a raw source blob. Null vs. unavailable is kept distinct (see `availability`).
  */
-import type { DirectoryCommittee } from './directory.service.js';
+import type { DirectoryCommittee } from './directory.types.js';
 import type { DirectoryCommitteeMembership, DirectoryPersonType } from './directory-indexes.js';
 import type { DirectoryPhotoRecord, DirectoryPhotoSource } from './directory-photo.js';
 
