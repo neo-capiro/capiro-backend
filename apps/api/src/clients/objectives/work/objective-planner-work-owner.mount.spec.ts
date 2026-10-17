@@ -6,6 +6,8 @@ import { TenantContextMiddleware } from '../../../tenant/tenant-context.middlewa
 import { ObjectiveWorkModule } from './objective-work.module.js';
 import { OBJECTIVE_WORK_OWNER, ObjectiveWorkService } from './objective-work.service.js';
 import { ObjectivePlannerWorkOwner } from './objective-planner-work-owner.js';
+import { ObjectiveStrategyWorkOwner } from './objective-strategy-work-owner.js';
+import { ObjectiveWorkOwnerRouter } from './objective-work-owner.router.js';
 import type { WorkAuthority, WorkState } from './objective-work-command.js';
 
 // Compile the actual module/factory and its controller/service. Global local
@@ -29,7 +31,8 @@ const authority: WorkAuthority = { tenantId: id(1), actorUserId: id(2), actorMem
 const state: WorkState = { source: { canonicalPlanId: id(7), canonicalEpoch: 1, canonicalStrategyId: id(8), canonicalProjectId: id(9),
   canonicalBindingVersion: 1, rootIntentId: id(10), sourceRevisionId: id(6), sourceObjectiveVersion: 1,
   sourceSnapshotHash: 'a'.repeat(64), rootActorUserId: id(2) }, control: null, consent: null };
-const keys = ['OBJECTIVE_PLANNER_CONTINUATION_ENABLED', 'OBJECTIVE_PLANNER_CONSENT_DURATION_MS'] as const;
+const keys = ['OBJECTIVE_PLANNER_CONTINUATION_ENABLED', 'OBJECTIVE_PLANNER_CONSENT_DURATION_MS',
+  'OBJECTIVE_STRATEGY_INTAKE_ENABLED', 'OBJECTIVE_STRATEGY_CONSENT_DURATION_MS'] as const;
 
 describe('Objective Planner Core owner module mount', () => {
   let module: TestingModule | undefined;
@@ -48,11 +51,13 @@ describe('Objective Planner Core owner module mount', () => {
   });
   const compile = async () => {
     module = await Test.createTestingModule({ imports: [ObjectivePlannerMountDependencies, ObjectiveWorkModule] }).compile();
-    return module.get<ObjectivePlannerWorkOwner>(OBJECTIVE_WORK_OWNER);
+    return module.get<ObjectiveWorkOwnerRouter>(OBJECTIVE_WORK_OWNER);
   };
   it('resolves the actual module factory as the concrete owner with local dependencies', async () => {
     const owner = await compile();
-    expect(owner).toBeInstanceOf(ObjectivePlannerWorkOwner);
+    expect(owner).toBeInstanceOf(ObjectiveWorkOwnerRouter);
+    expect(owner.planner).toBeInstanceOf(ObjectivePlannerWorkOwner);
+    expect(owner.strategy).toBeInstanceOf(ObjectiveStrategyWorkOwner);
     expect(module!.get(ObjectiveWorkService)).toBeInstanceOf(ObjectiveWorkService);
     expect(module!.get(PrismaService)).toBe(prisma);
     expect(module!.get(TenantContextMiddleware)).toBe(tenant);

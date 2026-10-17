@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { objectiveStrategyIntakeUrl } from '../../api-strategy/test/objective-strategy-request-loader.mjs';
 import { app, m, applied, shared, sourceModule, sharedUrl, calendarUrl, regenerationUrl,
   regeneration, objectiveDigest, fullV2, fullV3, id, at, NOW } from './objective-planner-codec.fixtures.mjs';
 const require = createRequire(import.meta.url), ts = require('typescript');
@@ -20,12 +21,13 @@ const materialFunctions = functionMap(materialSource, 'createPlannerMaterializat
 const applicationFunctions = functionMap(applicationSource, 'createPlannerApplicationCodec');
 const wrapperRaw = await readFile(new URL('apps/api-strategy/src/planner/strategy-materialization.ts', root), 'utf8');
 const wrapperSource = parse('wrapper.ts', wrapperRaw);
-const objectiveRaw = await readFile(new URL('apps/api-strategy/src/meri/objective-generation.types.ts', root), 'utf8');
-const digestBegin = objectiveRaw.indexOf('export function digest('), digestEnd = objectiveRaw.indexOf('\nfunction exact(', digestBegin);
-assert.ok(digestBegin > 0 && digestEnd > digestBegin);
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
-const { stripTypeScriptTypes } = await import('node:module');
-const digestUrl = data(stripTypeScriptTypes(`import { createHash } from 'node:crypto';\n${objectiveRaw.slice(digestBegin, digestEnd)}`));
+const digestFrameworkUrl = data('export class BadRequestException extends Error{};export class ConflictException extends Error{};');
+// Execute the full production adapter, including its actual shared factory.
+const digestUrl = await sourceModule('../../api-strategy/src/meri/objective-generation.types.ts', [
+  ["'@nestjs/common'", digestFrameworkUrl],
+  ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
+]);
 const legacy = await import(digestUrl);
 const calendarAdapter = data(`export { plannerResourceCalendarDate as plannerCalendarDate } from ${JSON.stringify(calendarUrl)};`);
 const errorAdapter = data(`export class HttpException extends Error { constructor(response,status){super(response.code);this.response=response;this.status=status;}getResponse(){return this.response;}getStatus(){return this.status;} }`);

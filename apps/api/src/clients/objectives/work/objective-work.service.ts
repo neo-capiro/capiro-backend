@@ -10,6 +10,9 @@ import { objectiveRevisionSnapshotHash, OBJECTIVE_WORK_BLOCKER, OBJECTIVE_WORK_P
 import { requireCanonicalObjectiveFence, type CanonicalObjectivePlanToken } from '../objective-canonical-plan.js';
 import { readWorkOutputs, unavailableObjectiveWorkOutputs,
   type ObjectiveWorkOutputRequest, type ObjectiveWorkOutputObservation } from './objective-work-output.js';
+import { objectiveStrategySelectionBody, parseObjectiveStrategySelection,
+  type ObjectiveStrategySelectionRequest, type ObjectiveStrategySelectionReceipt } from './objective-strategy-selection.js';
+import { verifyObjectiveStrategySelectionWithinTx } from './objective-strategy-selection-prisma.js';
 import {
   ObjectiveWorkError, executeWorkCommand, executeWorkPairConfirmation, readWorkGeneration, workFailure, workUuid,
   type WorkAction, type WorkAuthority, type WorkConsent, type WorkControl, type WorkOwner,
@@ -26,6 +29,9 @@ export const OBJECTIVE_WORK_OWNER = Symbol('OBJECTIVE_WORK_OWNER');
 export interface ObjectiveWorkOwnerPort {
   lockWithinTx(tx: Tx, ctx: TenantContext, request: WorkRequest): Promise<void>;
   lockReadWithinTx?(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void>;
+  bindStrategySelectionWithinTx?(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest): void;
+  observeLockedStrategyStateWithinTx?(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): void;
+  reserveStrategyWithinTx?(tx: Tx, authority: WorkAuthority, stored: StoredWorkReceipt, request: ObjectiveStrategySelectionRequest): Promise<void>;
   reconcileWithinTx(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation>;
   outputsWithinTx?(tx: Tx, ctx: TenantContext, authority: WorkAuthority, state: WorkState,
     request: ObjectiveWorkOutputRequest, observedAt: string): Promise<ObjectiveWorkOutputObservation>;
@@ -89,10 +95,51 @@ export class ObjectiveWorkService {
     } catch { return workFailure('NOT_AVAILABLE'); }
   }
   async command(ctx: TenantContext, req: Request, request: WorkRequest) {
+    // V1 may recover an old unselected receipt, but cannot create a new
+    // Strategy consent or bypass the selected companion's whole-wrapper check.
+    if (request.command.workAction === 'objective.strategy.draft' && request.command.command === 'retry')
+      return executeWorkCommand(request, this.replayOnlyStrategyStore(ctx, request, await this.proof(ctx, req)));
     return executeWorkCommand(request, this.store(ctx, request, await this.proof(ctx, req)));
   }
   async confirmPair(ctx: TenantContext, req: Request, request: WorkPairRequest) {
     return executeWorkPairConfirmation(request, this.pairStore(ctx, request, await this.proof(ctx, req)));
+  }
+  async selectedStrategyCommand(ctx: TenantContext, req: Request,
+    request: ObjectiveStrategySelectionRequest): Promise<ObjectiveStrategySelectionReceipt> {
+    const selected = parseObjectiveStrategySelection(request.work.clientId, request.work.objectiveId,
+      objectiveStrategySelectionBody(request));
+    const proof = await this.proof(ctx, req);
+    const receipt = await executeWorkCommand(selected.work, this.selectedStore(ctx, selected, proof));
+    return { schemaVersion: 2, commandReceipt: receipt, selection: { ...selected.selection } };
+  }
+  private selectedStore(ctx: TenantContext, request: ObjectiveStrategySelectionRequest,
+    proof: ApplicationAuthorityIdentityProof): WorkOwner {
+    return { transaction: <T>(write: boolean, run: (ports: WorkTransaction) => Promise<T>) =>
+      this.proofTransaction(ctx, proof, request.work.command.requestId, async tx => {
+        if (!this.ownerPort.bindStrategySelectionWithinTx || !this.ownerPort.reserveStrategyWithinTx)
+          workFailure('AUTHORITY_UNAVAILABLE', request.work.command.requestId);
+        this.ownerPort.bindStrategySelectionWithinTx(tx, ctx, request);
+        const owned = this.ports(tx, ctx, request.work, 'objective.strategy.draft', proof, write);
+        return run({ ...owned,
+          receipt: async (a, action, id) => {
+            const stored = await owned.receipt(a, action, id);
+            if (stored) await verifyObjectiveStrategySelectionWithinTx(tx, a, stored, request);
+            return stored;
+          },
+          insertReceipt: async (a, stored) => {
+            await owned.insertReceipt(a, stored);
+            await this.ownerPort.reserveStrategyWithinTx!(tx, a, stored, request);
+            // A wait during ledger/job insertion may exhaust the original
+            // consent or request. Recheck both after ALL new source writes.
+            await this.currentProofWithinTx(tx, proof);
+            const rows = await tx.$queryRaw<Array<{ valid: boolean }>>`SELECT clock_timestamp() < expires_at AS valid
+              FROM client_objective_work_consents WHERE tenant_id=${a.tenantId}::uuid AND client_id=${a.clientId}::uuid
+                AND objective_id=${a.objectiveId}::uuid AND work_action='objective.strategy.draft'
+                AND id=${stored.receipt.authorizationRequestId}::uuid AND control_id=${stored.controlId}::uuid`;
+            if (rows.length !== 1 || rows[0]!.valid !== true) workFailure('AUTHORITY_UNAVAILABLE');
+          },
+        });
+      }) };
   }
   async read(ctx: TenantContext, req: Request, request: WorkReadRequest) {
     return readWorkGeneration(request, this.store(ctx, request, await this.proof(ctx, req)));
@@ -109,26 +156,35 @@ export class ObjectiveWorkService {
         return run(this.ports(tx, ctx, request, action, proof, write));
       }) };
   }
+  private replayPorts(tx: Tx, ctx: TenantContext, request: WorkRequest, proof: ApplicationAuthorityIdentityProof,
+    action: WorkAction): WorkTransaction {
+    const owned = this.ports(tx, ctx, request, action, proof, false);
+    if (action !== 'objective.strategy.draft') return owned;
+    return { ...owned, receipt: async (a, kind, id) => {
+      const stored = await owned.receipt(a, kind, id);
+      if (stored) {
+        const selected = await tx.$queryRaw<Array<{ id: string }>>`SELECT id::text AS id FROM client_objective_strategy_intakes
+          WHERE tenant_id=${a.tenantId}::uuid AND client_id=${a.clientId}::uuid AND objective_id=${a.objectiveId}::uuid
+            AND command_receipt_id=${stored.receipt.receiptId}::uuid`;
+        if (!Array.isArray(selected) || selected.length !== 0) workFailure('AUTHORITY_UNAVAILABLE', id);
+      }
+      return stored;
+    } };
+  }
+  private replayOnlyStrategyStore(ctx: TenantContext, request: WorkRequest, proof: ApplicationAuthorityIdentityProof): WorkOwner {
+    return { transaction: (write, run) => {
+      if (write) return Promise.reject(new ObjectiveWorkError('AUTHORITY_UNAVAILABLE', request.command.requestId));
+      return this.proofTransaction(ctx, proof, request.command.requestId,
+        tx => run(this.replayPorts(tx, ctx, request, proof, request.command.workAction)));
+    } };
+  }
   private pairStore(ctx: TenantContext, request: WorkPairRequest, proof: ApplicationAuthorityIdentityProof): WorkPairOwner {
     return { transaction: (write, run) => {
-      const expires: string[] = [];
-      return this.proofTransaction(ctx, proof, request.strategy.command.requestId, tx => {
-        const port = (r: WorkRequest, action: WorkAction): WorkTransaction => {
-          const owned = this.ports(tx, ctx, r, action, proof, write);
-          return { ...owned, insertConsent: async (a, kind, consent) => {
-            await owned.insertConsent(a, kind, consent); expires.push(consent.expiresAt);
-          } };
-        };
-        return run({ strategy: port(request.strategy, 'objective.strategy.draft'),
-          planner: port(request.planner, 'objective.plan.prepare') });
-      }, async tx => {
-        // Historical replay inserts no consent and does not renew old expiry.
-        if (expires.length === 0) return;
-        if (expires.length !== 2) workFailure('AUTHORITY_UNAVAILABLE');
-        const rows = await tx.$queryRaw<Array<{ valid: boolean }>>`SELECT clock_timestamp() <
-          LEAST(${expires[0]!}::timestamptz,${expires[1]!}::timestamptz) AS valid`;
-        if (rows.length !== 1 || rows[0]!.valid !== true) workFailure('AUTHORITY_UNAVAILABLE');
-      });
+      if (write) return Promise.reject(new ObjectiveWorkError('AUTHORITY_UNAVAILABLE', request.strategy.command.requestId));
+      return this.proofTransaction(ctx, proof, request.strategy.command.requestId, tx => run({
+        strategy: this.replayPorts(tx, ctx, request.strategy, proof, 'objective.strategy.draft'),
+        planner: this.replayPorts(tx, ctx, request.planner, proof, 'objective.plan.prepare'),
+      }));
     } };
   }
   private async proofTransaction<T>(ctx: TenantContext, proof: ApplicationAuthorityIdentityProof, requestId: string | null,
@@ -184,6 +240,7 @@ export class ObjectiveWorkService {
         sameAction(kind); if (create || lockOnly) requireWrite();
         const state = await this.state(tx, ctx, a, kind, create, 'command' in request ? request.command.command : null, lockOnly);
         if (create || lockOnly) lockedSource = state.source;
+        if (create || lockOnly) this.ownerPort.observeLockedStrategyStateWithinTx?.(tx, a, kind, state);
         return state;
       },
       clock: async () => {

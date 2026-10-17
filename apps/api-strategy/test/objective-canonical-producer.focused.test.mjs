@@ -3,18 +3,20 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 const custody = [];
 const url = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 async function load(path, replacements = []) {
   const raw = await readFile(new URL(path, import.meta.url), 'utf8');
   let source = raw;
   for (const [from, to] of replacements) {
-    assert.equal(source.split(from).length, 2, from); source = source.replace(from, JSON.stringify(to));
+    const occurrences = from === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : 1;
+    assert.equal(source.split(from).length, occurrences + 1, from); source = source.replaceAll(from, JSON.stringify(to));
   }
   custody.push({ path, sha256: createHash('sha256').update(raw).digest('hex') });
   return url(stripTypeScriptTypes(source));
 }
-const applicationUrl = await load('../src/planner/objective-canonical-application.ts');
+const applicationUrl = await load('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const generationUrl = await load('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl],
 ]);
@@ -23,7 +25,7 @@ const generationUrl = await load('../src/meri/objective-canonical-generation.ts'
 const nest = url('export class BadRequestException extends Error{}; export class ConflictException extends Error{};');
 const enums = url(`export const STRATEGY_TYPES=${JSON.stringify(['appropriations','authorization','regulatory','coalition','procurement','earmark','amendment'])};`);
 const objectiveUrl = await load('../src/meri/objective-generation.types.ts', [
-  ["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums],
+  ["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
 ]);
 const producerUrl = await load('../src/meri/objective-canonical-producer.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl],

@@ -5,6 +5,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl } from '../../api-strategy/test/objective-strategy-request-loader.mjs';
 import { sharedUrl, calendarUrl, appliedUrl, fullV2, fullV3, readySnapshot, nativeConsentProof, m as materialization } from './objective-planner-codec.fixtures.mjs';
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const custody = [];
@@ -92,7 +93,7 @@ const genUrl = await sourceModule('../../api-strategy/src/meri/objective-canonic
 ]);
 const frameworkUrl = data('export class BadRequestException extends Error{}; export class ConflictException extends Error{}; export const STRATEGY_TYPES=[];');
 const typesUrl = await sourceModule('../../api-strategy/src/meri/objective-generation.types.ts', [
-  ["'@nestjs/common'", frameworkUrl], ["'../strategy/dto/create-strategy.dto.js'", frameworkUrl],
+  ["'@nestjs/common'", frameworkUrl], ["'../strategy/dto/create-strategy.dto.js'", frameworkUrl], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
 ]);
 const producerUrl = await sourceModule('../../api-strategy/src/meri/objective-canonical-producer.ts', [
   ["'../planner/objective-canonical-application.js'", appUrl],

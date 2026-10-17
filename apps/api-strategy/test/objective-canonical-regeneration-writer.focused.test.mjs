@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 
 // Actual extracted writer and owner helpers with staged synthetic ORM/clock/
 // versioning/objective hooks. No DB SQL, model, provider graph, authenticated
@@ -14,20 +15,21 @@ async function source(path, imports = []) {
   const file = new URL(path, import.meta.url), raw = await readFile(file, 'utf8');
   let transformed = raw;
   for (const [specifier, replacement, occurrences = 1] of imports) {
-    assert.equal(transformed.split(specifier).length, occurrences + 1, `exact declared dependency count: ${path}: ${specifier}`);
-    transformed = occurrences === 1 ? transformed.replace(specifier, JSON.stringify(replacement))
+    const count = specifier === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : occurrences;
+    assert.equal(transformed.split(specifier).length, count + 1, `exact declared dependency count: ${path}: ${specifier}`);
+    transformed = count === 1 ? transformed.replace(specifier, JSON.stringify(replacement))
       : transformed.replaceAll(specifier, JSON.stringify(replacement));
   }
   const stripped = stripTypeScriptTypes(transformed, { mode: 'strip', sourceUrl: file.href });
   custody.push({ path: file.pathname, rawSha256: sha(raw), importSpecifiers: imports.map(([specifier]) => specifier),
-    importOccurrences: imports.map(([, , occurrences = 1]) => occurrences), strippedSha256: sha(stripped) });
+    importOccurrences: imports.map(([specifier, , occurrences = 1]) => specifier === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : occurrences), strippedSha256: sha(stripped) });
   return asModule(stripped);
 }
-const appUrl = await source('../src/planner/objective-canonical-application.ts');
+const appUrl = await source('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const generationUrl = await source('../src/meri/objective-canonical-generation.ts', [["'../planner/objective-canonical-application.js'", appUrl]]);
 const nest = asModule('export class BadRequestException extends Error{};export class ConflictException extends Error{};');
 const enums = asModule(`export const STRATEGY_TYPES=${JSON.stringify(['appropriations','authorization','regulatory','coalition','procurement','earmark','amendment'])};`);
-const objectiveUrl = await source('../src/meri/objective-generation.types.ts', [["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums]]);
+const objectiveUrl = await source('../src/meri/objective-generation.types.ts', [["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl]]);
 const jobTypesUrl = await source('../src/meri/draft-job.types.ts', [["'./objective-generation.types.js'", objectiveUrl, 2]]);
 const producerUrl = await source('../src/meri/objective-canonical-producer.ts', [
   ["'../planner/objective-canonical-application.js'", appUrl], ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-generation.types.js'", objectiveUrl],

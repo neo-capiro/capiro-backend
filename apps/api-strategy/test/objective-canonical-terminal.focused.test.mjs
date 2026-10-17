@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 
 const sourceCustody = [];
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -14,7 +15,8 @@ async function sourceModule(path, replacements = []) {
   const url = new URL(path, import.meta.url), raw = await readFile(url, 'utf8');
   let source = raw;
   for (const [from, to] of replacements) {
-    const parts = source.split(from); assert.equal(parts.length, 2, `one declared pure dependency: ${from}`);
+    const occurrences = from === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : 1;
+    const parts = source.split(from); assert.equal(parts.length, occurrences + 1, `exact pure dependency count: ${from}`);
     source = parts.join(JSON.stringify(to));
   }
   const stripped = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: url.href });
@@ -24,12 +26,12 @@ async function sourceModule(path, replacements = []) {
 }
 const nestLabels = dataModule('export class BadRequestException extends Error{}; export class ConflictException extends Error{};');
 const enumLabels = dataModule('export const STRATEGY_TYPES=["appropriations","authorization","regulatory","coalition","procurement","earmark","amendment"];');
-const applicationUrl = await sourceModule('../src/planner/objective-canonical-application.ts');
+const applicationUrl = await sourceModule('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const generationUrl = await sourceModule('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl],
 ]);
 const objectiveTypesUrl = await sourceModule('../src/meri/objective-generation.types.ts', [
-  ["'@nestjs/common'", nestLabels], ["'../strategy/dto/create-strategy.dto.js'", enumLabels],
+  ["'@nestjs/common'", nestLabels], ["'../strategy/dto/create-strategy.dto.js'", enumLabels], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
 ]);
 const terminalUrl = await sourceModule('../src/meri/objective-canonical-terminal.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl],
@@ -89,7 +91,7 @@ function replay(f, prepared = prepare(f.job, f.options)) {
 }
 
 test('source custody binds four actual modules; only framework/enum labels are stubbed', t => {
-  assert.equal(sourceCustody.length, 4); assert.deepEqual(sourceCustody.map(x => x.replacementSpecifiers.length), [0, 1, 2, 3]);
+  assert.equal(sourceCustody.length, 4); assert.deepEqual(sourceCustody.map(x => x.replacementSpecifiers.length), [1, 1, 3, 3]);
   t.diagnostic(JSON.stringify({ sourceCustody }));
 });
 for (const outcome of ['needs-information', 'refused', 'failed', 'cancelled']) {

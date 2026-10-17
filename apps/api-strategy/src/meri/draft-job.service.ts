@@ -3,6 +3,7 @@ import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { withContextRetry } from './context-load.js';
+import { lockObjectiveStrategyJobCreatorsWithinTx } from '@capiro/shared/objective-strategy-intake';
 import { STRATEGY_CONTEXT_RETRY, type ContextRetryRuntime } from './strategy-time.providers.js';
 import type { DraftStrategyDto } from './dto/meri.dto.js';
 import { admitObjective } from './objective-generation-admission.js';
@@ -49,6 +50,7 @@ export class DraftJobService {
     const key = requestKey(ctx.tenantId, ctx.clerkUserId, request.requestId);
     const fingerprint = digest(request);
     const create = () => this.prisma.withTenant(ctx.tenantId, async tx => {
+      await lockObjectiveStrategyJobCreatorsWithinTx(tx, ctx.tenantId);
       const admitted = await admitObjective(tx, ctx, request);
       const existing = await tx.spDraftJob.findUnique({ where: { tenantId_requestKey: { tenantId: ctx.tenantId, requestKey: key } } });
       if (existing) {
@@ -109,6 +111,7 @@ export class DraftJobService {
 
     const create = () =>
       this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        await lockObjectiveStrategyJobCreatorsWithinTx(tx, ctx.tenantId);
         const existing = await tx.spDraftJob.findUnique({
           where: { tenantId_requestKey: { tenantId: ctx.tenantId, requestKey } },
         });

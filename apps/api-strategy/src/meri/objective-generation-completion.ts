@@ -27,6 +27,7 @@ export function objectivePersistence(
   const envelope = job.input.objectiveGeneration!;
   return {
     beforeTransaction: async () => {
+      if (Object.hasOwn(job.input, 'objectiveCanonicalReservation')) throw new ObjectiveLeaseLost();
       const compiled = admission();
       if (!compiled) throw new Error('Objective context not compiled');
       envelope.historyCheckedAt = await contextPlane.recheckObjective(
@@ -52,6 +53,7 @@ export function objectivePersistence(
       const row = rows[0];
       if (
         !row?.valid ||
+        Object.hasOwn(row.input, 'objectiveCanonicalReservation') ||
         row.ownerUserId !== job.ownerUserId ||
         row.clientId !== envelope.request.clientId ||
         !row.input.objectiveGeneration ||

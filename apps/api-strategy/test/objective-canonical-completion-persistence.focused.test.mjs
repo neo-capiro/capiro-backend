@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl } from './objective-strategy-request-loader.mjs';
 
 const copy = value => structuredClone(value);
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -27,7 +28,7 @@ async function sourceModule(relative, replacements = []) {
 const nest = data('export class BadRequestException extends Error{};export class ConflictException extends Error{};');
 const enums = data("export const STRATEGY_TYPES=['appropriations','authorization','regulatory','coalition','procurement','earmark','amendment'];");
 const typesUrl = await sourceModule('../src/meri/objective-generation.types.ts', [
-  ["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums],
+  ["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
 ]);
 const { digest } = await import(typesUrl);
 const ports = data(`
