@@ -28,6 +28,18 @@ const kernelUrl = await sourceModule('../src/clients/objectives/work/objective-w
   ["'./objective-planner-regeneration.js'", regenerationBindingUrl],
 ]);
 const kernel = await import(kernelUrl);
+const outputUrl = await sourceModule('../src/clients/objectives/work/objective-work-output.ts', [
+  ["'./objective-work-command.js'", kernelUrl],
+]);
+const resourceAccessUrl = await sourceModule('../../../packages/shared/src/planner-resource-access.ts');
+const resourceAuthorityUrl = await sourceModule('../../../packages/shared/src/objective-plan-resource-authority.ts', [
+  ["'./planner-resource-access.js'", resourceAccessUrl], ["'./planner-resource-schedule.js'", calendarUrl],
+]);
+const resourceSharedUrl = data(`export * from ${JSON.stringify(calendarUrl)}; export * from ${JSON.stringify(resourceAuthorityUrl)};`);
+const outputObservationUrl = await sourceModule('../src/clients/objectives/work/objective-planner-output-observation.ts', [
+  ["'@capiro/shared'", resourceSharedUrl], ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
+  ["'./objective-work-output.js'", outputUrl],
+]);
 const intentUrl = await sourceModule('../src/clients/objectives/objective-work-intent.ts');
 const proofUrl = await sourceModule('../src/clients/objectives/work/objective-planner-consent-proof.ts', [
   ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
@@ -67,6 +79,8 @@ const ownerUrl = await sourceModule('../src/clients/objectives/work/objective-pl
   ["'./objective-planner-regeneration.js'", regenerationBindingUrl],
   ["'./objective-planner-current-consent-proof.js'", currentConsentUrl],
   ["'./objective-planner-retained-anchor.js'", retainedAnchorUrl],
+  ["'./objective-planner-output-observation.js'", outputObservationUrl],
+  ["'./objective-work-output.js'", outputUrl],
 ]);
 const { ObjectivePlannerWorkOwner } = await import(ownerUrl);
 const appUrl = await sourceModule('../../api-strategy/src/planner/objective-canonical-application.ts', [
@@ -138,11 +152,12 @@ function fixture(options = {}) {
   const f = { a, state, work, operation, rows: [], receipts: [{ record: receipt, clerkUserId: 'user_original' }],
     settings: { clioFeatureFlags: { 'strategyPlanner.enabled': true }, objectivePlannerContinuation: { enabled: true } },
     calls: [], outputs: [{ present: false }], outputRows: [], historical: [], nativeProofs: [], hiddenResources: [],
-    expiryRows: [{ expired: false }], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
+    expiryRows: [{ expired: false }], currentProjectRows: [], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
   f.tx = {
     async $executeRaw(parts, ...values) { f.calls.push({ kind: 'execute', sql: parts.join('?'), values }); return 1; },
     async $queryRaw(parts, ...values) {
       const sql = parts.join('?'); f.calls.push({ kind: 'query', sql, values });
+      if (sql.includes('WITH requested AS') && sql.includes('selected_project')) return f.currentProjectRows;
       if (sql.includes('AS expired')) return f.expiryRows;
       if (sql.includes('JOIN client_objective_work_intents'))
         return [...f.nativeProofs, ...f.historical].filter(row => values.includes(row.consent.id));
@@ -1244,4 +1259,189 @@ test('actual owner and kernel renew an expired unused consent once, then read th
   error => error.code === 'REQUEST_ID_CONFLICT');
   assert.deepEqual(saved, committed); assert.equal(writeCount, 3);
   await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE', 'read status cannot grant another consent');
+});
+
+function outputContext(f) {
+  return { tenantId: f.a.tenantId, tenantSlug: 'synthetic-source-scope', userId: f.a.actorUserId,
+    clerkUserId: f.a.clerkUserId, role: 'standard_user' };
+}
+function outputRequest(f, canonical = f.work.canonical) {
+  return { clientId: f.a.clientId, objectiveId: f.a.objectiveId, workAction: PLAN, source: {
+    revision: { id: canonical.requestedObjectiveRevisionId, version: canonical.requestedObjectiveVersion },
+    canonicalBindingVersion: canonical.bindingVersion } };
+}
+function readableProject(f, overrides = {}) {
+  f.currentProjectRows = [{ rowKind: 'selected_project', id: f.state.source.canonicalProjectId,
+    tenantId: f.a.tenantId, ownerId: 'user_project_original', version: 100, archived: false, createdAt: iso(-1000),
+    data: { name: 'Current human-edited project', clientId: f.a.clientId, privacy: 'private',
+      members: [{ userId: f.a.clerkUserId, role: 'viewer' }] }, ...overrides }];
+  return f;
+}
+async function discoverOutputs(f, request = outputRequest(f), reconcile = true) {
+  if (reconcile) await observedRead(f);
+  return f.owner.outputsWithinTx(f.tx, outputContext(f), f.a, f.state, request, iso(1000));
+}
+function pendingOutputFixture(state) {
+  const f = appliedChain(fixture(), [fullV2()]);
+  // Reuse real native-consent bytes only; no application/owner/output is saved.
+  // The operation is a fresh queued/leased row under that exact human consent.
+  captureUnusedConsent(f, f.nativeProofs[0]);
+  f.operation.state = state;
+  if (state === 'leased') f.operation.lease = { token: id(17004), expiresAtMs: NOW + 5000 };
+  f.rows = [f.row()]; return f;
+}
+test('real owner v2 project discovery joins complete custody to actual current shared ACL', async () => {
+  const f = readableProject(appliedChain(fixture(), [fullV2()])), before = copy({ rows: f.rows, state: f.state });
+  const out = await discoverOutputs(f), project = out.planner.projects[0];
+  assert.equal(out.state, 'applied'); assert.equal(out.planner.availability, 'available');
+  assert.deepEqual(out.strategy, { availability: 'unavailable' });
+  assert.deepEqual(project.creation, { receiptVersion: 2, recordedAt: f.full.owner.result.recordedAt,
+    version: f.full.owner.result.projects[0].output.createdVersion });
+  assert.deepEqual(project.application, { receiptVersion: 2, recordedAt: f.full.owner.result.recordedAt });
+  assert.deepEqual(project.current, { selection: { kind: 'planner_project', id: f.state.source.canonicalProjectId },
+    title: 'Current human-edited project', ownerVersion: { kind: 'counter', value: 100 }, observedAt: iso(1000) });
+  assert.deepEqual(Object.keys(out).sort(), ['planner', 'state', 'strategy']);
+  assert.deepEqual(Object.keys(project).sort(), ['application', 'availability', 'creation', 'current']);
+  const wire = JSON.stringify(out);
+  for (const value of [f.operation.original.operationId, f.operation.original.attemptId, f.operation.original.runId,
+    f.operation.work.generationJobId, f.operation.work.strategyId, f.operation.clerkUserId, f.operation.work.consentId,
+    f.operation.work.snapshotDigest]) assert.equal(wire.includes(value), false);
+  assert.deepEqual({ rows: f.rows, state: f.state }, before);
+});
+test('real owner v3 receiving keeps original v2 creation distinct from selected reconciliation and current edits', async () => {
+  const first = fullV2(), second = fullV3(first), f = readableProject(appliedChain(fixture(), [first, second]));
+  assert.equal(second.owner.result.counts.createdProjects, 0);
+  const out = await discoverOutputs(f), project = out.planner.projects[0];
+  assert.equal(out.state, 'applied'); assert.equal(project.creation.receiptVersion, 2);
+  assert.equal(project.creation.recordedAt, first.owner.result.recordedAt);
+  assert.deepEqual(project.application, { receiptVersion: 3, recordedAt: second.owner.result.recordedAt });
+  assert.equal(project.current.ownerVersion.value, 100);
+  const historical = await discoverOutputs(f, outputRequest(f, first.work.canonical));
+  assert.equal(historical.state, 'applied'); assert.equal(historical.planner.projects[0].application.receiptVersion, 2);
+  assert.deepEqual(historical.planner.projects[0].current, project.current);
+});
+test('old applied discovery and new requested not-started discovery retain distinct exact source identities', async () => {
+  const first = fullV2(), f = readableProject(retainedHead([first]));
+  const current = await discoverOutputs(f), old = await discoverOutputs(f, outputRequest(f, first.work.canonical));
+  assert.equal(current.state, 'not_started'); assert.deepEqual(current.planner.projects, []);
+  assert.equal(old.state, 'applied'); assert.equal(old.planner.projects[0].current.selection.id, f.state.source.canonicalProjectId);
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE', 'discovery does not promote status-only policy');
+});
+test('full unused C2 C1 ancestry can discover the older proved project without changing renewal policy', async () => {
+  const first = fullV2(), f = readableProject(unusedRenewals(retainedHead([first]), 2));
+  const old = await discoverOutputs(f, outputRequest(f, first.work.canonical)); assert.equal(old.state, 'applied');
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+});
+for (const denied of ['private', 'archived', 'other client', 'malformed grants', 'missing', 'old counter'])
+test(`project discovery withholds every selector and creation/application metadata for ${denied}`, async () => {
+  const f = readableProject(appliedChain(fixture(), [fullV2()])), row = f.currentProjectRows[0];
+  if (denied === 'private') row.data.members = [];
+  if (denied === 'archived') row.archived = true;
+  if (denied === 'other client') row.data.clientId = id(17000);
+  if (denied === 'malformed grants') row.data.members = [{ userId: f.a.clerkUserId, role: 'god' }];
+  if (denied === 'missing') f.currentProjectRows = [];
+  if (denied === 'old counter') row.version = 0;
+  const out = await discoverOutputs(f); assert.equal(out.planner.availability, 'unavailable');
+  assert.equal(JSON.stringify(out).includes(f.state.source.canonicalProjectId), false);
+  if (out.state === 'applied') assert.deepEqual(out.planner.projects,
+    [{ availability: 'unavailable', creation: null, application: null, current: null }]);
+});
+test('every project discovery rechecks mutable access after complete immutable custody accounting', async () => {
+  const f = readableProject(appliedChain(fixture(), [fullV2()])); await observedRead(f);
+  const out = await discoverOutputs(f, outputRequest(f), false); assert.equal(out.planner.availability, 'available');
+  f.currentProjectRows[0].data.members = [];
+  const revoked = await discoverOutputs(f, outputRequest(f), false);
+  assert.equal(revoked.planner.projects[0].current, null);
+  assert.equal(f.calls.filter(c => c.sql.includes('WITH requested AS')).length, 2);
+});
+test('public evidence and discovery results cannot mutate the private decoded cache', async () => {
+  const f = readableProject(appliedChain(fixture(), [fullV2()]));
+  const evidence = await observedRead(f); evidence.state = 'not_started'; evidence.outcome = undefined;
+  const out = await discoverOutputs(f, outputRequest(f), false);
+  out.planner.projects[0].current.selection.id = id(17001); out.planner.projects[0].creation.version = 999;
+  const again = await discoverOutputs(f, outputRequest(f), false);
+  assert.equal(again.state, 'applied'); assert.equal(again.planner.projects[0].current.selection.id, f.state.source.canonicalProjectId);
+  assert.equal(again.planner.projects[0].creation.version, 1);
+});
+for (const changed of ['read lock', 'write lock', 'authority', 'state', 'transaction', 'context', 'source revision', 'source version', 'binding'])
+test(`private output custody cannot be reused after changed ${changed}`, async () => {
+  const f = readableProject(appliedChain(fixture(), [fullV2()])); await observedRead(f);
+  const request = outputRequest(f); let tx = f.tx, ctx = outputContext(f);
+  if (changed === 'read lock') await f.owner.lockReadWithinTx(f.tx, ctx, request);
+  if (changed === 'write lock') await f.lock();
+  if (changed === 'authority') f.a.actorUserId = id(17002);
+  if (changed === 'state') f.state.control.version++;
+  if (changed === 'transaction') tx = { ...f.tx };
+  if (changed === 'context') ctx.clerkUserId = 'foreign_reader';
+  if (changed === 'source revision') request.source.revision.id = id(17003);
+  if (changed === 'source version') request.source.revision.version++;
+  if (changed === 'binding') request.source.canonicalBindingVersion++;
+  const before = f.calls.length;
+  const out = await f.owner.outputsWithinTx(tx, ctx, f.a, f.state, request, iso(1000));
+  assert.equal(out.state, 'outcome_unconfirmed'); assert.deepEqual(out.planner.projects, []);
+  assert.equal(f.calls.length, before, 'no late owner lock or resource read follows invalid custody');
+});
+for (const [state, expected] of [['queued', 'queued'], ['leased', 'running'], ['failed', 'failed'], ['cancelled', 'cancelled']])
+test(`validated current ${state} observation returns source-specific ${expected} without private identifiers`, async () => {
+  const f = ['failed', 'cancelled'].includes(state) ? fixture().terminal(state) : pendingOutputFixture(state);
+  const out = await discoverOutputs(f); assert.equal(out.state, expected); assert.deepEqual(out.planner.projects, []);
+  assert.equal(JSON.stringify(out).includes(f.operation.original.operationId), false);
+});
+for (const state of ['queued', 'leased']) for (const kind of ['application', 'head', 'owner', 'project/task'])
+test(`${state} progress stays uncertain beside unpaired ${kind} outcome evidence`, async () => {
+  const f = pendingOutputFixture(state);
+  if (kind === 'project/task') f.outputs = [{ present: true }];
+  else f.rows.push(copy(f.full.resources.find(row => row.kind === ({ application: 'objective_canonical_application_receipt',
+    head: 'objective_canonical_application_head', owner: 'objective_canonical_materialization_receipt' })[kind])));
+  const out = await discoverOutputs(f); assert.equal(out.state, 'outcome_unconfirmed');
+  assert.deepEqual(out.planner.projects, []); await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+});
+for (const state of ['queued', 'leased']) for (const kind of ['application', 'head', 'owner'])
+for (const concealment of ['kind', 'scope'])
+test(`${state} exact pending ${kind} cannot hide through changed ${concealment}`, async () => {
+  const f = pendingOutputFixture(state);
+  const row = copy(f.full.resources.find(row => row.kind === ({ application: 'objective_canonical_application_receipt',
+    head: 'objective_canonical_application_head', owner: 'objective_canonical_materialization_receipt' })[kind]));
+  if (concealment === 'kind') row.kind = 'renamed_private_receipt';
+  else {
+    const canonical = kind === 'application' ? row.data.request.canonical : kind === 'owner' ? row.data.binding.canonical : row.data.canonical;
+    canonical.objectiveId = id(17100); canonical.canonicalPlanId = id(17101);
+  }
+  f.hiddenResources.push(row); const out = await discoverOutputs(f);
+  assert.equal(out.state, 'outcome_unconfirmed'); assert.deepEqual(out.planner.projects, []);
+});
+test('pending progress without full original native consent proof remains uncertain', async () => {
+  const f = pendingOutputFixture('queued'); f.nativeProofs = [];
+  assert.equal((await discoverOutputs(f)).state, 'outcome_unconfirmed');
+});
+for (const concealment of ['kind', 'scope', 'owner', 'archived'])
+test(`pending progress refuses a second same-consent operation concealed by ${concealment}`, async () => {
+  const f = pendingOutputFixture('leased'), row = copy(f.row()); row.id = id(17200);
+  if (concealment === 'kind') row.kind = 'renamed_started_claim';
+  if (concealment === 'scope') {
+    row.data.work.canonical.objectiveId = id(17201); row.data.work.canonical.canonicalPlanId = id(17202);
+  }
+  if (concealment === 'owner') row.ownerId = row.data.clerkUserId = 'foreign_clerk';
+  if (concealment === 'archived') row.archived = true;
+  f.hiddenResources.push(row);
+  const out = await discoverOutputs(f); assert.equal(out.state, 'outcome_unconfirmed');
+  assert.deepEqual(out.planner.projects, []);
+  const probe = f.calls.find(c => c.sql.includes("data#>>'{work,consentId}'") && c.sql.includes('LIMIT 2'));
+  assert.ok(probe); assert.deepEqual(probe.values, [f.a.tenantId, [f.state.consent.id]]);
+  assert.equal(/kind|owner_id|archived|canonicalPlanId|objectiveId/.test(probe.sql), false);
+});
+test('elapsed durable lease and corrupt full owner ancestry remain uncertain with no output identities', async () => {
+  const f = fixture(); f.operation.state = 'leased'; f.operation.lease = { token: id(17005), expiresAtMs: NOW - 1 };
+  f.rows = [f.row()]; assert.equal((await discoverOutputs(f)).state, 'outcome_unconfirmed');
+  const broken = readableProject(appliedChain(fixture(), [fullV2()]));
+  broken.rows.find(r => r.kind === 'objective_canonical_application_head').data.ackSha256 = 'f'.repeat(64);
+  assert.equal((await discoverOutputs(broken)).state, 'outcome_unconfirmed');
+});
+test('Planner discovery stays unavailable for default-off owner and Strategy action', async () => {
+  const f = fixture({ env: {} }); assert.equal((await discoverOutputs(f)).state, 'unavailable');
+  const enabled = appliedChain(fixture(), [fullV2()]), request = outputRequest(enabled);
+  request.workAction = 'objective.strategy.draft'; await observedRead(enabled);
+  const before = enabled.calls.length;
+  assert.equal((await enabled.owner.outputsWithinTx(enabled.tx, outputContext(enabled), enabled.a, enabled.state, request, iso(1000))).state, 'unavailable');
+  assert.equal(enabled.calls.length, before);
 });

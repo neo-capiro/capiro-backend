@@ -14,6 +14,8 @@ import { ObjectivePlannerWorkOwner } from './objective-planner-work-owner.js';
 import { decodeObjectivePlannerApplied, type ObjectivePlannerAppliedOperation, type ObjectivePlannerResource } from './objective-planner-applied.js';
 import { ObjectiveWorkService, UNCONNECTED_OBJECTIVE_WORK_OWNER, type ObjectiveWorkOwnerPort } from './objective-work.service.js';
 import { workDigest, type WorkAction, type WorkReadRequest } from './objective-work-command.js';
+import { ObjectiveWorkController } from './objective-work.controller.js';
+import { type ObjectiveWorkOutputRequest, unavailableObjectiveWorkOutputs } from './objective-work-output.js';
 
 // Actual WorkService, Core read kernel, shared native Objective destination
 // reader and concrete Planner owner. Only native SQL results, transaction and
@@ -486,5 +488,65 @@ describe('actual WorkService Planner status reads (synthetic native SQL/proof on
     expect(f.readLock).toHaveBeenCalledWith(f.tx, f.ctx, f.request);expect(f.trace).not.toContain('planner-gate');
     expect(f.trace).not.toContain('planner-owner-evidence');expect(f.recheck).toHaveBeenCalledTimes(2);
     expect(f.flags.proofClockChecks).toBe(2);noEffects(f);
+  });
+});
+
+describe('actual WorkService public output proof boundary (synthetic native SQL/proof only)', () => {
+  const selection = (): ObjectiveWorkOutputRequest => ({ clientId: id(4), objectiveId: id(5),
+    workAction: PLAN, source: { revision: { id: id(6), version: 1 }, canonicalBindingVersion: 1 } });
+  it('projects inside the same early-gated current-authority transaction and rechecks before release', async () => {
+    const f = fixture('full_applied'), request = selection(), before = f.evidence();
+    const output = jest.spyOn(f.concrete, 'outputsWithinTx').mockImplementation(async (tx, ctx, a, state, selected, observedAt) => {
+      expect(tx).toBe(f.tx);expect(ctx).toBe(f.ctx);expect(a.clerkUserId).toBe(f.ctx.clerkUserId);
+      expect(f.flags.inTransaction).toBe(true);expect(f.reconcile).toHaveBeenCalledTimes(1);
+      expect(state.source.sourceRevisionId).toBe(id(6));expect(selected).toBe(request);expect(observedAt).toBe(at);
+      f.trace.push('output-current-read');return unavailableObjectiveWorkOutputs('outcome_unconfirmed');
+    });
+    const result = await f.service.outputs(f.ctx, f.http, request);
+    expect(output).toHaveBeenCalledTimes(1);expect(f.withTenant).toHaveBeenCalledTimes(1);
+    expect(f.trace.indexOf('planner-gate')).toBeLessThan(f.trace.indexOf('native-client-lock'));
+    expect(f.trace.indexOf('applied-native-chain-proof')).toBeLessThan(f.trace.indexOf('output-current-read'));
+    expect(f.trace.indexOf('output-current-read')).toBeLessThan(f.trace.indexOf('proof-release'));
+    expect(result).toMatchObject({ scope: 'planner_project_receipts', selectedSource: request.source,
+      requestedSource: request.source, taskDiscovery: 'unsupported', observedAt: at });
+    expect(Object.keys(result).sort()).toEqual(['clientId','objective','observation','observedAt','requestedSource',
+      'schemaVersion','scope','selectedSource','taskDiscovery','workAction']);
+    const publicJson = JSON.stringify(result), operation = f.resources[0]!.data;
+    for (const value of [operation.original.operationId, operation.original.attemptId, operation.original.runId,
+      operation.original.requestFingerprint, operation.work.canonical.snapshotHash, f.ctx.clerkUserId,
+      f.flags.consent!.id, id(3), id(7), id(8), id(9)]) expect(publicJson).not.toContain(value);
+    expect(f.evidence()).toEqual(before);noEffects(f);
+  });
+  it.each(['requestRevoked','revokeBefore','clientRevoked','membershipRevoked','nativeMembershipRevoked','memoryDenied'] as const)
+  ('refuses %s before invoking the output owner', async flag => {
+    const f = fixture('full_applied');f.flags[flag] = true;if (flag === 'memoryDenied') f.flags.memoryWall = true;
+    const output = jest.spyOn(f.concrete, 'outputsWithinTx');
+    await expect(f.service.outputs(f.ctx, f.http, selection())).rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
+    expect(output).not.toHaveBeenCalled();noEffects(f);
+  });
+  it.each(['revokeRelease','expireAtRelease','nativeUserRevokedAtRelease'] as const)
+  ('withholds the entire response when %s follows an output observation', async flag => {
+    const f = fixture('full_applied');f.flags[flag] = true;
+    const output = jest.spyOn(f.concrete, 'outputsWithinTx').mockResolvedValue(unavailableObjectiveWorkOutputs());
+    await expect(f.service.outputs(f.ctx, f.http, selection())).rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
+    expect(output).toHaveBeenCalledTimes(1);noEffects(f);
+  });
+  it('keeps selected historical source distinct from newly requested ready source', async () => {
+    const f = fixture('full_applied');f.advanceSource();
+    jest.spyOn(f.concrete, 'outputsWithinTx').mockResolvedValue(unavailableObjectiveWorkOutputs());
+    const result = await f.service.outputs(f.ctx, f.http, selection());
+    expect(result.requestedSource).toEqual({ revision: { id: id(22), version: 2 }, canonicalBindingVersion: 2 });
+    expect(result.selectedSource).toEqual(selection().source);noEffects(f);
+  });
+  it('fails closed for a legacy owner with no output read port', async () => {
+    const f = fixture('initial', true);
+    const result = await f.service.outputs(f.ctx, f.http, selection());
+    expect(result.observation).toEqual(unavailableObjectiveWorkOutputs());noEffects(f);
+  });
+  it('maps malformed selectors to HTTP400 before reading current authority', async () => {
+    const f = fixture(), controller = new ObjectiveWorkController(f.service);
+    await expect(controller.outputs(f.ctx, f.http, id(4), id(5), { workAction: PLAN })).rejects.toMatchObject({
+      status: 400, response: { schemaVersion: 1, code: 'INVALID_REQUEST' } });
+    expect(f.readProof).not.toHaveBeenCalled();expect(f.withTenant).not.toHaveBeenCalled();noEffects(f);
   });
 });

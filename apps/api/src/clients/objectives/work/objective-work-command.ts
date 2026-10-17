@@ -3,6 +3,7 @@ import { types as nodeTypes } from 'node:util';
 import { objectiveConsentPolicyTerms } from '../../../auth/workload-authority/objective-consent-policy.js';
 import { verifiedObjectivePlannerRegenerationWitness,
   type ObjectivePlannerRegenerationWitness } from './objective-planner-regeneration.js';
+import type { ObjectiveWorkOutputRequest, ObjectiveWorkOutputObservation } from './objective-work-output.js';
 
 export type WorkAction = 'objective.strategy.draft' | 'objective.plan.prepare';
 export type WorkCommand = {
@@ -83,6 +84,9 @@ export interface WorkTransaction {
   /** The connected owner must join the exact original immutable operation,
    * attempt, run, fingerprint, deadline and receipt; syntax is not that proof. */
   reconcile(authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation>;
+  /** Read-only projection of private native custody followed by current resource access. */
+  outputs?(authority: WorkAuthority, state: WorkState, request: ObjectiveWorkOutputRequest,
+    observedAt: string): Promise<ObjectiveWorkOutputObservation>;
   policy(authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkPolicyFacts>;
   insertConsent(authority: WorkAuthority, action: WorkAction, consent: WorkConsent): Promise<void>;
   casControl(authority: WorkAuthority, action: WorkAction, before: WorkControl, after: WorkControl): Promise<boolean>;
@@ -162,6 +166,17 @@ export function parseWorkRead(client: unknown, objective: unknown, raw: unknown)
   const v = closed(raw, ['workAction'], ['requestId']);
   return { clientId: workUuid(client), objectiveId: workUuid(objective), workAction: action(v.workAction),
     ...(Object.hasOwn(v, 'requestId') ? { requestId: workUuid(v.requestId) } : {}) };
+}
+/** Public selectors identify an exact source, never a private receipt or output ID. */
+export function parseWorkOutputRead(client: unknown, objective: unknown, raw: unknown): ObjectiveWorkOutputRequest {
+  const v = closed(raw, ['workAction', 'sourceRevisionId', 'sourceObjectiveVersion', 'canonicalBindingVersion']);
+  const counter = (value: unknown) => {
+    if (typeof value !== 'string' || /^[1-9][0-9]{0,9}$/.exec(value)?.[0] !== value) return workFailure('INVALID_REQUEST');
+    return integer(Number(value));
+  };
+  return { clientId: workUuid(client), objectiveId: workUuid(objective), workAction: action(v.workAction),
+    source: { revision: { id: workUuid(v.sourceRevisionId), version: counter(v.sourceObjectiveVersion) },
+      canonicalBindingVersion: counter(v.canonicalBindingVersion) } };
 }
 export function parseWorkPairConfirmation(client: unknown, objective: unknown, raw: unknown): WorkPairRequest {
   const v = closed(raw, ['schemaVersion', 'expectedObjectiveVersion', 'expectedCanonicalBindingVersion', 'strategy', 'planner']);
@@ -472,7 +487,10 @@ export async function executeWorkPairConfirmation(request: WorkPairRequest, owne
   });
 }
 export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOwner) {
-  return owner.transaction(false, async tx => {
+  return owner.transaction(false, async tx => (await readWorkGenerationWithinTx(request, tx)).response);
+}
+/** Internal transaction composition. Authority/state and native custody never enter the public DTO. */
+export async function readWorkGenerationWithinTx(request: WorkReadRequest, tx: WorkTransaction) {
     const a = await tx.currentAuthority(); checkAuthority(a, request);
     let receipt: WorkReceipt | null = null;
     if (request.requestId) {
@@ -490,7 +508,7 @@ export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOw
     // existing command CAS without guessing a binding version, while retaining
     // the source of any terminal result. They confer no retry/effect authority.
     const accountedSource = state.consent?.source ?? state.source;
-    return { schemaVersion: 1 as const, clientId: a.clientId,
+    const response = { schemaVersion: 1 as const, clientId: a.clientId,
       objective: { id: a.objectiveId, revision: { id: a.objectiveRevisionId, version: a.objectiveVersion }, status: a.objectiveStatus },
       workAction: request.workAction,
       requestedSource: { revision: { id: state.source.sourceRevisionId, version: state.source.sourceObjectiveVersion },
@@ -503,5 +521,5 @@ export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOw
       accounting: reconciled === 'accounted' ? { outcome: evidence.outcome!,
         sourceRevision: { id: accountedSource.sourceRevisionId, version: accountedSource.sourceObjectiveVersion } } : null,
       commandReceipt: receipt, observedAt };
-  });
+    return { authority: a, state, response };
 }

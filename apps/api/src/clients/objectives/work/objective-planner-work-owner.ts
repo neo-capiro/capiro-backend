@@ -12,6 +12,10 @@ import { verifyObjectivePlannerHistoricalConsentWithinTx,
   objectivePlannerHistoricalReceiptIds, type ObjectivePlannerHistoricalConsentProof } from './objective-planner-historical-proof.js';
 import { objectivePlannerAdvancedSource, verifiedObjectivePlannerRegenerationWitness,
   type ObjectivePlannerRegenerationWitness } from './objective-planner-regeneration.js';
+import { readObjectivePlannerOutputObservationWithinTx,
+  requireObjectivePlannerPendingReceiptAbsenceWithinTx } from './objective-planner-output-observation.js';
+import { unavailableObjectiveWorkOutputs,
+  type ObjectiveWorkOutputObservation, type ObjectiveWorkOutputRequest } from './objective-work-output.js';
 import { parseWorkCommand, workDigest, workFailure, workUuid, type WorkAction, type WorkAuthority,
   type WorkPolicyFacts, type WorkReadRequest, type WorkReconciliation, type WorkRequest, type WorkSource,
   type WorkState } from './objective-work-command.js';
@@ -23,7 +27,8 @@ type Resource = { id: string; tenantId: string; ownerId: string; projectId: stri
 type Operation = { schemaVersion: 1; namespace: string; tenantId: string; clerkUserId: string;
   membershipId: string; work: Json; original: Json; state: string; lease: Json | null; terminal: Json | null };
 type OwnerReconciliation = WorkReconciliation & { regeneration?: ObjectivePlannerRegenerationWitness };
-type Accounting = { evidence: OwnerReconciliation; operation: Operation | null; statusOnly?: true; requiresRetryGate?: true };
+type Accounting = { evidence: OwnerReconciliation; operation: Operation | null; statusOnly?: true; requiresRetryGate?: true;
+  applications?: ObjectivePlannerAppliedPair[]; pendingScopeEmpty?: true };
 const PLAN = 'objective.plan.prepare';
 const OPERATION = 'objective_planner_continuation_operation';
 const APPLICATION = 'objective_canonical_application_receipt';
@@ -196,8 +201,77 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
     let value: Accounting;
     try { value = await this.reconcile(tx, a, state, base); }
     catch { value = { evidence: base, operation: null }; }
-    this.accounting.set(tx, { key: this.key(a, state), value });
-    return value.evidence;
+    // Callers receive a separate observation; neither that object nor the raw
+    // query rows can mutate private retained custody or future policy checks.
+    json(value);
+    const retained = JSON.parse(JSON.stringify(value)) as Accounting;
+    this.accounting.set(tx, { key: this.key(a, state), value: retained });
+    return JSON.parse(JSON.stringify(retained.evidence)) as WorkReconciliation;
+  }
+  /** Separate public READ observation. Never exposed by consent/status reads or
+   * reused as effect authority. Current authorization is owned by WorkService;
+   * this exact transaction must already hold the early read gate and have
+   * freshly reconciled this authority/state before any selector can be shown. */
+  async outputsWithinTx(tx: Tx, ctx: TenantContext, a: WorkAuthority, state: WorkState,
+    request: ObjectiveWorkOutputRequest, observedAt: string): Promise<ObjectiveWorkOutputObservation> {
+    if (!this.enabled || this.duration === null) return unavailableObjectiveWorkOutputs();
+    try {
+      json({ ctx, a, state, request, observedAt });
+      if (request.workAction !== PLAN) return unavailableObjectiveWorkOutputs();
+      if (!this.statusReads.has(tx) || this.gates.get(tx) !== a.tenantId || !utc(observedAt) ||
+          ctx.tenantId !== a.tenantId || ctx.userId !== a.actorUserId || ctx.clerkUserId !== a.clerkUserId ||
+          !['standard_user', 'user_admin', 'capiro_admin'].includes(ctx.role) ||
+          request.clientId !== a.clientId || request.objectiveId !== a.objectiveId) fail();
+      uuid(request.source.revision.id);
+      if (!positive(request.source.revision.version) || !positive(request.source.canonicalBindingVersion)) fail();
+      const cached = this.accounting.get(tx);
+      if (!cached || cached.key !== this.key(a, state)) return unavailableObjectiveWorkOutputs('outcome_unconfirmed');
+      const accounting = JSON.parse(JSON.stringify(cached.value)) as Accounting;
+      const matches = (c: Json) => c.requestedObjectiveRevisionId === request.source.revision.id &&
+        c.requestedObjectiveVersion === request.source.revision.version &&
+        c.bindingVersion === request.source.canonicalBindingVersion;
+      // Full current/retained ancestry has already passed every application,
+      // owner, operation and original native consent/command proof. Selection
+      // is from that verified set, never a caller-provided output identity.
+      if (accounting.applications?.some(pair => matches(pair.stored.request.canonical)))
+        return readObjectivePlannerOutputObservationWithinTx(tx, ctx, a, state, request,
+          accounting.applications, observedAt);
+      const current = canonical(a, state.consent?.source ?? state.source);
+      if (matches(current)) {
+        const operation = accounting.operation;
+        if (accounting.evidence.state === 'not_started') return {
+          ...unavailableObjectiveWorkOutputs(), state: 'not_started',
+          planner: { availability: 'not_applied', projects: [] } };
+        if (accounting.evidence.state === 'accounted' &&
+            ['failed', 'cancelled'].includes(accounting.evidence.outcome ?? '')) return {
+          ...unavailableObjectiveWorkOutputs(), state: accounting.evidence.outcome as 'failed' | 'cancelled',
+          planner: { availability: 'not_applied', projects: [] } };
+        if (accounting.pendingScopeEmpty && operation && ['queued', 'leased'].includes(operation.state)) {
+          // Progress labels require independent current native lineage and
+          // exact no-effect observations. Reconciliation itself stays uncertain
+          // and neither this private flag nor these reads grant retry policy.
+          const proof = await verifyObjectivePlannerCurrentConsentWithinTx(tx, a, state);
+          if (proof.consentId !== operation.work.consentId || proof.controlVersion !== operation.work.controlVersion ||
+              proof.actorUserId !== operation.work.actorUserId || proof.membershipId !== operation.membershipId ||
+              proof.originalClerkUserId !== operation.clerkUserId) fail();
+          await requireObjectivePlannerPendingReceiptAbsenceWithinTx(tx,
+            operation as unknown as ObjectivePlannerAppliedOperation, operation.original.operationId);
+          await this.requireNoOutputs(tx, a, state.consent!.source);
+        } else if (operation && ['queued', 'leased'].includes(operation.state)) fail();
+        if (accounting.pendingScopeEmpty && operation?.state === 'queued') return {
+          ...unavailableObjectiveWorkOutputs(), state: 'queued', planner: { availability: 'not_applied', projects: [] } };
+        // This reports only an observed unexpired durable lease. It does not
+        // claim a browser, worker process or external provider is still alive.
+        if (accounting.pendingScopeEmpty && operation?.state === 'leased' && operation.lease &&
+            operation.lease.expiresAtMs > Date.parse(observedAt) &&
+            Date.parse(operation.original.originalDeadlineAt) > Date.parse(observedAt)) return {
+          ...unavailableObjectiveWorkOutputs(), state: 'running', planner: { availability: 'not_applied', projects: [] } };
+      }
+      if (verifiedObjectivePlannerRegenerationWitness(accounting.evidence.regeneration, a, state) &&
+          matches(canonical(a, state.source))) return { ...unavailableObjectiveWorkOutputs(), state: 'not_started',
+        planner: { availability: 'not_applied', projects: [] } };
+    } catch { /* Invalid or stale observations disclose no output selector. */ }
+    return unavailableObjectiveWorkOutputs('outcome_unconfirmed');
   }
   private async reconcile(tx: Tx, a: WorkAuthority, state: WorkState, base: WorkReconciliation): Promise<Accounting> {
     const consent = state.consent, source = consent?.source ?? state.source, expected = canonical(a, source);
@@ -349,7 +423,8 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
         }
         // Read accounting never grants issuance authority, including after the
         // current consent expires. A command must reconstruct its own evidence.
-        return { operation: null, evidence: { ...base, state: 'not_started' }, statusOnly: true };
+        return { operation: null, evidence: { ...base, state: 'not_started' }, statusOnly: true,
+          applications: retained.decoded.applications };
       }
       if ([...historicalReceipts.values()].some(receipts => receipts.length !== 0)) fail();
       await this.requireNoOutputs(tx, a, source);
@@ -374,7 +449,7 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       await this.requireHistoricalEffectAccounting(tx, a, state.control!.id, historicalTerminals,
         [operation, ...predecessorOperations], decoded.applications, historicalProofs, historicalReceipts,
         [...currentResources, ...predecessorResources]);
-      return { operation, evidence: { ...base, state: 'accounted', ...operation.original,
+      return { operation, applications: decoded.applications, evidence: { ...base, state: 'accounted', ...operation.original,
         terminalReceiptId: decoded.terminalReceiptId, outcome: 'applied',
         // The shared gate and complete enumeration above establish no operation,
         // application or head on the advanced binding. The old canonical output
@@ -383,7 +458,9 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
         ...(advanced ? { regeneration: { state: 'not_started' as const, source: advanced } } : {}) } };
     }
     if (advanced) fail();
-    if (!['failed', 'cancelled'].includes(operation.state)) return { operation, evidence: base };
+    if (!['failed', 'cancelled'].includes(operation.state)) return { operation, evidence: base,
+      ...(currentResources.length === 0 && predecessorResources.length === 0 && predecessorOperations.length === 0 &&
+        [...historicalReceipts.values()].every(receipts => receipts.length === 0) ? { pendingScopeEmpty: true as const } : {}) };
     if (currentResources.length !== 0 || predecessorResources.length !== 0 || predecessorOperations.length !== 0 ||
         operation.terminal?.receiptId !== operation.original.operationId ||
         [...historicalReceipts.values()].some(receipts => receipts.length !== 0)) fail();

@@ -8,6 +8,8 @@ import { TenantContextMiddleware } from '../../../tenant/tenant-context.middlewa
 import type { ApplicationAuthorityIdentityProof } from '../../../auth/application-authority.js';
 import { objectiveRevisionSnapshotHash, OBJECTIVE_WORK_BLOCKER, OBJECTIVE_WORK_PURPOSE } from '../objective-work-intent.js';
 import { requireCanonicalObjectiveFence, type CanonicalObjectivePlanToken } from '../objective-canonical-plan.js';
+import { readWorkOutputs, unavailableObjectiveWorkOutputs,
+  type ObjectiveWorkOutputRequest, type ObjectiveWorkOutputObservation } from './objective-work-output.js';
 import {
   ObjectiveWorkError, executeWorkCommand, executeWorkPairConfirmation, readWorkGeneration, workFailure, workUuid,
   type WorkAction, type WorkAuthority, type WorkConsent, type WorkControl, type WorkOwner,
@@ -25,6 +27,8 @@ export interface ObjectiveWorkOwnerPort {
   lockWithinTx(tx: Tx, ctx: TenantContext, request: WorkRequest): Promise<void>;
   lockReadWithinTx?(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void>;
   reconcileWithinTx(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation>;
+  outputsWithinTx?(tx: Tx, ctx: TenantContext, authority: WorkAuthority, state: WorkState,
+    request: ObjectiveWorkOutputRequest, observedAt: string): Promise<ObjectiveWorkOutputObservation>;
   policyWithinTx(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<
     Omit<WorkPolicyFacts, 'originalTokenExpiresAtMs'>>;
 }
@@ -92,6 +96,9 @@ export class ObjectiveWorkService {
   }
   async read(ctx: TenantContext, req: Request, request: WorkReadRequest) {
     return readWorkGeneration(request, this.store(ctx, request, await this.proof(ctx, req)));
+  }
+  async outputs(ctx: TenantContext, req: Request, request: ObjectiveWorkOutputRequest) {
+    return readWorkOutputs(request, this.store(ctx, request, await this.proof(ctx, req)));
   }
   private store(ctx: TenantContext, request: WorkRequest | WorkReadRequest, proof: ApplicationAuthorityIdentityProof): WorkOwner {
     const action = 'command' in request ? request.command.workAction : request.workAction;
@@ -185,6 +192,12 @@ export class ObjectiveWorkService {
         return iso(rows[0]!.now);
       },
       reconcile: (a, kind, state) => { sameAction(kind); return this.ownerPort.reconcileWithinTx(tx, a, kind, state); },
+      outputs: (a, state, selected, observedAt) => {
+        sameAction(selected.workAction);
+        if (write || 'command' in request) workFailure('AUTHORITY_UNAVAILABLE');
+        return this.ownerPort.outputsWithinTx?.(tx, ctx, a, state, selected, observedAt)
+          ?? Promise.resolve(unavailableObjectiveWorkOutputs());
+      },
       policy: async (a, kind, state) => {
         requireWrite(); sameAction(kind);
         const facts = await this.ownerPort.policyWithinTx(tx, a, kind, state);
