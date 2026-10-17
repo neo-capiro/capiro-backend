@@ -6,6 +6,8 @@ import { ApplicationAuthorityModule } from './application-authority.module.js';
 import { ApplicationAuthorityController } from './application-authority.controller.js';
 import { ApplicationMembershipController } from './application-membership.controller.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
+import { ApplicationReadModeObservationController } from './application-read-mode-observation.controller.js';
+import { ApplicationReadModeObservationService } from './application-read-mode-observation.service.js';
 import { ClerkService } from './clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
@@ -91,7 +93,7 @@ async function fixture() {
   const middleware = new TenantContextMiddleware(clerk as any, prisma as any, module.get(TenantContextStore));
   const router = app.getHttpAdapter().getInstance()._router;
   async function request(
-    path: 'identity' | 'context' | 'membership' | 'MEMBERSHIP' | 'membership/',
+    path: 'identity' | 'context' | 'membership' | 'MEMBERSHIP' | 'membership/' | 'read-mode-observation',
     body: unknown,
     bearer = true,
     options: {
@@ -143,6 +145,8 @@ describe('actual narrow authority Nest composition and synthetic HTTP', () => {
 
   it('constructs only existing leaf owners, with single scope instances and two original routes', () => {
     expect(f.module.get(ApplicationAuthorityController)).toBeInstanceOf(ApplicationAuthorityController);
+    expect(f.module.get(ApplicationReadModeObservationController)).toBeInstanceOf(ApplicationReadModeObservationController);
+    expect(f.module.get(ApplicationReadModeObservationService)).toBeInstanceOf(ApplicationReadModeObservationService);
     expect(f.module.select(ContextSecurityScopeModule).get(ContextSecurityScopeService, { strict: true }))
       .toBe(f.module.get(ContextSecurityScopeService));
     expect(f.module.select(BizDevMeriScopeModule).get(BizDevMeriScopeService, { strict: true }))
@@ -479,5 +483,35 @@ describe('current membership authority registered HTTP boundary', () => {
       jest.useRealTimers();
     }
     expect(f.events).not.toContain('clientScope');
+  });
+});
+
+describe('current native mode projection through the real authority module', () => {
+  const originalEnv = process.env;
+  const secret = 'authority-mode-module-synthetic';
+  let f: Awaited<ReturnType<typeof fixture>>;
+  const modeInput = { operation: { id: 'search_federal_grants', version: '0.2.0' }, requestSha256: 'd'.repeat(64) };
+  beforeEach(async () => {
+    process.env = { ...originalEnv, NODE_ENV: 'development', INTERNAL_SERVICE_SECRET: secret,
+      MERI_EVIDENCE_ACCURACY_MODE: 'enforce', MERI_EVIDENCE_ACCURACY_TENANTS: tenantId, MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' };
+    f = await fixture();
+  });
+  afterEach(async () => { await f?.app.close(); process.env = originalEnv; });
+  it('uses actual current identity/membership without reading any legacy conversation or emitting their facts', async () => {
+    const response = await f.request('read-mode-observation', modeInput, true, { headers: { 'x-internal-service-secret': secret } });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual({ ...modeInput, principal: { tenantId, actorId }, surface: 'chat', evidenceAccuracyMode: 'enforce' });
+    expect(f.events).toContain('session'); expect(f.events).toContain('clientScope'); expect(f.events).not.toContain('conversation');
+    expect(response.headers['cache-control']).toBe('no-store');
+  });
+  it('refuses bad shape or unmatched service proof before current-owner I/O', async () => {
+    expect((await f.request('read-mode-observation', { ...modeInput, surface: 'chat' }, true, { headers: { 'x-internal-service-secret': secret } })).statusCode).toBe(400);
+    expect((await f.request('read-mode-observation', modeInput)).statusCode).toBe(403);
+    expect(f.events).toEqual([]);
+  });
+  it('retains native authentication and detects current membership/identity loss', async () => {
+    expect((await f.request('read-mode-observation', modeInput, false, { headers: { 'x-internal-service-secret': secret } })).statusCode).toBe(401);
+    f.onSession(() => { f.membership.status = 'removed'; });
+    expect((await f.request('read-mode-observation', modeInput, true, { headers: { 'x-internal-service-secret': secret } })).statusCode).toBe(403);
   });
 });

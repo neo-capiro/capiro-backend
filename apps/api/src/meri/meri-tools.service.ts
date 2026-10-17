@@ -13,7 +13,7 @@ import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
-import { currentMeriFundingReadAsOf, currentMeriReadAsOf } from './meri-funding-read-observation.js';
+import { currentMeriFundingReadAsOf, currentMeriReadAsOf, currentMeriEvidenceAccuracyMode } from './meri-funding-read-observation.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -4898,6 +4898,7 @@ export class MeriToolsService {
   }
 
   private async searchFederalAwards(ctx: TenantContext, input: Record<string, unknown>) {
+    const observedMode = currentMeriEvidenceAccuracyMode('search_federal_awards', ctx.tenantId);
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const peCode = optionalString(input, 'peCode', 16);
@@ -4923,7 +4924,7 @@ export class MeriToolsService {
     const hasMore = page * limit < total;
     const paginationLimitReached = hasMore && page >= 10_000;
 
-    const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    const mode = observedMode ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     if (mode === 'shadow') {
       this.logger.warn('meri.evidence_accuracy.shadow', {
         tool: 'search_federal_awards',
@@ -4971,7 +4972,7 @@ export class MeriToolsService {
   // ── Program Element (DoD budget) tools ──────────────────────────────
 
   private async searchProgramElements(ctx: TenantContext, input: Record<string, unknown>) {
-    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    const accuracyMode = currentMeriEvidenceAccuracyMode('search_program_elements', ctx.tenantId) ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const q = optionalString(input, 'query', 240) ?? optionalString(input, 'q', 240);
     const service = optionalString(input, 'service', 60);
     const budgetActivity = optionalString(input, 'budgetActivity', 120);
@@ -5095,7 +5096,7 @@ export class MeriToolsService {
   }
 
   private async getProgramElementDetail(ctx: TenantContext, input: Record<string, unknown>) {
-    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    const accuracyMode = currentMeriEvidenceAccuracyMode('get_program_element', ctx.tenantId) ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const programElement = (await this.programElement.getProgramElement(peCode, ctx)) as Record<
       string,
@@ -5143,7 +5144,7 @@ export class MeriToolsService {
   }
 
   private async getPeBudgetTimeline(input: Record<string, unknown>, ctx?: TenantContext) {
-    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx?.tenantId, 'chat');
+    const accuracyMode = currentMeriEvidenceAccuracyMode('get_pe_budget_timeline', ctx?.tenantId) ?? resolveEvidenceAccuracyModeForTenant(ctx?.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const timeline = await this.programElement.getTimeline(peCode);
     const identity = modelBudgetLineMetadata({
@@ -5299,6 +5300,7 @@ export class MeriToolsService {
   }
 
   private async searchFederalGrants(ctx: TenantContext, input: Record<string, unknown>) {
+    const observedMode = currentMeriEvidenceAccuracyMode('search_federal_grants', ctx.tenantId);
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const status = optionalString(input, 'status', 30);
@@ -5336,7 +5338,7 @@ export class MeriToolsService {
     const asOf = new Date();
     const nowIso = asOf.toISOString();
     const todayYmdEt = ymdInZone(asOf, 'America/New_York');
-    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+    const enforce = (observedMode ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat')) === 'enforce';
     const deadlineStatus = (closeDate: Date | null): 'open' | 'closed' | 'unknown' => {
       if (!closeDate) return 'unknown';
       const closeYmd = ymdInZone(closeDate, 'UTC');
