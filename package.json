@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "build:backend": "turbo run build --filter=!@capiro/web --filter=!@capiro/onboard-web",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -125,7 +126,7 @@
     "gate:cleanup4:strategy-template-metadata": "pnpm --filter @capiro/api-strategy exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/context/template-registry.spec.ts src/context/frontmatter.spec.ts src/reports/report-context.spec.ts",
     "gate:cleanup4:workspace-product-metadata": "pnpm --filter @capiro/workspace exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath test/product-registry-characterization.spec.ts",
     "gate:cleanup4:meri-local-dispatch": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/meri/meri-local-dispatch.equivalence.spec.ts",
-    "typecheck:backend": "turbo run typecheck --concurrency=1 --filter='!@capiro/web' --filter='!@capiro/onboard-web'",
+    "typecheck:backend": "turbo run typecheck --concurrency=1 --filter=!@capiro/web --filter=!@capiro/onboard-web",
     "typecheck:frontend": "turbo run typecheck --concurrency=1 --filter=@capiro/web --filter=@capiro/onboard-web",
     "verify:engagement-phase-1:backend": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts --run --backend-only && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs",
     "verify:engagement-phase-1:frontend": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts --run --frontend-only && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs",
