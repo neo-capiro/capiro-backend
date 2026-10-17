@@ -140,7 +140,7 @@ describe('DraftJobService.submit', () => {
     const input = args.data.input as { dto: DraftStrategyDto; bearer: string | null };
     expect(input.bearer).toBe('token-abc');
     expect(input.dto.clientId).toBe(CLIENT);
-    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith('SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text',
       `capiro.objective-strategy.job-creators:v1:${CTX.tenantId}`);
     expect(tx.$queryRawUnsafe.mock.invocationCallOrder[0]).toBeLessThan(findUnique.mock.invocationCallOrder[0]!);
     expect(tx.$queryRawUnsafe.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]!);

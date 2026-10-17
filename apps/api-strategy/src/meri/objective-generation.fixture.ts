@@ -179,7 +179,7 @@ export function objectiveFixture() {
     $queryRaw: query,
     $queryRawUnsafe: async (sql: string, ..._values: unknown[]) => {
       state.events.push(sql);
-      if (sql === 'SELECT pg_advisory_xact_lock(hashtextextended($1,0))') return [{}];
+      if (sql === 'SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text') return [{}];
       throw new Error(`Unhandled fixture SQL: ${sql}`);
     },
     $executeRaw: async (strings: TemplateStringsArray, ...values: any[]) => {

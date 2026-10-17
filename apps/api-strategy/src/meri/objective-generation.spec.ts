@@ -109,7 +109,7 @@ describe('Objective authoritative admission and exact request', () => {
       {} as any,
     );
     const first = await svc.submitObjective(f.actor, f.request);
-    expect(f.state.events[0]).toBe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))');
+    expect(f.state.events[0]).toBe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text');
     expect(await svc.submitObjective(f.actor, f.request)).toEqual(first);
     await expect(
       svc.submitObjective(f.actor, { ...f.request, type: 'authorization' }),
