@@ -1,0 +1,73 @@
+{
+  "runtimeCdkVersion": "2.271.0",
+  "baselineCommit": "8ea7acc85793402984a59a308100d64b88b5876b",
+  "packetCommit": "4e6c84ec64613ac2f0e9ccd275869833b6fbfd8d",
+  "sourceHashes": {
+    "baseline": "bde051684bd3f369fd2bbc724dc0e2667f5850799fe7bbbc9c431f3d09d412f0",
+    "packet": "35a7c6fcbb40516edab0203fa596a3562c82176ea9cb981ef9727914799f8633"
+  },
+  "guard": {
+    "logicalId": "RejectOtherPreviewHostTraffic",
+    "onlyDelta": "Priority 3 -> 4",
+    "resources": 1,
+    "baselineSha256": "8fd1f39493d787034213fa9286fa7340ae488af405fefd7d953c12939a5a2259",
+    "packetSha256": "70cac51a61d91b3438a657c6112948718638a35202ca0bd0d04f9e0414a6091f"
+  },
+  "service": {
+    "addedLogicalId": "FirstChatReadsOnly",
+    "addedResource": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "Actions": [
+          {
+            "TargetGroupArn": {
+              "Ref": "CoreTarget234133C4"
+            },
+            "Type": "forward"
+          }
+        ],
+        "Conditions": [
+          {
+            "Field": "host-header",
+            "HostHeaderConfig": {
+              "Values": [
+                "first-chat-preview.app-dev.capiro.ai"
+              ]
+            }
+          },
+          {
+            "Field": "path-pattern",
+            "PathPatternConfig": {
+              "RegexValues": [
+                "^/api/me$",
+                "^/api/clients$",
+                "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              ]
+            }
+          },
+          {
+            "Field": "http-request-method",
+            "HttpRequestMethodConfig": {
+              "Values": [
+                "GET"
+              ]
+            }
+          }
+        ],
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440",
+        "Priority": 3
+      }
+    },
+    "baselineResourceCount": 9,
+    "packetResourceCount": 10,
+    "baselineSha256": "e4734e5e51a1007c39339463c7a024263823e358a96e5bd14ec51875b7afface",
+    "packetSha256": "2d3c012b0332a0f1c41ce2e979341b5791fbc9ba02162e4aa50b93635280f6c4",
+    "ecsServiceLogicalId": "HeldCoreServiceA6CD0E1D",
+    "ecsDesiredCount": 0,
+    "ecsDependsOn": [
+      "FirstChatMembershipPostOnly",
+      "FirstChatPostsOnly",
+      "ServeTaskTaskRoleD6B44EC7"
+    ]
+  }
+}
