@@ -93,7 +93,9 @@ const held = new WeakMap<object, { tx: ObjectiveStrategyIntakeTx; tenantId: stri
  * locks. Workers do not insert jobs, and continue using their original locks. */
 export async function lockObjectiveStrategyJobCreatorsWithinTx(tx: ObjectiveStrategyIntakeTx, tenantId: string): Promise<void> {
   if (!exact(UUID, tenantId) || tenantId !== tenantId.toLowerCase()) return fail();
-  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+  // Prisma cannot deserialize PostgreSQL's void result; keep the same lock
+  // expression and return its supported text representation instead.
+  await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text',
     `capiro.objective-strategy.job-creators:v1:${tenantId}`);
 }
 /** Calls the SAME native function enforced by all Strategy/version identity

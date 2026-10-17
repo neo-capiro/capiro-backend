@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createObjectiveStrategyRequestCodec, lockObjectiveStrategyIntakeWithinTx,
+import { createObjectiveStrategyRequestCodec, lockObjectiveStrategyIntakeWithinTx, lockObjectiveStrategyJobCreatorsWithinTx,
   lockObjectiveStrategyOutputWithinTx, requireObjectiveStrategyJobInventory } from '@capiro/shared/objective-strategy-intake';
 import { createObjectiveStrategyReservationWithinTx } from './objective-strategy-job-reservation.js';
 
@@ -34,6 +34,19 @@ async function fixture() {
   return { input, tx, s, events };
 }
 describe('native Strategy job reservation source', () => {
+  test('creator gate returns a Prisma-supported scalar on the same transaction and original lock key', async () => {
+    const calls: Array<{ sql: string; values: any[] }> = [];
+    const expected = 'SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text';
+    // Explicitly synthetic Prisma result decoding, matching the native void
+    // failure. This is source regression coverage, not PostgreSQL execution.
+    const tx = { $queryRawUnsafe: async function<T>(sql: string, ...values: any[]): Promise<T> {
+      expect(this).toBe(tx); calls.push({ sql, values });
+      if (sql !== expected) throw Error('Failed to deserialize column of type void');
+      return [{ pg_advisory_xact_lock: '' }] as T;
+    } };
+    await lockObjectiveStrategyJobCreatorsWithinTx(tx, id(9));
+    expect(calls).toEqual([{ sql: expected, values: [`capiro.objective-strategy.job-creators:v1:${id(9)}`] }]);
+  });
   test('locks complete tenant inventory before a fresh actual job insert, with original deadline and no admission', async () => {
     const f = await fixture();
     await expect(createObjectiveStrategyReservationWithinTx(f.tx, f.input)).resolves.toEqual({ intakeId: id(4), generationJobId: id(5) });
