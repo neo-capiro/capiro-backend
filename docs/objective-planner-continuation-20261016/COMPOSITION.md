@@ -109,15 +109,15 @@ Each historical terminal must precede or equal the current consent confirmation;
 paired history also retains the tighter exact-successor confirmation checks.
 
 Verified predecessor outputs are retained. Whole-project output absence is
-required only when no verified paired output chain exists. A current failed or
-not-started operation alongside an older applied head remains uncertain until a
-separate complete anchor contract is available; this increment does not infer
-such an anchor from an old terminal record.
-Consequently, immediately after a new consent commits and before its current
-operation exists, a retained older applied head can still make the public status
-`outcome_unconfirmed`. This does not itself authorize dispatch; an independently
-eligible saved generation can continue through the runtime and later account its
-new operation.
+required only when no verified paired output chain exists. The separate
+[retained-head status proof](RETAINED-HEAD-STATUS.md) now covers an immediate
+current consent with no current operation: a complete older applied/native
+anchor, exact current absence and bounded known-output inventory may establish
+current `not_started` read status. It is confined to the early read gate and is
+ineligible for consent policy. Current terminal work, intervening unproved
+consent paths and unexplained output identities remain uncertain. No status
+observation authorizes dispatch; an independently eligible saved generation
+still requires its own original runtime authority.
 
 Source tests use real runtime, worker, store, application, shared receipt codecs
 and Core service/command-kernel source with explicitly synthetic SQL,
