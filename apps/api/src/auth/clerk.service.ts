@@ -111,6 +111,9 @@ export class ClerkService {
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
     const denied = () => new UnauthorizedException('Application authority unavailable');
+    if (claims.sid === undefined && (claims as Record<string, unknown>).meri_control_credential === true) {
+      return this.assertMeriControlCredentialSession(claims);
+    }
     if (typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
         typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
         !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
@@ -139,6 +142,57 @@ export class ClerkService {
         id: session.id, userId: session.userId, status: 'active',
         createdAt: session.createdAt, expireAt: session.expireAt, abandonAt: session.abandonAt,
         actor: session.actor, expiresAtMs,
+      };
+    } catch {
+      throw denied();
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
+  /** Meri preview control credential: a token from the dedicated `meri-preview-control` JWT template,
+   * marked by the constant claim `meri_control_credential: true`. Clerk reserves `sid` in templates and
+   * has no session shortcode, so the token cannot name a session. Its signature and issuer are already
+   * verified by verifySessionToken. Here the user must currently hold at least one active Clerk session
+   * (signing out everywhere revokes it), lifetime is bounded to 7 days, and the result is a stable
+   * pseudo-session bound to this token's `jti` so identity evidence does not drift between calls. */
+  private async assertMeriControlCredentialSession(
+    claims: ClerkSessionClaims,
+  ): Promise<ActiveApplicationAuthoritySession> {
+    const denied = () => new UnauthorizedException('Application authority unavailable');
+    const raw = claims as Record<string, unknown>;
+    const iat = raw.iat, jti = raw.jti, exp = claims.exp;
+    const now0 = Date.now();
+    if (typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
+        typeof jti !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(jti) ||
+        !Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || !Number.isSafeInteger((exp as number) * 1000) ||
+        (iat as number) > (exp as number) || (exp as number) - (iat as number) > 604800 ||
+        (iat as number) * 1000 > now0 + 5000 || (exp as number) * 1000 <= now0) throw denied();
+    const userId = claims.sub;
+    const deadlineMs = now0 + 2000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const listed = await Promise.race([
+        Promise.resolve().then(() => this.client.sessions.getSessionList({ userId, status: 'active' })),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(denied()), 2000);
+        }),
+      ]);
+      const now = Date.now();
+      const sessions = (Array.isArray(listed) ? listed : (listed as { data?: unknown }).data) as
+        Array<{ userId?: unknown; status?: unknown; expireAt?: unknown; abandonAt?: unknown }> | undefined;
+      if (now >= deadlineMs || !Array.isArray(sessions)) throw denied();
+      const live = sessions.filter((s) => s && s.userId === userId && s.status === 'active' &&
+        Number.isSafeInteger(s.expireAt) && Number.isSafeInteger(s.abandonAt) &&
+        Math.min(s.expireAt as number, s.abandonAt as number) > now);
+      if (live.length === 0) throw denied();
+      const sessionUntil = Math.max(...live.map((s) => Math.min(s.expireAt as number, s.abandonAt as number)));
+      const expiresAtMs = Math.min((exp as number) * 1000, sessionUntil);
+      if (expiresAtMs <= now) throw denied();
+      return {
+        id: `meri-template:${jti}`, userId, status: 'active',
+        createdAt: (iat as number) * 1000, expireAt: sessionUntil, abandonAt: sessionUntil,
+        actor: null, expiresAtMs,
       };
     } catch {
       throw denied();
