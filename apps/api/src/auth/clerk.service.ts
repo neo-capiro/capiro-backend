@@ -111,7 +111,7 @@ export class ClerkService {
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
     const denied = () => new UnauthorizedException('Application authority unavailable');
-    if (claims.sid === undefined && (claims as Record<string, unknown>).meri_control_credential === true) {
+    if (claims.sid === undefined && (claims as unknown as Record<string, unknown>).meri_control_credential === true) {
       return this.assertMeriControlCredentialSession(claims);
     }
     if (typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
@@ -160,7 +160,7 @@ export class ClerkService {
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
     const denied = () => new UnauthorizedException('Application authority unavailable');
-    const raw = claims as Record<string, unknown>;
+    const raw = claims as unknown as Record<string, unknown>;
     const iat = raw.iat, jti = raw.jti, exp = claims.exp;
     const now0 = Date.now();
     if (typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
