@@ -21,6 +21,7 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -6746,17 +6747,21 @@ export class MeriToolsService {
           orderBy: { updatedAt: 'desc' },
           take: limit,
         }),
-        tx.meeting.findMany({
+        readActiveMeetings(limit, (take, cursor) => tx.meeting.findMany({
           where: {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
-            ...ownMeetingWhere(ctx.userId),
-            OR: [
-              { subject: { contains: query, mode: 'insensitive' } },
-              { description: { contains: query, mode: 'insensitive' } },
-              { location: { contains: query, mode: 'insensitive' } },
-              { organizerEmail: { contains: query, mode: 'insensitive' } },
-              { organizerName: { contains: query, mode: 'insensitive' } },
+            status: { notIn: ['cancelled', 'canceled', 'deleted'] },
+            // Ownership and text search are independent OR clauses; intersect both.
+            AND: [
+              ownMeetingWhere(ctx.userId),
+              { OR: [
+                { subject: { contains: query, mode: 'insensitive' } },
+                { description: { contains: query, mode: 'insensitive' } },
+                { location: { contains: query, mode: 'insensitive' } },
+                { organizerEmail: { contains: query, mode: 'insensitive' } },
+                { organizerName: { contains: query, mode: 'insensitive' } },
+              ] },
             ],
           },
           select: {
@@ -6765,12 +6770,14 @@ export class MeriToolsService {
             subject: true,
             description: true,
             startsAt: true,
+            status: true,
             organizerEmail: true,
             organizerName: true,
           },
-          orderBy: { startsAt: 'desc' },
-          take: limit,
-        }),
+          orderBy: [{ startsAt: 'desc' }, { id: 'desc' }],
+          take,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        })),
         tx.mailThread.findMany({
           where: {
             tenantId: ctx.tenantId,
@@ -7420,15 +7427,16 @@ export class MeriToolsService {
       tenantId: ctx.tenantId,
       ...ownMeetingWhere(ctx.userId),
       startsAt: { gte: now, lt: until },
-      status: { not: 'cancelled' },
+      status: { notIn: ['cancelled', 'canceled', 'deleted'] },
     };
     if (clientId) where.clientId = clientId;
 
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meeting.findMany({
+      readActiveMeetings(limit, (take, cursor) => tx.meeting.findMany({
         where,
-        orderBy: { startsAt: 'asc' },
-        take: limit,
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        take,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         select: {
           id: true,
           subject: true,
@@ -7447,7 +7455,7 @@ export class MeriToolsService {
             select: { name: true, email: true, role: true, responseStatus: true },
           },
         },
-      }),
+      })),
     );
 
     const meetings = rows.map((m) => ({
@@ -10102,6 +10110,35 @@ function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
   return {
     OR: [{ createdByUserId: userId }, { connection: { createdByUserId: userId } }],
   };
+}
+
+function isInactiveMeetingStatus(status: string): boolean {
+  return ['cancelled', 'canceled', 'deleted'].includes(status.trim().toLowerCase());
+}
+
+async function readActiveMeetings<T extends { id: string; status: string }>(
+  limit: number,
+  readPage: (take: number, cursor?: string) => Promise<T[]>,
+): Promise<T[]> {
+  const active: T[] = [];
+  let cursor: string | undefined;
+  let scanned = 0;
+  const maxScanned = 250;
+
+  while (scanned < maxScanned) {
+    const take = Math.min(Math.max(limit, 25), maxScanned - scanned);
+    const page = await readPage(take, cursor);
+    scanned += page.length;
+    active.push(...page.filter((meeting) => !isInactiveMeetingStatus(meeting.status)));
+    if (active.length >= limit) return active.slice(0, limit);
+    if (page.length < take) return active;
+    const last = page.at(-1);
+    if (!last) throw new ServiceUnavailableException('Meeting cursor unavailable');
+    cursor = last.id;
+  }
+
+  // A bounded scan must not report an empty result while more rows may exist.
+  throw new ServiceUnavailableException('Meeting status scan limit reached');
 }
 
 function renderMeetingBrief(input: {
