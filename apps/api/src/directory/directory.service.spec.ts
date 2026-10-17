@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
+import { DirectoryContactMapper } from './directory-contact-mapper.js';
 import { DirectoryService, matchFacilityDistrictCode } from './directory.service.js';
 
 /**
@@ -181,7 +182,7 @@ describe('DirectoryService.getContactTrips (WS-F)', () => {
  * getAllCommitteeMemberships. This method exists purely to give
  * emit-committee-changes.ts (a plain script, no NestJS DI) a way to reuse
  * DirectoryService's already-built committee index without re-implementing
- * its private buildContacts/buildCommitteeIndex logic standalone. Testing
+ * its contact mapping and committee-index logic standalone. Testing
  * it directly here (rather than only through the script) pins the
  * endedAt===null filter, since membershipsByCommitteeId is documented to
  * include FORMER memberships too ("current or former" — directory-
@@ -362,8 +363,8 @@ describe('DirectoryService.getContacts staff-derived role + issue filters', () =
   });
 });
 
-describe('DirectoryService.buildContacts — staff isCurrent at this office', () => {
-  // Raw LegiStorm-shaped rows, exercised directly against the private builder
+describe('DirectoryContactMapper.buildContacts - staff isCurrent at this office', () => {
+  // Raw LegiStorm-shaped rows, exercised directly against the mapper
   // (same pattern as directory.committees.spec.ts) rather than through
   // getDirectoryData, since the isCurrent computation happens during
   // buildMemberStaff/buildStaffIdsByMember — before a DirectoryContact exists.
@@ -393,16 +394,11 @@ describe('DirectoryService.buildContacts — staff isCurrent at this office', ()
     },
   ];
 
-  function makeService(): DirectoryService {
-    const config = { get: jest.fn().mockReturnValue('us-east-1') } as any;
-    return new DirectoryService(config, {} as any, {} as any);
-  }
-
   // buildContacts always appends a synthetic TEST_DIRECTORY_CONTACT ("Avery
   // Testwell") and sorts alphabetically by memberName, so it is not safe to
   // assume array position — find this fixture's own contact by id instead.
   function findOwnContact(): any {
-    const contacts = (makeService() as any).buildContacts(MEMBERS_RAW, STAFF_RAW);
+    const contacts = new DirectoryContactMapper().buildContacts(MEMBERS_RAW, STAFF_RAW);
     return contacts.find((c: any) => c.id === 'member-700');
   }
 
