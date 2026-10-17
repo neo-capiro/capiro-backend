@@ -5,7 +5,7 @@ import { types } from 'node:util';
  * starts no process and performs no SQL. A marker is never ownership proof. */
 export const OBJECTIVE_PLANNER_NATIVE_OWNER = 'objective-planner-continuation-qualification';
 export interface ObjectivePlannerNativeManifest {
-  schemaVersion: 1;
+  schemaVersion: 2;
   kind: 'task-owned-objective-planner-postgres';
   owner: typeof OBJECTIVE_PLANNER_NATIVE_OWNER;
   sourceHead: string;
@@ -18,6 +18,7 @@ export interface ObjectivePlannerNativeManifest {
   runtimeRole: string;
   processId: number;
   postmasterStartedAtSeconds: number;
+  catalogPostmasterStartedAtSeconds: number;
   ownershipToken: string;
   createdAt: string;
   expiresAt: string;
@@ -96,18 +97,21 @@ export function objectivePlannerNativeTarget(
   if (!ROLE.test(role)) return refuse();
   const m = object(rawManifest, ['schemaVersion', 'kind', 'owner', 'sourceHead', 'workspaceRoot', 'dataDirectory',
     'hostname', 'port', 'database', 'databaseOid', 'runtimeRole', 'processId', 'postmasterStartedAtSeconds',
-    'ownershipToken', 'createdAt', 'expiresAt']);
+    'catalogPostmasterStartedAtSeconds', 'ownershipToken', 'createdAt', 'expiresAt']);
   const created = timestamp(m.createdAt), expires = timestamp(m.expiresAt);
-  if (m.schemaVersion !== 1 || m.kind !== 'task-owned-objective-planner-postgres' ||
+  if (m.schemaVersion !== 2 || m.kind !== 'task-owned-objective-planner-postgres' ||
       m.owner !== OBJECTIVE_PLANNER_NATIVE_OWNER || !SHA.test(context.sourceHead) ||
       m.sourceHead !== context.sourceHead || path(m.workspaceRoot) !== path(context.workspaceRoot) ||
       path(m.dataDirectory) !== ownedDataDirectory(context.workspaceRoot) ||
       m.hostname !== url.hostname || m.port !== port || m.database !== 'planner_qa' || m.runtimeRole !== role ||
       !positive(m.databaseOid) || !positive(m.processId) || !positive(m.postmasterStartedAtSeconds) ||
+      !positive(m.catalogPostmasterStartedAtSeconds) ||
       typeof m.ownershipToken !== 'string' || !TOKEN.test(m.ownershipToken) ||
       !Number.isSafeInteger(context.nowMs) || created > context.nowMs || expires <= context.nowMs ||
       expires <= created || expires - created > 24 * 60 * 60 * 1000 ||
-      m.postmasterStartedAtSeconds * 1000 > created) return refuse('OWNERSHIP_INVALID');
+      m.postmasterStartedAtSeconds * 1000 > created ||
+      m.catalogPostmasterStartedAtSeconds < m.postmasterStartedAtSeconds ||
+      m.catalogPostmasterStartedAtSeconds * 1000 > created) return refuse('OWNERSHIP_INVALID');
   return { enabled: true, databaseUrl: rawUrl,
     manifest: Object.freeze({ ...m } as unknown as ObjectivePlannerNativeManifest) };
 }
@@ -139,6 +143,8 @@ export function requireObjectivePlannerNativeCatalog(
   const m = target.manifest;
   if (row.databaseName !== m.database || row.databaseOid !== m.databaseOid || row.roleName !== m.runtimeRole ||
       row.serverPort !== m.port || row.databaseComment !== `task-owned:objective-planner-native:${m.ownershipToken}` ||
-      row.postmasterStartedAtSeconds !== String(m.postmasterStartedAtSeconds) || row.superuser || row.bypassRls)
+      // PostgreSQL captures PID-file MyStartTime earlier than catalog PgStartTime.
+      // Keep both independently exact; neither observation gets a tolerance.
+      row.postmasterStartedAtSeconds !== String(m.catalogPostmasterStartedAtSeconds) || row.superuser || row.bypassRls)
     return refuse('OWNERSHIP_INVALID');
 }

@@ -11,11 +11,12 @@ function fixture() {
   const context = { workspaceRoot: 'C:\\tasks\\objective-planner', sourceHead: 'a'.repeat(40), nowMs };
   const env = { OBJECTIVE_PLANNER_NATIVE_OPT_IN: '1', CI_DISPOSABLE_POSTGRES: '1',
     OBJECTIVE_PLANNER_NATIVE_DATABASE_URL: 'postgresql://capiro_app:test-only-password@127.0.0.1:55473/planner_qa' };
-  const manifest = { schemaVersion: 1, kind: 'task-owned-objective-planner-postgres',
+  const manifest = { schemaVersion: 2, kind: 'task-owned-objective-planner-postgres',
     owner: OBJECTIVE_PLANNER_NATIVE_OWNER, sourceHead: context.sourceHead,
     workspaceRoot: context.workspaceRoot, dataDirectory: `${context.workspaceRoot}\\.objective-planner-native\\postgres-data`,
     hostname: '127.0.0.1', port: 55473, database: 'planner_qa', databaseOid: 16401,
     runtimeRole: 'capiro_app', processId: 1720, postmasterStartedAtSeconds: nowMs / 1000 - 60,
+    catalogPostmasterStartedAtSeconds: nowMs / 1000 - 59,
     ownershipToken: 'b'.repeat(64), createdAt: new Date(nowMs - 30_000).toISOString(),
     expiresAt: new Date(nowMs + 3_600_000).toISOString() };
   return { env, manifest, context };
@@ -27,7 +28,7 @@ const postmaster = m => ({ workspaceRealPath: m.workspaceRoot, dataDirectoryReal
   postmasterPid: `${m.processId}\n${m.dataDirectory}\n${m.postmasterStartedAtSeconds}\n${m.port}\n\n127.0.0.1,::1\nready\n` });
 const catalog = m => ({ databaseName: m.database, databaseOid: m.databaseOid, roleName: m.runtimeRole,
   serverPort: m.port, databaseComment: `task-owned:objective-planner-native:${m.ownershipToken}`,
-  postmasterStartedAtSeconds: String(m.postmasterStartedAtSeconds), superuser: false, bypassRls: false });
+  postmasterStartedAtSeconds: String(m.catalogPostmasterStartedAtSeconds), superuser: false, bypassRls: false });
 
 test('default-off guard returns before inspecting manifest or unrelated DB configuration', () => {
   const f = fixture(); delete f.env.OBJECTIVE_PLANNER_NATIVE_OPT_IN;
@@ -44,6 +45,71 @@ test('explicit owned loopback target returns frozen ownership and preserves exac
   assert.deepEqual(t.manifest, f.manifest); assert.ok(Object.isFrozen(t.manifest));
   requireObjectivePlannerNativePostmaster(t, postmaster(f.manifest));
   requireObjectivePlannerNativeCatalog(t, catalog(f.manifest));
+});
+
+test('independent startup clocks allow equal seconds and a bounded cross-second startup', () => {
+  for (const elapsedSeconds of [0, 1, 30]) {
+    const f = fixture();
+    f.manifest.catalogPostmasterStartedAtSeconds = f.manifest.postmasterStartedAtSeconds + elapsedSeconds;
+    const t = target(f);
+    requireObjectivePlannerNativePostmaster(t, postmaster(f.manifest));
+    requireObjectivePlannerNativeCatalog(t, catalog(f.manifest));
+  }
+});
+
+test('schema 1 and an omitted schema 2 catalog clock fail closed', () => {
+  const old = fixture(); old.manifest.schemaVersion = 1;
+  refused(() => target(old));
+  delete old.manifest.catalogPostmasterStartedAtSeconds;
+  refused(() => target(old));
+  const missing = fixture(); delete missing.manifest.catalogPostmasterStartedAtSeconds;
+  refused(() => target(missing));
+});
+
+for (const value of [0, -1, 1.5, '123', null, undefined, NaN, Infinity, Number.MAX_SAFE_INTEGER,
+  Number.MAX_SAFE_INTEGER + 1]) {
+  test(`catalog startup clock refuses malformed or out-of-range value ${String(value)}`, () => {
+    const f = fixture(); f.manifest.catalogPostmasterStartedAtSeconds = value;
+    refused(() => target(f));
+  });
+}
+
+test('catalog startup clock refuses accessors and proxy values without invoking them', () => {
+  for (const kind of ['getter', 'proxy']) {
+    const f = fixture(); let touched = 0;
+    if (kind === 'getter') Object.defineProperty(f.manifest, 'catalogPostmasterStartedAtSeconds', {
+      enumerable: true, get() { touched++; throw Error('getter'); },
+    });
+    else f.manifest.catalogPostmasterStartedAtSeconds = new Proxy({}, {
+      get() { touched++; throw Error('proxy'); }, ownKeys() { touched++; throw Error('proxy'); },
+    });
+    refused(() => target(f)); assert.equal(touched, 0);
+  }
+});
+
+test('catalog startup cannot precede the PID clock or follow manifest creation', () => {
+  const inverted = fixture();
+  inverted.manifest.catalogPostmasterStartedAtSeconds = inverted.manifest.postmasterStartedAtSeconds - 1;
+  refused(() => target(inverted));
+  const future = fixture();
+  future.manifest.catalogPostmasterStartedAtSeconds = Date.parse(future.manifest.createdAt) / 1000 + 1;
+  refused(() => target(future));
+});
+
+test('PID-file and catalog observations each require their own exact clock without tolerance', () => {
+  const f = fixture(), t = target(f);
+  const p = postmaster(f.manifest), lines = p.postmasterPid.split('\n');
+  lines[2] = String(f.manifest.catalogPostmasterStartedAtSeconds);
+  p.postmasterPid = lines.join('\n');
+  refused(() => requireObjectivePlannerNativePostmaster(t, p));
+  requireObjectivePlannerNativeCatalog(t, catalog(f.manifest));
+
+  const c = catalog(f.manifest);
+  c.postmasterStartedAtSeconds = String(f.manifest.postmasterStartedAtSeconds);
+  refused(() => requireObjectivePlannerNativeCatalog(t, c));
+  c.postmasterStartedAtSeconds = String(f.manifest.catalogPostmasterStartedAtSeconds + 1);
+  refused(() => requireObjectivePlannerNativeCatalog(t, c));
+  requireObjectivePlannerNativePostmaster(t, postmaster(f.manifest));
 });
 test('localhost is allowed only when exact manifest host agrees', () => {
   const f = fixture(); f.env.OBJECTIVE_PLANNER_NATIVE_DATABASE_URL = f.env.OBJECTIVE_PLANNER_NATIVE_DATABASE_URL.replace('127.0.0.1', 'localhost');
@@ -86,10 +152,11 @@ for (const url of [
     try { target(f); } catch (error) { assert.ok(!error.message.includes('secret')); }
   });
 }
-for (const [key, value] of Object.entries({ schemaVersion: 2, kind: 'shared-postgres', owner: 'someone-else',
+for (const [key, value] of Object.entries({ schemaVersion: 1, kind: 'shared-postgres', owner: 'someone-else',
   sourceHead: 'c'.repeat(40), workspaceRoot: 'C:\\tasks\\other', dataDirectory: 'C:\\Program Files\\PostgreSQL\\16\\data',
   hostname: 'localhost', port: 55474, database: 'capiro', databaseOid: 0, runtimeRole: 'postgres', processId: 0,
   postmasterStartedAtSeconds: nowMs / 1000 + 1, ownershipToken: 'short',
+  catalogPostmasterStartedAtSeconds: nowMs / 1000 + 1,
   createdAt: new Date(nowMs + 1).toISOString(), expiresAt: new Date(nowMs).toISOString() })) {
   test(`ownership requires exact bounded ${key}`, () => {
     const f = fixture(); f.manifest[key] = value; refused(() => target(f));

@@ -23,6 +23,21 @@ generation consent and Meri/provider custody observations are explicitly
 synthetic. These cases do not qualify real HTTP/token admission, an operational
 Strategy retry/issuer/SDK path or frontend receiving behavior.
 
+The first final-source attempt at `3ebecd93f3d5a99e1d9346b2710a3605591ed9d3`
+passed all 13 offline preflight checks, then refused all 18 enabled cases at the
+read-only catalog identity guard before fixture writes. Its owned cluster and
+credentials were retired. The schema-1 guard incorrectly equated the PID-file
+startup second with the later catalog startup second. PostgreSQL 16 assigns
+`MyStartTime` early and records it in `postmaster.pid`, then separately assigns
+`PgStartTime` later during startup ([postmaster source](https://github.com/postgres/postgres/blob/REL_16_15/src/backend/postmaster/postmaster.c),
+[PID-file source](https://github.com/postgres/postgres/blob/REL_16_15/src/backend/utils/init/miscinit.c)).
+The schema-2 ownership manifest captures both exact observations independently.
+The filesystem guard still requires the original PID-file timestamp; the catalog
+guard requires its separately captured timestamp. No timestamp tolerance is
+introduced, and their order must be PID-file time <= catalog time <= manifest
+creation. The prior failed attempt remains evidence of refusal, not application
+qualification. Final successor results belong to their exact published pin.
+
 ## Prior parent-source qualification
 
 The pinned parent source `b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf`
@@ -111,7 +126,7 @@ All of these must be present before the suite will construct Prisma:
   `/planner_qa` path. Query strings and fragments are rejected.
 - No inherited `DATABASE_URL` or libpq target/service/options/credential variables.
 - Committed, clean application source under `apps`, `packages` and `scripts`.
-- A closed ownership manifest at
+- A closed schema-2 ownership manifest at
   `.objective-planner-native/owned-target.json`, matching the exact current source
   commit and workspace. Its type is `ObjectivePlannerNativeManifest` in
   `test/objective-planner-native-target.ts`.
@@ -122,7 +137,8 @@ All of these must be present before the suite will construct Prisma:
   hours and must still be current.
 
 After connection, a read-only catalog query checks the exact database OID, name,
-runtime role, server port and postmaster start instant. The database comment must
+runtime role, server port and separately captured catalog postmaster start
+instant. The database comment must
 equal `task-owned:objective-planner-native:<ownershipToken>`. A superuser or
 `BYPASSRLS` runtime role is rejected. This check repeats before each new synthetic
 fixture. No fixture writes happen until it passes.
