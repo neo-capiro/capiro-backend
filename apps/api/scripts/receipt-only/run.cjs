@@ -366,7 +366,9 @@ async function prismaNamespacePreflight(url, root, execute = execFile) {
       prismaChildOptions(url, root, 60000),
       (error, stdout, stderr) => {
         const outputSha256 = sha256(Buffer.from(String(stdout || '') + String(stderr || '')));
-        if (error) reject(new Error(`Prisma namespace preflight failed; output_sha256=${outputSha256}`));
+        if (error || !String(stdout).includes('Script executed successfully.')) {
+          reject(new Error(`Prisma namespace preflight failed; output_sha256=${outputSha256}`));
+        }
         else resolve({ outputSha256 });
       });
     child.stdin.on('error', () => {}); // A child that exits early can close stdin.

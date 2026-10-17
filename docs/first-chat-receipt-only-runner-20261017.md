@@ -56,10 +56,11 @@ Prisma connection itself has schema `public`, database `capiro`, role
 `capiro_master`, writer/read-write state and TLS. It runs after the direct
 `pg` preflight and before `migrate deploy`, with a 60-second bound and no URL
 or SQL from task arguments. Its output is hashed, never relayed. A failure
-holds the task before migration. This tests the actual target at action time;
-it is not proof of a separate disposable PostgreSQL run or of the Fargate
-image's read-only-root behavior. The local disposable namespace test was
-blocked before SQL by Windows `pg_ctl` restricted-token error 87.
+or missing pinned CLI success marker holds the task before migration. This
+tests the actual target at action time. A separate disposable PostgreSQL run
+and Fargate read-only-root execution are still unproven. The local disposable
+namespace test was blocked before SQL by Windows `pg_ctl` restricted-token
+error 87.
 
 The guard reads only migration-ledger metadata and bounded catalog metadata in
 read-only transactions. It checks the already qualified base relation keys,

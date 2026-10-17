@@ -73,7 +73,7 @@ test('Prisma namespace gate sends fixed SQL via stdin and refuses a failing engi
       on() {},
       end(script) {
         call.script = script;
-        queueMicrotask(() => callback(calls.length === 1 ? null : new Error('SQL error'),
+        queueMicrotask(() => callback(calls.length === 2 ? new Error('SQL error') : null,
           calls.length === 1 ? 'Script executed successfully.' : '', ''));
       },
     } };
@@ -89,6 +89,8 @@ test('Prisma namespace gate sends fixed SQL via stdin and refuses a failing engi
   assert.match(PRISMA_NAMESPACE_SQL, /RAISE EXCEPTION/);
   assert.match(PRISMA_NAMESPACE_SQL, /current_schema\(\)/);
   assert.match(PRISMA_NAMESPACE_SQL, /pg_stat_ssl/);
+  await assert.rejects(prismaNamespacePreflight(url, '/dev/shm/fixed/prisma', fakeExec),
+    /Prisma namespace preflight failed/);
   await assert.rejects(prismaNamespacePreflight(url, '/dev/shm/fixed/prisma', fakeExec),
     /Prisma namespace preflight failed/);
 });
