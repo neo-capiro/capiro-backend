@@ -5,7 +5,7 @@ import { createPlannerApplicationCodec } from '@capiro/shared/objective-planner-
 import { OBJECTIVE_CONSENT_POLICY } from '../../../auth/workload-authority/objective-consent-policy.js';
 import { OBJECTIVE_WORK_BLOCKER, OBJECTIVE_WORK_PURPOSE } from '../objective-work-intent.js';
 import { parseWorkCommand, workDigest, workFailure, workUuid,
-  type WorkAuthority, type WorkState } from './objective-work-command.js';
+  type WorkAuthority, type WorkState, type WorkSource, type WorkConsent } from './objective-work-command.js';
 
 type Json = Record<string, any>;
 export interface ObjectivePlannerCurrentConsentProof {
@@ -106,6 +106,48 @@ export async function verifyObjectivePlannerCurrentConsentWithinTx(tx: Prisma.Tr
         (consent.stricterExpiresAt === null ? consent.stricterLimitRef !== null :
           timestamp(consent.stricterExpiresAt) !== capturedExpires || typeof consent.stricterLimitRef !== 'string' ||
           !consent.stricterLimitRef.trim() || consent.stricterLimitRef.length > 128)) fail();
+    const native = await readNativeConsentWithinTx(tx, a as WorkAuthority, source as WorkSource,
+      control.id, consent.id, control.version);
+    for (const key of ['id', 'controlId', 'previousConsentId', 'actorUserId', 'actorMembershipId',
+      'policyId', 'policyRevision', 'configuredDurationMs', 'effectiveDurationMs', 'stricterLimitRef',
+      'commandRequestId', 'commandReceiptId', 'payloadDigest'])
+      if (native.consent[key as keyof WorkConsent] !== consent[key]) fail();
+    if (native.proof.confirmedAtMs !== capturedConfirmed || native.proof.expiresAtMs !== capturedExpires ||
+        (native.consent.stricterExpiresAt === null ? consent.stricterExpiresAt !== null :
+          consent.stricterExpiresAt === null ||
+          timestamp(native.consent.stricterExpiresAt) !== timestamp(consent.stricterExpiresAt))) fail();
+    return native.proof;
+  } catch { return fail(); }
+}
+
+/** Immutable native consent lineage for an already-selected SAME ready source.
+ * This has no operation/current-control substitute and grants no authority.
+ * The chain caller independently proves original expiry, succession and absence. */
+export async function verifyObjectivePlannerSameSourceConsentWithinTx(tx: Prisma.TransactionClient,
+  authority: WorkAuthority, source: WorkSource, controlId: string, consentId: string,
+  controlVersion: number): Promise<ObjectivePlannerCurrentConsentProof> {
+  try {
+    return (await readNativeConsentWithinTx(tx, authority, source, controlId, consentId, controlVersion)).proof;
+  } catch { return fail(); }
+}
+
+async function readNativeConsentWithinTx(tx: Prisma.TransactionClient, rawAuthority: WorkAuthority,
+  rawSource: WorkSource, rawControlId: string, rawConsentId: string, rawControlVersion: number):
+  Promise<{ consent: WorkConsent; proof: ObjectivePlannerCurrentConsentProof }> {
+  try {
+    // Identity/source inputs are pinned before SQL. No historical WorkState or
+    // operation is fabricated to invoke current-consent verification.
+    const a = closed(copy(rawAuthority), ['tenantId', 'actorUserId', 'actorMembershipId', 'clerkUserId',
+      'clientId', 'objectiveId', 'objectiveRevisionId', 'objectiveVersion', 'objectiveStatus']);
+    const source = closed(copy(rawSource), stateSourceKeys), controlId = uuid(rawControlId),
+      consentId = uuid(rawConsentId), controlVersion = rawControlVersion;
+    for (const field of ['tenantId', 'actorUserId', 'actorMembershipId', 'clientId', 'objectiveId', 'objectiveRevisionId']) uuid(a[field]);
+    for (const field of ['canonicalPlanId', 'canonicalStrategyId', 'canonicalProjectId', 'rootIntentId', 'sourceRevisionId', 'rootActorUserId']) uuid(source[field]);
+    hash(source.sourceSnapshotHash);
+    if (typeof a.clerkUserId !== 'string' || !a.clerkUserId || a.clerkUserId.length > 128 ||
+        a.objectiveStatus !== 'ready' || !integer(a.objectiveVersion) || a.objectiveRevisionId !== source.sourceRevisionId ||
+        a.objectiveVersion !== source.sourceObjectiveVersion || source.canonicalEpoch !== 1 ||
+        !integer(source.canonicalBindingVersion) || !integer(source.sourceObjectiveVersion) || !integer(controlVersion)) fail();
     // Append-only rows deny UPDATE (which row locks require). Only mutable
     // identity rows are locked; WorkService owns current membership authority.
     const rows = await tx.$queryRaw<Array<{ consent: Json; receipt: Json; intent: Json; revision: Json; clerkUserId: string }>>`
@@ -121,7 +163,7 @@ export async function verifyObjectivePlannerCurrentConsentWithinTx(tx: Prisma.Tr
       JOIN tenant_memberships m ON m.tenant_id=c.tenant_id AND m.id=c.consenting_membership_id AND m.user_id=c.consenting_actor_user_id
       JOIN users u ON u.id=m.user_id
       WHERE c.tenant_id=${a.tenantId}::uuid AND c.client_id=${a.clientId}::uuid AND c.objective_id=${a.objectiveId}::uuid
-        AND c.work_action=${PLAN} AND c.id=${consent.id}::uuid AND c.control_id=${control.id}::uuid
+        AND c.work_action=${PLAN} AND c.id=${consentId}::uuid AND c.control_id=${controlId}::uuid
       FOR SHARE OF m,u`;
     if (rows.length !== 1) fail();
     const row = closed(rows[0], ['consent', 'receipt', 'intent', 'revision', 'clerkUserId']);
@@ -136,27 +178,37 @@ export async function verifyObjectivePlannerCurrentConsentWithinTx(tx: Prisma.Tr
       source_snapshot_hash: source.sourceSnapshotHash, root_actor_user_id: source.rootActorUserId };
     for (const record of [c, r]) {
       if (record.tenant_id !== a.tenantId || record.client_id !== a.clientId || record.objective_id !== a.objectiveId ||
-          record.work_action !== PLAN || record.control_id !== control.id) fail();
+          record.work_action !== PLAN || record.control_id !== controlId) fail();
       for (const [key, value] of Object.entries(expectedSource)) if (record[key] !== value) fail();
     }
-    // Compare every captured consent field with its actual immutable row; native
-    // timestamps use the same millisecond view as WorkService's Date conversion.
-    for (const [native, captured] of Object.entries({ id: 'id', control_id: 'controlId', previous_consent_id: 'previousConsentId',
-      consenting_actor_user_id: 'actorUserId', consenting_membership_id: 'actorMembershipId', consent_policy_id: 'policyId',
-      consent_policy_revision: 'policyRevision', configured_duration_ms: 'configuredDurationMs', effective_duration_ms: 'effectiveDurationMs',
-      stricter_limit_ref: 'stricterLimitRef', command_request_id: 'commandRequestId', command_receipt_id: 'commandReceiptId', payload_digest: 'payloadDigest' }))
-      if (c[native] !== consent[captured]) fail();
+    for (const value of [c.id, c.command_request_id, c.command_receipt_id, c.consenting_actor_user_id,
+      c.consenting_membership_id]) uuid(value);
+    if (c.previous_consent_id !== null) uuid(c.previous_consent_id);
+    hash(c.payload_digest);
+    if (c.id !== consentId || c.previous_consent_id === c.id ||
+        c.consent_policy_id !== OBJECTIVE_CONSENT_POLICY.id || c.consent_policy_revision !== OBJECTIVE_CONSENT_POLICY.revision ||
+        !integer(c.configured_duration_ms, 1, MAX_DURATION) || !integer(c.effective_duration_ms, 1, MAX_DURATION) ||
+        c.effective_duration_ms > c.configured_duration_ms) fail();
+    // These fields come from the actual immutable row, never a synthesized state.
+    const consent: WorkConsent = { id: c.id, controlId, source: copy(source) as WorkSource,
+      previousConsentId: c.previous_consent_id, actorUserId: c.consenting_actor_user_id,
+      actorMembershipId: c.consenting_membership_id, policyId: c.consent_policy_id,
+      policyRevision: c.consent_policy_revision, configuredDurationMs: c.configured_duration_ms,
+      effectiveDurationMs: c.effective_duration_ms, stricterExpiresAt: c.stricter_expires_at,
+      stricterLimitRef: c.stricter_limit_ref, confirmedAt: c.confirmed_at, expiresAt: c.expires_at,
+      commandRequestId: c.command_request_id, commandReceiptId: c.command_receipt_id, payloadDigest: c.payload_digest };
     const confirmedAtMs = timestamp(c.confirmed_at), expiresAtMs = timestamp(c.expires_at), committedAtMs = timestamp(r.committed_at);
-    if (confirmedAtMs !== capturedConfirmed || expiresAtMs !== capturedExpires ||
-        (c.stricter_expires_at === null ? consent.stricterExpiresAt !== null :
-          consent.stricterExpiresAt === null || timestamp(c.stricter_expires_at) !== timestamp(consent.stricterExpiresAt)) ||
+    if (expiresAtMs - confirmedAtMs !== c.effective_duration_ms ||
+        (c.stricter_expires_at === null ? c.stricter_limit_ref !== null :
+          timestamp(c.stricter_expires_at) !== expiresAtMs || typeof c.stricter_limit_ref !== 'string' ||
+          !c.stricter_limit_ref.trim() || c.stricter_limit_ref.length > 128) ||
         typeof row.clerkUserId !== 'string' || !row.clerkUserId || row.clerkUserId.length > 128 ||
         r.id !== consent.commandReceiptId || r.request_id !== consent.commandRequestId || r.payload_digest !== consent.payloadDigest ||
         r.actor_user_id !== consent.actorUserId || r.actor_membership_id !== consent.actorMembershipId ||
         r.created_consent_id !== consent.id || r.result_consent_id !== consent.id || r.target_consent_id !== consent.previousConsentId ||
         r.command_kind !== 'retry' || r.outcome !== 'reconsent_recorded' || !integer(r.control_version_before, 0) ||
         !integer(r.control_version_after) || r.control_version_after !== r.control_version_before + 1 ||
-        r.control_version_after !== control.version || committedAtMs < confirmedAtMs || committedAtMs >= expiresAtMs) fail();
+        r.control_version_after !== controlVersion || committedAtMs < confirmedAtMs || committedAtMs >= expiresAtMs) fail();
     const command = parseWorkCommand(a.clientId, a.objectiveId, r.command);
     if (command.command.command !== 'retry' || command.command.workAction !== PLAN ||
         command.command.requestId !== consent.commandRequestId || command.command.targetAuthorizationRequestId !== consent.previousConsentId ||
@@ -179,8 +231,8 @@ export async function verifyObjectivePlannerCurrentConsentWithinTx(tx: Prisma.Tr
         snapshot.deletedAt !== null || snapshot.id !== a.objectiveId || snapshot.clientId !== a.clientId ||
         snapshot.version !== source.sourceObjectiveVersion || workDigest(snapshot) !== source.sourceSnapshotHash) fail();
     timestamp(i.created_at); timestamp(v.created_at);
-    return Object.freeze({ originalClerkUserId: row.clerkUserId, controlVersion: r.control_version_after,
+    return { consent, proof: Object.freeze({ originalClerkUserId: row.clerkUserId, controlVersion: r.control_version_after,
       confirmedAtMs, committedAtMs, expiresAtMs, consentId: c.id, previousConsentId: c.previous_consent_id,
-      actorUserId: c.consenting_actor_user_id, membershipId: c.consenting_membership_id });
+      actorUserId: c.consenting_actor_user_id, membershipId: c.consenting_membership_id }) };
   } catch { return fail(); }
 }

@@ -95,7 +95,7 @@ function fixture(mode: 'initial' | 'failed' | 'cancelled' | 'leased' | 'applied'
     memoryWall: false, memoryDenied: false, proofClockChecks: 0,
     nativeUserRevoked: false, nativeUserRevokedAtRelease: false,
     malformedNativeProof: null as 'clerk' | 'command' | 'revision_snapshot' | null,
-    objectiveVersion: 1, objectiveRevisionId: id(6), resources: [] as Json[],
+    objectiveVersion: 1, objectiveRevisionId: id(6), objectiveStatus: 'ready' as 'draft' | 'in_review' | 'ready', resources: [] as Json[],
     control: null as Json | null, consent: null as Json | null, commandReceipt: null as Json | null,
     outputPresent: false, rawOwnerUnavailable: false };
   const sourceColumns = { canonical_plan_id: id(7), canonical_epoch: 1, canonical_strategy_id: id(8),
@@ -155,6 +155,13 @@ function fixture(mode: 'initial' | 'failed' | 'cancelled' | 'leased' | 'applied'
     if (full) f.resources.push(...full.resources);
   }
 
+  // Immutable original consent/revision observations remain at their original
+  // source when the current requested Objective advances later in a test.
+  const originalNative = f.consent ? { consent: clone(f.consent), receipt: clone(f.commandReceipt), intent: clone(root),
+    revision: { id: f.objectiveRevisionId, tenant_id: ctx.tenantId, client_id: request.clientId,
+      objective_id: request.objectiveId, version: f.objectiveVersion, operation: 'confirm_ready',
+      actor_user_id: ctx.userId, snapshot: clone(snapshot), created_at: new Date(now - 6_000).toISOString() },
+    clerkUserId: ctx.clerkUserId } : null;
   const evidence = () => clone({ canonical, root, snapshot, control: f.control, consent: f.consent,
     receipt: f.commandReceipt, resources: f.resources });
   let tx: Prisma.TransactionClient;
@@ -199,7 +206,7 @@ function fixture(mode: 'initial' | 'failed' | 'cancelled' | 'leased' | 'applied'
     }
     if (sql.includes('SELECT status') && sql.includes('FROM client_objectives')) {
       trace.push('objective-status');expect(values).toEqual([ctx.tenantId, request.clientId, request.objectiveId, f.objectiveVersion]);
-      return [{ status: 'ready' }];
+      return [{ status: f.objectiveStatus }];
     }
     if (sql.includes('FROM client_objective_canonical_plans')) {
       trace.push('canonical-state-lock');expect(sql).toContain('FOR SHARE');expect(values).toEqual([ctx.tenantId, request.clientId, request.objectiveId]);
@@ -218,11 +225,7 @@ function fixture(mode: 'initial' | 'failed' | 'cancelled' | 'leased' | 'applied'
       trace.push('applied-native-chain-proof');
       expect(sql).toMatch(/\bFOR SHARE OF m,u\s*$/);
       expect(values).toEqual([ctx.tenantId, request.clientId, request.objectiveId, PLAN, id(14), id(13)]);
-      const row = { consent: clone(f.consent), receipt: clone(f.commandReceipt), intent: clone(root),
-        revision: { id: f.objectiveRevisionId, tenant_id: ctx.tenantId, client_id: request.clientId,
-          objective_id: request.objectiveId, version: f.objectiveVersion, operation: 'confirm_ready',
-          actor_user_id: ctx.userId, snapshot: clone(snapshot), created_at: new Date(now - 6_000).toISOString() },
-        clerkUserId: ctx.clerkUserId };
+      const row = clone(originalNative!);
       if (f.malformedNativeProof === 'clerk') row.clerkUserId = 'user_other';
       else if (f.malformedNativeProof === 'command') row.receipt!.command.requestId = id(99);
       else if (f.malformedNativeProof === 'revision_snapshot') row.revision.snapshot.outcome = 'Corrupt original native evidence';
@@ -295,6 +298,8 @@ describe('actual WorkService Planner status reads (synthetic native SQL/proof on
   it('takes the early Planner gate before current authority and Core state locks in the same native transaction', async () => {
     const f = fixture(), before = f.evidence(), result = await f.read();
     expect(result.reconciliation).toBe('not_started');expect(result.control.version).toBe(0);expect(result.consent).toBeNull();
+    expect(result.requestedSource).toEqual({ revision: { id: id(6), version: 1 }, canonicalBindingVersion: 1 });
+    expect(result.accounting).toBeNull();
     expect(f.withTenant).toHaveBeenCalledTimes(1);expect(f.readLock).toHaveBeenCalledWith(f.tx, f.ctx, f.request);
     expect(f.reconcile.mock.calls[0]![0]).toBe(f.tx);
     for (const lock of ['current-authority', 'native-client-lock', 'native-membership-lock', 'canonical-state-lock', 'control-state-lock'])
@@ -318,6 +323,7 @@ describe('actual WorkService Planner status reads (synthetic native SQL/proof on
   it.each(['failed', 'cancelled'] as const)('reads verified original %s accounting without renewing consent or writing work', async outcome => {
     const f = fixture(outcome), before = f.evidence(), result = await f.read();
     expect(result.reconciliation).toBe('accounted');expect(result.control.currentAuthorizationRequestId).toBe(id(14));
+    expect(result.accounting).toEqual({ outcome, sourceRevision: { id: id(6), version: 1 } });
     expect(result.consent).toMatchObject({ id: id(14), confirmedAt: f.flags.consent!.confirmed_at, expiresAt: f.flags.consent!.expires_at });
     expect(f.trace).toContain('original-command-evidence');expect(f.trace).toContain('no-output-proof');
     expect(f.recheck).toHaveBeenCalledTimes(2);expect(f.flags.proofClockChecks).toBe(2);expect(f.evidence()).toEqual(before);noEffects(f);
@@ -329,6 +335,7 @@ describe('actual WorkService Planner status reads (synthetic native SQL/proof on
       f.resources.slice(1) as ObjectivePlannerResource[]);
     const result = await f.read();
     expect(result.reconciliation).toBe('accounted');expect(result.control.currentAuthorizationRequestId).toBe(id(14));
+    expect(result.accounting).toEqual({ outcome: 'applied', sourceRevision: { id: id(6), version: 1 } });
     expect(result.consent).toMatchObject({ id: id(14), confirmedAt: f.flags.consent!.confirmed_at,
       expiresAt: f.flags.consent!.expires_at });
     const operation = f.resources.find(row => row.kind === OPERATION)!.data;
@@ -418,7 +425,37 @@ describe('actual WorkService Planner status reads (synthetic native SQL/proof on
   it('reports a changed current Objective/canonical binding as uncertain while retaining the original consent/operation', async () => {
     const f = fixture('failed');f.advanceSource();const before = f.evidence(), result = await f.read();
     expect(result.objective.revision).toEqual({ id: id(22), version: 2 });expect(result.reconciliation).toBe('outcome_unconfirmed');
+    expect(result.requestedSource).toEqual({ revision: { id: id(22), version: 2 }, canonicalBindingVersion: 2 });
+    expect(result.accounting).toBeNull();
     expect(result.consent!.id).toBe(id(14));expect(f.evidence()).toEqual(before);noEffects(f);
+  });
+
+  it('keeps the requested ready source separate from the newer draft Objective instead of guessing its command binding', async () => {
+    const f = fixture();f.advanceSource();
+    f.flags.objectiveVersion = 3;f.flags.objectiveRevisionId = id(24);f.flags.objectiveStatus = 'draft';
+    const before = f.evidence(), result = await f.read();
+    expect(result.objective).toEqual({ id: id(5), revision: { id: id(24), version: 3 }, status: 'draft' });
+    expect(result.requestedSource).toEqual({ revision: { id: id(22), version: 2 }, canonicalBindingVersion: 2 });
+    expect(result.requestedSource.canonicalBindingVersion).not.toBe(result.objective.revision.version);
+    expect(result.accounting).toBeNull();expect(f.evidence()).toEqual(before);noEffects(f);
+  });
+
+  it('labels the original applied source independently of a newer requested source without exposing private owner proof', async () => {
+    const f = fixture('full_applied');f.advanceSource();
+    const before = f.evidence(), result = await f.read();
+    expect(result.objective.revision).toEqual({ id: id(22), version: 2 });
+    expect(result.requestedSource).toEqual({ revision: { id: id(22), version: 2 }, canonicalBindingVersion: 2 });
+    expect(result.reconciliation).toBe('accounted');
+    expect(result.accounting).toEqual({ outcome: 'applied', sourceRevision: { id: id(6), version: 1 } });
+    expect(Object.keys(result.accounting!).sort()).toEqual(['outcome', 'sourceRevision']);
+    expect(Object.keys(result.requestedSource).sort()).toEqual(['canonicalBindingVersion', 'revision']);
+    expect(Object.keys(result).sort()).toEqual(['accounting', 'clientId', 'commandReceipt', 'consent', 'control',
+      'objective', 'observedAt', 'reconciliation', 'requestedSource', 'schemaVersion', 'workAction']);
+    const publicJson = JSON.stringify(result), operation = f.resources.find(row => row.kind === OPERATION)!.data;
+    for (const privateValue of [operation.original.operationId, operation.original.attemptId, operation.original.runId,
+      operation.original.requestFingerprint, operation.work.canonical.snapshotHash, f.ctx.clerkUserId, id(3), id(7), id(8), id(9)])
+      expect(publicJson).not.toContain(privateValue);
+    expect(f.evidence()).toEqual(before);noEffects(f);
   });
 
   it.each(['leased', 'applied'] as const)('keeps actual %s owner state uncertain and a repeated status read never retries work', async state => {

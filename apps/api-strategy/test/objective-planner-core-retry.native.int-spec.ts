@@ -125,7 +125,9 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
         ORDER BY id`).map(row => row.record),
     }));
   }
-  async function service(f: ObjectivePlannerNativeFixture, options: { failRelease?: () => boolean; db?: CorePrismaService } = {}) {
+  async function service(f: ObjectivePlannerNativeFixture, options: {
+    failRelease?: () => boolean; db?: CorePrismaService; consentDurationMs?: number;
+  } = {}) {
     const ctx = context(f);
     const clocks = await core.$queryRaw<Array<{ ms: string }>>`SELECT floor(extract(epoch FROM clock_timestamp())*1000)::text AS ms`;
     const expiresAtMs = Number(clocks[0]!.ms) + 120_000;
@@ -148,7 +150,8 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     const tenant = { readApplicationAuthority: async (req: Request, actual: TenantContext) => {
       expect(req).toBe(transport); expect(actual).toEqual(ctx); return proof;
     } } as unknown as TenantContextMiddleware;
-    const work = new ObjectiveWorkService(options.db ?? core, tenant, new ObjectivePlannerWorkOwner(settings));
+    const work = new ObjectiveWorkService(options.db ?? core, tenant, new ObjectivePlannerWorkOwner({ ...settings,
+      OBJECTIVE_PLANNER_CONSENT_DURATION_MS: String(options.consentDurationMs ?? 600000) }));
     return { work, ctx, expiresAtMs, proofRechecks: () => rechecks };
   }
   const request = (f: ObjectivePlannerNativeFixture, advanced?: ObjectivePlannerNativeReadySource, action: WorkAction = PLAN): WorkRequest =>
@@ -386,5 +389,86 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     expect(afterThird.controls.filter(c => c.work_action === STRATEGY)).toEqual(after.controls.filter(c => c.work_action === STRATEGY));
     expect(await prisma.withTenant(f.tenantId, tx => tx.spPlannerProject.findFirst({
       where: { tenantId: f.tenantId, id: editedProject.id } }))).toEqual(projectAfter);
+  }, 30_000);
+
+  test('expired unused Planner consent permits a fresh human consent through its full retained chain and separate runtime', async () => {
+    const { fixture: f } = await applied(), before = await audit(f);
+    const originalOperation = before.resources.find(r => r.kind === PLANNER_CONTINUATION_OPERATION)!;
+    const short = await service(f, { consentDurationMs: 2000 });
+    const advanced = await advanceObjectivePlannerNativeReadySource(core, short.ctx, f);
+    const firstRequest = request(f, advanced);
+    const first = await short.work.command(short.ctx, transport, firstRequest);
+    expect(first.outcome).toBe('reconsent_recorded');
+    expect(Date.parse(first.consent!.expiresAt) - Date.parse(first.consent!.confirmedAt)).toBeLessThanOrEqual(2000);
+    const afterFirst = await audit(f);
+    expect(afterFirst.resources).toEqual(before.resources);
+    // Use the real database clock and the REAL issuer's immutable short consent.
+    // No timestamp, immutable ledger or captured generation ceiling is patched.
+    const waitStarted = Date.now();
+    for (;;) {
+      const rows = await core.withTenant(f.tenantId, tx => tx.$queryRaw<Array<{ expired: boolean }>>`
+        SELECT clock_timestamp() >= expires_at AS expired FROM client_objective_work_consents
+        WHERE tenant_id=${f.tenantId}::uuid AND id=${first.authorizationRequestId}::uuid`);
+      expect(rows).toHaveLength(1);
+      if (rows[0]!.expired) break;
+      if (Date.now() - waitStarted > 6000) throw Error('Native short consent did not expire within its bounded DB-clock wait');
+      await new Promise(resolveWait => setTimeout(resolveWait, 25));
+    }
+    const client = await service(f), secondRequest = parseWorkCommand(f.source.clientId, f.source.objectiveId, {
+      schemaVersion: 1, requestId: f.id('core-native-expired-unused-renewal'), command: 'retry', workAction: PLAN,
+      expectedObjectiveVersion: advanced.source.objectiveVersion,
+      expectedCanonicalBindingVersion: advanced.canonical.bindingVersion,
+      expectedControlVersion: first.controlVersionAfter, targetAuthorizationRequestId: first.authorizationRequestId });
+    const second = await client.work.command(client.ctx, transport, secondRequest);
+    expect(second.outcome).toBe('reconsent_recorded'); expect(second.targetAuthorizationRequestId).toBe(first.authorizationRequestId);
+    expect(second.controlVersionAfter).toBe(first.controlVersionAfter + 1);
+    expect(second.authorizationRequestId).not.toBe(first.authorizationRequestId);
+    expect(Date.parse(second.consent!.confirmedAt)).toBeGreaterThanOrEqual(Date.parse(first.consent!.expiresAt));
+    expect(Date.parse(second.consent!.expiresAt)).toBeLessThanOrEqual(client.expiresAtMs);
+    const afterSecond = await audit(f);
+    expect(afterSecond.resources).toEqual(before.resources);
+    expect(afterSecond.consents.filter(c => c.id !== second.authorizationRequestId)).toEqual(afterFirst.consents);
+    expect(afterSecond.commands.filter(c => c.id !== second.receiptId)).toEqual(afterFirst.commands);
+    expect(afterSecond.controls.filter(c => c.work_action === STRATEGY)).toEqual(before.controls.filter(c => c.work_action === STRATEGY));
+    const pending = await client.work.read(client.ctx, transport, { clientId: f.source.clientId,
+      objectiveId: f.source.objectiveId, workAction: PLAN, requestId: second.requestId });
+    expect(pending.reconciliation).toBe('not_started'); expect(pending.consent).toMatchObject(second.consent!);
+    expect(pending.control.currentAuthorizationRequestId).toBe(second.authorizationRequestId);
+    expect(pending.commandReceipt).toEqual(second); expect(await audit(f)).toEqual(afterSecond);
+    expect(await client.work.command(client.ctx, transport, secondRequest)).toEqual(second);
+    expect(await audit(f)).toEqual(afterSecond);
+    await expect(client.work.command(client.ctx, transport, { ...secondRequest,
+      command: { ...secondRequest.command, expectedControlVersion: second.controlVersionAfter } }))
+      .rejects.toMatchObject({ code: 'REQUEST_ID_CONFLICT' });
+    expect(await audit(f)).toEqual(afterSecond);
+    // A retained old success is readable; it does not extend its original
+    // operation, admission or delegation and cannot create another effect.
+    expect((await runtime().consumeJob(f.scope)).outcome).toBe('applied');
+    expect(await audit(f)).toEqual(afterSecond);
+    const generated = await seedObjectivePlannerCoreNativeRegeneration(prisma,
+      { ...f, plannerConsentId: first.authorizationRequestId! }, advanced, second);
+    const rechecks = client.proofRechecks();
+    expect((await runtime().consumeJob(generated.scope)).outcome).toBe('applied');
+    expect(client.proofRechecks()).toBe(rechecks);
+    const afterApplied = await audit(f), operations = afterApplied.resources.filter(r => r.kind === PLANNER_CONTINUATION_OPERATION);
+    expect(operations).toHaveLength(2); expect(operations.find(r => r.id === originalOperation.id)).toEqual(originalOperation);
+    const current = operations.find(r => r.id !== originalOperation.id)!;
+    expect(current.data.work.consentId).toBe(second.authorizationRequestId);
+    expect(current.data.work.controlVersion).toBe(second.controlVersionAfter);
+    expect(current.data.work.canonical).toEqual(advanced.canonical); expect(current.data.state).toBe('applied');
+    const deadline = Date.parse(current.data.original.originalDeadlineAt);
+    expect(deadline).toBeLessThanOrEqual(Date.parse(second.consent!.expiresAt));
+    expect(deadline).toBeLessThanOrEqual(generated.admission.effectExpiresAtMs);
+    expect(deadline).toBeLessThanOrEqual(generated.acceptance.issuance.expiresAtMs);
+    expect(deadline).toBeLessThanOrEqual(generated.publication.request.originalExpiresAtMs);
+    expect(afterApplied.consents.filter(c => c.work_action === PLAN)).toEqual(afterSecond.consents.filter(c => c.work_action === PLAN));
+    expect(afterApplied.commands.filter(c => c.work_action === PLAN)).toEqual(afterSecond.commands.filter(c => c.work_action === PLAN));
+    for (const consent of afterSecond.consents) expect(afterApplied.consents.find(c => c.id === consent.id)).toEqual(consent);
+    for (const command of afterSecond.commands) expect(afterApplied.commands.find(c => c.id === command.id)).toEqual(command);
+    const status = await client.work.read(client.ctx, transport, { clientId: f.source.clientId,
+      objectiveId: f.source.objectiveId, workAction: PLAN, requestId: second.requestId });
+    expect(status.reconciliation).toBe('accounted'); expect(status.commandReceipt).toEqual(second);
+    expect(status.control.currentAuthorizationRequestId).toBe(second.authorizationRequestId);
+    expect(await audit(f)).toEqual(afterApplied);
   }, 30_000);
 });
