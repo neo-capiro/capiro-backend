@@ -28,6 +28,8 @@ import { ObjectiveCanonicalTerminalController } from '../meri/objective-canonica
 import { ObjectiveCanonicalTerminalService } from '../meri/objective-canonical-terminal.service.js';
 import { ObjectivePlannerContinuationRuntime } from './objective-planner-continuation.runtime.js';
 import { ObjectivePlannerContinuationWorker } from './objective-planner-continuation.worker.js';
+import { OBJECTIVE_CANONICAL_READER_V2_RUNTIME, createCanonicalReaderV2Runtime,
+  type CanonicalReaderV2Runtime } from '../meri/objective-canonical-reader-v2-runtime.js';
 
 @Module({
   imports: [MeriModule],
@@ -35,9 +37,14 @@ import { ObjectivePlannerContinuationWorker } from './objective-planner-continua
   providers: [
     ObjectiveCanonicalCompletionService,
     ObjectiveCanonicalTerminalService,
-    // The Meri custody bridge is not yet allocated. Construct the closed owner
-    // explicitly so Nest never treats its optional bridge parameter as a grant.
-    { provide: ObjectiveCanonicalResultOwner, useFactory: () => new ObjectiveCanonicalResultOwner() },
+    // One explicit Core composition root for acceptance and retained receiving.
+    // Its production factory stays zero-argument/default-off: allocated Meri
+    // source is not evidence of a ready custody runtime or genuine authority.
+    { provide: OBJECTIVE_CANONICAL_READER_V2_RUNTIME, useFactory: () => createCanonicalReaderV2Runtime() },
+    { provide: ObjectiveCanonicalResultOwner, inject: [OBJECTIVE_CANONICAL_READER_V2_RUNTIME],
+      useFactory: (runtime: CanonicalReaderV2Runtime) => runtime.resultOwner },
+    { provide: ObjectiveCanonicalWorkloadAuthority, inject: [OBJECTIVE_CANONICAL_READER_V2_RUNTIME],
+      useFactory: (runtime: CanonicalReaderV2Runtime) => runtime.authority },
     ObjectiveCanonicalApplicationService,
     ObjectivePlannerContinuationRuntime,
     ObjectivePlannerContinuationWorker,
@@ -45,7 +52,6 @@ import { ObjectivePlannerContinuationWorker } from './objective-planner-continua
     ObjectiveCanonicalRequestService,
     ObjectiveCanonicalOwnerDirectory,
     StrategyContextPlaneClient,
-    ObjectiveCanonicalWorkloadAuthority,
     PlannerCapacityService,
     PlannerService,
     PlannerLinksService,

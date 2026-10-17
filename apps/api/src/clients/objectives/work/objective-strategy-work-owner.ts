@@ -1,7 +1,7 @@
 import { types as nodeTypes } from 'node:util';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import type { ObjectiveWorkOwnerPort } from './objective-work.service.js';
+import type { ObjectiveStrategySelectionMode, ObjectiveWorkOwnerPort } from './objective-work.service.js';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { lockObjectiveStrategyOutputWithinTx } from '@capiro/shared/objective-strategy-intake';
 import { lockObjectiveStrategyIntakeWithinTx, type ObjectiveStrategyJobInventory } from './objective-strategy-job-reservation.js';
@@ -49,8 +49,14 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
     const d = env.OBJECTIVE_STRATEGY_CONSENT_DURATION_MS;
     this.duration = typeof d === 'string' && /^[1-9][0-9]*$/.exec(d)?.[0] === d && positive(Number(d)) ? Number(d) : null;
   }
-  bindStrategySelectionWithinTx(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest): void {
-    if (!this.enabled || this.duration === null || !this.prisma) workFailure('AUTHORITY_UNAVAILABLE', request.work.command.requestId);
+  bindStrategySelectionWithinTx(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest,
+    mode: ObjectiveStrategySelectionMode = 'write'): void {
+    if (mode !== 'write' && mode !== 'recovery-read') workFailure('AUTHORITY_UNAVAILABLE', request.work.command.requestId);
+    // An exact historical receipt is recovered before fresh-write policy checks.
+    // This trusted mode only captures selection for the read transaction; the
+    // same method still gates the later writer before state or consent writes.
+    if (mode === 'write' && (!this.enabled || this.duration === null || !this.prisma))
+      workFailure('AUTHORITY_UNAVAILABLE', request.work.command.requestId);
     this.selected.set(tx, parseObjectiveStrategySelection(request.work.clientId, request.work.objectiveId,
       objectiveStrategySelectionBody(request)));
     this.eligible.delete(tx);

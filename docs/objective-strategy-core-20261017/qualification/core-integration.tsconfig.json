@@ -1,0 +1,15 @@
+{
+  "extends": "./intake.tsconfig.json",
+  "compilerOptions": { "strict": true, "skipLibCheck": true },
+  "files": [
+    "../../../apps/api-strategy/src/planner/planner.module.ts",
+    "../../../apps/api-strategy/src/meri/objective-canonical-reader-v2-native-owner.spec.ts",
+    "../../../apps/api-strategy/src/meri/objective-canonical-reader-v2-runtime.spec.ts",
+    "../../../apps/api-strategy/src/meri/objective-canonical-reader-v2-receiving.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-recovery-gate.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-work-owner.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-work-owner.router.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-selection-prisma.spec.ts"
+  ],
+  "include": []
+}
