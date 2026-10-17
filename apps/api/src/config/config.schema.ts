@@ -34,6 +34,9 @@ export const configSchema = z.object({
   CLERK_SECRET_KEY: z.string().min(1, 'CLERK_SECRET_KEY is required'),
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1, 'CLERK_WEBHOOK_SIGNING_SECRET is required'),
   CLERK_JWT_ISSUER: z.string().url().optional(),
+  // Only the separately pinned first-chat Core task opts into native GETs.
+  // Exact strings prevent a typo from silently opening ordinary read policy.
+  PREVIEW_NATIVE_GETS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
 
   WEB_ORIGIN: z.string().optional(),
 

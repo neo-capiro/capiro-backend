@@ -57,7 +57,7 @@ describe('UsersController — /me features.engagementVNext', () => {
       withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaService;
     const config = { get: jest.fn(() => false) } as unknown as ConfigService<AppConfig, true>;
-    const controller = new UsersController(prisma, config);
+    const controller = new UsersController(prisma, config, { mode: () => false } as never);
     return { controller, tx };
   }
 
@@ -127,7 +127,7 @@ describe('UsersController — /me features.businessDevelopmentDossier', () => {
       withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaService;
     const config = { get: jest.fn(() => false) } as unknown as ConfigService<AppConfig, true>;
-    const controller = new UsersController(prisma, config);
+    const controller = new UsersController(prisma, config, { mode: () => false } as never);
     return { controller, tx };
   }
 
@@ -204,7 +204,7 @@ describe('UsersController — /me features.businessDevelopmentWatch', () => {
     const config = {
       get: jest.fn((key: string) => (key === 'BIZDEV_WATCH_ENABLED' ? globalEnabled : false)),
     } as unknown as ConfigService<AppConfig, true>;
-    return new UsersController(prisma, config);
+    return new UsersController(prisma, config, { mode: () => false } as never);
   }
 
   const settings = (base: boolean, watch: boolean) => ({
@@ -263,7 +263,7 @@ describe('UsersController — /me features.meriJobs', () => {
       withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
     } as unknown as PrismaService;
     const config = { get: jest.fn(() => false) } as unknown as ConfigService<AppConfig, true>;
-    return new UsersController(prisma, config);
+    return new UsersController(prisma, config, { mode: () => false } as never);
   }
 
   it.each([

@@ -1,9 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Patch, Put } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Put, Req, Res, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IsBoolean, IsObject, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
+import type { Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { PreviewNativeReadService } from '../auth/preview-native-read.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MAX_SIGNATURE_HTML_LENGTH, sanitizeSignatureHtml } from '../common/sanitize-signature.js';
 import {
@@ -94,10 +96,25 @@ export class UsersController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly preview: PreviewNativeReadService,
   ) {}
 
   @Get('me')
-  async me(@CurrentTenant() ctx: TenantContext) {
+  async me(
+    @CurrentTenant() ctx: TenantContext,
+    @Req() req?: Request,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    if ((!req || !res) && this.config.get('PREVIEW_NATIVE_GETS_ENABLED', { infer: true })) {
+      throw new ServiceUnavailableException('Preview reads unavailable');
+    }
+    if (req && res && this.preview.mode(req, res)) {
+      return this.preview.run(req, res, ctx, () => this.readMe(ctx));
+    }
+    return this.readMe(ctx);
+  }
+
+  private async readMe(ctx: TenantContext) {
     const profile = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const [user, tenant, membership] = await Promise.all([
         tx.user.findUnique({

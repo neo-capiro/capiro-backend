@@ -7,10 +7,12 @@ import { AuthModule } from './auth.module.js';
 import { ApplicationAuthorityController } from './application-authority.controller.js';
 import { ApplicationMembershipController } from './application-membership.controller.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
+import { PreviewNativeReadService } from './preview-native-read.service.js';
 
 @Module({
   imports: [AuthModule, TenantModule, PrismaModule, ContextSecurityScopeModule, BizDevMeriScopeModule],
   controllers: [ApplicationAuthorityController, ApplicationMembershipController],
-  providers: [ApplicationMembershipService],
+  providers: [ApplicationMembershipService, PreviewNativeReadService],
+  exports: [PreviewNativeReadService],
 })
 export class ApplicationAuthorityModule {}

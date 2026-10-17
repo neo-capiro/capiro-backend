@@ -55,6 +55,7 @@ import { EvaluationModule } from '../evaluation/evaluation.module.js';
 import { CrmFillEvaluationRunner } from './crm-fill-evaluation.runner.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
+import { ApplicationAuthorityModule } from '../auth/application-authority.module.js';
 
 @Module({
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
@@ -65,6 +66,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
   // for FO projection (Phase C). Cycle risk verified none: TrackerModule only
   // imports IntelligenceModule + EngagementModule; FO module imports MemoryModule.
   imports: [
+    ApplicationAuthorityModule,
     ClientObjectivesModule,
     ObjectiveWorkModule,
     EmbeddingsModule,

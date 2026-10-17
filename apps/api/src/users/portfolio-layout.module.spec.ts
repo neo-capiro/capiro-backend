@@ -63,7 +63,13 @@ async function fixture(role = 'standard_user', impersonating = false) {
   @Global()
   @Module({ providers: [{ provide: PrismaService, useValue: prisma }, { provide: ClerkService, useValue: clerk }], exports: [PrismaService, ClerkService] })
   class InertIoPorts {}
-  const module = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), InertIoPorts, TenantModule, UsersModule] }).compile();
+  // UsersModule now reaches ApplicationAuthorityModule, which imports a real
+  // PrismaModule. Override that provider as well so this synthetic HTTP fixture
+  // cannot initialize a database client or contact a database.
+  const module = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), InertIoPorts, TenantModule, UsersModule] })
+    .overrideProvider(PrismaService).useValue(prisma)
+    .overrideProvider(ClerkService).useValue(clerk)
+    .compile();
   const app = module.createNestApplication({ logger: false }); app.setGlobalPrefix('api'); await app.init();
   // A separate native middleware instance reproduces Nest's wrapper/provider provenance sharing.
   const middleware = new TenantContextMiddleware(clerk as any, prisma as any, module.get(TenantContextStore));

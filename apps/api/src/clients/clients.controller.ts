@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -20,9 +20,11 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { TenantContext } from '@capiro/shared';
+import type { Request, Response } from 'express';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { PreviewNativeReadService } from '../auth/preview-native-read.service.js';
 import { DURABLE_SET_ASIDE_CERTIFICATIONS } from '../funding-opportunities/set-aside.js';
 import { ClientsService } from './clients.service.js';
 import { CLIENT_ORGANIZATION_TYPES } from './client-funding-profile.validation.js';
@@ -324,10 +326,29 @@ class UpdateMemoryAccessDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class ClientsController {
-  constructor(private readonly service: ClientsService) {}
+  constructor(
+    private readonly service: ClientsService,
+    private readonly preview: PreviewNativeReadService,
+  ) {}
 
   @Get()
-  list(@CurrentTenant() ctx: TenantContext, @Query() query: ListClientsQueryDto) {
+  list(
+    @CurrentTenant() ctx: TenantContext,
+    @Query() query: ListClientsQueryDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (this.preview.mode(req, res)) {
+      if (query.includeArchived !== undefined && query.includeArchived !== 'false') {
+        throw new BadRequestException('Archived clients are unavailable in preview');
+      }
+      return this.preview.run(req, res, ctx, (visibleClientIds) =>
+        this.service.listPreviewVisible(ctx, {
+          profileStatus: query.profileStatus,
+          sectorTag: query.sectorTag,
+        }, visibleClientIds),
+      );
+    }
     return this.service.list(ctx, {
       profileStatus: query.profileStatus,
       sectorTag: query.sectorTag,
@@ -336,7 +357,17 @@ export class ClientsController {
   }
 
   @Get(':id')
-  get(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  get(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (this.preview.mode(req, res)) {
+      return this.preview.run(req, res, ctx, (visibleClientIds) =>
+        this.service.getPreviewVisible(ctx, id, visibleClientIds),
+      );
+    }
     return this.service.get(ctx, id);
   }
 

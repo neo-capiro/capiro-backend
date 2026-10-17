@@ -15,6 +15,7 @@ import {
   Injectable,
   Logger,
   NestMiddleware,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
@@ -35,6 +36,7 @@ import {
   type ApplicationAuthorityIdentityEvidence,
   type ApplicationAuthorityIdentityProof,
 } from '../auth/application-authority.js';
+import { isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
 
 type SystemTx = Prisma.TransactionClient;
 type MembershipWithTenant = Prisma.TenantMembershipGetPayload<{ include: { tenant: true } }>;
@@ -136,6 +138,19 @@ export class TenantContextMiddleware implements NestMiddleware {
       );
       next();
       return;
+    }
+
+    // The preview's three GETs must not pass through the ordinary provisioning,
+    // identity-rebind, membership self-heal or lastSeenAt write path. Resolve an
+    // existing native member only; the same request is checked again at release.
+    if (isPreviewNativeReadRoute(req)) {
+      const mode = previewNativeReadMode(process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true', req.headers.host);
+      if (mode !== 'ordinary') {
+        res.setHeader('Cache-Control', 'no-store');
+        if (mode === 'unavailable') throw new ServiceUnavailableException('Preview reads unavailable');
+        await this.usePreviewNativeRead(req, next);
+        return;
+      }
     }
 
     // Step 1, verify Clerk JWT.
@@ -407,6 +422,62 @@ export class TenantContextMiddleware implements NestMiddleware {
         impersonationId: selectedAuthorityImpersonation,
       });
     }
+    this.store.run(ctx, () => next());
+  }
+
+  /** Read-only preview context. A missing local user/member is a denial, never a repair. */
+  private async usePreviewNativeRead(req: Request, next: NextFunction): Promise<void> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    const auth = req.headers.authorization;
+    if (!auth || !auth.toLowerCase().startsWith('bearer ')) throw new UnauthorizedException('Missing bearer token');
+    let claims: ClerkSessionClaims;
+    try {
+      claims = await this.clerk.verifySessionToken(auth.slice('bearer '.length).trim());
+    } catch {
+      throw new UnauthorizedException('Invalid session token');
+    }
+    // This online sid/sub/exp check runs BEFORE even the first local DB read.
+    await this.clerk.assertActiveApplicationAuthoritySession(claims);
+    if (req.header('x-capiro-impersonate-tenant')) throw denied();
+    const requestedSlug = this.resolveRequestedTenantSlug(req);
+    const claimedTenantId = nonEmpty(claims.capiro_tenant_id);
+    const claimedTenantSlug = nonEmpty(claims.capiro_tenant_slug);
+    const claimedOrgId = nonEmpty(claims.org_id);
+    const selected = await this.prisma.withSystem(async (tx) => {
+      const user = await tx.user.findUnique({ where: { clerkUserId: claims.sub } });
+      if (!user || user.clerkUserId !== claims.sub) throw denied();
+      const memberships = await tx.tenantMembership.findMany({
+        where: { userId: user.id, status: 'active' }, include: { tenant: true },
+      });
+      const chosen = memberships.find((m) => claimedTenantId && m.tenantId === claimedTenantId) ??
+        memberships.find((m) => claimedOrgId && m.tenant.clerkOrgId === claimedOrgId) ??
+        memberships.find((m) => claimedTenantSlug && m.tenant.slug.toLowerCase() === claimedTenantSlug.toLowerCase()) ??
+        memberships.find((m) => requestedSlug && m.tenant.slug === requestedSlug) ??
+        (memberships.length === 1 && !claimedTenantId && !claimedOrgId && !claimedTenantSlug && !requestedSlug
+          ? memberships[0] : undefined);
+      if (!chosen || chosen.status !== 'active' || chosen.tenant.status !== 'active' ||
+          (claimedTenantId && chosen.tenantId !== claimedTenantId) ||
+          (claimedTenantSlug && chosen.tenant.slug.toLowerCase() !== claimedTenantSlug.toLowerCase()) ||
+          (claimedOrgId && chosen.tenant.clerkOrgId !== claimedOrgId) ||
+          (requestedSlug && chosen.tenant.slug !== requestedSlug)) throw denied();
+      return { user, chosen };
+    });
+    const ctx: TenantContext = {
+      tenantId: selected.chosen.tenantId,
+      tenantSlug: selected.chosen.tenant.slug,
+      userId: selected.user.id,
+      clerkUserId: selected.user.clerkUserId,
+      role: selected.chosen.role as TenantRole,
+    };
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    applicationAuthorityRequests.set(req, {
+      context: ctx,
+      claims: { ...claims },
+      membershipId: selected.chosen.id,
+      membershipTenantId: selected.chosen.tenantId,
+      requestedSlug,
+      impersonationId: null,
+    });
     this.store.run(ctx, () => next());
   }
 
