@@ -4,7 +4,6 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as kms from 'aws-cdk-lib/aws-kms';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
@@ -91,19 +90,14 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       { mutable: false },
     );
     const repository = ecr.Repository.fromRepositoryName(this, 'PreviewCoreRepository', imageRepoName);
-    const dataKey = kms.Key.fromKeyArn(this, 'ExistingDataKey', live.dataKeyArn);
-    const secretsKey = kms.Key.fromKeyArn(this, 'ExistingSecretsKey', live.secretsKeyArn);
     const appCredential = secrets.Secret.fromSecretAttributes(this, 'ExistingAppCredential', {
       secretCompleteArn: live.dbAppSecretArn,
-      encryptionKey: dataKey,
     });
     const clerk = secrets.Secret.fromSecretAttributes(this, 'ExistingClerkCredential', {
       secretCompleteArn: live.clerkSecretArn,
-      encryptionKey: secretsKey,
     });
     const clerkWebhook = secrets.Secret.fromSecretAttributes(this, 'ExistingClerkWebhook', {
       secretCompleteArn: live.clerkWebhookSecretArn,
-      encryptionKey: secretsKey,
     });
     const image = ecs.ContainerImage.fromRegistry(
       `${account}.dkr.ecr.${region}.amazonaws.com/${imageRepoName}@${binding.imageDigest}`,
@@ -116,8 +110,13 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     appCredential.grantRead(serveExecutionRole);
     clerk.grantRead(serveExecutionRole);
     clerkWebhook.grantRead(serveExecutionRole);
-    dataKey.grantDecrypt(serveExecutionRole);
-    secretsKey.grantDecrypt(serveExecutionRole);
+    serveExecutionRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['kms:Decrypt'],
+      resources: [live.dataKeyArn, live.secretsKeyArn],
+      conditions: {
+        StringEquals: { 'kms:ViaService': 'secretsmanager.us-east-1.amazonaws.com' },
+      },
+    }));
     const serveTask = new ecs.FargateTaskDefinition(this, 'ServeTask', {
       family: 'capiro-preview-first-chat-core',
       cpu: 512,

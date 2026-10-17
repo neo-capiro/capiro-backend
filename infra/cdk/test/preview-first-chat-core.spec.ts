@@ -112,13 +112,17 @@ test('renders only a held service with four public POST paths and no migration o
   assert.equal(resources.filter((r) => r.Type === 'AWS::SecretsManager::Secret').length, 0);
   assert.doesNotMatch(JSON.stringify(stack), /\/capiro\/dev\/aurora\/master-/);
   const executionPolicy = resources.find((r) => r.Type === 'AWS::IAM::Policy');
-  const decryptKeys = executionPolicy.Properties.PolicyDocument.Statement.filter(
+  const decryptStatements = executionPolicy.Properties.PolicyDocument.Statement.filter(
     (statement: any) => statement.Action === 'kms:Decrypt',
-  ).map((statement: any) => statement.Resource).sort();
-  assert.deepEqual(decryptKeys, [
+  );
+  assert.equal(decryptStatements.length, 1);
+  assert.deepEqual([...decryptStatements[0].Resource].sort(), [
     'arn:aws:kms:us-east-1:967807252336:key/efe8a18d-192e-4f30-8eea-b3f65ae7755e',
     'arn:aws:kms:us-east-1:967807252336:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e',
   ]);
+  assert.deepEqual(decryptStatements[0].Condition, {
+    StringEquals: { 'kms:ViaService': 'secretsmanager.us-east-1.amazonaws.com' },
+  });
 
   const targets = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup');
   assert.equal(targets.length, 1);
