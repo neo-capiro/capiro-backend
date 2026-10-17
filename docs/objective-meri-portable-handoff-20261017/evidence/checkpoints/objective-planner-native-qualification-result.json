@@ -1,0 +1,20 @@
+{
+  "outcome": "PASSED_WITH_VERIFIED_OWNED_CLEANUP",
+  "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+  "doesNotQualify": "7da0c2caf7496ec470a4be922f525e96173ac0b0 or later shared-codec/status/regeneration/historical changes",
+  "explicitNeoApproval": "2026-10-17 00:36:33 UTC; local disposable credentials/schema and cleanup; no AWS/application database",
+  "runnerSha256": "cd8ff0c25c9bff978e665c39a8df3d364bfabd10c85c387c30c935918a2a7ddb",
+  "originalRunnerPreserved": "run-isolated-sourceplan-approved-38b39.ps1",
+  "runId": "90ac1a229e664ccab6c2ad82be69813e",
+  "postgresVersion": "16.15",
+  "target": "127.0.0.1:56455/planner_qa",
+  "runtimeRole": "capiro_app; no owner membership, superuser or BYPASSRLS",
+  "baseline": "38 hashed units: focused Core baseline, all 28 Strategy and six Objective migrations; vector omitted; not full Core replay",
+  "tests": { "nativePassed": 12, "defaultOffPassed": 1, "nativeSkipped": 0, "suiteExit": 0 },
+  "commandsLogSha256": "be3db152152faa35739c71ce391888e6633ca02bcd0d6ef6cef74fc8705cf53f",
+  "cleanup": { "exactClusterRemoved": true, "postmasterPidGone": true, "listener56455Removed": true, "testCredentialsRetiredWithCluster": true, "host5432ListenersUnchanged": 2, "nativeCheckoutClean": true },
+  "secretReview": "Independent review found no raw credential URL, password assignment or96-hex disposable secret in commands.log",
+  "independentReview": "Source pin, plan, manifest, outcome, log and cleanup independently verified without rerun",
+  "evidenceDirectory": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e",
+  "productionActions": false
+}

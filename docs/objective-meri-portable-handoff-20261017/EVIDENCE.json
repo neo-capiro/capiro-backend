@@ -1,0 +1,875 @@
+{
+  "schemaVersion": 1,
+  "kind": "portable-objective-meri-source-handoff-evidence",
+  "sourceBase": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+  "originRoot": "task-5 (historical task-relative labels; not required machine paths)",
+  "scan": {
+    "candidateFiles": 48,
+    "candidateBytes": 370631,
+    "credentialPatternFindings": 0,
+    "disallowedControlFindings": 0,
+    "method": "bounded UTF-8 decode and six credential pattern families before copy; no live configuration or credential files selected",
+    "reviewedNonCredentialCodeMatches": [
+      {
+        "originRelative": "run-isolated-sourceplan.ps1",
+        "line": 369,
+        "pattern": "postgres-credential-url",
+        "disposition": "Reviewed variable-only string concatenation in archived driver source; no credential value retained"
+      },
+      {
+        "originRelative": "run-isolated-retained-head.ps1",
+        "line": 369,
+        "pattern": "postgres-credential-url",
+        "disposition": "Reviewed variable-only string concatenation in archived driver source; no credential value retained"
+      }
+    ],
+    "limits": "Pattern scan is not exhaustive secret detection. UUID ownership tokens are public disposable-cluster metadata."
+  },
+  "archiveBytes": 370631,
+  "entries": [
+    {
+      "originRelative": "objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/cleanup.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/cleanup.json",
+      "bytes": 88,
+      "sha256": "ee76049a5556a44ac365469cbac63cefa78c12548758b11f3266093b18c949d0",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "1e1fb8dca05e4a5aa6989fba71ba6982",
+        "classification": "partial-startup-not-qualified",
+        "hasOutcome": false,
+        "reason": "Server start/connection-refused path; no completed suite outcome",
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/commands.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/commands.log.txt",
+      "bytes": 2137,
+      "sha256": "05a9d2ee4e8d9dc03db43f6c3939f413dac5d08bedef052f514dd608a1058c63",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "1e1fb8dca05e4a5aa6989fba71ba6982",
+        "classification": "partial-startup-not-qualified",
+        "hasOutcome": false,
+        "reason": "Server start/connection-refused path; no completed suite outcome",
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/postgres-sanitized.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/postgres-sanitized.log.txt",
+      "bytes": 1881,
+      "sha256": "90262f77258d043b51fe520840ff59d6ab60e77c5606a1600c589d43e9e6c113",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "1e1fb8dca05e4a5aa6989fba71ba6982",
+        "classification": "partial-startup-not-qualified",
+        "hasOutcome": false,
+        "reason": "Server start/connection-refused path; no completed suite outcome",
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/sourceplan.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/1e1fb8dca05e4a5aa6989fba71ba6982/sourceplan.json",
+      "bytes": 21714,
+      "sha256": "7a46e2abdd525d219c389d81c2ef7f5646c9bba999cf00747db4d4158fce67ed",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "1e1fb8dca05e4a5aa6989fba71ba6982",
+        "classification": "partial-startup-not-qualified",
+        "hasOutcome": false,
+        "reason": "Server start/connection-refused path; no completed suite outcome",
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/cleanup.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/cleanup.json",
+      "bytes": 88,
+      "sha256": "ee76049a5556a44ac365469cbac63cefa78c12548758b11f3266093b18c949d0",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "90ac1a229e664ccab6c2ad82be69813e",
+        "classification": "qualified-historical-b8-only",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 13,
+        "nativePassed": 12,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/commands.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/commands.log.txt",
+      "bytes": 11833,
+      "sha256": "be3db152152faa35739c71ce391888e6633ca02bcd0d6ef6cef74fc8705cf53f",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "90ac1a229e664ccab6c2ad82be69813e",
+        "classification": "qualified-historical-b8-only",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 13,
+        "nativePassed": 12,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/outcome.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/outcome.json",
+      "bytes": 98,
+      "sha256": "1b6532997564f652cdf5dc0086123cf0662e79586916850c72714edb651605a1",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "90ac1a229e664ccab6c2ad82be69813e",
+        "classification": "qualified-historical-b8-only",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 13,
+        "nativePassed": 12,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/owned-target.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/owned-target.json",
+      "bytes": 832,
+      "sha256": "9ae33d5c77ec0bb2eec102cb445cc7ccae22066f574970ee2e07505d9e1d74a3",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "90ac1a229e664ccab6c2ad82be69813e",
+        "classification": "qualified-historical-b8-only",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 13,
+        "nativePassed": 12,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/postgres-sanitized.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/postgres-sanitized.log.txt",
+      "bytes": 1363,
+      "sha256": "aab0d1a2d976f50fc0e005d139bf8b95155835bdfb7a30c0f1adb5f4bb921455",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "90ac1a229e664ccab6c2ad82be69813e",
+        "classification": "qualified-historical-b8-only",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 13,
+        "nativePassed": 12,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/sourceplan.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e/sourceplan.json",
+      "bytes": 21714,
+      "sha256": "7a46e2abdd525d219c389d81c2ef7f5646c9bba999cf00747db4d4158fce67ed",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "runId": "90ac1a229e664ccab6c2ad82be69813e",
+        "classification": "qualified-historical-b8-only",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 13,
+        "nativePassed": 12,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/cleanup.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/cleanup.json",
+      "bytes": 88,
+      "sha256": "ee76049a5556a44ac365469cbac63cefa78c12548758b11f3266093b18c949d0",
+      "sourcePin": "3ebecd93f3d5a99e1d9346b2710a3605591ed9d3",
+      "result": {
+        "runId": "06b740e91e434629ba943bb6cf977ded",
+        "classification": "failed-native-catalog-guard-not-qualified",
+        "hasOutcome": false,
+        "passed": 1,
+        "failed": 18,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/commands.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/commands.log.txt",
+      "bytes": 25297,
+      "sha256": "20d5dd3538764e9b425cb23c15872987d5019383963eed7f56d4af742bfcea71",
+      "sourcePin": "3ebecd93f3d5a99e1d9346b2710a3605591ed9d3",
+      "result": {
+        "runId": "06b740e91e434629ba943bb6cf977ded",
+        "classification": "failed-native-catalog-guard-not-qualified",
+        "hasOutcome": false,
+        "passed": 1,
+        "failed": 18,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/owned-target.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/owned-target.json",
+      "bytes": 831,
+      "sha256": "cc3c56e24bbc42b14fe027ba6a67b3d027b77251ad33b73bb05c33381999e527",
+      "sourcePin": "3ebecd93f3d5a99e1d9346b2710a3605591ed9d3",
+      "result": {
+        "runId": "06b740e91e434629ba943bb6cf977ded",
+        "classification": "failed-native-catalog-guard-not-qualified",
+        "hasOutcome": false,
+        "passed": 1,
+        "failed": 18,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/postgres-sanitized.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/postgres-sanitized.log.txt",
+      "bytes": 1170,
+      "sha256": "78f58bef6b51bcedec5c22df029f046356edaddaf6d5027f0976b52edd0a7ef9",
+      "sourcePin": "3ebecd93f3d5a99e1d9346b2710a3605591ed9d3",
+      "result": {
+        "runId": "06b740e91e434629ba943bb6cf977ded",
+        "classification": "failed-native-catalog-guard-not-qualified",
+        "hasOutcome": false,
+        "passed": 1,
+        "failed": 18,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/sourceplan.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/06b740e91e434629ba943bb6cf977ded/sourceplan.json",
+      "bytes": 21714,
+      "sha256": "d5b1d5a9bdd89cdda35c389f2ef055707ce9e1cd167dc7b45e4f15c2e62815f3",
+      "sourcePin": "3ebecd93f3d5a99e1d9346b2710a3605591ed9d3",
+      "result": {
+        "runId": "06b740e91e434629ba943bb6cf977ded",
+        "classification": "failed-native-catalog-guard-not-qualified",
+        "hasOutcome": false,
+        "passed": 1,
+        "failed": 18,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/cleanup.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/cleanup.json",
+      "bytes": 88,
+      "sha256": "ee76049a5556a44ac365469cbac63cefa78c12548758b11f3266093b18c949d0",
+      "sourcePin": "a82e49b1d6c0949b898b914840ece813008fe2e7",
+      "result": {
+        "runId": "0f0d742263cd40689cf6b0bcff4e2c53",
+        "classification": "failed-native-core-proof-not-qualified",
+        "hasOutcome": false,
+        "passed": 16,
+        "failed": 3,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/commands.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/commands.log.txt",
+      "bytes": 14731,
+      "sha256": "8d225f88d219d790b74de1af0d48de7153a86f2d6e8deee8c778eada0d43eadc",
+      "sourcePin": "a82e49b1d6c0949b898b914840ece813008fe2e7",
+      "result": {
+        "runId": "0f0d742263cd40689cf6b0bcff4e2c53",
+        "classification": "failed-native-core-proof-not-qualified",
+        "hasOutcome": false,
+        "passed": 16,
+        "failed": 3,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/owned-target.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/owned-target.json",
+      "bytes": 884,
+      "sha256": "5e7c54045ed934a84ca8091ff97247f87acb3506295533cf65975f83db7faf03",
+      "sourcePin": "a82e49b1d6c0949b898b914840ece813008fe2e7",
+      "result": {
+        "runId": "0f0d742263cd40689cf6b0bcff4e2c53",
+        "classification": "failed-native-core-proof-not-qualified",
+        "hasOutcome": false,
+        "passed": 16,
+        "failed": 3,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/postgres-sanitized.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/postgres-sanitized.log.txt",
+      "bytes": 1891,
+      "sha256": "071e03b6bfaa0f677d5f4fbc764f0bd4c49a9b4a67196183de08ba915c45299a",
+      "sourcePin": "a82e49b1d6c0949b898b914840ece813008fe2e7",
+      "result": {
+        "runId": "0f0d742263cd40689cf6b0bcff4e2c53",
+        "classification": "failed-native-core-proof-not-qualified",
+        "hasOutcome": false,
+        "passed": 16,
+        "failed": 3,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/sourceplan.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/0f0d742263cd40689cf6b0bcff4e2c53/sourceplan.json",
+      "bytes": 21714,
+      "sha256": "8be0c01e4a34a8d30d0fa4e8e272db482b296b86c19a181d94cb34e3ac8f2165",
+      "sourcePin": "a82e49b1d6c0949b898b914840ece813008fe2e7",
+      "result": {
+        "runId": "0f0d742263cd40689cf6b0bcff4e2c53",
+        "classification": "failed-native-core-proof-not-qualified",
+        "hasOutcome": false,
+        "passed": 16,
+        "failed": 3,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "No outcome.json: this run is not qualified"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/cleanup.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/cleanup.json",
+      "bytes": 88,
+      "sha256": "ee76049a5556a44ac365469cbac63cefa78c12548758b11f3266093b18c949d0",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+        "classification": "qualified-pr50-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/commands.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/commands.log.txt",
+      "bytes": 11009,
+      "sha256": "f597ed0fd01e5ea88b72f83b2ce9a5796b33357e48a31e9d222a6aec29408c20",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+        "classification": "qualified-pr50-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/outcome.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/outcome.json",
+      "bytes": 98,
+      "sha256": "c5f22fffb0eebadd37058ccaed1332815933b52f5278353313a28ef3d2d3e68f",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+        "classification": "qualified-pr50-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/owned-target.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/owned-target.json",
+      "bytes": 884,
+      "sha256": "eeaa0b7a64b4e18d00f64d72af70d7fd9aa3407d2acbbd7ab2bc838086f2aad9",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+        "classification": "qualified-pr50-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/postgres-sanitized.log",
+      "archivePath": "evidence/native/objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/postgres-sanitized.log.txt",
+      "bytes": 1723,
+      "sha256": "b728a0a594300b5f943cf2de17a51e0b757809e2a41856ff7c8a371a6fb8924a",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+        "classification": "qualified-pr50-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/sourceplan.json",
+      "archivePath": "evidence/native/objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9/sourceplan.json",
+      "bytes": 21714,
+      "sha256": "7eb5f67df5ca8aa2ac894a6340d5f85049c0b560821c0583f52cc6fce970e985",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+        "classification": "qualified-pr50-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/cleanup.json",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/cleanup.json",
+      "bytes": 88,
+      "sha256": "ee76049a5556a44ac365469cbac63cefa78c12548758b11f3266093b18c949d0",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/commands.log",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/commands.log.txt",
+      "bytes": 11065,
+      "sha256": "41b2f1fb694a1cb5b6750485e37711f84c06fa5c5c7a73331f6c4616aeae20f8",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/outcome.json",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/outcome.json",
+      "bytes": 98,
+      "sha256": "d72846f865620531882c68e1d33c29aa257fcd6676964715fca8dc9c7b7fd3ec",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/owned-target.json",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/owned-target.json",
+      "bytes": 896,
+      "sha256": "d4c0a8d99f41980b55cca346f0e0c98f0f0c6f518fa6773e6ba7d8b90a97fcfa",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/postgres-sanitized.log",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/postgres-sanitized.log.txt",
+      "bytes": 1723,
+      "sha256": "4aa3ad70efc9519a013d38757b042ec25929579f7afd24d04e6624eabce7f285",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/postrun-verification.json",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/postrun-verification.json",
+      "bytes": 850,
+      "sha256": "5ed197e7419cd01590578a1c70c4864add383b9dffd0b510f1e8b5cef5fcd2bb",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/sourceplan.json",
+      "archivePath": "evidence/native/objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3/sourceplan.json",
+      "bytes": 21732,
+      "sha256": "43568af44a14700678ed733d07da8475162ec10362b551757ab4c9873f427bf8",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+        "classification": "qualified-pr51-final-exact-source",
+        "hasOutcome": true,
+        "nativeSuiteExit": 0,
+        "passed": 20,
+        "nativePassed": 19,
+        "defaultOffPassed": 1,
+        "cleanupRecord": {
+          "exactClusterRemoved": true,
+          "listenerRemoved": true,
+          "credentialsRetiredWithCluster": true
+        },
+        "note": "outcome cleanupPending is pre-finally; separate cleanup/review records apply"
+      }
+    },
+    {
+      "originRelative": "objective-planner-final-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-final-independent-review.md",
+      "bytes": 10108,
+      "sha256": "8a189ef9cd5eeba19b518b66bf8a24c78693a07e0a94d0c87cc8137f6de87e51",
+      "sourcePin": "7da0c2caf7496ec470a4be922f525e96173ac0b0",
+      "result": {
+        "classification": "accepted-source-predecessor-tree-a5a7542"
+      }
+    },
+    {
+      "originRelative": "objective-planner-history-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-history-independent-review.md",
+      "bytes": 9160,
+      "sha256": "552302ec652818fdd07d42121523034490ba4a4902ec4f830b76a4430aadcdb2",
+      "sourcePin": null,
+      "result": {
+        "classification": "SUPERSEDED-WITHDRAWN-publication-hold-tree-4883e34"
+      }
+    },
+    {
+      "originRelative": "objective-planner-history-final-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-history-final-independent-review.md",
+      "bytes": 10322,
+      "sha256": "f2de106e4b156d5562d233c6e408cdb86a362036317877a3bb1aee428bc9bef5",
+      "sourcePin": "a2b35fb64548caa5f96f25c97bda6d2f5055be93",
+      "result": {
+        "classification": "accepted-source-chronology-successor"
+      }
+    },
+    {
+      "originRelative": "objective-planner-kernel-final-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-kernel-final-independent-review.md",
+      "bytes": 9876,
+      "sha256": "33daec3d5518815006924ce09ce1d88f1a57069d4877fdea6b9c8e3f83a69fc7",
+      "sourcePin": "3ebecd93f3d5a99e1d9346b2710a3605591ed9d3",
+      "result": {
+        "classification": "accepted-source-kernel-successor-not-native-result"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-target-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-native-target-independent-review.md",
+      "bytes": 6733,
+      "sha256": "57538895d7a0fa3838c46a42c4900bb0cefd3cf6644cd1c4e8e95f5ffcdec7a9",
+      "sourcePin": "a82e49b1d6c0949b898b914840ece813008fe2e7",
+      "result": {
+        "classification": "accepted-source-catalog-clock-guard-successor"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-role-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-native-role-independent-review.md",
+      "bytes": 8660,
+      "sha256": "ac593f3cdf6228f9a0b7b22f295de2cd276cc12e759000e816fc47b9ef86642a",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "classification": "accepted-final-pr50-source"
+      }
+    },
+    {
+      "originRelative": "objective-planner-final-native-independent-review.md",
+      "archivePath": "evidence/reviews/objective-planner-final-native-independent-review.md",
+      "bytes": 7104,
+      "sha256": "984e54d798b1b927317a9db5116c0ee60bbf5424ffd3a352ac23acacbb2551c4",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "classification": "accepted-final-pr50-bounded-native-evidence"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-final-independent-review.md",
+      "archivePath": "evidence/reviews/objective-retained-head-final-independent-review.md",
+      "bytes": 9300,
+      "sha256": "e3eec6f7e027d1b4d4b93aef6946abedc3c457106484887186e59af42a561c6d",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "classification": "accepted-final-pr51-source"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-final-native-independent-review.md",
+      "archivePath": "evidence/reviews/objective-retained-head-final-native-independent-review.md",
+      "bytes": 7685,
+      "sha256": "7740f29f5888def56733c7a9a1c44bfff36685015655f5e6983b77cff889ae86",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "classification": "accepted-final-pr51-bounded-native-evidence"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-qualification-result.json",
+      "archivePath": "evidence/checkpoints/objective-planner-native-qualification-result.json",
+      "bytes": 1628,
+      "sha256": "36fa5ae0b074d46ee012bb7a9cb29476d50f3a52a27d8cb1c7b18bd3221eeb3b",
+      "sourcePin": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+      "result": {
+        "classification": "historical-b8-only-qualified-result"
+      }
+    },
+    {
+      "originRelative": "objective-planner-native-final-qualification-result.json",
+      "archivePath": "evidence/checkpoints/objective-planner-native-final-qualification-result.json",
+      "bytes": 3027,
+      "sha256": "e71a48e7cb8106cf255559d840e4f61da862181f78ab8dc437afbed32c703205",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "classification": "final-pr50-bounded-native-qualified-result"
+      }
+    },
+    {
+      "originRelative": "objective-planner-source-checkpoint.json",
+      "archivePath": "evidence/checkpoints/objective-planner-source-checkpoint.json",
+      "bytes": 5944,
+      "sha256": "9013ee0514e7bb006f3b7977334f7480384748cc544f7fc4b104ab1c5a7dfed9",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "classification": "final-pr50-source-and-native-checkpoint-historical-limits"
+      }
+    },
+    {
+      "originRelative": "objective-retained-head-qualified-checkpoint.json",
+      "archivePath": "evidence/checkpoints/objective-retained-head-qualified-checkpoint.json",
+      "bytes": 3838,
+      "sha256": "29ab6d580a0d703d8267665cdd89d6dfe17cfcdbfd72b5b90ba42249531ddd4c",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "classification": "final-pr51-source-and-native-checkpoint"
+      }
+    },
+    {
+      "originRelative": "run-isolated-sourceplan.ps1",
+      "archivePath": "evidence/drivers/run-isolated-sourceplan.ps1.txt",
+      "bytes": 27552,
+      "sha256": "717bade635a69fd71a425eff35ffd821da569277d3f2de520005b49bec6af5c5",
+      "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "result": {
+        "classification": "reviewed-historical-driver-reference-only-not-executable-or-approval"
+      }
+    },
+    {
+      "originRelative": "run-isolated-retained-head.ps1",
+      "archivePath": "evidence/drivers/run-isolated-retained-head.ps1.txt",
+      "bytes": 27570,
+      "sha256": "76c30a3fa8a3cf8b4f2ebfb41212db337a0004c58ab6d37de5759a417795b945",
+      "sourcePin": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "result": {
+        "classification": "reviewed-historical-driver-reference-only-not-executable-or-approval"
+      }
+    }
+  ]
+}

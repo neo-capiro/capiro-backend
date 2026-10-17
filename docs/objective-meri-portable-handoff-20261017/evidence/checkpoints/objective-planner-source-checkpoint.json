@@ -1,0 +1,112 @@
+{
+  "kind": "REVIEWED_DRAFT_SOURCE_CHECKPOINT",
+  "repository": "neo-capiro/capiro-backend",
+  "draftPullRequest": "https://github.com/neo-capiro/capiro-backend/pull/50",
+  "branch": "feat/objective-planner-runtime-composition-20261016",
+  "head": "5591eac08428635bf911a0aa32acea859e2a5d95",
+  "tree": "27cd4e6aa46fecf7fcc9fb860870e9e97ae73983",
+  "basePullRequest49": "db6ef0a617f4b570cadfa6e05bad7296017d0f70",
+  "objectivePullRequest42": "6d24414da975b52ab9802a883b22c868ad14fc92",
+  "implemented": [
+    "Server-owned Planner continuation with complete accepted Objective/government/relationship and saved Strategy context",
+    "Closed advanced-current-source witness permits new explicit Plan-only human consent without renewing old operation/receipt/deadline",
+    "Complete applied v2/v3 and historical terminal native lineage verification with immutable-ledger-compatible reads"
+  ],
+  "focusedValidation": {
+    "finalAffectedProofAndStatusPassed": 108,
+    "finalAffectedConcreteOwnerPassed": 111,
+    "ownershipGuardPassed": 83,
+    "nativeHelperPassed": 7,
+    "priorKernelCommandAndOwnerPassed": 181,
+    "priorCoreAndMountPassed": 33,
+    "strictAffectedGraphsPassed": true,
+    "countsOverlapDoNotSum": true
+  },
+  "nativeQualification": {
+    "outcome": "PASSED_WITH_VERIFIED_OWNED_CLEANUP",
+    "sourcePin": "5591eac08428635bf911a0aa32acea859e2a5d95",
+    "tree": "27cd4e6aa46fecf7fcc9fb860870e9e97ae73983",
+    "base": "db6ef0a617f4b570cadfa6e05bad7296017d0f70",
+    "draftPullRequest": "https://github.com/neo-capiro/capiro-backend/pull/50",
+    "runId": "27e98d3a48a44c5081d7ca465f045ce9",
+    "runnerSha256": "717bade635a69fd71a425eff35ffd821da569277d3f2de520005b49bec6af5c5",
+    "postgresVersion": "16.15",
+    "target": "127.0.0.1:56455/planner_qa",
+    "runtimeRole": "capiro_app; no owner membership, superuser or BYPASSRLS",
+    "baseline": "38 hashed units: focused Core baseline, all28 Strategy and six Objective migrations; vector omitted; not full Core replay",
+    "tests": {
+      "nativePassed": 19,
+      "defaultOffPassed": 1,
+      "totalPassed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "preflightPassed": 13,
+      "preflightNativeSkipped": 19,
+      "loggedChildExits": 52,
+      "nonzeroChildExits": 0,
+      "suiteExit": 0
+    },
+    "commandsLogSha256": "f597ed0fd01e5ea88b72f83b2ce9a5796b33357e48a31e9d222a6aec29408c20",
+    "sourceplanSha256": "7eb5f67df5ca8aa2ac894a6340d5f85049c0b560821c0583f52cc6fce970e985",
+    "cleanup": {
+      "exactClusterRemoved": true,
+      "postmasterPidGone": true,
+      "listener56455Removed": true,
+      "testCredentialsRetiredWithCluster": true,
+      "host5432ListenersUnchanged": 2,
+      "nativeCheckoutClean": true,
+      "sourceCheckoutClean": true,
+      "recordedPostmasterPid": 15016
+    },
+    "evidenceDirectory": "objective-planner-native-evidence/27e98d3a48a44c5081d7ca465f045ce9",
+    "independentSourceReview": {
+      "receipt": "objective-planner-native-role-independent-review.md",
+      "sha256": "ac593f3cdf6228f9a0b7b22f295de2cd276cc12e759000e816fc47b9ef86642a",
+      "tree": "27cd4e6aa46fecf7fcc9fb860870e9e97ae73983"
+    },
+    "independentNativeEvidenceReview": {
+      "outcome": "ACCEPTED_NO_REMAINING_EVIDENCE_BLOCKER",
+      "receipt": "objective-planner-final-native-independent-review.md",
+      "sha256": "984e54d798b1b927317a9db5116c0ee60bbf5424ffd3a352ac23acacbb2551c4",
+      "verified": "Exact source/tree, all38 SQL units,13preflight,20enabled,52child exits0,sanitized six-file evidence, ownedcleanup and host5432PID4936 unchanged"
+    },
+    "limits": [
+      "Synthetic current request-proof adapter, Strategy-generation consent and Meri/provider custody observations",
+      "No real HTTP/JWT/session/protected issuance, operational Strategy retry/SDK/provider or frontend acceptance",
+      "Immediate new-consent status with older applied head can remain outcome_unconfirmed",
+      "No full Core migration replay or real socket/commit-ack failure injection"
+    ],
+    "priorFailedAttemptsPreserved": [
+      "objective-planner-native-final-resource-gate.json",
+      "objective-planner-native-final-first-attempt.json",
+      "objective-planner-native-final-second-attempt.json"
+    ],
+    "postTestSourceCommit": false,
+    "productionActions": false,
+    "recordedAtUtc": "2026-10-17T01:36:31.3387819Z"
+  },
+  "remainingGaps": [
+    "Synthetic current request-proof adapter, Strategy-generation consent and Meri/provider custody observations",
+    "No real HTTP/JWT/session/protected issuance, operational Strategy retry/SDK/provider or frontend acceptance",
+    "Immediate new-consent status with older applied head can remain outcome_unconfirmed",
+    "No full Core migration replay or real socket/commit-ack failure injection"
+  ],
+  "nextBoundedSourceSlice": "Complete old-applied-head anchor contract for current not-started/failed status without inferring completion or weakening original authority",
+  "shippingOwner": "Dot; independent source lane only",
+  "shippingPinsAndRuntimeBindingsChanged": false,
+  "mergeOrDeployPerformed": false,
+  "optionalResourceNotice": {
+    "action": "send_message_to_thread",
+    "target": "Resume Portfolio and Modules / 01a14534-18b7-7234-b9c6-9e34393c20e9",
+    "outcome": "DENIED_BEFORE_SEND",
+    "reason": "Automatic approval review found no explicit authorization for messaging this specific task/thread",
+    "messagePurpose": "Optional verified local disk-window release notice",
+    "requestedApproval": "Native task async input question",
+    "sourceWorkBlocked": false,
+    "nativeQualificationBlocked": false,
+    "retryPerformed": false,
+    "atUtc": "2026-10-17T01:37:18.8759104Z",
+    "finalDisposition": "Leave unsent; parent explicitly said not to retry and will coordinate from completed result"
+  },
+  "nativeEvidenceAccepted": true
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "task-owned-objective-planner-postgres",
+  "owner": "objective-planner-continuation-qualification",
+  "sourceHead": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+  "workspaceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-5\\objective-native-b8",
+  "dataDirectory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-5\\objective-native-b8\\.objective-planner-native\\postgres-data",
+  "hostname": "127.0.0.1",
+  "port": 56455,
+  "database": "planner_qa",
+  "databaseOid": 16386,
+  "runtimeRole": "capiro_app",
+  "processId": 24560,
+  "postmasterStartedAtSeconds": 1792197878,
+  "ownershipToken": "030b4626405a80b9d2294138112dda42ad4fb8d0aeee3cd76d5c37c00b2425ed",
+  "createdAt": "2026-10-17T00:44:45.196Z",
+  "expiresAt": "2026-10-17T02:44:45.198Z"
+}
