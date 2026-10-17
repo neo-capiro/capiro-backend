@@ -33,7 +33,7 @@ test('requires the exact Core source and immutable image digest', () => {
   }
 });
 
-test('renders a retained guard separately from the held service and four POST paths', () => {
+test('renders the retained host guard after four exact POST paths and three bounded GET paths', () => {
   const output = fs.mkdtempSync(path.join(os.tmpdir(), 'capiro-first-chat-'));
   const tempRoot = fs.realpathSync(os.tmpdir());
   try {
@@ -45,12 +45,18 @@ test('renders a retained guard separately from the held service and four POST pa
   assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
   assert.equal(guardRule.DeletionPolicy, 'Retain');
   assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
-  assert.equal(guardRule.Properties.Priority, 3);
+  assert.equal(guardRule.Properties.Priority, 4);
   assert.deepEqual(guardRule.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
   ]);
-  assert.equal(guardRule.Properties.Actions[0].Type, 'fixed-response');
-  assert.equal(guardRule.Properties.Actions[0].FixedResponseConfig.StatusCode, '404');
+  assert.deepEqual(guardRule.Properties.Actions, [{
+    Type: 'fixed-response',
+    FixedResponseConfig: {
+      StatusCode: '404',
+      ContentType: 'application/json',
+      MessageBody: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
+    },
+  }]);
   assert.equal(guardStack.Outputs.PreviewHostGuardRuleArn.Export.Name, FIRST_CHAT_CORE_GUARD_RULE_EXPORT);
   assert.deepEqual(guardStack.Outputs.PreviewHostGuardRuleArn.Value, { Ref: 'RejectOtherPreviewHostTraffic' });
   const stack = Template.fromStack(service).toJSON();
@@ -146,12 +152,16 @@ test('renders a retained guard separately from the held service and four POST pa
   const targets = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup');
   assert.equal(targets.length, 1);
   assert.equal(targets[0].Properties.HealthCheckPath, '/health');
+  const targetLogicalId = Object.entries(stack.Resources).find(
+    ([, resource]: [string, any]) => resource.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup',
+  )?.[0];
+  assert.ok(targetLogicalId);
   assert.deepEqual(
     targets[0].Properties.Tags.find((tag: any) => tag.Key === 'capiro:preview-guard-rule-arn'),
     { Key: 'capiro:preview-guard-rule-arn', Value: { 'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT } },
   );
   const rules = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule');
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2]);
+  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3]);
   const allowed = rules.find((rule) => rule.Properties.Priority === 1);
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig.Values.sort(), [
@@ -173,6 +183,47 @@ test('renders a retained guard separately from the held service and four POST pa
     );
     assert.deepEqual(method.HttpRequestMethodConfig.Values, ['POST']);
   }
+  const reads = rules.find((rule) => rule.Properties.Priority === 3);
+  const readPath = reads.Properties.Conditions.find(
+    (condition: any) => condition.Field === 'path-pattern',
+  );
+  assert.deepEqual(readPath.PathPatternConfig, {
+    RegexValues: [
+      '^/api/me$',
+      '^/api/clients$',
+      '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    ],
+  });
+  const readMethod = reads.Properties.Conditions.find(
+    (condition: any) => condition.Field === 'http-request-method',
+  );
+  assert.deepEqual(readMethod.HttpRequestMethodConfig.Values, ['GET']);
+  const readPatterns = readPath.PathPatternConfig.RegexValues.map((value: string) => new RegExp(value));
+  for (const allowedPath of [
+    '/api/me',
+    '/api/clients',
+    '/api/clients/123e4567-e89b-42d3-a456-426614174000',
+  ]) {
+    assert.ok(readPatterns.some((pattern: RegExp) => pattern.test(allowedPath)), allowedPath);
+  }
+  for (const rejectedPath of [
+    '/api/health',
+    '/health',
+    '/api/clients/',
+    '/api/clients/not-a-uuid',
+    '/api/clients/123e4567-e89b-42d3-a456-426614174000/history',
+    '/api/clio/application-authority/identity',
+    '/api/conversations/history',
+    '/api/me/extra',
+  ]) {
+    assert.ok(readPatterns.every((pattern: RegExp) => !pattern.test(rejectedPath)), rejectedPath);
+  }
+  assert.ok(rules.every((rule) => rule.Properties.Actions.length === 1));
+  assert.ok(rules.every((rule) => rule.Properties.Actions[0].Type === 'forward'));
+  assert.deepEqual(
+    rules.map((rule) => rule.Properties.Actions[0].TargetGroupArn),
+    [1, 2, 3].map(() => ({ Ref: targetLogicalId })),
+  );
   for (const rule of rules) {
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');
     assert.deepEqual(host.HostHeaderConfig.Values, [FIRST_CHAT_CORE_HOST]);
