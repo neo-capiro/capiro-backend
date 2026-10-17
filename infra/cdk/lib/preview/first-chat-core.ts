@@ -14,6 +14,9 @@ export const FIRST_CHAT_CORE_SOURCE = '6542f5b089656b6d255465edd464d06c2a0b408f'
 export const FIRST_CHAT_CORE_IMAGE_DIGEST =
   'sha256:722a483259ebb5e9162b9294c26895bafa890fcfee45dc927ff1d2ec35fa071b';
 export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
+export const FIRST_CHAT_CORE_GUARD_STACK_NAME = 'Capiro-Preview-First-Chat-Core-Guard';
+export const FIRST_CHAT_CORE_GUARD_RULE_EXPORT =
+  'Capiro-Preview-First-Chat-Core-Guard-RuleArn';
 const account = '967807252336';
 const region = 'us-east-1';
 const env = { account, region };
@@ -66,6 +69,36 @@ export function firstChatCoreImageBinding(input: unknown): FirstChatCoreImageBin
     throw new Error('Exact PR48 source and qualified Core image digest required');
   }
   return record as unknown as FirstChatCoreImageBinding;
+}
+
+/** Independent, retained host guard. It must be complete before the service stack. */
+export class FirstChatCoreGuardStack extends cdk.Stack {
+  constructor(scope: Construct, id: string) {
+    super(scope, id, { env });
+    const guard = new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
+      listenerArn: live.listenerArn,
+      priority: 3,
+      conditions: [{ field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } }],
+      actions: [
+        {
+          type: 'fixed-response',
+          fixedResponseConfig: {
+            statusCode: '404',
+            contentType: 'application/json',
+            messageBody: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
+          },
+        },
+      ],
+    });
+    // A failed later service stack, guard-stack rollback, or stack deletion
+    // must not remove the rule and expose this live hostname to production.
+    guard.cfnOptions.deletionPolicy = cdk.CfnDeletionPolicy.RETAIN;
+    guard.cfnOptions.updateReplacePolicy = cdk.CfnDeletionPolicy.RETAIN;
+    new cdk.CfnOutput(this, 'PreviewHostGuardRuleArn', {
+      value: guard.ref,
+      exportName: FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
+    });
+  }
 }
 
 export class FirstChatCoreServiceStack extends cdk.Stack {
@@ -185,6 +218,10 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       targetType: elb.TargetType.IP,
       healthCheck: { path: '/health', healthyHttpCodes: '200' },
     });
+    const guardRuleArn = cdk.Fn.importValue(FIRST_CHAT_CORE_GUARD_RULE_EXPORT);
+    // The imported export is a required TargetGroup property, not merely an
+    // Output evaluated after provisioning. Both forwards reference this target.
+    cdk.Tags.of(target).add('capiro:preview-guard-rule-arn', guardRuleArn);
     const service = new ecs.FargateService(this, 'HeldCoreService', {
       cluster,
       taskDefinition: serveTask,
@@ -198,8 +235,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     service.attachToApplicationTargetGroup(target);
 
     // ALB permits at most three path match evaluations per condition and five
-    // per rule. Keep every POST path exact in two rules. The host-only 404 rule
-    // prevents the global /api/* production route from serving this host.
+    // per rule. Keep every POST path exact in two rules. The separately owned
+    // host-only 404 guard prevents production /api/* fallback on this host.
     const firstChatPosts = new elb.CfnListenerRule(this, 'FirstChatPostsOnly', {
       listenerArn: live.listenerArn,
       priority: 1,
@@ -232,26 +269,11 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
-    const rejectOtherPreviewHostTraffic = new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
-      listenerArn: live.listenerArn,
-      priority: 3,
-      conditions: [{ field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } }],
-      actions: [
-        {
-          type: 'fixed-response',
-          fixedResponseConfig: {
-            statusCode: '404',
-            contentType: 'application/json',
-            messageBody: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
-          },
-        },
-      ],
+    // CloudFormation must resolve an export from the independently completed
+    // guard stack. Its rule is not owned by this stack or removed on rollback.
+    new cdk.CfnOutput(this, 'RequiredPreviewHostGuardRuleArn', {
+      value: guardRuleArn,
     });
-    // Install the host-wide 404 before either forwarding rule so no preview
-    // request can fall through to the production /api/* rule during creation.
-    // CloudFormation reverses these dependencies during deletion.
-    firstChatPosts.addResourceDependency(rejectOtherPreviewHostTraffic);
-    membershipPost.addResourceDependency(rejectOtherPreviewHostTraffic);
     // ECS registration requires the target group to be associated with the
     // listener before CreateService, even while desiredCount is zero.
     service.node.addDependency(firstChatPosts, membershipPost);
@@ -266,6 +288,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
 export function previewFirstChatCoreApplication(input: unknown, outdir: string) {
   const binding = firstChatCoreImageBinding(input);
   const app = new cdk.App({ outdir });
+  const guard = new FirstChatCoreGuardStack(app, FIRST_CHAT_CORE_GUARD_STACK_NAME);
   const service = new FirstChatCoreServiceStack(app, 'Capiro-Preview-First-Chat-Core', binding);
-  return { app, service, binding };
+  service.addStackDependency(guard);
+  return { app, guard, service, binding };
 }

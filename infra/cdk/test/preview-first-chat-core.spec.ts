@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import {
+  FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_DIGEST,
   FIRST_CHAT_CORE_SOURCE,
@@ -32,12 +33,30 @@ test('requires the exact Core source and immutable image digest', () => {
   }
 });
 
-test('renders only a held service with four public POST paths and no migration or registry resource', () => {
+test('renders a retained guard separately from the held service and four POST paths', () => {
   const output = fs.mkdtempSync(path.join(os.tmpdir(), 'capiro-first-chat-'));
   const tempRoot = fs.realpathSync(os.tmpdir());
   try {
-  const { service } = previewFirstChatCoreApplication(binding, output);
+  const { guard, service } = previewFirstChatCoreApplication(binding, output);
+  const guardStack = Template.fromStack(guard).toJSON();
+  const guardResources = Object.values(guardStack.Resources) as any[];
+  assert.equal(guardResources.length, 1);
+  const guardRule = guardResources[0];
+  assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
+  assert.equal(guardRule.DeletionPolicy, 'Retain');
+  assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
+  assert.equal(guardRule.Properties.Priority, 3);
+  assert.deepEqual(guardRule.Properties.Conditions, [
+    { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+  ]);
+  assert.equal(guardRule.Properties.Actions[0].Type, 'fixed-response');
+  assert.equal(guardRule.Properties.Actions[0].FixedResponseConfig.StatusCode, '404');
+  assert.equal(guardStack.Outputs.PreviewHostGuardRuleArn.Export.Name, FIRST_CHAT_CORE_GUARD_RULE_EXPORT);
+  assert.deepEqual(guardStack.Outputs.PreviewHostGuardRuleArn.Value, { Ref: 'RejectOtherPreviewHostTraffic' });
   const stack = Template.fromStack(service).toJSON();
+  assert.deepEqual(stack.Outputs.RequiredPreviewHostGuardRuleArn.Value, {
+    'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
+  });
   const resources = Object.values(stack.Resources) as any[];
   assert.equal(
     resources.filter((r) => r.Type === 'AWS::ECR::Repository').length,
@@ -127,10 +146,13 @@ test('renders only a held service with four public POST paths and no migration o
   const targets = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup');
   assert.equal(targets.length, 1);
   assert.equal(targets[0].Properties.HealthCheckPath, '/health');
+  assert.deepEqual(
+    targets[0].Properties.Tags.find((tag: any) => tag.Key === 'capiro:preview-guard-rule-arn'),
+    { Key: 'capiro:preview-guard-rule-arn', Value: { 'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT } },
+  );
   const rules = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule');
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3]);
+  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2]);
   const allowed = rules.find((rule) => rule.Properties.Priority === 1);
-  assert.ok(allowed.DependsOn.includes('RejectOtherPreviewHostTraffic'));
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig.Values.sort(), [
     '/api/clio/application-authority/context',
@@ -139,7 +161,6 @@ test('renders only a held service with four public POST paths and no migration o
   ]);
   assert.ok(path.PathPatternConfig.Values.every((value: string) => !value.includes('*')));
   const membership = rules.find((rule) => rule.Properties.Priority === 2);
-  assert.ok(membership.DependsOn.includes('RejectOtherPreviewHostTraffic'));
   const membershipPath = membership.Properties.Conditions.find(
     (condition: any) => condition.Field === 'path-pattern',
   );
@@ -156,11 +177,6 @@ test('renders only a held service with four public POST paths and no migration o
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');
     assert.deepEqual(host.HostHeaderConfig.Values, [FIRST_CHAT_CORE_HOST]);
   }
-  assert.equal(
-    rules.find((rule) => rule.Properties.Priority === 3).Properties.Actions[0].FixedResponseConfig
-      .StatusCode,
-    '404',
-  );
   } finally {
     const resolved = fs.realpathSync(output);
     assert.equal(fs.lstatSync(output).isSymbolicLink(), false);
