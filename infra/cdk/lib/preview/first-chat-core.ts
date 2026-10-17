@@ -77,7 +77,7 @@ export class FirstChatCoreGuardStack extends cdk.Stack {
     super(scope, id, { env });
     const guard = new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
       listenerArn: live.listenerArn,
-      priority: 3,
+      priority: 4,
       conditions: [{ field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } }],
       actions: [
         {
@@ -266,6 +266,28 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
           pathPatternConfig: { values: ['/api/clio/application-authority/membership'] },
         },
         { field: 'http-request-method', httpRequestMethodConfig: { values: ['POST'] } },
+      ],
+      actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+    });
+    // This rule admits only the three browser reads in the reviewed frontend
+    // source. Regex anchors exclude client descendants and all other methods.
+    // It must rank ahead of the independently retained host-only 404 guard.
+    new elb.CfnListenerRule(this, 'FirstChatReadsOnly', {
+      listenerArn: live.listenerArn,
+      priority: 3,
+      conditions: [
+        { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
+        {
+          field: 'path-pattern',
+          pathPatternConfig: {
+            regexValues: [
+              '^/api/me$',
+              '^/api/clients$',
+              '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+            ],
+          },
+        },
+        { field: 'http-request-method', httpRequestMethodConfig: { values: ['GET'] } },
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
