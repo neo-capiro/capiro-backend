@@ -2,7 +2,7 @@ import type { Prisma } from '../../generated/prisma-client/index.js';
 import { canonicalGenerationProducer, parseCanonicalProducerRequest, producerApplication,
   requireCanonicalProducerWork, type CanonicalProducerWork } from '../meri/objective-canonical-producer.js';
 import { readCanonicalSavedGeneration, requireSavedGenerationApplication } from '../meri/objective-canonical-saved-generation.js';
-import { applicationHash, applicationObservation, applicationUuid, canonicalApplicationRequestId, CanonicalApplicationError,
+import { applicationHash, applicationJson, applicationObservation, applicationUuid, canonicalApplicationRequestId, CanonicalApplicationError,
   type CanonicalApplicationObservation, type CanonicalApplicationRequest, type CanonicalToken } from './objective-canonical-application.js';
 
 /** Owner-read Planner consent, never copied from the Strategy generation grant.
@@ -14,6 +14,10 @@ export interface CanonicalPlannerContinuationConsent {
   consentId: string; controlVersion: number;
 }
 type SavedGeneration = Awaited<ReturnType<typeof readCanonicalSavedGeneration>>;
+// Copy only the already-supported JSON domain. Unlike a host structuredClone,
+// the parsed result belongs to the caller's realm; applicationJson rejects
+// proxies, getters and non-JSON values before any serialization can invoke them.
+const copy = <T>(value: T): T => JSON.parse(applicationJson(value)) as T;
 const fail = (code: CanonicalApplicationError['code'] = 'OUTCOME_UNCONFIRMED'): never => {
   throw new CanonicalApplicationError(code);
 };
@@ -65,7 +69,7 @@ export async function readCanonicalPlannerContinuation(tx: Prisma.TransactionCli
   closed(scope, ['tenantId', 'clerkUserId', 'generationJobId']);
   applicationUuid(scope.tenantId); applicationUuid(scope.generationJobId);
   closed(consent, ['workAction', 'tenantId', 'actorUserId', 'clerkUserId', 'canonical', 'consentId', 'controlVersion']);
-  const originalScope = structuredClone(scope), originalConsent = structuredClone(consent);
+  const originalScope = copy(scope), originalConsent = copy(consent);
   return savedGenerationPlannerContinuation(await readCanonicalSavedGeneration(tx, originalScope), originalConsent);
 }
 
@@ -114,9 +118,9 @@ function reconciliation(value: CanonicalPlannerContinuationReconciliation,
   if (applicationHash(value.original) !== applicationHash(original)) return fail();
   if (value.state === 'unavailable') return fail('AUTHORITY_UNAVAILABLE');
   if (value.state === 'outcome_unconfirmed') return fail();
-  if (value.state === 'not_started' && value.terminalReceiptId === null && value.outcome === null) return structuredClone(value);
+  if (value.state === 'not_started' && value.terminalReceiptId === null && value.outcome === null) return copy(value);
   if (value.state === 'accounted' && ['applied', 'failed', 'cancelled'].includes(value.outcome ?? '')) {
-    applicationUuid(value.terminalReceiptId); return structuredClone(value);
+    applicationUuid(value.terminalReceiptId); return copy(value);
   }
   return fail();
 }
@@ -230,7 +234,7 @@ function checkedObservation(value: CanonicalApplicationObservation, work: Canoni
   return value;
 }
 function observation(value: CanonicalApplicationObservation, work: CanonicalProducerWork) {
-  try { return structuredClone(checkedObservation(value, work)); } catch { return fail(); }
+  try { return copy(checkedObservation(value, work)); } catch { return fail(); }
 }
 
 /** Bounded, unmounted source orchestration. A server owner may invoke it after
@@ -242,19 +246,19 @@ export async function continueCanonicalPlanner(rawWork: CanonicalProducerWork,
   rawOriginal: CanonicalPlannerOriginalOperation, owner: CanonicalPlannerContinuationOwner): Promise<CanonicalPlannerContinuationOutcome> {
   const work = parseCanonicalProducerRequest({ schemaVersion: 1, phase: 'prepare', work: rawWork }).work;
   const original = originalOperation(rawOriginal, work);
-  const reconcile = async () => reconciliation(await owner.reconcile(structuredClone(work), structuredClone(original)), original);
+  const reconcile = async () => reconciliation(await owner.reconcile(copy(work), copy(original)), original);
   const recover = async (known: CanonicalPlannerContinuationReconciliation): Promise<CanonicalPlannerContinuationOutcome> => {
     if (known.state !== 'accounted') return fail();
     if (known.outcome === 'failed' || known.outcome === 'cancelled')
       return { outcome: known.outcome, terminalReceiptId: known.terminalReceiptId! };
     return { outcome: 'applied', recovered: true,
-      observation: observation(await owner.lookup(producerApplication(work), structuredClone(original)), work) };
+      observation: observation(await owner.lookup(producerApplication(work), copy(original)), work) };
   };
   const known = await reconcile();
   if (known.state === 'accounted') return recover(known);
   try {
     return { outcome: 'applied', recovered: false,
-      observation: observation(await owner.prepare(structuredClone(work), structuredClone(original)), work) };
+      observation: observation(await owner.prepare(copy(work), copy(original)), work) };
   } catch {
     // Never resubmit after an ambiguous prepare, even if a subsequent owner
     // read says not_started. A later owner decision must account for that call.

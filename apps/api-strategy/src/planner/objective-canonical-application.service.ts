@@ -45,7 +45,8 @@ export class ObjectiveCanonicalApplicationService {
     } });
   }
   private async read(tx: Tx, grant: CanonicalApplicationGrant, subject: CanonicalAuthoritySubject,
-    row: { data: unknown }, expectedRequest?: CanonicalApplicationRequest) {
+    row: { data: unknown }, expectedRequest?: CanonicalApplicationRequest,
+    assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void> = subject => this.authority.assertCurrent(tx, grant, subject)) {
     // Decode the closed source before deriving any DB IDs. Stored data cannot
     // broaden the verified original request or current read authority.
     const request = parseCanonicalApplication((row.data as StoredCanonicalApplication | null)?.request);
@@ -56,7 +57,7 @@ export class ObjectiveCanonicalApplicationService {
         canonicalApplicationRequestId(request.canonical, grant.actorUserId) !== subject.applicationRequestId ||
         (expectedRequest && applicationHash(expectedRequest) !== applicationHash(request)))
       throw new CanonicalApplicationError('REQUEST_CONFLICT');
-    await this.authority.assertCurrent(tx, grant, { ...subject, purpose: 'retained-result-read' });
+    await assertCurrent({ ...subject, purpose: 'retained-result-read' });
     await requireCanonicalApplicationRead(tx, grant, request.canonical);
     const owner = await this.owner(tx, grant, request);
     if (!owner) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
@@ -66,7 +67,7 @@ export class ObjectiveCanonicalApplicationService {
     const current = await this.planner.canonicalStrategyPlanObservationInTransaction(tx, this.ctx(grant), owner);
     // Release fence checks current read authority, independently of old effect
     // expiry/cancel/source-current status. Human edits are projected, never reset.
-    await this.authority.assertCurrent(tx, grant, { ...subject, purpose: 'retained-result-read' });
+    await assertCurrent({ ...subject, purpose: 'retained-result-read' });
     await requireCanonicalApplicationRead(tx, grant, request.canonical);
     return applicationObservation(stored, current);
   }
@@ -80,11 +81,27 @@ export class ObjectiveCanonicalApplicationService {
           grant.canonicalSha256 !== applicationHash(request.canonical) ||
           canonicalApplicationRequestId(request.canonical, grant.actorUserId) !== request.applicationRequestId)
         throw new CanonicalApplicationError('REQUEST_CONFLICT');
-      return this.prisma.withTenant(grant.tenantId, async tx => executeCanonicalApplicationTransaction(request, grant, {
+      return this.prisma.withTenant(grant.tenantId, tx => this.prepareWithinOwnerTransaction(tx, request, grant,
+        subject => this.authority.assertCurrent(tx, grant, subject)), { timeoutMs: 15_000 });
+    });
+  }
+  /** Internal composition only: the durable runtime owner supplies its SAME
+   * tenant transaction and current native consent/claim/lease check. This method
+   * verifies command/grant consistency; it never authenticates an HTTP request,
+   * opens a transaction, manufactures a workload token or catches rollback.
+   * The callback must throw through the owner transaction on every refusal. */
+  async prepareWithinOwnerTransaction(tx: Prisma.TransactionClient, request: CanonicalApplicationRequest,
+    grant: CanonicalApplicationGrant, assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void>) {
+    if (typeof assertCurrent !== 'function') throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+    request = parseCanonicalApplication(request);
+    const subject: CanonicalAuthoritySubject = { purpose: 'effect',
+      applicationRequestId: request.applicationRequestId, requestSha256: applicationHash(request) };
+    this.requireRequestGrant(request, grant);
+    return executeCanonicalApplicationTransaction(request, grant, {
         lockPlanner: () => this.lock(tx, grant.tenantId),
         previous: () => this.receipt(tx, grant, request.applicationRequestId),
-        read: previous => this.read(tx, grant, subject, previous as { data: unknown }, request),
-        assertEffect: () => this.authority.assertCurrent(tx, grant, subject),
+        read: previous => this.read(tx, grant, subject, previous as { data: unknown }, request, assertCurrent),
+        assertEffect: () => assertCurrent(subject),
         // Owner locks: Planner -> job -> Strategy -> exact saved version ->
         // current Core authority/Objective -> canonical -> current consent.
         prepare: async beforeWrite => {
@@ -118,8 +135,13 @@ export class ObjectiveCanonicalApplicationService {
           data: stored as unknown as Prisma.InputJsonValue,
         } }); },
         advanceHead: stored => this.advanceHead(tx, grant, stored),
-      }), { timeoutMs: 15_000 });
     });
+  }
+  private requireRequestGrant(request: CanonicalApplicationRequest, grant: CanonicalApplicationGrant) {
+    if (grant.tenantId !== request.canonical.tenantId || grant.requestSha256 !== applicationHash(request) ||
+        grant.canonicalSha256 !== applicationHash(request.canonical) ||
+        canonicalApplicationRequestId(request.canonical, grant.actorUserId) !== request.applicationRequestId)
+      throw new CanonicalApplicationError('REQUEST_CONFLICT');
   }
   /** Planner lock is already held. A mutable head is accepted only after
    * reconstructing its complete paired immutable application/owner evidence.
@@ -178,16 +200,32 @@ export class ObjectiveCanonicalApplicationService {
       const subject: CanonicalAuthoritySubject = { purpose: 'retained-result-read',
         applicationRequestId: requestId, requestSha256: null };
       const grant = await this.authority.verify(http, subject);
-      return this.prisma.withTenant(grant.tenantId, async tx => {
-        await this.lock(tx, grant.tenantId);
-        await this.authority.assertCurrent(tx, grant, subject);
-        const previous = await this.receipt(tx, grant, requestId);
-        // No authoritative eligibility/empty state is exported. Missing receipt
-        // is uncertainty; it is never permission to dispatch a new model/effect.
-        if (!previous) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
-        return this.read(tx, grant, subject, previous);
-      }, { timeoutMs: 15_000 });
+      return this.prisma.withTenant(grant.tenantId, tx => this.lookupApplicationWithinOwnerTransaction(tx, grant, subject,
+        subject => this.authority.assertCurrent(tx, grant, subject)), { timeoutMs: 15_000 });
     });
+  }
+  /** Full original command is mandatory for internal recovery. Fresh native
+   * retained-read authority is supplied by the runtime owner, independently of
+   * historical effect expiry. Missing rows never authorize another prepare. */
+  async lookupWithinOwnerTransaction(tx: Prisma.TransactionClient, request: CanonicalApplicationRequest,
+    grant: CanonicalApplicationGrant, assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void>) {
+    if (typeof assertCurrent !== 'function') throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+    request = parseCanonicalApplication(request);
+    this.requireRequestGrant(request, grant);
+    const subject: CanonicalAuthoritySubject = { purpose: 'retained-result-read',
+      applicationRequestId: request.applicationRequestId, requestSha256: applicationHash(request) };
+    return this.lookupApplicationWithinOwnerTransaction(tx, grant, subject, assertCurrent, request);
+  }
+  private async lookupApplicationWithinOwnerTransaction(tx: Tx, grant: CanonicalApplicationGrant,
+    subject: CanonicalAuthoritySubject, assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void>,
+    expectedRequest?: CanonicalApplicationRequest) {
+    await this.lock(tx, grant.tenantId);
+    await assertCurrent(subject);
+    const previous = await this.receipt(tx, grant, subject.applicationRequestId);
+    // No authoritative eligibility/empty state is exported. Missing receipt
+    // is uncertainty; it is never permission to dispatch a new model/effect.
+    if (!previous) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+    return this.read(tx, grant, subject, previous, expectedRequest, assertCurrent);
   }
   private async safe<T>(run: () => Promise<T>): Promise<T> {
     try { return await run(); } catch (error) {
