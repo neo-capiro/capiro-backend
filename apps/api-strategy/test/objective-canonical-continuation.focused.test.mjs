@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 
 const copy = value => structuredClone(value);
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -17,8 +18,9 @@ async function sourceModule(relative, replacements = []) {
   const path = new URL(relative, import.meta.url), raw = await readFile(path, 'utf8');
   let source = raw;
   for (const [from, to] of replacements) {
-    assert.equal(source.split(from).length, 2, `one declared import rewrite: ${from}`);
-    source = source.replace(from, JSON.stringify(to));
+    const occurrences = from === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : 1;
+    assert.equal(source.split(from).length, occurrences + 1, `exact declared import count: ${from}`);
+    source = source.replaceAll(from, JSON.stringify(to));
   }
   const transformed = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: path.href });
   custody.push({ path: relative, sha256: createHash('sha256').update(raw).digest('hex'),
@@ -26,7 +28,7 @@ async function sourceModule(relative, replacements = []) {
     replacementSpecifiers: replacements.map(([from]) => from) });
   return data(transformed);
 }
-const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts');
+const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const app = await import(appUrl);
 const generationUrl = await sourceModule('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", appUrl],
@@ -35,7 +37,7 @@ const generation = await import(generationUrl);
 const frameworkUrl = data(`export class BadRequestException extends Error{};
   export class ConflictException extends Error{}; export const STRATEGY_TYPES=[];`);
 const typesUrl = await sourceModule('../src/meri/objective-generation.types.ts', [
-  ["'@nestjs/common'", frameworkUrl], ["'../strategy/dto/create-strategy.dto.js'", frameworkUrl],
+  ["'@nestjs/common'", frameworkUrl], ["'../strategy/dto/create-strategy.dto.js'", frameworkUrl], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
 ]);
 const producerUrl = await sourceModule('../src/meri/objective-canonical-producer.ts', [
   ["'../planner/objective-canonical-application.js'", appUrl],

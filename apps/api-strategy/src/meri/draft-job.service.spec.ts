@@ -8,7 +8,7 @@ import type { ContextRetryRuntime } from './strategy-time.providers.js';
 
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 const CTX: AuthTenantContext = {
-  tenantId: 'tenant-1',
+  tenantId: '99999999-9999-4999-8999-999999999999',
   clerkUserId: 'user-1',
   tenantSlug: 'acme',
   role: 'standard_user',
@@ -47,8 +47,11 @@ function makeTx(opts: {
 }) {
   const queryRaw = dbMock<Array<{ ok: number }>>();
   queryRaw.mockResolvedValue(opts.clientRows ?? [{ ok: 1 }]);
+  const queryRawUnsafe = jest.fn<(sql: string, ...values: unknown[]) => Promise<unknown[]>>();
+  queryRawUnsafe.mockResolvedValue([{}]);
   return {
     $queryRaw: queryRaw,
+    $queryRawUnsafe: queryRawUnsafe,
     spDraftJob: {
       findUnique: opts.findUnique,
       create: opts.create,
@@ -128,7 +131,7 @@ describe('DraftJobService.submit', () => {
     expect(result).toEqual({ jobId: 'job-1', status: 'queued' });
     expect(create).toHaveBeenCalledTimes(1);
     const args = create.mock.calls[0]![0] as { data: Record<string, unknown> };
-    expect(args.data.tenantId).toBe('tenant-1');
+    expect(args.data.tenantId).toBe(CTX.tenantId);
     expect(args.data.clientId).toBe(CLIENT);
     expect(args.data.ownerUserId).toBe('user-1');
     expect(args.data.status).toBe('queued');
@@ -137,6 +140,16 @@ describe('DraftJobService.submit', () => {
     const input = args.data.input as { dto: DraftStrategyDto; bearer: string | null };
     expect(input.bearer).toBe('token-abc');
     expect(input.dto.clientId).toBe(CLIENT);
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+      `capiro.objective-strategy.job-creators:v1:${CTX.tenantId}`);
+    expect(tx.$queryRawUnsafe.mock.invocationCallOrder[0]).toBeLessThan(findUnique.mock.invocationCallOrder[0]!);
+    expect(tx.$queryRawUnsafe.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]!);
+  });
+  it('creator-gate failure refuses before lookup or insertion', async () => {
+    const findUnique = dbMock<JobRow | null>(), create = dbMock<JobRow>(), tx = makeTx({ findUnique, create });
+    tx.$queryRawUnsafe.mockRejectedValueOnce(Error('gate unavailable'));
+    await expect(service(tx).svc.submit(CTX, 'token', dto())).rejects.toThrow('gate unavailable');
+    expect(findUnique).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
   });
 
   it('a double-submit with the identical input returns the SAME job (no second create)', async () => {

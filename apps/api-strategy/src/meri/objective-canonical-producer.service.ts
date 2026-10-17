@@ -1,4 +1,6 @@
 import { HttpException, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { createObjectiveStrategyRequestCodec, readObjectiveStrategyIntakeWithinTx } from '@capiro/shared/objective-strategy-intake';
 import type { Request } from 'express';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -18,6 +20,9 @@ import { readCanonicalSavedGeneration } from './objective-canonical-saved-genera
 
 type Tx = Prisma.TransactionClient;
 const fail = (code: CanonicalApplicationError['code'] = 'AUTHORITY_UNAVAILABLE'): never => { throw new CanonicalApplicationError(code); };
+const reservationCodec = createObjectiveStrategyRequestCodec({
+  sha256: text => createHash('sha256').update(text).digest('hex'), invalidRequest: () => fail(),
+});
 @Injectable()
 export class ObjectiveCanonicalProducerService {
   constructor(private readonly prisma: PrismaService, private readonly authority: ObjectiveCanonicalWorkloadAuthority) {}
@@ -48,6 +53,61 @@ export class ObjectiveCanonicalProducerService {
     if (!b || Object.keys(b).sort().join(',') !== 'generationJobId,schemaVersion' || b.schemaVersion !== 1) return fail('INPUT_INVALID');
     return { schemaVersion: 1 as const, generationJobId: applicationUuid(b.generationJobId) };
   }
+  /** A reservation cannot adopt a later current consent. The actual native
+   * intake, immutable receipt/consent/source and untouched queued input must all
+   * identify this exact original admission before the private marker is removed. */
+  private async requireReservation(tx: Tx, job: { id: string; tenantId: string; clientId: string; ownerUserId: string;
+    requestKey: string; deadlineAt: Date; input: unknown }, fresh: CanonicalGenerationAdmission) {
+    const input = JSON.parse(JSON.stringify(job.input)) as DraftJobInput;
+    if (!Object.hasOwn(input, 'objectiveCanonicalReservation')) return;
+    if (Object.hasOwn(input, 'canonicalGeneration')) return fail('OUTCOME_UNCONFIRMED');
+    const marker = reservationCodec.parseReservation(JSON.parse(JSON.stringify(input.objectiveCanonicalReservation)));
+    const row = await readObjectiveStrategyIntakeWithinTx(tx, job.tenantId, marker.intakeId), i = row.intake,
+      c = row.consent, receipt = row.receipt, canonical = fresh.canonical;
+    const keys: Record<string, unknown> = { canonical_plan_id: canonical.canonicalPlanId, canonical_epoch: canonical.epoch,
+      canonical_strategy_id: canonical.canonicalStrategyId, canonical_project_id: canonical.canonicalProjectId,
+      canonical_binding_version: canonical.bindingVersion, root_intent_id: canonical.requestedIntentId,
+      source_revision_id: canonical.requestedObjectiveRevisionId, source_objective_version: canonical.requestedObjectiveVersion,
+      source_snapshot_hash: canonical.snapshotHash };
+    const request = reservationCodec.parseObjectiveDraft(i.typed_request), fingerprint = reservationCodec.digest(request),
+      source = { clientId: job.clientId, objectiveId: canonical.objectiveId, objectiveVersion: canonical.requestedObjectiveVersion,
+        objectiveRevisionId: canonical.requestedObjectiveRevisionId };
+    const expected = { dto: { clientId: job.clientId, type: request.type, goal: row.snapshot.outcome }, bearer: null,
+      objectiveGeneration: { request, fingerprint, receipt: reservationCodec.pendingReceipt(request, source) },
+      objectiveCanonicalReservation: marker };
+    const deadline = Number(row.deadlineMs), reserved = Number(row.reservedMs), consentExpires = Number(row.consentExpiresMs);
+    if (canonical.tenantId !== job.tenantId || canonical.clientId !== job.clientId || fresh.generationJobId !== job.id ||
+        i.id !== marker.intakeId || i.consent_id !== marker.consentId || i.command_receipt_id !== marker.commandReceiptId ||
+        i.wrapper_sha256 !== marker.wrapperSha256 || i.tenant_id !== job.tenantId || i.client_id !== job.clientId ||
+        i.objective_id !== canonical.objectiveId || i.work_action !== 'objective.strategy.draft' ||
+        i.generation_job_id !== job.id || i.original_clerk_user_id !== job.ownerUserId ||
+        i.actor_user_id !== fresh.actorUserId || i.original_clerk_user_id !== fresh.clerkUserId ||
+        i.consent_id !== fresh.consentId || i.control_version !== fresh.controlVersion ||
+        c.id !== i.consent_id || c.control_id !== i.control_id || c.command_receipt_id !== i.command_receipt_id ||
+        c.consenting_actor_user_id !== i.actor_user_id || c.consenting_membership_id !== i.actor_membership_id ||
+        receipt.id !== i.command_receipt_id || receipt.created_consent_id !== i.consent_id ||
+        receipt.result_consent_id !== i.consent_id || receipt.control_version_after !== i.control_version ||
+        receipt.actor_user_id !== i.actor_user_id || receipt.actor_membership_id !== i.actor_membership_id ||
+        receipt.command_kind !== 'retry' || receipt.outcome !== 'reconsent_recorded' ||
+        i.command_request_id !== receipt.request_id || c.command_request_id !== receipt.request_id ||
+        c.payload_digest !== receipt.payload_digest || reservationCodec.digest(i.wrapper?.command) !== reservationCodec.digest(receipt.command) ||
+        i.wrapper?.schemaVersion !== 2 || i.wrapper?.selection?.type !== i.selected_type ||
+        i.wrapper?.selection?.generationRequestId !== i.generation_request_id ||
+        reservationCodec.digest({ clientId: i.client_id, objectiveId: i.objective_id, body: i.wrapper }) !== i.wrapper_sha256 ||
+        Object.entries(keys).some(([key, value]) => i[key] !== value || c[key] !== value || receipt[key] !== value) ||
+        i.root_actor_user_id !== c.root_actor_user_id || i.root_actor_user_id !== receipt.root_actor_user_id ||
+        i.generation_request_id !== fresh.generationRequestId || i.generation_request_id !== request.requestId ||
+        i.selected_type !== request.type || i.request_fingerprint !== fingerprint || i.job_request_key !== job.requestKey ||
+        i.job_request_key !== reservationCodec.requestKey(job.tenantId, job.ownerUserId, request.requestId) ||
+        reservationCodec.digest(input) !== reservationCodec.digest(expected) ||
+        row.snapshot.id !== canonical.objectiveId || row.snapshot.clientId !== job.clientId ||
+        row.snapshot.version !== canonical.requestedObjectiveVersion || row.snapshot.status !== 'ready' || row.snapshot.deletedAt != null ||
+        applicationHash(row.snapshot) !== canonical.snapshotHash ||
+        !Number.isSafeInteger(deadline) || !Number.isSafeInteger(reserved) || !Number.isSafeInteger(consentExpires) ||
+        reserved < Date.parse(receipt.committed_at) || reserved < Date.parse(c.confirmed_at) ||
+        deadline !== job.deadlineAt.getTime() || deadline <= reserved || deadline > consentExpires ||
+        fresh.admittedAtMs < reserved || fresh.effectExpiresAtMs > deadline) return fail('OUTCOME_UNCONFIRMED');
+  }
   /** Capture a QUEUED, never previously claimed actual Objective job before
    * Meri acceptance. No body-supplied actor, canonical target or consent. */
   async capture(http: Request, raw: unknown) {
@@ -61,6 +121,7 @@ export class ObjectiveCanonicalProducerService {
         const req = input.objectiveGeneration!.request;
         const fresh = await admitCanonicalGenerationWithinTx(tx, { tenantId: grant.tenantId, clerkUserId: grant.clerkUserId,
           clientId: job.clientId, objectiveId: req.objective.objectiveId, generationJobId: job.id, generationRequestId: req.requestId });
+        await this.requireReservation(tx, job, fresh);
         if (fresh.expectedStrategyVersionId) {
           // Existence of the reserved ID is not provenance. Find and rebuild a
           // genuine earlier producer for this SAME canonical Strategy first.
@@ -89,9 +150,10 @@ export class ObjectiveCanonicalProducerService {
           // token/claim/delegation; never extend it at acceptance or retry.
           if (admission.effectExpiresAtMs <= await this.now(tx)) return fail();
           await insertGenerationLedger(tx, GENERATION_ADMISSION, grant.tenantId, grant.clerkUserId, job.id, admission);
+          const { objectiveCanonicalReservation: _reservation, ...admittedInput } = input;
           const changed = await tx.spDraftJob.updateMany({ where: { id: job.id, tenantId: grant.tenantId,
             ownerUserId: grant.clerkUserId, status: 'queued', attempt: 1, claimedBy: null, claimedAt: null },
-            data: { input: { ...input, canonicalGeneration: generationMarker(admission) } as unknown as Prisma.InputJsonValue } });
+            data: { input: { ...admittedInput, canonicalGeneration: generationMarker(admission) } as unknown as Prisma.InputJsonValue } });
           if (changed.count !== 1) return fail('OUTCOME_UNCONFIRMED');
         } else if (applicationHash(input.canonicalGeneration) !== applicationHash(generationMarker(admission))) return fail('OUTCOME_UNCONFIRMED');
         await this.generationProof(tx, grant, subject, admission);

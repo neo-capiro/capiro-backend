@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 // Actual service/ledger/factory/job/fence source; synthetic owner, SQL-response
@@ -14,7 +15,11 @@ const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).t
 async function load(path, imports = [], edits = []) {
   const file = new URL(path, import.meta.url), original = await readFile(file, 'utf8');
   let source = original.replace(/\r\n/g, '\n');
-  const replace = (from, to) => { assert.equal(source.split(from).length, 2, `one exact source occurrence: ${path}: ${from}`); source = source.replace(from, to); };
+  const replace = (from, to) => {
+    const occurrences = from === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : 1;
+    assert.equal(source.split(from).length, occurrences + 1, `exact source count: ${path}: ${from}`);
+    source = source.replaceAll(from, to);
+  };
   for (const [from, to] of imports) replace(from, JSON.stringify(to));
   for (const [from, to] of edits) replace(from, to);
   const stripped = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: file.href });
@@ -30,9 +35,9 @@ export const Injectable=()=>value=>value;`);
 const prismaLabel = moduleUrl('export class PrismaService{}');
 const contextLabel = moduleUrl('export class StrategyContextPlaneClient{}');
 const enums = moduleUrl(`export const STRATEGY_TYPES=${JSON.stringify(['appropriations','authorization','regulatory','coalition','procurement','earmark','amendment'])};`);
-const applicationUrl = await load('../src/planner/objective-canonical-application.ts');
+const applicationUrl = await load('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const generationUrl = await load('../src/meri/objective-canonical-generation.ts', [["'../planner/objective-canonical-application.js'", applicationUrl]]);
-const objectiveUrl = await load('../src/meri/objective-generation.types.ts', [["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums]]);
+const objectiveUrl = await load('../src/meri/objective-generation.types.ts', [["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl]]);
 const producerUrl = await load('../src/meri/objective-canonical-producer.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-generation.types.js'", objectiveUrl],
 ]);
@@ -65,6 +70,33 @@ const requestLedgerUrl = await load('../src/meri/objective-canonical-request-led
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
   ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl], ["'./objective-canonical-request.js'", factoryUrl],
   ["'./objective-canonical-regeneration-request.js'", regenerationFactoryUrl],
+]);
+const versionUrl = await load('../src/strategy/versioning.ts');
+const regenerationUrl = await load('../src/meri/objective-canonical-regeneration.ts', [
+  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'../strategy/versioning.js'", versionUrl],
+]);
+const regenerationLedgerUrl = await load('../src/meri/objective-canonical-regeneration-ledger.ts', [
+  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'../strategy/versioning.js'", versionUrl],
+  ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl],
+  ["'./objective-canonical-job-input.js'", jobInputUrl], ["'./objective-canonical-regeneration.js'", regenerationUrl],
+]);
+const completionReceiptUrl = await load('../src/meri/objective-canonical-completion-receipt.ts', [
+  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
+  ["'./objective-canonical-request.js'", factoryUrl],
+]);
+const regenerationCompletionReceiptUrl = await load('../src/meri/objective-canonical-regeneration-completion-receipt.ts', [
+  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
+  ["'./objective-canonical-request.js'", factoryUrl], ["'./objective-canonical-regeneration-request.js'", regenerationFactoryUrl],
+  ["'./objective-canonical-completion-receipt.js'", completionReceiptUrl],
+]);
+const savedUrl = await load('../src/meri/objective-canonical-saved-generation.ts', [
+  ["'../planner/objective-canonical-application.js'", applicationUrl],
+  ["'./objective-canonical-completion-receipt.js'", completionReceiptUrl],
+  ["'./objective-canonical-regeneration-completion-receipt.js'", regenerationCompletionReceiptUrl],
+  ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl],
+  ["'./objective-canonical-request-ledger.js'", requestLedgerUrl],
+  ["'./objective-canonical-regeneration-request.js'", regenerationFactoryUrl],
+  ["'./objective-canonical-regeneration-ledger.js'", regenerationLedgerUrl],
 ]);
 // Emulate the one TS parameter property with an ordinary argument+assignment;
 // every authority query and error path remains the actual shared owner source.
@@ -102,11 +134,13 @@ const unusedApplicationFence = moduleUrl(`export function requireCanonicalApplic
 export function requireCanonicalApplicationRead(){throw new Error('Planner retained outputs are outside this fixture');}`);
 const producerConstructor = '  constructor(private readonly prisma: PrismaService, private readonly authority: ObjectiveCanonicalWorkloadAuthority) {}';
 const producerServiceUrl = await load('../src/meri/objective-canonical-producer.service.ts', [
+  ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
   ["'@nestjs/common'", nest], ["'../prisma/prisma.service.js'", prismaLabel], ["'../planner/objective-canonical-authority.js'", authorityUrl],
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'../planner/objective-canonical-fence.js'", unusedApplicationFence],
   ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-canonical-generation-fence.js'", fenceUrl],
   ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl], ["'./objective-canonical-producer.js'", producerUrl],
   ["'./objective-canonical-request-ledger.js'", requestLedgerUrl], ["'./objective-canonical-request.js'", factoryUrl],
+  ["'./objective-canonical-saved-generation.js'", savedUrl],
 ], [['@Injectable()\n', ''], [producerConstructor, '  constructor(prisma, authority) { this.prisma = prisma; this.authority = authority; }']]);
 const app = await import(applicationUrl), generation = await import(generationUrl), factory = await import(factoryUrl);
 const pureBasis = await import(pureBasisUrl), regenerationFactory = await import(regenerationFactoryUrl);

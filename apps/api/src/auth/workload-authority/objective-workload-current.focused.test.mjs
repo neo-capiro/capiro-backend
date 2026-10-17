@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
+import { sourceModule, sharedUrl } from '../../../test/objective-planner-codec.fixtures.mjs';
 
 const hashSource = await readFile(new URL('../../clients/objectives/objective-work-intent.ts', import.meta.url), 'utf8');
 const hashUrl = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(hashSource)).toString('base64')}`;
 const { objectiveRevisionSnapshotHash: digest } = await import(hashUrl);
-const strategyHashSource = await readFile(new URL('../../../../api-strategy/src/planner/objective-canonical-application.ts', import.meta.url), 'utf8');
-const strategyHashUrl = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(strategyHashSource)).toString('base64')}`;
+const strategyHashUrl = await sourceModule('../../api-strategy/src/planner/objective-canonical-application.ts', [
+  ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
+]);
 const { applicationHash: strategyDigest } = await import(strategyHashUrl);
 const source = await readFile(new URL('./objective-workload-current.ts', import.meta.url), 'utf8');
 const ownUrl = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source.replace(

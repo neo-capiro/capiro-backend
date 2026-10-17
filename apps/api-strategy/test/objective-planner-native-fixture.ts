@@ -174,42 +174,48 @@ async function insertConsent(tx: Prisma.TransactionClient, f: ObjectivePlannerNa
     WHERE tenant_id=${f.tenantId}::uuid AND id=${controlId}::uuid AND version=0`;
 }
 
+/** Identity and ready-source rows only, inside an already qualified native
+ * tenant transaction. No consent, job, admission, acceptance or result is seeded. */
+export async function seedObjectivePlannerNativeReadyWithinTx(tx: Prisma.TransactionClient, f: ObjectivePlannerNativeFixture) {
+  const settings = JSON.stringify({ clioFeatureFlags: { 'strategyPlanner.enabled': true },
+    objectivePlannerContinuation: { enabled: f.tenantEnabled } });
+  await tx.$executeRaw`INSERT INTO tenants(id,slug,name,status,settings_jsonb,updated_at)
+    VALUES(${f.tenantId}::uuid,${`objective-planner-qa-${f.tenantId}`},'Synthetic Objective Planner qualification','active',${settings}::jsonb,clock_timestamp())`;
+  await tx.$executeRaw`INSERT INTO users(id,clerk_user_id,email,updated_at)
+    VALUES(${f.actorUserId}::uuid,${f.clerkUserId},${`${f.actorUserId}@objective-planner.example.test`},clock_timestamp())`;
+  await tx.$executeRaw`INSERT INTO tenant_memberships(id,tenant_id,user_id,role,status,updated_at)
+    VALUES(${f.membershipId}::uuid,${f.tenantId}::uuid,${f.actorUserId}::uuid,'standard_user','active',clock_timestamp())`;
+  await tx.$executeRaw`INSERT INTO clients(id,tenant_id,name,memory_wall,updated_at)
+    VALUES(${f.source.clientId}::uuid,${f.tenantId}::uuid,'Synthetic Objective Planner client',true,clock_timestamp())`;
+  await tx.$executeRaw`INSERT INTO client_memory_access(id,tenant_id,client_id,user_id,granted_by)
+    VALUES(${f.id('wall-grant')}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.actorUserId}::uuid,${f.actorUserId}::uuid)`;
+  await tx.$executeRaw`INSERT INTO client_objectives
+    (id,tenant_id,client_id,client_request_id,create_request_hash,outcome,government_problem,ask_type,minimum_win,limits,
+     created_by_user_id,status,version,ready_at)
+    VALUES(${f.source.objectiveId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.id('objective-create')}::uuid,
+      ${applicationHash(f.objectiveSnapshot)},${f.objectiveSnapshot.outcome},${f.objectiveSnapshot.governmentProblem},
+      ${f.objectiveSnapshot.askType},${f.objectiveSnapshot.minimumWin},${f.objectiveSnapshot.limits},${f.actorUserId}::uuid,'ready',2,clock_timestamp())`;
+  await tx.$executeRaw`INSERT INTO client_objective_revisions(id,tenant_id,client_id,objective_id,version,operation,actor_user_id,snapshot)
+    VALUES(${f.source.objectiveRevisionId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.source.objectiveId}::uuid,
+      2,'confirm_ready',${f.actorUserId}::uuid,${JSON.stringify(f.objectiveSnapshot)}::jsonb)`;
+  await tx.$executeRaw`INSERT INTO client_objective_work_intents
+    (id,tenant_id,client_id,objective_id,objective_revision_id,objective_version,actor_user_id,purpose,snapshot_hash)
+    VALUES(${f.canonical.requestedIntentId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.source.objectiveId}::uuid,
+      ${f.source.objectiveRevisionId}::uuid,2,${f.actorUserId}::uuid,'objective_strategy_plan',${f.canonical.snapshotHash})`;
+  await tx.$executeRaw`INSERT INTO client_objective_canonical_plans
+    (id,tenant_id,client_id,objective_id,canonical_strategy_id,canonical_project_id,binding_version,epoch,
+     requested_intent_id,requested_objective_revision_id,requested_objective_version,requested_snapshot_hash)
+    VALUES(${f.canonical.canonicalPlanId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.source.objectiveId}::uuid,
+      ${f.canonical.canonicalStrategyId}::uuid,${f.canonical.canonicalProjectId}::uuid,1,1,${f.canonical.requestedIntentId}::uuid,
+      ${f.source.objectiveRevisionId}::uuid,2,${f.canonical.snapshotHash})`;
+}
+
 /** Called only after target, postmaster and connected catalog qualification.
  * All rows belong to a newly randomized synthetic tenant. No reset, upsert,
  * trigger disablement, permission expansion or historical audit purge occurs. */
 export async function seedObjectivePlannerNativeFixture(prisma: PrismaService, f: ObjectivePlannerNativeFixture) {
   return prisma.withTenant(f.tenantId, async tx => {
-    const settings = JSON.stringify({ clioFeatureFlags: { 'strategyPlanner.enabled': true },
-      objectivePlannerContinuation: { enabled: f.tenantEnabled } });
-    await tx.$executeRaw`INSERT INTO tenants(id,slug,name,status,settings_jsonb,updated_at)
-      VALUES(${f.tenantId}::uuid,${`objective-planner-qa-${f.tenantId}`},'Synthetic Objective Planner qualification','active',${settings}::jsonb,clock_timestamp())`;
-    await tx.$executeRaw`INSERT INTO users(id,clerk_user_id,email,updated_at)
-      VALUES(${f.actorUserId}::uuid,${f.clerkUserId},${`${f.actorUserId}@objective-planner.example.test`},clock_timestamp())`;
-    await tx.$executeRaw`INSERT INTO tenant_memberships(id,tenant_id,user_id,role,status,updated_at)
-      VALUES(${f.membershipId}::uuid,${f.tenantId}::uuid,${f.actorUserId}::uuid,'standard_user','active',clock_timestamp())`;
-    await tx.$executeRaw`INSERT INTO clients(id,tenant_id,name,memory_wall,updated_at)
-      VALUES(${f.source.clientId}::uuid,${f.tenantId}::uuid,'Synthetic Objective Planner client',true,clock_timestamp())`;
-    await tx.$executeRaw`INSERT INTO client_memory_access(id,tenant_id,client_id,user_id,granted_by)
-      VALUES(${f.id('wall-grant')}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.actorUserId}::uuid,${f.actorUserId}::uuid)`;
-    await tx.$executeRaw`INSERT INTO client_objectives
-      (id,tenant_id,client_id,client_request_id,create_request_hash,outcome,government_problem,ask_type,minimum_win,limits,
-       created_by_user_id,status,version,ready_at)
-      VALUES(${f.source.objectiveId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.id('objective-create')}::uuid,
-        ${applicationHash(f.objectiveSnapshot)},${f.objectiveSnapshot.outcome},${f.objectiveSnapshot.governmentProblem},
-        ${f.objectiveSnapshot.askType},${f.objectiveSnapshot.minimumWin},${f.objectiveSnapshot.limits},${f.actorUserId}::uuid,'ready',2,clock_timestamp())`;
-    await tx.$executeRaw`INSERT INTO client_objective_revisions(id,tenant_id,client_id,objective_id,version,operation,actor_user_id,snapshot)
-      VALUES(${f.source.objectiveRevisionId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.source.objectiveId}::uuid,
-        2,'confirm_ready',${f.actorUserId}::uuid,${JSON.stringify(f.objectiveSnapshot)}::jsonb)`;
-    await tx.$executeRaw`INSERT INTO client_objective_work_intents
-      (id,tenant_id,client_id,objective_id,objective_revision_id,objective_version,actor_user_id,purpose,snapshot_hash)
-      VALUES(${f.canonical.requestedIntentId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.source.objectiveId}::uuid,
-        ${f.source.objectiveRevisionId}::uuid,2,${f.actorUserId}::uuid,'objective_strategy_plan',${f.canonical.snapshotHash})`;
-    await tx.$executeRaw`INSERT INTO client_objective_canonical_plans
-      (id,tenant_id,client_id,objective_id,canonical_strategy_id,canonical_project_id,binding_version,epoch,
-       requested_intent_id,requested_objective_revision_id,requested_objective_version,requested_snapshot_hash)
-      VALUES(${f.canonical.canonicalPlanId}::uuid,${f.tenantId}::uuid,${f.source.clientId}::uuid,${f.source.objectiveId}::uuid,
-        ${f.canonical.canonicalStrategyId}::uuid,${f.canonical.canonicalProjectId}::uuid,1,1,${f.canonical.requestedIntentId}::uuid,
-        ${f.source.objectiveRevisionId}::uuid,2,${f.canonical.snapshotHash})`;
+    await seedObjectivePlannerNativeReadyWithinTx(tx, f);
     await insertConsent(tx, f, 'objective.strategy.draft');
     await insertConsent(tx, f, 'objective.plan.prepare');
     await tx.spStrategy.create({ data: { ...f.strategy, createdAt: new Date(f.strategy.createdAt), tenantId: f.tenantId, draftedByMeri: true } });
