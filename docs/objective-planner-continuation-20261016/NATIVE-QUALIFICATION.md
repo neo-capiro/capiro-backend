@@ -1,27 +1,41 @@
-# Prepared Objective Planner native qualification
+# Objective Planner native qualification
 
-The native suite is prepared source, not a native acceptance result. It has not
-opened PostgreSQL or applied a migration. With `OBJECTIVE_PLANNER_NATIVE_OPT_IN`
-absent, the native suite skips before reading a target manifest, probing a process
-or constructing a Prisma client. Its ordinary default-off startup check still
-runs without a database.
+The pinned parent source `b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf`
+passed **12 native PostgreSQL cases plus the default-off check (13/13)** on
+2026-10-17. This is a focused local qualification of that parent, not of the later
+shared-codec, positive Core status, regeneration or historical-terminal source.
+With `OBJECTIVE_PLANNER_NATIVE_OPT_IN` absent, the native suite still skips
+before reading a target manifest, probing a process or constructing Prisma.
 
-The reviewed task-owned PG16.15 execution request was denied by automatic
-approval review before process creation: disposable credentials and schema SQL
-conflict with the original credentials/migrations restriction. Explicit Neo
-approval for those local-only setup actions remains pending. No cluster,
-credentials, SQL or native test was created or executed, and no retry or
-workaround followed. The host PostgreSQL service and task3 were untouched.
+Automatic review initially denied disposable credentials/schema setup before
+process creation. Neo explicitly approved those local-only actions at
+2026-10-17 00:36:33 UTC. An approved attempt then exposed a Windows daemon-output
+pipe stall after PostgreSQL startup and before schema setup; its exact owned
+cluster was stopped and removed. The original runner was preserved. Independent
+review accepted the narrow bounded-output/start fix at runner SHA256
+`cd8ff0c25c9bff978e665c39a8df3d364bfabd10c85c387c30c935918a2a7ddb`.
+The next normally approved run completed. Process-only Git trust was limited to
+the exact native worktree and restored afterward; no global Git or ACL changed.
 
-The prepared runner pins published source
+The executed runner pinned published source
 `b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf` and reserves only
 `127.0.0.1:56455`. Its 38 hashed SQL units form an explicitly focused Core
 baseline plus all 28 Strategy and six Objective migrations. Installed
-`uuid-ossp`, `citext` and `pg_trgm` would be activated inside that new database;
-the unavailable vector extension is omitted. This is not whole Core migration
-replay or qualification of a later source successor. The separate DDL owner,
-non-superuser/non-BYPASSRLS runtime role and bounded owned cleanup are prepared
-source, without an execution result.
+`uuid-ossp`, `citext` and `pg_trgm` were activated inside that new database;
+the unavailable vector extension was omitted. This is not whole Core migration
+replay or qualification of a later source successor. The separate NOLOGIN DDL
+owner created the focused schema; tests ran as `capiro_app`, with no owner
+membership, superuser status or BYPASSRLS. The guarded native cases verified
+effective tenant isolation and immutable revision privileges through that role.
+
+The sanitized run evidence is retained in the task workspace under
+`objective-planner-native-evidence/90ac1a229e664ccab6c2ad82be69813e`.
+`outcome.json` records suite exit 0 and the exact source pin; the separate final
+`cleanup.json` confirms cluster removal, listener removal and credential
+retirement. Fresh checks confirmed the recorded postmaster PID was gone, the
+owned root was absent, port 56455 had no listener and both existing host port
+5432 listeners were unchanged. The native checkout remained clean. No AWS,
+application database, task3 checkout or production credential was changed.
 
 ## Offline checks
 
@@ -92,7 +106,7 @@ Ownership metadata is supplied by the owner of that disposable cluster. A flag,
 nonstandard port or database name alone is insufficient. Test credentials must
 remain outside committed source and evidence output.
 
-## Prepared native cases and limits
+## Passed parent-source native cases and limits
 
 The twelve native cases call the actual `ObjectivePlannerContinuationRuntime`,
 application owner, Planner owner, store, native consent fences and generated
@@ -124,6 +138,6 @@ resources retain application-owned mutation rules; this suite does not invent a
 database append-only guarantee for generic `sp_planner_resources` rows.
 
 Fixtures use randomized, dedicated synthetic tenants and retain their audit
-history. The suite disconnects its clients but does not purge audit records or
-drop databases. Retiring the separately owned cluster remains its owner's exact
-resource cleanup action.
+history until cluster retirement. The suite disconnects its clients without
+purging individual audit records. The runner subsequently retired only its
+verified owned disposable cluster and test credentials.

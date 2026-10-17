@@ -5,7 +5,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
-import { sharedUrl, appliedUrl, fullV2, fullV3, readySnapshot, nativeConsentProof } from './objective-planner-codec.fixtures.mjs';
+import { sharedUrl, calendarUrl, appliedUrl, fullV2, fullV3, readySnapshot, nativeConsentProof } from './objective-planner-codec.fixtures.mjs';
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const custody = [];
 async function sourceModule(relative, replacements = []) {
@@ -34,10 +34,18 @@ const proofUrl = await sourceModule('../src/clients/objectives/work/objective-pl
   ["'../objective-work-intent.js'", intentUrl],
   ["'./objective-work-command.js'", kernelUrl], ["'./objective-planner-applied.js'", appliedUrl],
 ]);
+const historicalUrl = await sourceModule('../src/clients/objectives/work/objective-planner-historical-proof.ts', [
+  ["'@capiro/shared'", calendarUrl],
+  ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
+  ["'../../../auth/workload-authority/objective-consent-policy.js'", policyUrl],
+  ["'../objective-work-intent.js'", intentUrl], ["'./objective-work-command.js'", kernelUrl],
+]);
+const historicalCodec = await import(historicalUrl);
 const ownerUrl = await sourceModule('../src/clients/objectives/work/objective-planner-work-owner.ts', [
   ["'./objective-work-command.js'", kernelUrl],
   ["'./objective-planner-applied.js'", appliedUrl],
   ["'./objective-planner-consent-proof.js'", proofUrl],
+  ["'./objective-planner-historical-proof.js'", historicalUrl],
   ["'./objective-planner-regeneration.js'", regenerationBindingUrl],
 ]);
 const { ObjectivePlannerWorkOwner } = await import(ownerUrl);
@@ -109,15 +117,17 @@ function fixture(options = {}) {
     command_revision_id: source.sourceRevisionId, command_objective_version: source.sourceObjectiveVersion });
   const f = { a, state, work, operation, rows: [], receipts: [{ record: receipt, clerkUserId: 'user_original' }],
     settings: { clioFeatureFlags: { 'strategyPlanner.enabled': true }, objectivePlannerContinuation: { enabled: true } },
-    calls: [], outputs: [{ present: false }], historical: [], nativeProofs: [], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
+    calls: [], outputs: [{ present: false }], historical: [], nativeProofs: [], hiddenResources: [], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
   f.tx = {
     async $executeRaw(parts, ...values) { f.calls.push({ kind: 'execute', sql: parts.join('?'), values }); return 1; },
     async $queryRaw(parts, ...values) {
       const sql = parts.join('?'); f.calls.push({ kind: 'query', sql, values });
       if (sql.includes('JOIN client_objective_work_intents'))
-        return f.nativeProofs.filter(row => values.includes(row.consent.id));
+        return [...f.nativeProofs, ...f.historical].filter(row => values.includes(row.consent.id));
       if (sql.includes('FROM client_objective_work_consents')) return f.historical;
       if (sql.includes('FROM client_objective_work_command_receipts')) return f.receipts;
+      if (sql.includes('FROM sp_planner_resources') && sql.includes('AND id IN'))
+        return [...f.rows, ...f.hiddenResources].filter(row => values.includes(row.id));
       if (sql.includes('FROM sp_planner_resources')) return f.rows;
       if (sql.includes('FROM sp_planner_projects')) return f.outputs;
       if (sql.includes('FROM tenants')) return [{ settings: f.settings }];
@@ -196,6 +206,41 @@ function advanceSource(f) {
   f.state.source = sourceFrom(next, id(99));
   f.a.objectiveVersion = next.requestedObjectiveVersion; f.a.objectiveRevisionId = next.requestedObjectiveRevisionId;
   return f;
+}
+function addHistoricalTerminal(f, full, options = {}) {
+  const actorUserId = options.sameAction ? full.work.actorUserId : id(1999);
+  const work = { ...copy(full.work), actorUserId, consentId: options.consentId ?? id(1900),
+    controlVersion: options.controlVersion ?? 1,
+    applicationRequestId: app.canonicalApplicationRequestId(full.work.canonical, actorUserId) };
+  if (options.work) Object.assign(work, options.work);
+  const clerkUserId = options.sameAction ? full.clerkUserId : 'user_failed_original';
+  const operation = store.newPlannerContinuationOperation({ work, clerkUserId,
+    membershipId: id(15), originalDeadlineAt: iso(300000) });
+  operation.state = options.state ?? 'failed';
+  operation.terminal = { receiptId: operation.original.operationId, recordedAtMs: NOW + (options.terminalOffset ?? -1) };
+  const proof = nativeConsentProof({ stored: { request: { canonical: work.canonical },
+    ack: { consentId: work.consentId, actorUserId, controlVersion: work.controlVersion } }, ownerClerkUserId: clerkUserId },
+  f.state.control.id, { rootActorUserId: id(11 + full.work.canonical.bindingVersion),
+    requestId: id(1800 + work.controlVersion), commandReceiptId: id(1700 + work.controlVersion),
+    previousConsentId: options.previousConsentId ?? null });
+  const confirmed = options.confirmedOffset ?? -1000;
+  Object.assign(proof.consent, { confirmed_at: iso(confirmed), expires_at: iso(confirmed + 600000),
+    stricter_expires_at: iso(confirmed + 600000) });
+  proof.receipt.committed_at = iso(confirmed);
+  proof.intent.created_at = proof.revision.created_at = iso(confirmed - 1000);
+  f.historical.push(proof); f.rows.unshift(f.row(operation));
+  return { operation, proof };
+}
+function linkAppliedConsent(f, full, previousConsentId) {
+  const proof = f.nativeProofs.find(p => p.consent.id === full.work.consentId);
+  proof.consent.previous_consent_id = proof.receipt.target_consent_id = previousConsentId;
+  proof.receipt.command.targetAuthorizationRequestId = previousConsentId;
+  const request = kernel.parseWorkCommand(f.a.clientId, f.a.objectiveId, proof.receipt.command);
+  proof.consent.payload_digest = proof.receipt.payload_digest = kernel.workDigest(request);
+  if (f.state.consent.id === full.work.consentId) {
+    f.state.consent.previousConsentId = previousConsentId; f.state.consent.payloadDigest = proof.consent.payload_digest;
+    f.receipts[0].record = proof.receipt;
+  }
 }
 test('source custody and cross-owner JSON digest convention', () => {
   assert.ok(custody.length >= 8); assert.equal(kernel.workDigest({ a: 1, b: ['x'] }), app.applicationHash({ b: ['x'], a: 1 }));
@@ -318,37 +363,182 @@ for (const corrupt of [
   const f = advanceSource(appliedChain(fixture(), [first, second, third])); corrupt(f);
   assert.equal((await observed(f)).state, 'outcome_unconfirmed'); await assert.rejects(f.policy());
 });
+for (const state of ['failed', 'cancelled']) test(`earlier-binding ${state} keeps original root identity with no own receipt despite verified predecessor outputs`, async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const historical = addHistoricalTerminal(f, first, { state }), before = copy(historical.operation);
+  f.outputs = [{ present: true }];
+  const evidence = await observed(f);
+  assert.equal(evidence.state, 'accounted'); assert.equal(evidence.outcome, 'applied');
+  assert.equal(evidence.operationId, f.operation.original.operationId);
+  assert.notEqual(historical.proof.intent.actor_user_id, f.state.source.rootActorUserId);
+  assert.deepEqual(historical.operation, before);
+  assert.equal(f.calls.some(c => c.sql.includes('FROM sp_planner_projects')), false);
+});
+test('no-own-receipt history permits equal native terminal/current-consent millisecond timestamps', async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  addHistoricalTerminal(f, first, { terminalOffset: 0 });
+  assert.equal((await observed(f)).state, 'accounted');
+});
+test('coherently terminal-accounted old failure after current consent cannot borrow receipt absence', async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const h = addHistoricalTerminal(f, first, { terminalOffset: 1 });
+  assert.ok(h.operation.terminal.recordedAtMs >= Date.parse(h.proof.receipt.committed_at));
+  assert.ok(h.operation.terminal.recordedAtMs < Date.parse(h.operation.original.originalDeadlineAt));
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+for (const confirmedAt of ['invalid', '2026-02-30T12:00:00.000Z', iso(0) + '\n'])
+test(`historical receipt absence fails closed on invalid current confirmation clock: ${JSON.stringify(confirmedAt)}`, async () => {
+  const f = olderNoEffect(fixture()); f.state.consent.confirmedAt = confirmedAt;
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+test('earlier failed action can be owned by a distinct later explicit consent with exact full paired predecessor request', async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const historical = addHistoricalTerminal(f, first, { sameAction: true });
+  linkAppliedConsent(f, first, historical.operation.work.consentId);
+  assert.equal((await observed(f)).state, 'accounted');
+  assert.equal(historical.operation.terminal.receiptId, historical.operation.original.operationId);
+});
+test('a same-action paired success allows equality at its own verified successor confirmation timestamp', async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const h = addHistoricalTerminal(f, first, { sameAction: true, terminalOffset: 0 });
+  linkAppliedConsent(f, first, h.operation.work.consentId);
+  assert.equal((await observed(f)).state, 'accounted');
+});
+test('a later current consent cannot cover terminal accounting after the exact paired successor consent', async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const h = addHistoricalTerminal(f, first, { sameAction: true, terminalOffset: 1 });
+  linkAppliedConsent(f, first, h.operation.work.consentId);
+  const current = f.nativeProofs.at(-1);
+  current.consent.confirmed_at = current.receipt.committed_at = f.state.consent.confirmedAt = iso(2);
+  current.consent.expires_at = current.consent.stricter_expires_at = f.state.consent.expiresAt = iso(600002);
+  assert.ok(h.operation.terminal.recordedAtMs < Date.parse(f.state.consent.confirmedAt));
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+test('full explicit native succession can account two earlier terminal consents before one paired success', async () => {
+  const first = fullV2({ controlVersion: 4 }), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const older = addHistoricalTerminal(f, first, { sameAction: true, consentId: id(1901), terminalOffset: -100 });
+  const newer = addHistoricalTerminal(f, first, { sameAction: true, consentId: id(1902), state: 'cancelled',
+    controlVersion: 2, confirmedOffset: -80, terminalOffset: -50, previousConsentId: older.operation.work.consentId });
+  linkAppliedConsent(f, first, newer.operation.work.consentId);
+  assert.equal((await observed(f)).state, 'accounted');
+});
+for (const corrupt of [
+  (f, h) => { h.proof.intent.actor_user_id = f.state.source.rootActorUserId; },
+  (_f, h) => { h.proof.revision.snapshot.title = 'original snapshot changed'; },
+  (_f, h) => { h.proof.receipt.actor_membership_id = id(991); },
+  (_f, h) => { h.proof.clerkUserId = 'foreign_clerk'; },
+  (_f, h) => { h.proof.receipt.command.expectedControlVersion++; },
+  (_f, h) => { h.proof.consent.expires_at = iso(1); },
+  (_f, h) => { h.operation.terminal.receiptId = id(992); },
+  (_f, h) => { h.operation.original.originalDeadlineAt = iso(900000); },
+  (_f, h) => { h.operation.state = 'queued'; h.operation.terminal = null; },
+  (_f, h) => { h.operation.state = 'leased'; h.operation.terminal = null; h.operation.lease = { token: id(993), expiresAtMs: NOW + 1 }; },
+]) test(`earlier-binding terminal original proof refuses corruption: ${corrupt}`, async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const historical = addHistoricalTerminal(f, first); corrupt(f, historical);
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+for (const corrupt of [
+  (f, _h, first) => { linkAppliedConsent(f, first, id(998)); },
+  (_f, h) => { h.operation.terminal.recordedAtMs = NOW + 1; },
+  (f, _h, first) => { f.nativeProofs.find(p => p.consent.id === first.work.consentId).consent.confirmed_at = iso(-2); },
+]) test(`same-action paired success cannot bypass later explicit native succession: ${corrupt}`, async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const historical = addHistoricalTerminal(f, first, { sameAction: true });
+  linkAppliedConsent(f, first, historical.operation.work.consentId); corrupt(f, historical, first);
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+for (const work of [{ generationJobId: id(990) }, { generationRequestId: id(990) }, { strategyVersionId: id(990) },
+  { objectiveReceiptSha256: 'e'.repeat(64) }, { snapshotDigest: 'e'.repeat(64) }])
+test(`same stable action with different complete generation work cannot borrow a later paired success: ${JSON.stringify(work)}`, async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const historical = addHistoricalTerminal(f, first, { sameAction: true, work });
+  linkAppliedConsent(f, first, historical.operation.work.consentId);
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+function olderNoEffect(f, overrides = {}) {
+  const c = { ...f.work.canonical, bindingVersion: 1, requestedObjectiveVersion: 1,
+    requestedIntentId: id(1601), requestedObjectiveRevisionId: id(1602), ...overrides };
+  c.snapshotHash = kernel.workDigest(readySnapshot(c));
+  addHistoricalTerminal(f, fullV2({ canonical: c })); return f;
+}
+test('fully proved earlier-binding terminal history permits genuinely empty current work only with direct no-output proof', async () => {
+  const f = olderNoEffect(fixture()); assert.equal((await observed(f)).state, 'not_started');
+  assert.equal(f.calls.filter(c => c.sql.includes('FROM sp_planner_projects')).length, 1);
+  f.outputs = [{ present: true }]; assert.equal((await f.reconcile()).state, 'outcome_unconfirmed');
+});
+test('earlier terminal history preserves genuinely no-output current failed operation identity and deadline', async () => {
+  const f = olderNoEffect(fixture().terminal('failed')), before = copy(f.operation);
+  const evidence = await observed(f); assert.equal(evidence.state, 'accounted'); assert.equal(evidence.outcome, 'failed');
+  assert.equal(evidence.operationId, before.original.operationId); assert.equal(evidence.originalDeadlineAt, before.original.originalDeadlineAt);
+  assert.equal(evidence.terminalReceiptId, before.original.operationId); assert.deepEqual(f.operation, before);
+});
+for (const overrides of [{ requestedObjectiveVersion: 2 }, { requestedObjectiveVersion: 3 },
+  { requestedIntentId: id(10) }, { requestedObjectiveRevisionId: id(6) }])
+test(`lower binding label cannot establish earlier history with nonadvancing native source: ${JSON.stringify(overrides)}`, async () => {
+  const f = olderNoEffect(fixture(), overrides);
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+for (const current of ['absent', 'failed']) test(`current ${current} with older applied head remains uncertain pending separate anchor qualification`, async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const older = f.rows.find(row => row.kind === store.PLANNER_CONTINUATION_OPERATION && row.data.work.consentId === first.work.consentId);
+  f.rows = [older, ...first.resources];
+  if (current === 'failed') {
+    f.operation.state = 'failed'; f.operation.terminal = { receiptId: f.operation.original.operationId, recordedAtMs: NOW + 5 };
+    f.rows.push(f.row());
+  }
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+for (const kind of ['applicationId', 'ownerId']) for (const concealment of ['different kind', 'foreign embedded scope'])
+test(`exact earlier terminal ${kind} cannot hide behind ${concealment}`, async () => {
+  const first = fullV2(), second = fullV3(first), f = appliedChain(fixture(), [first, second]);
+  const h = addHistoricalTerminal(f, first), ids = historicalCodec.objectivePlannerHistoricalReceiptIds(h.operation);
+  const receiptKind = kind === 'applicationId' ? 'objective_canonical_application_receipt' : 'objective_canonical_materialization_receipt';
+  const row = copy(first.resources.find(resource => resource.kind === receiptKind));
+  row.id = ids[kind]; row.ownerId = h.operation.clerkUserId;
+  if (concealment === 'different kind') row.kind = 'unrelated_private_receipt';
+  else {
+    const c = kind === 'applicationId' ? row.data.request.canonical : row.data.binding.canonical;
+    c.objectiveId = id(9901); c.canonicalPlanId = id(9902);
+  }
+  f.hiddenResources = [row];
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+  const probes = f.calls.filter(c => c.sql.includes('AND id IN'));
+  assert.equal(probes.length, 1); assert.deepEqual(probes[0].values, [f.a.tenantId, ids.applicationId, ids.ownerId]);
+  assert.doesNotMatch(probes[0].sql, /AND\s+(?:kind|owner_id|data)/);
+});
 function priorTerminal(f) {
-  const old = fixture().terminal('failed'), c = old.state.consent;
-  const command = kernel.parseWorkCommand(old.a.clientId, old.a.objectiveId, { schemaVersion: 1,
-    command: 'retry', requestId: c.commandRequestId, workAction: PLAN, expectedObjectiveVersion: old.a.objectiveVersion,
-    expectedCanonicalBindingVersion: old.state.source.canonicalBindingVersion, expectedControlVersion: 1,
-    targetAuthorizationRequestId: c.previousConsentId });
-  const digest = kernel.workDigest(command), r = { ...copy(old.receipts[0].record), command: command.command,
-    payload_digest: digest, command_revision_id: old.a.objectiveRevisionId, command_objective_version: old.a.objectiveVersion };
-  const consent = { ...r, id: c.id, control_id: c.controlId, consenting_actor_user_id: c.actorUserId,
-    consenting_membership_id: c.actorMembershipId, command_receipt_id: c.commandReceiptId, command_request_id: c.commandRequestId,
-    previous_consent_id: c.previousConsentId, confirmed_at: c.confirmedAt, expires_at: c.expiresAt,
-    consent_policy_id: c.policyId, consent_policy_revision: c.policyRevision, configured_duration_ms: c.configuredDurationMs,
-    effective_duration_ms: c.effectiveDurationMs, stricter_expires_at: c.stricterExpiresAt, stricter_limit_ref: c.stricterLimitRef };
+  const old = applied(fixture()).terminal('failed'), c = old.state.consent;
+  f.state.source = copy(old.state.source); f.state.consent.source = copy(old.state.source);
+  f.receipts[0].record.source_snapshot_hash = old.state.source.sourceSnapshotHash;
   f.state.consent.id = id(90); f.state.control.currentConsentId = id(90);
   f.state.consent.previousConsentId = c.id; f.state.control.version = 3;
+  f.state.consent.confirmedAt = iso(10); f.state.consent.expiresAt = iso(600010);
   Object.assign(f.receipts[0].record, { created_consent_id: id(90), result_consent_id: id(90), target_consent_id: c.id,
     control_version_before: 2, control_version_after: 3 });
   const current = kernel.parseWorkCommand(f.a.clientId, f.a.objectiveId, { ...f.receipts[0].record.command,
     expectedControlVersion: 2, targetAuthorizationRequestId: c.id });
   f.state.consent.payloadDigest = kernel.workDigest(current);
   Object.assign(f.receipts[0].record, { command: current.command, payload_digest: f.state.consent.payloadDigest });
-  f.historical = [{ consent, record: r, clerkUserId: old.operation.clerkUserId }]; f.rows = [old.row()];
+  f.historical = old.nativeProofs; f.rows = [old.row()];
   return f;
 }
 test('fully accounted earlier failed consent permits current same-binding operation absence', async () => {
   const f = priorTerminal(fixture()); assert.equal((await observed(f)).state, 'not_started');
   assert.ok(f.calls.some(c => c.sql.includes('FROM client_objective_work_consents')));
 });
-for (const mutate of [f => { f.historical = []; }, f => { f.historical[0].record.actor_membership_id = id(88); },
+test('same-binding terminal/current consent equality is valid at database millisecond precision', async () => {
+  const f = priorTerminal(fixture()); f.state.consent.confirmedAt = iso(5); f.state.consent.expiresAt = iso(600005);
+  assert.equal((await observed(f)).state, 'not_started');
+});
+test('same-binding coherent terminal from after current consent is uncertain despite exact receipt absence', async () => {
+  const f = priorTerminal(fixture()); f.rows[0].data.terminal.recordedAtMs = NOW + 11;
+  assert.ok(f.rows[0].data.terminal.recordedAtMs < Date.parse(f.rows[0].data.original.originalDeadlineAt));
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed');
+});
+for (const mutate of [f => { f.historical = []; }, f => { f.historical[0].receipt.actor_membership_id = id(88); },
   f => { f.historical[0].consent.source_snapshot_hash = 'e'.repeat(64); },
-  f => { f.historical[0].consent.expires_at = iso(1); }, f => { f.historical[0].record.payload_digest = 'a'.repeat(64); },
+  f => { f.historical[0].consent.expires_at = iso(1); }, f => { f.historical[0].receipt.payload_digest = 'a'.repeat(64); },
   f => { f.historical[0].clerkUserId = 'user_else'; }, f => { f.outputs = [{ present: true }]; },
   f => { f.rows[0].data.state = 'queued'; f.rows[0].data.terminal = null; f.rows[0].version = 1; }]) {
   test(`historical consent requires complete original proof and no effects: ${mutate.toString()}`, async () => {

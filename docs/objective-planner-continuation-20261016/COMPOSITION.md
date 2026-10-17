@@ -95,30 +95,47 @@ human-edited outputs without creating another generation.
 
 The owner scans at most 256 relevant private rows and fails closed on overflow.
 The runtime predecessor scan has the same aggregate row bound; it is not a
-promise of 256 regeneration cycles. Earlier-binding failed/cancelled histories
-remain conservatively ineligible.
+promise of 256 regeneration cycles. Earlier-binding failed/cancelled records
+are now reconstructed against their own original consent, command, root actor,
+intent, revision, membership and Clerk. Their exact deterministic application
+and materialization IDs must either be absent or equal a fully decoded later
+consent's paired ancestor for that same application identity. Kind or embedded
+scope cannot hide a row at either ID. Original operation IDs, deadline and
+terminal accounting remain immutable.
+Each historical terminal must precede or equal the current consent confirmation;
+paired history also retains the tighter exact-successor confirmation checks.
+
+Verified predecessor outputs are retained. Whole-project output absence is
+required only when no verified paired output chain exists. A current failed or
+not-started operation alongside an older applied head remains uncertain until a
+separate complete anchor contract is available; this increment does not infer
+such an anchor from an old terminal record.
 
 Source tests use real runtime, worker, store, application, shared receipt codecs
 and Core service/command-kernel source with explicitly synthetic SQL,
 transaction, custody and materializer ports. Regeneration fixtures include three
 persisted generations and current human-edited outputs. They do not establish
 native PostgreSQL locks/RLS or deployed behavior.
-The separately guarded native suite and complete synthetic fixture builder are
-prepared in [NATIVE-QUALIFICATION.md](NATIVE-QUALIFICATION.md); no database,
-migration, credential, AWS resource, deployment or browser acceptance run was
-performed. No dependency installation or heavy archive was needed.
+The separately guarded native suite passed 12 database cases plus the
+default-off check against the pinned parent `b8b7262` on disposable PostgreSQL
+16.15, with restricted-role/RLS checks and verified owned cleanup. That run
+predates this shared-codec/status/regeneration source and does not qualify these
+later changes. [NATIVE-QUALIFICATION.md](NATIVE-QUALIFICATION.md) records its exact
+source, focused baseline and evidence limits. No AWS, application database,
+production credential, deployment or browser acceptance action occurred. No
+dependency installation or heavy archive was needed.
 
 ## Focused source verification
 
-- Eight Node source suites: **329/329 passed**. These cover producer,
+- Eight Node source suites: **372/372 passed**. These cover producer,
   application, continuation, saved-plan/runtime, native-target guard, Core owner,
   the full shared codec and the structural advanced-source witness.
 - Strategy Jest store, actual AppModule mount/private visibility, complete
   fixture reconstruction, default-disabled startup and existing materialization
   regression suites: **107 passed, 12 native cases explicitly skipped**.
-- Actual Core status service, historical consent proof, predecessor read fence,
-  regeneration binding/runtime and Core module registration: **106/106 passed**
-  (30 + 34 + 9 + 30 + 3).
+- Actual Core status service, applied and historical-terminal consent proofs,
+  predecessor read fence, regeneration binding/runtime and Core module
+  registration: **150/150 passed** (30 + 34 + 44 + 9 + 30 + 3).
 - Scoped strict TypeScript checks for the pure shared codec, runtime/application,
   regeneration qualification, historical proof, status service and actual Core
   owner import graph, plus `git diff --check`, passed. No full application build

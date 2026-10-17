@@ -3,8 +3,10 @@ import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { ObjectiveWorkOwnerPort } from './objective-work.service.js';
 import { decodeObjectivePlannerApplied, requireObjectivePlannerAppliedOperation,
-  type ObjectivePlannerAppliedOperation } from './objective-planner-applied.js';
+  type ObjectivePlannerAppliedOperation, type ObjectivePlannerAppliedPair } from './objective-planner-applied.js';
 import { verifyObjectivePlannerAppliedConsentWithinTx } from './objective-planner-consent-proof.js';
+import { verifyObjectivePlannerHistoricalConsentWithinTx,
+  objectivePlannerHistoricalReceiptIds, type ObjectivePlannerHistoricalConsentProof } from './objective-planner-historical-proof.js';
 import { objectivePlannerAdvancedSource, verifiedObjectivePlannerRegenerationWitness,
   type ObjectivePlannerRegenerationWitness } from './objective-planner-regeneration.js';
 import { parseWorkCommand, workDigest, workFailure, workUuid, type WorkAction, type WorkAuthority,
@@ -234,7 +236,8 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
        COALESCE(data#>>'{work,canonical,canonicalPlanId}',data#>>'{request,canonical,canonicalPlanId}',data#>>'{binding,canonical,canonicalPlanId}',data#>>'{canonical,canonicalPlanId}')=${source.canonicalPlanId})
       ORDER BY id LIMIT 257`;
     if (rows.length > MAX_ROWS) fail();
-    const operations: Operation[] = [], currentResources: Resource[] = [], predecessorResources: Resource[] = [], predecessorOperations: Operation[] = [];
+    const operations: Operation[] = [], currentResources: Resource[] = [], predecessorResources: Resource[] = [],
+      predecessorOperations: Operation[] = [], historicalTerminals: Operation[] = [];
     const resourceIds = new Set<string>();
     for (const row of rows) {
       json(row); uuid(row.id);
@@ -245,12 +248,17 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       if (c.tenantId !== a.tenantId || c.clientId !== a.clientId || c.objectiveId !== a.objectiveId ||
           c.canonicalPlanId !== source.canonicalPlanId || c.epoch !== source.canonicalEpoch ||
           c.canonicalStrategyId !== source.canonicalStrategyId || c.canonicalProjectId !== source.canonicalProjectId) fail();
-      // Prior bindings may participate only in a complete immutable applied
-      // chain. They never establish absence or grant a new generation/effect.
+      // Applied predecessors require the complete immutable paired chain.
+      // Original terminal failures are checked against their own native source
+      // and exact receipt absence/later consent below. Neither is a new grant.
       if (c.bindingVersion < expected.bindingVersion) {
+        if (c.requestedObjectiveVersion >= expected.requestedObjectiveVersion ||
+            c.requestedIntentId === expected.requestedIntentId ||
+            c.requestedObjectiveRevisionId === expected.requestedObjectiveRevisionId) fail();
         if (operation) {
-          if (operation.state !== 'applied') fail();
-          predecessorOperations.push(operation);
+          if (operation.state === 'applied') predecessorOperations.push(operation);
+          else if (['failed', 'cancelled'].includes(operation.state)) historicalTerminals.push(operation);
+          else fail();
         } else predecessorResources.push(row);
         continue;
       }
@@ -265,14 +273,37 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
         } else {
           if (!consent || originalVersion === null || !['failed', 'cancelled'].includes(operation.state) ||
               operation.terminal?.receiptId !== operation.original.operationId || operation.work.controlVersion >= originalVersion) fail();
-          await this.verifyHistoricalTerminal(tx, a, state, operation);
+          historicalTerminals.push(operation);
         }
       } else currentResources.push(row);
     }
     if (operations.length > 1) fail();
+    const historicalProofs = new Map<Operation, ObjectivePlannerHistoricalConsentProof>();
+    const historicalReceipts = new Map<Operation, Resource[]>();
+    for (const historical of historicalTerminals) {
+      if (!consent || originalVersion === null || historical.work.consentId === consent.id ||
+          historical.work.controlVersion >= originalVersion) fail();
+      historicalProofs.set(historical, await verifyObjectivePlannerHistoricalConsentWithinTx(tx, a, state.control!.id, historical));
+      const ids = objectivePlannerHistoricalReceiptIds(historical);
+      // Scoped inventory alone cannot prove absence: malformed data or a
+      // changed kind may hide a row at the original deterministic receipt ID.
+      const exact = await tx.$queryRaw<Resource[]>`SELECT id::text AS id,tenant_id::text AS "tenantId",owner_id AS "ownerId",
+        project_id::text AS "projectId",kind,name,data,version,archived,share_token_hash AS "shareTokenHash"
+        FROM sp_planner_resources WHERE tenant_id=${a.tenantId}::uuid
+          AND id IN (${ids.applicationId}::uuid,${ids.ownerId}::uuid) FOR SHARE`;
+      json(exact);
+      if (exact.length > 2 || new Set(exact.map(row => row.id)).size !== exact.length ||
+          exact.some(row => row.tenantId !== a.tenantId || ![ids.applicationId, ids.ownerId].includes(row.id))) fail();
+      // Native issuance of the current consent follows accounted prior work.
+      // Neither absence nor a later pair explains a terminal from its future.
+      // Equal millisecond timestamps remain valid across adjacent commits.
+      if (!utc(consent!.confirmedAt) || historical.terminal!.recordedAtMs > Date.parse(consent!.confirmedAt)) fail();
+      historicalReceipts.set(historical, exact);
+    }
     const operation = operations[0] ?? null;
     if (!operation) {
       if (currentResources.length !== 0 || predecessorResources.length !== 0 || predecessorOperations.length !== 0) fail();
+      if ([...historicalReceipts.values()].some(receipts => receipts.length !== 0)) fail();
       await this.requireNoOutputs(tx, a, source);
       return { operation: null, evidence: { ...base, state: 'not_started' } };
     }
@@ -292,6 +323,9 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
         await verifyObjectivePlannerAppliedConsentWithinTx(tx, a, state.control!.id, pair,
           owner as unknown as Parameters<typeof verifyObjectivePlannerAppliedConsentWithinTx>[4]);
       }
+      await this.requireHistoricalEffectAccounting(tx, a, state.control!.id, historicalTerminals,
+        [operation, ...predecessorOperations], decoded.applications, historicalProofs, historicalReceipts,
+        [...currentResources, ...predecessorResources]);
       return { operation, evidence: { ...base, state: 'accounted', ...operation.original,
         terminalReceiptId: decoded.terminalReceiptId, outcome: 'applied',
         // The shared gate and complete enumeration above establish no operation,
@@ -303,58 +337,66 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
     if (advanced) fail();
     if (!['failed', 'cancelled'].includes(operation.state)) return { operation, evidence: base };
     if (currentResources.length !== 0 || predecessorResources.length !== 0 || predecessorOperations.length !== 0 ||
-        operation.terminal?.receiptId !== operation.original.operationId) fail();
+        operation.terminal?.receiptId !== operation.original.operationId ||
+        [...historicalReceipts.values()].some(receipts => receipts.length !== 0)) fail();
     await this.requireNoOutputs(tx, a, source);
     const terminalReceiptId = operation.original.operationId;
     return { operation, evidence: { ...base, state: 'accounted', ...operation.original,
       terminalReceiptId, outcome: operation.state as 'applied' | 'cancelled' | 'failed' } };
   }
-  private async verifyHistoricalTerminal(tx: Tx, a: WorkAuthority, state: WorkState, op: Operation): Promise<void> {
-    const rows = await tx.$queryRaw<Array<{ consent: Json; record: Json; clerkUserId: string }>>`SELECT to_jsonb(c) AS consent,
-      to_jsonb(r) AS record,u.clerk_user_id AS "clerkUserId" FROM client_objective_work_consents c
-      JOIN client_objective_work_command_receipts r ON r.tenant_id=c.tenant_id AND r.client_id=c.client_id
-        AND r.objective_id=c.objective_id AND r.work_action=c.work_action AND r.id=c.command_receipt_id
-      JOIN tenant_memberships m ON m.tenant_id=r.tenant_id AND m.id=r.actor_membership_id AND m.user_id=r.actor_user_id
-      JOIN users u ON u.id=m.user_id
-      WHERE c.tenant_id=${a.tenantId}::uuid AND c.client_id=${a.clientId}::uuid AND c.objective_id=${a.objectiveId}::uuid
-        AND c.work_action=${PLAN} AND c.id=${op.work.consentId}::uuid FOR SHARE OF m,u`;
-    if (rows.length !== 1) fail();
-    const { consent: c, record: r, clerkUserId } = rows[0]!; json(c); json(r);
-    const expectedSource = { canonical_plan_id: op.work.canonical.canonicalPlanId, canonical_epoch: op.work.canonical.epoch,
-      canonical_strategy_id: op.work.canonical.canonicalStrategyId, canonical_project_id: op.work.canonical.canonicalProjectId,
-      canonical_binding_version: op.work.canonical.bindingVersion, root_intent_id: op.work.canonical.requestedIntentId,
-      source_revision_id: op.work.canonical.requestedObjectiveRevisionId, source_objective_version: op.work.canonical.requestedObjectiveVersion,
-      source_snapshot_hash: op.work.canonical.snapshotHash, root_actor_user_id: state.source.rootActorUserId };
-    for (const [key, value] of Object.entries(expectedSource)) if (c[key] !== value || r[key] !== value) fail();
-    const confirmedAt = Date.parse(c.confirmed_at), expiresAt = Date.parse(c.expires_at);
-    if (c.id !== op.work.consentId || r.created_consent_id !== c.id || r.result_consent_id !== c.id ||
-        c.tenant_id !== a.tenantId || c.client_id !== a.clientId || c.objective_id !== a.objectiveId || c.work_action !== PLAN ||
-        r.tenant_id !== a.tenantId || r.client_id !== a.clientId || r.objective_id !== a.objectiveId || r.work_action !== PLAN ||
-        c.control_id !== state.control?.id || r.control_id !== c.control_id ||
-        c.consenting_actor_user_id !== op.work.actorUserId || r.actor_user_id !== op.work.actorUserId ||
-        c.consenting_membership_id !== op.membershipId || r.actor_membership_id !== op.membershipId || clerkUserId !== op.clerkUserId ||
-        r.id !== c.command_receipt_id || r.request_id !== c.command_request_id || r.payload_digest !== c.payload_digest ||
-        r.command_kind !== 'retry' || r.outcome !== 'reconsent_recorded' || r.target_consent_id !== c.previous_consent_id ||
-        r.control_version_after !== op.work.controlVersion || r.control_version_before + 1 !== r.control_version_after ||
-        !Number.isFinite(confirmedAt) || !Number.isFinite(expiresAt) || expiresAt <= confirmedAt ||
-        c.consent_policy_id !== 'capiro.objective-generation-consent' || c.consent_policy_revision !== 1 ||
-        !positive(Number(c.configured_duration_ms), MAX_DURATION) || !positive(Number(c.effective_duration_ms), MAX_DURATION) ||
-        Number(c.effective_duration_ms) > Number(c.configured_duration_ms) || expiresAt - confirmedAt !== Number(c.effective_duration_ms) ||
-        Date.parse(op.original.originalDeadlineAt) > expiresAt || Date.parse(op.original.originalDeadlineAt) <= confirmedAt ||
-        !op.terminal || op.terminal.recordedAtMs < confirmedAt) fail();
-    uuid(c.id); uuid(c.command_receipt_id); uuid(c.command_request_id); hash(c.payload_digest);
-    if (c.previous_consent_id !== null) uuid(c.previous_consent_id);
-    const command = parseWorkCommand(a.clientId, a.objectiveId, r.command);
-    if (command.command.command !== 'retry' || command.command.workAction !== PLAN ||
-        command.command.requestId !== c.command_request_id || command.command.targetAuthorizationRequestId !== c.previous_consent_id ||
-        command.command.expectedControlVersion !== r.control_version_before ||
-        command.command.expectedObjectiveVersion !== op.work.canonical.requestedObjectiveVersion ||
-        command.command.expectedCanonicalBindingVersion !== op.work.canonical.bindingVersion ||
-        r.command_revision_id !== op.work.canonical.requestedObjectiveRevisionId ||
-        r.command_objective_version !== op.work.canonical.requestedObjectiveVersion ||
-        workDigest(command) !== c.payload_digest) fail();
-    if (c.stricter_expires_at === null ? c.stricter_limit_ref !== null :
-      Date.parse(c.stricter_expires_at) !== expiresAt || typeof c.stricter_limit_ref !== 'string' || !c.stricter_limit_ref) fail();
+  private async requireHistoricalEffectAccounting(tx: Tx, a: WorkAuthority, controlId: string,
+    terminals: Operation[], applied: Operation[], pairs: ObjectivePlannerAppliedPair[],
+    proofs: Map<Operation, ObjectivePlannerHistoricalConsentProof>, receipts: Map<Operation, Resource[]>,
+    resources: Resource[]): Promise<void> {
+    if (terminals.length === 0) return;
+    const byConsent = new Map<string, Operation>();
+    for (const operation of [...terminals, ...applied]) {
+      if (byConsent.has(operation.work.consentId)) fail();
+      byConsent.set(operation.work.consentId, operation);
+    }
+    const requestDigest = (operation: Operation) => {
+      const { actorUserId: _actor, consentId: _consent, controlVersion: _control, ...fields } = operation.work;
+      return workDigest({ schemaVersion: 1, ...fields });
+    };
+    const proof = async (operation: Operation) => {
+      const saved = proofs.get(operation);
+      if (saved) return saved;
+      const checked = await verifyObjectivePlannerHistoricalConsentWithinTx(tx, a, controlId, operation);
+      proofs.set(operation, checked); return checked;
+    };
+    for (const terminal of terminals) {
+      const matches = pairs.filter(pair => pair.stored.request.applicationRequestId === terminal.work.applicationRequestId);
+      const exact = receipts.get(terminal);
+      if (!exact) fail();
+      // Exact tenant+ID probes establish absence independently of kind/scope.
+      // Older output custody is separately proven by the full decoded chain.
+      if (matches.length === 0) { if (exact!.length !== 0) fail(); continue; }
+      if (matches.length !== 1) fail();
+      const pair = matches[0]!, digest = requestDigest(terminal);
+      if (exact!.length !== 2 || exact!.some(row =>
+          ![pair.receiptId, pair.ownerRowId].includes(row.id) ||
+          !resources.some(resource => resource.id === row.id && workDigest(resource) === workDigest(row)))) fail();
+      if (pair.ownerClerkUserId !== terminal.clerkUserId || workDigest(pair.stored.request) !== digest ||
+          pair.stored.ack.consentId === terminal.work.consentId ||
+          pair.stored.ack.controlVersion <= terminal.work.controlVersion ||
+          Date.parse(pair.stored.ack.recordedAt) < terminal.terminal!.recordedAtMs) fail();
+      const successor = applied.find(operation => operation.terminal?.receiptId === pair.receiptId);
+      if (!successor) fail();
+      // A later explicit native consent may legitimately apply the same stable
+      // action. Prove its complete earlier-consent path rather than borrowing
+      // another consent's success as the failed original operation's effect.
+      let cursor = successor!;
+      const seen = new Set<string>();
+      while (cursor !== terminal) {
+        if (seen.has(cursor.work.consentId) || seen.size >= MAX_ROWS ||
+            cursor.clerkUserId !== terminal.clerkUserId || requestDigest(cursor) !== digest) fail();
+        seen.add(cursor.work.consentId);
+        const current = await proof(cursor), previous = byConsent.get(current.previousConsentId ?? '');
+        if (!previous || previous.work.controlVersion >= cursor.work.controlVersion ||
+            !terminals.includes(previous) || current.confirmedAtMs < previous.terminal!.recordedAtMs) fail();
+        cursor = previous!;
+      }
+    }
   }
   private async requireNoOutputs(tx: Tx, a: WorkAuthority, source: WorkSource): Promise<void> {
     // Include archived rows: disappearance from a current view is not proof an
