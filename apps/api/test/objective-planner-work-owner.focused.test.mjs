@@ -47,10 +47,17 @@ const currentConsentUrl = await sourceModule('../src/clients/objectives/work/obj
   ["'../../../auth/workload-authority/objective-consent-policy.js'", policyUrl],
   ["'../objective-work-intent.js'", intentUrl], ["'./objective-work-command.js'", kernelUrl],
 ]);
+const unusedConsentUrl = await sourceModule('../src/clients/objectives/work/objective-planner-unused-consent-proof.ts', [
+  ["'@capiro/shared'", calendarUrl],
+  ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
+  ["'./objective-planner-current-consent-proof.js'", currentConsentUrl],
+  ["'./objective-work-command.js'", kernelUrl],
+]);
 const retainedAnchorUrl = await sourceModule('../src/clients/objectives/work/objective-planner-retained-anchor.ts', [
   ["'@capiro/shared'", calendarUrl], ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
   ["'./objective-planner-applied.js'", appliedUrl], ["'./objective-planner-consent-proof.js'", proofUrl],
   ["'./objective-work-command.js'", kernelUrl],
+  ["'./objective-planner-unused-consent-proof.js'", unusedConsentUrl],
 ]);
 const ownerUrl = await sourceModule('../src/clients/objectives/work/objective-planner-work-owner.ts', [
   ["'./objective-work-command.js'", kernelUrl],
@@ -130,15 +137,19 @@ function fixture(options = {}) {
     command_revision_id: source.sourceRevisionId, command_objective_version: source.sourceObjectiveVersion });
   const f = { a, state, work, operation, rows: [], receipts: [{ record: receipt, clerkUserId: 'user_original' }],
     settings: { clioFeatureFlags: { 'strategyPlanner.enabled': true }, objectivePlannerContinuation: { enabled: true } },
-    calls: [], outputs: [{ present: false }], outputRows: [], historical: [], nativeProofs: [], hiddenResources: [], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
+    calls: [], outputs: [{ present: false }], outputRows: [], historical: [], nativeProofs: [], hiddenResources: [],
+    expiryRows: [{ expired: false }], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
   f.tx = {
     async $executeRaw(parts, ...values) { f.calls.push({ kind: 'execute', sql: parts.join('?'), values }); return 1; },
     async $queryRaw(parts, ...values) {
       const sql = parts.join('?'); f.calls.push({ kind: 'query', sql, values });
+      if (sql.includes('AS expired')) return f.expiryRows;
       if (sql.includes('JOIN client_objective_work_intents'))
         return [...f.nativeProofs, ...f.historical].filter(row => values.includes(row.consent.id));
       if (sql.includes('FROM client_objective_work_consents')) return f.historical;
       if (sql.includes('FROM client_objective_work_command_receipts')) return f.receipts;
+      if (sql.includes('FROM sp_planner_resources') && sql.includes('consentId') && sql.includes('ANY'))
+        return [...f.rows, ...f.hiddenResources].filter(row => values.flat().includes(row.data?.work?.consentId));
       if (sql.includes('FROM sp_planner_resources') && /\b(?:AND|WHERE)\s+(?:\w+\.)?id\s*(?:=|IN\b)/.test(sql))
         return [...f.rows, ...f.hiddenResources].filter(row => values.includes(row.id));
       if (sql.includes('FROM sp_planner_resources')) return f.rows;
@@ -267,6 +278,59 @@ function retainedHead(chain = [fullV2()], current = 'absent') {
 function retainedCurrentReceiptIds(f) {
   return { applicationId: app.applicationReceiptId(f.a.tenantId, f.operation.clerkUserId, f.work.applicationRequestId),
     ownerId: materialization.canonicalMaterializationReceiptId(f.a.tenantId, f.operation.clerkUserId, f.work.applicationRequestId) };
+}
+function captureUnusedConsent(f, proof) {
+  const c = proof.consent, r = proof.receipt;
+  f.currentProof = proof;
+  f.state.consent = { id: c.id, controlId: c.control_id, source: copy(f.state.source),
+    previousConsentId: c.previous_consent_id, actorUserId: c.consenting_actor_user_id,
+    actorMembershipId: c.consenting_membership_id, policyId: c.consent_policy_id, policyRevision: c.consent_policy_revision,
+    configuredDurationMs: c.configured_duration_ms, effectiveDurationMs: c.effective_duration_ms,
+    stricterExpiresAt: c.stricter_expires_at, stricterLimitRef: c.stricter_limit_ref,
+    confirmedAt: c.confirmed_at, expiresAt: c.expires_at, commandRequestId: c.command_request_id,
+    commandReceiptId: c.command_receipt_id, payloadDigest: c.payload_digest };
+  f.state.control = { ...f.state.control, version: r.control_version_after, currentConsentId: c.id,
+    cancelledAt: null, cancelledByUserId: null };
+  f.receipts = [{ record: r, clerkUserId: proof.clerkUserId }];
+  f.work = { ...f.work, actorUserId: c.consenting_actor_user_id, consentId: c.id,
+    controlVersion: r.control_version_after,
+    applicationRequestId: app.canonicalApplicationRequestId(f.work.canonical, c.consenting_actor_user_id) };
+  f.operation = store.newPlannerContinuationOperation({ work: f.work, clerkUserId: proof.clerkUserId,
+    membershipId: c.consenting_membership_id, originalDeadlineAt: c.expires_at });
+}
+function unusedRenewals(f, count = 1) {
+  f.unusedProofs ??= [];
+  for (let i = 0; i < count; i++) {
+    const previous = f.currentProof, serial = f.unusedProofs.length;
+    f.unusedProofs.push(previous);
+    const controlVersion = previous.receipt.control_version_after + 1;
+    const proof = nativeConsentProof({ stored: { request: { canonical: f.work.canonical }, ack: {
+      consentId: id(10000 + serial), actorUserId: f.a.actorUserId, controlVersion } },
+    ownerClerkUserId: `user_unused_successor_${serial}` }, f.state.control.id,
+    { rootActorUserId: f.state.source.rootActorUserId, membershipId: f.a.actorMembershipId,
+      previousConsentId: previous.consent.id, requestId: id(11000 + serial), commandReceiptId: id(12000 + serial) });
+    const confirmedAt = Date.parse(previous.consent.expires_at) + 1;
+    Object.assign(proof.consent, { confirmed_at: new Date(confirmedAt).toISOString(),
+      expires_at: new Date(confirmedAt + 600000).toISOString(),
+      stricter_expires_at: new Date(confirmedAt + 600000).toISOString() });
+    proof.receipt.committed_at = proof.consent.confirmed_at;
+    f.nativeProofs.push(proof); captureUnusedConsent(f, proof);
+  }
+  return f;
+}
+function retryRequest(f, requestId = id(13000)) {
+  return kernel.parseWorkCommand(f.a.clientId, f.a.objectiveId, { schemaVersion: 1, requestId, command: 'retry',
+    workAction: PLAN, expectedObjectiveVersion: f.a.objectiveVersion,
+    expectedCanonicalBindingVersion: f.state.source.canonicalBindingVersion,
+    expectedControlVersion: f.state.control.version, targetAuthorizationRequestId: f.state.consent.id });
+}
+async function observedRetry(f, request = retryRequest(f)) {
+  await f.owner.lockWithinTx(f.tx, { tenantId: f.a.tenantId }, request); return f.reconcile();
+}
+function nativeUnusedReceiptIds(f, proof) {
+  const requestId = app.canonicalApplicationRequestId(f.work.canonical, proof.consent.consenting_actor_user_id);
+  return { applicationId: app.applicationReceiptId(f.a.tenantId, proof.clerkUserId, requestId),
+    ownerId: materialization.canonicalMaterializationReceiptId(f.a.tenantId, proof.clerkUserId, requestId) };
 }
 function addHistoricalTerminal(f, full, options = {}) {
   const actorUserId = options.sameAction ? full.work.actorUserId : id(1999);
@@ -933,4 +997,251 @@ test('NEW explicit consent after accounted expiry creates distinct operation whi
   assert.notEqual(next.original.runId, original.original.runId);
   assert.equal(next.original.originalDeadlineAt, savedConsent.expiresAt);
   assert.deepEqual(f.operation, original, 'original prior work is never renewed or relabeled');
+});
+
+test('expired unused current consent beside a full applied anchor enables only an explicit retry', async () => {
+  const f = retainedHead(), before = copy({ rows: f.rows, state: f.state, proofs: f.nativeProofs });
+  f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'not_started');
+  const facts = await f.policy(); assert.equal(facts.originalDelegationExpiresAtMs, null);
+  const expiry = f.calls.find(c => c.sql.includes('AS expired'));
+  assert.match(expiry.sql, /clock_timestamp\(\) >= c\.expires_at/);
+  assert.deepEqual(expiry.values, [f.a.tenantId, f.a.clientId, f.a.objectiveId, PLAN, f.state.control.id, f.state.consent.id]);
+  assert.deepEqual({ rows: f.rows, state: f.state, proofs: f.nativeProofs }, before);
+  await observedRead(f); await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+});
+
+for (const count of [1, 3]) test(`complete ${count}-unused-consent bridge retains read and expired-retry accounting`, async () => {
+  const f = unusedRenewals(retainedHead(), count), before = copy({ rows: f.rows, state: f.state, proofs: f.nativeProofs });
+  assert.equal((await observedRead(f)).state, 'not_started');
+  assert.equal(f.calls.filter(c => c.sql.includes('AS expired')).length, 0, 'a read cannot evaluate issuance expiry');
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+  f.expiryRows = [{ expired: true }]; assert.equal((await observedRetry(f)).state, 'not_started');
+  assert.equal((await f.policy()).originalDelegationExpiresAtMs, null);
+  for (const proof of f.unusedProofs) {
+    const read = f.calls.find(c => c.sql.includes('JOIN client_objective_work_intents') && c.values.includes(proof.consent.id));
+    assert.ok(read, 'each unused consent has its own actual native proof');
+    assert.deepEqual(read.values, [f.a.tenantId, f.a.clientId, f.a.objectiveId, PLAN, proof.consent.id, f.state.control.id]);
+    assert.match(read.sql, /FOR SHARE OF m,u/);
+    const ids = nativeUnusedReceiptIds(f, proof);
+    assert.ok(f.calls.some(c => c.sql.includes('FROM sp_planner_resources') && c.values.includes(ids.applicationId) &&
+      c.values.includes(ids.ownerId) && !c.sql.includes('kind') && !c.sql.includes('owner_id')));
+  }
+  assert.deepEqual({ rows: f.rows, state: f.state, proofs: f.nativeProofs }, before);
+});
+
+test('unused original actor and Clerk remain exact when another current human renews', async () => {
+  const f = retainedHead(), prior = copy(f.currentProof);
+  f.a.actorUserId = id(14000); f.a.actorMembershipId = id(14001); f.a.clerkUserId = 'user_fresh_human';
+  unusedRenewals(f); f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'not_started');
+  assert.notEqual(f.currentProof.clerkUserId, prior.clerkUserId);
+  const ids = nativeUnusedReceiptIds(f, prior);
+  assert.ok(f.calls.some(c => c.sql.includes('FROM sp_planner_resources') && c.values.includes(ids.applicationId)));
+});
+
+test('unused renewal accepts expiry equal to successor confirmation at millisecond precision', async () => {
+  const f = unusedRenewals(retainedHead()), confirmedAt = f.unusedProofs[0].consent.expires_at;
+  f.currentProof.consent.confirmed_at = f.currentProof.receipt.committed_at = confirmedAt;
+  f.currentProof.consent.expires_at = f.currentProof.consent.stricter_expires_at =
+    new Date(Date.parse(confirmedAt) + 600000).toISOString();
+  captureUnusedConsent(f, f.currentProof);
+  assert.equal((await observedRead(f)).state, 'not_started');
+});
+
+test('a coherent native consent from the old ready source cannot bridge current-source unused consent', async () => {
+  const f = unusedRenewals(retainedHead()), bridge = f.unusedProofs[0], c = bridge.consent, r = bridge.receipt;
+  const old = nativeConsentProof({ stored: { request: { canonical: f.anchorChain[0].work.canonical },
+    ack: { consentId: c.id, actorUserId: c.consenting_actor_user_id, controlVersion: r.control_version_after } },
+  ownerClerkUserId: bridge.clerkUserId }, c.control_id, { rootActorUserId: f.nativeProofs[0].intent.actor_user_id,
+    membershipId: c.consenting_membership_id, previousConsentId: c.previous_consent_id,
+    requestId: c.command_request_id, commandReceiptId: c.command_receipt_id });
+  Object.assign(old.consent, { confirmed_at: c.confirmed_at, expires_at: c.expires_at,
+    stricter_expires_at: c.stricter_expires_at }); old.receipt.committed_at = r.committed_at;
+  Object.assign(bridge, old); f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+});
+
+test('coherent unused bridge command with a noncontiguous native control remains uncertain', async () => {
+  const f = unusedRenewals(retainedHead()), bridge = f.unusedProofs[0];
+  bridge.receipt.control_version_before++; bridge.receipt.control_version_after++;
+  bridge.receipt.command.expectedControlVersion++;
+  const digest = kernel.workDigest(kernel.parseWorkCommand(f.a.clientId, f.a.objectiveId, bridge.receipt.command));
+  bridge.consent.payload_digest = bridge.receipt.payload_digest = digest;
+  f.expiryRows = [{ expired: true }]; assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+});
+
+for (const expiryRows of [[], [{ expired: false }], [{ expired: true }, { expired: true }],
+  [{ expired: 'true' }], [{ expired: null }], [{}]])
+test(`expired retry refuses native expiry evidence ${JSON.stringify(expiryRows)}`, async () => {
+  const f = retainedHead(); f.expiryRows = expiryRows;
+  assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+});
+
+test('expired retained retry authority cannot survive a later cancel lock or foreign command scope', async () => {
+  const f = retainedHead(); f.expiryRows = [{ expired: true }]; await observedRetry(f); await f.policy();
+  const cancel = retryRequest(f); cancel.command.command = 'cancel';
+  await f.owner.lockWithinTx(f.tx, { tenantId: f.a.tenantId }, cancel);
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+  assert.equal((await f.reconcile()).state, 'outcome_unconfirmed');
+  const foreign = retryRequest(f); foreign.objectiveId = id(14002);
+  await f.owner.lockWithinTx(f.tx, { tenantId: f.a.tenantId }, foreign);
+  assert.equal((await f.reconcile()).state, 'outcome_unconfirmed');
+});
+
+test('direct historical control gap remains readable but cannot issue an unprovable unused successor', async () => {
+  const f = retainedHead(), c = f.currentProof.consent, r = f.currentProof.receipt;
+  r.control_version_before += 2; r.control_version_after += 2; r.command.expectedControlVersion += 2;
+  const digest = kernel.workDigest(kernel.parseWorkCommand(f.a.clientId, f.a.objectiveId, r.command));
+  c.payload_digest = r.payload_digest = f.state.consent.payloadDigest = digest;
+  f.state.control.version = r.control_version_after;
+  assert.equal((await observedRead(f)).state, 'not_started');
+  f.expiryRows = [{ expired: true }]; assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+});
+
+const unusedCorruptions = [
+  ['missing native bridge', f => { f.nativeProofs = f.nativeProofs.filter(p => p !== f.unusedProofs[0]); }],
+  ['duplicate native bridge', f => { f.nativeProofs.push(copy(f.unusedProofs[0])); }],
+  ['bridge source revision', f => { f.unusedProofs[0].consent.source_revision_id = id(14003); }],
+  ['bridge root actor', f => { f.unusedProofs[0].intent.actor_user_id = id(14004); }],
+  ['bridge original Clerk missing', f => { f.unusedProofs[0].clerkUserId = ''; }],
+  ['bridge original membership', f => { f.unusedProofs[0].receipt.actor_membership_id = id(14005); }],
+  ['bridge command digest', f => { f.unusedProofs[0].receipt.payload_digest = 'f'.repeat(64); }],
+  ['bridge future expiry', f => {
+    const c = f.unusedProofs[0].consent; c.expires_at = c.stricter_expires_at = f.currentProof.consent.expires_at;
+  }],
+  ['bridge missing anchor predecessor', f => { f.unusedProofs[0].consent.previous_consent_id = null; }],
+  ['bridge cycle', f => { f.unusedProofs[0].consent.previous_consent_id = f.state.consent.id; }],
+  ['current cancelled', f => { f.state.control.cancelledAt = iso(1); f.state.control.cancelledByUserId = f.a.actorUserId; }],
+  ['current source no longer ready', f => { f.a.objectiveStatus = 'draft'; }],
+  ['orphan current output', f => { f.outputRows.push({ id: id(14006), tenantId: f.a.tenantId, kind: 'task' }); }],
+];
+for (const [label, corrupt] of unusedCorruptions) test(`unused-consent recovery refuses ${label}`, async () => {
+  const f = unusedRenewals(retainedHead()); corrupt(f); f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
+});
+
+for (const state of ['queued', 'leased', 'failed', 'cancelled', 'applied', 'unknown'])
+test(`unused bridge cannot own a ${state} operation`, async () => {
+  const f = unusedRenewals(retainedHead()), bridge = f.unusedProofs[0];
+  const operation = store.newPlannerContinuationOperation({ work: { ...copy(f.work),
+    consentId: bridge.consent.id, controlVersion: bridge.receipt.control_version_after,
+    actorUserId: bridge.consent.consenting_actor_user_id,
+    applicationRequestId: app.canonicalApplicationRequestId(f.work.canonical, bridge.consent.consenting_actor_user_id) },
+  clerkUserId: bridge.clerkUserId, membershipId: bridge.consent.consenting_membership_id,
+  originalDeadlineAt: bridge.consent.expires_at });
+  operation.state = state;
+  if (state === 'leased') operation.lease = { token: id(14007), expiresAtMs: NOW + 1 };
+  if (['failed', 'cancelled', 'applied'].includes(state)) operation.terminal = { receiptId: operation.original.operationId, recordedAtMs: NOW + 1 };
+  f.rows.push(f.row(operation)); f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+});
+
+for (const kind of ['applicationId', 'ownerId']) for (const concealed of ['kind', 'scope'])
+test(`unused bridge exact ${kind} cannot hide through changed ${concealed}`, async () => {
+  const f = unusedRenewals(retainedHead()), bridge = f.unusedProofs[0], ids = nativeUnusedReceiptIds(f, bridge);
+  const row = copy(f.anchorChain[0].resources.find(r => r.kind ===
+    (kind === 'applicationId' ? 'objective_canonical_application_receipt' : 'objective_canonical_materialization_receipt')));
+  row.id = ids[kind]; row.ownerId = bridge.clerkUserId;
+  if (concealed === 'kind') row.kind = 'private_unknown_kind';
+  else {
+    const canonical = kind === 'applicationId' ? row.data.request.canonical : row.data.binding.canonical;
+    canonical.objectiveId = id(14008); canonical.canonicalPlanId = id(14009);
+  }
+  f.hiddenResources.push(row); f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+});
+
+for (const subject of ['current', 'bridge']) for (const concealment of ['kind', 'scope', 'owner', 'archived'])
+test(`${subject} consent operation cannot evade tenant-wide inventory through changed ${concealment}`, async () => {
+  const f = unusedRenewals(retainedHead()), proof = subject === 'current' ? f.currentProof : f.unusedProofs[0];
+  const row = f.row(); row.id = id(14100); row.data.work.consentId = proof.consent.id;
+  if (concealment === 'kind') row.kind = 'unrelated_private_row';
+  if (concealment === 'scope') {
+    row.data.work.canonical.objectiveId = id(14101); row.data.work.canonical.canonicalPlanId = id(14102);
+  }
+  if (concealment === 'owner') row.ownerId = row.data.clerkUserId = 'foreign_clerk';
+  if (concealment === 'archived') row.archived = true;
+  f.hiddenResources.push(row); f.expiryRows = [{ expired: true }];
+  assert.equal((await observedRetry(f)).state, 'outcome_unconfirmed');
+});
+
+test('actual owner and kernel renew an expired unused consent once, then read the complete C2 C1 applied-anchor chain', async () => {
+  const f = retainedHead(), original = copy({ rows: f.rows, proofs: f.nativeProofs, consent: f.state.consent });
+  const now = Date.parse(f.state.consent.expiresAt) + 1, proofExpiry = now + 20000;
+  f.expiryRows = [{ expired: true }];
+  const request = retryRequest(f, id(15000));
+  let saved = { state: copy(f.state), receipts: {}, consents: {}, serial: 15001 };
+  let writeCount = 0;
+  const owner = { transaction: async (write, run) => {
+    if (!write) await f.owner.lockReadWithinTx(f.tx, { tenantId: f.a.tenantId }, { workAction: PLAN });
+    const draft = copy(saved), writable = () => assert.equal(write, true);
+    const result = await run({
+      lockOwner: async () => { writable(); await f.owner.lockWithinTx(f.tx, { tenantId: f.a.tenantId }, request); },
+      currentAuthority: async () => copy(f.a),
+      receipt: async (a, action, requestId) => copy(draft.receipts[`${a.actorUserId}:${action}:${requestId}`] ?? null),
+      state: async () => copy(draft.state), clock: async () => new Date(now).toISOString(),
+      reconcile: (a, action, state) => f.owner.reconcileWithinTx(f.tx, a, action, state),
+      policy: async (a, action, state) => ({ ...await f.owner.policyWithinTx(f.tx, a, action, state),
+        originalTokenExpiresAtMs: proofExpiry }),
+      insertConsent: async (_a, _action, consent) => {
+        writable(); assert.equal(draft.consents[consent.id], undefined); draft.consents[consent.id] = copy(consent); writeCount++;
+      },
+      casControl: async (_a, _action, before, after) => {
+        writable(); assert.deepEqual(before, draft.state.control); draft.state.control = copy(after);
+        draft.state.consent = copy(draft.consents[after.currentConsentId]); writeCount++; return true;
+      },
+      insertReceipt: async (a, stored) => {
+        writable(); const key = `${a.actorUserId}:${stored.command.workAction}:${stored.command.requestId}`;
+        assert.equal(draft.receipts[key], undefined); draft.receipts[key] = copy(stored); writeCount++;
+      }, newId: () => { writable(); return id(draft.serial++); },
+    });
+    if (write) {
+      const newConsent = draft.state.consent;
+      if (newConsent.id !== saved.state.consent.id) {
+        // Only the persistence adapter is synthetic. These bytes come from the
+        // ACTUAL kernel-issued consent/command, then pass the real native codec
+        // on the following read. No operation or regeneration witness is made.
+        const stored = Object.values(draft.receipts).find(r => r.receipt.authorizationRequestId === newConsent.id);
+        const proof = nativeConsentProof({ stored: { request: { canonical: f.work.canonical },
+          ack: { consentId: newConsent.id, actorUserId: newConsent.actorUserId,
+            controlVersion: draft.state.control.version } }, ownerClerkUserId: f.a.clerkUserId },
+        newConsent.controlId, { rootActorUserId: newConsent.source.rootActorUserId, membershipId: newConsent.actorMembershipId,
+          previousConsentId: newConsent.previousConsentId, requestId: newConsent.commandRequestId,
+          commandReceiptId: newConsent.commandReceiptId });
+        Object.assign(proof.consent, { configured_duration_ms: newConsent.configuredDurationMs,
+          effective_duration_ms: newConsent.effectiveDurationMs, stricter_expires_at: newConsent.stricterExpiresAt,
+          stricter_limit_ref: newConsent.stricterLimitRef, confirmed_at: newConsent.confirmedAt,
+          expires_at: newConsent.expiresAt, payload_digest: newConsent.payloadDigest });
+        proof.receipt.committed_at = stored.receipt.committedAt;
+        proof.receipt.payload_digest = newConsent.payloadDigest; proof.receipt.command = copy(stored.command);
+        f.nativeProofs.push(proof); captureUnusedConsent(f, proof);
+        assert.deepEqual(f.state, draft.state);
+      }
+      saved = draft;
+    }
+    return result;
+  } };
+  const receipt = await kernel.executeWorkCommand(request, owner);
+  assert.equal(receipt.outcome, 'reconsent_recorded'); assert.equal(receipt.targetAuthorizationRequestId, original.consent.id);
+  assert.equal(receipt.controlVersionAfter, request.command.expectedControlVersion + 1);
+  assert.equal(Date.parse(receipt.consent.expiresAt), proofExpiry, 'fresh request proof bounds the NEW consent');
+  assert.equal(writeCount, 3); assert.deepEqual(f.rows, original.rows);
+  assert.deepEqual(f.nativeProofs.slice(0, original.proofs.length), original.proofs, 'every original immutable ledger remains unchanged');
+  const status = await kernel.readWorkGeneration({ clientId: f.a.clientId, objectiveId: f.a.objectiveId,
+    workAction: PLAN, requestId: request.command.requestId }, owner);
+  assert.equal(status.reconciliation, 'not_started'); assert.equal(status.consent.id, receipt.authorizationRequestId);
+  assert.deepEqual(status.commandReceipt, receipt); assert.deepEqual(f.rows, original.rows);
+  assert.ok(f.calls.some(c => c.sql.includes('JOIN client_objective_work_intents') && c.values.includes(original.consent.id)),
+    'the real read reconstructs unused C1 in addition to C2 and A');
+  const committed = copy(saved);
+  assert.deepEqual(await kernel.executeWorkCommand(request, owner), receipt);
+  assert.deepEqual(saved, committed); assert.equal(writeCount, 3);
+  await assert.rejects(kernel.executeWorkCommand({ ...request,
+    command: { ...request.command, expectedControlVersion: receipt.controlVersionAfter } }, owner),
+  error => error.code === 'REQUEST_ID_CONFLICT');
+  assert.deepEqual(saved, committed); assert.equal(writeCount, 3);
+  await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE', 'read status cannot grant another consent');
 });

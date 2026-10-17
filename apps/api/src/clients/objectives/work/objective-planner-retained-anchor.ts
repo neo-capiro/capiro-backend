@@ -9,6 +9,7 @@ import { decodeObjectivePlannerApplied, requireObjectivePlannerAppliedOperation,
   type ObjectivePlannerResource } from './objective-planner-applied.js';
 import { verifyObjectivePlannerAppliedConsentWithinTx } from './objective-planner-consent-proof.js';
 import type { ObjectivePlannerCurrentConsentProof } from './objective-planner-current-consent-proof.js';
+import { verifyObjectivePlannerUnusedConsentChainWithinTx } from './objective-planner-unused-consent-proof.js';
 import { workDigest, workFailure, type WorkAuthority, type WorkState } from './objective-work-command.js';
 
 /** Operations have already passed the resource owner's complete operation parser. */
@@ -19,6 +20,8 @@ export interface RetainedAnchorInput {
   currentConsent: ObjectivePlannerCurrentConsentProof;
   operations: readonly RetainedAnchorOperation[];
   resources: readonly ObjectivePlannerResource[];
+  /** Complete parsed owner inventory, including historical terminal operations. */
+  operationConsentIds: readonly string[];
 }
 export interface ObjectivePlannerRetainedAnchor {
   operation: RetainedAnchorOperation;
@@ -39,14 +42,14 @@ const canonical = (a: WorkAuthority, s: WorkState['source']) => ({ tenantId: a.t
   requestedIntentId: s.rootIntentId, requestedObjectiveRevisionId: s.sourceRevisionId,
   requestedObjectiveVersion: s.sourceObjectiveVersion, snapshotHash: s.sourceSnapshotHash });
 
-/** Status custody only. Caller owns the early Planner gate and current native
+/** Retained custody only. Caller owns the early Planner gate and current native
  * authority/source locks, and has proved there is NO current operation. This
  * never allocates a consent, operation, grant, write or regeneration witness.
  * The current consent has its own full native proof; no operation is invented
  * to stand in for work that has never started. */
 export async function readObjectivePlannerRetainedAnchorWithinTx(tx: Prisma.TransactionClient,
   raw: RetainedAnchorInput): Promise<ObjectivePlannerRetainedAnchor> {
-  const { authority: a, state, currentConsent: current, operations, resources } = copy(raw);
+  const { authority: a, state, currentConsent: current, operations, resources, operationConsentIds } = copy(raw);
   const consent = state.consent, control = state.control, source = state.source;
   if (!consent || !control) return fail();
   if (a.objectiveStatus !== 'ready' || a.objectiveVersion !== source.sourceObjectiveVersion ||
@@ -78,7 +81,7 @@ export async function readObjectivePlannerRetainedAnchorWithinTx(tx: Prisma.Tran
       .some(key => old[key as keyof typeof old] !== target[key as keyof typeof target]) ||
       old.bindingVersion >= target.bindingVersion || old.requestedObjectiveVersion >= target.requestedObjectiveVersion ||
       old.requestedIntentId === target.requestedIntentId || old.requestedObjectiveRevisionId === target.requestedObjectiveRevisionId ||
-      old.snapshotHash === target.snapshotHash || current.previousConsentId !== anchor.work.consentId ||
+      old.snapshotHash === target.snapshotHash ||
       current.controlVersion <= anchor.work.controlVersion || !anchor.terminal ||
       anchor.terminal.recordedAtMs > current.confirmedAtMs) fail();
   const decoded = decodeObjectivePlannerApplied(anchor, resources);
@@ -105,6 +108,12 @@ export async function readObjectivePlannerRetainedAnchorWithinTx(tx: Prisma.Tran
     if (!before || !after || before.work.controlVersion >= after.work.controlVersion ||
         !before.terminal || !after.terminal || before.terminal.recordedAtMs > after.terminal.recordedAtMs) fail();
   }
+  // An interrupted, expired consent may precede the current consent without an
+  // operation. Prove every native issuance and exact effect absence; never fill
+  // that gap with a fabricated operation or a later successful receipt.
+  await verifyObjectivePlannerUnusedConsentChainWithinTx(tx, a, state, { currentProof: current,
+    anchorConsentId: anchor.work.consentId, anchorControlVersion: anchor.work.controlVersion,
+    anchorTerminalAtMs: anchor.terminal!.recordedAtMs, operationConsentIds });
   // Current actor and ORIGINAL issuance Clerk define the current application
   // identity. The authorized status reader may be a different person.
   const applicationRequestId = application.canonicalApplicationRequestId(target, current.actorUserId);

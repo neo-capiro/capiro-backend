@@ -485,14 +485,23 @@ export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOw
     const observedAt = utc(await tx.clock());
     const evidence = await tx.reconcile(a, request.workAction, state);
     const reconciled = reconciliationState(evidence, a, request.workAction, state);
+    // Requested ready source and original accounted source may differ after a
+    // newer Objective revision. These observations let a browser build the
+    // existing command CAS without guessing a binding version, while retaining
+    // the source of any terminal result. They confer no retry/effect authority.
+    const accountedSource = state.consent?.source ?? state.source;
     return { schemaVersion: 1 as const, clientId: a.clientId,
       objective: { id: a.objectiveId, revision: { id: a.objectiveRevisionId, version: a.objectiveVersion }, status: a.objectiveStatus },
       workAction: request.workAction,
+      requestedSource: { revision: { id: state.source.sourceRevisionId, version: state.source.sourceObjectiveVersion },
+        canonicalBindingVersion: state.source.canonicalBindingVersion },
       control: { version: state.control?.version ?? 0, currentAuthorizationRequestId: state.control?.currentConsentId ?? null,
         cancelledAt: state.control?.cancelledAt ?? null },
       consent: state.consent ? { id: state.consent.id, confirmedAt: state.consent.confirmedAt,
         expiresAt: state.consent.expiresAt, expired: Date.parse(state.consent.expiresAt) <= Date.parse(observedAt) } : null,
       reconciliation: reconciled === 'unavailable' ? 'outcome_unconfirmed' : reconciled,
+      accounting: reconciled === 'accounted' ? { outcome: evidence.outcome!,
+        sourceRevision: { id: accountedSource.sourceRevisionId, version: accountedSource.sourceObjectiveVersion } } : null,
       commandReceipt: receipt, observedAt };
   });
 }

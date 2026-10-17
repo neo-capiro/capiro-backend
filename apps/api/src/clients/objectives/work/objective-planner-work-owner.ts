@@ -23,7 +23,7 @@ type Resource = { id: string; tenantId: string; ownerId: string; projectId: stri
 type Operation = { schemaVersion: 1; namespace: string; tenantId: string; clerkUserId: string;
   membershipId: string; work: Json; original: Json; state: string; lease: Json | null; terminal: Json | null };
 type OwnerReconciliation = WorkReconciliation & { regeneration?: ObjectivePlannerRegenerationWitness };
-type Accounting = { evidence: OwnerReconciliation; operation: Operation | null; statusOnly?: true };
+type Accounting = { evidence: OwnerReconciliation; operation: Operation | null; statusOnly?: true; requiresRetryGate?: true };
 const PLAN = 'objective.plan.prepare';
 const OPERATION = 'objective_planner_continuation_operation';
 const APPLICATION = 'objective_canonical_application_receipt';
@@ -146,6 +146,7 @@ function resourceCanonical(row: Resource) {
 export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
   private readonly gates = new WeakMap<Tx, string>();
   private readonly statusReads = new WeakSet<Tx>();
+  private readonly retryCommands = new WeakMap<Tx, string>();
   private readonly accounting = new WeakMap<Tx, { key: string; value: Accounting }>();
   private readonly enabled: boolean;
   private readonly duration: number | null;
@@ -159,11 +160,17 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
     if (request.command.workAction !== PLAN) return;
     await this.lockPlanner(tx, ctx);
     this.statusReads.delete(tx);
+    this.accounting.delete(tx);
+    this.retryCommands.delete(tx);
+    if (request.command.command === 'retry') this.retryCommands.set(tx,
+      workDigest([ctx.tenantId, request.clientId, request.objectiveId]));
   }
   /** WorkService must call this before its currentAuthority/state read locks. */
   async lockReadWithinTx(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void> {
     if (request.workAction !== PLAN) return;
     await this.lockPlanner(tx, ctx);
+    this.retryCommands.delete(tx);
+    this.accounting.delete(tx);
     this.statusReads.add(tx);
   }
   private async lockPlanner(tx: Tx, ctx: TenantContext): Promise<void> {
@@ -178,6 +185,9 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       canonicalPlanId: state.source.canonicalPlanId, canonicalEpoch: state.source.canonicalEpoch };
   }
   private key(a: WorkAuthority, state: WorkState) { return workDigest({ a, state }); }
+  private hasRetryGate(tx: Tx, a: WorkAuthority) {
+    return this.retryCommands.get(tx) === workDigest([a.tenantId, a.clientId, a.objectiveId]);
+  }
   async reconcileWithinTx(tx: Tx, a: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation> {
     const base = this.base(a, action, state);
     if (action !== PLAN || !this.enabled || this.duration === null) return { ...base, state: 'unavailable' };
@@ -242,7 +252,7 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
        COALESCE(data#>>'{work,canonical,canonicalPlanId}',data#>>'{request,canonical,canonicalPlanId}',data#>>'{binding,canonical,canonicalPlanId}',data#>>'{canonical,canonicalPlanId}')=${source.canonicalPlanId})
       ORDER BY id LIMIT 257`;
     if (rows.length > MAX_ROWS) fail();
-    const operations: Operation[] = [], currentResources: Resource[] = [], predecessorResources: Resource[] = [],
+    const inventoryOperations: Operation[] = [], operations: Operation[] = [], currentResources: Resource[] = [], predecessorResources: Resource[] = [],
       predecessorOperations: Operation[] = [], historicalTerminals: Operation[] = [];
     const resourceIds = new Set<string>();
     for (const row of rows) {
@@ -250,6 +260,7 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       if (row.tenantId !== a.tenantId || resourceIds.has(row.id)) fail();
       resourceIds.add(row.id);
       const operation = row.kind === OPERATION ? parseOperation(row) : null;
+      if (operation) inventoryOperations.push(operation);
       const c = operation ? operation.work.canonical : resourceCanonical(row);
       if (c.tenantId !== a.tenantId || c.clientId !== a.clientId || c.objectiveId !== a.objectiveId ||
           c.canonicalPlanId !== source.canonicalPlanId || c.epoch !== source.canonicalEpoch ||
@@ -311,15 +322,33 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       if (currentResources.length !== 0) fail();
       if (predecessorResources.length !== 0 || predecessorOperations.length !== 0) {
         const control = state.control;
-        if (!this.statusReads.has(tx) || advanced || !consent || !control || originalVersion === null || originalClerk === null) return fail();
+        const retry = this.hasRetryGate(tx, a);
+        if ((!this.statusReads.has(tx) && !retry) || advanced || !consent || !control || originalVersion === null || originalClerk === null) return fail();
         const currentConsent = await verifyObjectivePlannerCurrentConsentWithinTx(tx, a, state);
         if (currentConsent.controlVersion !== originalVersion || currentConsent.originalClerkUserId !== originalClerk) fail();
         const retained = await readObjectivePlannerRetainedAnchorWithinTx(tx, { authority: a, state, currentConsent,
-          operations: predecessorOperations as unknown as RetainedAnchorOperation[], resources: predecessorResources });
+          operations: predecessorOperations as unknown as RetainedAnchorOperation[], resources: predecessorResources,
+          operationConsentIds: inventoryOperations.map(operation => operation.work.consentId) });
         await this.requireHistoricalEffectAccounting(tx, a, control.id, historicalTerminals,
           predecessorOperations, retained.decoded.applications, historicalProofs, historicalReceipts, predecessorResources);
-        // Current-consent read status only. Retained older output custody is not
-        // new consent/effect authority; policy must reject this cached result.
+        if (retry) {
+          // The current consent becomes an unused bridge after reconsent. Keep
+          // direct status reads compatible with older control gaps, but do not
+          // issue a new head whose resulting bridge could not be proved.
+          if (currentConsent.previousConsentId === retained.operation.work.consentId &&
+              currentConsent.controlVersion !== retained.operation.work.controlVersion + 1) fail();
+          // Only a fresh explicit retry can replace an expired, fully proved
+          // unused consent. Compare the immutable native expiry at DB precision;
+          // status reads and captured JS time cannot authorize reconsent.
+          const expiry = await tx.$queryRaw<Array<{ expired: boolean }>>`SELECT clock_timestamp() >= c.expires_at AS expired
+            FROM client_objective_work_consents c WHERE c.tenant_id=${a.tenantId}::uuid AND c.client_id=${a.clientId}::uuid
+              AND c.objective_id=${a.objectiveId}::uuid AND c.work_action=${PLAN} AND c.control_id=${control.id}::uuid
+              AND c.id=${consent.id}::uuid`;
+          if (expiry.length !== 1 || expiry[0]!.expired !== true) fail();
+          return { operation: null, evidence: { ...base, state: 'not_started' }, requiresRetryGate: true };
+        }
+        // Read accounting never grants issuance authority, including after the
+        // current consent expires. A command must reconstruct its own evidence.
         return { operation: null, evidence: { ...base, state: 'not_started' }, statusOnly: true };
       }
       if ([...historicalReceipts.values()].some(receipts => receipts.length !== 0)) fail();
@@ -431,6 +460,7 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       return workFailure('AUTHORITY_UNAVAILABLE');
     const accounted = this.accounting.get(tx);
     if (!accounted || accounted.value.statusOnly || accounted.key !== this.key(a, state) ||
+        accounted.value.requiresRetryGate && !this.hasRetryGate(tx, a) ||
         !['not_started', 'accounted'].includes(accounted.value.evidence.state) ||
         accounted.value.evidence.outcome === 'applied' &&
         !verifiedObjectivePlannerRegenerationWitness(accounted.value.evidence.regeneration, a, state))

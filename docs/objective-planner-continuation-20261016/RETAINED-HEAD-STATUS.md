@@ -5,6 +5,13 @@ This bounded source successor starts from native-qualified PR50 commit
 and shipping pins remain separate. Final successor test results belong to its
 exact published commit and are recorded in its PR and task evidence.
 
+This document records PR51's direct retained-head read behavior. The following
+successor adds a bounded exception for fresh explicit retry of an expired,
+uncancelled consent which provably never started on the same ready source. Its
+complete native unused-consent chain and read contract are described in
+[the end-to-end source checklist](END-TO-END-SOURCE-CHECKLIST.md). Read accounting
+remains policy-ineligible; the command reconstructs its own proof.
+
 ## Behavior
 
 After a new explicit Planner consent targets an advanced ready Objective, the
@@ -15,9 +22,9 @@ applied operation as the new operation.
 
 The new observation is read-only. A separate read-gate marker and a private
 policy-ineligible accounting marker prevent it from becoming retry permission.
-Command-gate reconciliation, the closed advanced-source regeneration witness,
+At the PR51 baseline, command-gate reconciliation, the closed advanced-source regeneration witness,
 the command kernel, source/control CAS, exact replay and original deadlines are
-unchanged. A new retry in this transient state still refuses. The independent
+unchanged, and a new retry in this transient state refuses. The independent
 server worker may consume its own eligible durable saved generation under the
 existing runtime authority; status reads neither dispatch it nor supply a grant.
 
@@ -38,8 +45,10 @@ Bindings, source versions and controls precede the new consent. Every old
 terminal precedes or equals its confirmation; adjacent applied predecessors
 also have strictly increasing controls and nondecreasing terminal times.
 Historical failed/cancelled bridges retain their existing native proof and exact
-receipt-accounting checks. The current consent must directly name the selected
-anchor consent as its previous consent.
+receipt-accounting checks. The PR51 direct path requires the current consent to
+name the selected anchor consent as its previous consent. The successor can
+instead prove every expired unused same-source intermediate; it never infers
+that path from a greater control number alone.
 
 Under the same Planner gate, no current operation or current-binding effect may
 exist. Exact current application and owner receipt IDs use the current canonical
@@ -59,8 +68,9 @@ or DELETE privileges; native proof queries lock only mutable identity rows.
 - This slice covers the immediate new consent with no current operation. Current
   queued, leased, failed or cancelled work beside an older head retains its prior
   conservative behavior.
-- Intervening consents without an operation need a separately specified complete
-  native consent-chain proof. A greater control number alone is insufficient.
+- Unproved intervening consents remain uncertain. The successor's bounded
+  expired unused same-source chain is the only additional recovery described
+  above; cancellation/control gaps and changed-source chains remain refused.
 - Human-created additional task identities are indistinguishable from unexplained
   output without additional provenance. Allowing them requires an explicit output
   ownership rule; this slice keeps their status uncertain.
