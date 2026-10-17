@@ -85,13 +85,16 @@ lineage for every ancestor.
 
 The owner separately prepares a closed advanced-current-source absence witness
 after complete historical accounting. It retains the old `accounted/applied`
-operation identity. The existing command kernel still rejects applied retry:
-the single central kernel integration is awaiting coordinator allocation.
-Regeneration eligibility in the runtime is implemented and qualified in source;
-new human consent cannot reach that path through the unchanged Core retry
-kernel. Same-source applied, pending, unknown and incomplete histories remain
-ineligible. Runtime recovery returns the original creation receipt and current
-human-edited outputs without creating another generation.
+operation identity. The allocated command-kernel integration admits only a NEW
+explicit Planner consent whose
+fully verified witness names the strictly advanced current ready source. The
+historical operation remains `accounted/applied`; its receipt, run, attempt and
+deadline are not renewed or relabeled. Strategy applied work, same-source applied
+work, pending/unknown evidence and malformed witnesses remain ineligible. Fresh
+policy, current native authority, version/CAS checks and database-clock release
+guards still apply before new consent commits. Runtime recovery returns the
+original creation receipt and current human-edited outputs without creating
+another generation.
 
 The owner scans at most 256 relevant private rows and fails closed on overflow.
 The runtime predecessor scan has the same aggregate row bound; it is not a
@@ -110,6 +113,11 @@ required only when no verified paired output chain exists. A current failed or
 not-started operation alongside an older applied head remains uncertain until a
 separate complete anchor contract is available; this increment does not infer
 such an anchor from an old terminal record.
+Consequently, immediately after a new consent commits and before its current
+operation exists, a retained older applied head can still make the public status
+`outcome_unconfirmed`. This does not itself authorize dispatch; an independently
+eligible saved generation can continue through the runtime and later account its
+new operation.
 
 Source tests use real runtime, worker, store, application, shared receipt codecs
 and Core service/command-kernel source with explicitly synthetic SQL,
@@ -126,6 +134,20 @@ production credential, deployment or browser acceptance action occurred. No
 dependency installation or heavy archive was needed.
 
 ## Focused source verification
+
+For the allocated kernel increment, **181/181 affected Node checks** pass across
+the command, paired command, new regeneration and concrete-owner suites. The
+composed positive uses the actual full three-generation owner proof, actual
+kernel and actual cached policy, with synthetic persistence/current request
+proof. Exact replay, conflict, original record immutability and proof expiry caps
+are asserted. Actual Core status/module regressions pass **33/33**, and the new
+schema-2 native-fixture source checks pass **7/7**. The affected Core/native
+TypeScript import graphs and whitespace checks pass. The new six native cases
+collect and skip without opt-in; their enabled result and exact published source
+pin are recorded in the PR and task qualification receipt after execution.
+
+The earlier reviewed baseline at `a2b35fb` established the broader checks below;
+unchanged suites are not presented as newly rerun for this kernel increment.
 
 - Eight Node source suites: **372/372 passed**. These cover producer,
   application, continuation, saved-plan/runtime, native-target guard, Core owner,

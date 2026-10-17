@@ -1,5 +1,30 @@
 # Objective Planner native qualification
 
+The allocated kernel increment adds six native Core cases beside the existing
+runtime suite. The owned runner now requires an explicit 40-hex
+`ReviewedSourceHead`, a clean checkout at exactly that published pin, and the
+same guarded local target, focused SQL, restricted roles, budgets and cleanup.
+The checkout directory retains its historical `objective-native-b8` name; the
+manifest and actual checked HEAD determine the qualified source. The runner
+type-checks the server codec from that source and executes its task-owned build,
+without mutating borrowed dependency outputs. Both native suites and the new
+schema-2 fixture source checks run in default-off preflight before credentials
+or SQL setup. The final enabled result and exact source pin are recorded in the
+PR body and task qualification receipt; no post-test source commit is implied.
+
+The new cases cover actual Core applied status, real Objective edit/ready
+advancement, concrete owner/kernel/new Planner consent and exact receipt replay;
+same-source/Strategy refusal; uncertain leased history; native membership/wall
+revocation; real consent/receipt transaction rollback on synthetic request-proof
+release loss; and new Planner consent through saved schema-2 generation to v3
+runtime application. Objective mutation, Planner consent, native records and
+runtime SQL are actual. The request-proof adapter, separately seeded Strategy
+generation consent and Meri/provider custody observations are explicitly
+synthetic. These cases do not qualify real HTTP/token admission, an operational
+Strategy retry/issuer/SDK path or frontend receiving behavior.
+
+## Prior parent-source qualification
+
 The pinned parent source `b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf`
 passed **12 native PostgreSQL cases plus the default-off check (13/13)** on
 2026-10-17. This is a focused local qualification of that parent, not of the later

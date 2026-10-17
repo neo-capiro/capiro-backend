@@ -22,12 +22,13 @@ async function sourceModule(relative, replacements = []) {
   return data(transformed);
 }
 const policyUrl = await sourceModule('../src/auth/workload-authority/objective-consent-policy.ts');
+const regenerationBindingUrl = await sourceModule('../src/clients/objectives/work/objective-planner-regeneration.ts');
 const kernelUrl = await sourceModule('../src/clients/objectives/work/objective-work-command.ts', [
   ["'../../../auth/workload-authority/objective-consent-policy.js'", policyUrl],
+  ["'./objective-planner-regeneration.js'", regenerationBindingUrl],
 ]);
 const kernel = await import(kernelUrl);
 const intentUrl = await sourceModule('../src/clients/objectives/objective-work-intent.ts');
-const regenerationBindingUrl = await sourceModule('../src/clients/objectives/work/objective-planner-regeneration.ts');
 const proofUrl = await sourceModule('../src/clients/objectives/work/objective-planner-consent-proof.ts', [
   ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
   ["'../../../auth/workload-authority/objective-consent-policy.js'", policyUrl],
@@ -348,6 +349,83 @@ test('advanced ready binding retains old applied identity and separately witness
   assert.deepEqual(evidence.regeneration, { state: 'not_started', source: f.state.source });
   assert.notEqual(evidence.regeneration.source.rootIntentId, evidence.rootIntentId);
   assert.equal((await f.policy()).originalDelegationExpiresAtMs, null);
+});
+test('actual owner advanced-source accounting and cached policy feed actual kernel new consent and exact replay', async () => {
+  const first = fullV2(), second = fullV3(first), third = fullV3(second);
+  const f = advanceSource(appliedChain(fixture(), [first, second, third]));
+  const original = copy({ operation: f.operation, rows: f.rows, nativeProofs: f.nativeProofs, consent: f.state.consent });
+  // Only persistence, current human authority and the request proof's expiry are
+  // synthetic. Reconciliation, full owner/native lineage codecs, cached policy,
+  // source witness verification, command kernel and receipt recovery are real.
+  let saved = { state: copy(f.state), consents: {}, receipts: {}, nextId: 8000 };
+  const events = [];
+  const owner = { transaction: async (write, run) => {
+    const draft = copy(saved), writable = () => assert.equal(write, true);
+    const result = await run({
+      lockOwner: async () => { writable();events.push('lock-owner');await f.lock(); },
+      currentAuthority: async () => { events.push('current-authority');return copy(f.a); },
+      receipt: async (a, action, requestId) => {
+        events.push('receipt');return copy(draft.receipts[`${a.actorUserId}:${action}:${requestId}`] ?? null);
+      },
+      state: async () => { events.push('state');return copy(draft.state); },
+      reconcile: async (a, action, state) => {
+        events.push('reconcile');return f.owner.reconcileWithinTx(f.tx, a, action, state);
+      },
+      policy: async (a, action, state) => {
+        events.push('policy');return { ...await f.owner.policyWithinTx(f.tx, a, action, state),
+          originalTokenExpiresAtMs: NOW + 20000 };
+      },
+      clock: async () => { events.push('clock');return iso(1000); },
+      insertConsent: async (_a, _action, consent) => {
+        writable();events.push('insert-consent');assert.equal(draft.consents[consent.id], undefined);
+        draft.consents[consent.id] = copy(consent);
+      },
+      casControl: async (_a, _action, before, after) => {
+        writable();events.push('cas-control');assert.deepEqual(draft.state.control, before);
+        draft.state.control = copy(after);draft.state.consent = copy(draft.consents[after.currentConsentId]);return true;
+      },
+      insertReceipt: async (a, stored) => {
+        writable();events.push('insert-receipt');
+        const key = `${a.actorUserId}:${stored.command.workAction}:${stored.command.requestId}`;
+        assert.equal(draft.receipts[key], undefined);draft.receipts[key] = copy(stored);
+      },
+      newId: () => { writable();events.push('new-id');return id(draft.nextId++); },
+    });
+    if (write) saved = draft;return result;
+  } };
+  await f.lock();
+  const status = await kernel.readWorkGeneration({ clientId: f.a.clientId, objectiveId: f.a.objectiveId, workAction: PLAN }, owner);
+  assert.equal(status.reconciliation, 'accounted');assert.equal(status.consent.id, original.consent.id);
+  assert.equal(Object.hasOwn(status, 'regeneration'), false);
+  const request = kernel.parseWorkCommand(f.a.clientId, f.a.objectiveId, { schemaVersion: 1, requestId: id(7999),
+    command: 'retry', workAction: PLAN, expectedObjectiveVersion: f.a.objectiveVersion,
+    expectedControlVersion: saved.state.control.version, expectedCanonicalBindingVersion: saved.state.source.canonicalBindingVersion,
+    targetAuthorizationRequestId: original.consent.id });
+  events.length = 0;
+  const receipt = await kernel.executeWorkCommand(request, owner);
+  assert.equal(receipt.outcome, 'reconsent_recorded');assert.equal(receipt.workAction, PLAN);
+  assert.equal(receipt.payloadDigest, kernel.workDigest(request));assert.equal(receipt.targetAuthorizationRequestId, original.consent.id);
+  assert.equal(receipt.rootIntentId, f.state.source.rootIntentId);
+  assert.notEqual(receipt.rootIntentId, original.consent.source.rootIntentId);
+  const consent = saved.consents[receipt.authorizationRequestId];
+  assert.deepEqual(consent.source, f.state.source);assert.equal(consent.previousConsentId, original.consent.id);
+  assert.equal(consent.actorUserId, f.a.actorUserId);assert.notEqual(consent.actorUserId, original.consent.actorUserId);
+  assert.equal(consent.expiresAt, iso(20000));assert.equal(consent.confirmedAt, iso(1000));
+  assert.equal(saved.state.control.version, f.state.control.version + 1);
+  assert.ok(events.indexOf('lock-owner') < events.lastIndexOf('current-authority'));
+  assert.ok(events.indexOf('reconcile') < events.indexOf('policy'));
+  assert.ok(events.indexOf('policy') < events.indexOf('clock'));
+  assert.equal(f.calls.filter(c => c.sql.includes('JOIN client_objective_work_intents')).length, 6,
+    'status and retry each revalidate every real applied ancestor');
+  assert.equal(f.calls.filter(c => c.sql.includes('FROM tenants')).length, 1, 'actual cached owner policy was consumed');
+  const committed = copy(saved);events.length = 0;
+  assert.deepEqual(await kernel.executeWorkCommand(request, owner), receipt);
+  assert.deepEqual(saved, committed);assert.deepEqual(events, ['current-authority', 'receipt']);
+  await assert.rejects(kernel.executeWorkCommand({ ...request,
+    command: { ...request.command, expectedControlVersion: 99 } }, owner), error => error.code === 'REQUEST_ID_CONFLICT');
+  assert.deepEqual(saved, committed);
+  assert.deepEqual({ operation: f.operation, rows: f.rows, nativeProofs: f.nativeProofs, consent: f.state.consent }, original,
+    'retained operation, applied receipts, native lineage and original consent remain unchanged');
 });
 for (const corrupt of [
   f => { f.nativeProofs.shift(); },
