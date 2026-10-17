@@ -7,8 +7,8 @@ export const OBJECTIVE_ADMISSION_RUNTIME = Symbol('OBJECTIVE_ADMISSION_RUNTIME')
 type Runtime = ReturnType<typeof createObjectiveAdmissionRuntime>;
 
 /** The HTTP boundary never recreates a signed entity from parsed request.body.
- * Bootstrap does not capture this route's rawBody yet; absence stays closed.
- * An eventual raw-body parser allocation is separate from activation/authority.
+ * Main bootstrap captures only this fixed route's bounded original entity.
+ * Missing capture stays closed; transport capture supplies no issuing authority.
  */
 export function objectiveAdmissionHttpRequest(request: Request): ObjectiveAdmissionHttpRequest {
   const unavailable = (): never => { throw new ServiceUnavailableException('Objective workload admission unavailable'); };
