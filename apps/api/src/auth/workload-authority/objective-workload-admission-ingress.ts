@@ -74,7 +74,8 @@ function source(raw: unknown, jobId: string) {
   return { selector, binding: { ...b, body } as unknown as ObjectiveWorkloadRequestBinding };
 }
 
-/** Concrete admit-only issuer ingress factory; no route/provider is mounted.
+/** Concrete admit-only issuer ingress factory. The admission module mounts a
+ * hard-disabled runtime provider; explicit trusted bindings compose this path.
  * Wire body (UTF-8, exact key order, no whitespace/duplicates/aliases):
  * {"schemaVersion":1,"operationId":"UUID","generationJobId":"UUID","phase":"admit"}
  * Named caller proof authenticates THESE raw bytes. The target body hash is
