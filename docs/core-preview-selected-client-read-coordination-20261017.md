@@ -1,5 +1,7 @@
 # Core preview selected-client read coordination, 2026-10-17
 
+**Later source review:** [The PR #48 GET binding review](core-preview-pr48-selected-client-get-binding-review-20261017.md) supersedes this note's separate-read-target recommendation if the product owners accept ordinary Core GET authority under Neo's preview-write authorization. The isolated `111f` option and its qualification gates remain here as a fallback, not a new user constraint.
+
 This is a source-only coordination record for the ordinary first-chat preview. Dot owns image qualification, service activation/integration, and the later live authenticated end-to-end check under Neo's latest direction. The earlier [Fable shipping handoff](https://github.com/neo-capiro/capiro-backend/blob/635486fd21f0fb0f6893241f47dbfef7d343d849/docs/core-first-chat-fable-shipping-handoff-20261017.md) remains an immutable record of its 01:23 UTC checkpoint; its assignment of steps 1 and 2 to Fable is superseded. This record does not authorize an AWS change or consume the proposed $1 Core activation reservation.
 
 ## Separate source contracts
