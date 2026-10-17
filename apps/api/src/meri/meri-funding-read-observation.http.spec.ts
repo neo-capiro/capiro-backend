@@ -92,7 +92,9 @@ describe('served finite funding observation', () => {
     if (app) await app.close();
   });
 
-  beforeEach(() => execute.mockClear());
+  beforeEach(() => {
+    execute.mockClear();
+  });
 
   function post(name = NAME, body: Record<string, unknown> = BODY, secret?: string, carrier?: string) {
     const pending = request(app.getHttpServer())
