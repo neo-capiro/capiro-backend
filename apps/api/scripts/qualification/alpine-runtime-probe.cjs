@@ -79,11 +79,38 @@ function createReceiptStream(write = line => console.log(line)) {
   let count = 0;
   return { emit: (kind, value) => write('CORE_NATIVE_RECEIPT ' + JSON.stringify({ sequence: ++count, kind, value })), write, get count() { return count; } };
 }
+function compactChildFailure(child) {
+  const redact = value => String(value ?? '').replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [REDACTED]')
+    .replace(/\b(password|token|secret|api[_-]?key|authorization)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, '$1=[REDACTED]')
+    .replace(/:\/\/[^/\s@]+@/g, '://[REDACTED]@');
+  const safe = (value, limit) => redact(value).slice(0, limit);
+  const stderr = typeof child.stderr === 'string' ? child.stderr : '';
+  let parsed = null;
+  for (const line of stderr.split(/\r?\n/).reverse()) {
+    if (!line.trim().startsWith('{')) continue;
+    try {
+      const candidate = JSON.parse(line);
+      if (candidate && typeof candidate === 'object' && (typeof candidate.code === 'string' || typeof candidate.message === 'string')) {
+        parsed = candidate; break;
+      }
+    } catch { /* A bounded stderr preview is retained below. */ }
+  }
+  let stderrPreview;
+  if (!parsed) {
+    const fallback = redact(stderr.replace(/\s+/g, ' ').trim());
+    stderrPreview = fallback.length <= 384 ? fallback : `${fallback.slice(0, 188)} ... ${fallback.slice(-188)}`;
+  }
+  return { exitStatus: Number.isInteger(child.status) ? child.status : null,
+    signal: child.signal ? safe(child.signal, 32) : null, spawnErrorCode: child.error?.code ? safe(child.error.code, 64) : null,
+    ...(parsed ? { code: safe(parsed.code, 128), message: safe(parsed.message, 384) }
+      : { stderrPreview }) };
+}
 function compactGateSummary(report, outcome, fatal) {
   const gates = report.gates || [], failed = gates.filter(row => row.status !== 'PASS');
   const bounded = value => String(value || '').slice(0, 512);
   return { status: report.status, outcome, gateCount: gates.length, failedCount: failed.length,
-    failures: failed.slice(0, 32).map(row => ({ name: bounded(row.name), code: bounded(row.error?.code), message: bounded(row.error?.message) })),
+    failures: failed.slice(0, 32).map(row => ({ name: bounded(row.name), code: bounded(row.error?.code), message: bounded(row.error?.message),
+      ...(row.child ? { child: compactChildFailure(row.child) } : {}) })),
     ...(fatal ? { fatal: { code: bounded(fatal.code || fatal.name), message: bounded(fatal.message) } } : {}) };
 }
 function completeReceiptReport(report, stream, kind, summary) {
@@ -753,7 +780,7 @@ async function sharpDispatcherProbe(manifest, { root = '/app/node_modules/.pnpm'
   assert.equal(binding.owner.version, metadata.version);
   return { relation: 'RETAINED_STORE_SHARP_OWNER', manifest, entry, version: metadata.version, bindingManifest, pixel: [...pixels.data], binding };
 }
-module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence, elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, sourceIdentity, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence };
+module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, compactGateSummary, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence, elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, sourceIdentity, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence };
 const report = { status: 'STARTED', packages: [], native: [], activeBindings: [] };
 const maxBufferedReceiptBytes = 16 * 1024 * 1024;
 let pendingReceipts = [], pendingReceiptBytes = 0;
@@ -813,8 +840,8 @@ async function main() {
   report.gates = []; report.artifacts = []; report.sharp = []; report.libsql = []; report.npmPackages = []; report.wasm = [];
   const emit = stream.emit;
   const finish = (kind, summary) => {
-    completeReceiptReport(report, stream, kind, summary);
     console.log('CORE_NATIVE_GATE_SUMMARY ' + JSON.stringify(compactGateSummary(report, summary.status || kind)));
+    completeReceiptReport(report, stream, kind, summary);
     flushReceipts();
   };
   const check = async (name, run) => {

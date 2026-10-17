@@ -4,7 +4,7 @@ const { assertDumbInitVersion } = require('./alpine-runtime-probe.cjs');
 const { classifyNativeArtifact, assertActiveBinding, assertOptionalInactive } = require('./alpine-runtime-probe.cjs');
 const { boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof } = require('./alpine-runtime-probe.cjs');
 const { resolvedNativeBinding, readDeployedPackage } = require('./alpine-runtime-probe.cjs');
-const { createReceiptStream, completeReceiptReport, inspectArtifact } = require('./alpine-runtime-probe.cjs');
+const { createReceiptStream, completeReceiptReport, compactGateSummary, inspectArtifact } = require('./alpine-runtime-probe.cjs');
 const { binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence } = require('./alpine-runtime-probe.cjs');
 const { elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence, sourceIdentity } = require('./alpine-runtime-probe.cjs');
 const fs = require('node:fs');
@@ -444,6 +444,49 @@ test('actual report finalizer counts the summary receipt in emitted output', () 
   const report = JSON.parse(lines.filter(line => !line.startsWith('CORE_NATIVE_RECEIPT ')).join('\n'));
   assert.equal(receipts.length, 2); assert.equal(report.receiptCount, receipts.length);
   assert.deepEqual(receipts.map(row => row.sequence), [1, 2]); assert.equal(receipts.at(-1).kind, 'summary');
+});
+test('compact gate summary preserves all seven bounded child outcomes after verbose receipts', () => {
+  const stderr = [
+    '{"status":"HOLD","code":"ERR_ASSERTION","message":"dispatcher native optional package missing"}\n',
+    'loader banner\n{"status":"HOLD","code":"MODULE_NOT_FOUND","message":"second binding missing"}\n',
+    'HEAD Error relocating /app/addon.node: napi_typeof: symbol not found\n' + 'x'.repeat(100000) + '\nTAIL unresolved symbol',
+    '',
+    JSON.stringify({ status: 'HOLD', code: 'LONG', message: 'x'.repeat(20000), evidence: { private: 'private-evidence'.repeat(10000) } }) + '\n',
+    '{"status":"HOLD","code":"AUTH","message":"Authorization: Bearer private-credential"}\n',
+    'loader token=private-credential password=private-password\n',
+  ];
+  const gates = stderr.map((output, index) => ({ name: `child-${index}`, status: 'HOLD',
+    error: { code: 'Error', message: 'Bounded child failed; captured output retained in child receipt' },
+    child: { status: index === 3 ? null : 1, signal: index === 3 ? 'SIGKILL' : null,
+      error: index === 3 ? { code: 'ETIMEDOUT' } : null, stdout: 'private-stdout-data', stderr: output } }));
+  gates.splice(3, 0, { name: 'passing-child', status: 'PASS', child: { status: 0, stderr: 'private-pass-data' } });
+  const report = { status: 'FAIL', gates }, original = JSON.stringify(gates);
+  const summary = compactGateSummary(report, 'FAIL');
+  assert.equal(summary.gateCount, 8); assert.equal(summary.failedCount, 7);
+  assert.deepEqual(summary.failures.map(row => row.name), Array.from({ length: 7 }, (_, index) => `child-${index}`));
+  assert.equal(summary.failures[0].child.code, 'ERR_ASSERTION');
+  assert.equal(summary.failures[1].child.message, 'second binding missing');
+  assert.match(summary.failures[2].child.stderrPreview, /HEAD.*napi_typeof: symbol not found/);
+  assert.match(summary.failures[2].child.stderrPreview, /TAIL unresolved symbol/);
+  assert(summary.failures[2].child.stderrPreview.length <= 384);
+  assert.equal(summary.failures[3].child.exitStatus, null); assert.equal(summary.failures[3].child.signal, 'SIGKILL');
+  assert.equal(summary.failures[3].child.spawnErrorCode, 'ETIMEDOUT');
+  assert.equal(summary.failures[4].child.message.length, 384);
+  assert.match(summary.failures[5].child.message, /\[REDACTED\]/);
+  assert.match(summary.failures[6].child.stderrPreview, /\[REDACTED\]/);
+  const compact = JSON.stringify(summary);
+  assert(compact.length < 8000); assert(!compact.includes('private-credential')); assert(!compact.includes('private-password'));
+  assert(!compact.includes('private-stdout-data')); assert(!compact.includes('private-pass-data'));
+  assert(!compact.includes('private-evidence'));
+  assert.equal(JSON.stringify(gates), original, 'summary must not change gate decisions or child receipts');
+});
+test('compact gate summary excludes passing children and caps failed child rows at 32', () => {
+  const gates = Array.from({ length: 33 }, (_, index) => ({ name: `failed-${index}`, status: 'HOLD',
+    error: { code: 'Error', message: 'failure' }, child: { status: 1, signal: null, error: null, stderr: 'raw' } }));
+  gates.push({ name: 'passed', status: 'PASS', child: { status: 0, stderr: 'pass' } });
+  const summary = compactGateSummary({ status: 'FAIL', gates }, 'FAIL');
+  assert.equal(summary.gateCount, 34); assert.equal(summary.failedCount, 33); assert.equal(summary.failures.length, 32);
+  assert.equal(summary.failures.at(-1).name, 'failed-31'); assert(!summary.failures.some(row => row.name === 'passed'));
 });
 test('per-file inspection failures retain rows and do not stop the next native observation', t => {
   const { file, options } = artifact(t, {});
