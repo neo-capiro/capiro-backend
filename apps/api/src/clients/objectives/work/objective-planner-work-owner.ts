@@ -2,6 +2,11 @@ import { types as nodeTypes } from 'node:util';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { ObjectiveWorkOwnerPort } from './objective-work.service.js';
+import { decodeObjectivePlannerApplied, requireObjectivePlannerAppliedOperation,
+  type ObjectivePlannerAppliedOperation } from './objective-planner-applied.js';
+import { verifyObjectivePlannerAppliedConsentWithinTx } from './objective-planner-consent-proof.js';
+import { objectivePlannerAdvancedSource, verifiedObjectivePlannerRegenerationWitness,
+  type ObjectivePlannerRegenerationWitness } from './objective-planner-regeneration.js';
 import { parseWorkCommand, workDigest, workFailure, workUuid, type WorkAction, type WorkAuthority,
   type WorkPolicyFacts, type WorkReadRequest, type WorkReconciliation, type WorkRequest, type WorkSource,
   type WorkState } from './objective-work-command.js';
@@ -12,7 +17,8 @@ type Resource = { id: string; tenantId: string; ownerId: string; projectId: stri
   kind: string; name: string; data: unknown; version: number; archived: boolean; shareTokenHash: string | null };
 type Operation = { schemaVersion: 1; namespace: string; tenantId: string; clerkUserId: string;
   membershipId: string; work: Json; original: Json; state: string; lease: Json | null; terminal: Json | null };
-type Accounting = { evidence: WorkReconciliation; operation: Operation | null };
+type OwnerReconciliation = WorkReconciliation & { regeneration?: ObjectivePlannerRegenerationWitness };
+type Accounting = { evidence: OwnerReconciliation; operation: Operation | null };
 const PLAN = 'objective.plan.prepare';
 const OPERATION = 'objective_planner_continuation_operation';
 const APPLICATION = 'objective_canonical_application_receipt';
@@ -178,9 +184,10 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
   private async reconcile(tx: Tx, a: WorkAuthority, state: WorkState, base: WorkReconciliation): Promise<Accounting> {
     const consent = state.consent, source = consent?.source ?? state.source, expected = canonical(a, source);
     parseCanonical(expected);
-    // A changed ready binding requires the separate regeneration qualification.
-    // Historical applied work is never relabeled as absence for a newer source.
-    if (workDigest(expected) !== workDigest(canonical(a, state.source))) fail();
+    // The old source remains the subject of retained operation accounting.
+    // A separate witness can identify the advanced CURRENT source only after
+    // complete historical receipt/consent reconstruction below.
+    const advanced = objectivePlannerAdvancedSource(a, state);
     if (state.control?.currentConsentId !== (consent?.id ?? null) && !(state.control === null && consent === null)) fail();
     let originalVersion: number | null = null, originalClerk: string | null = null;
     if (consent) {
@@ -227,19 +234,26 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
        COALESCE(data#>>'{work,canonical,canonicalPlanId}',data#>>'{request,canonical,canonicalPlanId}',data#>>'{binding,canonical,canonicalPlanId}',data#>>'{canonical,canonicalPlanId}')=${source.canonicalPlanId})
       ORDER BY id LIMIT 257`;
     if (rows.length > MAX_ROWS) fail();
-    const operations: Operation[] = [], currentResources: Resource[] = [];
+    const operations: Operation[] = [], currentResources: Resource[] = [], predecessorResources: Resource[] = [], predecessorOperations: Operation[] = [];
+    const resourceIds = new Set<string>();
     for (const row of rows) {
       json(row); uuid(row.id);
-      if (row.tenantId !== a.tenantId) fail();
+      if (row.tenantId !== a.tenantId || resourceIds.has(row.id)) fail();
+      resourceIds.add(row.id);
       const operation = row.kind === OPERATION ? parseOperation(row) : null;
       const c = operation ? operation.work.canonical : resourceCanonical(row);
       if (c.tenantId !== a.tenantId || c.clientId !== a.clientId || c.objectiveId !== a.objectiveId ||
           c.canonicalPlanId !== source.canonicalPlanId || c.epoch !== source.canonicalEpoch ||
           c.canonicalStrategyId !== source.canonicalStrategyId || c.canonicalProjectId !== source.canonicalProjectId) fail();
-      // This bounded binding does not qualify predecessor regeneration. Even
-      // an older queued/applied receipt is retained as uncertainty, never
-      // silently ignored to manufacture absence for a newer binding.
-      if (c.bindingVersion < expected.bindingVersion) fail();
+      // Prior bindings may participate only in a complete immutable applied
+      // chain. They never establish absence or grant a new generation/effect.
+      if (c.bindingVersion < expected.bindingVersion) {
+        if (operation) {
+          if (operation.state !== 'applied') fail();
+          predecessorOperations.push(operation);
+        } else predecessorResources.push(row);
+        continue;
+      }
       if (workDigest(c) !== workDigest(expected)) fail();
       if (operation) {
         if (consent && operation.work.consentId === consent.id) {
@@ -258,17 +272,38 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
     if (operations.length > 1) fail();
     const operation = operations[0] ?? null;
     if (!operation) {
-      if (currentResources.length !== 0) fail();
+      if (currentResources.length !== 0 || predecessorResources.length !== 0 || predecessorOperations.length !== 0) fail();
       await this.requireNoOutputs(tx, a, source);
       return { operation: null, evidence: { ...base, state: 'not_started' } };
     }
-    // The full v2/v3 output dialect and predecessor chain are reconstructed by
-    // PlannerService's checkedCanonicalMaterialization owner. Core cannot load
-    // that cross-app runtime and does not substitute partial hash agreement for
-    // that proof. Applied remains uncertain here and the kernel denies retry;
-    // the mounted Planner result owner supplies the positive retained read.
+    if (operation.state === 'applied') {
+      const decoded = decodeObjectivePlannerApplied(operation as unknown as ObjectivePlannerAppliedOperation,
+        [...currentResources, ...predecessorResources]);
+      const consumed = new Set(decoded.consumedResourceIds);
+      if ([...currentResources, ...predecessorResources].some(row => !consumed.has(row.id))) fail();
+      for (const prior of predecessorOperations) {
+        const pair = decoded.applications.find(p => p.receiptId === prior.terminal?.receiptId);
+        if (!pair) fail();
+        requireObjectivePlannerAppliedOperation(prior as unknown as ObjectivePlannerAppliedOperation, pair!);
+      }
+      for (const pair of decoded.applications) {
+        const owner = [operation, ...predecessorOperations].find(op => op.terminal?.receiptId === pair.receiptId);
+        if (advanced && !owner) fail();
+        await verifyObjectivePlannerAppliedConsentWithinTx(tx, a, state.control!.id, pair,
+          owner as unknown as Parameters<typeof verifyObjectivePlannerAppliedConsentWithinTx>[4]);
+      }
+      return { operation, evidence: { ...base, state: 'accounted', ...operation.original,
+        terminalReceiptId: decoded.terminalReceiptId, outcome: 'applied',
+        // The shared gate and complete enumeration above establish no operation,
+        // application or head on the advanced binding. The old canonical output
+        // remains covered by its full immutable paired owner chain. Runtime
+        // effects and accounting commit atomically under this same gate.
+        ...(advanced ? { regeneration: { state: 'not_started' as const, source: advanced } } : {}) } };
+    }
+    if (advanced) fail();
     if (!['failed', 'cancelled'].includes(operation.state)) return { operation, evidence: base };
-    if (currentResources.length !== 0 || operation.terminal?.receiptId !== operation.original.operationId) fail();
+    if (currentResources.length !== 0 || predecessorResources.length !== 0 || predecessorOperations.length !== 0 ||
+        operation.terminal?.receiptId !== operation.original.operationId) fail();
     await this.requireNoOutputs(tx, a, source);
     const terminalReceiptId = operation.original.operationId;
     return { operation, evidence: { ...base, state: 'accounted', ...operation.original,
@@ -335,7 +370,9 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       return workFailure('AUTHORITY_UNAVAILABLE');
     const accounted = this.accounting.get(tx);
     if (!accounted || accounted.key !== this.key(a, state) || !['not_started', 'accounted'].includes(accounted.value.evidence.state) ||
-        accounted.value.evidence.outcome === 'applied') return workFailure('AUTHORITY_UNAVAILABLE');
+        accounted.value.evidence.outcome === 'applied' &&
+        !verifiedObjectivePlannerRegenerationWitness(accounted.value.evidence.regeneration, a, state))
+      return workFailure('AUTHORITY_UNAVAILABLE');
     try {
       const rows = await tx.$queryRaw<Array<{ settings: unknown }>>`SELECT settings_jsonb AS settings FROM tenants
         WHERE id=${a.tenantId}::uuid AND status::text='active' FOR SHARE`;
@@ -349,8 +386,9 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
       return { configuredDurationMs: this.duration, tenantDurationLimitMs: limit,
         // This port supplies policy for a NEW explicit consent. Fully accounted
         // terminal work's deadline remains immutable on that old operation; it
-        // is established nonapplicable to the new consent. Uncertain/applied
-        // work never reaches this branch. The WorkService separately clips the
+        // is established nonapplicable to the new consent. Applied work reaches
+        // this branch only with a fully verified advanced-source witness. The
+        // WorkService separately clips the
         // new consent to this request's real native identity proof expiry.
         actionDurationLimitMs: MAX_DURATION, originalDelegationExpiresAtMs: null,
         limitReference: 'objective-planner-continuation:v1' };

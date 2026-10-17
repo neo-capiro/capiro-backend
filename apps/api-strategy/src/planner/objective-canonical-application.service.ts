@@ -147,6 +147,24 @@ export class ObjectiveCanonicalApplicationService {
    * reconstructing its complete paired immutable application/owner evidence.
    * Original receipt actors remain original; fresh output editor authority is
    * checked by the new owner operation, not inherited from an old actor. */
+  async readPredecessorWithinOwnerTransaction(tx: Tx, request: CanonicalApplicationRequest,
+    grant: CanonicalApplicationGrant, assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void>):
+    Promise<CanonicalMaterializationPredecessor | undefined> {
+    if (typeof assertCurrent !== 'function') throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+    request = parseCanonicalApplication(request);
+    this.requireRequestGrant(request, grant);
+    await this.lock(tx, grant.tenantId);
+    const subject: CanonicalAuthoritySubject = { purpose: 'retained-result-read',
+      applicationRequestId: request.applicationRequestId, requestSha256: applicationHash(request) };
+    await assertCurrent(subject);
+    await requireCanonicalApplicationRead(tx, grant, request.canonical);
+    const previous = await this.predecessor(tx, grant, request);
+    await assertCurrent(subject);
+    await requireCanonicalApplicationRead(tx, grant, request.canonical);
+    return previous;
+  }
+  /** Purely local predecessor reconstruction shared by internal admission and
+   * the existing application writer; no new transaction or authority path. */
   private async predecessor(tx: Tx, grant: CanonicalApplicationGrant,
     request: CanonicalApplicationRequest): Promise<CanonicalMaterializationPredecessor | undefined> {
     const c = request.canonical;

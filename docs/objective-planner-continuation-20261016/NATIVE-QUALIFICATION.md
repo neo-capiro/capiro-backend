@@ -6,14 +6,40 @@ absent, the native suite skips before reading a target manifest, probing a proce
 or constructing a Prisma client. Its ordinary default-off startup check still
 runs without a database.
 
+The reviewed task-owned PG16.15 execution request was denied by automatic
+approval review before process creation: disposable credentials and schema SQL
+conflict with the original credentials/migrations restriction. Explicit Neo
+approval for those local-only setup actions remains pending. No cluster,
+credentials, SQL or native test was created or executed, and no retry or
+workaround followed. The host PostgreSQL service and task3 were untouched.
+
+The prepared runner pins published source
+`b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf` and reserves only
+`127.0.0.1:56455`. Its 38 hashed SQL units form an explicitly focused Core
+baseline plus all 28 Strategy and six Objective migrations. Installed
+`uuid-ossp`, `citext` and `pg_trgm` would be activated inside that new database;
+the unavailable vector extension is omitted. This is not whole Core migration
+replay or qualification of a later source successor. The separate DDL owner,
+non-superuser/non-BYPASSRLS runtime role and bounded owned cleanup are prepared
+source, without an execution result.
+
 ## Offline checks
 
-Run from the repository root using the existing dependency installation:
+Run from the repository root using the existing dependency installation and the
+normally built `@capiro/shared/objective-planner-owner-codec` subpath from this
+exact checkout:
 
 ```powershell
 node --test apps/api-strategy/test/objective-planner-native-target.focused.test.mjs
 node apps/api-strategy/node_modules/jest/bin/jest.js --config apps/api-strategy/jest.config.cjs --runInBand --runTestsByPath apps/api-strategy/test/objective-planner-native-fixture.spec.ts apps/api-strategy/test/objective-planner-continuation.db.int-spec.ts
 ```
+
+This task borrowed a read-only dependency tree. Its source checks mapped the new
+server-only subpath to task-owned source/compiled output with temporary Jest and
+TypeScript configuration. They did not rebuild or mutate borrowed package
+outputs. The checked-in Node source suites use
+`--import ./apps/api/test/objective-planner-shared-codec.preload.mjs` for that
+subpath's real source.
 
 The ownership guard checks are pure. Fixture checks import the actual request,
 completion, normalization, producer and retained-generation code without source

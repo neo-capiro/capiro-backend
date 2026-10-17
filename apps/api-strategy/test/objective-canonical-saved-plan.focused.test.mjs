@@ -51,6 +51,9 @@ const portsUrl = data(`
   export const checkCanonicalRegenerationCompletionWitness=()=>{throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');};
   export const checkCanonicalRegenerationNormalization=()=>{throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');};
   const unused=()=>{throw Error('Unexercised capture/acceptance port must not run');};
+  // Initial-generation fixtures must never exercise regeneration eligibility;
+  // the separate actual-codec Jest suite owns that full source qualification.
+  export const readPlannerRegenerationBindingWithinTx=unused;
   export const parseCanonicalGenerationAdmission=unused,requireGenerationAcceptanceForAdmission=unused;
   export const admitCanonicalGenerationWithinTx=unused,requireCanonicalGenerationEffectWithinTx=unused;
   export const generationMarker=unused,insertGenerationLedger=unused,candidateJcsSha256=unused,validObjectiveOutcome=unused;
@@ -195,6 +198,7 @@ const runtimeUrl = await sourceModule('../src/planner/objective-planner-continua
   ["'./objective-planner-continuation.authority.js'", runtimeAuthorityUrl],
   ["'./objective-canonical-fence.js'", portsUrl],
   ["'./strategy-materialization.js'", portsUrl],
+  ["'./objective-planner-regeneration.binding.js'", portsUrl],
 ], true, 'transform');
 const { ObjectivePlannerContinuationRuntime } = await import(runtimeUrl);
 const workerUrl = await sourceModule('../src/planner/objective-planner-continuation.worker.ts', [
@@ -1204,6 +1208,7 @@ test('prints actual helper/service/kernel custody and explicit synthetic owner/d
       'ObjectivePlannerContinuationWorker', 'plannerContinuationGrantWithinTx',
       'readPlannerContinuationOperationWithinTx', 'claimPlannerContinuationOperationWithinTx', 'finalizePlannerContinuationOperationWithinTx'],
     synthetic: ['database SQL and transaction rollback model', 'current authority and source fences',
-      'retained ledger/codec owner ports', 'Planner materializer/creation/observation ports', 'owner receipt ID dependency'],
+      'retained ledger/codec owner ports', 'Planner materializer/creation/observation ports', 'owner receipt ID dependency',
+      'unexercised regeneration eligibility (separate actual-codec Jest suite)'],
     nativeDatabaseFrameworkHttpGenuineCustodyAuthority: 'UNQUALIFIED', subprocesses: 0, network: false, fileWrites: false }));
 });

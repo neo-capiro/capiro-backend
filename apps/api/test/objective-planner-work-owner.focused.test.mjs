@@ -5,14 +5,15 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
+import { sharedUrl, appliedUrl, fullV2, fullV3, readySnapshot, nativeConsentProof } from './objective-planner-codec.fixtures.mjs';
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const custody = [];
 async function sourceModule(relative, replacements = []) {
   const path = new URL(relative, import.meta.url), raw = await readFile(path, 'utf8');
   let source = raw;
   for (const [from, to] of replacements) {
-    assert.equal(source.split(from).length, 2, `one declared import rewrite: ${from}`);
-    source = source.replace(from, JSON.stringify(to));
+    assert.ok(source.split(from).length >= 2, `declared import rewrite: ${from}`);
+    source = source.replaceAll(from, JSON.stringify(to));
   }
   const transformed = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: path.href });
   custody.push({ path: relative, sha256: createHash('sha256').update(raw).digest('hex'),
@@ -25,11 +26,24 @@ const kernelUrl = await sourceModule('../src/clients/objectives/work/objective-w
   ["'../../../auth/workload-authority/objective-consent-policy.js'", policyUrl],
 ]);
 const kernel = await import(kernelUrl);
+const intentUrl = await sourceModule('../src/clients/objectives/objective-work-intent.ts');
+const regenerationBindingUrl = await sourceModule('../src/clients/objectives/work/objective-planner-regeneration.ts');
+const proofUrl = await sourceModule('../src/clients/objectives/work/objective-planner-consent-proof.ts', [
+  ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
+  ["'../../../auth/workload-authority/objective-consent-policy.js'", policyUrl],
+  ["'../objective-work-intent.js'", intentUrl],
+  ["'./objective-work-command.js'", kernelUrl], ["'./objective-planner-applied.js'", appliedUrl],
+]);
 const ownerUrl = await sourceModule('../src/clients/objectives/work/objective-planner-work-owner.ts', [
   ["'./objective-work-command.js'", kernelUrl],
+  ["'./objective-planner-applied.js'", appliedUrl],
+  ["'./objective-planner-consent-proof.js'", proofUrl],
+  ["'./objective-planner-regeneration.js'", regenerationBindingUrl],
 ]);
 const { ObjectivePlannerWorkOwner } = await import(ownerUrl);
-const appUrl = await sourceModule('../../api-strategy/src/planner/objective-canonical-application.ts');
+const appUrl = await sourceModule('../../api-strategy/src/planner/objective-canonical-application.ts', [
+  ["'@capiro/shared/objective-planner-owner-codec'", sharedUrl],
+]);
 const app = await import(appUrl);
 const genUrl = await sourceModule('../../api-strategy/src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", appUrl],
@@ -95,11 +109,13 @@ function fixture(options = {}) {
     command_revision_id: source.sourceRevisionId, command_objective_version: source.sourceObjectiveVersion });
   const f = { a, state, work, operation, rows: [], receipts: [{ record: receipt, clerkUserId: 'user_original' }],
     settings: { clioFeatureFlags: { 'strategyPlanner.enabled': true }, objectivePlannerContinuation: { enabled: true } },
-    calls: [], outputs: [{ present: false }], historical: [], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
+    calls: [], outputs: [{ present: false }], historical: [], nativeProofs: [], owner: new ObjectivePlannerWorkOwner(options.env ?? env) };
   f.tx = {
     async $executeRaw(parts, ...values) { f.calls.push({ kind: 'execute', sql: parts.join('?'), values }); return 1; },
     async $queryRaw(parts, ...values) {
       const sql = parts.join('?'); f.calls.push({ kind: 'query', sql, values });
+      if (sql.includes('JOIN client_objective_work_intents'))
+        return f.nativeProofs.filter(row => values.includes(row.consent.id));
       if (sql.includes('FROM client_objective_work_consents')) return f.historical;
       if (sql.includes('FROM client_objective_work_command_receipts')) return f.receipts;
       if (sql.includes('FROM sp_planner_resources')) return f.rows;
@@ -129,32 +145,58 @@ async function denyPolicy(f) {
   await observed(f); await assert.rejects(f.policy(), error => error.code === 'AUTHORITY_UNAVAILABLE');
 }
 function applied(f) {
-  const w = f.work, source = { generationJobId: w.generationJobId, generationRequestId: w.generationRequestId,
-    clientId: w.canonical.clientId, objectiveId: w.canonical.objectiveId, objectiveVersion: w.canonical.requestedObjectiveVersion,
-    objectiveRevisionId: w.canonical.requestedObjectiveRevisionId, strategyId: w.strategyId,
-    strategyVersionId: w.strategyVersionId, snapshotDigest: w.snapshotDigest };
-  const owner = { receiptVersion: 2, input: { requestId: w.applicationRequestId }, binding: { canonical: w.canonical,
-    generationRequestId: w.generationRequestId, objectiveReceiptSha256: w.objectiveReceiptSha256, snapshotDigest: w.snapshotDigest },
-    result: { requestId: w.applicationRequestId, source, status: 'prepared', replayed: false,
-      projects: [{ groupKey: 'default', originalNodeIds: [], output: { availability: 'available', id: w.canonical.canonicalProjectId,
-        createdVersion: 1, currentVersion: 1 } }], tasks: [], issues: [], counts: { createdProjects: 1, createdTasks: 0 } } };
-  const request = (awaitWork => { const { actorUserId, consentId, controlVersion, ...rest } = awaitWork; return { schemaVersion: 1, ...rest }; })(w);
-  const materialization = 'objective_canonical_materialization_receipt';
-  const h = createHash('sha256').update(JSON.stringify(['strategy_materialization_receipt', f.a.tenantId,
-    f.operation.clerkUserId, JSON.stringify([materialization, w.applicationRequestId])])).digest('hex');
-  const ownerId = `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
-  const ack = app.creationAck(request, { tenantId: f.a.tenantId, actorUserId: w.actorUserId, consentId: w.consentId,
-    controlVersion: w.controlVersion, requestSha256: app.applicationHash(request), canonicalSha256: app.applicationHash(w.canonical) },
-  owner, ownerId, iso(1));
-  const appId = app.applicationReceiptId(f.a.tenantId, f.operation.clerkUserId, w.applicationRequestId);
-  const resource = (id, kind, data) => ({ id, kind, data, tenantId: f.a.tenantId, ownerId: f.operation.clerkUserId,
-    version: 1, projectId: null, archived: false, shareTokenHash: null, name: 'receipt' });
-  f.operation.state = 'applied'; f.operation.terminal = { receiptId: appId, recordedAtMs: NOW + 2 };
-  f.rows = [f.row(), resource(appId, 'objective_canonical_application_receipt',
-    { receiptVersion: 1, request, ack, ackSha256: app.applicationHash(ack) }), resource(ownerId, materialization, owner)];
+  const hash = kernel.workDigest(readySnapshot(f.work.canonical));
+  f.work.canonical.snapshotHash = hash; f.state.source.sourceSnapshotHash = hash;
+  f.state.consent.source.sourceSnapshotHash = hash; f.receipts[0].record.source_snapshot_hash = hash;
+  const full = fullV2({ canonical: f.work.canonical, actorUserId: f.work.actorUserId,
+    consentId: f.work.consentId, controlVersion: f.work.controlVersion });
+  f.work = full.work;
+  f.operation = store.newPlannerContinuationOperation({ work: f.work, clerkUserId: 'user_original',
+    membershipId: f.state.consent.actorMembershipId, originalDeadlineAt: f.state.consent.expiresAt });
+  f.operation.state = 'applied'; f.operation.terminal = full.operation.terminal;
+  f.rows = [f.row(), ...full.resources];
+  const proof = nativeConsentProof({ stored: full.stored, owner: full.owner, ownerRowId: full.ownerId,
+    receiptId: full.receiptId, ownerClerkUserId: full.clerkUserId }, f.state.control.id,
+    { membershipId: f.state.consent.actorMembershipId, rootActorUserId: f.state.source.rootActorUserId,
+      requestId: f.state.consent.commandRequestId, commandReceiptId: f.state.consent.commandReceiptId });
+  f.nativeProofs = [proof];
+  f.full = full;
   return f;
 }
-
+function sourceFrom(c, actor = id(11)) {
+  return { canonicalPlanId: c.canonicalPlanId, canonicalEpoch: c.epoch, canonicalStrategyId: c.canonicalStrategyId,
+    canonicalProjectId: c.canonicalProjectId, canonicalBindingVersion: c.bindingVersion, rootIntentId: c.requestedIntentId,
+    sourceRevisionId: c.requestedObjectiveRevisionId, sourceObjectiveVersion: c.requestedObjectiveVersion,
+    sourceSnapshotHash: c.snapshotHash, rootActorUserId: actor };
+}
+function appliedChain(f, chain) {
+  const last = chain.at(-1), current = last.work.canonical;
+  f.work = last.work; f.full = last;
+  f.a.objectiveVersion = current.requestedObjectiveVersion; f.a.objectiveRevisionId = current.requestedObjectiveRevisionId;
+  f.state.source = sourceFrom(current, id(11 + current.bindingVersion));
+  f.state.consent.source = copy(f.state.source); f.state.consent.id = last.work.consentId;
+  f.state.control.currentConsentId = last.work.consentId; f.state.control.version = last.work.controlVersion;
+  f.nativeProofs = chain.map((full, i) => nativeConsentProof({ stored: full.stored, owner: full.owner,
+    ownerRowId: full.ownerId, receiptId: full.receiptId, ownerClerkUserId: full.clerkUserId }, f.state.control.id,
+    { rootActorUserId: id(11 + full.work.canonical.bindingVersion), previousConsentId: chain[i - 1]?.work.consentId ?? null }));
+  const proof = f.nativeProofs.at(-1);
+  Object.assign(f.state.consent, { previousConsentId: proof.consent.previous_consent_id,
+    commandRequestId: proof.consent.command_request_id, commandReceiptId: proof.consent.command_receipt_id,
+    payloadDigest: proof.consent.payload_digest });
+  f.receipts = [{ record: proof.receipt, clerkUserId: proof.clerkUserId }];
+  const ops = chain.map(full => {
+    const operation = store.newPlannerContinuationOperation({ work: full.work, clerkUserId: full.clerkUserId,
+      membershipId: f.state.consent.actorMembershipId, originalDeadlineAt: f.state.consent.expiresAt });
+    operation.state = 'applied'; operation.terminal = full.operation.terminal; return operation;
+  });
+  f.operation = ops.at(-1); f.rows = [...ops.map(f.row), ...last.resources]; return f;
+}
+function advanceSource(f) {
+  const next = fullV3(f.full).work.canonical;
+  f.state.source = sourceFrom(next, id(99));
+  f.a.objectiveVersion = next.requestedObjectiveVersion; f.a.objectiveRevisionId = next.requestedObjectiveRevisionId;
+  return f;
+}
 test('source custody and cross-owner JSON digest convention', () => {
   assert.ok(custody.length >= 8); assert.equal(kernel.workDigest({ a: 1, b: ['x'] }), app.applicationHash({ b: ['x'], a: 1 }));
 });
@@ -240,10 +282,41 @@ test('orphan canonical project/tasks or missing output accounting remain uncerta
 test('application receipt without original operation is uncertainty', async () => {
   const f = applied(fixture()); f.rows.shift(); assert.equal((await observed(f)).state, 'outcome_unconfirmed');
 });
-test('applied original operation remains uncertain until full native owner codec and denies policy', async () => {
+test('applied original operation is positively reconstructed by full shared owner codec and denies policy', async () => {
   const f = applied(fixture()), evidence = await observed(f);
-  assert.equal(evidence.state, 'outcome_unconfirmed');
+  assert.equal(evidence.state, 'accounted'); assert.equal(evidence.outcome, 'applied');
   await assert.rejects(f.policy(), e => e.code === 'AUTHORITY_UNAVAILABLE');
+});
+test('real v3 to v3 to v2 ancestry reconstructs every original native consent without using current actor', async () => {
+  const first = fullV2(), second = fullV3(first), third = fullV3(second);
+  const f = appliedChain(fixture(), [first, second, third]), evidence = await observed(f);
+  assert.equal(evidence.state, 'accounted'); assert.equal(evidence.outcome, 'applied');
+  assert.equal(f.calls.filter(c => c.sql.includes('JOIN client_objective_work_intents')).length, 3);
+  assert.notEqual(f.a.actorUserId, third.work.actorUserId); assert.equal(evidence.regeneration, undefined);
+});
+test('advanced ready binding retains old applied identity and separately witnesses exact current-source absence', async () => {
+  const first = fullV2(), second = fullV3(first), third = fullV3(second);
+  const f = advanceSource(appliedChain(fixture(), [first, second, third])), evidence = await observed(f);
+  assert.equal(evidence.state, 'accounted'); assert.equal(evidence.outcome, 'applied');
+  assert.equal(evidence.operationId, f.operation.original.operationId);
+  assert.equal(evidence.rootIntentId, third.work.canonical.requestedIntentId);
+  assert.deepEqual(evidence.regeneration, { state: 'not_started', source: f.state.source });
+  assert.notEqual(evidence.regeneration.source.rootIntentId, evidence.rootIntentId);
+  assert.equal((await f.policy()).originalDelegationExpiresAtMs, null);
+});
+for (const corrupt of [
+  f => { f.nativeProofs.shift(); },
+  f => { f.nativeProofs[0].clerkUserId = 'foreign_clerk'; },
+  f => { f.nativeProofs[0].intent.actor_user_id = id(98); },
+  f => { f.nativeProofs[0].receipt.actor_membership_id = id(98); },
+  f => { f.nativeProofs[0].revision.snapshot.title = 'changed'; },
+  f => { f.rows.shift(); },
+  f => { f.rows.push({ ...f.row(), id: id(991), kind: 'objective_planner_continuation_unknown' }); },
+  f => { const next = fullV3(f.full); f.rows.push(...next.resources.filter(r => !f.rows.some(old => old.id === r.id))); },
+]) test(`advanced-source witness denies incomplete/foreign/orphan ancestry: ${corrupt}`, async () => {
+  const first = fullV2(), second = fullV3(first), third = fullV3(second);
+  const f = advanceSource(appliedChain(fixture(), [first, second, third])); corrupt(f);
+  assert.equal((await observed(f)).state, 'outcome_unconfirmed'); await assert.rejects(f.policy());
 });
 function priorTerminal(f) {
   const old = fixture().terminal('failed'), c = old.state.consent;

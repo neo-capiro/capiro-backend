@@ -1,3 +1,5 @@
+import type { SnapshotNode, StrategySnapshot } from '@capiro/shared/objective-planner-owner-codec';
+export type { SnapshotNode, StrategySnapshot } from '@capiro/shared/objective-planner-owner-codec';
 /*
  * Pure versioning helpers (plan §4 versioning policy, unit-tested in
  * versioning.spec.ts). No Nest/Prisma imports so these stay trivially testable.
@@ -19,49 +21,6 @@ export function isoDate(d: Date | string | null | undefined): string | null {
 /** Full ISO timestamp for a DateTime value. */
 export function isoDateTime(d: Date | string): string {
   return new Date(d).toISOString();
-}
-
-export interface SnapshotNode {
-  id: string;
-  kind: string;
-  subject: string;
-  title: string;
-  note: string | null;
-  ownerUserId: string | null;
-  status: string;
-  startsOn: string; // YYYY-MM-DD
-  endsOn: string | null; // YYYY-MM-DD | null
-  openEnded: boolean;
-  dependsOnIds: string[]; // A2: node-id edges (preserved on restore — ids are stable)
-  targetRef?: unknown; // who this node's outreach/workspace action is for (opaque; no Prisma types in this pure file)
-  /**
-   * P0-1: A9 per-node grounding (cited pack sections/facts). Recorded on the
-   * snapshot so a restore can put provenance back instead of erasing it. On a
-   * snapshot cut BEFORE P0-1 this key is ABSENT (not null), which restore treats
-   * as "this snapshot has no opinion — leave the live value alone"; an explicit
-   * null means the node genuinely had none.
-   */
-  provenance?: unknown;
-  meriAuthored: boolean;
-  createdByUserId: string;
-  createdAt: string; // ISO
-}
-
-export interface StrategySnapshot {
-  meta: {
-    id: string;
-    clientId: string;
-    title: string;
-    type: string;
-    goal: string | null;
-    meriContext: string | null;
-    meriSummary: string | null;
-    targetDate: string | null; // YYYY-MM-DD | null
-    ownerUserId: string;
-    createdByUserId: string;
-    createdAt: string; // ISO
-  };
-  nodes: SnapshotNode[];
 }
 
 /** Row shapes buildSnapshot accepts (subset of the Prisma models). */

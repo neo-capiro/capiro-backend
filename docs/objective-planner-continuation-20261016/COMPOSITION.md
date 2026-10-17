@@ -36,10 +36,15 @@ accounting and rolls back the whole transaction if the original consent or lease
 expired during the last write. A lost reply recovers the same retained operation
 and immutable creation receipt rather than calling another model or writer.
 
-Missing receipts alone never establish absence. Any exact application or
-materialization receipt, or canonical project/task including archived outputs,
-prevents a no-effect claim. Corrupt, incomplete, mismatched or uncertain owner
-evidence remains uncertain.
+Missing receipts alone never establish absence. Initial materialization rejects
+any exact application/materialization receipt or canonical project/task,
+including archived outputs. Regeneration instead reconstructs the complete
+applied predecessor chain and its original continuation operations. Existing
+outputs belong to that verified predecessor; they cannot be treated as absent.
+Every new effect rechecks the saved schema-2 basis, native retained-read grant,
+complete v2/v3 owner receipts and exclusive current application identity in the
+same transaction. Corrupt, incomplete, mismatched or uncertain owner evidence
+remains uncertain.
 
 ## Opt-in and Core consent
 
@@ -68,19 +73,36 @@ migration remain unchanged.
 
 ## Bounded behavior and remaining qualification
 
-This increment covers the first Planner preparation from a retained Strategy
-result and its exact recovery. Changed-ready-binding regeneration remains safely
-uncertain. The separate WorkService early status-read gate remains pending
-coordinator allocation; until connected, all public Core Planner work-status
-reads remain `outcome_unconfirmed`. Even with that hook, Core retains uncertainty for applied
-operations: Core does not substitute a partial hash check for Planner's full
-v2/v3 materialization/predecessor checker. This blocks retry; the concrete Planner
-application owner still verifies and returns the original creation receipt and
-current human-edited outputs to runtime recovery.
+WorkService now calls the allocated early status-read gate before Core
+authority/state locks. Current initial, verified failed/cancelled and fully
+proven applied work can be read through the actual service/kernel path. Core
+uses the same complete v2/v3 materialization, application and recursive
+predecessor decoders as Strategy. The pure codec bodies and error behavior were
+moved to a server-only shared subpath; neither the shared root export nor the
+ordinary chat contract changed. Applied accounting additionally reconstructs
+native Planner consent, command receipt, root/revision, membership and Clerk
+lineage for every ancestor.
 
-Source tests use real runtime, worker, store, application and Core command-kernel
-source with explicitly synthetic SQL, transaction, custody and materializer
-ports. They do not establish native PostgreSQL locks/RLS or deployed behavior.
+The owner separately prepares a closed advanced-current-source absence witness
+after complete historical accounting. It retains the old `accounted/applied`
+operation identity. The existing command kernel still rejects applied retry:
+the single central kernel integration is awaiting coordinator allocation.
+Regeneration eligibility in the runtime is implemented and qualified in source;
+new human consent cannot reach that path through the unchanged Core retry
+kernel. Same-source applied, pending, unknown and incomplete histories remain
+ineligible. Runtime recovery returns the original creation receipt and current
+human-edited outputs without creating another generation.
+
+The owner scans at most 256 relevant private rows and fails closed on overflow.
+The runtime predecessor scan has the same aggregate row bound; it is not a
+promise of 256 regeneration cycles. Earlier-binding failed/cancelled histories
+remain conservatively ineligible.
+
+Source tests use real runtime, worker, store, application, shared receipt codecs
+and Core service/command-kernel source with explicitly synthetic SQL,
+transaction, custody and materializer ports. Regeneration fixtures include three
+persisted generations and current human-edited outputs. They do not establish
+native PostgreSQL locks/RLS or deployed behavior.
 The separately guarded native suite and complete synthetic fixture builder are
 prepared in [NATIVE-QUALIFICATION.md](NATIVE-QUALIFICATION.md); no database,
 migration, credential, AWS resource, deployment or browser acceptance run was
@@ -88,16 +110,19 @@ performed. No dependency installation or heavy archive was needed.
 
 ## Focused source verification
 
-- Producer, application, continuation, saved-plan/runtime, native-target guard
-  and Core owner Node source suites: **269/269 passed**.
+- Eight Node source suites: **329/329 passed**. These cover producer,
+  application, continuation, saved-plan/runtime, native-target guard, Core owner,
+  the full shared codec and the structural advanced-source witness.
 - Strategy Jest store, actual AppModule mount/private visibility, complete
-  fixture reconstruction and default-disabled startup: **41 passed, 12 native
-  cases explicitly skipped**.
-- Actual Core ObjectiveWorkModule registration with local dependency fakes:
-  **3/3 passed**.
-- Scoped strict TypeScript checks for runtime/authority/store/application and
-  the actual Core owner import graph, plus `git diff --check`, passed. No full
-  application build was run.
+  fixture reconstruction, default-disabled startup and existing materialization
+  regression suites: **107 passed, 12 native cases explicitly skipped**.
+- Actual Core status service, historical consent proof, predecessor read fence,
+  regeneration binding/runtime and Core module registration: **106/106 passed**
+  (30 + 34 + 9 + 30 + 3).
+- Scoped strict TypeScript checks for the pure shared codec, runtime/application,
+  regeneration qualification, historical proof, status service and actual Core
+  owner import graph, plus `git diff --check`, passed. No full application build
+  was run.
 
 These checks reuse the installed dependency tree. Nest `.compile()` resolves
 the actual module graph with a rejecting Prisma override and does not call

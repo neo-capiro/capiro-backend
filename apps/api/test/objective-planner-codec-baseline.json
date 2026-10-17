@@ -1,0 +1,263 @@
+{
+  "sourceCommit": "b8b7262aa0ae8b4d9ef30e75df41b147b2d6e3cf",
+  "sources": [
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "sha256": "3c72aa87b2ae71427f2421d908ab4c8d31c1bf0a929215931d6a8cea39e41679"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "sha256": "fe4414d3ba8fd529011bb696fb207baf8260903b999679f8f36a9ba5446f9075"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/versioning.ts",
+      "sha256": "376a3353ba98936a878df3c856265dbd651f50c0bc3c71de685020d4403f7913"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/canonical-regeneration-plan.ts",
+      "sha256": "6bca24c13fe278415bb4f3f19155b943aecaece3499194ed3ed4927c484b0146"
+    }
+  ],
+  "movedFunctionBodies": [
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationIssue",
+      "sha256": "ce649cbf6e348e4f15754539a126beb587de8d7f22c9f411fa70d2f06dbf6fe9",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationError",
+      "sha256": "6038ee2790c2edcdbbc131f30f6700205b12f1b0a194e1b13b616013949f2e78",
+      "adapter": "error-transport"
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationUuid",
+      "sha256": "a56bbf2450237d790dbe8823e284c3014b3fa540d62495133a940db0eabbefed",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "record",
+      "sha256": "e10d079896718c9d5cbfbce330893cf82b8775a6952913c53853aa508823189d",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "exact",
+      "sha256": "88da65dd9fd35360435ee3899031d2ed700ffe3a8dc775cbee804cbe943c2f1e",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "parseMaterialization",
+      "sha256": "de257f01a340e5f895c7eda30b34b6d5e8536ab39143f868a25bdfa043bf8a82",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationReceiptId",
+      "sha256": "b69554004565e8857cf81f27e931bbd3ebf8a9fa4a1553b177c55a48a54f01a7",
+      "adapter": true
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "parseCanonicalMaterializationBinding",
+      "sha256": "bf7ddc5e8040b338441da35f4f2b43ff88ffca3afc4f71145636d663533cac37",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "canonicalMaterializationReceiptId",
+      "sha256": "ec8cea843e4c2a38f0c2bbb438fe5ecd02275b0865f8ac71d5283fa09f4b1f1b",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "canonicalMaterializationFingerprint",
+      "sha256": "2063307b1e354eb81675b11b317378843e9e836237f8eaf52406e7d6a7708491",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "canonicalRegenerationPrevious",
+      "sha256": "190a9406d06c2b072f2ec9180ecb6fc3c2d2734f21b42608365475f7ca492fac",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "canonicalRegenerationWitness",
+      "sha256": "1fea61359251733bf1e42131c717c7003f184ac8bfc41c4c59d3beccf21de168",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "canonicalRegenerationResult",
+      "sha256": "3e0b70d8436676cb8b9c6ea2eac319cd338b6f58c99d386f45afe855e4b175cc",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "requireCanonicalMaterializationSource",
+      "sha256": "595b211f6dc489399aa773e8d7dd87b7e3fbf35c525070c56f337455e1e5f8df",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationOutputResolver",
+      "sha256": "af1f7f0f77acfe83020895ae1075a923827f9ddbc722a48a1590be3d9bcfcb82",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationOutputId",
+      "sha256": "573085ef2bbd112b40df92a095225e86a6dc6e0442e5acd58b3ffe039161ee7f",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationResult",
+      "sha256": "e82bd983dd283d6ba8c491f63c99cd347ced301fb61bcef43bbe88374d72a810",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "checkedMaterialization",
+      "sha256": "d39577eb4f39ce3c699df1ca6a19ec2d096d918802f8017fe404828f23ff6b45",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "checkedCanonicalMaterialization",
+      "sha256": "974cfe3a75eee30eb4a68271fa4c32473f8510924febe7fc2a6500127bd1fbd9",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "checkedMaterializationReceipt",
+      "sha256": "1902e64a4446f5f18de41d6d270ef6a6e38e3ad73110ebaf445111337289cd3a",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "checkedCanonicalRegeneration",
+      "sha256": "ca55c67748401ec6923f6ae9a2b4e1b7ae13203db535ebeca3f5f28686329f56",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "function": "materializationPlan",
+      "sha256": "0ca11e430c308eaffab2c3560b6ded8be32f4171cba0b78afeea27125d5d32a9",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "invalid",
+      "sha256": "94750e1165c4747fded43e3accfbc28719b02a2e8f7bed2a7197d8fa3f890dd4",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "closed",
+      "sha256": "d5c268f36b509236bc22555a505209580b57fb88852b1658b9c1209d59c9d237",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "integer",
+      "sha256": "8e37c723d1fc967740cc323bc08d38d45ea82eca3299023e2f79bf6d0de73343",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "applicationUuid",
+      "sha256": "b8a47e55d659ec153e99c9241a1df5fe2f7d6bcc1ad1e678c48adedf041e4fb9",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "parseCanonicalApplication",
+      "sha256": "d3eeb79718aedf0121b77912f23108c2b1b1d5db728efb11c7fbb082e967d778",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "applicationJson",
+      "sha256": "2a5c2fc1a89d28bdbeb2ec40e48927f7667dea9aecf2597b3db6b39f07fffd5c",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "privateUuid",
+      "sha256": "464effbad7e72e290fd2ff7fb6a14e4f7c972289a643fb6264d60beb649635b8",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "canonicalApplicationRequestId",
+      "sha256": "e201cc6f0883ac7ebed998e7a02f49084de0826dd755d289af91fbad8198cfda",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "executeCanonicalApplicationTransaction",
+      "sha256": "12872b3c42b2d2d7f4a1be4feb7136bb5f62e5cae6c7a459e40872184c3b077c",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "creationAck",
+      "sha256": "392d86f6218f7e79c8bf15f084dd884909a5160c003a9ee5b9c48a904a5ed1cf",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "checkStoredApplication",
+      "sha256": "d8b6ce7238717231b7bdc6aa3f8cde6947099be654305de4fa03f5b4c67ebb8e",
+      "adapter": false
+    },
+    {
+      "source": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "function": "applicationObservation",
+      "sha256": "ef7bc893607d15b35dadcde420b70011b5d2bd64fc1d247b29cc1ec6eebd20ba",
+      "adapter": false
+    }
+  ],
+  "receiptIdHashExpression": "createHash('sha256')\n    .update(JSON.stringify([STRATEGY_MATERIALIZATION_RECEIPT, tenantId, actorId, requestId]))\n    .digest('hex')",
+  "applicationErrorClassSha256": "c9137ef6cc5c0796ede297b77cc0ca249d127361c311c9f6e5beb3c7d1df23e7",
+  "materializationExports": [
+    "materializationIssue",
+    "materializationError",
+    "materializationUuid",
+    "parseMaterialization",
+    "materializationReceiptId",
+    "parseCanonicalMaterializationBinding",
+    "canonicalMaterializationReceiptId",
+    "canonicalMaterializationFingerprint",
+    "materializationProjectDescription",
+    "canonicalRegenerationPrevious",
+    "canonicalRegenerationWitness",
+    "canonicalRegenerationResult",
+    "requireCanonicalMaterializationSource",
+    "materializationOutputResolver",
+    "materializationOutputId",
+    "materializationResult",
+    "checkedMaterialization",
+    "checkedCanonicalMaterialization",
+    "materializationPlan"
+  ],
+  "applicationExports": [
+    "applicationUuid",
+    "parseCanonicalApplication",
+    "applicationJson",
+    "applicationHash",
+    "canonicalApplicationRequestId",
+    "applicationReceiptId",
+    "applicationHeadId",
+    "executeCanonicalApplicationTransaction",
+    "creationAck",
+    "checkStoredApplication",
+    "applicationObservation"
+  ]
+}

@@ -23,6 +23,7 @@ export const OBJECTIVE_WORK_OWNER = Symbol('OBJECTIVE_WORK_OWNER');
  * supplies these facts. This port performs local owner reads/locks only. */
 export interface ObjectiveWorkOwnerPort {
   lockWithinTx(tx: Tx, ctx: TenantContext, request: WorkRequest): Promise<void>;
+  lockReadWithinTx?(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void>;
   reconcileWithinTx(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation>;
   policyWithinTx(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<
     Omit<WorkPolicyFacts, 'originalTokenExpiresAtMs'>>;
@@ -96,7 +97,10 @@ export class ObjectiveWorkService {
     const action = 'command' in request ? request.command.workAction : request.workAction;
     const requestId = 'command' in request ? request.command.requestId : request.requestId ?? null;
     return { transaction: <T>(write: boolean, run: (ports: WorkTransaction) => Promise<T>) =>
-      this.proofTransaction(ctx, proof, requestId, tx => run(this.ports(tx, ctx, request, action, proof, write))) };
+      this.proofTransaction(ctx, proof, requestId, async tx => {
+        if (!('command' in request)) await this.ownerPort.lockReadWithinTx?.(tx, ctx, request);
+        return run(this.ports(tx, ctx, request, action, proof, write));
+      }) };
   }
   private pairStore(ctx: TenantContext, request: WorkPairRequest, proof: ApplicationAuthorityIdentityProof): WorkPairOwner {
     return { transaction: (write, run) => {
