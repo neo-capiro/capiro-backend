@@ -42,8 +42,14 @@ function fixture() {
     tx.tenantMembership.upsert, tx.tenantMembership.delete,
     tx.tenant.create, tx.tenant.update, tx.auditLog.create,
   ];
-  const verifySessionToken = jest.fn(async () => ({
-    sub: user.clerkUserId, org_id: tenant.clerkOrgId,
+  const verifySessionToken = jest.fn(async (token: string) => ({
+    sub: user.clerkUserId, iss: 'https://clerk.app.capiro.ai',
+    sid: token === 'sidless-token' || token === 'marked-control' ? undefined : 'sess_preview',
+    exp: Math.floor(Date.now() / 1000) + 1800,
+    ...(token === 'marked-control' || token === 'marked-with-sid'
+      ? { meri_control_credential: true, iat: Math.floor(Date.now() / 1000) - 60,
+        jti: 'control_preview' } : {}),
+    org_id: tenant.clerkOrgId,
     capiro_tenant_id: tenant.id, capiro_tenant_slug: tenant.slug,
   }));
   const assertActiveApplicationAuthoritySession = jest.fn(async () => ({ id: 'session_preview' }));
@@ -68,11 +74,12 @@ function fixture() {
   return { app, reached, verifySessionToken, assertActiveApplicationAuthoritySession, withSystem, mutations };
 }
 
-async function send(server: Server, method: string, target: string, host = previewHost) {
+async function send(server: Server, method: string, target: string, host = previewHost,
+  bearer = 'native-session') {
   const address = server.address() as AddressInfo;
   return new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }>((resolve, reject) => {
     const req = httpRequest({ hostname: '127.0.0.1', port: address.port, method, path: target,
-      headers: { Host: host, Authorization: 'Bearer native-session' } }, (res) => {
+      headers: { Host: host, Authorization: `Bearer ${bearer}` } }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk: string) => { body += chunk; });
@@ -104,14 +111,39 @@ describe('preview native reads through real Node HTTP and Express routing', () =
       for (const [method, target] of ([
         ['GET', '/api/me'], ['GET', '/api/clients?includeArchived=false'],
         ['GET', '/api/clients/11111111-1111-4111-8111-111111111111'], ['HEAD', '/api/me'],
+        ['HEAD', `http://${previewHost}/api/me`],
       ] as const)) {
         const result = await send(server, method, target);
         expect(result.status).toBe(200);
         expect(result.headers['cache-control']).toBe('no-store');
       }
-      expect(h.reached).toHaveBeenCalledTimes(4);
-      expect(h.verifySessionToken).toHaveBeenCalledTimes(4);
-      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(4);
+      expect(h.reached).toHaveBeenCalledTimes(5);
+      expect(h.verifySessionToken).toHaveBeenCalledTimes(5);
+      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(5);
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('refuses sidless and marked control credentials on GET, HEAD and absolute-form targets before DB', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      for (const bearer of ['sidless-token', 'marked-control', 'marked-with-sid']) {
+        for (const [method, target] of ([
+          ['GET', '/api/me'], ['HEAD', '/api/clients'],
+          ['GET', `http://${previewHost}/api/me`], ['HEAD', `http://${previewHost}/api/me`],
+        ] as const)) {
+          const result = await send(server, method, target, previewHost, bearer);
+          expect(result.status).toBe(401);
+          expect(result.headers['cache-control']).toBe('no-store');
+        }
+      }
+      expect(h.reached).not.toHaveBeenCalled();
+      expect(h.withSystem).not.toHaveBeenCalled();
       for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
     } finally {
       server.closeAllConnections();

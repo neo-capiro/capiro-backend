@@ -62,11 +62,13 @@ const authority = load(source('auth/application-authority.ts'), {
 });
 const wall = load(source('memory/memory-wall.helpers.ts'), { '@capiro/shared': shared });
 const roleMapping = load(source('auth/clerk-role.util.ts'), { '@capiro/shared': shared });
+const previewNativeReadMode = load(source('auth/preview-native-read-mode.ts'), {});
 const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared,
   '../auth/clerk.service.js': {}, '../prisma/prisma.service.js': {},
   '../auth/clerk-role.util.js': roleMapping, './tenant-context.store.js': {},
   '../auth/application-authority.js': authority,
+  '../auth/preview-native-read-mode.js': previewNativeReadMode,
 });
 const membershipContract = load(source('auth/application-membership.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared,

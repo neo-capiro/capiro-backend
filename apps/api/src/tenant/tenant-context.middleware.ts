@@ -27,7 +27,7 @@ import {
   type TenantContext,
   type TenantRole,
 } from '@capiro/shared';
-import { ClerkService, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
+import { ClerkService, isWellFormedMeriControlCredentialClaims, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
 import { TenantContextStore } from './tenant-context.store.js';
@@ -54,6 +54,22 @@ interface ApplicationAuthorityRequestProvenance {
 // The existing owner shares only private, ephemeral provenance keyed by the
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
+const MERI_CONTROL_POST_PATHS = new Set([
+  '/clio/application-authority/identity',
+  '/clio/application-authority/context',
+  '/clio/application-authority/membership',
+]);
+
+/** A marked, sidless Meri control token has exactly three authority POST uses.
+ * Check both Express' parsed path and the original target: a rewritten or
+ * absolute-form target must never widen the credential's route authority. */
+function isMeriControlAuthorityPost(req: Request): boolean {
+  if (req.method !== 'POST') return false;
+  const parsed = req.path;
+  const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
+  const normalized = (path: string) => path.startsWith('/api/') ? path.slice(4) : path;
+  return parsed === original && MERI_CONTROL_POST_PATHS.has(normalized(parsed));
+}
 
 /**
  * Resolves the tenant context for an authenticated request.
@@ -165,6 +181,18 @@ export class TenantContextMiddleware implements NestMiddleware {
       claims = await this.clerk.verifySessionToken(token);
     } catch {
       throw new UnauthorizedException('Invalid session token');
+    }
+    // A valid dedicated control template is not a general browser credential.
+    // Refuse it before ordinary tenant lookup, self-heal or lastSeenAt writes.
+    if (claims.meri_control_credential === true) {
+      if (!isMeriControlAuthorityPost(req) || !isWellFormedMeriControlCredentialClaims(claims)) {
+        throw new UnauthorizedException('Application authority unavailable');
+      }
+      // The ordinary context resolver can write during membership self-heal.
+      // Refuse a revoked control credential before that first local DB action.
+      // The authority owner checks online again after resolution, and on each
+      // later currentness read; this early proof is never cached for release.
+      await this.clerk.assertActiveMeriControlCredentialSession(claims);
     }
 
     // Step 2, gather every hint we have about which tenant is being requested.
@@ -436,6 +464,13 @@ export class TenantContextMiddleware implements NestMiddleware {
     } catch {
       throw new UnauthorizedException('Invalid session token');
     }
+    if (claims.meri_control_credential === true ||
+        typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
+        typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
+        !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
+        (claims.exp ?? 0) * 1000 <= Date.now()) {
+      throw new UnauthorizedException('Application authority unavailable');
+    }
     // This online sid/sub/exp check runs BEFORE even the first local DB read.
     await this.clerk.assertActiveApplicationAuthoritySession(claims);
     if (req.header('x-capiro-impersonate-tenant')) throw denied();
@@ -488,7 +523,12 @@ export class TenantContextMiddleware implements NestMiddleware {
     const denied = () => new ForbiddenException('Application authority unavailable');
     const provenance = applicationAuthorityRequests.get(req);
     if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
-    const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    const session = provenance.claims.meri_control_credential === true
+      ? (isMeriControlAuthorityPost(req)
+          ? await this.clerk.assertActiveMeriControlCredentialSession(provenance.claims)
+          : null)
+      : await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    if (!session) throw denied();
     const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
     return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
   }
