@@ -1,0 +1,143 @@
+
+> capiro@0.0.0 typecheck:backend C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration
+> turbo run typecheck --concurrency=1 --filter=!@capiro/web --filter=!@capiro/onboard-web --filter=!@capiro/e2e "--env-mode=loose"
+
+
+   ΓÇó turbo 2.11.4
+   ΓÇó Packages in scope: @capiro/api, @capiro/api-strategy, @capiro/auth, @capiro/clio-sandbox, @capiro/defense-api, @capiro/defense-client, @capiro/defense-contracts, @capiro/defense-domain, @capiro/infra-cdk, @capiro/intel-api, @capiro/meriv2-core, @capiro/meriv2-orchestrator, @capiro/onboard-api, @capiro/shared, @capiro/strategy-verifier, @capiro/workspace
+   ΓÇó Running typecheck in 16 packages
+   ΓÇó Remote caching disabled, using shared worktree cache
+
+@capiro/strategy-verifier:build: cache hit, replaying logs 4ba86c1e356e2aa9
+@capiro/strategy-verifier:build:
+@capiro/strategy-verifier:build: > @capiro/strategy-verifier@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\strategy-verifier
+@capiro/strategy-verifier:build: > tsc -p tsconfig.json
+@capiro/strategy-verifier:build:
+@capiro/infra-cdk:typecheck: cache miss, executing 323cacc45351cdd0
+ WARNING  failed to run git diff for dirty hash
+@capiro/infra-cdk:typecheck:
+@capiro/infra-cdk:typecheck: > @capiro/infra-cdk@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\infra\cdk
+@capiro/infra-cdk:typecheck: > tsc --noEmit
+@capiro/infra-cdk:typecheck:
+@capiro/defense-contracts:typecheck: cache miss, executing ad25229cf73fac5c
+@capiro/defense-contracts:typecheck:
+@capiro/defense-contracts:typecheck: > @capiro/defense-contracts@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-contracts
+@capiro/defense-contracts:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/defense-contracts:typecheck:
+@capiro/auth:build: cache hit, replaying logs 72b94b03073d8e74
+@capiro/auth:build:
+@capiro/auth:build: > @capiro/auth@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\auth
+@capiro/auth:build: > tsc -p tsconfig.json
+@capiro/auth:build:
+@capiro/auth:typecheck: cache miss, executing 963cfeb4d3c6b621
+@capiro/auth:typecheck:
+@capiro/auth:typecheck: > @capiro/auth@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\auth
+@capiro/auth:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/auth:typecheck:
+@capiro/clio-sandbox:typecheck: cache miss, executing 39eeb3e9beddc180
+@capiro/clio-sandbox:typecheck:
+@capiro/clio-sandbox:typecheck: > @capiro/clio-sandbox@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\clio-sandbox
+@capiro/clio-sandbox:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/clio-sandbox:typecheck:
+@capiro/shared:build: cache hit, replaying logs 7570cd3b826de937
+@capiro/shared:build:
+@capiro/shared:build: > @capiro/shared@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\shared
+@capiro/shared:build: > tsc -p tsconfig.json
+@capiro/shared:build:
+@capiro/shared:typecheck: cache miss, executing f0c35641bba0f6fe
+@capiro/shared:typecheck:
+@capiro/shared:typecheck: > @capiro/shared@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\shared
+@capiro/shared:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/shared:typecheck:
+@capiro/defense-client:build: cache hit, replaying logs f3be6f48b2d47d3e
+@capiro/defense-client:build:
+@capiro/defense-client:build: > @capiro/defense-client@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-client
+@capiro/defense-client:build: > tsc -p tsconfig.json
+@capiro/defense-client:build:
+@capiro/defense-client:typecheck: cache miss, executing ce895477e224e16c
+@capiro/defense-client:typecheck:
+@capiro/defense-client:typecheck: > @capiro/defense-client@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-client
+@capiro/defense-client:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/defense-client:typecheck:
+@capiro/strategy-verifier:typecheck: cache miss, executing 9874c04a9be1629a
+@capiro/strategy-verifier:typecheck:
+@capiro/strategy-verifier:typecheck: > @capiro/strategy-verifier@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\strategy-verifier
+@capiro/strategy-verifier:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/strategy-verifier:typecheck:
+@capiro/defense-contracts:build: cache hit, replaying logs 5875261c3266013e
+@capiro/defense-contracts:build:
+@capiro/defense-contracts:build: > @capiro/defense-contracts@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-contracts
+@capiro/defense-contracts:build: > tsc -p tsconfig.json
+@capiro/defense-contracts:build:
+@capiro/defense-domain:typecheck: cache miss, executing c6535bc0187278f2
+@capiro/defense-domain:typecheck:
+@capiro/defense-domain:typecheck: > @capiro/defense-domain@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-domain
+@capiro/defense-domain:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/defense-domain:typecheck:
+@capiro/api-strategy:typecheck: cache miss, executing 26f2d24281adf955
+@capiro/api-strategy:typecheck:
+@capiro/api-strategy:typecheck: > @capiro/api-strategy@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\api-strategy
+@capiro/api-strategy:typecheck: > tsc --noEmit
+@capiro/api-strategy:typecheck:
+@capiro/meriv2-core:build: cache hit, replaying logs 9b32092451eec5a5
+@capiro/meriv2-core:build:
+@capiro/meriv2-core:build: > @capiro/meriv2-core@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\meriv2-core
+@capiro/meriv2-core:build: > tsc -p tsconfig.json
+@capiro/meriv2-core:build:
+@capiro/onboard-api:typecheck: cache miss, executing 7eeefa68900b3ae5
+@capiro/onboard-api:typecheck:
+@capiro/onboard-api:typecheck: > @capiro/onboard-api@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\onboard-api
+@capiro/onboard-api:typecheck: > tsc --noEmit
+@capiro/onboard-api:typecheck:
+@capiro/defense-domain:build: cache hit, replaying logs 8a2cc7087658e1ae
+@capiro/defense-domain:build:
+@capiro/defense-domain:build: > @capiro/defense-domain@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-domain
+@capiro/defense-domain:build: > tsc -p tsconfig.json
+@capiro/defense-domain:build:
+@capiro/meriv2-core:typecheck: cache miss, executing 3c090624bdc792a1
+@capiro/meriv2-core:typecheck:
+@capiro/meriv2-core:typecheck: > @capiro/meriv2-core@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\meriv2-core
+@capiro/meriv2-core:typecheck: > tsc -p tsconfig.json --noEmit
+@capiro/meriv2-core:typecheck:
+@capiro/meriv2-orchestrator:typecheck: cache miss, executing eb83f69f9808a7fe
+@capiro/meriv2-orchestrator:typecheck:
+@capiro/meriv2-orchestrator:typecheck: > @capiro/meriv2-orchestrator@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\meriv2-orchestrator
+@capiro/meriv2-orchestrator:typecheck: > tsc --noEmit
+@capiro/meriv2-orchestrator:typecheck:
+@capiro/intel-api:typecheck: cache miss, executing 1e04b3ed1a8728cd
+@capiro/intel-api:typecheck:
+@capiro/intel-api:typecheck: > @capiro/intel-api@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\intel-api
+@capiro/intel-api:typecheck: > tsc --noEmit
+@capiro/intel-api:typecheck:
+@capiro/workspace:typecheck: cache miss, executing f22ab154a1b69454
+@capiro/workspace:typecheck:
+@capiro/workspace:typecheck: > @capiro/workspace@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\workspace
+@capiro/workspace:typecheck: > tsc --noEmit
+@capiro/workspace:typecheck:
+@capiro/api:typecheck: cache miss, executing 48475fd03f6501df
+@capiro/api:typecheck:
+@capiro/api:typecheck: > @capiro/api@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\api
+@capiro/api:typecheck: > tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit
+@capiro/api:typecheck:
+@capiro/api:typecheck: PE_PHASE_A_B_SAFETY_OK
+@capiro/defense-api:typecheck: cache miss, executing e31fc3a11ef85e79
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck: > @capiro/defense-api@0.0.0 typecheck C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\defense-api
+@capiro/defense-api:typecheck: > pnpm prisma:generate && tsc --noEmit
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck: > @capiro/defense-api@0.0.0 prisma:generate C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\defense-api
+@capiro/defense-api:typecheck: > prisma generate --schema prisma/schema.prisma
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck: Prisma schema loaded from prisma\schema.prisma
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck: Γ£ö Generated Prisma Client (v5.22.0) to .\generated\prisma-client in 258ms
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+@capiro/defense-api:typecheck:
+@capiro/defense-api:typecheck: Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+@capiro/defense-api:typecheck:
+
+ Tasks:    23 successful, 23 total
+Cached:    7 cached, 23 total
+  Time:    4m52.699s

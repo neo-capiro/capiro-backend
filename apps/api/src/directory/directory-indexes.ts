@@ -11,7 +11,7 @@
  * Identity joins are EXACT (by office_id / member.member_id / staff.id) — never by
  * name similarity. Names are normalized only for user query matching.
  */
-import type { DirectoryCommittee } from './directory.service.js';
+import type { DirectoryCommittee } from './directory.types.js';
 
 export type DirectoryPersonType = 'member' | 'staff';
 
