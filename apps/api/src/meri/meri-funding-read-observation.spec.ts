@@ -7,8 +7,11 @@ import type { Request } from 'express';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import {
   admitMeriFundingReadObservation,
+  admitMeriReadObservation,
   currentMeriFundingReadAsOf,
+  currentMeriReadAsOf,
   withMeriFundingReadObservation,
+  withMeriReadObservation,
 } from './meri-funding-read-observation.js';
 
 // neo-capiro/meri-greenfield@b4daa4adf6e8269e7c341751db9a02bf6d4f062b,
@@ -24,6 +27,35 @@ const BODY = {
 };
 const AS_OF = '2026-10-17T12:34:56.789Z';
 const SECRET = 'funding-observation-service-secret';
+const KB_NAME = 'search_client_knowledge';
+const KB_BODY = {
+  query: '  Civic & energ\u00eda \ud83c\udf31  ',
+  clientId: 'A1234567-B123-4C12-8D12-E123456789AB',
+  kind: 'client_doc_chunk',
+  limit: 5,
+};
+const KB_REQUEST_SHA256 = '5a1fe25a9a0a88616f200c7e135c55f689f30b20cf481b7d1e137d06432f8e70';
+// Exact UTF-8 source: neo-capiro/meri-greenfield@56627c1fe31e5c7386f79ca23e7605ba5dc59b83,
+// docs/coordination/proposals/native-kb-observation-20261017/golden.json,
+// Git blob a807a90718c2260f2c980bd04e04cec2d8c9414f (2018 bytes).
+const KB_FIXTURE = JSON.parse(readFileSync(
+  join(__dirname, '__fixtures__', 'native-kb-observation-0.2-golden.json'), 'utf8',
+)) as {
+  format: string;
+  vectors: Array<{
+    operation: { id: string; version: string };
+    request: Record<string, unknown>;
+    context: { asOf: string };
+    requestCanonicalJson: string;
+    requestSha256: string;
+    observation: Record<string, unknown>;
+    canonicalJson: string;
+    decodedBytes: number;
+    carrier: string;
+    observationSha256: string;
+  }>;
+};
+const KB_CARRIER = KB_FIXTURE.vectors[0]!.carrier;
 const malformedCases: [string, string, Record<string, unknown>, string][] = [
   ['changed original request', NAME, { ...BODY, query: BODY.query.trim() }, GOLDEN_CARRIER],
   ['other route', 'get_funding_opportunity', BODY, GOLDEN_CARRIER],
@@ -257,5 +289,70 @@ describe('finite funding read observation', () => {
     ]);
     expect(values).toEqual([AS_OF, second.asOf]);
     expect(currentMeriFundingReadAsOf(NAME)).toBeUndefined();
+  });
+});
+
+describe('client knowledge read observation', () => {
+  it('binds the original closed body and carries its KB-only clock', () => {
+    expect(KB_FIXTURE.format).toBe('meri-native-read-observation-golden/1');
+    expect(KB_FIXTURE.vectors).toHaveLength(1);
+    const vector = KB_FIXTURE.vectors[0]!;
+    expect(vector.operation).toEqual({ id: KB_NAME, version: '0.2.0' });
+    expect(vector.request).toEqual(KB_BODY);
+    expect(vector.context).toEqual({ asOf: AS_OF });
+    expect(vector.requestSha256).toBe(KB_REQUEST_SHA256);
+    expect(createHash('sha256').update(vector.requestCanonicalJson, 'utf8').digest('hex'))
+      .toBe(KB_REQUEST_SHA256);
+    const decoded = Buffer.from(vector.carrier, 'base64url');
+    expect(decoded.byteLength).toBe(vector.decodedBytes);
+    expect(decoded.toString('utf8')).toBe(vector.canonicalJson);
+    expect(JSON.parse(vector.canonicalJson)).toEqual(vector.observation);
+    expect(createHash('sha256').update(decoded).digest('hex')).toBe(vector.observationSha256);
+    const req = request(KB_CARRIER, SECRET, KB_NAME);
+    expect(guardRequest(req)).toBe(true);
+    const observation = admitMeriReadObservation(KB_NAME, KB_BODY, req);
+    expect(observation).toEqual({ operationId: KB_NAME, asOf: AS_OF });
+    expect(withMeriReadObservation(observation!, () => currentMeriReadAsOf(KB_NAME))).toBe(AS_OF);
+    expect(currentMeriReadAsOf(KB_NAME)).toBeUndefined();
+    expect(() => admitMeriFundingReadObservation(KB_NAME, KB_BODY, req)).toThrow(BadRequestException);
+  });
+
+  it('refuses changed, open or mistyped KB bodies before dispatch', () => {
+    for (const body of [
+      { ...KB_BODY, query: KB_BODY.query.trim() },
+      { ...KB_BODY, extra: true },
+      { ...KB_BODY, limit: [] },
+      { ...KB_BODY, clientId: 1 },
+      { ...KB_BODY, kind: false },
+      { ...KB_BODY, query: null },
+    ]) {
+      const req = request(KB_CARRIER, SECRET, KB_NAME);
+      expect(guardRequest(req)).toBe(true);
+      expect(() => admitMeriReadObservation(KB_NAME, body, req)).toThrow(BadRequestException);
+    }
+  });
+
+  it('requires the same verified service proof and exact KB route', () => {
+    for (const secret of [undefined, 'wrong']) {
+      const req = request(KB_CARRIER, secret, KB_NAME);
+      expect(guardRequest(req)).toBe(true);
+      expect(() => admitMeriReadObservation(KB_NAME, KB_BODY, req)).toThrow(ForbiddenException);
+    }
+    const wrongRoute = request(KB_CARRIER, SECRET, NAME);
+    expect(guardRequest(wrongRoute)).toBe(true);
+    expect(() => admitMeriReadObservation(NAME, KB_BODY, wrongRoute)).toThrow(BadRequestException);
+    const legacy = request(undefined, 'wrong', KB_NAME);
+    expect(guardRequest(legacy)).toBe(true);
+    expect(admitMeriReadObservation(KB_NAME, KB_BODY, legacy)).toBeUndefined();
+  });
+
+  it('keeps funding and KB anchors isolated even when nested', () => {
+    withMeriReadObservation({ operationId: KB_NAME, asOf: AS_OF }, () => {
+      expect(() => currentMeriFundingReadAsOf(NAME)).toThrow(ForbiddenException);
+      expect(withMeriFundingReadObservation({ operationId: NAME, asOf: AS_OF }, () =>
+        currentMeriFundingReadAsOf(NAME)?.toISOString(),
+      )).toBe(AS_OF);
+      expect(currentMeriReadAsOf(KB_NAME)).toBe(AS_OF);
+    });
   });
 });

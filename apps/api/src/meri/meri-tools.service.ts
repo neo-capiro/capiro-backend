@@ -13,7 +13,7 @@ import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
-import { currentMeriFundingReadAsOf } from './meri-funding-read-observation.js';
+import { currentMeriFundingReadAsOf, currentMeriReadAsOf } from './meri-funding-read-observation.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -2276,7 +2276,7 @@ export class MeriToolsService {
     const query = typeof input.query === 'string' ? input.query.trim() : '';
     if (!query) throw new BadRequestException('query is required');
     const clientId = typeof input.clientId === 'string' && input.clientId ? input.clientId : null;
-    const generatedAt = new Date().toISOString();
+    const generatedAt = currentMeriReadAsOf('search_client_knowledge') ?? new Date().toISOString();
     if (!clientId) {
       return {
         tool: 'search_client_knowledge',

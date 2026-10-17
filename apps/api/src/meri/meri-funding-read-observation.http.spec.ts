@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -18,7 +20,7 @@ import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
-import { currentMeriFundingReadAsOf } from './meri-funding-read-observation.js';
+import { currentMeriFundingReadAsOf, currentMeriReadAsOf } from './meri-funding-read-observation.js';
 
 const NAME = 'search_funding_opportunities';
 const BODY = {
@@ -30,11 +32,23 @@ const CARRIER =
   'eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoic2VhcmNoX2Z1bmRpbmdfb3Bwb3J0dW5pdGllcyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiNTA5MmY4ZWJmYTE3OTc4MzNmOTYzNTNlOTNiODA3ZGZjMjRjZjExMDdhNmM5OGNlOTlhZDQ5ZjhiODY0YjRlOCIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ';
 const AS_OF = '2026-10-17T12:34:56.789Z';
 const SECRET = 'strict-funding-observation-service-secret';
+const KB_NAME = 'search_client_knowledge';
+const KB_BODY = {
+  query: '  Civic & energ\u00eda \ud83c\udf31  ',
+  clientId: 'A1234567-B123-4C12-8D12-E123456789AB',
+  kind: 'client_doc_chunk',
+  limit: 5,
+};
+const KB_CARRIER = (JSON.parse(readFileSync(
+  join(__dirname, '__fixtures__', 'native-kb-observation-0.2-golden.json'), 'utf8',
+)) as { vectors: [{ carrier: string }] }).vectors[0].carrier;
 
 describe('served finite funding observation', () => {
   let app: INestApplication;
   const execute = jest.fn(async (_ctx: TenantContext, name: string) => ({
-    asOf: currentMeriFundingReadAsOf(name as typeof NAME)?.toISOString() ?? null,
+    asOf: name === KB_NAME
+      ? currentMeriReadAsOf(KB_NAME) ?? null
+      : currentMeriFundingReadAsOf(name as typeof NAME)?.toISOString() ?? null,
   }));
 
   beforeAll(async () => {
@@ -127,6 +141,25 @@ describe('served finite funding observation', () => {
   it('refuses changed original body and route before dispatch', async () => {
     await post(NAME, { ...BODY, query: BODY.query.trim() }, SECRET, CARRIER).expect(400);
     await post('get_funding_opportunity', BODY, SECRET, CARRIER).expect(400);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('anchors the existing KB route on the original observed body', async () => {
+    const response = await post(KB_NAME, KB_BODY, SECRET, KB_CARRIER).expect(200);
+    expect(response.body).toEqual({ asOf: AS_OF });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith(expect.anything(), KB_NAME, KB_BODY);
+    expect(currentMeriReadAsOf(KB_NAME)).toBeUndefined();
+  });
+
+  it('preserves the legacy KB route and refuses unverified or changed observed reads', async () => {
+    await post(KB_NAME, KB_BODY, 'wrong').expect(200, { asOf: null });
+    expect(execute).toHaveBeenCalledTimes(1);
+    execute.mockClear();
+    await post(KB_NAME, KB_BODY, undefined, KB_CARRIER).expect(403);
+    await post(KB_NAME, KB_BODY, 'wrong', KB_CARRIER).expect(403);
+    await post(KB_NAME, { ...KB_BODY, query: KB_BODY.query.trim() }, SECRET, KB_CARRIER).expect(400);
+    await post(KB_NAME, { ...KB_BODY, privateScope: true }, SECRET, KB_CARRIER).expect(400);
     expect(execute).not.toHaveBeenCalled();
   });
 });

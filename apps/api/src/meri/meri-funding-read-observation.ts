@@ -16,13 +16,20 @@ const FUNDING_READS = [
 ] as const;
 
 type FundingReadOperation = (typeof FUNDING_READS)[number];
+const KB_READ = 'search_client_knowledge' as const;
+type ObservedReadOperation = FundingReadOperation | typeof KB_READ;
+
+export interface MeriReadObservation {
+  readonly operationId: ObservedReadOperation;
+  readonly asOf: string;
+}
 
 export interface MeriFundingReadObservation {
   readonly operationId: FundingReadOperation;
   readonly asOf: string;
 }
 
-const storage = new AsyncLocalStorage<MeriFundingReadObservation>();
+const storage = new AsyncLocalStorage<MeriReadObservation>();
 
 function invalid(): never {
   throw new BadRequestException('Funding read observation is invalid');
@@ -78,22 +85,38 @@ function isFundingRead(name: string): name is FundingReadOperation {
   return (FUNDING_READS as readonly string[]).includes(name);
 }
 
+function isObservedRead(name: string): name is ObservedReadOperation {
+  return isFundingRead(name) || name === KB_READ;
+}
+
+function assertKnowledgeBody(body: Record<string, unknown>): void {
+  if (
+    typeof body.query !== 'string' ||
+    Object.keys(body).some((key) => !['query', 'clientId', 'kind', 'limit'].includes(key)) ||
+    ('clientId' in body && body.clientId !== null && typeof body.clientId !== 'string') ||
+    ('kind' in body && body.kind !== null && typeof body.kind !== 'string') ||
+    ('limit' in body && body.limit !== null &&
+      typeof body.limit !== 'string' && typeof body.limit !== 'number')
+  ) invalid();
+}
+
 /**
  * The header is a calculation anchor, never an authorization grant. Route,
  * original flat body, native bearer and an actually matched internal-service
  * secret must all be established before the existing producer is called.
  */
-export function admitMeriFundingReadObservation(
+export function admitMeriReadObservation(
   name: string,
   rawBody: unknown,
   request: Request,
-): MeriFundingReadObservation | undefined {
+): MeriReadObservation | undefined {
   const carrier = request.headers[HEADER];
   if (carrier === undefined) return undefined;
   if (!hasVerifiedToolServiceIdentity(request)) {
     throw new ForbiddenException('Funding read observation requires verified service identity');
   }
-  if (!isFundingRead(name) || !record(rawBody) || typeof carrier !== 'string') invalid();
+  if (!isObservedRead(name) || !record(rawBody) || typeof carrier !== 'string') invalid();
+  if (name === KB_READ) assertKnowledgeBody(rawBody);
   if (
     carrier.length === 0 ||
     carrier.length > Math.ceil((MAX_DECODED_BYTES * 4) / 3) ||
@@ -136,19 +159,43 @@ export function admitMeriFundingReadObservation(
   }
 }
 
-export function withMeriFundingReadObservation<T>(
-  observation: MeriFundingReadObservation,
+/** Preserve the original funding-only decoder for existing callers. */
+export function admitMeriFundingReadObservation(
+  name: string,
+  rawBody: unknown,
+  request: Request,
+): MeriFundingReadObservation | undefined {
+  const observation = admitMeriReadObservation(name, rawBody, request);
+  if (!observation) return undefined;
+  if (!isFundingRead(observation.operationId)) invalid();
+  return observation as MeriFundingReadObservation;
+}
+
+export function withMeriReadObservation<T>(
+  observation: MeriReadObservation,
   run: () => T,
 ): T {
   return storage.run(Object.freeze({ ...observation }), run);
 }
 
-/** Pass undefined on the legacy path so the producer retains its own clock. */
-export function currentMeriFundingReadAsOf(name: FundingReadOperation): Date | undefined {
+export function withMeriFundingReadObservation<T>(
+  observation: MeriFundingReadObservation,
+  run: () => T,
+): T {
+  return withMeriReadObservation(observation, run);
+}
+
+export function currentMeriReadAsOf(name: ObservedReadOperation): string | undefined {
   const observation = storage.getStore();
   if (!observation) return undefined;
   if (observation.operationId !== name) {
     throw new ForbiddenException('Funding read observation does not match this operation');
   }
-  return new Date(observation.asOf);
+  return observation.asOf;
+}
+
+/** Pass undefined on the legacy path so the producer retains its own clock. */
+export function currentMeriFundingReadAsOf(name: FundingReadOperation): Date | undefined {
+  const asOf = currentMeriReadAsOf(name);
+  return asOf ? new Date(asOf) : undefined;
 }
