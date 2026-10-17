@@ -83,6 +83,11 @@ function matchesWhere(row: Record<string, unknown>, where: Record<string, unknow
       if (!clauses.every((clause) => matchesWhere(row, clause))) return false;
       continue;
     }
+    if (key === 'OR') {
+      const clauses = (Array.isArray(value) ? value : [value]) as Array<Record<string, unknown>>;
+      if (!clauses.some((clause) => matchesWhere(row, clause))) return false;
+      continue;
+    }
     if (value !== null && typeof value === 'object') {
       const operators = value as Record<string, unknown>;
       if ('not' in operators) {
