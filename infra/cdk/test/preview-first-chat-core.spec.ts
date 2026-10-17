@@ -33,7 +33,7 @@ test('requires the exact Core source and immutable image digest', () => {
   }
 });
 
-test('renders the retained host guard after four exact POST paths and three bounded GET paths', () => {
+test('renders two stable listener rules for four POSTs and three GETs before the retained guard', () => {
   const output = fs.mkdtempSync(path.join(os.tmpdir(), 'capiro-first-chat-'));
   const tempRoot = fs.realpathSync(os.tmpdir());
   try {
@@ -45,7 +45,7 @@ test('renders the retained host guard after four exact POST paths and three boun
   assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
   assert.equal(guardRule.DeletionPolicy, 'Retain');
   assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
-  assert.equal(guardRule.Properties.Priority, 4);
+  assert.equal(guardRule.Properties.Priority, 3);
   assert.deepEqual(guardRule.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
   ]);
@@ -160,30 +160,45 @@ test('renders the retained host guard after four exact POST paths and three boun
     targets[0].Properties.Tags.find((tag: any) => tag.Key === 'capiro:preview-guard-rule-arn'),
     { Key: 'capiro:preview-guard-rule-arn', Value: { 'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT } },
   );
-  const rules = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule');
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3]);
-  const allowed = rules.find((rule) => rule.Properties.Priority === 1);
-  const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
-  assert.deepEqual(path.PathPatternConfig.Values.sort(), [
-    '/api/clio/application-authority/context',
-    '/api/clio/application-authority/identity',
-    '/api/clio/conversations/bootstrap',
-  ]);
-  assert.ok(path.PathPatternConfig.Values.every((value: string) => !value.includes('*')));
-  const membership = rules.find((rule) => rule.Properties.Priority === 2);
-  const membershipPath = membership.Properties.Conditions.find(
-    (condition: any) => condition.Field === 'path-pattern',
+  const ruleEntries = Object.entries(stack.Resources).filter(
+    ([, resource]: [string, any]) => resource.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule',
   );
-  assert.deepEqual(membershipPath.PathPatternConfig.Values, [
-    '/api/clio/application-authority/membership',
+  assert.deepEqual(ruleEntries.map(([id]) => id).sort(), [
+    'FirstChatMembershipPostOnly',
+    'FirstChatPostsOnly',
   ]);
-  for (const rule of [allowed, membership]) {
-    const method = rule.Properties.Conditions.find(
-      (condition: any) => condition.Field === 'http-request-method',
-    );
-    assert.deepEqual(method.HttpRequestMethodConfig.Values, ['POST']);
+  const rules = ruleEntries.map(([, rule]) => rule as any);
+  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2]);
+  const allowed = stack.Resources.FirstChatPostsOnly;
+  const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
+  assert.deepEqual(path.PathPatternConfig, {
+    RegexValues: ['^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$'],
+  });
+  const postPattern = new RegExp(path.PathPatternConfig.RegexValues[0]);
+  for (const allowedPath of [
+    '/api/clio/conversations/bootstrap',
+    '/api/clio/application-authority/identity',
+    '/api/clio/application-authority/context',
+    '/api/clio/application-authority/membership',
+  ]) {
+    assert.ok(postPattern.test(allowedPath), allowedPath);
   }
-  const reads = rules.find((rule) => rule.Properties.Priority === 3);
+  for (const rejectedPath of [
+    '/api/clio/conversations',
+    '/api/clio/conversations/bootstrap/extra',
+    '/api/clio/application-authority/other',
+    '/api/clio/application-authority/context/extra',
+    '/api/clio/application-authority/identity/extra',
+    '/api/clio/application-authority/membership/extra',
+    '/api/me',
+  ]) {
+    assert.equal(postPattern.test(rejectedPath), false, rejectedPath);
+  }
+  const postMethod = allowed.Properties.Conditions.find(
+    (condition: any) => condition.Field === 'http-request-method',
+  );
+  assert.deepEqual(postMethod.HttpRequestMethodConfig.Values, ['POST']);
+  const reads = stack.Resources.FirstChatMembershipPostOnly;
   const readPath = reads.Properties.Conditions.find(
     (condition: any) => condition.Field === 'path-pattern',
   );
@@ -222,7 +237,7 @@ test('renders the retained host guard after four exact POST paths and three boun
   assert.ok(rules.every((rule) => rule.Properties.Actions[0].Type === 'forward'));
   assert.deepEqual(
     rules.map((rule) => rule.Properties.Actions[0].TargetGroupArn),
-    [1, 2, 3].map(() => ({ Ref: targetLogicalId })),
+    [1, 2].map(() => ({ Ref: targetLogicalId })),
   );
   for (const rule of rules) {
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "source-only-candidate; no listener or service activation approved",
+  "status": "source-only-candidate; compact Core layout is reported but current AWS template is unverified; no listener or service activation approved",
+  "snapshotNote": "livePriority values describe only the frozen historical snapshot; current rule ownership and ARNs are unverified",
   "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440",
   "liveSnapshot": "./capiro-prod-alb-snapshot.json",
   "hostReservations": {
@@ -14,10 +15,9 @@
     { "id": "engagement-preview", "from": 6, "to": 7 }
   ],
   "candidateRules": [
-    { "id": "core-post", "livePriority": 1, "candidatePriority": 1, "owner": "Core first-chat", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
-    { "id": "core-membership", "livePriority": 2, "candidatePriority": 2, "owner": "Core first-chat", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
-    { "id": "core-get", "livePriority": null, "candidatePriority": 3, "owner": "Core first-chat", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
-    { "id": "core-guard", "livePriority": 3, "candidatePriority": 4, "owner": "Core first-chat retained guard", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
+    { "id": "core-post", "livePriority": 1, "candidatePriority": 1, "candidatePurpose": "four exact authority POST paths under the existing source logical ID", "owner": "Core first-chat", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
+    { "id": "core-membership", "livePriority": 2, "candidatePriority": 2, "candidatePurpose": "three exact browser GET paths under the existing source logical ID", "owner": "Core first-chat", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
+    { "id": "core-guard", "livePriority": 3, "candidatePriority": 3, "owner": "Core first-chat retained guard", "source": "infra/cdk/lib/preview/first-chat-core.ts" },
     { "id": "engagement-callbacks", "livePriority": 5, "candidatePriority": 5, "owner": "existing engagement listener owner", "source": "existing hand-managed listener rule; owner to confirm" },
     { "id": "meri-preview", "livePriority": null, "candidatePriority": 6, "owner": "Fable Meri ingress with Dot listener coordination", "source": "infra/cdk/lib/preview/first-chat-meri-ingress.ts" },
     { "id": "engagement-preview", "livePriority": 6, "candidatePriority": 7, "owner": "existing engagement listener owner", "source": "scripts/engagement-api-alb-rules.sh" },
