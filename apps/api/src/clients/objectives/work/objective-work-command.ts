@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { objectiveConsentPolicyTerms } from '../../../auth/workload-authority/objective-consent-policy.js';
+import { verifiedObjectivePlannerRegenerationWitness,
+  type ObjectivePlannerRegenerationWitness } from './objective-planner-regeneration.js';
 
 export type WorkAction = 'objective.strategy.draft' | 'objective.plan.prepare';
 export type WorkCommand = {
@@ -62,6 +64,8 @@ export type WorkReconciliation = {
   operationId?: string; attemptId?: string; runId?: string; requestFingerprint?: string;
   originalDeadlineAt?: string; terminalReceiptId?: string;
   outcome?: 'failed' | 'cancelled' | 'applied';
+  /** Internal owner proof for a NEW current source; historical accounting stays applied. */
+  regeneration?: ObjectivePlannerRegenerationWitness;
 };
 export type WorkPolicyFacts = {
   configuredDurationMs: number | null; tenantDurationLimitMs: number | null;
@@ -283,7 +287,9 @@ async function retryPreflight(tx: WorkTransaction, a: WorkAuthority, request: Wo
   const evidence = await tx.reconcile(a, c.workAction, state);
   const outcome = reconciliationState(evidence, a, c.workAction, state);
   if (outcome === 'unavailable') workFailure('AUTHORITY_UNAVAILABLE', c.requestId);
-  if (outcome === 'outcome_unconfirmed' || outcome === 'accounted' && evidence.outcome === 'applied')
+  if (outcome === 'outcome_unconfirmed' || outcome === 'accounted' && evidence.outcome === 'applied' &&
+      (c.workAction !== 'objective.plan.prepare' ||
+        !verifiedObjectivePlannerRegenerationWitness(evidence.regeneration, a, state)))
     workFailure('OUTCOME_UNCONFIRMED', c.requestId);
   const facts = await tx.policy(a, c.workAction, state);
   if (typeof facts.limitReference !== 'string' || !facts.limitReference || facts.limitReference.length > 128 ||

@@ -12,7 +12,14 @@ const kernelBytes = readFileSync(kernelUrl), policyBytes = readFileSync(policyUr
 const kernelSource = kernelBytes.toString('utf8');
 const policyImport = "'../../../auth/workload-authority/objective-consent-policy.js'";
 assert.equal(kernelSource.split(policyImport).length - 1, 1);
-const stripped = stripTypeScriptTypes(kernelSource.replace(policyImport, JSON.stringify(policyUrl.href)),
+const regenerationUrl = new URL('../src/clients/objectives/work/objective-planner-regeneration.ts', import.meta.url);
+const regenerationBytes = readFileSync(regenerationUrl);
+const regenerationImport = "'./objective-planner-regeneration.js'";
+assert.equal(kernelSource.split(regenerationImport).length - 1, 1, 'one declared regeneration helper import');
+const regenerationModule = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(regenerationBytes.toString('utf8'),
+  { mode: 'strip', sourceUrl: regenerationUrl.href })).toString('base64')}`;
+const stripped = stripTypeScriptTypes(kernelSource.replace(policyImport, JSON.stringify(policyUrl.href))
+    .replace(regenerationImport, JSON.stringify(regenerationModule)),
   { mode: 'strip', sourceUrl: kernelUrl.href });
 const { ObjectiveWorkError, parseWorkPairConfirmation, executeWorkPairConfirmation, executeWorkCommand,
   parseWorkCommand } = await import(`data:text/javascript;base64,${Buffer.from(stripped).toString('base64')}`);
@@ -136,7 +143,7 @@ test('actual source custody and explicit route retain one proof/transaction owne
   assert.match(pairStore, /if \(expires\.length === 0\) return/);
   assert.match(pairStore, /LEAST\(\$\{expires\[0\]!\}::timestamptz,\$\{expires\[1\]!\}::timestamptz\)/);
   assert.match(service, /state: 'unavailable' as const/);
-  t.diagnostic(JSON.stringify({ kernelSha256: SHA(kernelBytes), policySha256: SHA(policyBytes),
+  t.diagnostic(JSON.stringify({ kernelSha256: SHA(kernelBytes), policySha256: SHA(policyBytes), regenerationSha256: SHA(regenerationBytes),
     serviceSha256: SHA(service), controllerSha256: SHA(controller) }));
 });
 

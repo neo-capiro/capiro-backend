@@ -1,76 +1,12 @@
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
-import type { CanonicalMaterializationBinding } from './strategy-materialization.js';
-
+import type { CanonicalSourceSchedule, CanonicalTaskBaseline, CanonicalTaskIndexEntry, CanonicalPlannerRow, CanonicalSourceEdge, CanonicalRegenerationInput, CanonicalFieldDecision, CanonicalRegenerationPlan } from '@capiro/shared/objective-planner-owner-codec';
+export type { CanonicalSourceSchedule, CanonicalTaskBaseline, CanonicalTaskIndexEntry, CanonicalPlannerRow, CanonicalSourceEdge, CanonicalRegenerationInput, CanonicalFieldDecision, CanonicalRegenerationPlan } from '@capiro/shared/objective-planner-owner-codec';
+import type { CanonicalMaterializationBinding } from '@capiro/shared/objective-planner-owner-codec';
 type Canonical = CanonicalMaterializationBinding['canonical'];
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type Data = { [key: string]: Json };
-export type CanonicalSourceSchedule = {
-  subtype: 'task' | 'milestone'; startOn: string; dueOn: string;
-};
-export type CanonicalTaskBaseline = {
-  name: string; description: string; schedule: CanonicalSourceSchedule; dependencies: string[];
-};
-export type CanonicalTaskIndexEntry = {
-  sourceNodeId: string; taskId: string; createdVersion: number; appliedVersion: number;
-  firstOwnerReceiptId: string; originalGroupKeys: string[]; baseline: CanonicalTaskBaseline;
-};
-export type CanonicalPlannerRow = { id: string; version: number; archived: boolean; data: Data };
-export type CanonicalSourceEdge = {
-  sourceNodeId: string; dependsOnSourceNodeId: string;
-  disposition: 'task_dependency' | 'context_only' | 'archived_source';
-};
-export interface CanonicalRegenerationInput {
-  canonical: Canonical;
-  ownerReceiptId: string;
-  previous: {
-    canonical: Canonical; applicationRequestId: string; applicationAckSha256: string;
-    ownerReceiptId: string; ownerReceiptSha256: string;
-    project: { createdVersion: number; appliedVersion: number; baseline: { name: string; description: string } };
-    taskIndex: CanonicalTaskIndexEntry[];
-  };
-  project: CanonicalPlannerRow;
-  currentTasks: CanonicalPlannerRow[];
-  proposed: {
-    project: { name: string; description: string };
-    tasks: Array<{ sourceNodeId: string; newTaskId: string | null; fields: {
-      name: string; description: string; schedule: CanonicalSourceSchedule;
-    } }>;
-    sourceNodeIds: string[];
-    edges: CanonicalSourceEdge[];
-  };
-  /** Complete tenant task IDs/edges, not a permission-filtered page. Values are
-   * private validation inputs and are never copied into a public issue. */
-  allTasks: Array<{ id: string; dependencies: string[] }>;
-}
-export interface CanonicalFieldDecision {
-  field: 'name' | 'description' | 'schedule' | 'dependencies';
-  resolution: 'source_applied' | 'unchanged' | 'human_preserved';
-  baselineSha256: string; proposedSha256: string; observedSha256: string; appliedSha256: string;
-  scheduleGuardSha256?: string;
-}
-export interface CanonicalRegenerationPlan {
-  receiptVersion: 3;
-  phase: 'planned';
-  canonical: Canonical;
-  previous: { applicationRequestId: string; applicationAckSha256: string; ownerReceiptId: string; ownerReceiptSha256: string };
-  project: {
-    id: string; createdVersion: number; beforeVersion: number; appliedVersion: number; write: boolean;
-    data: Data; baseline: { name: string; description: string }; fields: CanonicalFieldDecision[];
-  };
-  tasks: Array<{
-    sourceNodeId: string; taskId: string; createdVersion: number; beforeVersion: number | null;
-    appliedVersion: number | null; disposition: 'created' | 'updated' | 'reused' | 'retained';
-    /** For created rows these are SOURCE fields only. The owner supplies its
-     * normal creation defaults. Reused rows include unchanged human data. */
-    data: Data | null; fields: CanonicalFieldDecision[];
-  }>;
-  taskIndex: Array<CanonicalTaskIndexEntry & { active: boolean }>;
-  edges: Array<CanonicalSourceEdge & { applied: boolean }>;
-  mergedGraphSha256: string;
-  counts: { createdProjects: 0; updatedProjects: number; createdTasks: number; updatedTasks: number;
-    reusedTasks: number; retainedTasks: number; humanPreservedFields: number };
-}
+
 export class CanonicalRegenerationError extends Error {
   readonly code: 'INPUT_INVALID' | 'SOURCE_NOT_ADVANCED' | 'BASELINE_INVALID' |
     'OUTPUT_UNAVAILABLE' | 'IDENTITY_COLLISION' | 'VERSION_EXHAUSTED' |

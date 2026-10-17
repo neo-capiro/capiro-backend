@@ -26,6 +26,8 @@ import { ObjectiveCanonicalCompletionService } from '../meri/objective-canonical
 import { ObjectiveCanonicalResultOwner } from '../meri/objective-canonical-result-owner.js';
 import { ObjectiveCanonicalTerminalController } from '../meri/objective-canonical-terminal.controller.js';
 import { ObjectiveCanonicalTerminalService } from '../meri/objective-canonical-terminal.service.js';
+import { ObjectivePlannerContinuationRuntime } from './objective-planner-continuation.runtime.js';
+import { ObjectivePlannerContinuationWorker } from './objective-planner-continuation.worker.js';
 
 @Module({
   imports: [MeriModule],
@@ -37,6 +39,8 @@ import { ObjectiveCanonicalTerminalService } from '../meri/objective-canonical-t
     // explicitly so Nest never treats its optional bridge parameter as a grant.
     { provide: ObjectiveCanonicalResultOwner, useFactory: () => new ObjectiveCanonicalResultOwner() },
     ObjectiveCanonicalApplicationService,
+    ObjectivePlannerContinuationRuntime,
+    ObjectivePlannerContinuationWorker,
     ObjectiveCanonicalProducerService,
     ObjectiveCanonicalRequestService,
     ObjectiveCanonicalOwnerDirectory,
