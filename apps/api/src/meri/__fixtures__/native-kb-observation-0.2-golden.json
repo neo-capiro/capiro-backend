@@ -1,0 +1,38 @@
+{
+  "format": "meri-native-read-observation-golden/1",
+  "status": "KB agreement candidate only. Current Meri finite-five codec rejects this operation; no native implementation, source exposure, installation or live qualification claimed.",
+  "vectors": [
+    {
+      "operation": {
+        "id": "search_client_knowledge",
+        "version": "0.2.0"
+      },
+      "request": {
+        "query": "  Civic & energía 🌱  ",
+        "clientId": "A1234567-B123-4C12-8D12-E123456789AB",
+        "kind": "client_doc_chunk",
+        "limit": 5
+      },
+      "context": {
+        "asOf": "2026-10-17T12:34:56.789Z"
+      },
+      "requestCanonicalJson": "{\"clientId\":\"A1234567-B123-4C12-8D12-E123456789AB\",\"kind\":\"client_doc_chunk\",\"limit\":5,\"query\":\"  Civic & energía 🌱  \"}",
+      "requestSha256": "5a1fe25a9a0a88616f200c7e135c55f689f30b20cf481b7d1e137d06432f8e70",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "search_client_knowledge",
+          "version": "0.2.0"
+        },
+        "requestSha256": "5a1fe25a9a0a88616f200c7e135c55f689f30b20cf481b7d1e137d06432f8e70",
+        "context": {
+          "asOf": "2026-10-17T12:34:56.789Z"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"asOf\":\"2026-10-17T12:34:56.789Z\"},\"operation\":{\"id\":\"search_client_knowledge\",\"version\":\"0.2.0\"},\"requestSha256\":\"5a1fe25a9a0a88616f200c7e135c55f689f30b20cf481b7d1e137d06432f8e70\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 242,
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoic2VhcmNoX2NsaWVudF9rbm93bGVkZ2UiLCJ2ZXJzaW9uIjoiMC4yLjAifSwicmVxdWVzdFNoYTI1NiI6IjVhMWZlMjVhOWEwYTg4NjE2ZjIwMGM3ZTEzNWM1NWY2ODlmMzBiMjBjZjQ4MWI3ZDFlMTM3ZDA2NDMyZjhlNzAiLCJzY2hlbWFWZXJzaW9uIjoibWVyaS1uYXRpdmUtcmVhZC1vYnNlcnZhdGlvbi8xIn0",
+      "observationSha256": "50110f074edd07a79429c8199ae854e5e2a39d4c66fdc40900449a81866c9592"
+    }
+  ]
+}
