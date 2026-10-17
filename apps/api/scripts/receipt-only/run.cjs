@@ -26,6 +26,22 @@ const ENGINE_COMMIT = '605197351a3c8bdd595af2d2a9bc3025bca48ea2';
 const SINGLE_CA_SHA256 = 'b4e7459e5d6a98672a557c20bfbb0bd4251983dc563bc4f8e2976ac3426a12ed';
 const MAX_LEDGER_ROWS = 800; // audited capiro-dev baseline: 646
 const MAX_CHILD_OUTPUT = 65536;
+// `db execute` discards query rows. A fixed error-on-mismatch block provides
+// an exit-status gate through Prisma's own schema-engine connection. It reads
+// session/catalog state only and cannot change persistent database state.
+const PRISMA_NAMESPACE_SQL = `DO $receipt_namespace$
+BEGIN
+  IF current_schema() IS DISTINCT FROM 'public'
+    OR current_database() IS DISTINCT FROM 'capiro'
+    OR current_user IS DISTINCT FROM 'capiro_master'
+    OR pg_is_in_recovery() IS DISTINCT FROM false
+    OR current_setting('transaction_read_only') IS DISTINCT FROM 'off'
+    OR COALESCE((SELECT ssl FROM pg_catalog.pg_stat_ssl WHERE pid = pg_backend_pid()), false) IS DISTINCT FROM true
+  THEN
+    RAISE EXCEPTION 'receipt-only Prisma namespace check failed';
+  END IF;
+END
+$receipt_namespace$;`;
 
 function sha256(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
@@ -327,20 +343,44 @@ function assertPost(pre, post, migrationSha256) {
   }
 }
 
+function prismaChildOptions(url, root, timeout) {
+  return {
+    cwd: path.dirname(root),
+    env: {
+      PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      HOME: path.dirname(root), TMPDIR: '/dev/shm', NODE_ENV: 'production',
+      DATABASE_URL: url, CHECKPOINT_DISABLE: '1', PRISMA_HIDE_UPDATE_MESSAGE: '1',
+    },
+    timeout,
+    killSignal: 'SIGKILL',
+    maxBuffer: MAX_CHILD_OUTPUT,
+  };
+}
+
+async function prismaNamespacePreflight(url, root, execute = execFile) {
+  // `--schema` resolves exactly the staged schema's datasource. stdin is the
+  // fixed read-only block above, never a caller-supplied script or URL flag.
+  const result = await new Promise((resolve, reject) => {
+    const child = execute(process.execPath,
+      [CLI, 'db', 'execute', `--schema=${root}/schema.prisma`, '--stdin'],
+      prismaChildOptions(url, root, 60000),
+      (error, stdout, stderr) => {
+        const outputSha256 = sha256(Buffer.from(String(stdout || '') + String(stderr || '')));
+        if (error) reject(new Error(`Prisma namespace preflight failed; output_sha256=${outputSha256}`));
+        else resolve({ outputSha256 });
+      });
+    child.stdin.on('error', () => {}); // A child that exits early can close stdin.
+    child.stdin.end(PRISMA_NAMESPACE_SQL);
+  });
+  return result;
+}
+
 async function prismaDeploy(url, root) {
   const start = Date.now();
   try {
-    const result = await execFileAsync(process.execPath, [CLI, 'migrate', 'deploy', `--schema=${root}/schema.prisma`], {
-      cwd: path.dirname(root),
-      env: {
-        PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
-        HOME: path.dirname(root), TMPDIR: '/dev/shm', NODE_ENV: 'production',
-        DATABASE_URL: url, CHECKPOINT_DISABLE: '1', PRISMA_HIDE_UPDATE_MESSAGE: '1',
-      },
-      timeout: 240000,
-      killSignal: 'SIGKILL',
-      maxBuffer: MAX_CHILD_OUTPUT,
-    });
+    const result = await execFileAsync(process.execPath,
+      [CLI, 'migrate', 'deploy', `--schema=${root}/schema.prisma`],
+      prismaChildOptions(url, root, 240000));
     return { ok: true, elapsedMs: Date.now() - start, outputSha256: sha256(Buffer.from(result.stdout + result.stderr)) };
   } catch (error) {
     // Prisma may echo a URL on failure. Never relay its raw stdout/stderr.
@@ -363,7 +403,10 @@ async function main() {
     // The direct pg connection above validated the exact Aurora DNS hostname,
     // pinned CA bundle, writer, role, database and public search path.
     process.stdout.write(`RECEIPT_ONLY_PREFLIGHT_OK ledger=${pre.ledger.length}\n`);
-    const result = await prismaDeploy(makePrismaUrl(process.env.DB_PASSWORD, certPath), root);
+    const url = makePrismaUrl(process.env.DB_PASSWORD, certPath);
+    const namespace = await prismaNamespacePreflight(url, root);
+    process.stdout.write(`PRISMA_NAMESPACE_OK output_sha256=${namespace.outputSha256}\n`);
+    const result = await prismaDeploy(url, root);
     // Even a failed or timed-out Prisma child gets an independent read-only
     // ledger/catalog comparison. An unreadable result is an uncertain outcome.
     let post;
@@ -390,4 +433,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { TARGET, requireRuntime, makePrismaUrl, stageBundle, assertPre, compareLedger, assertPost, SQL, main };
+module.exports = { TARGET, requireRuntime, makePrismaUrl, stageBundle, assertPre, compareLedger, assertPost, SQL, PRISMA_NAMESPACE_SQL, prismaNamespacePreflight, main };

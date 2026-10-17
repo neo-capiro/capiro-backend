@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { MIGRATION, verifyBundle } = require('./verify-bundle.cjs');
-const { stageBundle, makePrismaUrl, compareLedger, requireRuntime } = require('./run.cjs');
+const { stageBundle, makePrismaUrl, compareLedger, requireRuntime, PRISMA_NAMESPACE_SQL, prismaNamespacePreflight } = require('./run.cjs');
 
 const repo = path.resolve(__dirname, '../../../..');
 function blob(relative) {
@@ -62,6 +62,35 @@ test('task guard rejects URL and PostgreSQL environment overrides before connect
   assert.throws(() => requireRuntime({ NODE_OPTIONS:'', DATABASE_URL:'postgresql://other' }, ['node']), /database URL override/);
   assert.throws(() => requireRuntime({ NODE_OPTIONS:'', PGOPTIONS:'-c search_path=other' }, ['node']), /PostgreSQL environment override/);
   assert.throws(() => requireRuntime({ NODE_OPTIONS:'--require ./other.cjs' }, ['node']), /Node preload/);
+});
+
+test('Prisma namespace gate sends fixed SQL via stdin and refuses a failing engine', async () => {
+  const calls = [];
+  const fakeExec = (program, args, options, callback) => {
+    const call = { program, args, options };
+    calls.push(call);
+    return { stdin: {
+      on() {},
+      end(script) {
+        call.script = script;
+        queueMicrotask(() => callback(calls.length === 1 ? null : new Error('SQL error'),
+          calls.length === 1 ? 'Script executed successfully.' : '', ''));
+      },
+    } };
+  };
+  const url = makePrismaUrl('secret', '/dev/shm/fixed/rds.pem');
+  await prismaNamespacePreflight(url, '/dev/shm/fixed/prisma', fakeExec);
+  assert.equal(calls[0].program, process.execPath);
+  assert.deepEqual(calls[0].args.slice(1),
+    ['db', 'execute', '--schema=/dev/shm/fixed/prisma/schema.prisma', '--stdin']);
+  assert.equal(calls[0].options.env.DATABASE_URL, url);
+  assert.equal(calls[0].options.timeout, 60000);
+  assert.equal(calls[0].script, PRISMA_NAMESPACE_SQL);
+  assert.match(PRISMA_NAMESPACE_SQL, /RAISE EXCEPTION/);
+  assert.match(PRISMA_NAMESPACE_SQL, /current_schema\(\)/);
+  assert.match(PRISMA_NAMESPACE_SQL, /pg_stat_ssl/);
+  await assert.rejects(prismaNamespacePreflight(url, '/dev/shm/fixed/prisma', fakeExec),
+    /Prisma namespace preflight failed/);
 });
 
 test('ledger comparison preserves all old IDs and admits exactly the canonical receipt', () => {

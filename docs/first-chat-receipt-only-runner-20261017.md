@@ -48,13 +48,24 @@ Prisma's strict native TLS checks the chain and hostname using that root and
 system roots; the direct `pg` attestation independently pins the target host.
 The Prisma URL is built only in memory with `schema=public` and is never
 printed. Prisma 5.22's source recognizes these exact parameters and sets the
-schema search path. A disposable PostgreSQL namespace test and image/runtime
-read-only-root test remain gates before a live migration.
+schema search path. The pinned Prisma 5.22 CLI reads `db execute --stdin`
+through the same staged `--schema` datasource and schema-engine binary as
+`migrate deploy`. Its PostgreSQL `simple_query` path discards result rows, so
+the fixed one-statement, read-only PL/pgSQL block raises an error unless the
+Prisma connection itself has schema `public`, database `capiro`, role
+`capiro_master`, writer/read-write state and TLS. It runs after the direct
+`pg` preflight and before `migrate deploy`, with a 60-second bound and no URL
+or SQL from task arguments. Its output is hashed, never relayed. A failure
+holds the task before migration. This tests the actual target at action time;
+it is not proof of a separate disposable PostgreSQL run or of the Fargate
+image's read-only-root behavior. The local disposable namespace test was
+blocked before SQL by Windows `pg_ctl` restricted-token error 87.
 
 The guard reads only migration-ledger metadata and bounded catalog metadata in
 read-only transactions. It checks the already qualified base relation keys,
 forced RLS, functions and DDL rights for drift; requires zero unfinished ledger
-rows, zero receipt-name rows and absent receipt objects; then invokes only
+rows, zero receipt-name rows and absent receipt objects; then invokes the
+fixed read-only Prisma namespace preflight and, only on success, invokes
 `prisma migrate deploy --schema=<isolated /dev/shm path>` once via `execFile`
 without a shell. It does not invoke `migrate resolve`, `db push`, or the API
 entrypoint's full-tree `migrate`. After exit, including child failure, it reads
@@ -65,7 +76,7 @@ forced RLS policy must be present. Any failure or unreadable postcheck is a
 hold with no retry. No client, conversation, receipt or tenant business rows
 are read or logged.
 
-The CLI child has a four-minute bound. A killed CLI may leave its schema-engine
+The deploy CLI child has a four-minute bound. A killed CLI may leave its schema-engine
 child or a database operation completing after the Node wrapper exits; treat
 timeout as uncertain, stop the ECS task under the ten-minute operator bound,
 and obtain a fresh read-only ledger/catalog result before any further action.
