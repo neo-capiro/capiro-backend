@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { afterAll, beforeAll, describe, expect, test } from '@jest/globals';
+import { HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { readFile, realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -107,6 +109,70 @@ native('selected Strategy intake on the reviewed native target', () => {
   }
   const context = (f: ObjectivePlannerNativeFixture) => ({ tenantId: f.tenantId, clerkUserId: f.clerkUserId,
     userId: f.actorUserId, role: 'standard_user' as const, tenantSlug: `objective-planner-qa-${f.tenantId}` });
+  /** TEST-only observation of the real WorkService transaction. Only its
+   * withTenant call uses this adapter; native identity rereads and the owner's
+   * withSystem port keep their original Prisma client. No query is replaced. */
+  class SelectedWriteWitness {
+    private readonly active = new AsyncLocalStorage<{ tenantId: string; tx: CorePrisma.TransactionClient }>();
+    readonly observed: Array<{ intakeId: string; consentId: string; receiptId: string; jobId: string }> = [];
+    readonly prisma: Pick<CorePrismaService, 'withTenant'>;
+    constructor(db: CorePrismaService) {
+      this.prisma = { withTenant: <T>(tenantId: string, run: (tx: CorePrisma.TransactionClient) => Promise<T>,
+        options?: { timeoutMs?: number }) => db.withTenant(tenantId,
+        tx => this.active.run({ tenantId, tx }, () => run(tx)), options) };
+    }
+    async afterActualWrites(f: ObjectivePlannerNativeFixture): Promise<boolean> {
+      const active = this.active.getStore();
+      if (!active || active.tenantId !== f.tenantId) return false;
+      const request = selectedRequest(f);
+      const rows = await active.tx.$queryRaw<Array<{ intake: Json; consent: Json; receipt: Json; job: Json;
+        insertedHere: boolean }>>`SELECT to_jsonb(i) AS intake,to_jsonb(c) AS consent,to_jsonb(r) AS receipt,to_jsonb(j) AS job,
+        (i.xmin::text=pg_current_xact_id_if_assigned()::text AND c.xmin::text=pg_current_xact_id_if_assigned()::text
+          AND r.xmin::text=pg_current_xact_id_if_assigned()::text AND j.xmin::text=pg_current_xact_id_if_assigned()::text) AS "insertedHere"
+        FROM client_objective_strategy_intakes i
+        JOIN client_objective_work_consents c ON c.tenant_id=i.tenant_id AND c.client_id=i.client_id
+          AND c.objective_id=i.objective_id AND c.work_action=i.work_action AND c.control_id=i.control_id AND c.id=i.consent_id
+        JOIN client_objective_work_command_receipts r ON r.tenant_id=i.tenant_id AND r.client_id=i.client_id
+          AND r.objective_id=i.objective_id AND r.work_action=i.work_action AND r.control_id=i.control_id AND r.id=i.command_receipt_id
+        JOIN client_objective_work_controls k ON k.tenant_id=i.tenant_id AND k.client_id=i.client_id
+          AND k.objective_id=i.objective_id AND k.work_action=i.work_action AND k.id=i.control_id
+          AND k.current_consent_id=c.id AND k.version=i.control_version AND k.cancelled_at IS NULL
+        JOIN sp_draft_job j ON j.tenant_id=i.tenant_id AND j.client_id=i.client_id AND j.id=i.generation_job_id
+          AND j.owner_user_id=i.original_clerk_user_id AND j.request_key=i.job_request_key
+        WHERE i.tenant_id=${f.tenantId}::uuid AND i.client_id=${f.source.clientId}::uuid
+          AND i.objective_id=${f.source.objectiveId}::uuid AND i.work_action='objective.strategy.draft'
+          AND i.command_request_id=${request.work.command.requestId}::uuid`;
+      if (rows.length === 0) return false;
+      expect(rows).toHaveLength(1);
+      const { intake, consent, receipt, job, insertedHere } = rows[0]!;
+      // Fresh insertion in THIS transaction, rather than an earlier recovery
+      // read or a committed replay, is required before pausing/refusing release.
+      expect(insertedHere).toBe(true);
+      expect(intake).toMatchObject({ actor_user_id: f.actorUserId, actor_membership_id: f.membershipId,
+        original_clerk_user_id: f.clerkUserId, control_version: 1, selected_type: request.selection.type,
+        generation_request_id: request.selection.generationRequestId, canonical_plan_id: f.canonical.canonicalPlanId,
+        canonical_strategy_id: f.canonical.canonicalStrategyId, canonical_project_id: f.canonical.canonicalProjectId,
+        canonical_epoch: f.canonical.epoch, canonical_binding_version: f.canonical.bindingVersion,
+        root_intent_id: f.canonical.requestedIntentId, source_revision_id: f.source.objectiveRevisionId,
+        source_objective_version: f.source.objectiveVersion, source_snapshot_hash: f.canonical.snapshotHash,
+        root_actor_user_id: f.actorUserId, wrapper_sha256: objectiveStrategySelectionDigest(request) });
+      expect(intake.wrapper).toEqual({ schemaVersion: 2, command: request.work.command, selection: request.selection });
+      expect(consent).toMatchObject({ id: intake.consent_id, command_receipt_id: receipt.id,
+        command_request_id: request.work.command.requestId, consenting_actor_user_id: f.actorUserId,
+        consenting_membership_id: f.membershipId, previous_consent_id: null, payload_digest: workDigest(request.work) });
+      expect(receipt).toMatchObject({ request_id: request.work.command.requestId, created_consent_id: consent.id,
+        result_consent_id: consent.id, target_consent_id: null, command_kind: 'retry', outcome: 'reconsent_recorded',
+        actor_user_id: f.actorUserId, actor_membership_id: f.membershipId, control_version_before: 0,
+        control_version_after: 1, payload_digest: consent.payload_digest });
+      expect(receipt.command).toEqual(request.work.command);
+      expect(job).toMatchObject({ status: 'queued', attempt: 1, claimed_by: null, claimed_at: null, strategy_id: null });
+      expect(job.input.objectiveCanonicalReservation).toEqual({ schemaVersion: 1, intakeId: intake.id,
+        consentId: consent.id, commandReceiptId: receipt.id, wrapperSha256: objectiveStrategySelectionDigest(request) });
+      expect(Object.hasOwn(job.input, 'canonicalGeneration')).toBe(false);
+      this.observed.push({ intakeId: intake.id, consentId: consent.id, receiptId: receipt.id, jobId: job.id });
+      return true;
+    }
+  }
   async function selectedClient(f: ObjectivePlannerNativeFixture, failRelease = false, durationMs = 600000,
     releaseBarrier?: () => Promise<void>, db: CorePrismaService = core) {
     const ctx = context(f) as TenantContext;
@@ -114,25 +180,29 @@ native('selected Strategy intake on the reviewed native target', () => {
     const evidence = { principal: { tenantId: f.tenantId, actorId: f.actorUserId },
       expiresAtMs: Number(clocks[0]!.ms) + 120_000,
       identityRevision: workDigest({ fixture: 'SYNTHETIC_NATIVE_REQUEST_PROOF', actor: f.actorUserId, member: f.membershipId }) };
-    let reads = 0;
+    const writeWitness = new SelectedWriteWitness(db);
     const proof: ApplicationAuthorityIdentityProof = { ...evidence, recheckCurrent: async () => {
-      reads++;
       const rows = await core.withTenant(f.tenantId, tx => tx.$queryRaw<Array<{ id: string }>>`
         SELECT m.id::text AS id FROM tenant_memberships m JOIN users u ON u.id=m.user_id JOIN tenants t ON t.id=m.tenant_id
         WHERE m.tenant_id=${f.tenantId}::uuid AND m.id=${f.membershipId}::uuid AND m.user_id=${f.actorUserId}::uuid
           AND m.status::text='active' AND m.role::text='standard_user' AND u.clerk_user_id=${f.clerkUserId}
           AND t.status::text='active'`);
-      if (reads > 1 && releaseBarrier) await releaseBarrier();
-      if (rows.length !== 1 || failRelease && reads > 1) throw Error('Synthetic request-local proof refused release');
+      if (rows.length !== 1) throw Error('Synthetic request-local proof refused release');
+      if ((failRelease || releaseBarrier) && await writeWitness.afterActualWrites(f)) {
+        if (releaseBarrier) await releaseBarrier();
+        if (failRelease) throw Error('Synthetic request-local proof refused release after actual native writes');
+      }
       return evidence;
     } };
     const tenant = { readApplicationAuthority: async (req: Request, current: TenantContext) => {
       expect(req).toBe(transport); expect(current).toEqual(ctx); return proof;
     } } as unknown as TenantContextMiddleware;
-    const work = new ObjectiveWorkService(db, tenant, new ObjectiveStrategyWorkOwner({
+    // WorkService only calls withTenant; the adapter delegates to the supplied
+    // actual client (including NonUtcCore) and never supplies SQL return values.
+    const work = new ObjectiveWorkService(writeWitness.prisma as CorePrismaService, tenant, new ObjectiveStrategyWorkOwner({
       OBJECTIVE_STRATEGY_INTAKE_ENABLED: 'true', OBJECTIVE_STRATEGY_CONSENT_DURATION_MS: String(durationMs),
     }, db));
-    return { work, ctx };
+    return { work, ctx, writeWitness };
   }
   const selectedRequest = (f: ObjectivePlannerNativeFixture) => parseObjectiveStrategySelection(f.source.clientId,
     f.source.objectiveId, { schemaVersion: 2, command: { schemaVersion: 1, requestId: f.id('selected-command'),
@@ -286,7 +356,12 @@ native('selected Strategy intake on the reviewed native target', () => {
     const f = await ready(), client = await selectedClient(f, true), before = await audit(f);
     await expect(client.work.selectedStrategyCommand(client.ctx, transport, selectedRequest(f)))
       .rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
-    expect(await audit(f)).toEqual(before);
+    expect(client.writeWitness.observed).toHaveLength(1);
+    const after = await audit(f);
+    for (const key of ['commands', 'consents', 'controls', 'intakes', 'jobs'] as const) {
+      expect(before[key]).toEqual([]); expect(after[key]).toEqual([]);
+    }
+    expect(after).toEqual(before);
   });
 
   test('concurrent identical selected approvals recover exactly one native receipt/intake/job', async () => {
@@ -309,6 +384,7 @@ native('selected Strategy intake on the reviewed native target', () => {
     const pending = client.work.selectedStrategyCommand(client.ctx, transport, selectedRequest(f));
     try {
       await Promise.race([enteredPromise, pending.then(() => { throw Error('Intake committed without the release barrier'); })]);
+      expect(client.writeWitness.observed).toHaveLength(1);
       expect(await audit(f)).toEqual(before);
       expect(await worker().claimNext()).toBeNull();
       const gate = await prisma.withTenant(f.tenantId, tx => tx.$queryRaw<Array<{ acquired: boolean }>>`
@@ -357,8 +433,12 @@ native('selected Strategy intake on the reviewed native target', () => {
   test('closed actual workload authority cannot promote a reservation or fabricate a canonical admission', async () => {
     const { f, job, rows } = await selected();
     const producer = new ObjectiveCanonicalProducerService(prisma, new ObjectiveCanonicalWorkloadAuthority());
-    await expect(producer.capture(transport, { schemaVersion: 1, generationJobId: job.id }))
-      .rejects.toMatchObject({ code: 'AUTHORITY_UNAVAILABLE' });
+    const refused: unknown = await producer.capture(transport, { schemaVersion: 1, generationJobId: job.id })
+      .catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(HttpException);
+    expect((refused as HttpException).getStatus()).toBe(503);
+    expect((refused as HttpException).getResponse()).toEqual({ schemaVersion: 1, code: 'AUTHORITY_UNAVAILABLE',
+      message: 'Objective generation evidence is unavailable.', outcome: 'unconfirmed' });
     expect(await audit(f)).toEqual(rows);
     const fences = await core.$queryRaw<Array<{ definition: string }>>`SELECT pg_get_constraintdef(oid) AS definition
       FROM pg_constraint WHERE conrelid='client_objective_workload_delegations'::regclass AND contype='c'`;
@@ -420,6 +500,7 @@ native('selected Strategy intake on the reviewed native target', () => {
     const pending = client.work.selectedStrategyCommand(client.ctx, transport, selectedRequest(f));
     try {
       await Promise.race([enteredPromise, pending.then(() => { throw Error('Core ended before writer contention'); })]);
+      expect(client.writeWitness.observed).toHaveLength(1);
       for (const write of [
         (tx: Prisma.TransactionClient) => manualStrategy(tx, foreign, f.canonical.canonicalStrategyId),
         (tx: Prisma.TransactionClient) => manualVersion(tx, foreign, f.canonical.canonicalStrategyId, foreign.id('refused-target-version')),
