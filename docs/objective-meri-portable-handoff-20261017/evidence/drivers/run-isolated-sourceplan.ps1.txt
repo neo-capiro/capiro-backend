@@ -1,0 +1,418 @@
+# Source plan and exact-target wrapper. Mode=Plan is READ ONLY apart from the
+# optional explicit PlanOutput JSON file. Mode=Run must receive normal approval
+# after source review and the coordinator's disk/port window; never run it merely
+# because this file exists. No host PostgreSQL service is a target.
+[CmdletBinding()]
+param(
+  [Parameter(Mandatory=$true)][string]$WorkspaceRoot,
+  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{40}$')][string]$ReviewedSourceHead,
+  [string]$SourceRoot = $WorkspaceRoot,
+  [ValidateSet('Plan','Run')][string]$Mode = 'Plan',
+  [string]$PlanOutput,
+  [switch]$ReviewedExecutionApproved
+)
+$ErrorActionPreference = 'Stop'
+$taskRoot = 'C:\Users\Administrator\Documents\Codex\2026-10-16\task-5'
+$sourceHead = $ReviewedSourceHead
+$pgBin = 'C:\Program Files\PostgreSQL\16\bin'
+$port = 56455
+$database = 'planner_qa'
+$ddlOwner = 'capiro_planner_fixture_owner'
+$runtimeRole = 'capiro_app'
+$clusterLimit = 400MB
+$minFreeBefore = 2GB
+$minFreeDuring = 1536MB
+$workspace = [IO.Path]::GetFullPath($WorkspaceRoot).TrimEnd('\','/')
+$source = [IO.Path]::GetFullPath($SourceRoot).TrimEnd('\','/')
+$nativeRoot = Join-Path $workspace '.objective-planner-native'
+$dataDir = Join-Path $nativeRoot 'postgres-data'
+$sqlDir = Join-Path $nativeRoot 'sql'
+$serverLog = Join-Path $nativeRoot 'postgres.log'
+$manifestPath = Join-Path $nativeRoot 'owned-target.json'
+$gitExe = (Get-Command git -ErrorAction Stop).Source
+$nodeExe = (Get-Command node -ErrorAction Stop).Source
+$utf8 = New-Object Text.UTF8Encoding($false)
+
+function Assert-OwnedPath([string]$value, [string]$expected) {
+  $actual = [IO.Path]::GetFullPath($value).TrimEnd('\','/')
+  $fixed = [IO.Path]::GetFullPath($expected).TrimEnd('\','/')
+  if (-not $actual.Equals($fixed,[StringComparison]::OrdinalIgnoreCase) -or
+      -not $actual.StartsWith($taskRoot + '\',[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Refusing path outside exact task-5 ownership'
+  }
+  $cursor = $actual
+  while ($cursor -and $cursor.Length -ge $taskRoot.Length) {
+    if (Test-Path -LiteralPath $cursor) {
+      if (((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Refusing a reparse point in the task-owned cluster path'
+      }
+    }
+    if ($cursor.Equals($taskRoot,[StringComparison]::OrdinalIgnoreCase)) { break }
+    $cursor = [IO.Path]::GetDirectoryName($cursor)
+  }
+  return $actual
+}
+function Git-Bytes([string[]]$gitArgs) {
+  $si = New-Object Diagnostics.ProcessStartInfo
+  $si.FileName=$gitExe; $si.WorkingDirectory=$source; $si.UseShellExecute=$false
+  $si.CreateNoWindow=$true; $si.RedirectStandardOutput=$true; $si.RedirectStandardError=$true
+  foreach($a in $gitArgs) { $si.ArgumentList.Add($a) }
+  $p = New-Object Diagnostics.Process; $p.StartInfo=$si
+  if (-not $p.Start()) { throw 'Could not start read-only git source inspection' }
+  $err = $p.StandardError.ReadToEndAsync(); $buffer = New-Object IO.MemoryStream
+  $p.StandardOutput.BaseStream.CopyTo($buffer); $p.WaitForExit()
+  if ($p.ExitCode -ne 0) { throw ('Git source inspection failed: ' + $err.GetAwaiter().GetResult()) }
+  return ,$buffer.ToArray()
+}
+function Git-Text([string[]]$gitArgs) { return $utf8.GetString((Git-Bytes $gitArgs)) }
+function Sha([byte[]]$bytes) {
+  $hash = [Security.Cryptography.SHA256]::Create()
+  try { return ([BitConverter]::ToString($hash.ComputeHash($bytes))).Replace('-','').ToLowerInvariant() }
+  finally { $hash.Dispose() }
+}
+$units = New-Object Collections.Generic.List[object]
+function Add-SourceUnit([string]$name,[string]$relative,[string]$selection='whole-file') {
+  [byte[]]$original = Git-Bytes @('show',($sourceHead + ':' + $relative))
+  $text = $utf8.GetString($original); $selected = $text
+  if ($selection -eq 'identity-without-unavailable-vector-extension') {
+    $needle = 'CREATE EXTENSION IF NOT EXISTS "vector";' + "`n"
+    if (($text.Split(@($needle),[StringSplitOptions]::None)).Count -ne 2) { throw 'Identity vector omission is no longer exact' }
+    $selected = $text.Replace($needle,'')
+  } elseif ($selection -eq 'ethical-wall-ddl-before-unrelated-embedding-backfill') {
+    $marker = '-- 3. context_embeddings.client_id parity backfill'
+    if (($text.Split(@($marker),[StringSplitOptions]::None)).Count -ne 2) { throw 'Ethical-wall source boundary is no longer exact' }
+    $selected = $text.Substring(0,$text.IndexOf($marker,[StringComparison]::Ordinal))
+  } elseif ($selection -eq 'exact-client-composite-unique-index-only') {
+    $needle = 'CREATE UNIQUE INDEX "clients_tenant_id_key" ON "clients"("tenant_id", "id");'
+    if (($text.Split(@($needle),[StringSplitOptions]::None)).Count -ne 2) { throw 'Client composite-index source is no longer exact' }
+    $selected = $needle + "`n"
+  } elseif ($selection -ne 'whole-file') { throw 'Unknown SQL source selection' }
+  [byte[]]$body = $utf8.GetBytes($selected)
+  $blob = (Git-Text @('rev-parse',($sourceHead + ':' + $relative))).Trim()
+  $units.Add([PSCustomObject]@{ name=$name; path=$relative; gitBlob=$blob; selection=$selection;
+    originalSha256=(Sha $original); originalBytes=$original.Length; selectedSha256=(Sha $body);
+    selectedBytes=$body.Length; body=$body })
+}
+Assert-OwnedPath $workspace (Join-Path $taskRoot 'objective-native-b8') | Out-Null
+if ((Git-Text @('rev-parse',($sourceHead + '^{commit}'))).Trim() -cne $sourceHead) { throw 'Published source pin unavailable' }
+Add-SourceUnit '001-core-identity' 'apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql' 'identity-without-unavailable-vector-extension'
+Add-SourceUnit '002-core-clients' 'apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql'
+Add-SourceUnit '003-core-wall' 'apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql' 'ethical-wall-ddl-before-unrelated-embedding-backfill'
+Add-SourceUnit '004-core-client-composite-key' 'apps/api/prisma/migrations/20280929010000_research_portfolios_phase1/migration.sql' 'exact-client-composite-unique-index-only'
+$strategyPaths = (Git-Text @('ls-tree','-r','--name-only',$sourceHead,'--','apps/api-strategy/prisma/migrations')).Split("`n") |
+  Where-Object { $_ -match '/migration\.sql$' } | Sort-Object
+if (@($strategyPaths).Count -ne 28) { throw 'Expected exact published 28-file Strategy migration baseline' }
+$ordinal = 10
+foreach($p in $strategyPaths) { Add-SourceUnit (('{0:d3}-strategy-' -f $ordinal) + ($p.Split('/')[-2])) $p; $ordinal++ }
+$coreNames = @('20281011010000_client_objectives','20281015010000_client_objective_work_intents',
+  '20281015020000_client_objective_canonical_plans','20281015030000_client_objective_operational_links',
+  '20281015050000_client_objective_work_reconsent','20281016010000_client_objective_workload_delegations')
+$ordinal=50
+foreach($name in $coreNames) { Add-SourceUnit (('{0:d3}-core-' -f $ordinal)+$name) ('apps/api/prisma/migrations/'+$name+'/migration.sql'); $ordinal++ }
+$plan = [ordered]@{
+  schemaVersion=1; kind='NOT_EXECUTED_SOURCE_PLAN'; sourceHead=$sourceHead; workspaceRoot=$workspace;
+  postgresVersion='16.15'; pgBinaryRoot=$pgBin; host='127.0.0.1'; port=$port; database=$database;
+  clusterRoot=$nativeRoot; dataDirectory=$dataDir; ddlOwner=$ddlOwner; runtimeRole=$runtimeRole;
+  clusterByteLimit=$clusterLimit; minimumFreeBefore=$minFreeBefore; minimumFreeDuring=$minFreeDuring;
+  installedSqlExtensions=@('uuid-ossp','citext','pg_trgm'); unavailableExtensionOmitted='vector';
+  fullCoreMigrationReplay=$false; strategyMigrationFiles=28; objectiveMigrationFiles=6;
+  runtimeRoleAttributes='LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION';
+  runtimeOwnerMembership=$false; seedRole='capiro_app through actual PrismaService.withTenant; no bypass GUC';
+  defaultPrivilegeOrder='fixture DDL-owner default DML privileges BEFORE exact migrations; immutable REVOKEs/triggers remain final';
+  exactPackageBuilds=@('packages/shared','packages/strategy-verifier');
+  packageRuntimeResolution='Jest mapping to exact source-built task-owned outputs; borrowed package dist is not used';
+  sourceUnits=@($units | ForEach-Object { $_ | Select-Object name,path,gitBlob,selection,originalSha256,originalBytes,selectedSha256,selectedBytes })
+}
+if($Mode -eq 'Plan') {
+  $output = $plan | ConvertTo-Json -Depth 12
+  if($PlanOutput) {
+    Assert-OwnedPath $PlanOutput (Join-Path $taskRoot 'objective-planner-native-final-sourceplan.json') | Out-Null
+    [IO.File]::WriteAllText($PlanOutput,$output+"`n",$utf8)
+  }
+  Write-Output $output
+  return
+}
+if(-not $ReviewedExecutionApproved) { throw 'Run requires ReviewedExecutionApproved after normal approval and coordinator window' }
+if(-not $source.Equals($workspace,[StringComparison]::OrdinalIgnoreCase)) { throw 'Run must use the native checkout itself as SourceRoot' }
+if((Git-Text @('rev-parse','HEAD')).Trim() -cne $sourceHead) { throw 'Native run must qualify the exact reviewed published source pin' }
+if((Git-Text @('status','--porcelain','--untracked-files=normal','--','apps','packages','scripts')).Trim()) { throw 'Application source must be committed and clean' }
+if(Test-Path -LiteralPath $nativeRoot) { throw 'Exact native root already exists; no overwrite or adoption' }
+if(@([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object Port -eq $port).Count) { throw 'Exact private loopback port is already listening' }
+if((Get-PSDrive C).Free -lt $minFreeBefore) { throw 'Insufficient reserved disk window' }
+$runId = [Guid]::NewGuid().ToString('N')
+$evidenceDir = Join-Path $taskRoot ('objective-planner-native-evidence\'+$runId)
+Assert-OwnedPath $evidenceDir (Join-Path $taskRoot ('objective-planner-native-evidence\'+$runId)) | Out-Null
+$pwFile = Join-Path $nativeRoot 'initdb-password.private'
+$buildRoot = Join-Path $nativeRoot 'source-build'
+$jestConfig = Join-Path $nativeRoot 'jest.native.config.cjs'
+$typeConfig = Join-Path $nativeRoot 'tsconfig.native.json'
+$secrets = New-Object Collections.Generic.List[string]
+$adminSecret=$null; $appSecret=$null; $databaseUrl=$null; $started=$false; $created=$false; $cleanupProblem=$null
+$savedEnv=@{}
+$envNames=@('DATABASE_URL','OBJECTIVE_PLANNER_NATIVE_OPT_IN','OBJECTIVE_PLANNER_NATIVE_DATABASE_URL','CI_DISPOSABLE_POSTGRES',
+  'PGSERVICE','PGSERVICEFILE','PGOPTIONS','PGHOST','PGHOSTADDR','PGPORT','PGDATABASE','PGUSER','PGPASSWORD')
+foreach($name in $envNames) { $savedEnv[$name]=[Environment]::GetEnvironmentVariable($name,'Process') }
+function Clear-TargetEnvironment {
+  # PowerShell 7.5 serializes SetEnvironmentVariable(name,$null) as an empty
+  # child variable. Strict qualification correctly rejects that empty opt-in.
+  foreach($name in $envNames) { Remove-Item -LiteralPath ('Env:'+ $name) -ErrorAction SilentlyContinue }
+}
+function Redact([string]$s) { foreach($secret in $secrets) { if($secret) { $s=$s.Replace($secret,'[redacted disposable credential]') } }; return $s }
+function Assert-Capacity {
+  if((Get-PSDrive C).Free -lt $minFreeDuring) { throw 'Residual disk headroom crossed; stop owned qualification' }
+  if(Test-Path -LiteralPath $nativeRoot) {
+    $sum=(Get-ChildItem -LiteralPath $nativeRoot -Recurse -File -Force | Measure-Object Length -Sum).Sum
+    if($sum -gt $clusterLimit) { throw 'Owned cluster exceeded 400 MiB budget' }
+  }
+}
+function Assert-FreshStartWindow {
+  if((Get-PSDrive C).Free -lt $minFreeBefore) { throw 'Reserved pre-init disk window no longer available' }
+  if(@([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object Port -eq $port).Count) {
+    throw 'Reserved private loopback port was claimed; no PostgreSQL start attempted'
+  }
+  Assert-Capacity
+}
+function Child([string]$exe,[string[]]$argv,[string]$stdin='',[int]$limitSeconds=60) {
+  $si=New-Object Diagnostics.ProcessStartInfo; $si.FileName=$exe; $si.WorkingDirectory=$workspace
+  $si.UseShellExecute=$false; $si.CreateNoWindow=$true; $si.RedirectStandardOutput=$true
+  $si.RedirectStandardError=$true; $si.RedirectStandardInput=$true
+  foreach($a in $argv) { $si.ArgumentList.Add($a) }
+  $p=New-Object Diagnostics.Process; $p.StartInfo=$si
+  if(-not $p.Start()) { throw 'Could not start approved task-owned child' }
+  $out=$p.StandardOutput.ReadToEndAsync(); $err=$p.StandardError.ReadToEndAsync()
+  if($stdin) { $p.StandardInput.Write($stdin) }; $p.StandardInput.Close()
+  $watch=[Diagnostics.Stopwatch]::StartNew()
+  try {
+    while(-not $p.WaitForExit(1000)) {
+      Assert-Capacity
+      if($watch.Elapsed.TotalSeconds -gt $limitSeconds) { throw 'Task-owned child exceeded bounded execution time' }
+    }
+  } catch { if(-not $p.HasExited) { $p.Kill($true); $p.WaitForExit() }; throw }
+  # A detached descendant can inherit a redirected pipe even after its direct
+  # parent exits. Never wait indefinitely for EOF after the bounded process wait.
+  if(-not $out.Wait(5000) -or -not $err.Wait(5000)) { throw 'Task-owned child output drain exceeded bounded execution time' }
+  $text=Redact ($out.GetAwaiter().GetResult()+$err.GetAwaiter().GetResult())
+  [IO.File]::AppendAllText((Join-Path $evidenceDir 'commands.log'),("`nEXEC "+[IO.Path]::GetFileName($exe)+" exit="+$p.ExitCode+"`n"+$text),$utf8)
+  if($p.ExitCode -ne 0) { throw ('Task-owned '+[IO.Path]::GetFileName($exe)+' failed; sanitized commands.log retained') }
+  Assert-Capacity
+  return $text
+}
+function Psql([string]$db,[string]$sql) {
+  return Child (Join-Path $pgBin 'psql.exe') @('-X','--no-password','-v','ON_ERROR_STOP=1','-h','127.0.0.1','-p',"$port",'-U','postgres','-d',$db,'-At') $sql
+}
+function Start-OwnedPostgres {
+  # PostgreSQL outlives pg_ctl. Do not give that descendant a captured pipe whose
+  # EOF the runner would await before it can reach its own exact-target cleanup.
+  # Output contains no credentials; postgres itself logs to the reviewed -l path.
+  $si=New-Object Diagnostics.ProcessStartInfo
+  $si.FileName=Join-Path $pgBin 'pg_ctl.exe'; $si.WorkingDirectory=$workspace
+  $si.UseShellExecute=$false; $si.CreateNoWindow=$true
+  foreach($a in @('-w','-t','20','-D',$dataDir,'-l',$serverLog,'start')) { $si.ArgumentList.Add($a) }
+  $p=New-Object Diagnostics.Process; $p.StartInfo=$si
+  if(-not $p.Start()) { throw 'Could not start exact owned PostgreSQL control process' }
+  $watch=[Diagnostics.Stopwatch]::StartNew()
+  try {
+    while(-not $p.WaitForExit(1000)) {
+      Assert-Capacity
+      if($watch.Elapsed.TotalSeconds -gt 30) { throw 'Exact owned PostgreSQL start exceeded bounded execution time' }
+    }
+  } catch { if(-not $p.HasExited) { $p.Kill($true); $p.WaitForExit() }; throw }
+  [IO.File]::AppendAllText((Join-Path $evidenceDir 'commands.log'),("`nEXEC pg_ctl.exe start (uncaptured daemon output) exit="+$p.ExitCode+"`n"),$utf8)
+  if($p.ExitCode -ne 0) { throw 'Exact owned PostgreSQL start failed' }
+  Assert-Capacity
+}
+try {
+  Clear-TargetEnvironment
+  New-Item -ItemType Directory -Path $nativeRoot | Out-Null; $created=$true
+  [IO.File]::WriteAllText((Join-Path $nativeRoot 'run-owner.txt'),$runId,$utf8)
+  New-Item -ItemType Directory -Path $sqlDir,$evidenceDir | Out-Null
+  [IO.File]::WriteAllText((Join-Path $evidenceDir 'sourceplan.json'),($plan|ConvertTo-Json -Depth 12),$utf8)
+  foreach($unit in $units) { [IO.File]::WriteAllBytes((Join-Path $sqlDir ($unit.name+'.sql')),$unit.body) }
+  Child $nodeExe @('--version') | Out-Null
+  $tsc = Join-Path $workspace 'apps\api-strategy\node_modules\typescript\bin\tsc'
+  foreach($package in @('shared','strategy-verifier')) {
+    # Never build through the borrowed dist or dependency junctions. The exact
+    # clean published sources compile only into this run's disposable root.
+    Child $nodeExe @($tsc,'-p',(Join-Path $workspace ('packages\'+$package+'\tsconfig.json')),
+      '--outDir',(Join-Path $buildRoot $package),'--composite','false','--incremental','false',
+      '--declaration','false','--declarationMap','false','--sourceMap','false') '' 60 | Out-Null
+  }
+  $apiRoot = Join-Path $workspace 'apps\api-strategy'
+  $nativeCoreSpec = Join-Path $apiRoot 'test\objective-planner-core-retry.native.int-spec.ts'
+  $nativeRegenerationFixtureSpec = Join-Path $apiRoot 'test\objective-planner-core-regeneration.native-fixture.spec.ts'
+  $fixtureSpec = Join-Path $apiRoot 'test\objective-planner-native-fixture.spec.ts'
+  $continuationSpec = Join-Path $apiRoot 'test\objective-planner-continuation.db.int-spec.ts'
+  # The dependency tree is read-only and predates this server-only subpath.
+  # Type-check the pinned codec SOURCE; execute its pinned task-owned build.
+  $nativeTypes = [ordered]@{
+    extends=(Join-Path $workspace 'tsconfig.base.json');
+    compilerOptions=[ordered]@{
+      module='Node16'; moduleResolution='Node16'; rootDir=$workspace;
+      experimentalDecorators=$true; emitDecoratorMetadata=$true; useDefineForClassFields=$false;
+      noEmit=$true; incremental=$false; declaration=$false; declarationMap=$false; sourceMap=$false;
+      types=@('node','jest'); typeRoots=@((Join-Path $apiRoot 'node_modules\@types'));
+      paths=@{ '@capiro/shared/objective-planner-owner-codec'=@((Join-Path $workspace 'packages\shared\src\objective-planner-owner-codec.ts')) }
+    };
+    files=@($fixtureSpec,$continuationSpec,$nativeCoreSpec,$nativeRegenerationFixtureSpec)
+  }
+  [IO.File]::WriteAllText($typeConfig,($nativeTypes|ConvertTo-Json -Depth 12),$utf8)
+  $typeConfigJson = $typeConfig | ConvertTo-Json -Compress
+  $baseConfig = (Join-Path $apiRoot 'jest.config.cjs') | ConvertTo-Json -Compress
+  $apiRootJson = $apiRoot | ConvertTo-Json -Compress
+  $sharedJson = (Join-Path $buildRoot 'shared\index.js') | ConvertTo-Json -Compress
+  $sharedSubpathJson = ((Join-Path $buildRoot 'shared')+'/$1.js') | ConvertTo-Json -Compress
+  $strategyJson = (Join-Path $buildRoot 'strategy-verifier\index.js') | ConvertTo-Json -Compress
+  [IO.File]::WriteAllText($jestConfig,@"
+const base = require($baseConfig);
+module.exports = { ...base, rootDir: $apiRootJson,
+  transform: { '^.+\\.ts$': ['ts-jest', { tsconfig: $typeConfigJson, diagnostics: { ignoreCodes: [151002] } }] },
+  moduleNameMapper: {
+  ...base.moduleNameMapper,
+  '^@capiro/shared$': $sharedJson,
+  '^@capiro/shared/(.*)$': $sharedSubpathJson,
+  '^@capiro/strategy-verifier$': $strategyJson,
+} };
+"@,$utf8)
+  # Fail on sparse/dependency/source-build problems BEFORE initdb, SQL or any
+  # credential creation. The guarded native cases remain skipped here.
+  Child $nodeExe @((Join-Path $apiRoot 'node_modules\jest\bin\jest.js'),
+    '--config',$jestConfig,'--runInBand','--runTestsByPath',
+    $fixtureSpec,$continuationSpec,$nativeCoreSpec,$nativeRegenerationFixtureSpec) '' 90 | Out-Null
+  foreach($required in @('initdb.exe','pg_ctl.exe','postgres.exe','psql.exe','createdb.exe')) {
+    if(-not(Test-Path -LiteralPath (Join-Path $pgBin $required))) { throw 'Required installed PostgreSQL binary is missing' }
+  }
+  $version=Child (Join-Path $pgBin 'postgres.exe') @('--version')
+  if($version -notmatch 'PostgreSQL\) 16\.15\b') { throw 'Expected installed PostgreSQL 16.15' }
+  foreach($extension in @('uuid-ossp','citext','pg_trgm')) {
+    if(-not(Test-Path -LiteralPath (Join-Path $pgBin ('..\share\extension\'+$extension+'.control')))) { throw 'Installed extension activation prerequisite missing' }
+  }
+  Assert-FreshStartWindow
+  if(Test-Path -LiteralPath $dataDir) { throw 'Fresh data directory unexpectedly exists; refusing initdb' }
+  $adminSecret=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(48)).ToLowerInvariant()
+  $appSecret=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(48)).ToLowerInvariant()
+  $secrets.Add($adminSecret); $secrets.Add($appSecret)
+  [IO.File]::WriteAllText($pwFile,$adminSecret,[Text.Encoding]::ASCII)
+  Child (Join-Path $pgBin 'initdb.exe') @('-D',$dataDir,'-U','postgres','--encoding=UTF8','--locale=C',
+    '--wal-segsize=1','--auth-host=scram-sha-256','--auth-local=scram-sha-256',('--pwfile='+$pwFile)) | Out-Null
+  Remove-Item -LiteralPath $pwFile -Force
+  [IO.File]::AppendAllText((Join-Path $dataDir 'postgresql.conf'),@"
+
+listen_addresses='127.0.0.1'
+port=$port
+shared_buffers=16MB
+work_mem=1MB
+maintenance_work_mem=16MB
+autovacuum_work_mem=8MB
+autovacuum_max_workers=1
+max_connections=16
+max_worker_processes=2
+max_parallel_workers=0
+max_wal_senders=0
+max_wal_size=16MB
+min_wal_size=2MB
+checkpoint_timeout=30s
+wal_compression=on
+archive_mode=off
+temp_file_limit=32768
+fsync=on
+synchronous_commit=on
+full_page_writes=on
+log_statement=none
+log_min_error_statement=panic
+logging_collector=off
+"@,$utf8)
+  Assert-FreshStartWindow
+  Start-OwnedPostgres; $started=$true
+  $env:PGPASSWORD=$adminSecret
+  $roles=Psql 'postgres' "SELECT count(*) FROM pg_roles WHERE rolname IN ('capiro_app','capiro_planner_fixture_owner');"
+  if($roles.Trim() -ne '0') { throw 'Fresh task cluster contains a preexisting fixture role' }
+  Psql 'postgres' @"
+CREATE ROLE $ddlOwner NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION;
+CREATE ROLE $runtimeRole LOGIN PASSWORD '$appSecret' NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION;
+"@ | Out-Null
+  Child (Join-Path $pgBin 'createdb.exe') @('--no-password','-h','127.0.0.1','-p',"$port",'-U','postgres','-O',$ddlOwner,$database) | Out-Null
+  $token=[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLowerInvariant()
+  Psql $database @"
+CREATE EXTENSION "uuid-ossp";
+CREATE EXTENSION "citext";
+CREATE EXTENSION "pg_trgm";
+ALTER SCHEMA public OWNER TO $ddlOwner;
+GRANT CONNECT ON DATABASE planner_qa TO $runtimeRole;
+SET ROLE $ddlOwner;
+GRANT USAGE ON SCHEMA public TO $runtimeRole;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO $runtimeRole;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT,UPDATE ON SEQUENCES TO $runtimeRole;
+RESET ROLE;
+COMMENT ON DATABASE planner_qa IS 'task-owned:objective-planner-native:$token';
+"@ | Out-Null
+  foreach($unit in $units) {
+    Write-Output ('Applying task-owned focused baseline: '+$unit.name)
+    Child (Join-Path $pgBin 'psql.exe') @('-X','--no-password','-v','ON_ERROR_STOP=1','-h','127.0.0.1','-p',"$port",'-U','postgres',
+      '-d',$database,'-1','-c',('SET ROLE '+$ddlOwner),'-f',(Join-Path $sqlDir ($unit.name+'.sql'))) | Out-Null
+  }
+  $oid=(Psql $database 'SELECT oid FROM pg_database WHERE datname=current_database();').Trim()
+  $catalogStart=(Psql $database 'SELECT floor(extract(epoch FROM pg_postmaster_start_time()))::text;').Trim()
+  if($catalogStart -notmatch '^[1-9][0-9]*$') { throw 'Invalid task-owned catalog startup timestamp' }
+  $pidLines=[IO.File]::ReadAllLines((Join-Path $dataDir 'postmaster.pid'))
+  # PostgreSQL records MyStartTime in postmaster.pid before assigning PgStartTime.
+  # Preserve both exact observations; no cross-clock equality or tolerance.
+  $manifest=[ordered]@{ schemaVersion=2; kind='task-owned-objective-planner-postgres'; owner='objective-planner-continuation-qualification';
+    sourceHead=$sourceHead; workspaceRoot=$workspace; dataDirectory=$dataDir; hostname='127.0.0.1'; port=$port; database=$database;
+    databaseOid=[int]$oid; runtimeRole=$runtimeRole; processId=[int]$pidLines[0]; postmasterStartedAtSeconds=[long]$pidLines[2];
+    catalogPostmasterStartedAtSeconds=[long]$catalogStart;
+    ownershipToken=$token; createdAt=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ');
+    expiresAt=[DateTime]::UtcNow.AddHours(2).ToString('yyyy-MM-ddTHH:mm:ss.fffZ') }
+  [IO.File]::WriteAllText($manifestPath,($manifest|ConvertTo-Json -Depth 8),$utf8)
+  [IO.File]::WriteAllText((Join-Path $evidenceDir 'owned-target.json'),($manifest|ConvertTo-Json -Depth 8),$utf8)
+  # No bootstrap admin environment survives into the application test process.
+  Clear-TargetEnvironment
+  $databaseUrl='postgresql://'+$runtimeRole+':'+$appSecret+'@127.0.0.1:'+ $port +'/planner_qa'; $secrets.Add($databaseUrl)
+  $env:OBJECTIVE_PLANNER_NATIVE_OPT_IN='1'; $env:CI_DISPOSABLE_POSTGRES='1'; $env:OBJECTIVE_PLANNER_NATIVE_DATABASE_URL=$databaseUrl
+  Write-Output 'Running concrete native suite as capiro_app with no owner membership or bypass.'
+  Child $nodeExe @((Join-Path $workspace 'apps\api-strategy\node_modules\jest\bin\jest.js'),
+    '--config',$jestConfig,'--runInBand','--runTestsByPath',
+    $continuationSpec,$nativeCoreSpec) '' 180 | Out-Null
+  [IO.File]::WriteAllText((Join-Path $evidenceDir 'outcome.json'),'{"nativeSuiteExit":0,"sourcePin":"'+$sourceHead+'","cleanupPending":true}', $utf8)
+} finally {
+  foreach($name in $envNames) {
+    if($null -eq $savedEnv[$name]) { Remove-Item -LiteralPath ('Env:'+ $name) -ErrorAction SilentlyContinue }
+    else { [Environment]::SetEnvironmentVariable($name,$savedEnv[$name],'Process') }
+  }
+  if($created -and (Test-Path -LiteralPath $pwFile)) { Remove-Item -LiteralPath $pwFile -Force }
+  if($created -and (Test-Path -LiteralPath $dataDir)) {
+    try {
+      Assert-OwnedPath $nativeRoot (Join-Path $workspace '.objective-planner-native') | Out-Null
+      Assert-OwnedPath $dataDir (Join-Path $nativeRoot 'postgres-data') | Out-Null
+      if([IO.File]::ReadAllText((Join-Path $nativeRoot 'run-owner.txt')) -cne $runId) { throw 'Ownership token mismatch; refusing cluster stop' }
+      # No service name or generic postgres stop command is used.
+      & (Join-Path $pgBin 'pg_ctl.exe') -D $dataDir status *> $null
+      if($LASTEXITCODE -eq 0) {
+        & (Join-Path $pgBin 'pg_ctl.exe') -w -t 20 -D $dataDir stop -m fast *> $null
+        if($LASTEXITCODE -ne 0) { throw 'Exact owned cluster did not stop' }
+      }
+      & (Join-Path $pgBin 'pg_ctl.exe') -D $dataDir status *> $null
+      if($LASTEXITCODE -eq 0) { throw 'Exact owned cluster still runs' }
+      if(@([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()|Where-Object Port -eq $port).Count) { throw 'Owned port still listens' }
+      if(Test-Path -LiteralPath (Join-Path $dataDir 'postmaster.pid')) {
+        $recorded=[int]([IO.File]::ReadAllLines((Join-Path $dataDir 'postmaster.pid'))[0])
+        if(Get-Process -Id $recorded -ErrorAction SilentlyContinue) { throw 'Recorded postmaster PID still exists' }
+      }
+    } catch { $cleanupProblem='Owned cluster cleanup is uncertain; exact data retained: '+$_.Exception.Message }
+  }
+  if($created -and (Test-Path -LiteralPath $serverLog)) {
+    try { [IO.File]::WriteAllText((Join-Path $evidenceDir 'postgres-sanitized.log'),(Redact ([IO.File]::ReadAllText($serverLog))),$utf8) }
+    catch { $cleanupProblem='Could not retain sanitized server log; exact cluster root retained' }
+  }
+  if($created -and -not $cleanupProblem) {
+    Assert-OwnedPath $nativeRoot (Join-Path $workspace '.objective-planner-native') | Out-Null
+    Assert-OwnedPath $dataDir (Join-Path $nativeRoot 'postgres-data') | Out-Null
+    if([IO.File]::ReadAllText((Join-Path $nativeRoot 'run-owner.txt')) -cne $runId) { throw 'Ownership token mismatch; refusing recursive cleanup' }
+    if(Get-ChildItem -LiteralPath $nativeRoot -Recurse -Force | Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 }) {
+      throw 'Unexpected reparse point under owned cluster; refusing recursive cleanup'
+    }
+    Remove-Item -LiteralPath $nativeRoot -Recurse -Force
+    [IO.File]::WriteAllText((Join-Path $evidenceDir 'cleanup.json'),'{"exactClusterRemoved":true,"listenerRemoved":true,"credentialsRetiredWithCluster":true}', $utf8)
+  }
+  $adminSecret=$null; $appSecret=$null; $databaseUrl=$null; $secrets.Clear()
+  if($cleanupProblem) { throw $cleanupProblem }
+}

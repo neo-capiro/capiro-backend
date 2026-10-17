@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-10-17T01:59:28.3792009Z",
+  "sourceHead": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+  "sourceTree": "81a3ea3ed95bdaf2410301a922cf4431acece7d7",
+  "processId": 26664,
+  "recordedProcessGone": true,
+  "nativeRootRemoved": true,
+  "listeners": [
+    {
+      "address": "0.0.0.0",
+      "port": 5432
+    },
+    {
+      "address": "::",
+      "port": 5432
+    }
+  ],
+  "freeBytes": 5539233792,
+  "sourceStatus": [],
+  "nativeStatus": [],
+  "priorSourceHead": "5591eac08428635bf911a0aa32acea859e2a5d95",
+  "priorSourceStatus": [],
+  "priorNativeHead": "5591eac08428635bf911a0aa32acea859e2a5d95",
+  "priorNativeStatus": [],
+  "commandLogSha256": "41b2f1fb694a1cb5b6750485e37711f84c06fa5c5c7a73331f6c4616aeae20f8",
+  "sourcePlanSha256": "43568af44a14700678ed733d07da8475162ec10362b551757ab4c9873f427bf8"
+}

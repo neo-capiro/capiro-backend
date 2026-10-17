@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "checkedAtUtc": "2026-10-17 02:24:42 UTC",
+  "backendBase": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+  "pullRequests": [
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "number": 42,
+      "url": "https://github.com/neo-capiro/capiro-backend/pull/42",
+      "title": "Prepare Objective retained-result bridge and workload authority contracts",
+      "head": "6d24414da975b52ab9802a883b22c868ad14fc92",
+      "base": "560e3068b67101b68d8675c55835bcc6521110f7",
+      "branch": "feat/objective-retained-result-bridge",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "number": 49,
+      "url": "https://github.com/neo-capiro/capiro-backend/pull/49",
+      "title": "Prepare server-owned Objective Planner continuation",
+      "head": "db6ef0a617f4b570cadfa6e05bad7296017d0f70",
+      "base": "6d24414da975b52ab9802a883b22c868ad14fc92",
+      "branch": "feat/objective-planner-continuation-20261016",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "number": 50,
+      "url": "https://github.com/neo-capiro/capiro-backend/pull/50",
+      "title": "Wire Objective Planner continuation with verified applied accounting",
+      "head": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "base": "db6ef0a617f4b570cadfa6e05bad7296017d0f70",
+      "branch": "feat/objective-planner-runtime-composition-20261016",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "number": 51,
+      "url": "https://github.com/neo-capiro/capiro-backend/pull/51",
+      "title": "Prove Planner status against retained applied ancestry",
+      "head": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "base": "5591eac08428635bf911a0aa32acea859e2a5d95",
+      "branch": "feat/objective-planner-retained-head-20261017",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "number": 53,
+      "url": "https://github.com/neo-capiro/capiro-backend/pull/53",
+      "title": "Recover expired unused Planner consent with native lineage",
+      "head": "57f8c8047a73df6d4a73351a98a5239f38240a24",
+      "base": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+      "branch": "feat/objective-flow-integration-20261017",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "number": 95,
+      "url": "https://github.com/neo-capiro/meri-greenfield/pull/95",
+      "title": "Align unmounted Objective retained reader with proposed RS256 contract",
+      "head": "5781c1150fbb3954c25ba245b26d325e06b4d82d",
+      "base": "d27c807bb5694cf84c73db5d647e2e8d13ba39f1",
+      "branch": "codex/meri-objective-reader-rs256-20261016",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "number": 109,
+      "url": "https://github.com/neo-capiro/meri-greenfield/pull/109",
+      "title": "Add funding read adapters with trusted asOf transport",
+      "head": "b4daa4adf6e8269e7c341751db9a02bf6d4f062b",
+      "base": "526b6be7c906c15298f13430fe5dd5a9db458e03",
+      "branch": "codex/meri-funding-asof-20261017",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "number": 110,
+      "url": "https://github.com/neo-capiro/meri-greenfield/pull/110",
+      "title": "Complete existing-route business-development reads",
+      "head": "f7f4ed5b397fcd44576251739ed361aee6941d7a",
+      "base": "b4daa4adf6e8269e7c341751db9a02bf6d4f062b",
+      "branch": "codex/meri-read-completion-next-20261017",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "number": 58,
+      "url": "https://github.com/neo-capiro/capiro-frontend/pull/58",
+      "title": "Integrate Planner drafts, Objective receiving, and document keyboard fix",
+      "head": "4e1421054df0d32c564f7c9bc75cbd5e5366b428",
+      "base": "0b6c7ecf2c3f0f66dee5a0e88cb67528a6cc5fc2",
+      "branch": "fix/rich-document-boundary-keyboard",
+      "draft": true
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "number": 62,
+      "url": "https://github.com/neo-capiro/capiro-frontend/pull/62",
+      "title": "Connect personal Meri preferences to native API",
+      "head": "9e6d80843b0a46a862f7613b4ab9b08d925d7b17",
+      "base": "aae57e924e5812f331c76557f2b7ccaddd4ba0f9",
+      "branch": "codex/meri-user-preferences-task6-20261017",
+      "draft": true
+    }
+  ],
+  "meriReceiver95Blob": "23543d8d8a6f7fca57ff6e7e4e8d8e3544f56848",
+  "meriObjectiveFiles109to110": [
+    {
+      "path": "apps/control/objective-generation/core-http.mjs",
+      "pr109Blob": "8840332fb8992cd0ffa614ddaea235463ebe380f",
+      "pr110Blob": "8840332fb8992cd0ffa614ddaea235463ebe380f",
+      "unchanged": true
+    },
+    {
+      "path": "apps/control/objective-generation/workload-reader-gate.mjs",
+      "pr109Blob": "9ff7c49acc104c194d4284b92d00652ad00f65fa",
+      "pr110Blob": "9ff7c49acc104c194d4284b92d00652ad00f65fa",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/prepared-run-issuance.mjs",
+      "pr109Blob": "a89195ac852791940422a4cf1f2b0fbb3468829c",
+      "pr110Blob": "a89195ac852791940422a4cf1f2b0fbb3468829c",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/prepared-run-bindings.mjs",
+      "pr109Blob": "92e2df761fd9a4c481af4b3e89d3e2dba21ad646",
+      "pr110Blob": "92e2df761fd9a4c481af4b3e89d3e2dba21ad646",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/conversation-runner.mjs",
+      "pr109Blob": "a0f421ee8b4f28ea4c5596d4d11365301463d72d",
+      "pr110Blob": "a0f421ee8b4f28ea4c5596d4d11365301463d72d",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/native-authority/remote-composition.mjs",
+      "pr109Blob": "c781a929763d23728aa455ed84f4a95629544e49",
+      "pr110Blob": "c781a929763d23728aa455ed84f4a95629544e49",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/objective-generation/prepared-facts-reader.mjs",
+      "pr109Blob": "e2c595d50165ca0e4b0d9ae66942fd144a224df3",
+      "pr110Blob": "e2c595d50165ca0e4b0d9ae66942fd144a224df3",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/objective-generation/query-selection-reader.mjs",
+      "pr109Blob": "a9381aa50bdd22fc11639469f48cef9bf326261f",
+      "pr110Blob": "a9381aa50bdd22fc11639469f48cef9bf326261f",
+      "unchanged": true
+    },
+    {
+      "path": "apps/worker/conversation/objective-generation/runtime.mjs",
+      "pr109Blob": "f8b8d6a63936cb20791df20f8c0922ab3f0269a0",
+      "pr110Blob": "f8b8d6a63936cb20791df20f8c0922ab3f0269a0",
+      "unchanged": true
+    },
+    {
+      "path": "apps/runtime/objective-generation/retained-result.mjs",
+      "pr109Blob": "40155cebb4da9536f94ae3c73e2f9563ba8b892f",
+      "pr110Blob": "40155cebb4da9536f94ae3c73e2f9563ba8b892f",
+      "unchanged": true
+    }
+  ],
+  "frontendObjectiveContext58to62": [
+    {
+      "path": "apps/web/src/features/portfolio/objectives/ObjectiveEditor.tsx",
+      "pr58Blob": "497391fea2e563b3ea01b1b3751db2403b7532f1",
+      "pr62Blob": "497391fea2e563b3ea01b1b3751db2403b7532f1"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/objectives/ObjectiveGeneration.tsx",
+      "pr58Blob": "0c2c06a3c1906204688e3268738c64a220a6e9b5",
+      "pr62Blob": "0c2c06a3c1906204688e3268738c64a220a6e9b5"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/objectives/ObjectivePlanOutcome.tsx",
+      "pr58Blob": "7da4b8e4fc746166641ef6b8c365969dedcdf2c5",
+      "pr62Blob": "7da4b8e4fc746166641ef6b8c365969dedcdf2c5"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/objectives/objective-plan-flow.ts",
+      "pr58Blob": "ef457933b362604cf9e8895c4405af22f6e6d836",
+      "pr62Blob": "ef457933b362604cf9e8895c4405af22f6e6d836"
+    },
+    {
+      "path": "apps/web/src/shared/capiro/operations/objective-generation.ts",
+      "pr58Blob": "276214846a8e11d659edef7e4957ad81f2206009",
+      "pr62Blob": "276214846a8e11d659edef7e4957ad81f2206009"
+    },
+    {
+      "path": "apps/web/src/shared/capiro/operations/planner.ts",
+      "pr58Blob": "1ec01abd5e135d8f0dcecff6dff4bfef3978413c",
+      "pr62Blob": "1ec01abd5e135d8f0dcecff6dff4bfef3978413c"
+    },
+    {
+      "path": "apps/web/src/features/modules/objective-destinations/ObjectiveWorkViews.tsx",
+      "pr58Blob": "40e5b67ca8f0f56e9898cb77815218999ebbb3cf",
+      "pr62Blob": "40e5b67ca8f0f56e9898cb77815218999ebbb3cf"
+    }
+  ],
+  "note": "Blob identity establishes these named file bytes only, not whole-runtime equivalence, qualification or integration. PR95 is divergent from PR109/110; do not assume receiver adoption.",
+  "coreRecoverySuccessor": {
+    "head": "57f8c8047a73df6d4a73351a98a5239f38240a24",
+    "tree": "cb2ac7d883290741e95d4dffa0f67406ed8e87e4",
+    "parent": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+    "reviewReceiptSha256": "f98d40ace3c408ab644ceb040b389929e5ef6a7c03a75161c31e161791f0136c",
+    "sourceChecks": {
+      "ownerKernel": 206,
+      "currentAndUnusedConsent": 157,
+      "independentlyRepeated": true,
+      "actualCoreStatus": 32,
+      "strictAffectedGraphsPassed": true
+    },
+    "enabledNative": "PENDING; no run started at handoff update",
+    "nativeEvidenceCopiedForThisSuccessor": false
+  },
+  "pr53MetadataCheckedAtUtc": "2026-10-17 02:29:31 UTC"
+}

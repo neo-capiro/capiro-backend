@@ -1,0 +1,938 @@
+
+EXEC node.exe exit=0
+v22.23.3
+
+EXEC node.exe exit=0
+
+EXEC node.exe exit=0
+
+EXEC node.exe exit=0
+PASS apps/api-strategy/test/objective-planner-core-regeneration.native-fixture.spec.ts
+PASS apps/api-strategy/test/objective-planner-continuation.db.int-spec.ts
+PASS apps/api-strategy/test/objective-planner-native-fixture.spec.ts
+
+Test Suites: 1 skipped, 3 passed, 3 of 4 total
+Tests:       18 skipped, 13 passed, 31 total
+Snapshots:   0 total
+Time:        20.996 s
+Ran all test suites within paths "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-native-fixture.spec.ts", "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-continuation.db.int-spec.ts", "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-core-retry.native.int-spec.ts", "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-core-regeneration.native-fixture.spec.ts".
+
+EXEC postgres.exe exit=0
+postgres (PostgreSQL) 16.15
+
+EXEC initdb.exe exit=0
+The files belonging to this database system will be owned by user "Administrator".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/postgres-data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... windows
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    ^"C^:^\Program^ Files^\PostgreSQL^\16^\bin^\pg^_ctl^" -D ^"C^:^\Users^\Administrator^\Documents^\Codex^\2026^-10^-16^\task^-5^\objective^-native^-b8^\^.objective^-planner^-native^\postgres^-data^" -l logfile start
+
+
+EXEC pg_ctl.exe start (uncaptured daemon output) exit=0
+
+EXEC psql.exe exit=0
+0
+
+EXEC psql.exe exit=0
+CREATE ROLE
+CREATE ROLE
+
+EXEC createdb.exe exit=0
+
+EXEC psql.exe exit=0
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE EXTENSION
+ALTER SCHEMA
+GRANT
+SET
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+RESET
+COMMENT
+
+EXEC psql.exe exit=0
+SET
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE FUNCTION
+CREATE TABLE
+CREATE INDEX
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE FUNCTION
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/001-core-identity.sql:9: NOTICE:  extension "uuid-ossp" already exists, skipping
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/001-core-identity.sql:10: NOTICE:  extension "citext" already exists, skipping
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/001-core-identity.sql:11: NOTICE:  extension "pg_trgm" already exists, skipping
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE POLICY
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/010-strategy-20260722000000_init_strategy.sql:355: NOTICE:  trigger "sp_activity_log_append_only" for relation "sp_activity_log" does not exist, skipping
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+ALTER TYPE
+ALTER TYPE
+ALTER TYPE
+ALTER TYPE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+
+EXEC psql.exe exit=0
+SET
+CREATE TYPE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE FUNCTION
+CREATE TRIGGER
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+ALTER TABLE
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+16386
+
+EXEC node.exe exit=1
+FAIL apps/api-strategy/test/objective-planner-core-retry.native.int-spec.ts
+  ΓùÅ Core Planner applied retry on the reviewed task-owned native target ΓÇ║ actual Core applied read then ready source advance records one Plan-only consent and exact idempotent receipt
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-core-retry.native.int-spec.ts:53:87)
+      at Object.<anonymous> (test/objective-planner-core-retry.native.int-spec.ts:81:9)
+
+  ΓùÅ Core Planner applied retry on the reviewed task-owned native target ΓÇ║ same-source applied retry and Strategy generation retry remain denied without native consent writes
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-core-retry.native.int-spec.ts:53:87)
+      at Object.<anonymous> (test/objective-planner-core-retry.native.int-spec.ts:81:9)
+
+  ΓùÅ Core Planner applied retry on the reviewed task-owned native target ΓÇ║ leased original outcome remains uncertain after real Objective source advancement
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-core-retry.native.int-spec.ts:53:87)
+      at Object.<anonymous> (test/objective-planner-core-retry.native.int-spec.ts:81:9)
+
+  ΓùÅ Core Planner applied retry on the reviewed task-owned native target ΓÇ║ current native membership and client-wall revocation deny advanced-source consent
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-core-retry.native.int-spec.ts:53:87)
+      at Object.<anonymous> (test/objective-planner-core-retry.native.int-spec.ts:81:9)
+
+  ΓùÅ Core Planner applied retry on the reviewed task-owned native target ΓÇ║ release-proof loss rolls back actual inserted Core consent, control change and reciprocal receipt
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-core-retry.native.int-spec.ts:53:87)
+      at Object.<anonymous> (test/objective-planner-core-retry.native.int-spec.ts:81:9)
+
+  ΓùÅ Core Planner applied retry on the reviewed task-owned native target ΓÇ║ actual new Planner consent admits an accepted schema2 saved generation and native v3 Planner regeneration
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-core-retry.native.int-spec.ts:53:87)
+      at Object.<anonymous> (test/objective-planner-core-retry.native.int-spec.ts:81:9)
+
+FAIL apps/api-strategy/test/objective-planner-continuation.db.int-spec.ts
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ durable tenant discovery continues a completed generation without a browser and commits paired accounting
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ two independent native clients contend for one operation and create one output set
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ throwing after actual application writes rolls back outputs and receipt before operation accounting
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ discarded committed caller reply recovers the exact original operation from a fresh runtime
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ actual expiry after accounting rolls back accounting and outputs at the final native release fence
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ expired original Planner consent cannot be extended into a new operation
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ retained recovery preserves actual human Planner edits and reports their current versions
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ actual reciprocal consent cancellation denies a new effect without changing generation evidence
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ fresh native membership and client-wall revocation deny retained reads of committed effects
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ native tenant opt-out denies effects despite process opt-in
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ reserved generation delegation still refuses enabled=true for otherwise complete fixture scope
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+  ΓùÅ Objective Planner concrete runtime on task-owned native PostgreSQL ΓÇ║ native tenant isolation and immutable revision privileges are checked through the actual runtime role
+
+    Objective Planner native qualification refused: OWNERSHIP_INVALID
+
+      19 |   processId: number;
+      20 |   postmasterStartedAtSeconds: number;
+    > 21 |   ownershipToken: string;
+         |           ^
+      22 |   createdAt: string;
+      23 |   expiresAt: string;
+      24 | }
+
+      at refuse (test/objective-planner-native-target.ts:21:11)
+      at requireObjectivePlannerNativeCatalog (test/objective-planner-native-target.ts:134:16)
+      at verifyCatalog (test/objective-planner-continuation.db.int-spec.ts:62:87)
+      at Object.<anonymous> (test/objective-planner-continuation.db.int-spec.ts:89:9)
+
+Test Suites: 2 failed, 2 total
+Tests:       18 failed, 1 passed, 19 total
+Snapshots:   0 total
+Time:        4.016 s
+Ran all test suites within paths "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-continuation.db.int-spec.ts", "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-core-retry.native.int-spec.ts".
