@@ -61,7 +61,8 @@ function resolved(r: Route): ObjectiveAdmissionSource {
     attemptId: null, runId: null, acceptedBindingSha256: null, sourceSha256: null }) });
 }
 
-/** Unmounted, disabled-by-default native routing resolver. Invoke ONLY after
+/** Disabled-by-default native routing resolver, now composed by the admission
+ * runtime behind its hard-disabled production provider. Invoke ONLY after
  * the ingress verifies the named generation worker's exact raw caller proof.
  * A global immutable job UUID is a hint, never a caller-selected tenant/ref.
  * Successful cross-tenant routing is audited in the SAME system transaction.

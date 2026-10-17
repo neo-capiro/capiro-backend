@@ -10,9 +10,10 @@ import {
   type ObjectiveWorkloadRequestBinding,
 } from './objective-workload-jwt.js';
 
-/** Source-only Core issuance ledger seam. No route or runtime provider creates
- * this adapter. The current migration enforces enabled=false on delegations,
- * so a genuine database load must return unavailable. The future ingress must
+/** Core issuance ledger seam. The admission runtime composes this adapter for
+ * explicit trusted bindings; its production route provider stays hard-disabled.
+ * The current migration enforces enabled=false on delegations,
+ * so a genuine database load must return unavailable. The ingress must
  * verify the named caller proof and closed raw request before invoking it. */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

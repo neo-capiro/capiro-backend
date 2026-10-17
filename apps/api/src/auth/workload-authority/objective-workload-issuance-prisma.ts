@@ -20,7 +20,8 @@ import {
   OBJECTIVE_STRATEGY_AUDIENCE,
 } from './objective-workload-jwt.js';
 
-/** Unmounted Core SQL port. The migration's CHECK(enabled=false) means the
+/** Core SQL port composed by the hard-disabled admission runtime provider.
+ * The migration's CHECK(enabled=false) means the
  * current-facts loader denies before any issuance can succeed. Neither this
  * file nor the offline test runs SQL against a database. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

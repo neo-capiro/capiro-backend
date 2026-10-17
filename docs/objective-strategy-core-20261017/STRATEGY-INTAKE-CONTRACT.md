@@ -131,7 +131,11 @@ database qualification. No dependencies were installed for these checks.
 Positive production admission/promotion is unqualified. All five Strategy
 workload authority methods remain unavailable, the historical delegation
 `enabled=false` migration fence remains intact, and PR57's admission ingress
-remains unmounted. No synthetic positive grant is introduced to conceal this.
+was unmounted at that source freeze. The additive successor described in
+[Core/Meri composition and decision](CORE-MERI-COMPOSITION-DECISION.md) registers
+the actual admission route with a hard-disabled production runtime provider.
+It composes the existing production factories for explicit trusted bindings;
+no positive grant, raw-body bootstrap allocation or activation is supplied.
 
 The resumed Meri owner confirmed that genuine production prepared facts omit
 Objective fields, immutable accepted-request-to-full-run binding custody is not

@@ -1,0 +1,12 @@
+{
+  "extends": "./intake.tsconfig.json",
+  "files": [
+    "../../../apps/api/src/auth/workload-authority/objective-workload-admission-runtime.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-admission.mount.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-admission-ingress.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-admission-source.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-issuance.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-issuance-prisma.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-planner-work-owner.mount.spec.ts"
+  ]
+}
