@@ -17,6 +17,14 @@ function secretsMatch(provided: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
+// Only the actual matching branch records service identity. Observe-mode
+// admission deliberately does not establish this request-local proof.
+const verifiedServiceRequests = new WeakSet<Request>();
+
+export function hasVerifiedToolServiceIdentity(request: Request): boolean {
+  return verifiedServiceRequests.has(request);
+}
+
 /**
  * Service-identity boundary for delegated tools and action-proposal creation.
  * User authentication remains mandatory through the normal API middleware;
@@ -29,6 +37,8 @@ export class ToolServiceSecretGuard implements CanActivate {
   constructor(private readonly config: ConfigService<AppConfig, true>) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<Request>();
+    verifiedServiceRequests.delete(request);
     const environment = this.config.get('NODE_ENV', { infer: true });
     const productionLike = environment === 'staging' || environment === 'production';
     const explicitlyEnforced = this.config.get('MERI_TOOLS_REQUIRE_SERVICE_SECRET', {
@@ -45,10 +55,12 @@ export class ToolServiceSecretGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
     const header = request.headers['x-internal-service-secret'];
     const provided = typeof header === 'string' ? header : null;
-    if (provided && secretsMatch(provided, expected)) return true;
+    if (provided && secretsMatch(provided, expected)) {
+      verifiedServiceRequests.add(request);
+      return true;
+    }
 
     if (enforce) {
       throw new ForbiddenException('This route requires a valid internal service identity');

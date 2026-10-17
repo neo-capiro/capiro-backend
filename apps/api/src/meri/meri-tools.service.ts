@@ -13,6 +13,7 @@ import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
+import { currentMeriFundingReadAsOf } from './meri-funding-read-observation.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -2745,32 +2746,44 @@ export class MeriToolsService {
       update_task: () => this.updateEngagementTask(ctx, input),
       update_client_profile: () => this.updateClientProfile(ctx, input),
       search_funding_opportunities: () => {
-        return this.opportunityTools.searchFundingOpportunities(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: input.source as string | undefined,
           query: input.query as string | undefined,
           page: input.page as number | undefined,
           pageSize: input.pageSize as number | undefined,
           activeState: input.activeState as string | undefined,
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('search_funding_opportunities');
+        return asOf
+          ? this.opportunityTools.searchFundingOpportunities(toolActor(ctx), request, asOf)
+          : this.opportunityTools.searchFundingOpportunities(toolActor(ctx), request);
       },
       get_funding_opportunity_requirements: () => {
-        return this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
           offset: input.offset as number | undefined,
           limit: input.limit as number | undefined,
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_funding_opportunity_requirements');
+        return asOf
+          ? this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), request);
       },
       get_funding_opportunity: () => {
-        return this.opportunityTools.getFundingOpportunity(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
           summaryOffset: input.summaryOffset as number | undefined,
           summaryLimit: input.summaryLimit as number | undefined,
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_funding_opportunity');
+        return asOf
+          ? this.opportunityTools.getFundingOpportunity(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getFundingOpportunity(toolActor(ctx), request);
       },
       explain_opportunity_match: () => {
         return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {
@@ -2780,16 +2793,24 @@ export class MeriToolsService {
         });
       },
       get_opportunity_client_context: () => {
-        return this.opportunityTools.getOpportunityClientContext(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_opportunity_client_context');
+        return asOf
+          ? this.opportunityTools.getOpportunityClientContext(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getOpportunityClientContext(toolActor(ctx), request);
       },
       get_opportunity_government_landscape: () => {
-        return this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_opportunity_government_landscape');
+        return asOf
+          ? this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), request);
       },
       compare_funding_opportunities: () => {
         return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), {

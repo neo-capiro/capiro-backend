@@ -311,7 +311,7 @@ function noNativeOrBusinessIO(f: ReturnType<typeof fixture>) {
 beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(NOW);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => { jest.restoreAllMocks(); });
 
 describe('RetainedPrincipalService actual-source composition', () => {
   it.each(['issue', 'verifyCurrent'] as const)(
