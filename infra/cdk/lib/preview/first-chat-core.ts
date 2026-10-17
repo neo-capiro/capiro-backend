@@ -233,10 +233,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
-    // ECS registration requires the target group to be associated with the
-    // listener before CreateService, even while desiredCount is zero.
-    service.node.addDependency(firstChatPosts, membershipPost);
-    new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
+    const rejectOtherPreviewHostTraffic = new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
       listenerArn: live.listenerArn,
       priority: 3,
       conditions: [{ field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } }],
@@ -251,6 +248,14 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         },
       ],
     });
+    // Install the host-wide 404 before either forwarding rule so no preview
+    // request can fall through to the production /api/* rule during creation.
+    // CloudFormation reverses these dependencies during deletion.
+    firstChatPosts.addResourceDependency(rejectOtherPreviewHostTraffic);
+    membershipPost.addResourceDependency(rejectOtherPreviewHostTraffic);
+    // ECS registration requires the target group to be associated with the
+    // listener before CreateService, even while desiredCount is zero.
+    service.node.addDependency(firstChatPosts, membershipPost);
 
     new cdk.CfnOutput(this, 'CoreApiBaseUrl', {
       value: `https://${FIRST_CHAT_CORE_HOST}/api`,

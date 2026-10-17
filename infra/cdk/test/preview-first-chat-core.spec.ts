@@ -126,6 +126,7 @@ test('renders only a held service with four public POST paths and no migration o
   const rules = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule');
   assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3]);
   const allowed = rules.find((rule) => rule.Properties.Priority === 1);
+  assert.ok(allowed.DependsOn.includes('RejectOtherPreviewHostTraffic'));
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig.Values.sort(), [
     '/api/clio/application-authority/context',
@@ -134,6 +135,7 @@ test('renders only a held service with four public POST paths and no migration o
   ]);
   assert.ok(path.PathPatternConfig.Values.every((value: string) => !value.includes('*')));
   const membership = rules.find((rule) => rule.Properties.Priority === 2);
+  assert.ok(membership.DependsOn.includes('RejectOtherPreviewHostTraffic'));
   const membershipPath = membership.Properties.Conditions.find(
     (condition: any) => condition.Field === 'path-pattern',
   );
