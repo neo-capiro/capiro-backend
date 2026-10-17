@@ -23,13 +23,16 @@ import {
 type Tx = Prisma.TransactionClient;
 type Row = Record<string, any>;
 export const OBJECTIVE_WORK_OWNER = Symbol('OBJECTIVE_WORK_OWNER');
+/** Trusted transaction mode; never accepted from the public command wrapper. */
+export type ObjectiveStrategySelectionMode = 'recovery-read' | 'write';
 /** Only an actual owner binding may establish original operation accounting or
  * known stricter settings. No job absence, posted JSON or generic service secret
  * supplies these facts. This port performs local owner reads/locks only. */
 export interface ObjectiveWorkOwnerPort {
   lockWithinTx(tx: Tx, ctx: TenantContext, request: WorkRequest): Promise<void>;
   lockReadWithinTx?(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void>;
-  bindStrategySelectionWithinTx?(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest): void;
+  bindStrategySelectionWithinTx?(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest,
+    mode?: ObjectiveStrategySelectionMode): void;
   observeLockedStrategyStateWithinTx?(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): void;
   reserveStrategyWithinTx?(tx: Tx, authority: WorkAuthority, stored: StoredWorkReceipt, request: ObjectiveStrategySelectionRequest): Promise<void>;
   reconcileWithinTx(tx: Tx, authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation>;
@@ -118,7 +121,7 @@ export class ObjectiveWorkService {
       this.proofTransaction(ctx, proof, request.work.command.requestId, async tx => {
         if (!this.ownerPort.bindStrategySelectionWithinTx || !this.ownerPort.reserveStrategyWithinTx)
           workFailure('AUTHORITY_UNAVAILABLE', request.work.command.requestId);
-        this.ownerPort.bindStrategySelectionWithinTx(tx, ctx, request);
+        this.ownerPort.bindStrategySelectionWithinTx(tx, ctx, request, write ? 'write' : 'recovery-read');
         const owned = this.ports(tx, ctx, request.work, 'objective.strategy.draft', proof, write);
         return run({ ...owned,
           receipt: async (a, action, id) => {

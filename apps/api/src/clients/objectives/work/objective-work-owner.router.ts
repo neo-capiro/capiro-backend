@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import type { ObjectiveWorkOwnerPort } from './objective-work.service.js';
+import type { ObjectiveStrategySelectionMode, ObjectiveWorkOwnerPort } from './objective-work.service.js';
 import { ObjectivePlannerWorkOwner } from './objective-planner-work-owner.js';
 import { ObjectiveStrategyWorkOwner } from './objective-strategy-work-owner.js';
 import type { ObjectiveStrategySelectionRequest } from './objective-strategy-selection.js';
@@ -12,8 +12,9 @@ type Tx = Prisma.TransactionClient;
 export class ObjectiveWorkOwnerRouter implements ObjectiveWorkOwnerPort {
   constructor(readonly planner = new ObjectivePlannerWorkOwner(), readonly strategy = new ObjectiveStrategyWorkOwner()) {}
   private owner(action: WorkAction): ObjectiveWorkOwnerPort { return action === 'objective.plan.prepare' ? this.planner : this.strategy; }
-  bindStrategySelectionWithinTx(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest) {
-    this.strategy.bindStrategySelectionWithinTx(tx, ctx, request);
+  bindStrategySelectionWithinTx(tx: Tx, ctx: TenantContext, request: ObjectiveStrategySelectionRequest,
+    mode: ObjectiveStrategySelectionMode = 'write') {
+    this.strategy.bindStrategySelectionWithinTx(tx, ctx, request, mode);
   }
   reserveStrategyWithinTx(tx: Tx, a: WorkAuthority, stored: StoredWorkReceipt, request: ObjectiveStrategySelectionRequest) {
     return this.strategy.reserveStrategyWithinTx(tx, a, stored, request);
