@@ -74,7 +74,7 @@ function fixture(state = 'failed') {
   let rows = [row];
   const query = jest.fn(async function (this: unknown, strings: TemplateStringsArray, ...values: unknown[]) {
     expect(this).toBe(tx); const sql = strings.join('?');
-    expect(sql).toContain('FOR SHARE OF m,u,i,v'); expect(sql).not.toMatch(/\b(?:INSERT|UPDATE|DELETE)\b/);
+    expect(sql).toMatch(/\bFOR SHARE OF m,u\s*$/); expect(sql).not.toMatch(/\b(?:INSERT|UPDATE|DELETE)\b/);
     expect(sql).not.toContain("status='active'");
     expect(values).toEqual([id(1), id(2), id(3), 'objective.plan.prepare', id(14), controlId]); return rows;
   });

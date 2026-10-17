@@ -216,7 +216,7 @@ function fixture(mode: 'initial' | 'failed' | 'cancelled' | 'leased' | 'applied'
     }
     if (sql.includes('to_jsonb(c) AS consent') && sql.includes('to_jsonb(i) AS intent')) {
       trace.push('applied-native-chain-proof');
-      expect(sql).toContain('FOR SHARE OF m,u,i,v');
+      expect(sql).toMatch(/\bFOR SHARE OF m,u\s*$/);
       expect(values).toEqual([ctx.tenantId, request.clientId, request.objectiveId, PLAN, id(14), id(13)]);
       const row = { consent: clone(f.consent), receipt: clone(f.commandReceipt), intent: clone(root),
         revision: { id: f.objectiveRevisionId, tenant_id: ctx.tenantId, client_id: request.clientId,

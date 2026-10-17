@@ -62,6 +62,18 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
       FROM pg_database d JOIN pg_roles r ON r.rolname=current_user WHERE d.datname=current_database()`;
     expect(rows).toHaveLength(1); requireObjectivePlannerNativeCatalog(target, rows[0]!);
   }
+  async function verifyImmutableLedgerPrivileges() {
+    const rows = await core.$queryRaw<Array<{ tableName: string; canUpdate: boolean; canDelete: boolean }>>`
+      SELECT names.table_name AS "tableName",
+        has_table_privilege(current_user,'public.'||names.table_name,'UPDATE') AS "canUpdate",
+        has_table_privilege(current_user,'public.'||names.table_name,'DELETE') AS "canDelete"
+      FROM (VALUES ('client_objective_revisions'),('client_objective_work_command_receipts'),
+        ('client_objective_work_consents'),('client_objective_work_intents')) AS names(table_name)
+      ORDER BY names.table_name`;
+    expect(rows).toEqual(['client_objective_revisions', 'client_objective_work_command_receipts',
+      'client_objective_work_consents', 'client_objective_work_intents']
+      .map(tableName => ({ tableName, canUpdate: false, canDelete: false })));
+  }
   beforeAll(async () => {
     const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal', '--', 'apps', 'packages', 'scripts'],
       { cwd: workspaceRoot, encoding: 'utf8' });
@@ -82,6 +94,7 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     core = new CorePrismaService({ datasources: { db: { url: target.databaseUrl } } });
     await prisma.$connect(); await core.$connect();
     await verifyCatalog(prisma); await verifyCatalog(core);
+    await verifyImmutableLedgerPrivileges();
   }, 30_000);
   afterAll(async () => { await core?.$disconnect(); await prisma?.$disconnect(); });
 
@@ -189,6 +202,50 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     expect(await audit(f)).toEqual(before);
   }, 30_000);
 
+  test('actual cancelled operation retains native historical proof after a new Core consent', async () => {
+    const { fixture: f } = await fixture(), app = application(), client = await service(f);
+    app.prepareWithinOwnerTransaction = async () => { throw Error('Synthetic stopped application after committed native lease'); };
+    await expect(runtime(app).consumeJob(f.scope)).rejects.toBeDefined();
+    const leased = await audit(f), originalOperation = leased.resources.find(r => r.kind === PLANNER_CONTINUATION_OPERATION)!;
+    expect(originalOperation.data.state).toBe('leased');
+    const cancel = parseWorkCommand(f.source.clientId, f.source.objectiveId, { schemaVersion: 1,
+      requestId: f.id('core-native-historical-cancel'), command: 'cancel', workAction: PLAN,
+      expectedObjectiveVersion: f.source.objectiveVersion, expectedCanonicalBindingVersion: f.canonical.bindingVersion,
+      expectedControlVersion: 1, targetAuthorizationRequestId: f.plannerConsentId });
+    const cancelled = await client.work.command(client.ctx, transport, cancel);
+    expect(cancelled.outcome).toBe('cancellation_recorded'); expect(cancelled.controlVersionAfter).toBe(2);
+    expect(await runtime().consumeJob(f.scope)).toEqual({ outcome: 'cancelled', terminalReceiptId: originalOperation.id });
+    const settled = await audit(f), terminal = settled.resources.find(r => r.id === originalOperation.id)!;
+    expect(terminal.data.state).toBe('cancelled'); expect(terminal.data.terminal.receiptId).toBe(terminal.id);
+    expect(terminal.data.original).toEqual(originalOperation.data.original);
+    expect(terminal.data.work).toEqual(originalOperation.data.work);
+    const retry = parseWorkCommand(f.source.clientId, f.source.objectiveId, { schemaVersion: 1,
+      requestId: f.id('core-native-historical-retry'), command: 'retry', workAction: PLAN,
+      expectedObjectiveVersion: f.source.objectiveVersion, expectedCanonicalBindingVersion: f.canonical.bindingVersion,
+      expectedControlVersion: 2, targetAuthorizationRequestId: f.plannerConsentId });
+    const receipt = await client.work.command(client.ctx, transport, retry);
+    expect(receipt.outcome).toBe('reconsent_recorded'); expect(receipt.controlVersionAfter).toBe(3);
+    expect(receipt.authorizationRequestId).not.toBe(f.plannerConsentId);
+    // This read has a current consent with no operation and a distinct, REAL
+    // persisted cancelled original. The owner must read the historical native
+    // consent/command/intent/revision under the unchanged restricted DB role.
+    const read = await client.work.read(client.ctx, transport,
+      { clientId: f.source.clientId, objectiveId: f.source.objectiveId, workAction: PLAN });
+    expect(read.reconciliation).toBe('not_started');
+    expect(read.control.currentAuthorizationRequestId).toBe(receipt.authorizationRequestId);
+    const after = await audit(f);
+    expect(after.resources).toEqual(settled.resources);
+    expect(after.resources).toHaveLength(1);
+    expect(after.consents.find(c => c.id === f.plannerConsentId)).toEqual(leased.consents.find(c => c.id === f.plannerConsentId));
+    expect(after.commands.find(c => c.created_consent_id === f.plannerConsentId))
+      .toEqual(leased.commands.find(c => c.created_consent_id === f.plannerConsentId));
+    expect(after.consents.filter(c => c.work_action === PLAN)).toHaveLength(2);
+    const outputs = await core.withTenant(f.tenantId, tx => tx.$queryRaw<Array<{ present: boolean }>>`SELECT
+      EXISTS(SELECT 1 FROM sp_planner_projects WHERE tenant_id=${f.tenantId}::uuid AND id=${f.canonical.canonicalProjectId}::uuid) OR
+      EXISTS(SELECT 1 FROM sp_planner_tasks WHERE tenant_id=${f.tenantId}::uuid AND ${f.canonical.canonicalProjectId}::uuid=ANY(project_ids)) AS present`);
+    expect(outputs).toEqual([{ present: false }]);
+  }, 30_000);
+
   test('current native membership and client-wall revocation deny advanced-source consent', async () => {
     for (const revoke of ['membership', 'wall'] as const) {
       const { fixture: f } = await applied(), client = await service(f);
@@ -259,5 +316,17 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     expect(owners.find(r => r.data.binding.canonical.bindingVersion === advanced.canonical.bindingVersion)?.data.receiptVersion).toBe(3);
     expect(applicationHash(originalOperation.data.original)).toBe(applicationHash(
       operations.find(r => r.id === originalOperation.id)!.data.original));
+    // Positive Core v3 status requires the complete old/new applied ancestry
+    // and each original native consent/command/intent/revision proof.
+    const status = await client.work.read(client.ctx, transport, { clientId: f.source.clientId,
+      objectiveId: f.source.objectiveId, workAction: PLAN, requestId: receipt.requestId });
+    expect(status.reconciliation).toBe('accounted');
+    expect(status.objective).toEqual({ id: f.source.objectiveId, status: 'ready',
+      revision: { id: advanced.source.objectiveRevisionId, version: advanced.source.objectiveVersion } });
+    expect(status.control).toEqual({ version: receipt.controlVersionAfter,
+      currentAuthorizationRequestId: next.data.work.consentId, cancelledAt: null });
+    expect(status.consent).toMatchObject(receipt.consent!);
+    expect(status.commandReceipt).toEqual(receipt);
+    expect(await audit(f)).toEqual(after);
   }, 30_000);
 });

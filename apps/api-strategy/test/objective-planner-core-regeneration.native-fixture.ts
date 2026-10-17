@@ -57,7 +57,7 @@ async function requireNativePlannerReceipt(tx: Tx, f: ObjectivePlannerNativeFixt
     WHERE ctl.tenant_id=${f.tenantId}::uuid AND ctl.client_id=${c.clientId}::uuid
       AND ctl.objective_id=${c.objectiveId}::uuid AND ctl.work_action='objective.plan.prepare'
       AND cs.id=${receipt.authorizationRequestId}::uuid AND r.id=${receipt.receiptId}::uuid
-    FOR UPDATE OF ctl,p FOR SHARE OF cs,r,i,v`;
+    FOR UPDATE OF ctl,p`;
   if (rows.length !== 1) return fail();
   const { consent: s, receipt: r, control, intent, revision, canonical } = rows[0]!;
   applicationJson(rows[0]);

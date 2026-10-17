@@ -118,6 +118,8 @@ export async function verifyObjectivePlannerHistoricalConsentWithinTx(tx: Prisma
     for (const value of [a.tenantId, a.clientId, a.objectiveId]) uuid(value);
     const w = op.work, canonical = w.canonical;
     if (canonical.tenantId !== a.tenantId || canonical.clientId !== a.clientId || canonical.objectiveId !== a.objectiveId) fail();
+    // Intents and revisions are append-only and deny UPDATE, which row locks
+    // require. Keep locks on mutable identity rows while validating all lineage.
     const rows = await tx.$queryRaw<Array<{ consent: Json; receipt: Json; intent: Json; revision: Json; clerkUserId: string }>>`
       SELECT to_jsonb(c) AS consent,to_jsonb(r) AS receipt,to_jsonb(i) AS intent,
         to_jsonb(v) AS revision,u.clerk_user_id AS "clerkUserId"
@@ -132,7 +134,7 @@ export async function verifyObjectivePlannerHistoricalConsentWithinTx(tx: Prisma
       JOIN users u ON u.id=m.user_id
       WHERE c.tenant_id=${a.tenantId}::uuid AND c.client_id=${a.clientId}::uuid AND c.objective_id=${a.objectiveId}::uuid
         AND c.work_action=${PLAN} AND c.id=${w.consentId}::uuid AND c.control_id=${controlId}::uuid
-      FOR SHARE OF m,u,i,v`;
+      FOR SHARE OF m,u`;
     if (rows.length !== 1) fail();
     const row = closed(rows[0], ['consent', 'receipt', 'intent', 'revision', 'clerkUserId']);
     const c = closed(row.consent, consentKeys), r = closed(row.receipt, receiptKeys);

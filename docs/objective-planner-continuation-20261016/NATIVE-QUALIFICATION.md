@@ -1,6 +1,6 @@
 # Objective Planner native qualification
 
-The allocated kernel increment adds six native Core cases beside the existing
+The allocated kernel increment adds seven native Core cases beside the existing
 runtime suite. The owned runner now requires an explicit 40-hex
 `ReviewedSourceHead`, a clean checkout at exactly that published pin, and the
 same guarded local target, focused SQL, restricted roles, budgets and cleanup.
@@ -23,6 +23,11 @@ generation consent and Meri/provider custody observations are explicitly
 synthetic. These cases do not qualify real HTTP/token admission, an operational
 Strategy retry/issuer/SDK path or frontend receiving behavior.
 
+The additional historical case uses a real committed lease, Core cancellation,
+runtime terminal accounting and subsequent Core consent/read to exercise native
+historical lineage. Immutable ledger UPDATE/DELETE privileges are explicitly
+checked through the application role before positive Core proof reads.
+
 The first final-source attempt at `3ebecd93f3d5a99e1d9346b2710a3605591ed9d3`
 passed all 13 offline preflight checks, then refused all 18 enabled cases at the
 read-only catalog identity guard before fixture writes. Its owned cluster and
@@ -37,6 +42,21 @@ guard requires its separately captured timestamp. No timestamp tolerance is
 introduced, and their order must be PID-file time <= catalog time <= manifest
 creation. The prior failed attempt remains evidence of refusal, not application
 qualification. Final successor results belong to their exact published pin.
+
+The next attempt at `a82e49b1d6c0949b898b914840ece813008fe2e7` passed the
+ownership fence, all 13 offline checks and all twelve existing native runtime
+cases. Three new Core cases failed, giving 16/19 total including default-off.
+The sanitized server log identified permission denial on immutable work intents:
+the new proof queries requested `FOR SHARE` on immutable intents and revisions,
+while the exact migrations intentionally revoke UPDATE/DELETE. PostgreSQL row
+locking also requires UPDATE privilege ([SELECT permissions](https://www.postgresql.org/docs/16/sql-select.html)).
+Applied and historical proof reads now lock only mutable membership/user rows;
+all immutable joins and lineage validation remain intact. The regeneration test
+helper likewise locks only its mutable control/canonical rows. No grant,
+migration, immutable trigger or proof expectation is relaxed. Direct applied and
+historical proof regressions pass 34/34 and 44/44. The failed attempt and verified
+owned cleanup are retained separately; they do not establish full native Core
+qualification. The final exact-pin result is recorded after execution.
 
 ## Prior parent-source qualification
 

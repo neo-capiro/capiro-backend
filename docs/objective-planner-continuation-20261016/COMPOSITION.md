@@ -142,9 +142,19 @@ kernel and actual cached policy, with synthetic persistence/current request
 proof. Exact replay, conflict, original record immutability and proof expiry caps
 are asserted. Actual Core status/module regressions pass **33/33**, and the new
 schema-2 native-fixture source checks pass **7/7**. The affected Core/native
-TypeScript import graphs and whitespace checks pass. The new six native cases
+TypeScript import graphs and whitespace checks pass. The new seven native cases
 collect and skip without opt-in; their enabled result and exact published source
 pin are recorded in the PR and task qualification receipt after execution.
+
+Native qualification exposed a restricted-role compatibility issue in the new
+applied/historical proof queries: row locks on immutable intent/revision ledgers
+require UPDATE privilege which their migrations intentionally revoke. These
+proofs now lock only mutable membership/user rows, retaining every immutable
+join and proof check. Their direct suites pass **34/34 and 44/44**. The native
+suite also covers a real cancellation/terminal-accounting/reconsent history and
+explicitly checks the unchanged immutable ledger privileges. Its final published
+pin and enabled outcome are recorded separately; no successful result is assumed
+from a partial earlier run.
 
 The earlier reviewed baseline at `a2b35fb` established the broader checks below;
 unchanged suites are not presented as newly rerun for this kernel increment.
