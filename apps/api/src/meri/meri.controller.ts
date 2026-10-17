@@ -60,6 +60,10 @@ import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
 import {
+  admitMeriFundingReadObservation,
+  withMeriFundingReadObservation,
+} from './meri-funding-read-observation.js';
+import {
   admitMeriResearchPortfolioToolTransport,
   withMeriResearchPortfolioToolTurnScope,
 } from './meri-rp-tool-transport.js';
@@ -518,6 +522,7 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
+    const admittedFunding = admitMeriFundingReadObservation(name, body, req);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
       name,
@@ -547,9 +552,13 @@ export class MeriController {
                 admittedRp.scope
                   ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
                   : execute();
+              const executeFunding = () =>
+                admittedFunding
+                  ? withMeriFundingReadObservation(admittedFunding, executeRp)
+                  : executeRp();
               return admittedAttachment.scope
-                ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
-                : executeRp();
+                ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeFunding)
+                : executeFunding();
             },
           );
           emitMeriApiTelemetry({

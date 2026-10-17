@@ -46,6 +46,7 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import { EventEmitter } from 'node:events';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { withMeriFundingReadObservation } from './meri-funding-read-observation.js';
 
 describe('buyer workspace Meri tool', () => {
   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
@@ -584,6 +585,8 @@ describe('Meri tool registration', () => {
       searchFundingOpportunities: jest.fn(async () => ({ state: 'available' })),
       getFundingOpportunityRequirements: jest.fn(async () => ({ state: 'available' })),
       getFundingOpportunity: jest.fn(async () => ({ state: 'available' })),
+      getOpportunityClientContext: jest.fn(async () => ({ state: 'available' })),
+      getOpportunityGovernmentLandscape: jest.fn(async () => ({ state: 'available' })),
     };
     const service = Object.assign(Object.create(MeriToolsService.prototype), {
       opportunityTools,
@@ -619,6 +622,66 @@ describe('Meri tool registration', () => {
     };
     await service.execute(actor as never, 'get_funding_opportunity', body);
     expect(opportunityTools.getFundingOpportunity).toHaveBeenCalledWith(actor, body);
+    await service.execute(actor as never, 'get_opportunity_client_context', {
+      clientId: 'client-1',
+    });
+    expect(opportunityTools.getOpportunityClientContext).toHaveBeenCalledWith(actor, {
+      clientId: 'client-1',
+    });
+    await service.execute(actor as never, 'get_opportunity_government_landscape', {
+      clientId: 'client-1',
+      source: 'sam_gov',
+      sourceRecordId: 'notice-1',
+    });
+    expect(opportunityTools.getOpportunityGovernmentLandscape).toHaveBeenCalledWith(actor, {
+      clientId: 'client-1',
+      source: 'sam_gov',
+      sourceRecordId: 'notice-1',
+    });
+  });
+
+  it('passes the admitted observation to only the five existing funding read clock seams', async () => {
+    const actor = { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as const;
+    const asOf = '2026-10-17T12:34:56.789Z';
+    const opportunityTools = {
+      searchFundingOpportunities: jest.fn(async () => ({ state: 'available' })),
+      getFundingOpportunityRequirements: jest.fn(async () => ({ state: 'available' })),
+      getFundingOpportunity: jest.fn(async () => ({ state: 'available' })),
+      getOpportunityClientContext: jest.fn(async () => ({ state: 'available' })),
+      getOpportunityGovernmentLandscape: jest.fn(async () => ({ state: 'available' })),
+    };
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      opportunityTools,
+    }) as MeriToolsService;
+    const cases = [
+      ['search_funding_opportunities', 'searchFundingOpportunities', { clientId: 'client-1' }],
+      [
+        'get_funding_opportunity_requirements',
+        'getFundingOpportunityRequirements',
+        { clientId: 'client-1', source: 'sam_gov', sourceRecordId: 'notice-1' },
+      ],
+      [
+        'get_funding_opportunity',
+        'getFundingOpportunity',
+        { clientId: 'client-1', source: 'sam_gov', sourceRecordId: 'notice-1' },
+      ],
+      ['get_opportunity_client_context', 'getOpportunityClientContext', { clientId: 'client-1' }],
+      [
+        'get_opportunity_government_landscape',
+        'getOpportunityGovernmentLandscape',
+        { clientId: 'client-1', source: 'sam_gov', sourceRecordId: 'notice-1' },
+      ],
+    ] as const;
+    for (const [name, method, input] of cases) {
+      await withMeriFundingReadObservation({ operationId: name, asOf }, () =>
+        service.execute(actor as never, name, input),
+      );
+      expect(opportunityTools[method]).toHaveBeenCalledWith(
+        actor,
+        expect.objectContaining(input),
+        new Date(asOf),
+      );
+    }
   });
 
   it.each([
