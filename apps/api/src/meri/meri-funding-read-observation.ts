@@ -37,17 +37,40 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
   return actual.length === keys.length && actual.every((key) => keys.includes(key));
 }
 
+function assertWellFormedUnicode(value: string): void {
+  for (let index = 0; index < value.length; index++) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) invalid();
+      index++;
+    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      invalid();
+    }
+  }
+}
+
 /** JSON-only equivalent of the private Meri contract's canonicalize(request). */
 function canonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+  if (typeof value === 'string') {
+    assertWellFormedUnicode(value);
     return JSON.stringify(value);
   }
-  if (typeof value === 'number') return JSON.stringify(value);
+  if (value === null || typeof value === 'boolean') {
+    return JSON.stringify(value);
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return invalid();
+    return JSON.stringify(value);
+  }
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (!record(value)) return invalid();
   return `{${Object.keys(value)
     .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+    .map((key) => {
+      assertWellFormedUnicode(key);
+      return `${JSON.stringify(key)}:${canonicalJson(value[key])}`;
+    })
     .join(',')}}`;
 }
 

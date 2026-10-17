@@ -108,7 +108,7 @@ async function fixture() {
     const req: any = Object.assign(new EventEmitter(), { method: 'POST', path: `/api/clio/application-authority/${path}`,
       originalUrl: `/api/clio/application-authority/${path}`, url: `/api/clio/application-authority/${path}`,
       headers, body, header: (name: string) => headers[name], hostname: 'localhost', aborted: options.aborted === true });
-    const response: any = Object.assign(new EventEmitter(), { statusCode: 200, headersSent: false, headers: {}, body: undefined,
+    const response: any = Object.assign(new EventEmitter(), { statusCode: 200, headersSent: false, headers: {} as Record<string, string>, body: undefined as unknown,
       writableEnded: false, destroyed: false,
       setHeader(key: string, value: string) { this.headers[key.toLowerCase()] = value; return this; },
       set(key: string, value: string) { return this.setHeader(key, value); },

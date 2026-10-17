@@ -1,4 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { BadRequestException, ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
@@ -8,7 +11,8 @@ import {
   withMeriFundingReadObservation,
 } from './meri-funding-read-observation.js';
 
-// neo-capiro/meri-greenfield@b4daa4a, native-read-observation-0.2/golden.json,
+// neo-capiro/meri-greenfield@b4daa4adf6e8269e7c341751db9a02bf6d4f062b,
+// packages/contracts/native-read-observation-0.2/test/golden.json,
 // search_funding_opportunities: original request keeps whitespace and Unicode.
 const GOLDEN_CARRIER =
   'eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoic2VhcmNoX2Z1bmRpbmdfb3Bwb3J0dW5pdGllcyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiNTA5MmY4ZWJmYTE3OTc4MzNmOTYzNTNlOTNiODA3ZGZjMjRjZjExMDdhNmM5OGNlOTlhZDQ5ZjhiODY0YjRlOCIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ';
@@ -28,14 +32,14 @@ const malformedCases: [string, string, Record<string, unknown>, string][] = [
   ['invalid alphabet', NAME, BODY, `${GOLDEN_CARRIER}*`],
 ];
 
-function request(header?: unknown, serviceSecret?: unknown): Request {
+function request(header?: unknown, serviceSecret?: unknown, name = NAME): Request {
   return {
     headers: {
       ...(header === undefined ? {} : { 'x-meri-read-observation': header }),
       ...(serviceSecret === undefined ? {} : { 'x-internal-service-secret': serviceSecret }),
     },
     method: 'POST',
-    path: `/api/clio/tools/${NAME}`,
+    path: `/api/clio/tools/${name}`,
   } as unknown as Request;
 }
 
@@ -70,6 +74,40 @@ function alteredCarrier(change: (value: Record<string, unknown>) => void): strin
 }
 
 describe('finite funding read observation', () => {
+  it('admits all five exact PR109 wire vectors, including a valid surrogate pair', () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        join(__dirname, '__fixtures__', 'native-read-observation-0.2-pr109-golden.json'),
+        'utf8',
+      ),
+    ) as {
+      format: string;
+      vectors: Array<{
+        operation: { id: string };
+        request: Record<string, unknown>;
+        context: { asOf: string };
+        carrier: string;
+      }>;
+    };
+    expect(fixture.format).toBe('meri-native-read-observation-golden/1');
+    expect(fixture.vectors.map(({ operation }) => operation.id)).toEqual([
+      'search_funding_opportunities',
+      'get_funding_opportunity_requirements',
+      'get_funding_opportunity',
+      'get_opportunity_client_context',
+      'get_opportunity_government_landscape',
+    ]);
+    expect(fixture.vectors[0]?.request.query).toContain('\ud83c\udf31');
+    for (const vector of fixture.vectors) {
+      const req = request(vector.carrier, SECRET, vector.operation.id);
+      expect(guardRequest(req)).toBe(true);
+      expect(admitMeriFundingReadObservation(vector.operation.id, vector.request, req)).toEqual({
+        operationId: vector.operation.id,
+        asOf: vector.context.asOf,
+      });
+    }
+  });
+
   it('accepts the exact Meri wire vector only after a real service-secret match', () => {
     const req = request(GOLDEN_CARRIER, SECRET);
     expect(guardRequest(req)).toBe(true);
@@ -128,6 +166,33 @@ describe('finite funding read observation', () => {
     const req = request(carrier, SECRET);
     guardRequest(req);
     expect(() => admitMeriFundingReadObservation(name, body, req)).toThrow(BadRequestException);
+  });
+
+  it('rejects an overflowed original JSON number instead of hashing it as null', () => {
+    const body = JSON.parse('{"page":1e400}') as Record<string, unknown>;
+    expect(body.page).toBe(Infinity);
+    const nullPageHash = createHash('sha256').update('{"page":null}', 'utf8').digest('hex');
+    const carrier = alteredCarrier((value) => {
+      value.requestSha256 = nullPageHash;
+    });
+    const req = request(carrier, SECRET);
+    expect(guardRequest(req)).toBe(true);
+    expect(() => admitMeriFundingReadObservation(NAME, body, req)).toThrow(BadRequestException);
+  });
+
+  it.each([
+    ['value', { query: '\ud800' }],
+    ['key', { ['\udc00']: 'query' }],
+  ])('rejects an ill-formed Unicode %s in the original body', (_position, body) => {
+    const requestSha256 = createHash('sha256')
+      .update(JSON.stringify(body), 'utf8')
+      .digest('hex');
+    const carrier = alteredCarrier((value) => {
+      value.requestSha256 = requestSha256;
+    });
+    const req = request(carrier, SECRET);
+    expect(guardRequest(req)).toBe(true);
+    expect(() => admitMeriFundingReadObservation(NAME, body, req)).toThrow(BadRequestException);
   });
 
   it('rejects changed operation, noncanonical timestamp and extra context', () => {
