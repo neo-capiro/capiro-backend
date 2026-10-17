@@ -104,24 +104,49 @@ export function setMeriAction(rules, action) {
   return next;
 }
 
-export function addCoreGetRule(rules) {
+/**
+ * Source-only transform from the frozen historical snapshot to the reported
+ * compact layout. The old priority-2 rule identity is retained but changes
+ * from membership POST to the three exact GETs. This does not prove the
+ * current AWS template or perform an ALB mutation.
+ */
+export function compactCorePreviewRules(rules) {
   const next = cloneRules(rules);
-  if (next.some((rule) => rule.priority === 3 || rule.id === 'core-get')) {
-    throw new Error('Core GET priority or rule is already occupied');
+  const post = next.filter((rule) => rule.id === 'core-post');
+  const second = next.filter((rule) => rule.id === 'core-membership');
+  const guard = next.filter((rule) => rule.id === 'core-guard');
+  if (post.length !== 1 || second.length !== 1 || guard.length !== 1 ||
+      next.some((rule) => rule.id === 'core-get') ||
+      post[0].priority !== 1 || second[0].priority !== 2 || guard[0].priority !== 3 ||
+      !isDeepStrictEqual(post[0].conditions, {
+        methods: ['POST'], hosts: ['first-chat-preview.app-dev.capiro.ai'],
+        paths: ['/api/clio/application-authority/identity', '/api/clio/conversations/bootstrap',
+          '/api/clio/application-authority/context'],
+      }) ||
+      !isDeepStrictEqual(second[0].conditions, {
+        methods: ['POST'], hosts: ['first-chat-preview.app-dev.capiro.ai'],
+        paths: ['/api/clio/application-authority/membership'],
+      }) ||
+      !isDeepStrictEqual(guard[0].conditions, { hosts: ['first-chat-preview.app-dev.capiro.ai'] }) ||
+      !isDeepStrictEqual(post[0].action, { type: 'forward', target: 'core-preview' }) ||
+      !isDeepStrictEqual(second[0].action, post[0].action) ||
+      !isDeepStrictEqual(guard[0].action, {
+        type: 'fixed-response', statusCode: 404, contentType: 'application/json',
+        body: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
+      })) {
+    throw new Error('Exact historical Core priority-1/2 rules and priority-3 guard required');
   }
-  next.push({
-    id: 'core-get',
-    priority: 3,
-    conditions: {
-      hosts: ['first-chat-preview.app-dev.capiro.ai'],
-      methods: ['GET'],
-      pathRegexes: [
-        '^/api/me$',
-        '^/api/clients$',
-        '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-      ],
-    },
-    action: { type: 'forward', target: 'core-preview' },
-  });
+  post[0].conditions = {
+    hosts: ['first-chat-preview.app-dev.capiro.ai'], methods: ['POST'],
+    pathRegexes: ['^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$'],
+  };
+  second[0].conditions = {
+    hosts: ['first-chat-preview.app-dev.capiro.ai'], methods: ['GET'],
+    pathRegexes: [
+      '^/api/me$',
+      '^/api/clients$',
+      '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    ],
+  };
   return next;
 }

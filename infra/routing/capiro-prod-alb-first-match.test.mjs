@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
-  addCoreGetRule,
+  compactCorePreviewRules,
   addMeriRule,
   firstMatch,
   movePriority,
@@ -87,7 +87,8 @@ function assertOverlapOrder(rules) {
 
 test('snapshot and registry cover every live rule with exact precedence-bearing predicates', () => {
   assert.equal(snapshot.rules.length, 17);
-  assert.equal(registry.candidateRules.length, 19);
+  assert.equal(registry.candidateRules.length, 18);
+  assert.match(registry.status, /reported but current AWS template is unverified/);
   assert.equal(snapshot.listenerArn, registry.listenerArn);
   assertUniquePriorities(live);
   assert.equal(Object.keys(snapshot.ruleArnSuffixes).length, 17);
@@ -124,8 +125,10 @@ test('Core, Meri and manual-script candidate priorities agree with the shared re
   const engagement = source('scripts/engagement-api-alb-rules.sh');
   const onboard = source('scripts/onboard-alb-rules.sh');
   const at = (id) => registry.candidateRules.find((item) => item.id === id).candidatePriority;
-  assert.match(core, new RegExp(`FIRST_CHAT_CORE_READ_PRIORITY\\s*=\\s*${at('core-get')};`));
   assert.match(core, new RegExp(`FIRST_CHAT_CORE_GUARD_PRIORITY\\s*=\\s*${at('core-guard')};`));
+  assert.match(core, /FirstChatPostsOnly'[\s\S]*?priority: 1,/);
+  assert.match(core, /FirstChatMembershipPostOnly'[\s\S]*?priority: 2,/);
+  assert.equal(registry.candidateRules.some((item) => item.id === 'core-get'), false);
   assert.match(meri, new RegExp(`FIRST_CHAT_MERI_INGRESS_PRIORITY\\s*=\\s*${at('meri-preview')};`));
   assert.match(meri, /FIRST_CHAT_MERI_HOST = 'meri-preview\.capiro\.ai'/);
   assert.ok(engagement.includes(`PREVIEW_RULE_PRIORITY="${'${PREVIEW_RULE_PRIORITY:-' + at('engagement-preview') + '}'}"`));
@@ -160,7 +163,7 @@ test('each individual relocation preserves first match across the sampled bounda
   }
   for (const rule of previous) {
     const expected = registry.candidateRules.find((entry) => entry.id === rule.id);
-    assert.equal(rule.priority, expected.candidatePriority === 4 ? 3 : expected.candidatePriority);
+    assert.equal(rule.priority, expected.candidatePriority);
   }
 });
 
@@ -193,40 +196,57 @@ test('the proposed Meri deny is host-only and intercepts all paths before produc
   }).id, 'onboard-path');
 });
 
-test('Core guard move and exact GET addition do not alter any other existing route', () => {
+test('reported compact Core layout preserves snapshot IDs for four POSTs and three GETs', () => {
   let relocated = live;
   for (const move of registry.relocationOrder) {
     relocated = movePriority(relocated, move.id, move.from, move.to);
   }
   const held = addMeriRule(relocated);
-  const guardMoved = movePriority(held, 'core-guard', 3, 4);
-  assertRoutingEqual(held, guardMoved);
-  const coreGet = addCoreGetRule(guardMoved);
-  assertUniquePriorities(coreGet);
-  assertRoutingEqual(guardMoved, coreGet, hosts.filter((host) => host.toLowerCase() !== coreHost));
-  for (const request of requests([coreHost])) {
-    const before = firstMatch(guardMoved, request);
-    const after = firstMatch(coreGet, request);
-    const exactGet = request.method === 'GET' && (
-      request.path.split('?')[0] === '/api/me' ||
-      request.path.split('?')[0] === '/api/clients' ||
-      request.path.split('?')[0] === `/api/clients/${validClient}`
-    );
-    if (exactGet) {
-      assert.equal(after.id, 'core-get', JSON.stringify(request));
+  const compact = compactCorePreviewRules(held);
+  assertUniquePriorities(compact);
+  assert.equal(compact.length, held.length);
+  assert.deepEqual(compact.map(({ id }) => id), held.map(({ id }) => id));
+  assertRoutingEqual(held, compact, hosts.filter((host) => host.toLowerCase() !== coreHost));
+  for (const before of held.filter((rule) => !['core-post', 'core-membership'].includes(rule.id))) {
+    assert.deepEqual(compact.find((rule) => rule.id === before.id), before,
+      `${before.id} must retain its exact conditions, action and priority`);
+  }
+  const postPaths = new Set([
+    '/api/clio/conversations/bootstrap',
+    '/api/clio/application-authority/identity',
+    '/api/clio/application-authority/context',
+    '/api/clio/application-authority/membership',
+  ]);
+  const getPaths = new Set(['/api/me', '/api/clients', `/api/clients/${validClient}`]);
+  for (const request of requests([coreHost, coreHost.toUpperCase()])) {
+    const path = request.path.split('?')[0];
+    const after = firstMatch(compact, request);
+    if (request.method === 'POST' && postPaths.has(path)) {
+      assert.equal(after.id, 'core-post', JSON.stringify(request));
+      assert.deepEqual(after.action, { type: 'forward', target: 'core-preview' });
+    } else if (request.method === 'GET' && getPaths.has(path)) {
+      assert.equal(after.id, 'core-membership', JSON.stringify(request));
+      assert.deepEqual(after.action, { type: 'forward', target: 'core-preview' });
     } else {
-      assert.deepEqual(resultIdentity(after), resultIdentity(before), JSON.stringify(request));
+      assert.equal(after.id, 'core-guard', JSON.stringify(request));
+      assert.equal(after.action.statusCode, 404);
     }
   }
-  assert.equal(firstMatch(coreGet, {
+  assert.equal(firstMatch(compact, {
     host: coreHost, path: '/health', method: 'GET', headers: {},
   }).id, 'core-guard');
-  assert.equal(firstMatch(coreGet, {
+  assert.equal(firstMatch(compact, {
     host: coreHost, path: `/api/clients/${validClient}/history`, method: 'GET', headers: {},
   }).id, 'core-guard');
-  assert.equal(firstMatch(coreGet, {
+  assert.equal(firstMatch(compact, {
     host: coreHost, path: '/api/me', method: 'POST', headers: {},
   }).id, 'core-guard');
+  const source = readFileSync(new URL('../../infra/cdk/lib/preview/first-chat-core.ts', import.meta.url), 'utf8');
+  for (const rule of compact.filter((item) => ['core-post', 'core-membership'].includes(item.id))) {
+    for (const regex of rule.conditions.pathRegexes) {
+      assert.ok(source.includes(regex), `CDK and offline model must agree on ${regex}`);
+    }
+  }
 });
 
 test('one stable Meri rule performs deny, forward, deny without any production fallthrough', () => {
@@ -235,8 +255,7 @@ test('one stable Meri rule performs deny, forward, deny without any production f
     candidate = movePriority(candidate, move.id, move.from, move.to);
   }
   candidate = addMeriRule(candidate);
-  candidate = movePriority(candidate, 'core-guard', 3, 4);
-  candidate = addCoreGetRule(candidate);
+  candidate = compactCorePreviewRules(candidate);
   const forwarded = setMeriAction(candidate, 'forward');
   const deniedAgain = setMeriAction(forwarded, 'deny');
   assertUniquePriorities(candidate);
@@ -263,7 +282,10 @@ test('vacancy and unknown action checks refuse an ambiguous rollout', () => {
   assert.throws(() => movePriority(live, 'onboard-host', 9, 16), /not at/);
   assert.throws(() => addMeriRule(live), /occupied/);
   assert.throws(() => addMeriRule([], 'prod-api'), /Unknown Meri action/);
-  assert.throws(() => addCoreGetRule(live), /occupied/);
+  const driftedCore = structuredClone(live);
+  driftedCore.find((rule) => rule.id === 'core-membership').conditions.paths = ['/api/clio/application-authority/other'];
+  assert.throws(() => compactCorePreviewRules(driftedCore), /Exact historical Core/);
+  assert.throws(() => compactCorePreviewRules(compactCorePreviewRules(live)), /Exact historical Core/);
   assert.throws(() => setMeriAction(live, 'forward'), /Stable Meri rule/);
   assert.throws(() => setMeriAction(live, 'prod-api'), /Unknown Meri action/);
   let relocated = live;

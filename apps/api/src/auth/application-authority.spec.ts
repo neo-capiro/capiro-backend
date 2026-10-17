@@ -36,6 +36,7 @@ function load(source: string, ports: Record<string, unknown>, timers = { setTime
 const contract = load(sources('auth/application-authority.ts'), {
   '@nestjs/common': nest, 'node:crypto': { createHash }, 'node:util': { types: nodeTypes },
 });
+const previewNativeReadMode = load(sources('auth/preview-native-read-mode.ts'), {});
 const tenantId = '00000000-0000-7000-8000-000000000001';
 const actorId = '00000000-0000-0000-0000-000000000002';
 const clientId = '00000000-0000-8000-8000-000000000003';
@@ -91,6 +92,7 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
     '@nestjs/common': nest, '@capiro/shared': { TENANT_HEADER: 'x-capiro-tenant', authDeniedEvent: () => ({}) },
     '../auth/clerk.service.js': {}, '../prisma/prisma.service.js': {}, '../auth/clerk-role.util.js': {},
     './tenant-context.store.js': {}, '../auth/application-authority.js': contract,
+    '../auth/preview-native-read-mode.js': previewNativeReadMode,
   }).TenantContextMiddleware;
   let activeContext: any;
   const clerkPort = { verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {

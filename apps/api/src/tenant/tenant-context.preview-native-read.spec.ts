@@ -18,10 +18,13 @@ const previewHost = 'first-chat-preview.app-dev.capiro.ai';
 const priorPreviewSetting = process.env.PREVIEW_NATIVE_GETS_ENABLED;
 const claims: ClerkSessionClaims = {
   sub: 'clerk_preview_actor',
+  iss: 'https://clerk.app.capiro.ai',
+  sid: 'sess_preview',
+  exp: Math.floor(Date.now() / 1000) + 1800,
   org_id: 'org_preview',
   capiro_tenant_id: 'tenant_preview',
   capiro_tenant_slug: 'preview',
-} as ClerkSessionClaims;
+};
 const user = { id: 'actor_preview', clerkUserId: claims.sub };
 const membership = {
   id: 'member_preview', userId: user.id, tenantId: 'tenant_preview',
@@ -29,7 +32,8 @@ const membership = {
   tenant: { id: 'tenant_preview', clerkOrgId: 'org_preview', slug: 'preview', status: 'active' },
 };
 
-function fixture(path = '/api/me', host = previewHost, method = 'GET', originalUrl = path) {
+function fixture(path = '/api/me', host = previewHost, method = 'GET', originalUrl = path,
+  verifiedClaims: ClerkSessionClaims = claims) {
   // Keep all possible local mutations visible. In particular, the ordinary
   // middleware can create/rebind a user, self-heal a member and update lastSeenAt.
   const tx: any = {
@@ -45,7 +49,7 @@ function fixture(path = '/api/me', host = previewHost, method = 'GET', originalU
     auditLog: { create: jest.fn() },
     impersonationSession: { findFirst: jest.fn() },
   };
-  const verify = jest.fn(async () => ({ ...claims }));
+  const verify = jest.fn(async () => ({ ...verifiedClaims }));
   const active = jest.fn(async () => ({ id: 'session_preview' }));
   const clerk = {
     verifySessionToken: verify,
@@ -93,7 +97,7 @@ describe('TenantContextMiddleware preview native GET context', () => {
     await h.middleware.use(h.request, h.response, h.next);
     expect(h.next).toHaveBeenCalledTimes(1);
     expect(h.verify).toHaveBeenCalledWith('native-session');
-    expect(h.active).toHaveBeenCalledWith(expect.objectContaining({ sub: claims.sub }));
+    expect(h.active).toHaveBeenCalledWith(expect.objectContaining({ sub: claims.sub, sid: claims.sid, exp: claims.exp }));
     expect(h.verify.mock.invocationCallOrder[0]).toBeLessThan(h.active.mock.invocationCallOrder[0]!);
     expect(h.active.mock.invocationCallOrder[0]).toBeLessThan(h.system.mock.invocationCallOrder[0]!);
     expect(h.tx.user.findUnique).toHaveBeenCalledTimes(1);
@@ -133,6 +137,39 @@ describe('TenantContextMiddleware preview native GET context', () => {
     expect(h.tx.user.findUnique).toHaveBeenCalledWith({ where: { clerkUserId: claims.sub } });
     expect(h.headers.get('cache-control')).toBe('no-store');
     expectNoLocalMutation(h.mutations);
+  });
+
+  it.each(['GET', 'HEAD'])('checks native authority for absolute-form %s', async (method) => {
+    const h = fixture('/api/me', previewHost, method, `http://${previewHost}/api/me`);
+    await h.middleware.use(h.request, h.response, h.next);
+    expect(h.next).toHaveBeenCalledTimes(1);
+    expect(h.active).toHaveBeenCalledWith(expect.objectContaining({ sid: claims.sid, sub: claims.sub }));
+    expect(h.active.mock.invocationCallOrder[0]).toBeLessThan(h.system.mock.invocationCallOrder[0]!);
+    expect(h.headers.get('cache-control')).toBe('no-store');
+    expectNoLocalMutation(h.mutations);
+  });
+
+  it.each([
+    { credential: 'sidless', verifiedClaims: { ...claims, sid: undefined } },
+    { credential: 'marked control', verifiedClaims: { ...claims, sid: undefined, meri_control_credential: true,
+      iat: claims.exp! - 60, jti: 'control_preview' } },
+    { credential: 'marked with sid', verifiedClaims: { ...claims, meri_control_credential: true,
+      iat: claims.exp! - 60, jti: 'control_preview' } },
+  ])('refuses a $credential credential on every preview read before local DB access', async ({ verifiedClaims }) => {
+    for (const [method, path, originalUrl] of [
+      ['GET', '/api/me', '/api/me'],
+      ['HEAD', '/api/clients', '/api/clients'],
+      ['GET', '/api/me', `http://${previewHost}/api/me`],
+      ['HEAD', '/api/me', `http://${previewHost}/api/me`],
+    ]) {
+      const h = fixture(path!, previewHost, method!, originalUrl!, verifiedClaims as ClerkSessionClaims);
+      await expect(h.middleware.use(h.request, h.response, h.next)).rejects.toMatchObject({ status: 401 });
+      expect(h.verify).toHaveBeenCalledTimes(1);
+      expect(h.system).not.toHaveBeenCalled();
+      expect(h.next).not.toHaveBeenCalled();
+      expect(h.headers.get('cache-control')).toBe('no-store');
+      expectNoLocalMutation(h.mutations);
+    }
   });
 
   it('refuses an unknown Clerk actor without an email fallback, create or identity rebind', async () => {

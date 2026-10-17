@@ -17,8 +17,7 @@ export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
 // Reserved alongside Meri and the hand-managed rules in
 // infra/routing/capiro-prod-alb-priorities.json. Neither rule is live merely
 // because this source is rendered; the retained guard is deployed separately.
-export const FIRST_CHAT_CORE_READ_PRIORITY = 3;
-export const FIRST_CHAT_CORE_GUARD_PRIORITY = 4;
+export const FIRST_CHAT_CORE_GUARD_PRIORITY = 3;
 export const FIRST_CHAT_CORE_GUARD_STACK_NAME = 'Capiro-Preview-First-Chat-Core-Guard';
 export const FIRST_CHAT_CORE_GUARD_RULE_EXPORT =
   'Capiro-Preview-First-Chat-Core-Guard-RuleArn';
@@ -240,8 +239,12 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     service.attachToApplicationTargetGroup(target);
 
     // ALB permits at most three path match evaluations per condition and five
-    // per rule. Keep every POST path exact in two rules. The separately owned
-    // host-only 404 guard prevents production /api/* fallback on this host.
+    // per rule. One anchored expression covers the four exact authority POST
+    // paths. Preserve both existing listener rule logical IDs so an in-place
+    // update remains possible if this stack owns the physical rules. Confirm
+    // that ownership from the current template before any application. The
+    // independently retained host-only 404 guard prevents production /api/*
+    // fallback on this host.
     const firstChatPosts = new elb.CfnListenerRule(this, 'FirstChatPostsOnly', {
       listenerArn: live.listenerArn,
       priority: 1,
@@ -250,10 +253,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         {
           field: 'path-pattern',
           pathPatternConfig: {
-            values: [
-              '/api/clio/conversations/bootstrap',
-              '/api/clio/application-authority/identity',
-              '/api/clio/application-authority/context',
+            regexValues: [
+              '^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$',
             ],
           },
         },
@@ -261,25 +262,11 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
-    const membershipPost = new elb.CfnListenerRule(this, 'FirstChatMembershipPostOnly', {
+    // This logical ID previously carried membership POST. Its ID remains
+    // stable while priority 2 now admits only the three browser GET reads.
+    const browserReads = new elb.CfnListenerRule(this, 'FirstChatMembershipPostOnly', {
       listenerArn: live.listenerArn,
       priority: 2,
-      conditions: [
-        { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
-        {
-          field: 'path-pattern',
-          pathPatternConfig: { values: ['/api/clio/application-authority/membership'] },
-        },
-        { field: 'http-request-method', httpRequestMethodConfig: { values: ['POST'] } },
-      ],
-      actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
-    });
-    // This rule admits only the three browser reads in the reviewed frontend
-    // source. Regex anchors exclude client descendants and all other methods.
-    // It must rank ahead of the independently retained host-only 404 guard.
-    new elb.CfnListenerRule(this, 'FirstChatReadsOnly', {
-      listenerArn: live.listenerArn,
-      priority: FIRST_CHAT_CORE_READ_PRIORITY,
       conditions: [
         { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
         {
@@ -303,7 +290,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     });
     // ECS registration requires the target group to be associated with the
     // listener before CreateService, even while desiredCount is zero.
-    service.node.addDependency(firstChatPosts, membershipPost);
+    service.node.addDependency(firstChatPosts, browserReads);
 
     new cdk.CfnOutput(this, 'CoreApiBaseUrl', {
       value: `https://${FIRST_CHAT_CORE_HOST}/api`,
