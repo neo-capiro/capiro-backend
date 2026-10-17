@@ -1,0 +1,9 @@
+{
+  "extends": "./intake.tsconfig.json",
+  "compilerOptions": { "strict": true, "skipLibCheck": true },
+  "files": [
+    "../../../apps/api-strategy/src/bootstrap/configure-strategy-body-parsers.ts",
+    "../../../apps/api-strategy/src/bootstrap/objective-generation-raw-body.int.spec.ts"
+  ],
+  "include": []
+}

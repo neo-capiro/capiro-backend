@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
-import { json } from 'express';
 import { AppModule } from './app.module.js';
 import { buildStrategyAllowedOrigins } from './cors-origins.js';
+import { configureStrategyBodyParsers } from './bootstrap/configure-strategy-body-parsers.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -24,8 +24,7 @@ async function bootstrap() {
   // ungated (no TenantGuard on the controller), mirroring meriv2-orchestrator.
   app.setGlobalPrefix('strategy-api');
 
-  // Standard JSON body parser with headroom for plan snapshots / draft payloads.
-  app.use(json({ limit: '8mb' }));
+  configureStrategyBodyParsers(app);
 
   // Strict input validation at the edge: drop unknown fields, fail closed on
   // malformed bodies. class-validator + class-transformer must be installed.
