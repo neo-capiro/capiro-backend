@@ -91,7 +91,8 @@ test('parses the protected native detail with proposal and server capabilities',
     controllingMemory: { itemId: memoryId, version: 2 },
     activeMemoryUnchanged: true,
   };
-  assert.deepEqual(parseMemoryReviewDetail(detail), detail);
+  assert.deepEqual(parseMemoryReviewDetail(detail, candidateId), detail);
+  assert.throws(() => parseMemoryReviewDetail(detail, requestId), /detail.candidateId/);
   assert.throws(
     () => parseMemoryReviewDetail({ ...detail, eligibleReviewers: [{ ...reviewer, role: 'owner' }] }),
     /eligibleReviewers\[0\].role/,

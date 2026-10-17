@@ -334,9 +334,12 @@ function timelineItem(value: unknown, path: string): MemoryReviewTimelineItem {
   };
 }
 
-export function parseMemoryReviewDetail(value: unknown): MemoryReviewDetail {
+export function parseMemoryReviewDetail(value: unknown, expectedCandidateId?: string): MemoryReviewDetail {
   const row = object(value, 'detail');
   const base = inboxItem(row, 'detail');
+  if (expectedCandidateId !== undefined && base.candidateId !== expectedCandidateId) {
+    invalid('detail.candidateId');
+  }
   const controlling = row.controllingMemory === null
     ? null
     : object(row.controllingMemory, 'detail.controllingMemory');
