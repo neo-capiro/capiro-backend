@@ -5,6 +5,9 @@ import type { ObjectiveWorkOwnerPort } from './objective-work.service.js';
 import { decodeObjectivePlannerApplied, requireObjectivePlannerAppliedOperation,
   type ObjectivePlannerAppliedOperation, type ObjectivePlannerAppliedPair } from './objective-planner-applied.js';
 import { verifyObjectivePlannerAppliedConsentWithinTx } from './objective-planner-consent-proof.js';
+import { verifyObjectivePlannerCurrentConsentWithinTx } from './objective-planner-current-consent-proof.js';
+import { readObjectivePlannerRetainedAnchorWithinTx,
+  type RetainedAnchorOperation } from './objective-planner-retained-anchor.js';
 import { verifyObjectivePlannerHistoricalConsentWithinTx,
   objectivePlannerHistoricalReceiptIds, type ObjectivePlannerHistoricalConsentProof } from './objective-planner-historical-proof.js';
 import { objectivePlannerAdvancedSource, verifiedObjectivePlannerRegenerationWitness,
@@ -20,7 +23,7 @@ type Resource = { id: string; tenantId: string; ownerId: string; projectId: stri
 type Operation = { schemaVersion: 1; namespace: string; tenantId: string; clerkUserId: string;
   membershipId: string; work: Json; original: Json; state: string; lease: Json | null; terminal: Json | null };
 type OwnerReconciliation = WorkReconciliation & { regeneration?: ObjectivePlannerRegenerationWitness };
-type Accounting = { evidence: OwnerReconciliation; operation: Operation | null };
+type Accounting = { evidence: OwnerReconciliation; operation: Operation | null; statusOnly?: true };
 const PLAN = 'objective.plan.prepare';
 const OPERATION = 'objective_planner_continuation_operation';
 const APPLICATION = 'objective_canonical_application_receipt';
@@ -142,6 +145,7 @@ function resourceCanonical(row: Resource) {
  */
 export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
   private readonly gates = new WeakMap<Tx, string>();
+  private readonly statusReads = new WeakSet<Tx>();
   private readonly accounting = new WeakMap<Tx, { key: string; value: Accounting }>();
   private readonly enabled: boolean;
   private readonly duration: number | null;
@@ -154,11 +158,13 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
   async lockWithinTx(tx: Tx, ctx: TenantContext, request: WorkRequest): Promise<void> {
     if (request.command.workAction !== PLAN) return;
     await this.lockPlanner(tx, ctx);
+    this.statusReads.delete(tx);
   }
   /** WorkService must call this before its currentAuthority/state read locks. */
   async lockReadWithinTx(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void> {
     if (request.workAction !== PLAN) return;
     await this.lockPlanner(tx, ctx);
+    this.statusReads.add(tx);
   }
   private async lockPlanner(tx: Tx, ctx: TenantContext): Promise<void> {
     uuid(ctx.tenantId);
@@ -302,7 +308,20 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
     }
     const operation = operations[0] ?? null;
     if (!operation) {
-      if (currentResources.length !== 0 || predecessorResources.length !== 0 || predecessorOperations.length !== 0) fail();
+      if (currentResources.length !== 0) fail();
+      if (predecessorResources.length !== 0 || predecessorOperations.length !== 0) {
+        const control = state.control;
+        if (!this.statusReads.has(tx) || advanced || !consent || !control || originalVersion === null || originalClerk === null) return fail();
+        const currentConsent = await verifyObjectivePlannerCurrentConsentWithinTx(tx, a, state);
+        if (currentConsent.controlVersion !== originalVersion || currentConsent.originalClerkUserId !== originalClerk) fail();
+        const retained = await readObjectivePlannerRetainedAnchorWithinTx(tx, { authority: a, state, currentConsent,
+          operations: predecessorOperations as unknown as RetainedAnchorOperation[], resources: predecessorResources });
+        await this.requireHistoricalEffectAccounting(tx, a, control.id, historicalTerminals,
+          predecessorOperations, retained.decoded.applications, historicalProofs, historicalReceipts, predecessorResources);
+        // Current-consent read status only. Retained older output custody is not
+        // new consent/effect authority; policy must reject this cached result.
+        return { operation: null, evidence: { ...base, state: 'not_started' }, statusOnly: true };
+      }
       if ([...historicalReceipts.values()].some(receipts => receipts.length !== 0)) fail();
       await this.requireNoOutputs(tx, a, source);
       return { operation: null, evidence: { ...base, state: 'not_started' } };
@@ -411,7 +430,8 @@ export class ObjectivePlannerWorkOwner implements ObjectiveWorkOwnerPort {
     if (action !== PLAN || !this.enabled || this.duration === null || this.gates.get(tx) !== a.tenantId)
       return workFailure('AUTHORITY_UNAVAILABLE');
     const accounted = this.accounting.get(tx);
-    if (!accounted || accounted.key !== this.key(a, state) || !['not_started', 'accounted'].includes(accounted.value.evidence.state) ||
+    if (!accounted || accounted.value.statusOnly || accounted.key !== this.key(a, state) ||
+        !['not_started', 'accounted'].includes(accounted.value.evidence.state) ||
         accounted.value.evidence.outcome === 'applied' &&
         !verifiedObjectivePlannerRegenerationWitness(accounted.value.evidence.regeneration, a, state))
       return workFailure('AUTHORITY_UNAVAILABLE');

@@ -300,9 +300,38 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     const originalOperation = before.resources.find(r => r.kind === PLANNER_CONTINUATION_OPERATION)!;
     const advanced = await advanceObjectivePlannerNativeReadySource(core, client.ctx, f);
     const receipt = await client.work.command(client.ctx, transport, request(f, advanced));
+    // Explicit synthetic human edit to an existing native output identity;
+    // immutable application/owner receipts and their head remain untouched.
+    const editedProject = await prisma.withTenant(f.tenantId, async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`planner:${f.tenantId}`},0))`;
+      const project = await tx.spPlannerProject.findFirst({ where: { tenantId: f.tenantId, id: f.canonical.canonicalProjectId } });
+      expect(project).not.toBeNull();
+      return tx.spPlannerProject.update({ where: { id: project!.id }, data: {
+        data: { ...(project!.data as Json), name: 'Human edited retained project' }, version: { increment: 1 } } });
+    });
+    const pending = await client.work.read(client.ctx, transport, { clientId: f.source.clientId,
+      objectiveId: f.source.objectiveId, workAction: PLAN, requestId: receipt.requestId });
+    expect(pending.reconciliation).toBe('not_started');
+    expect(pending.control).toEqual({ version: receipt.controlVersionAfter,
+      currentAuthorizationRequestId: receipt.authorizationRequestId, cancelledAt: null });
+    expect(pending.consent).toMatchObject(receipt.consent!); expect(pending.commandReceipt).toEqual(receipt);
+    expect(await prisma.withTenant(f.tenantId, tx => tx.spPlannerProject.findFirst({
+      where: { tenantId: f.tenantId, id: editedProject.id } }))).toEqual(editedProject);
+    const retained = await audit(f); expect(retained.resources).toEqual(before.resources);
+    const extraRetry = parseWorkCommand(f.source.clientId, f.source.objectiveId, { schemaVersion: 1,
+      requestId: f.id('core-native-retained-head-status-only'), command: 'retry', workAction: PLAN,
+      expectedObjectiveVersion: advanced.source.objectiveVersion,
+      expectedCanonicalBindingVersion: advanced.canonical.bindingVersion,
+      expectedControlVersion: receipt.controlVersionAfter, targetAuthorizationRequestId: receipt.authorizationRequestId });
+    await expect(client.work.command(client.ctx, transport, extraRetry)).rejects.toMatchObject({ code: 'OUTCOME_UNCONFIRMED' });
+    expect(await audit(f)).toEqual(retained);
     const generated = await seedObjectivePlannerCoreNativeRegeneration(prisma, f, advanced, receipt);
+    const requestRechecks = client.proofRechecks();
+    // A separate server runtime consumes the durable accepted generation. It
+    // receives no browser transport or request-local proof callback.
     const result = await runtime().consumeJob(generated.scope);
     expect(result.outcome).toBe('applied');
+    expect(client.proofRechecks()).toBe(requestRechecks);
     const after = await audit(f), operations = after.resources.filter(r => r.kind === PLANNER_CONTINUATION_OPERATION);
     expect(operations).toHaveLength(2);
     expect(operations.find(r => r.id === originalOperation.id)).toEqual(originalOperation);
@@ -328,5 +357,34 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     expect(status.consent).toMatchObject(receipt.consent!);
     expect(status.commandReceipt).toEqual(receipt);
     expect(await audit(f)).toEqual(after);
+    const projectAfter = await prisma.withTenant(f.tenantId, tx => tx.spPlannerProject.findFirst({
+      where: { tenantId: f.tenantId, id: editedProject.id } }));
+    expect((projectAfter!.data as Json).name).toBe('Human edited retained project');
+    const originalFixtureSource = applicationHash({ canonical: f.canonical, source: f.source, plannerConsentId: f.plannerConsentId });
+    const currentFixture = { ...f, canonical: advanced.canonical, source: advanced.source,
+      plannerConsentId: receipt.authorizationRequestId! };
+    const thirdReady = await advanceObjectivePlannerNativeReadySource(core, client.ctx, currentFixture);
+    expect(applicationHash({ canonical: f.canonical, source: f.source, plannerConsentId: f.plannerConsentId })).toBe(originalFixtureSource);
+    const thirdRequest = parseWorkCommand(f.source.clientId, f.source.objectiveId, { schemaVersion: 1,
+      requestId: f.id('core-native-next-ready-after-v3'), command: 'retry', workAction: PLAN,
+      expectedObjectiveVersion: thirdReady.source.objectiveVersion,
+      expectedCanonicalBindingVersion: thirdReady.canonical.bindingVersion,
+      expectedControlVersion: receipt.controlVersionAfter, targetAuthorizationRequestId: receipt.authorizationRequestId });
+    const thirdReceipt = await client.work.command(client.ctx, transport, thirdRequest);
+    expect(thirdReceipt.outcome).toBe('reconsent_recorded');
+    expect(thirdReceipt.controlVersionAfter).toBe(receipt.controlVersionAfter + 1);
+    const pendingV3 = await client.work.read(client.ctx, transport, { clientId: f.source.clientId,
+      objectiveId: f.source.objectiveId, workAction: PLAN, requestId: thirdReceipt.requestId });
+    expect(pendingV3.reconciliation).toBe('not_started');
+    expect(pendingV3.control.currentAuthorizationRequestId).toBe(thirdReceipt.authorizationRequestId);
+    expect(pendingV3.control.version).toBe(thirdReceipt.controlVersionAfter);
+    expect(pendingV3.consent).toMatchObject(thirdReceipt.consent!); expect(pendingV3.commandReceipt).toEqual(thirdReceipt);
+    const afterThird = await audit(f);
+    expect(afterThird.resources).toEqual(after.resources);
+    expect(afterThird.consents.filter(c => c.id !== thirdReceipt.authorizationRequestId)).toEqual(after.consents);
+    expect(afterThird.commands.filter(c => c.id !== thirdReceipt.receiptId)).toEqual(after.commands);
+    expect(afterThird.controls.filter(c => c.work_action === STRATEGY)).toEqual(after.controls.filter(c => c.work_action === STRATEGY));
+    expect(await prisma.withTenant(f.tenantId, tx => tx.spPlannerProject.findFirst({
+      where: { tenantId: f.tenantId, id: editedProject.id } }))).toEqual(projectAfter);
   }, 30_000);
 });
