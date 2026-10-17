@@ -1,0 +1,18 @@
+{
+  "sourceHead": "57f8c8047a73df6d4a73351a98a5239f38240a24",
+  "sourceTree": "cb2ac7d883290741e95d4dffa0f67406ed8e87e4",
+  "runId": "8ad115502b154a41b33f9d59c38fc628",
+  "recordedPid": 18236,
+  "recordedPidAbsent": true,
+  "ownedRootAbsent": true,
+  "privateListenerAbsent": true,
+  "host5432Pid4936Listeners": [
+    "TCP    0.0.0.0:5432           0.0.0.0:0              LISTENING       4936",
+    "TCP    [::]:5432              [::]:0                 LISTENING       4936"
+  ],
+  "host5432Preserved": true,
+  "freeBytes": 5107433472,
+  "sourceClean": true,
+  "nativeClean": true,
+  "observedAtUtc": "2026-10-17T02:47:42.4251545Z"
+}

@@ -363,6 +363,23 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     const projectAfter = await prisma.withTenant(f.tenantId, tx => tx.spPlannerProject.findFirst({
       where: { tenantId: f.tenantId, id: editedProject.id } }));
     expect((projectAfter!.data as Json).name).toBe('Human edited retained project');
+    const outputRequest = { clientId: f.source.clientId, objectiveId: f.source.objectiveId, workAction: PLAN,
+      source: { revision: { id: advanced.source.objectiveRevisionId, version: advanced.source.objectiveVersion },
+        canonicalBindingVersion: advanced.canonical.bindingVersion } };
+    const received = await client.work.outputs(client.ctx, transport, outputRequest);
+    expect(received.scope).toBe('planner_project_receipts'); expect(received.taskDiscovery).toBe('unsupported');
+    expect(received.selectedSource).toEqual(outputRequest.source);
+    expect(received.observation.state).toBe('applied'); expect(received.observation.strategy).toEqual({ availability: 'unavailable' });
+    const project = received.observation.planner.projects[0]!;
+    const originalOwner = before.resources.find(r => r.kind === 'objective_canonical_materialization_receipt')!;
+    const currentOwner = owners.find(r => r.data.binding.canonical.bindingVersion === advanced.canonical.bindingVersion)!;
+    expect(project.creation).toEqual({ receiptVersion: 2, recordedAt: originalOwner.data.result.recordedAt,
+      version: originalOwner.data.result.projects[0].output.createdVersion });
+    expect(project.application).toEqual({ receiptVersion: 3, recordedAt: currentOwner.data.result.recordedAt });
+    expect(project.current).toEqual({ selection: { kind: 'planner_project', id: editedProject.id },
+      title: 'Human edited retained project', ownerVersion: { kind: 'counter', value: projectAfter!.version },
+      observedAt: received.observedAt });
+    expect(await audit(f)).toEqual(after);
     const originalFixtureSource = applicationHash({ canonical: f.canonical, source: f.source, plannerConsentId: f.plannerConsentId });
     const currentFixture = { ...f, canonical: advanced.canonical, source: advanced.source,
       plannerConsentId: receipt.authorizationRequestId! };
@@ -389,6 +406,24 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     expect(afterThird.controls.filter(c => c.work_action === STRATEGY)).toEqual(after.controls.filter(c => c.work_action === STRATEGY));
     expect(await prisma.withTenant(f.tenantId, tx => tx.spPlannerProject.findFirst({
       where: { tenantId: f.tenantId, id: editedProject.id } }))).toEqual(projectAfter);
+    // Mutable output access is a separate current observation. The archived
+    // known identity still belongs to the full retained native ancestry; the
+    // public read must nevertheless withhold its selector and metadata.
+    await prisma.withTenant(f.tenantId, async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`planner:${f.tenantId}`},0))`;
+      await tx.spPlannerProject.update({ where: { id: editedProject.id },
+        data: { archived: true, version: { increment: 1 } } });
+    });
+    const inaccessible = await client.work.outputs(client.ctx, transport, outputRequest);
+    expect(inaccessible.requestedSource).toEqual({ revision: { id: thirdReady.source.objectiveRevisionId,
+      version: thirdReady.source.objectiveVersion }, canonicalBindingVersion: thirdReady.canonical.bindingVersion });
+    expect(inaccessible.selectedSource).toEqual(outputRequest.source);
+    expect(inaccessible.observation.state).toBe('applied');
+    expect(inaccessible.observation.planner).toEqual({ availability: 'unavailable', projects: [
+      { availability: 'unavailable', creation: null, application: null, current: null },
+    ] });
+    expect(JSON.stringify(inaccessible.observation)).not.toContain(editedProject.id);
+    expect(await audit(f)).toEqual(afterThird);
   }, 30_000);
 
   test('expired unused Planner consent permits a fresh human consent through its full retained chain and separate runtime', async () => {

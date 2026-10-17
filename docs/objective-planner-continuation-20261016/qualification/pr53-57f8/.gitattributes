@@ -1,0 +1,9 @@
+* -text
+commands.log.txt -whitespace
+sourceplan.json -whitespace
+owned-target.json -whitespace
+outcome.json -whitespace
+cleanup.json -whitespace
+postgres-sanitized.log.txt -whitespace
+postrun-verification.json -whitespace
+independent-review.md -whitespace
