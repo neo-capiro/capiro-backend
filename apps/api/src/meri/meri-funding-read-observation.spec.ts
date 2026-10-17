@@ -12,6 +12,8 @@ import {
   currentMeriReadAsOf,
   withMeriFundingReadObservation,
   withMeriReadObservation,
+  MERI_EVIDENCE_MODE_READS,
+  currentMeriEvidenceAccuracyMode,
 } from './meri-funding-read-observation.js';
 
 // neo-capiro/meri-greenfield@b4daa4adf6e8269e7c341751db9a02bf6d4f062b,
@@ -354,5 +356,76 @@ describe('client knowledge read observation', () => {
       )).toBe(AS_OF);
       expect(currentMeriReadAsOf(KB_NAME)).toBe(AS_OF);
     });
+  });
+});
+
+type ModeVector = { operation: { id: string; version: string }; request: Record<string, unknown>; context: { evidenceAccuracyMode: 'off'|'shadow'|'enforce' }; requestCanonicalJson: string; requestSha256: string; canonicalJson: string; decodedBytes: number; observationSha256: string; carrier: string };
+const MODE_VECTORS = (JSON.parse(readFileSync(join(__dirname, '../../../../docs/coordination/proposals/native-read-mode-20261017/golden.json'), 'utf8')) as {vectors: ModeVector[]}).vectors;
+function modeCarrier(vector: ModeVector, context: Record<string, unknown>) {
+  const value = JSON.parse(vector.canonicalJson);
+  value.context = Object.fromEntries(Object.entries(context).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+}
+describe('finite current-mode read observation', () => {
+  const originalEnv = process.env;
+  const tenantId = '11111111-1111-4111-8111-111111111111';
+  beforeEach(() => { process.env = { ...originalEnv, MERI_EVIDENCE_ACCURACY_TENANTS: tenantId, MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' }; });
+  afterEach(() => { process.env = originalEnv; });
+
+  it('admits the exact independent Meri literal vectors and canonical raw-body hashes for all five arms', () => {
+    expect(MODE_VECTORS.map(v => v.operation.id)).toEqual([...MERI_EVIDENCE_MODE_READS]);
+    for (const vector of MODE_VECTORS) {
+      expect(createHash('sha256').update(vector.requestCanonicalJson, 'utf8').digest('hex')).toBe(vector.requestSha256);
+      const decoded = Buffer.from(vector.carrier, 'base64url');
+      expect(decoded.toString('utf8')).toBe(vector.canonicalJson); expect(decoded.byteLength).toBe(vector.decodedBytes);
+      expect(createHash('sha256').update(decoded).digest('hex')).toBe(vector.observationSha256);
+      const req = request(vector.carrier, SECRET, vector.operation.id); guardRequest(req);
+      expect(admitMeriReadObservation(vector.operation.id, vector.request, req)).toEqual({ operationId: vector.operation.id, evidenceAccuracyMode: vector.context.evidenceAccuracyMode });
+      expect(() => admitMeriFundingReadObservation(vector.operation.id, vector.request, req)).toThrow(BadRequestException);
+    }
+  });
+
+  it.each(MERI_EVIDENCE_MODE_READS)('compares and consumes all three actual enums for %s', name => {
+    const vector = MODE_VECTORS.find(v => v.operation.id === name)!;
+    for (const mode of ['off', 'shadow', 'enforce'] as const) {
+      process.env.MERI_EVIDENCE_ACCURACY_MODE = mode;
+      const req = request(modeCarrier(vector, {evidenceAccuracyMode: mode}), SECRET, name); guardRequest(req);
+      const observation = admitMeriReadObservation(name, vector.request, req)!;
+      expect(withMeriReadObservation(observation, () => currentMeriEvidenceAccuracyMode(name, tenantId))).toBe(mode);
+    }
+    expect(currentMeriEvidenceAccuracyMode(name, tenantId)).toBeUndefined();
+  });
+
+  it('refuses wrong contexts, operation/version/body and genuine-service absence before producer work', () => {
+    const vector = MODE_VECTORS[0]!;
+    for (const context of [{}, {asOf: AS_OF}, {evidenceAccuracyMode: 'OFF'}, {evidenceAccuracyMode: null}, {evidenceAccuracyMode: 1}, {evidenceAccuracyMode: 'off', rolloutRevision: 'a'.repeat(64)}, {asOf: AS_OF, evidenceAccuracyMode: 'off'}]) {
+      const req = request(modeCarrier(vector, context), SECRET, vector.operation.id); guardRequest(req);
+      expect(() => admitMeriReadObservation(vector.operation.id, vector.request, req)).toThrow(BadRequestException);
+    }
+    const req = request(vector.carrier, SECRET, vector.operation.id); guardRequest(req);
+    expect(() => admitMeriReadObservation(vector.operation.id, {...vector.request, query: 'changed'}, req)).toThrow(BadRequestException);
+    expect(() => admitMeriReadObservation('search_federal_awards', vector.request, req)).toThrow(BadRequestException);
+    const unverified = request(vector.carrier, 'wrong', vector.operation.id); guardRequest(unverified);
+    expect(() => admitMeriReadObservation(vector.operation.id, vector.request, unverified)).toThrow(ForbiddenException);
+  });
+
+  it('refuses policy and operation mismatch, preserving funding/KB isolation', () => {
+    process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
+    expect(() => withMeriReadObservation({operationId: 'search_federal_grants', evidenceAccuracyMode: 'shadow'}, () => currentMeriEvidenceAccuracyMode('search_federal_grants', tenantId))).toThrow('Current read mode changed');
+    withMeriReadObservation({operationId: 'search_federal_grants', evidenceAccuracyMode: 'off'}, () => {
+      expect(() => currentMeriEvidenceAccuracyMode('search_federal_awards', tenantId)).toThrow(ForbiddenException);
+      expect(() => currentMeriReadAsOf(KB_NAME)).toThrow(ForbiddenException);
+      expect(withMeriReadObservation({operationId: KB_NAME, asOf: AS_OF}, () => currentMeriReadAsOf(KB_NAME))).toBe(AS_OF);
+    });
+    // Configuration history adds no semantics when the actual consumed enum is again identical.
+    process.env.MERI_EVIDENCE_ACCURACY_MODE = 'shadow'; process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
+    expect(withMeriReadObservation({operationId: 'search_federal_grants', evidenceAccuracyMode: 'off'}, () => currentMeriEvidenceAccuracyMode('search_federal_grants', tenantId))).toBe('off');
+  });
+
+  it('keeps concurrent mode contexts request-local across asynchronous boundaries', async () => {
+    process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
+    await Promise.all(MERI_EVIDENCE_MODE_READS.map(operationId => withMeriReadObservation({operationId, evidenceAccuracyMode: 'off'}, async () => {
+      await Promise.resolve(); expect(currentMeriEvidenceAccuracyMode(operationId, tenantId)).toBe('off');
+    })));
   });
 });

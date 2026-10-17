@@ -1,0 +1,163 @@
+{
+  "status": "Source-only candidate; no installed or live qualification. Preserve original funding and KB fixtures unchanged.",
+  "vectors": [
+    {
+      "operation": {
+        "id": "search_federal_grants",
+        "version": "0.2.0"
+      },
+      "request": {
+        "query": "  énergie 🚀  ",
+        "agency": " Synthetic agency ",
+        "status": "posted",
+        "limit": "2.9"
+      },
+      "context": {
+        "evidenceAccuracyMode": "off"
+      },
+      "requestCanonicalJson": "{\"agency\":\" Synthetic agency \",\"limit\":\"2.9\",\"query\":\"  énergie 🚀  \",\"status\":\"posted\"}",
+      "requestSha256": "1ab5dc74355182d5cc303b06fc9fd76f8d7b9a6584e2f35bbeafa15efafd6c41",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "search_federal_grants",
+          "version": "0.2.0"
+        },
+        "requestSha256": "1ab5dc74355182d5cc303b06fc9fd76f8d7b9a6584e2f35bbeafa15efafd6c41",
+        "context": {
+          "evidenceAccuracyMode": "off"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"evidenceAccuracyMode\":\"off\"},\"operation\":{\"id\":\"search_federal_grants\",\"version\":\"0.2.0\"},\"requestSha256\":\"1ab5dc74355182d5cc303b06fc9fd76f8d7b9a6584e2f35bbeafa15efafd6c41\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 235,
+      "observationSha256": "a49dec2f45bebd9bda2424b38d46af5b2fcd0e2b4b13767bd23db15cf092eb7d",
+      "carrier": "eyJjb250ZXh0Ijp7ImV2aWRlbmNlQWNjdXJhY3lNb2RlIjoib2ZmIn0sIm9wZXJhdGlvbiI6eyJpZCI6InNlYXJjaF9mZWRlcmFsX2dyYW50cyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiMWFiNWRjNzQzNTUxODJkNWNjMzAzYjA2ZmM5ZmQ3NmY4ZDdiOWE2NTg0ZTJmMzViYmVhZmExNWVmYWZkNmM0MSIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ"
+    },
+    {
+      "operation": {
+        "id": "search_federal_awards",
+        "version": "0.2.0"
+      },
+      "request": {
+        "query": "  énergie 🚀  ",
+        "agency": null,
+        "peCode": " 0601000a ",
+        "page": "2",
+        "limit": "2.9"
+      },
+      "context": {
+        "evidenceAccuracyMode": "shadow"
+      },
+      "requestCanonicalJson": "{\"agency\":null,\"limit\":\"2.9\",\"page\":\"2\",\"peCode\":\" 0601000a \",\"query\":\"  énergie 🚀  \"}",
+      "requestSha256": "89b417849476936dea6090935eb856f97be6a60124b2f61e51aa1cb2255d62d2",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "search_federal_awards",
+          "version": "0.2.0"
+        },
+        "requestSha256": "89b417849476936dea6090935eb856f97be6a60124b2f61e51aa1cb2255d62d2",
+        "context": {
+          "evidenceAccuracyMode": "shadow"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"evidenceAccuracyMode\":\"shadow\"},\"operation\":{\"id\":\"search_federal_awards\",\"version\":\"0.2.0\"},\"requestSha256\":\"89b417849476936dea6090935eb856f97be6a60124b2f61e51aa1cb2255d62d2\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 238,
+      "observationSha256": "6ec198f4dba8ede420fe4a4adad78e356986224194e7d15110226cb223448c4d",
+      "carrier": "eyJjb250ZXh0Ijp7ImV2aWRlbmNlQWNjdXJhY3lNb2RlIjoic2hhZG93In0sIm9wZXJhdGlvbiI6eyJpZCI6InNlYXJjaF9mZWRlcmFsX2F3YXJkcyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiODliNDE3ODQ5NDc2OTM2ZGVhNjA5MDkzNWViODU2Zjk3YmU2YTYwMTI0YjJmNjFlNTFhYTFjYjIyNTVkNjJkMiIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ"
+    },
+    {
+      "operation": {
+        "id": "search_program_elements",
+        "version": "0.2.0"
+      },
+      "request": {
+        "query": "  énergie 🚀  ",
+        "q": "ignored alias",
+        "service": " Army ",
+        "budgetActivity": null,
+        "hasData": true,
+        "page": "2.9",
+        "limit": "2.9"
+      },
+      "context": {
+        "evidenceAccuracyMode": "enforce"
+      },
+      "requestCanonicalJson": "{\"budgetActivity\":null,\"hasData\":true,\"limit\":\"2.9\",\"page\":\"2.9\",\"q\":\"ignored alias\",\"query\":\"  énergie 🚀  \",\"service\":\" Army \"}",
+      "requestSha256": "3c6e9bba4413f2935ceff31b97fa9e9dce3b2720da095d76bc1b7b210a494dd9",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "search_program_elements",
+          "version": "0.2.0"
+        },
+        "requestSha256": "3c6e9bba4413f2935ceff31b97fa9e9dce3b2720da095d76bc1b7b210a494dd9",
+        "context": {
+          "evidenceAccuracyMode": "enforce"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"evidenceAccuracyMode\":\"enforce\"},\"operation\":{\"id\":\"search_program_elements\",\"version\":\"0.2.0\"},\"requestSha256\":\"3c6e9bba4413f2935ceff31b97fa9e9dce3b2720da095d76bc1b7b210a494dd9\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 241,
+      "observationSha256": "ccd1dd102bbe3eb51ab9c33c46ad0fa1e0c4e8f7a1d7b7b3a22fcdf5fb2bff4f",
+      "carrier": "eyJjb250ZXh0Ijp7ImV2aWRlbmNlQWNjdXJhY3lNb2RlIjoiZW5mb3JjZSJ9LCJvcGVyYXRpb24iOnsiaWQiOiJzZWFyY2hfcHJvZ3JhbV9lbGVtZW50cyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiM2M2ZTliYmE0NDEzZjI5MzVjZWZmMzFiOTdmYTllOWRjZTNiMjcyMGRhMDk1ZDc2YmMxYjdiMjEwYTQ5NGRkOSIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ"
+    },
+    {
+      "operation": {
+        "id": "get_program_element",
+        "version": "0.2.0"
+      },
+      "request": {
+        "peCode": " 0601000A "
+      },
+      "context": {
+        "evidenceAccuracyMode": "off"
+      },
+      "requestCanonicalJson": "{\"peCode\":\" 0601000A \"}",
+      "requestSha256": "e5abe5d40acabb7f61fe949b6d7ef19f80bf3c323e6eeedea850bc5fd0873509",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "get_program_element",
+          "version": "0.2.0"
+        },
+        "requestSha256": "e5abe5d40acabb7f61fe949b6d7ef19f80bf3c323e6eeedea850bc5fd0873509",
+        "context": {
+          "evidenceAccuracyMode": "off"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"evidenceAccuracyMode\":\"off\"},\"operation\":{\"id\":\"get_program_element\",\"version\":\"0.2.0\"},\"requestSha256\":\"e5abe5d40acabb7f61fe949b6d7ef19f80bf3c323e6eeedea850bc5fd0873509\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 233,
+      "observationSha256": "026552a1afcb3a4285260142423d9c58f9cdff88385a5faa3e7ea3c02f5d6fde",
+      "carrier": "eyJjb250ZXh0Ijp7ImV2aWRlbmNlQWNjdXJhY3lNb2RlIjoib2ZmIn0sIm9wZXJhdGlvbiI6eyJpZCI6ImdldF9wcm9ncmFtX2VsZW1lbnQiLCJ2ZXJzaW9uIjoiMC4yLjAifSwicmVxdWVzdFNoYTI1NiI6ImU1YWJlNWQ0MGFjYWJiN2Y2MWZlOTQ5YjZkN2VmMTlmODBiZjNjMzIzZTZlZWVkZWE4NTBiYzVmZDA4NzM1MDkiLCJzY2hlbWFWZXJzaW9uIjoibWVyaS1uYXRpdmUtcmVhZC1vYnNlcnZhdGlvbi8xIn0"
+    },
+    {
+      "operation": {
+        "id": "get_pe_budget_timeline",
+        "version": "0.2.0"
+      },
+      "request": {
+        "peCode": " 0601000A "
+      },
+      "context": {
+        "evidenceAccuracyMode": "shadow"
+      },
+      "requestCanonicalJson": "{\"peCode\":\" 0601000A \"}",
+      "requestSha256": "e5abe5d40acabb7f61fe949b6d7ef19f80bf3c323e6eeedea850bc5fd0873509",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "get_pe_budget_timeline",
+          "version": "0.2.0"
+        },
+        "requestSha256": "e5abe5d40acabb7f61fe949b6d7ef19f80bf3c323e6eeedea850bc5fd0873509",
+        "context": {
+          "evidenceAccuracyMode": "shadow"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"evidenceAccuracyMode\":\"shadow\"},\"operation\":{\"id\":\"get_pe_budget_timeline\",\"version\":\"0.2.0\"},\"requestSha256\":\"e5abe5d40acabb7f61fe949b6d7ef19f80bf3c323e6eeedea850bc5fd0873509\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 239,
+      "observationSha256": "02ed5fcfa6aeecb14b6ed1cf326ddd82d88677633d554febb1af3187a54a9f99",
+      "carrier": "eyJjb250ZXh0Ijp7ImV2aWRlbmNlQWNjdXJhY3lNb2RlIjoic2hhZG93In0sIm9wZXJhdGlvbiI6eyJpZCI6ImdldF9wZV9idWRnZXRfdGltZWxpbmUiLCJ2ZXJzaW9uIjoiMC4yLjAifSwicmVxdWVzdFNoYTI1NiI6ImU1YWJlNWQ0MGFjYWJiN2Y2MWZlOTQ5YjZkN2VmMTlmODBiZjNjMzIzZTZlZWVkZWE4NTBiYzVmZDA4NzM1MDkiLCJzY2hlbWFWZXJzaW9uIjoibWVyaS1uYXRpdmUtcmVhZC1vYnNlcnZhdGlvbi8xIn0"
+    }
+  ]
+}

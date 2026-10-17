@@ -20,7 +20,7 @@ import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
-import { currentMeriFundingReadAsOf, currentMeriReadAsOf } from './meri-funding-read-observation.js';
+import { currentMeriFundingReadAsOf, currentMeriReadAsOf, currentMeriEvidenceAccuracyMode, isMeriEvidenceModeRead } from './meri-funding-read-observation.js';
 
 const NAME = 'search_funding_opportunities';
 const BODY = {
@@ -42,10 +42,15 @@ const KB_BODY = {
 const KB_CARRIER = (JSON.parse(readFileSync(
   join(__dirname, '__fixtures__', 'native-kb-observation-0.2-golden.json'), 'utf8',
 )) as { vectors: [{ carrier: string }] }).vectors[0].carrier;
+const MODE_VECTORS = (JSON.parse(readFileSync(join(__dirname, '../../../../docs/coordination/proposals/native-read-mode-20261017/golden.json'), 'utf8')) as {
+  vectors: Array<{ operation: {id: string}; request: Record<string, unknown>; context: {evidenceAccuracyMode: string}; canonicalJson: string; carrier: string }>;
+}).vectors;
 
 describe('served finite funding observation', () => {
   let app: INestApplication;
-  const execute = jest.fn(async (_ctx: TenantContext, name: string) => ({
+  const execute = jest.fn(async (_ctx: TenantContext, name: string) => isMeriEvidenceModeRead(name) ? {
+    evidenceAccuracyMode: currentMeriEvidenceAccuracyMode(name, _ctx.tenantId) ?? null,
+  } : ({
     asOf: name === KB_NAME
       ? currentMeriReadAsOf(KB_NAME) ?? null
       : currentMeriFundingReadAsOf(name as typeof NAME)?.toISOString() ?? null,
@@ -161,5 +166,30 @@ describe('served finite funding observation', () => {
     await post(KB_NAME, { ...KB_BODY, query: KB_BODY.query.trim() }, SECRET, KB_CARRIER).expect(400);
     await post(KB_NAME, { ...KB_BODY, privateScope: true }, SECRET, KB_CARRIER).expect(400);
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each(MODE_VECTORS)('serves the original literal mode arm $operation.id through actual controller admission', async vector => {
+    const previous = process.env;
+    process.env = { ...previous, MERI_EVIDENCE_ACCURACY_MODE: vector.context.evidenceAccuracyMode,
+      MERI_EVIDENCE_ACCURACY_TENANTS: '11111111-1111-4111-8111-111111111111', MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' };
+    try {
+      expect((await post(vector.operation.id, vector.request, SECRET, vector.carrier).expect(200)).body)
+        .toEqual({ evidenceAccuracyMode: vector.context.evidenceAccuracyMode });
+      expect(execute).toHaveBeenCalledWith(expect.anything(), vector.operation.id, vector.request);
+    } finally { process.env = previous; }
+  });
+
+  it('refuses a changed mode and malformed/unverified carriers without clock fallback', async () => {
+    const previous = process.env, vector = MODE_VECTORS[0]!;
+    process.env = { ...previous, MERI_EVIDENCE_ACCURACY_MODE: 'enforce', MERI_EVIDENCE_ACCURACY_TENANTS: 'all', MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' };
+    try {
+      await post(vector.operation.id, vector.request, SECRET, vector.carrier).expect(403);
+      execute.mockClear();
+      await post(vector.operation.id, vector.request, undefined, vector.carrier).expect(403);
+      await post(vector.operation.id, { ...vector.request, query: 'changed' }, SECRET, vector.carrier).expect(400);
+      await post(NAME, vector.request, SECRET, vector.carrier).expect(400);
+      expect(execute).not.toHaveBeenCalled();
+      expect((await post(vector.operation.id, vector.request, 'wrong').expect(200)).body).toEqual({ evidenceAccuracyMode: null });
+    } finally { process.env = previous; }
   });
 });

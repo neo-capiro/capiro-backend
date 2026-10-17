@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { Request } from 'express';
 import { hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import type { CapabilityRolloutMode } from '@capiro/meriv2-core';
 
 const HEADER = 'x-meri-read-observation';
 const SCHEMA_VERSION = 'meri-native-read-observation/1';
@@ -17,12 +19,26 @@ const FUNDING_READS = [
 
 type FundingReadOperation = (typeof FUNDING_READS)[number];
 const KB_READ = 'search_client_knowledge' as const;
-type ObservedReadOperation = FundingReadOperation | typeof KB_READ;
+type ClockReadOperation = FundingReadOperation | typeof KB_READ;
+export const MERI_EVIDENCE_MODE_READS = [
+  'search_federal_grants',
+  'search_federal_awards',
+  'search_program_elements',
+  'get_program_element',
+  'get_pe_budget_timeline',
+] as const;
+export type MeriEvidenceModeReadOperation = (typeof MERI_EVIDENCE_MODE_READS)[number];
+type ObservedReadOperation = ClockReadOperation | MeriEvidenceModeReadOperation;
 
-export interface MeriReadObservation {
-  readonly operationId: ObservedReadOperation;
+interface MeriClockReadObservation {
+  readonly operationId: ClockReadOperation;
   readonly asOf: string;
 }
+export interface MeriEvidenceModeObservation {
+  readonly operationId: MeriEvidenceModeReadOperation;
+  readonly evidenceAccuracyMode: CapabilityRolloutMode;
+}
+export type MeriReadObservation = MeriClockReadObservation | MeriEvidenceModeObservation;
 
 export interface MeriFundingReadObservation {
   readonly operationId: FundingReadOperation;
@@ -86,7 +102,11 @@ function isFundingRead(name: string): name is FundingReadOperation {
 }
 
 function isObservedRead(name: string): name is ObservedReadOperation {
-  return isFundingRead(name) || name === KB_READ;
+  return isFundingRead(name) || name === KB_READ || isMeriEvidenceModeRead(name);
+}
+
+export function isMeriEvidenceModeRead(name: string): name is MeriEvidenceModeReadOperation {
+  return (MERI_EVIDENCE_MODE_READS as readonly string[]).includes(name);
 }
 
 function assertKnowledgeBody(body: Record<string, unknown>): void {
@@ -142,17 +162,21 @@ export function admitMeriReadObservation(
       operation.id !== name ||
       operation.version !== '0.2.0' ||
       !record(context) ||
-      !exactKeys(context, ['asOf']) ||
-      typeof context.asOf !== 'string' ||
-      !/^(?:[0-9]{4}|[+-][0-9]{6})-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/u.test(context.asOf) ||
       typeof value.requestSha256 !== 'string' ||
       !/^[a-f0-9]{64}$/u.test(value.requestSha256) ||
       value.requestSha256 !== createHash('sha256').update(canonicalJson(rawBody), 'utf8').digest('hex') ||
-      new Date(context.asOf).toISOString() !== context.asOf ||
       !Buffer.from(canonicalJson(value), 'utf8').equals(decoded)
     ) {
       return invalid();
     }
+    if (isMeriEvidenceModeRead(name)) {
+      if (!exactKeys(context, ['evidenceAccuracyMode']) ||
+          !['off', 'shadow', 'enforce'].includes(context.evidenceAccuracyMode as string)) invalid();
+      return Object.freeze({ operationId: name, evidenceAccuracyMode: context.evidenceAccuracyMode as CapabilityRolloutMode });
+    }
+    if (!exactKeys(context, ['asOf']) || typeof context.asOf !== 'string' ||
+        !/^(?:[0-9]{4}|[+-][0-9]{6})-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/u.test(context.asOf) ||
+        new Date(context.asOf).toISOString() !== context.asOf) invalid();
     return Object.freeze({ operationId: name, asOf: context.asOf });
   } catch {
     return invalid();
@@ -185,13 +209,30 @@ export function withMeriFundingReadObservation<T>(
   return withMeriReadObservation(observation, run);
 }
 
-export function currentMeriReadAsOf(name: ObservedReadOperation): string | undefined {
+export function currentMeriReadAsOf(name: ClockReadOperation): string | undefined {
   const observation = storage.getStore();
   if (!observation) return undefined;
-  if (observation.operationId !== name) {
+  if (observation.operationId !== name || !('asOf' in observation)) {
     throw new ForbiddenException('Funding read observation does not match this operation');
   }
   return observation.asOf;
+}
+
+/** Expected mode cannot select policy: compare the canonical current owner, then consume its actual enum. */
+export function currentMeriEvidenceAccuracyMode(
+  name: MeriEvidenceModeReadOperation,
+  tenantId: string | null | undefined,
+): CapabilityRolloutMode | undefined {
+  const observation = storage.getStore();
+  if (!observation) return undefined;
+  if (observation.operationId !== name || !('evidenceAccuracyMode' in observation)) {
+    throw new ForbiddenException('Read mode observation does not match this operation');
+  }
+  const actual = resolveEvidenceAccuracyModeForTenant(tenantId, 'chat');
+  if (actual !== observation.evidenceAccuracyMode) {
+    throw new ForbiddenException('Current read mode changed; reload');
+  }
+  return actual;
 }
 
 /** Pass undefined on the legacy path so the producer retains its own clock. */

@@ -7,10 +7,13 @@ import { AuthModule } from './auth.module.js';
 import { ApplicationAuthorityController } from './application-authority.controller.js';
 import { ApplicationMembershipController } from './application-membership.controller.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
+import { ApplicationReadModeObservationController } from './application-read-mode-observation.controller.js';
+import { ApplicationReadModeObservationService } from './application-read-mode-observation.service.js';
+import { ToolServiceSecretGuard } from '../meri/tool-service-secret.guard.js';
 
 @Module({
   imports: [AuthModule, TenantModule, PrismaModule, ContextSecurityScopeModule, BizDevMeriScopeModule],
-  controllers: [ApplicationAuthorityController, ApplicationMembershipController],
-  providers: [ApplicationMembershipService],
+  controllers: [ApplicationAuthorityController, ApplicationMembershipController, ApplicationReadModeObservationController],
+  providers: [ApplicationMembershipService, ApplicationReadModeObservationService, ToolServiceSecretGuard],
 })
 export class ApplicationAuthorityModule {}
