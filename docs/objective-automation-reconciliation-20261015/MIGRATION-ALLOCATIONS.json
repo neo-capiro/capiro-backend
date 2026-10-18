@@ -149,6 +149,26 @@
         "live migration execution",
         "grants on meri_commands.approval_metadata"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql",
+      "owner": "Core W8 Meri memory review submissions (Meri apps/control/memory/core-review.mjs)",
+      "workstream": "fable/core-integration-20261018",
+      "base": "b7c6e9cf",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018010000_clio_meri_approval_decisions)",
+      "allocatedAt": "2026-10-18T07:00:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018010000_clio_meri_approval_decisions",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable per-(tenant, candidate) submission ledger with RLS",
+        "stable reviewId for idempotent replay"
+      ],
+      "excluded": [
+        "live migration execution",
+        "memory_candidate or clio_memory schema changes"
+      ]
     }
   ]
 }

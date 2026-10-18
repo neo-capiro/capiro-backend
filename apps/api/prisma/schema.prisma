@@ -238,6 +238,7 @@ model Tenant {
   clioConversations                  ClioConversation[]
   clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
   clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
+  clioMeriMemorySubmissions          ClioMeriMemorySubmission[]
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
@@ -2319,6 +2320,23 @@ model ClioMeriApprovalDecision {
 
   @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
   @@map("clio_meri_approval_decisions")
+}
+
+/// W8 Meri memory review submissions (Meri `apps/control/memory/core-review.mjs`).
+/// Immutable; the pending memory_candidate row shares candidateId.
+model ClioMeriMemorySubmission {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  candidateId     String   @map("candidate_id") @db.Uuid
+  candidateSha256 String   @map("candidate_sha256") @db.Char(64)
+  proposerUserId  String   @map("proposer_user_id") @db.Uuid
+  reviewId        String   @unique(map: "clio_meri_memory_submissions_review_id_key") @map("review_id") @db.Uuid
+  candidate       Json
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_memory_submissions_tenant_fkey")
+
+  @@id([tenantId, candidateId], map: "clio_meri_memory_submissions_pkey")
+  @@map("clio_meri_memory_submissions")
 }
 
 /// User-owned reusable instructions for the Meri vNext workspace.
