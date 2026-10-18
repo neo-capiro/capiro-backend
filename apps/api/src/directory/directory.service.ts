@@ -13,6 +13,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { DirectoryContactMapper, type MemberBioOverlay } from './directory-contact-mapper.js';
 import { DirectoryBrowse } from './directory-browse.js';
+import { readContactTrips } from './directory-contact-trips.js';
 import { membershipsForPerson, projectMemberDetail, projectRosterOnlyStaffDetail, projectStaffDetail } from './directory-detail-projection.js';
 import { buildCommitteeIndex } from './directory-committee-index.js';
 import { uniqueSorted } from './directory-collection.js';
@@ -37,7 +38,6 @@ import {
 } from './directory-photo.js';
 import type {
   DirectoryCommitteeDetail,
-  DirectoryContactTripSummary,
   DirectoryContactTripsPayload,
   DirectoryDistrictDetail,
   DirectoryDistrictMemberSummary,
@@ -1532,49 +1532,7 @@ export class DirectoryService implements OnModuleInit {
    */
   async getContactTrips(contactId: string): Promise<DirectoryContactTripsPayload> {
     const normalizedContactId = normalizeContactId(contactId);
-    const isStaff = normalizedContactId.startsWith('staff-');
-    const numericId = Number(normalizedContactId.replace(/^(member|staff)-/, ''));
-    if (!Number.isFinite(numericId)) {
-      return { contactId: normalizedContactId, trips: [] };
-    }
-
-    const rows = await this.prisma.legistormTrip.findMany({
-      where: isStaff
-        ? { travelerStaffId: numericId }
-        : { OR: [{ approverMemberId: numericId }, { travelerMemberId: numericId }] },
-      orderBy: [{ startDate: 'desc' }, { filedDate: 'desc' }],
-      take: 50,
-    });
-
-    const trips: DirectoryContactTripSummary[] = rows.map((t) => {
-      // A member could theoretically be both approver and traveler on the
-      // same trip (self-approved travel) — prefer the more specific
-      // 'traveler' role in that case, never a false 'approver' label.
-      const role: 'approver' | 'traveler' =
-        !isStaff && t.approverMemberId === numericId && t.travelerMemberId !== numericId
-          ? 'approver'
-          : 'traveler';
-      return {
-        id: t.id,
-        role,
-        otherPartyName: role === 'approver' ? t.travelerName : t.approverName,
-        companionName: t.companionName,
-        startDate: t.startDate ? t.startDate.toISOString().slice(0, 10) : null,
-        endDate: t.endDate ? t.endDate.toISOString().slice(0, 10) : null,
-        durationDays: t.durationDays,
-        purpose: t.purpose,
-        totalCost: t.totalCost,
-        destinations: Array.isArray(t.destinations)
-          ? (t.destinations as Array<{ id: number; name: string | null; stateId: string | null }>)
-          : [],
-        sponsors: Array.isArray(t.sponsors)
-          ? (t.sponsors as Array<{ id: number; name: string | null }>)
-          : [],
-        filedDate: t.filedDate ? t.filedDate.toISOString().slice(0, 10) : null,
-      };
-    });
-
-    return { contactId: normalizedContactId, trips };
+    return readContactTrips(this.prisma, normalizedContactId);
   }
 
 }
