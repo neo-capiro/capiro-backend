@@ -45,6 +45,10 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ToolServiceSecretGuard, hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
 import { assertMeriToolAllowed } from './meri-tool-allowlist.js';
+import {
+  ACTION_QUERY_OWNER, ACTION_QUERY_OPERATION,
+  assertActionQueryAliasAdmission, assertActionQueryAliasResult,
+} from './meri-action-query-alias.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -582,6 +586,27 @@ export class MeriController {
       const result = await withMeriToolRequestControl(
         req, () => readRetainedSourceV02(admitted, ctx, this.tools),
       );
+      await this.releaseDelegatedRead(req);
+      return result;
+    }
+    if (name === ACTION_QUERY_OPERATION.id) {
+      // The reserved A8 source remains unavailable until Meri publishes its
+      // one-use CapiroMeriRead transport and the deployment is read back.
+      if (process.env.MERI_ACTION_QUERY_ALIAS_ENABLED !== 'true') {
+        throw new ServiceUnavailableException('Reserved action read unavailable');
+      }
+      const grant = meriReadDelegationOf(req);
+      assertActionQueryAliasAdmission(ctx, body, grant, hasVerifiedToolServiceIdentity(req));
+      // Keep the existing canonical owner under its deployment allowlist.
+      // Never add the dotted source operation to model schemas or that list.
+      assertMeriToolAllowed(ACTION_QUERY_OWNER);
+      if (this.tools.isSideEffecting(ACTION_QUERY_OWNER)) {
+        throw new ForbiddenException('Reserved action read refused');
+      }
+      const result = await withMeriToolRequestControl(
+        req, () => this.tools.executeFromAuthenticatedUser(ctx, ACTION_QUERY_OWNER, body),
+      );
+      assertActionQueryAliasResult(result, grant.clientId);
       await this.releaseDelegatedRead(req);
       return result;
     }

@@ -200,6 +200,12 @@ export class ReadDelegationService {
   async issueToken(req: Request, delegationId: string, raw: unknown) {
     this.service(req);
     const t = parseTokenRequest(raw, delegationId);
+    // A closed source receiver must not mint a one-use token that middleware
+    // would consume before the controller can return its 503.
+    if (t.kind === 'tool' && t.operation?.id === 'actions.query' &&
+        process.env.MERI_ACTION_QUERY_ALIAS_ENABLED !== 'true') {
+      throw new ServiceUnavailableException('Reserved action read unavailable');
+    }
     return this.tx(async (tx) => {
       const found = await tx.$queryRaw<Record<string, unknown>[]>`SELECT * FROM meri_read_delegations WHERE id = ${delegationId}::uuid FOR UPDATE`;
       if (found.length !== 1) throw denied();

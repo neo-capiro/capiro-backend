@@ -132,9 +132,9 @@ Do not rerun successful installation phases or replace migration history.
 
 | Dependency | Source evidence / remaining shipping requirement |
 | --- | --- |
-| Core migrations | Reconcile actual `_prisma_migrations` against the selected source, including altered `20281018020000_clio_meri_memory_submissions` and out-of-order history noted in the ledger. Option B uses `20281018060000_meri_read_delegation`; the isolated draft `070000` is superseded. Pending memory index proposals need their own allocation and duplicate preflight. |
+| Core migrations | Reconcile actual `_prisma_migrations` against the selected source, including altered `20281018020000_clio_meri_memory_submissions` and out-of-order history noted in the ledger. Option B uses `20281018060000_meri_read_delegation`; the isolated draft `070000` is superseded. PR88 includes allocated memory index `080000`, which still needs duplicate preflight, and content-free `090000`, which intentionally raises before payload disposition; plain migrate deploy is held. |
 | Option B facts | Meri `read-delegation/migrations/0001_read_delegation_facts.sql`; `capiro_app` USAGE on `meri_read_delegation_facts` and SELECT only on `run_facts_v1`, `reservations_v1`, `occurrences_v1`, `schedules_v1`, plus the snapshot EXECUTE above. Apply/readback status is unverified. |
-| Approval metadata | Core's `native-approval-metadata.ts` directly SELECTs `meri_commands.approval_metadata`. The observed Meri integration SQL grants Core only the four facts views and snapshot, and its privilege audit rejects other Core Meri-table access. Reconcile this narrow owner-read contract and its audit before execution activation; the snapshot does not supply approval metadata. No grant was added here. |
+| Approval metadata | At this packet's original PR90 pin, Core directly SELECTed `meri_commands.approval_metadata`, which the restricted role cannot read. The later integrated candidate instead reads bounded prepared approvals through existing `run_facts_v1`; Meri draft PR165 `e2d62589742fd349907274e5ee325e39059f14f4` allocates projection `0002` with no new grant or snapshot change. Actual apply, restricted-role readback, and execution activation remain held. |
 | Execution cohort | Successor preview `create_task` removes the ordinary bearer fallback. Meri `features.intents.execution`, its matching verifier/grant composition, Core signer/pins, exact service identity, snapshot and migrations must ship together. Retain the compatible existing cohort until proven. |
 
 ## All eleven retained operations: source status
@@ -192,15 +192,17 @@ pricing or runtime identity. The paid manifest cannot qualify this source path.
 
 The receiver separately calls `RetainedDocumentRuntimeIdentityReader.readCurrent()`
 before and after the source read; independently current `sourceHead`,
-`imageDigest` and `configurationSha256` must match the allocation. **No runtime
-reader implementation/provider is registered**, so the default 503 occurs
+`imageDigest` and `configurationSha256` must match the allocation. A fail-closed
+ECS selector adapter exists, but its independent trusted readback port and Nest
+provider remain unimplemented and unregistered, so the default 503 occurs
 before attachment metadata/bytes. Missing, malformed, unavailable or changed
 evidence withholds results. RELEASE_SHA/GIT_SHA, environment digest equality,
 release headers and OCI labels alone do not open it.
 
 Shipping/render must qualify the exact integrated source and digest-addressed
 ECR image, read back the current ECS task/container, define and measure the
-effective-configuration hash, and implement/register the independent reader.
+effective-configuration hash, and implement/register the independent
+control-plane readback provider.
 Meri's shipping owner must compare those same **current** Core pins before
 issuing a 1.1.0 allocation; Meri-source measurement or pin syntax is insufficient.
 The extraction owner unconditionally enforces `allowPaidExtraction:false`

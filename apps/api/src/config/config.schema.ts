@@ -789,6 +789,9 @@ export const configSchema = z.object({
     .string()
     .regex(/^[a-z][a-z0-9_]{1,63}(,[a-z][a-z0-9_]{1,63})*$/)
     .optional(),
+  // Reserved A8 actions.query transport stays unavailable until the Meri
+  // one-use delegated-token adapter and independent deployment readback exist.
+  MERI_ACTION_QUERY_ALIAS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   MERI_TOOLS_REQUIRE_SERVICE_SECRET: z
     .string()
     .default('false')
