@@ -150,7 +150,7 @@ closed for a family until its row is wired or deferred by a Neo record.
 
 | Item | What exists | What is needed | Owner |
 | --- | --- | --- | --- |
-| W1 Retained reads (`retained-research-portfolio*`, `retained-florida-*`, `/api/clio/retained-reads/*`; Meri `get_florida_budget_project`) | `RetainedPrincipalModule`, `RetainedReadAuthorityModule`, `RetainedFloridaCurrentController` — "deliberately unmounted", ports `null`, `RETAINED_READ_SOURCE_ENABLED=false`; intel-api `RetainedFloridaReadModule` ports `null` | Issuer/verifier keys, audience, transport binding and an activation decision; then import into `AppModule` and supply ports | Fable + dot |
+| W1 Retained reads (§8.2 L5a–L5c) | `RetainedPrincipalModule`, `RetainedReadAuthorityModule`, `RetainedFloridaCurrentController` are deliberately unmounted with ports `null` and `RETAINED_READ_SOURCE_ENABLED=false`; intel-api `RetainedFloridaReadModule` ports `null`, unmounted | Mounting alone is insufficient (dot). It also needs: an admission path for signed `CapiroRetained`/`CapiroRetainedAuthority` frames past the Bearer-only middleware; issuer/verifier keys, audience and transport ports; `sourceEnabled`; mounting intel-api's module; and an activation decision. Florida budget goes on the signed intel route, not a tools fallback | Fable + dot |
 | W2 Objective admission issuance | `createObjectiveAdmissionRuntime()` disabled factory | Qualified genuine admission/base authority and purpose-qualified credentials (Core decision RS256) | Fable |
 | W3 Strategy acceptance/results receiving | Zero-arg closed factory in api-strategy `PlannerModule` | Core native/retained-access/credential owners + qualified Meri custody (`meri_objective_source.custody`) | Fable |
 | W4 Planner continuation / Strategy intake | Code mounted, flags off | Flag flip only after W2/W3 + migration reconciliation | Neo/dot |
@@ -208,11 +208,13 @@ on these routes (runtime confirmed; #83 returns 401 before DB work). Every route
 
 | # | Method + path | Meri caller | Core credential + headers | Core state on #84 | Needed for |
 | --- | --- | --- | --- | --- | --- |
-| L1 | POST `/api/clio/tools/:name` (Meri names match `[a-z0-9_]{2,64}`) | gateway read sources; control commands (`create_task`, `update_task`, `query_tasks`, `save_memory`, `save_chat_attachments`, `list_memory_proposals`, `query_action_items`); retained-read `get_florida_budget_project` | Native session bearer (brokered per call) **and** `x-internal-service-secret`. The guard is enforced because the task runs `NODE_ENV=production` (W9). Optional `x-meri-read-observation` for funding/KB asOf and evidence-mode reads | mounted (`MeriModule`) | lane 2 reads, lane 3 commands, lane 5 tasks/memory |
+| L1 | POST `/api/clio/tools/:name` (Meri names match `[a-z0-9_]{2,64}`) | gateway read sources; control commands (`create_task`, `update_task`, `query_tasks`, `save_memory`, `save_chat_attachments`, `list_memory_proposals`, `query_action_items`). Florida budget is **not** served here: it belongs on the signed intel route (L5c), not a tools fallback | Native session bearer (brokered per call) **and** `x-internal-service-secret`. The guard is enforced because the task runs `NODE_ENV=production` (W9). Optional `x-meri-read-observation` for funding/KB asOf and evidence-mode reads | mounted (`MeriModule`) | lane 2 reads, lane 3 commands, lane 5 tasks/memory |
 | L2 | POST `/api/clio/application-authority/read-mode-observation` | gateway evidence-mode reads | Native session bearer **and** a *matching* `x-internal-service-secret`: the service requires the verified proof even when the guard is not enforcing | mounted (R10) | evidence-mode reads |
 | L3 | POST `/api/clio/clients/check-ref` | Meri client-reference checks | Native session bearer | mounted (`MeriModule`) | client resolution |
 | L4 | GET `/api/research-portfolios/:id`, GET `/api/research-portfolios/:id/changes?cursor&limit` | gateway `sources/research-portfolio`, runtime `retained-reads/source-transport.mjs` | Native session bearer, **no** service secret (the Meri test asserts this) | mounted (research-portfolios controller) | RP reads |
-| L5 | POST `/api/clio/application-authority/retained-{research-portfolio,research-portfolio-changes,florida-budget}`, `retained-{research-portfolio,research-portfolio-changes,florida}-principal`, `retained-florida-{native-current,current}`; POST `/api/clio/retained-reads/{research-portfolio,research-portfolio-changes}` | runtime native-authority retained reads | Native session for capture, then a signed retained frame (issuer/verifier keys) | **not mounted** (W1) | retained reads; add only together with W1 |
+| L5a | POST `/api/clio/application-authority/retained-{research-portfolio,research-portfolio-changes,florida-budget}` and `retained-{research-portfolio,research-portfolio-changes,florida}-principal` (6 issuance routes) | runtime native-authority retained reads | Native session bearer | **not mounted** (W1) | retained-read issuance |
+| L5b | POST `/api/clio/retained-reads/{research-portfolio,research-portfolio-changes}`, POST `/api/clio/application-authority/retained-florida-current`; intel-api POST `/intel-api/internal/legiwatch/retained-florida-budget` | runtime retained reads | Signed `CapiroRetained` frame (not a Bearer). The generic Bearer-only `TenantContextMiddleware` would refuse these today | **not mounted** (W1); intel retained module unmounted | retained reads |
+| L5c | intel-api POST `/intel-api/internal/legiwatch/retained-florida-authority`, Core POST `/api/clio/application-authority/retained-florida-native-current` | runtime retained Florida reads | Signed `CapiroRetainedAuthority` frame | **not mounted** (W1) | Florida budget (signed intel route) |
 | L6 | POST `/api/clio/memory/review/{submit,status}`, `/api/clio/memory/{read_target,find_by_key}` | control `memory/core-http.mjs` | Native session bearer + service secret (Meri side) | **no Core route** (W8). Meri also omits `/api` (X1) | lane 5 memory; blocked until W8 + X1 |
 
 These routes don't belong on this listener:
@@ -220,21 +222,44 @@ These routes don't belong on this listener:
 - `/api/internal/objective-workload-authority/decisions`: workload RS256 caller proof, private path only.
 - Strategy API `/strategy-api/internal/objective-canonical/*`: a separate service.
 
+dot's route/auth review of `458ec355` against Meri `39278a97` (#121 6245600762) matches this table. #83's marked-token
+restriction survives and no credential widening is needed. The Meri broker owner needs `getNativeCredential`,
+`getServiceSecret` and `getReadModeServiceSecret`, and keeps the service secret server-side
+(`apps/runtime/native-authority/native-read-credentials/{owner,client-reference}.mjs`).
+
 ### 8.3 Proposed single change set (for dot to accept, amend or reject)
 
 1. **Priority-1 rule, in place (keeps its logical ID):** widen the single POST regex to
    `^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership|read-mode-observation)|clients/check-ref|tools/[a-z0-9_]{2,64})$`.
    It stays one regex value within the ALB per-condition limit and needs no new priority.
+   Caveat from dot: `tools/[a-z0-9_]{2,64}` also admits Core **write** tools, not only reads. That matches the lane 3/5
+   command scope, which still needs native bearer + service secret + Meri approval. If the listener should bound it
+   instead, replace the wildcard with an enumerated alternation of the G1/G2-approved tool names (watch the ALB
+   regex length limit).
 2. **Priority-2 rule, in place:** add the GET regex value `^/api/research-portfolios/[0-9a-f-]{36}(/changes)?$` (L4).
    The query string is not part of the path match. That makes 4 of the 5 allowed evaluations on the rule.
 3. **Task definition (W6/W9):**
    - Use an image built from #84's tip. Re-pin `FIRST_CHAT_CORE_SOURCE`, the digest and `RELEASE_SHA`.
    - Set `PREVIEW_NATIVE_GETS_ENABLED=true`.
    - Bind `INTERNAL_SERVICE_SECRET` from Secrets Manager, with the value shared with the Meri broker and never logged.
+     Candidate from existing source (read back live before use): `infra/deploy/api-strategy-serve-taskdef.json` binds
+     `arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4`. The serve execution
+     role would also need `GetSecretValue` on it.
    - Tool handlers that call third-party providers also need their existing provider credentials, which the held first-chat task does not carry. Inventory them from the tools G1 actually enables.
-4. **Deferred until W1/W8:** the L5 and L6 paths.
+4. **Deferred until W1/W8:** the L5a–L5c and L6 paths. W1 is more than mounting: the signed routes need a
+   non-Bearer admission path past `TenantContextMiddleware`, real signing/verifier/transport ports (all `null`
+   today), `RETAINED_READ_SOURCE_ENABLED`/`sourceEnabled` set, and intel-api's `RetainedFloridaReadModule` mounted.
 5. **Unchanged:** the priority-3 host-only 404 guard, the marked-credential narrowing, and the absence of any `/api/*` fallback.
 
 Alternative to items 1–2: give Meri a private in-VPC Core path (Cloud Map or an internal ALB) and keep the public
 preview host on first-chat routes only. That avoids a shared-listener change but needs a new network path.
 Either way the credential requirements in §8.2 are the same.
+
+### 8.4 Why `first-chat-core.ts` is not edited yet
+
+The CDK source still pins PR48 (`6542f5b0…`, `sha256:722a4832…`) and omits `PREVIEW_NATIVE_GETS_ENABLED=true`
+(dot confirmed). Per `docs/core-first-chat-preview-native-gets-20261017.md`, source SHA, digest, `RELEASE_SHA` and
+that flag must change together for a newly built and scanned image. Setting the flag or widening the rules
+against the PR48 image would describe a task that cannot serve them. The template edit (§8.3 items 1–3 plus the
+`preview-first-chat-core.spec.ts` assertions) is therefore Core-lane source work for the W6 image step, written
+after dot accepts this packet. It changes no live resource.
