@@ -2,8 +2,9 @@
  * Pure preparation for Meri's mail 0.2 passive source pages. The caller must
  * supply a current, authorized Core owner read and its mailbox inventory. This
  * module neither opens a mailbox nor grants access to one. In particular, the
- * ordinary list_emails/get_email_thread results are not sufficient until their
- * owner supplies read handles, per-row scopes, and the missing source lineage.
+ * source owner must supply the row and mailbox lineage needed to select the
+ * exact mailbox scopes in the verified Meri subject. Read handles are only
+ * source selectors; their use requires a fresh authorized owner read.
  */
 import { createHash } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
@@ -28,7 +29,7 @@ export type MailRetainedProjectionInput = {
   selection: unknown;
   /** Result of the current canonical mail owner, including same-read inventory. */
   ownerResult: unknown;
-  /** Exact read observation time, supplied by the owner rather than this module. */
+  /** Caller-observed time immediately after the owner read; not a sync timestamp. */
   readAt: string;
   requestId: string;
   traceId: string;
@@ -78,10 +79,6 @@ function hash(value: unknown): string {
 function textHash(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
-function same(left: unknown, right: unknown): boolean {
-  try { return canonicalizeCoreRetainedJson(left) === canonicalizeCoreRetainedJson(right); }
-  catch { return false; }
-}
 function exactFields(value: JsonObject, fields: string[], reason: string) {
   if (Object.keys(value).sort().join(',') !== [...fields].sort().join(',')) refuse(reason);
 }
@@ -110,7 +107,7 @@ function trustedTask(bindingValue: unknown, subjectValue: unknown, requested: un
   return {binding, subject, selection, scopes};
 }
 
-function mailboxInventory(value: unknown, scopes: JsonObject[]) {
+function mailboxInventory(value: unknown, scopes: JsonObject[], binding: JsonObject) {
   const entries = array(value, 'mailbox_inventory');
   if (entries.length < 1 || entries.length > 4096) refuse('mailbox_inventory');
   const seen = new Set<string>(), statuses = new Map<string, string>();
@@ -119,7 +116,10 @@ function mailboxInventory(value: unknown, scopes: JsonObject[]) {
     const proof = object(box.sourceProof, 'mailbox_inventory.source_proof');
     if (proof.version !== 1) refuse('mailbox_inventory.source_proof');
     const id = uuid(proof.mailboxId, 'mailbox_inventory.id');
-    if (seen.has(id) || !scopes.some(scope => scope.kind === 'mailbox' && scope.resourceId === id))
+    if (seen.has(id) || proof.ownerTenantId !== binding.tenantId ||
+        proof.ownerActorId !== binding.actorId ||
+        !scopes.some(scope => scope.kind === 'mailbox' && scope.resourceId === id &&
+          scope.tenantId === binding.tenantId))
       refuse('mailbox_inventory.scope');
     seen.add(id);
     statuses.set(id, string(box.status, 'mailbox_inventory.status'));
@@ -127,11 +127,24 @@ function mailboxInventory(value: unknown, scopes: JsonObject[]) {
   return statuses;
 }
 
-function rowScopes(value: unknown, subjectScopes: JsonObject[], mailboxId: string) {
-  const scopes = array(value, 'message.scopes').map(scope => object(scope, 'message.scope'));
-  if (!scopes.length || !scopes.some(scope => scope.kind === 'mailbox' && scope.resourceId === mailboxId) ||
-      scopes.some(scope => !subjectScopes.some(parent => same(scope, parent)))) refuse('message.scopes');
+function rowScopes(proof: JsonObject, subjectScopes: JsonObject[], binding: JsonObject, mailboxId: string) {
+  if (proof.ownerTenantId !== binding.tenantId || proof.ownerActorId !== binding.actorId)
+    refuse('message.owner_scope');
+  const scopes = subjectScopes.filter(scope => scope.kind === 'mailbox' &&
+    scope.tenantId === binding.tenantId && scope.resourceId === mailboxId);
+  if (scopes.length !== 1) refuse('message.scopes');
   return scopes;
+}
+
+/** A version-bound database pointer, never an authorization or currentness token. */
+export function mailRetainedReadHandleV02(
+  mailboxId: unknown, threadId: unknown, messageId: unknown, messageUpdatedAt: unknown,
+): string {
+  const mailbox = uuid(mailboxId, 'read_handle.mailbox_id');
+  const thread = uuid(threadId, 'read_handle.thread_id');
+  const message = uuid(messageId, 'read_handle.message_id');
+  const version = instant(messageUpdatedAt, 'read_handle.message_version');
+  return `mail:v02:${mailbox}:${thread}:${message}:${version}`;
 }
 
 function sourceEnvelope(readAt: string, count: number, total: number, truncated: boolean,
@@ -157,7 +170,7 @@ function candidatePage(operation: 'mail.list_messages' | 'mail.search_messages',
     ? ['subject', 'folder', 'withinDays', 'limit', 'offset', 'asOf']
     : ['subject', 'folder', 'withinDays', 'limit', 'offset', 'asOf', 'query', 'from', 'participant'],
   'selection.fields');
-  const boxes = mailboxInventory(owner.searchedMailboxes, scopes);
+  const boxes = mailboxInventory(owner.searchedMailboxes, scopes, binding);
   const folder = selection.folder;
   if (!['all', 'inbox', 'sent'].includes(String(folder))) refuse('selection.folder');
   const limit = integer(selection.limit, 1, 50, 'selection.limit');
@@ -209,10 +222,11 @@ function candidatePage(operation: 'mail.list_messages' | 'mail.search_messages',
     if (mailboxId !== proof.mailboxId || !boxes.has(mailboxId) || proof.messageId !== messageId ||
         proof.threadId !== threadId || row.removed !== false || row.connectionStatus !== boxes.get(mailboxId))
       refuse('message.owner_lineage');
-    const readHandle = string(row.readHandle, 'message.read_handle');
+    const readHandle = mailRetainedReadHandleV02(mailboxId, threadId, messageId,
+      proof.messageUpdatedAt);
     if (readHandle.length > 256 || handles.has(readHandle)) refuse('message.read_handle');
     handles.add(readHandle);
-    const rowScope = rowScopes(row.scopes, scopes, mailboxId);
+    const rowScope = rowScopes(proof, scopes, binding, mailboxId);
     const createdAt = instant(row.createdAt, 'message.created_at');
     const receivedAt = row.receivedAt === null ? null : instant(row.receivedAt, 'message.received_at');
     const sentAt = row.sentAt === null ? null : instant(row.sentAt, 'message.sent_at');
@@ -313,7 +327,7 @@ function threadPage(binding: JsonObject, subject: JsonObject, selection: JsonObj
   exactFields(selection,
     ['subject', 'threadId', 'messageId', 'messageOffset', 'bodyOffset', 'limit', 'maxCharacters'],
     'selection.fields');
-  const boxes = mailboxInventory(owner.mailboxInventory, scopes);
+  const boxes = mailboxInventory(owner.mailboxInventory, scopes, binding);
   const threadId = uuid(selection.threadId, 'selection.thread_id');
   const messageId = selection.messageId === null ? null : uuid(selection.messageId, 'selection.message_id');
   const offset = integer(selection.messageOffset, 0, 10000, 'selection.message_offset');
@@ -325,7 +339,9 @@ function threadPage(binding: JsonObject, subject: JsonObject, selection: JsonObj
   const proof = object(owner.sourceProof, 'thread.source_proof');
   if (proof.version !== 1 || proof.threadId !== threadId) refuse('thread.source_proof');
   const mailboxId = uuid(proof.mailboxId, 'thread.mailbox_id');
-  if (!boxes.has(mailboxId) || proof.mailboxStatus !== boxes.get(mailboxId)) refuse('thread.mailbox_inventory');
+  if (!boxes.has(mailboxId) || proof.mailboxStatus !== boxes.get(mailboxId) ||
+      proof.ownerTenantId !== binding.tenantId || proof.ownerActorId !== binding.actorId)
+    refuse('thread.mailbox_inventory');
   const requestedSubject = object(selection.subject, 'selection.subject');
   if (requestedSubject.kind === 'client' && proof.clientId !== requestedSubject.entityId)
     refuse('thread.client_scope');
@@ -348,11 +364,13 @@ function threadPage(binding: JsonObject, subject: JsonObject, selection: JsonObj
         row.threadId !== threadId || messageId !== null && id !== messageId ||
         row.removed !== false || row.connectionStatus !== boxes.get(mailboxId))
       refuse('thread.message_lineage');
-    const readHandle = string(row.readHandle, 'thread.read_handle');
+    const readHandle = mailRetainedReadHandleV02(mailboxId, threadId, id,
+      sourceProof.messageUpdatedAt);
     if (readHandle.length > 256 || handles.has(readHandle)) refuse('thread.read_handle');
     handles.add(readHandle);
-    const rowScope = rowScopes(row.scopes, scopes, mailboxId);
-    if (typeof row.bodyText !== 'string' || !['full', 'preview', 'truncated', 'unknown'].includes(String(row.bodyCompleteness)))
+    const rowScope = rowScopes(sourceProof, scopes, binding, mailboxId);
+    if (row.bodyStoredPresent !== true || typeof row.bodyText !== 'string' ||
+        !['full', 'preview', 'truncated', 'unknown'].includes(String(row.bodyCompleteness)))
       refuse('thread.utf16_evidence');
     const bodyText = row.bodyText as string;
     const start = integer(row.bodyOffset, 0, 10000000, 'thread.body_offset');

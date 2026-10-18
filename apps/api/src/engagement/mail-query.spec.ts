@@ -32,6 +32,10 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     thread_id: 'thread-1',
     connection_id: 'mailbox-1',
     message_updated_at: new Date('2026-07-08T17:42:00Z'),
+    created_at: new Date('2026-07-08T17:40:00Z'),
+    owner_tenant_id: CTX.tenantId,
+    owner_actor_id: CTX.userId,
+    connection_status: 'connected',
     subject: 'RE: Adam Wilczewski <> Radiant Nuclear',
     from_email: 'awilczewski@porterwright.com',
     from_name: 'Wilczewski, Adam S.',
@@ -54,6 +58,8 @@ function healthyMailbox(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     account_email: 'jeff.j.burton@mavenadvocacy.com',
     connection_id: 'mailbox-1',
+    owner_tenant_id: CTX.tenantId,
+    owner_actor_id: CTX.userId,
     provider: 'microsoft_365',
     status: 'connected',
     last_sync_at: new Date('2026-07-18T21:18:48Z'),
@@ -236,6 +242,27 @@ describe('canonical mailbox query', () => {
     expect(msg.mailbox).toBe('jeff.j.burton@mavenadvocacy.com');
     expect(msg.sentAt).toBe('2026-07-08T17:41:06.000Z');
     expect(msg.receivedAt).toBe('2026-07-08T17:41:32.000Z');
+    expect(msg).toMatchObject({
+      createdAt: '2026-07-08T17:40:00.000Z',
+      internetMessageId: '<abc@porterwright.com>',
+      toTruncated: false,
+      ccTruncated: false,
+      removed: false,
+      connectionStatus: 'connected',
+      sourceProof: {ownerTenantId: CTX.tenantId, ownerActorId: CTX.userId},
+    });
+  });
+
+  it('discloses capped recipients and same-read mailbox owner proof', async () => {
+    const recipients = Array.from({length: 9}, (_, index) => ({email: `person${index}@example.test`}));
+    const {searchEmails} = makeService({count: 1, rows: [row({to_recipients: recipients})],
+      coverage: [healthyMailbox()]});
+    const out = await searchEmails(CTX, {query: 'person'});
+    expect(out.messages?.[0]).toMatchObject({toTruncated: true, ccTruncated: false});
+    expect((out.messages?.[0]?.to as unknown[])).toHaveLength(8);
+    expect(out.searchedMailboxes?.[0]?.sourceProof).toMatchObject({
+      ownerTenantId: CTX.tenantId, ownerActorId: CTX.userId,
+    });
   });
 
   it('calls out a connected-but-never-synced mailbox instead of silently "searching" it', async () => {
