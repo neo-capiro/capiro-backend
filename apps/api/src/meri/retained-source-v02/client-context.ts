@@ -160,7 +160,9 @@ export function prepareRetainedClientContextV02(args: {
       return refused('selection_mismatch');
     }
     if (section !== (selected.section ?? null) || afterId !== (selected.afterId ?? null) ||
-        limit !== selected.limit || representation !== (selected.representation ?? (section ? 'full' : 'summary')))
+        limit !== selected.limit || representation !== (selected.representation ?? (section ? 'full' : 'summary')) ||
+        (request.cursor !== undefined && (section === null || afterId === null ||
+          !cursor(request.cursor, trusted.selectedClientId as string, section, afterId))))
       return refused('selection_mismatch');
   }
 

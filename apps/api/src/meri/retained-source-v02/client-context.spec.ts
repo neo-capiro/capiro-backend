@@ -112,6 +112,17 @@ describe('Core retained client-context 0.2 source preparation', () => {
       .toEqual({ kind: 'refused', reason: 'selection_mismatch' });
   });
 
+  it('requires an exact cursor shape when the original request is available', () => {
+    const args = fixture('capabilities');
+    const afterId = 'capability-1';
+    args.normalizedInput.afterId = afterId as never;
+    const cursor = Buffer.from(JSON.stringify({
+      v: 1, clientId: CLIENT, section: 'capabilities', afterId, extra: true,
+    })).toString('base64url');
+    expect(prepareRetainedClientContextV02({ ...args, request: { ...args.request, cursor } }))
+      .toEqual({ kind: 'refused', reason: 'selection_mismatch' });
+  });
+
   it('refuses a missing or independently substituted owner observation', () => {
     const args = fixture();
     expect(prepareRetainedClientContextV02({ ...args, ownerReceipt: undefined }))
