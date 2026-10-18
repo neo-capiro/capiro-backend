@@ -1,14 +1,27 @@
 # Integrated Core source archive and migration packet — 2026-10-18
 
-**Status: provisional source preparation.** This packet is based on Core
-`869ee0eb461d15af75ccf83186e6b897d7529bc1` and must be regenerated after
-the document identity adapter at `93ac25e0ef3a59ec10adf269bc8455bdd856b308`,
-Core memory continuation at `ab1675ade0da4da2820e667a06497109b53d9f27`,
-the A8 receiving work, and all other accepted Core source slices are merged.
-The adapter is source-only: its trusted
-control-plane identity port/provider remains unimplemented and unregistered.
-No ZIP has been sealed or uploaded. No paid build, image, AWS mutation, live SQL,
-grant, listener change, or deployment is evidenced here.
+**Status: locally built source and prepared, unqualified archive.** The exact
+integrated Core source cut is
+`4b858a87b05f0e189e9423a0f16a8de98eb96855`. It includes the
+document identity adapter `93ac25e0ef3a59ec10adf269bc8455bdd856b308`,
+memory continuation `ab1675ade0da4da2820e667a06497109b53d9f27`, and
+default-off A8 alias `868aafea8a6d731a0cab4210c169a955359daecc` plus
+the exact PR171 wire correction `3f726d585860ac9e43097c293d6824f96682381f`.
+It also receives the retained-source TypeScript repair
+`1955e5d3c202ddd68030d2d8719153b3b31320f7`. The first integrated API
+build exposed 27 TypeScript diagnostics before that repair. The final local
+Nest API build on clean, remote-verified `4b858a87` passed with an 8 GiB heap,
+exit code zero and no diagnostics. This is a local build result, not an image
+or deployed-service readback.
+This packet branch is stacked on the built Core source and contains only this
+documentation and the archive preparer. It is **not** merged back into the
+Core candidate, so the Docker image source pin remains the exact built Core
+commit rather than a later documentation-only SHA.
+The identity adapter's trusted control-plane port/provider remains
+unimplemented and unregistered.
+A tracked-only ZIP has been prepared and verified locally, but remains
+**unqualified for shipping and unuploaded**. No paid build, image, AWS
+mutation, live SQL, grant, listener change, or deployment is evidenced here.
 
 ## Reproducible build inputs
 
@@ -44,51 +57,80 @@ change the current Dockerfile's input set and needs a separate audited recipe
 change. Do not claim they were pruned. The source ZIP is a selected Git archive,
 not a ZIP of the working tree or an S3 object copied from a historical PR43 build.
 
-At the provisional `869ee0eb` commit, `git rev-parse <commit>^{tree}` is
-`0badb18e8b888719f4b77cffb8494cdafc9d1f9f` and the preparer reports:
+At `4b858a87`, `git rev-parse <commit>^{tree}` is
+`cbbec374d78ff4e5215ef77a375afbf632b2da2b` and the preparer reports:
 
 | Group | Files | Git blob bytes |
 | --- | ---: | ---: |
-| API `src` | 4,228 | 61,804,581 |
+| API `src` | 4,235 | 61,863,344 |
 | API `scripts` | 982 | 46,727,432 |
 | API `prisma` | 511 | 3,413,999 |
 | API `data` | 120 | 2,112,504 |
 | Four packages | 421 | 3,574,193 |
 | Root and API config/Dockerfile | 10 | 786,989 |
-| **Total** | **6,272** | **118,419,698** |
+| **Total** | **6,279** | **118,478,461** |
 
 The ordered `mode blob-id size path` inventory SHA-256 is
-`1c75e2d2df5ed5bda77d481af7a5dca3dbc8fb1d1742ac6bf412bd722155045d`.
+`850fe5270e6daf0cd4d975a1e531175d79169ca71c4ca2454ffdbe0eb4d15849`.
 The Dockerfile blob SHA-256 is
 `86f5ed2b91cce3c9821a679c93363216af49d464213b7930cd8db51f915a57d2`;
 the checked-in Core buildspec blob SHA-256 is
 `19523ef1a6209f3d9e32a80c028911a39147164311052714238db45636da287c`.
-Against PR86 `b40971b1f8de888687a8fb92fbdf4ff653fe10d3`, the provisional
-candidate changes 109 paths; `git diff --binary --no-ext-diff` SHA-256 is
-`d005961ed174152502da55426eddbe95a7c692df320de4d3a22595dec4e0d401`.
-All these values must change or be rechecked at the final Core commit.
+Against PR86 `b40971b1f8de888687a8fb92fbdf4ff653fe10d3`, the built
+candidate changes 120 paths; `git diff --binary --no-ext-diff` SHA-256 is
+`1526f73758b293b63fe705848c49c91abd1daf9eaea5e3b532cb958bac29da42`.
+These values bind the exact Core source cut. This packet branch has a later
+tree/diff because it adds documentation and the preparer; its own SHA must
+not be substituted for the Core image source pin.
 
-Only after the final commit, local integration build, migration hold disposition,
-and independent source review may the source owner pass `--archive
-<outside-repository/core-<SHA>.zip>` to the same preparer. It refuses to
-overwrite an existing ZIP and reports its **actual** SHA-256 and derived
-`inputs/core-<SHA>.zip` key. Compare the archive manifest to the exact commit,
-inspect the ZIP entries, and bind that ZIP SHA, S3 VersionId, source SHA and
-reviewed inline buildspec in the existing CodeBuild project before a separately
-authorized build. `APPROVED_SOURCE_SHA` is the final Core commit; it is never an
+The one-time local preparation used:
+
+```sh
+node infra/deploy/prepare-first-chat-core-source.mjs \
+  --ref 4b858a87b05f0e189e9423a0f16a8de98eb96855 \
+  --base b40971b1f8de888687a8fb92fbdf4ff653fe10d3 \
+  --archive ../core-4b858a87b05f0e189e9423a0f16a8de98eb96855.zip \
+  --manifest ../core-build-packet-final-4b.json
+```
+
+It sealed local
+`../core-4b858a87b05f0e189e9423a0f16a8de98eb96855.zip` (43,335,448
+bytes) and `../core-build-packet-final-4b.json` outside this worktree. The
+archive SHA-256, independently checked with `Get-FileHash`, is
+`5027c7cec5827b8b7f67075abd9c8a03f8bef356416f6a40bea45a2229844f2a`.
+The ZIP inspector matched all 6,279 files and their decompressed bytes to the
+exact Git blob IDs (7,164 ZIP entries including directories), with no extra
+file entries. It also rejects unsafe paths,
+encryption and missing entries. The preparer forces `core.autocrlf=false` so
+Git archive cannot rewrite text blobs while packaging a Windows checkout.
+The manifest records the actual archive hash and derived
+`inputs/core-4b858a87b05f0e189e9423a0f16a8de98eb96855.zip` key.
+Recheck it with `--verify-archive <outside-repository/core-<SHA>.zip>` against
+the same exact `--ref` and `--base`; the command reads ZIP entries without
+repacking them. The ZIP remains **unqualified** while the memory migration
+release hold and all runtime gates remain unresolved. Preparing the local ZIP
+does not resolve or bypass that migration hold.
+Do not upload it or start a paid build as part of this preparation. A later
+shipping owner must bind that ZIP SHA, S3 VersionId, source SHA and reviewed
+inline buildspec in the existing CodeBuild project before a separately
+authorized build. `APPROVED_SOURCE_SHA` is the built Core commit; it is never an
 earlier PR86, PR90 or PR43 pin. Build/readback details remain in
 [the integrated image packet](CORE-INTEGRATED-IMAGE-BUILD-20261018.md).
 
 ## Source and migration order
 
 1. Freeze the final integrated Core commit and ancestor/source diff. At the
-   provisional baseline, PR86's approved task template is 1 vCPU / 2 GiB;
+   built source baseline, PR86's approved task template is 1 vCPU / 2 GiB;
    Core image pins are `null` and `desiredCount` remains zero. The source-only
    identity adapter is not a runtime identity qualification: its trusted
-   control-plane port/provider is still missing. Retain document 503 until
-   independently current source, image and effective configuration readback is
-   proven before and after its owner read. The other retained reads are likewise
-   source-wired, not preview-available.
+   control-plane port/provider is still missing. The ordinary shipping path is
+   to review exact source/image/effective-configuration pins and register a
+   trusted independent readback provider through reviewed deployment/source
+   configuration using existing approved access. The ECS v4 task metadata
+   selector alone is not independent proof. Retain document 503 if the provider
+   or effective-configuration readback is absent, and until current identity
+   is proven before and after its owner read. The other retained reads are
+   likewise source-wired, not preview-available.
 2. Read the actual Core `_prisma_migrations` ledger and table/index shapes and
    compare them with the exact candidate migration bytes. Candidate Core
    `20281018020000_clio_meri_memory_submissions` is the original payload-bearing
@@ -127,25 +169,52 @@ earlier PR86, PR90 or PR43 pin. Build/readback details remain in
    are still required. Preserve the original ADMITTED grant set and transaction
    lock in `current_admission_v1`.
 
+Core's integrated [source handoff](CORE-INTEGRATED-SOURCE-CANDIDATE-20261018.md)
+pins the eleven retained read receivers, PR94 Quick Log and PR95 client-wide
+storage report. They are included as source; the retained reads are not
+preview-available, the storage allowance is report-only, and Planner follow-up
+remains a resumable downstream saga. Objective D7-3's admission adapter is
+unmounted, `/decisions` and issuance remain disabled. Core's A8 alias is
+present at `868aafea8a6d731a0cab4210c169a955359daecc` with the exact
+PR171 wrapper correction at `3f726d585860ac9e43097c293d6824f96682381f`.
+It defaults off, including before one-use token issuance.
+
 Meri PR166 `15288a7954862e348af86bf1eab119fdb30863a0` prepares six A8
 adapters with canonical selected-client UUIDs in exact Core tool bodies. It
 does not supply Core's nullable hearing-selector admission, authenticated
 legal citation-resolution facts, news cutoff/folder/monitor/default-year owner
-facts, or Outreach walls for unscoped and detail reads. Meri PR167
-`2c53e6c5123d392308d84a74eb8da2e5741f5dc1` prepares selected
-`actions.query@0.2.0` and `list_global_datasets@0.2.0` ports, but its shared
-CLI/registry receiving diff is still unapplied. Core's existing
-`query_action_items` route accepts a user bearer; the reservation-bound signed
-`actions.query` to `query_action_items` alias is not established by PR167.
-Do not select unattended `actions.query` or claim the A8 adapter family live
-from these Meri source pins.
+facts, or Outreach walls for unscoped and detail reads. PR167
+`2c53e6c5123d392308d84a74eb8da2e5741f5dc1` prepared selected
+`actions.query@0.2.0` and `list_global_datasets@0.2.0` ports. The current
+Meri receiving counterpart is **draft PR171**
+`eeeda2d415a976ea240de482e62f71a32020c9b7`, which includes PR169's
+original `query_action_items@0.2.0` source and PR170's signed
+`actions.query@0.2.0` source. It composes seven selected client reads, both
+action operations and local datasets without hiding the full desired 76/42
+catalog (source measurement SHA-256
+`8850af4b50666deef9e4c7edc23d32f25d663840748380c7baaa066585602f6a`;
+synthetic selected 10/8 SHA-256
+`028dd903f6fb0f0ba0650c9d7f0a12f124a98d94890d8a27bfc91fe140ef829e`).
+For `actions.query`, its source keeps the original UNKNOWN reservation
+and full normalized arguments hash, freezes the exact emitted body, then relays
+a trusted invocation/call key to the one-use `CapiroMeriRead` token exchange.
+The original `query_action_items` path remains a separate flat-body token path.
+The [Core PR87 coordination receipt](https://github.com/neo-capiro/capiro-backend/pull/87#issuecomment-6252192739)
+pins that wire. The Core successor `3f726d58` now validates PR171's exact
+`JSON.stringify({input,metadata:null})` and signed correlation
+`{binding,subject,policyRevision,normalizationContext:null}` before projecting
+a bounded flat request to the canonical owner. This is source receiving only:
+Core's alias switch is still
+default-off and its route returns 503, while P2/G3 selection, Meri/Core image
+and configuration pins, signed runtime relay and authenticated readback are
+unqualified. Do not claim the A8 family or either action operation live from
+these source pins.
 
 Core memory continuation `ab1675ade0da4da2820e667a06497109b53d9f27`
 adds unmounted page admission and client-scoped proposal continuation source.
 Its signed one-use eligibility helper, reservation-bound Meri proposal alias,
-and final receipt-expiry enforcement remain open. Add exact accepted receiver
-pins and runtime gates after receiving; do not count unmounted preparation as
-live memory availability.
+and final receipt-expiry enforcement remain open. Do not count unmounted
+preparation as live memory availability.
 
 ## Failure and rollback boundary
 

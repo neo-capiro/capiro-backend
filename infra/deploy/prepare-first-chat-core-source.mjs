@@ -3,9 +3,10 @@
 // No network, Docker, SQL, or cloud operation occurs here.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateRawSync } from 'node:zlib';
 
 const inputPaths = [
   '.dockerignore',
@@ -59,6 +60,107 @@ function git(args, encoding = 'utf8') {
 }
 function sha256(value) { return createHash('sha256').update(value).digest('hex'); }
 function covered(path) { return inputPaths.some(prefix => path === prefix || path.startsWith(`${prefix}/`)); }
+function readAt(descriptor, length, position) {
+  const buffer = Buffer.alloc(length);
+  let offset = 0;
+  while (offset < length) {
+    const bytes = readSync(descriptor, buffer, offset, length - offset, position + offset);
+    if (!bytes) throw new Error('Unexpected end of ZIP while inspecting entries.');
+    offset += bytes;
+  }
+  return buffer;
+}
+function inspectZip(path, selectedFiles) {
+  const descriptor = openSync(path, 'r');
+  try {
+    const length = fstatSync(descriptor).size;
+    const tail = readAt(descriptor, Math.min(length, 65557), length - Math.min(length, 65557));
+    let eocd = -1;
+    for (let at = tail.length - 22; at >= 0; at--) {
+      if (tail.readUInt32LE(at) === 0x06054b50 && at + 22 + tail.readUInt16LE(at + 20) === tail.length) {
+        eocd = at;
+        break;
+      }
+    }
+    if (eocd < 0 || tail.readUInt16LE(eocd + 4) !== 0 || tail.readUInt16LE(eocd + 6) !== 0) {
+      throw new Error('Archive is not a single-disk ZIP with a valid end directory.');
+    }
+    const count = tail.readUInt16LE(eocd + 10);
+    const centralSize = tail.readUInt32LE(eocd + 12);
+    const centralOffset = tail.readUInt32LE(eocd + 16);
+    if (count === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff ||
+        centralOffset + centralSize > length) {
+      throw new Error('ZIP64 or out-of-bounds archive directory is not supported.');
+    }
+    const central = readAt(descriptor, centralSize, centralOffset);
+    const expected = new Map(selectedFiles.map(file => [file.path, file]));
+    const directories = new Set();
+    for (const file of selectedFiles) {
+      const segments = file.path.split('/');
+      for (let n = 1; n < segments.length; n++) directories.add(`${segments.slice(0, n).join('/')}/`);
+    }
+    let cursor = 0;
+    let entries = 0;
+    while (cursor < central.length) {
+      if (cursor + 46 > central.length || central.readUInt32LE(cursor) !== 0x02014b50) {
+        throw new Error('Malformed ZIP central directory entry.');
+      }
+      const flags = central.readUInt16LE(cursor + 8);
+      const method = central.readUInt16LE(cursor + 10);
+      const compressedSize = central.readUInt32LE(cursor + 20);
+      const size = central.readUInt32LE(cursor + 24);
+      const nameLength = central.readUInt16LE(cursor + 28);
+      const extraLength = central.readUInt16LE(cursor + 30);
+      const commentLength = central.readUInt16LE(cursor + 32);
+      const next = cursor + 46 + nameLength + extraLength + commentLength;
+      if (next > central.length) throw new Error('ZIP entry extends beyond central directory.');
+      const name = central.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8');
+      if (name.startsWith('/') || name.includes('\\') || name.split('/').includes('..')) {
+        throw new Error(`Unsafe ZIP path: ${name}`);
+      }
+      if (name.endsWith('/')) {
+        if (!directories.has(name)) throw new Error(`Unexpected ZIP directory: ${name}`);
+      } else {
+        const file = expected.get(name);
+        if (!file || file.size !== size || (flags & 1) || ![0, 8].includes(method)) {
+          throw new Error(`Unexpected ZIP file, size, encryption, or method: ${name}`);
+        }
+        const unixMode = central.readUInt32LE(cursor + 38) >>> 16;
+        // Git ZIP writes ordinary 100644 files as DOS entries with zero Unix
+        // attributes; executable 100755 files carry their Unix mode.
+        if (![Number.parseInt(file.mode, 8), ...(file.mode === '100644' ? [0] : [])].includes(unixMode)) {
+          throw new Error(`ZIP mode differs from Git tree: ${name}`);
+        }
+        const localOffset = central.readUInt32LE(cursor + 42);
+        if (localOffset === 0xffffffff || compressedSize === 0xffffffff || size === 0xffffffff ||
+            localOffset + 30 > centralOffset) throw new Error(`Invalid ZIP local offset: ${name}`);
+        const local = readAt(descriptor, 30, localOffset);
+        if (local.readUInt32LE(0) !== 0x04034b50) throw new Error(`Missing ZIP local header: ${name}`);
+        const localNameLength = local.readUInt16LE(26);
+        const localExtraLength = local.readUInt16LE(28);
+        const localName = readAt(descriptor, localNameLength, localOffset + 30).toString('utf8');
+        if (localName !== name) throw new Error(`ZIP local/central name mismatch: ${name}`);
+        const dataOffset = localOffset + 30 + localNameLength + localExtraLength;
+        if (dataOffset + compressedSize > centralOffset) throw new Error(`ZIP data exceeds directory: ${name}`);
+        const compressed = readAt(descriptor, compressedSize, dataOffset);
+        const data = method === 0 ? compressed : inflateRawSync(compressed, { maxOutputLength: Math.max(size, 1) });
+        const blobSha = createHash('sha1').update(`blob ${size}\0`).update(data).digest('hex');
+        if (data.length !== size || blobSha !== file.blobSha) {
+          throw new Error(`ZIP content differs from Git blob: ${name}`);
+        }
+        expected.delete(name);
+      }
+      entries++;
+      cursor = next;
+    }
+    if (entries !== count || expected.size) {
+      throw new Error(`ZIP entries did not match tracked source files (${expected.size} missing).`);
+    }
+    return entries;
+  } finally {
+    closeSync(descriptor);
+  }
+}
 function option(name) {
   const at = process.argv.indexOf(name);
   return at < 0 ? undefined : process.argv[at + 1];
@@ -69,9 +171,11 @@ const ref = option('--ref');
 const base = option('--base');
 const manifestPath = option('--manifest');
 const archivePath = option('--archive');
+const verifyArchivePath = option('--verify-archive');
 if (!ref || !/^[0-9a-f]{40}$/.test(ref) || (base && !/^[0-9a-f]{40}$/.test(base))) {
-  throw new Error('Use --ref <exact 40-character commit SHA> [--base <exact commit SHA>] [--manifest <path>] [--archive <path>].');
+  throw new Error('Use --ref <exact 40-character commit SHA> [--base <exact commit SHA>] [--manifest <path>] [--archive <path> | --verify-archive <path>].');
 }
+if (archivePath && verifyArchivePath) throw new Error('Choose either --archive or --verify-archive.');
 const sourceSha = git(['rev-parse', `${ref}^{commit}`]).trim();
 if (sourceSha !== ref) throw new Error('Source ref did not resolve to the exact requested commit.');
 const treeSha = git(['rev-parse', `${ref}^{tree}`]).trim();
@@ -145,11 +249,25 @@ if (base) {
   result.baseToSourceDiffSha256 = sha256(diff);
   result.baseToSourceChangedPaths = git(['diff', '--name-only', '--no-ext-diff', base, sourceSha]).trim().split(/\r?\n/).filter(Boolean);
 }
-if (archivePath) {
-  const output = resolve(archivePath);
-  if (existsSync(output)) throw new Error(`Refusing to overwrite archive: ${output}`);
-  mkdirSync(dirname(output), { recursive: true });
-  git(['archive', '--format=zip', `--output=${output}`, sourceSha, ...inputPaths]);
+if (archivePath || verifyArchivePath) {
+  const output = resolve(archivePath ?? verifyArchivePath);
+  const inRepository = relative(root, output);
+  if (!inRepository.startsWith('..') && !isAbsolute(inRepository)) {
+    throw new Error('Archive output must be outside this Git worktree.');
+  }
+  if (basename(output) !== `core-${sourceSha}.zip`) {
+    throw new Error(`Archive name must be core-${sourceSha}.zip.`);
+  }
+  if (archivePath) {
+    if (existsSync(output)) throw new Error(`Refusing to overwrite archive: ${output}`);
+    mkdirSync(dirname(output), { recursive: true });
+    // A Windows checkout may set core.autocrlf=true. Without this override Git
+    // archive rewrites unconstrained text blobs (including .dockerignore) to
+    // CRLF, so its ZIP entries cease to match the pinned Git blob inventory.
+    git(['-c', 'core.autocrlf=false', 'archive', '--format=zip', `--output=${output}`, sourceSha, ...inputPaths]);
+  }
+  if (!existsSync(output)) throw new Error(`Archive is missing: ${output}`);
+  result.archiveEntries = inspectZip(output, files);
   const { createReadStream } = await import('node:fs');
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(output)) hash.update(chunk);
