@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -97,9 +98,9 @@ const stale = () => new ConflictException('The correction target is no longer th
  * owner, corrections are review-only version candidates for
  * `ImmutableMemoryVersionService`. Nothing is committed inline for any scope,
  * and `proposeSaveMemory` / `proposeCorrection` (which mint their own ids and
- * activate private memory) are never used. A submission ledger keeps the
- * exact Meri candidate, its hash and a stable reviewId (a submission receipt,
- * not a review_request id), so a replay answers the original acknowledgement.
+ * activate private memory) are never used. A content-free submission ledger
+ * keeps the hash and stable reviewId (not a review_request id); the deletable
+ * memory_candidate row owns the payload. A replay after its deletion is gone.
  */
 @Injectable()
 export class MeriMemoryReceivingService {
@@ -120,7 +121,7 @@ export class MeriMemoryReceivingService {
     const record = (tx: Prisma.TransactionClient) => tx.clioMeriMemorySubmission.create({
       data: {
         tenantId: ctx.tenantId, candidateId: candidate.candidateId, candidateSha256: request.candidateSha256,
-        proposerUserId: ctx.userId, reviewId: randomUUID(), candidate: request.candidate as Prisma.InputJsonValue,
+        proposerUserId: ctx.userId, reviewId: randomUUID(),
       },
     }) as Promise<SubmissionRow>;
     try {
@@ -292,10 +293,16 @@ export class MeriMemoryReceivingService {
     })) as Promise<SubmissionRow | null>;
   }
 
-  private replay(stored: SubmissionRow, ctx: TenantContext, candidateSha256: string) {
+  private async replay(stored: SubmissionRow, ctx: TenantContext, candidateSha256: string) {
     if (stored.proposerUserId !== ctx.userId || stored.candidateSha256 !== candidateSha256) {
       throw new ConflictException('Candidate id already submitted with different content');
     }
+    // The content-free receipt survives a client purge to suppress replay.
+    // It must not falsely acknowledge a candidate that is no longer reviewable.
+    const candidate = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.memoryCandidate.findUnique({ where: { id: stored.candidateId }, select: { id: true } }),
+    );
+    if (!candidate) throw new GoneException('Memory submission is no longer available');
     return ack(stored);
   }
 }
@@ -377,8 +384,9 @@ async function readScoped(tx: Prisma.TransactionClient, ctx: TenantContext, memo
 /**
  * The logical key Meri submitted: null for memory that came from an unkeyed
  * Meri addition (its storage key is synthetic), else the storage key. The
- * null is translated only with proven lineage (dot #121 6246772795): a clio
- * row must be the one that submission committed; an item must descend
+ * null is translated only with proven lineage (dot #121 6246772795): Meri
+ * refuses an explicit logical key in the reserved `meri:<uuid>` namespace,
+ * and a clio row must be the one that submission committed; an item must descend
  * (supersedes ancestry) from that committed row's canonical projection.
  */
 async function logicalKey(
@@ -386,13 +394,13 @@ async function logicalKey(
 ): Promise<string | null> {
   const synthetic = SYNTHETIC_KEY.exec(storageKey);
   if (!synthetic) return storageKey;
-  const rows = await tx.$queryRaw<Array<{ logicalNull: boolean; committedMemoryId: string | null }>>`
-    SELECT (s.candidate->>'key') IS NULL AS "logicalNull", mc.committed_memory_id::text AS "committedMemoryId"
+  const rows = await tx.$queryRaw<Array<{ committedMemoryId: string | null }>>`
+    SELECT mc.committed_memory_id::text AS "committedMemoryId"
     FROM clio_meri_memory_submissions s
     JOIN memory_candidate mc ON mc.tenant_id = s.tenant_id AND mc.id = s.candidate_id
     WHERE s.tenant_id = ${ctx.tenantId}::uuid AND s.candidate_id = ${synthetic[1]}::uuid`;
   const row = rows.length === 1 ? rows[0]! : null;
-  if (!row || row.logicalNull !== true || !row.committedMemoryId) return storageKey;
+  if (!row?.committedMemoryId) return storageKey;
   if ('clioId' in subject) return row.committedMemoryId === subject.clioId ? null : storageKey;
   const ancestry = await tx.$queryRaw<Array<{ found: number }>>`
     WITH RECURSIVE ancestry AS (
