@@ -130,6 +130,7 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   assert.equal(FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 3);
   assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
     '^/api/clio/(approvals/native/(record|decision|execution)|memory/(review/(submit|status)|read_target|find_by_key))$',
+    '^/api/clio/application-authority/artifact$',
   ]);
   assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
   assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);

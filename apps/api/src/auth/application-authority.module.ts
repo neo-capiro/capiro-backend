@@ -8,11 +8,12 @@ import { ApplicationAuthorityController } from './application-authority.controll
 import { ApplicationMembershipController } from './application-membership.controller.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
 import { PreviewNativeReadService } from './preview-native-read.service.js';
+import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 
 @Module({
   imports: [AuthModule, TenantModule, PrismaModule, ContextSecurityScopeModule, BizDevMeriScopeModule],
   controllers: [ApplicationAuthorityController, ApplicationMembershipController],
-  providers: [ApplicationMembershipService, PreviewNativeReadService],
+  providers: [ApplicationMembershipService, PreviewNativeReadService, ToolServiceSecretGuard],
   // ApplicationMembershipService is reused by the sibling read-mode observation module.
   exports: [PreviewNativeReadService, ApplicationMembershipService],
 })

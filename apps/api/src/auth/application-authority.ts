@@ -69,7 +69,7 @@ function closedBody(body: unknown, keys: readonly string[]): Record<string, unkn
 }
 
 /** Deterministic digest of explicit server-owned facts, never an authority grant. */
-export function applicationAuthorityRevision(kind: 'identity' | 'context', facts: unknown): string {
+export function applicationAuthorityRevision(kind: 'identity' | 'context' | 'artifact', facts: unknown): string {
   return createHash('sha256').update(`capiro-application-authority-${kind}-v1\n${stableFacts(facts)}`).digest('hex');
 }
 
@@ -194,4 +194,120 @@ function assertCurrentConversation(
       conversation.tenantId !== principal.tenantId || conversation.userId !== principal.actorId ||
       conversation.clientId !== input.clientId || conversation.archivedAt !== null ||
       conversation.status !== 'active') throw new ForbiddenException('Application authority unavailable');
+}
+
+/**
+ * `capiro.meri-artifact-authority.v1` (meri-greenfield
+ * docs/integration/ARTIFACT-CURRENT-AUTHORITY-CONTRACT.md, D31; dot #121
+ * 6247459562 / 6247472757): a pure current-authority observation for
+ * `/api/documents/*`. It reuses the identity + context revision chain (no
+ * second authority model); `operations` is a fact, never a grant. Nothing is
+ * persisted: no ledger, cache or idempotency key.
+ */
+export const ARTIFACT_AUTHORITY_CONTRACT = 'capiro.meri-artifact-authority.v1';
+export const ARTIFACT_AUTHORITY_TTL_MS = 60_000;
+/** Closed and sorted (contract §4.2). */
+export const ARTIFACT_OPERATIONS = Object.freeze([
+  'artifact.download', 'artifact.generate', 'artifact.inspect', 'artifact.preview-publish', 'artifact.revise',
+] as const);
+export type ArtifactOperation = (typeof ARTIFACT_OPERATIONS)[number];
+/** Contract §4.3 `INTENT_OPERATIONS`. */
+export const ARTIFACT_INTENT_OPERATIONS: Readonly<Record<string, readonly ArtifactOperation[]>> = Object.freeze({
+  create: ['artifact.generate'],
+  revise: ['artifact.revise'],
+  inspect: ['artifact.inspect'],
+  download: ['artifact.download'],
+  preview: ['artifact.download', 'artifact.inspect'],
+  'preview-publish': ['artifact.download', 'artifact.inspect', 'artifact.preview-publish'],
+});
+/** Contract §4.2 v1 rule: existing semantics, no new policy. */
+const ARTIFACT_ADMITTED_ROLES = Object.freeze(['standard_user', 'user_admin', 'capiro_admin']);
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+export interface ApplicationAuthorityArtifactRequest {
+  contract: typeof ARTIFACT_AUTHORITY_CONTRACT;
+  observationId: string;
+  conversationId: string;
+  clientId: string;
+  intent: string;
+  requestSha256: string;
+}
+export interface ApplicationAuthorityArtifactReceipt {
+  contract: typeof ARTIFACT_AUTHORITY_CONTRACT;
+  observationId: string;
+  principal: ApplicationAuthorityPrincipal;
+  identityRevision: string;
+  conversationId: string;
+  selectedClientId: string;
+  contextRevision: string;
+  intent: string;
+  requestSha256: string;
+  operations: ArtifactOperation[];
+  limits: null;
+  authorityRevision: string;
+  checkedAtMs: number;
+  expiresAtMs: number;
+}
+
+/** Closed six-key body (contract §3.1). Anything else is 400. */
+export function parseApplicationAuthorityArtifactBody(body: unknown): ApplicationAuthorityArtifactRequest {
+  const record = closedBody(body, ['contract', 'observationId', 'conversationId', 'clientId', 'intent', 'requestSha256']);
+  const { contract, observationId, conversationId, clientId, intent, requestSha256 } = record;
+  if (contract !== ARTIFACT_AUTHORITY_CONTRACT || typeof observationId !== 'string' || !UUID_V4.test(observationId) ||
+      typeof conversationId !== 'string' || !UUID.test(conversationId) || typeof clientId !== 'string' || !UUID.test(clientId) ||
+      typeof intent !== 'string' || !Object.hasOwn(ARTIFACT_INTENT_OPERATIONS, intent) ||
+      typeof requestSha256 !== 'string' || !HASH.test(requestSha256)) {
+    throw new BadRequestException('Invalid application authority request');
+  }
+  return { contract: ARTIFACT_AUTHORITY_CONTRACT, observationId, conversationId, clientId, intent, requestSha256 };
+}
+
+/**
+ * Contract §4.1. The identity, conversation, prospect scope, client visibility
+ * and client authority reads and re-reads are exactly `/context`'s
+ * (`readApplicationAuthorityContext`); membership and role are already bound
+ * in `identityRevision` with the active member/tenant rechecks (dot
+ * 6247459562), so no extra membership call is made. `role` is the request's
+ * resolved role and joins `authorityRevision`. `requestSha256` is echoed only.
+ */
+export async function readApplicationAuthorityArtifact(
+  input: ApplicationAuthorityArtifactRequest,
+  role: string,
+  ports: Parameters<typeof readApplicationAuthorityContext>[1],
+  now: () => number = Date.now,
+): Promise<ApplicationAuthorityArtifactReceipt> {
+  // `/context` echoes `identitySha256` without interpreting it; this route has
+  // none, so a constant placeholder is passed and never returned.
+  const context = await readApplicationAuthorityContext(
+    { identitySha256: '0'.repeat(64), conversationId: input.conversationId, clientId: input.clientId }, ports);
+  const operations: ArtifactOperation[] = ARTIFACT_ADMITTED_ROLES.includes(role) ? [...ARTIFACT_OPERATIONS] : [];
+  const needed = ARTIFACT_INTENT_OPERATIONS[input.intent];
+  if (!needed || needed.some((operation) => !operations.includes(operation))) {
+    throw new ForbiddenException('Application authority unavailable');
+  }
+  const limits = null;
+  const authorityRevision = applicationAuthorityRevision('artifact', [
+    context.identityRevision, context.contextRevision, role, operations, limits,
+  ]);
+  const checkedAtMs = now();
+  const expiresAtMs = Math.min(checkedAtMs + ARTIFACT_AUTHORITY_TTL_MS, context.expiresAtMs);
+  if (!Number.isSafeInteger(checkedAtMs) || !Number.isSafeInteger(expiresAtMs) || expiresAtMs <= checkedAtMs) {
+    throw new ForbiddenException('Application authority unavailable');
+  }
+  return {
+    contract: ARTIFACT_AUTHORITY_CONTRACT,
+    observationId: input.observationId,
+    principal: { tenantId: context.principal.tenantId, actorId: context.principal.actorId },
+    identityRevision: context.identityRevision,
+    conversationId: context.conversationId,
+    selectedClientId: context.selectedClientId,
+    contextRevision: context.contextRevision,
+    intent: input.intent,
+    requestSha256: input.requestSha256,
+    operations,
+    limits,
+    authorityRevision,
+    checkedAtMs,
+    expiresAtMs,
+  };
 }

@@ -5,6 +5,9 @@ import { createContext, Script } from 'node:vm';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { isDeepStrictEqual, types as nodeTypes } from 'node:util';
 import ts from 'typescript';
+// Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
+import * as executionKeyConfig from './core-ed25519-key-config.js';
+import * as executionRequest from './meri-execution-request.js';
 
 // Exercise actual owner sources. Only Nest/Clerk/Prisma/request I/O is synthetic.
 // Authenticate through the real middleware so request-local provenance is real;
@@ -73,6 +76,8 @@ const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '../auth/application-authority.js': authority,
   '../auth/preview-native-read-mode.js': previewNativeReadMode,
   '../auth/retained-native-authority.js': retainedNativeAuthority,
+  '../auth/core-ed25519-key-config.js': executionKeyConfig,
+  '../auth/meri-execution-request.js': executionRequest,
 });
 // The actual canonical governed-memory policy (type-only imports), not a stub.
 const memoryAdminPolicy = load(source('memory/memory-review-admin-policy.ts'), {});

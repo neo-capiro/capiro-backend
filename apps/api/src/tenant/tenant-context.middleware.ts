@@ -28,7 +28,7 @@ import {
   type TenantContext,
   type TenantRole,
 } from '@capiro/shared';
-import { readCoreEd25519KeyConfig, readMeriExecutionIdentity } from '../auth/core-ed25519-kms-config.js';
+import { readCoreEd25519KeyConfig, readMeriExecutionIdentity } from '../auth/core-ed25519-key-config.js';
 import { isMeriExecutionCapabilityPost, markMeriExecutionRequest } from '../auth/meri-execution-request.js';
 import { ClerkService, isWellFormedMeriControlCredentialClaims, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';

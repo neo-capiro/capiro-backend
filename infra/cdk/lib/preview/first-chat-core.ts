@@ -83,7 +83,7 @@ export const FIRST_CHAT_CORE_MERI_TOOLS: readonly string[] = Object.freeze([...m
  * per rule (host + method + three paths). */
 export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([...routes.post]);
 export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([...routes.get]);
-/** Exact Core POSTs for P-INT-10 approvals, D016 #9 execution issuance and W8 memory receiving. */
+/** Exact Core POSTs for P-INT-10 approvals, D016 #9 execution issuance, W8 memory receiving and the D31 artifact authority. */
 export const FIRST_CHAT_CORE_NATIVE_OPS_PATHS: readonly string[] = Object.freeze([...routes.nativeOps]);
 export const FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY: number = routes.packet.nativeOps;
 

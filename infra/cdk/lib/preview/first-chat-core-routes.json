@@ -22,6 +22,7 @@
     "^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$"
   ],
   "nativeOps": [
-    "^/api/clio/(approvals/native/(record|decision|execution)|memory/(review/(submit|status)|read_target|find_by_key))$"
+    "^/api/clio/(approvals/native/(record|decision|execution)|memory/(review/(submit|status)|read_target|find_by_key))$",
+    "^/api/clio/application-authority/artifact$"
   ]
 }

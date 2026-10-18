@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { generateKeyPairSync, sign as nodeSign, type KeyObject } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ForbiddenException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
@@ -120,6 +122,19 @@ describe('Meri execution capability admission in the tenant middleware (create_t
     await expect(f.middleware.use(f.req, f.res, f.next)).rejects.toBeInstanceOf(ForbiddenException);
     expect(f.next).not.toHaveBeenCalled();
     expect(meriExecutionRequestOf(f.req)).toBeUndefined();
+  });
+
+  it('keeps the authority closure SDK-free: the middleware imports only the pure key config and request helper', () => {
+    const read = (path: string) => readFileSync(resolve(__dirname, '..', path), 'utf8');
+    const middleware = read('tenant/tenant-context.middleware.ts');
+    expect(middleware).toContain("from '../auth/core-ed25519-key-config.js'");
+    expect(middleware).not.toContain('core-ed25519-kms-config');
+    for (const path of ['auth/core-ed25519-key-config.ts', 'auth/meri-execution-request.ts', 'auth/core-ed25519-signer.ts']) {
+      const source = read(path);
+      const imports = [...source.matchAll(/^(?:import|export)[^;]*?from '([^']+)'/gm)].map((m) => m[1]!);
+      expect({ path, imports: imports.filter((id) => id.startsWith('@aws-sdk/') || id.includes('/meri/') || id.startsWith('@capiro/meriv2')) })
+        .toEqual({ path, imports: [] });
+    }
   });
 
   it('never admits the capability on another path: that request stays on Clerk verification', async () => {

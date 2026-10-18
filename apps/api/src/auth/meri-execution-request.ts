@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { isMeriExecutionBearer } from './core-ed25519-kms-config.js';
+import { isMeriExecutionBearer } from './core-ed25519-key-config.js';
 
 /**
  * The single Core route that accepts a Meri execution capability as its

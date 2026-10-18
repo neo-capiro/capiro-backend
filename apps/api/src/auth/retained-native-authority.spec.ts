@@ -5,6 +5,9 @@ import { createHash } from 'node:crypto';
 import { types } from 'node:util';
 import { authDeniedEvent, ROLE_RANK, TENANT_HEADER } from '@capiro/shared';
 import ts from 'typescript';
+// Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
+import * as executionKeyConfig from './core-ed25519-key-config.js';
+import * as executionRequest from './meri-execution-request.js';
 
 const root = resolve(__dirname, '../../../..');
 const source = (name: string) => readFileSync(resolve(root, 'apps/api/src', name), 'utf8');
@@ -40,6 +43,7 @@ function owners() {
   const middleware = load(source('tenant/tenant-context.middleware.ts'), {
     '@nestjs/common': nest, '@capiro/shared': shared, '../auth/application-authority.js': authority,
     '../auth/retained-native-authority.js': native,
+    '../auth/core-ed25519-key-config.js': executionKeyConfig, '../auth/meri-execution-request.js': executionRequest,
     '../auth/clerk.service.js': {}, '../auth/preview-native-read-mode.js': load(source('auth/preview-native-read-mode.ts'), {}),
     '../auth/clerk-role.util.js': { mapClerkRoleToCapiro() { throw new Error('No self-heal in this fixture'); } },
   }).TenantContextMiddleware;

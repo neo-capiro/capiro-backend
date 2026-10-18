@@ -7,6 +7,9 @@ import { types as nodeTypes } from 'node:util';
 import ts from 'typescript';
 import { ROLE_RANK } from '@capiro/shared';
 import type { ApplicationAuthorityIdentityProof } from './application-authority.js';
+// Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
+import * as executionKeyConfig from './core-ed25519-key-config.js';
+import * as executionRequest from './meri-execution-request.js';
 
 // Actual owner closures only: no application/bootstrap, Prisma client or SDK.
 const root = resolve(__dirname, '../../../..');
@@ -93,11 +96,13 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
   };
   let sessionReader = async (_claims: any) => ({ ...session(), expiresAtMs: Date.now() + 60_000 });
   const middleware = load(sources('tenant/tenant-context.middleware.ts'), {
-    '@nestjs/common': nest, '@capiro/shared': { TENANT_HEADER: 'x-capiro-tenant', authDeniedEvent: () => ({}) },
+    '@nestjs/common': nest, '@capiro/shared': { TENANT_HEADER: 'x-capiro-tenant', authDeniedEvent: () => ({}), ROLE_RANK },
     '../auth/clerk.service.js': {}, '../prisma/prisma.service.js': {}, '../auth/clerk-role.util.js': {},
     './tenant-context.store.js': {}, '../auth/application-authority.js': contract,
     '../auth/preview-native-read-mode.js': previewNativeReadMode,
     '../auth/retained-native-authority.js': retainedNativeAuthority,
+    '../auth/core-ed25519-key-config.js': executionKeyConfig,
+    '../auth/meri-execution-request.js': executionRequest,
   }).TenantContextMiddleware;
   let activeContext: any;
   const clerkPort = { verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {
@@ -335,6 +340,7 @@ describe('actual Meri and scope-owner source integration', () => {
       '../context/application-authority-resource.helpers.js': resources,
       '../business-development/bizdev-meri-scope.authorization.js': scopes,
       './roles.decorator.js': { Roles: decorator }, './roles.guard.js': {},
+      './tool-service-secret.guard.js': { ToolServiceSecretGuard: class {}, hasVerifiedToolServiceIdentity: () => false },
       '../tenant/current-tenant.decorator.js': { CurrentTenant: decorator },
     }).ApplicationAuthorityController;
     const row = conversation();

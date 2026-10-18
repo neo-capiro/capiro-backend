@@ -11,7 +11,7 @@ import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
 import { createInProcessEd25519Signer } from '../../auth/core-ed25519-signer.js';
-import { readMeriExecutionIdentity, type CoreEd25519KeyConfig } from '../../auth/core-ed25519-kms-config.js';
+import { readMeriExecutionIdentity, type CoreEd25519KeyConfig } from '../../auth/core-ed25519-key-config.js';
 import { isMeriExecutionCapabilityPost } from '../../auth/meri-execution-request.js';
 import { nativeCanonicalSha256 } from '../native-approvals/native-approval.contract.js';
 import { NativeExecutionService } from '../native-approvals/native-execution.service.js';

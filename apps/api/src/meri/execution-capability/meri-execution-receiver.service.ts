@@ -13,7 +13,7 @@ import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { hasVerifiedToolServiceIdentity } from '../../auth/tool-service-secret.guard.js';
-import type { CoreEd25519KeyConfig } from '../../auth/core-ed25519-kms-config.js';
+import type { CoreEd25519KeyConfig } from '../../auth/core-ed25519-key-config.js';
 import type { MeriExecutionRequestIdentity } from '../../auth/meri-execution-request.js';
 import { UUID, nativeCanonicalSha256, sameJson } from '../native-approvals/native-approval.contract.js';
 import { nativeDecisionOf } from '../native-approvals/native-approval.service.js';

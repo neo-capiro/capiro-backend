@@ -27,7 +27,8 @@ The ledger migration `20281018040000_clio_meri_execution_authority` is reserved 
 | Issuance service and route | `apps/api/src/meri/native-approvals/native-execution.service.ts` (`POST /api/clio/approvals/native/execution`) |
 | Receiver | `apps/api/src/meri/execution-capability/meri-execution-receiver.service.ts`, called from `MeriController.executeTool` |
 | Middleware admission | `apps/api/src/tenant/tenant-context.middleware.ts` (`useMeriExecutionCapability`), `apps/api/src/auth/meri-execution-request.ts` |
-| KMS configuration and signer | `apps/api/src/auth/core-ed25519-kms-config.ts`, `apps/api/src/auth/core-ed25519-signer.ts` |
+| Key configuration and verification (pure, SDK-free; the middleware's closure) | `apps/api/src/auth/core-ed25519-key-config.ts`, `apps/api/src/auth/core-ed25519-signer.ts` |
+| KMS signer (the only `@aws-sdk/client-kms` import) | `apps/api/src/auth/core-ed25519-kms-config.ts` |
 | Ledger | `apps/api/prisma/migrations/20281018040000_clio_meri_execution_authority/migration.sql` |
 | Codec vector (minimal allocation, SYNTHETIC key) | `docs/integration/meri-execution-capability.vector.json` |
 | Complete admitted-allocation vector | `docs/integration/meri-execution-admitted-allocation.vector.json` |
