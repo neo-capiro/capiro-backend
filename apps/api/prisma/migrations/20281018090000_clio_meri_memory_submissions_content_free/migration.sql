@@ -1,33 +1,109 @@
--- SOURCE ONLY: this forward migration is held for release review. The original
--- 20281018020000_clio_meri_memory_submissions migration must retain its exact
--- 5c105cfe bytes (SHA-256 090b3140156c8cb40630101e6fd3b8bb5135a846a6d79528fa2fc4d523f0c2c5).
--- Its candidate JSONB column contains review payload; the pending
--- memory_candidate row is the review owner, while this immutable receipt only
--- needs tenant_id, candidate_id, candidate_sha256, proposer_user_id, review_id
--- and created_at to suppress duplicate submissions after review deletion.
+-- Stage 1 compatibility only. Keep this allocated Prisma directory name even
+-- though its earlier held source proposed a content-free receipt. This version
+-- does not erase or rewrite any existing candidate JSONB value.
 --
--- Before removing the hold below, the release owner must read back each target
--- DB's _prisma_migrations checksum for 020000, actual column/constraint shape,
--- and applicable retention/suppression/hold disposition. Reconcile any
--- different applied checksum before deployment. A column drop is a data
--- disposition action and is not authorized by this source file. Even a
--- successful DROP COLUMN does not erase old pages or backups.
+-- The release owner must first read each target's _prisma_migrations ledger and
+-- table shape. If 090000 is already applied or failed, stop for a separately
+-- reviewed forward/recovery plan; changing an applied migration is unsafe.
+-- Original 020000 Git bytes SHA-256:
+-- 090b3140156c8cb40630101e6fd3b8bb5135a846a6d79528fa2fc4d523f0c2c5.
+-- The second accepted digest below is the same SQL checked out with CRLF only.
+-- Neither digest is the edited, content-free PR86 020000 migration.
 
 BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
 
-DO $release_hold$
+DO $stage1_guard$
+DECLARE
+  receipt_oid oid := to_regclass('public.clio_meri_memory_submissions');
+  candidate_attnum smallint;
 BEGIN
-  RAISE EXCEPTION 'Held source migration 20281018090000: receipt payload disposition requires release review'
-    USING ERRCODE = '55000',
-          HINT = 'Verify applied 020000 checksum, table shape, retention and holds; authorize the column drop before removing this hold.';
-END
-$release_hold$;
+  IF NOT EXISTS (
+    SELECT 1 FROM public."_prisma_migrations" m
+    WHERE m.migration_name = '20281018020000_clio_meri_memory_submissions'
+      AND m.checksum IN (
+        '090b3140156c8cb40630101e6fd3b8bb5135a846a6d79528fa2fc4d523f0c2c5',
+        'd70772020ba2cec0a4a590a62fa45c1922c774b77a0514836fbeb6204d3ecb97'
+      )
+      AND m.finished_at IS NOT NULL
+      AND m.rolled_back_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Stage 1 requires the original applied 020000 receipt migration'
+      USING ERRCODE = '55000';
+  END IF;
 
--- Once the release hold is explicitly removed, the existing memory_candidate
--- row owns review payload; the immutable submission receipt remains for replay.
-ALTER TABLE "clio_meri_memory_submissions"
-  DROP CONSTRAINT IF EXISTS "clio_meri_memory_submissions_candidate_check";
-ALTER TABLE "clio_meri_memory_submissions"
-  DROP COLUMN IF EXISTS "candidate";
+  IF receipt_oid IS NULL OR NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class r
+    JOIN pg_catalog.pg_namespace n ON n.oid = r.relnamespace
+    WHERE r.oid = receipt_oid AND n.nspname = 'public'
+      AND r.relkind = 'r'
+      AND r.relrowsecurity AND r.relforcerowsecurity
+  ) THEN
+    RAISE EXCEPTION 'Stage 1 requires the original RLS-forced receipt table'
+      USING ERRCODE = '55000';
+  END IF;
+
+  SELECT a.attnum INTO candidate_attnum
+  FROM pg_catalog.pg_attribute a
+  WHERE a.attrelid = receipt_oid AND a.attname = 'candidate'
+    AND a.attnum > 0 AND NOT a.attisdropped
+    AND a.atttypid = 'pg_catalog.jsonb'::regtype
+    AND a.attnotnull AND NOT a.atthasdef;
+  IF candidate_attnum IS NULL OR (
+    SELECT count(*) FROM pg_catalog.pg_attribute a
+    WHERE a.attrelid = receipt_oid AND a.attnum > 0 AND NOT a.attisdropped
+  ) <> 7 THEN
+    RAISE EXCEPTION 'Stage 1 requires the original seven-column NOT NULL JSONB receipt shape'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint c
+    WHERE c.conrelid = receipt_oid
+      AND c.conname = 'clio_meri_memory_submissions_candidate_check'
+      AND c.contype = 'c'
+      AND c.conkey = ARRAY[candidate_attnum]::smallint[]
+      -- pg_get_expr can add outer parentheses, spaces and identifier quotes;
+      -- any other deparsed expression fails this exact normalized comparison.
+      AND regexp_replace(
+        pg_catalog.pg_get_expr(c.conbin, c.conrelid), '[[:space:]()"]', '', 'g'
+      ) IN (
+        'jsonb_typeofcandidate=''object''::text',
+        'jsonb_typeofcandidate=''object'''
+      )
+  ) THEN
+    RAISE EXCEPTION 'Stage 1 requires the original candidate object check'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger t
+    JOIN pg_catalog.pg_proc f ON f.oid = t.tgfoid
+    JOIN pg_catalog.pg_namespace n ON n.oid = f.pronamespace
+    WHERE t.tgrelid = receipt_oid
+      AND t.tgname = 'clio_meri_memory_submission_immutable'
+      -- tgtype 19 = row (1) + before (2) + update (16).
+      AND NOT t.tgisinternal AND t.tgenabled = 'O' AND t.tgtype = 19
+      AND n.nspname = 'public'
+      AND f.proname = 'clio_meri_memory_submission_immutable'
+      AND pg_catalog.pg_get_function_identity_arguments(f.oid) = ''
+  ) OR NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_policy p
+    WHERE p.polrelid = receipt_oid
+      AND p.polname = 'clio_meri_memory_submissions_isolation'
+      AND p.polcmd = '*'
+  ) THEN
+    RAISE EXCEPTION 'Stage 1 requires the original immutable, isolated receipt guards'
+      USING ERRCODE = '55000';
+  END IF;
+END
+$stage1_guard$;
+
+-- PostgreSQL CHECK accepts NULL; old non-null candidate values are untouched.
+-- The current Core writer can then omit candidate while the immutable receipt
+-- keeps its ID, digest, proposer and review ID for stable replay.
+ALTER TABLE public."clio_meri_memory_submissions"
+  ALTER COLUMN "candidate" DROP NOT NULL;
 
 COMMIT;
