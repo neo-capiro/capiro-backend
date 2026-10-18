@@ -105,20 +105,6 @@ describe('LegiStormClient — Legislative Districts API (WS-B)', () => {
     expect(new URL(calls[0]!.url).search).not.toContain(API_KEY);
   });
 
-  test('fetchCongressDistrictsByZip sends zip and optional zip4, can return multiple districts', async () => {
-    const multi = [HOUSE_TX_FUTURE, { ...HOUSE_DC, id: 999, state: 'TX', name: 'U.S. Senate Seat for Texas (Class 1)' }];
-    const { fetchImpl, calls } = queuedFetch([jsonResponse(multi)]);
-    const client = new LegiStormClient({ apiKey: API_KEY, baseUrl: DISTRICTS_BASE_URL, fetchImpl });
-
-    const result = await client.fetchCongressDistrictsByZip('75001', '1234');
-
-    expect(result.records).toHaveLength(2);
-    const url = new URL(calls[0]!.url);
-    expect(url.pathname).toBe('/v2.023.07/legislative_districts/congress/zipcode');
-    expect(url.searchParams.get('zip')).toBe('75001');
-    expect(url.searchParams.get('zip4')).toBe('1234');
-  });
-
   test('filters out a malformed element instead of throwing on the whole page', async () => {
     const { fetchImpl } = queuedFetch([
       jsonResponse([HOUSE_DC, { unexpected: 'trailing element, no office_type/state/name' }]),

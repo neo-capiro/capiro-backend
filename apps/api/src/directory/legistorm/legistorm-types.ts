@@ -76,15 +76,6 @@ export function hasRequiredOfficeIdentity(record: unknown): record is LegiStormO
 }
 
 /**
- * Return the original vendor object without projecting it through a reduced DTO.
- * Downstream merge and archive code relies on this to preserve fields added by
- * LegiStorm before Capiro explicitly models them.
- */
-export function retainVendorRecord<T extends LegiStormVendorRecord>(record: T): T {
-  return record;
-}
-
-/**
  * Legislative Districts API (v2.023.07/legislative_districts) — UNLIKE the
  * Congressional API's member/staff/office records, a district record is FLAT
  * at the top level (no nested `district: {...}` wrapper). Both `/congress/list`

@@ -13,6 +13,9 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { DirectoryContactMapper, type MemberBioOverlay } from './directory-contact-mapper.js';
 import { DirectoryBrowse } from './directory-browse.js';
+import { readContactTrips } from './directory-contact-trips.js';
+import { membershipsForPerson, projectMemberDetail, projectRosterOnlyStaffDetail, projectStaffDetail } from './directory-detail-projection.js';
+import { buildCommitteeIndex } from './directory-committee-index.js';
 import { uniqueSorted } from './directory-collection.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { matchFacilityDistrictCode, UNRESOLVABLE_HOUSE_SENTINELS } from '../common/district-code.util.js';
@@ -28,7 +31,6 @@ import {
   type DirectoryIndexes,
 } from './directory-indexes.js';
 import {
-  memberPhotoRecords,
   parsePhotoOverlay,
   resolveMemberPhoto,
   resolveStaffPhoto,
@@ -36,7 +38,6 @@ import {
 } from './directory-photo.js';
 import type {
   DirectoryCommitteeDetail,
-  DirectoryContactTripSummary,
   DirectoryContactTripsPayload,
   DirectoryDistrictDetail,
   DirectoryDistrictMemberSummary,
@@ -48,8 +49,6 @@ import type {
 
 import type {
   Chamber,
-  CommitteeChamber,
-  CommitteeKind,
   DirectoryContact,
   MemberPressOverlay,
   MemberNewsItem,
@@ -59,7 +58,6 @@ import type {
   DirectoryStaffer,
   DirectoryStaffersPayload,
   StaffersQuery,
-  CommitteeMemberRef,
   DirectoryCommittee,
   DirectoryCommitteeStaffer,
   CommitteesQuery,
@@ -108,22 +106,6 @@ export type {
   CreateDirectoryContactNoteInput,
 } from './directory.types.js';
 
-// Federal congressional committee offices in the LegiStorm office-list, keyed by
-// their `office_type`. The snapshot is dominated by ~2,300 STATE-legislature
-// committees; this whitelist keeps only the federal House/Senate/Joint committees
-// and subcommittees (~234 offices) so committee staff don't get polluted with
-// state offices.
-const FED_COMMITTEE_OFFICE_TYPES: Record<
-  string,
-  { chamber: CommitteeChamber; kind: CommitteeKind }
-> = {
-  'House Committee': { chamber: 'House', kind: 'committee' },
-  'Senate Committee': { chamber: 'Senate', kind: 'committee' },
-  'Joint Committee': { chamber: 'Joint', kind: 'committee' },
-  'House Subcommittee': { chamber: 'House', kind: 'subcommittee' },
-  'Senate Subcommittee': { chamber: 'Senate', kind: 'subcommittee' },
-};
-
 interface CachedContacts {
   expiresAt: number;
   data: {
@@ -144,14 +126,6 @@ interface CachedContacts {
 interface DirectorySnapshotPointer {
   snapshot_prefix?: unknown;
   previous_snapshot_prefix?: unknown;
-}
-
-/** A single office normalized from either the live-array or legacy-object shape. */
-interface NormalizedOfficeRow {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  office: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  office_member_addresses: any[];
 }
 
 /**
@@ -432,62 +406,7 @@ export class DirectoryService implements OnModuleInit {
       ? base.indexes.membersByBioguideId.get(memberId.toUpperCase())
       : base.indexes.membersById.get(Number(String(memberId).replace(/^member-/, '')));
     if (!row) throw new NotFoundException('Directory member not found');
-    const member = (row.member ?? {}) as Record<string, any>;
-    const numericId = Number(member.member_id);
-    const profile = (member.profile ?? {}) as Record<string, any>;
-    const bio = (profile.bio_details ?? {}) as Record<string, any>;
-    const personId = `member-${numericId}`;
-    const overlay = base.photoOverlay.people[personId] ?? null;
-    const selected = resolveMemberPhoto(row.photos, overlay);
-    const contact = base.contacts.find((c) => c.id === personId);
-    return {
-      kind: 'member',
-      id: personId,
-      source: {
-        snapshotId: base.sourceId,
-        memberId: numericId,
-        lastUpdatedAt: this.latestUpdatedAt([row.member_offices, row.committees, row.leaderships]),
-      },
-      identity: {
-        memberId: numericId,
-        bioguideId: String(member.bioguide_id ?? ''),
-        icpsrId: Number.isFinite(Number(member.icpsr_id)) ? Number(member.icpsr_id) : null,
-        lisMemberId: member.lis_member_id == null ? null : String(member.lis_member_id),
-        firstName: String(profile.first_name ?? ''),
-        lastName: String(profile.last_name ?? ''),
-        preferredFirstName: profile.preferred_first_name ?? null,
-        preferredLastName: profile.preferred_last_name ?? null,
-        suffix: profile.suffix ?? null,
-        gender: profile.gender ?? null,
-      },
-      bioDetails: {
-        dob: bio.dob ?? null,
-        dateOfDeath: bio.date_of_death ?? null,
-        placeOfBirth: bio.pob ?? null,
-        hometown: bio.hometown ?? null,
-        nativeOf: bio.native_of ?? null,
-        majMin: bio.maj_min ?? null,
-        partyName: bio.party_name ?? null,
-        occupation: bio.occupation ?? null,
-        pronunciation: bio.pronunciation ?? null,
-        raceName: bio.race_name ?? null,
-        religionName: bio.religion_name ?? null,
-      },
-      photos: memberPhotoRecords(row.photos),
-      selectedPhotoUrl: selected.url,
-      photoSource: selected.source,
-      offices: this.mapMemberOffices(row.member_offices),
-      officeAddresses: this.mapStaffOfficeAddresses(row.office_member_addresses),
-      committees: this.membershipsForPerson(base.indexes, personId),
-      leaderships: this.mapLeaderships(row.leaderships),
-      socialContacts: this.mapContactMethods(row.social_media),
-      staffRoles: this.mapStaffRoles(row.staffer_roles),
-      staffIssues: this.mapStaffIssues(row.staffer_issues),
-      enrichments: {
-        bioOverlay: Boolean(contact?.bio?.narrative),
-        pressOverlay: Boolean(contact?.rssFeedUrl || contact?.newsPressUrl),
-      },
-    };
+    return projectMemberDetail(base, row);
   }
 
   async getStaffDetail(staffId: string): Promise<DirectoryStaffDetail> {
@@ -497,185 +416,12 @@ export class DirectoryService implements OnModuleInit {
     // A staffer can appear in the directory via a member's roster
     // (staffer_roles/staffer_issues) without having a /staff/list row. Rather than
     // 404 that profile, render a minimal one from the member-side data we do have.
-    if (!row) return this.buildRosterOnlyStaffDetail(base, numericId);
-    const staff = (row.staff ?? {}) as Record<string, any>;
-    const bio = (staff.bio_details ?? {}) as Record<string, any>;
-    const personId = `staff-${numericId}`;
-    const overlay = base.photoOverlay.people[personId] ?? null;
-    const photo = resolveStaffPhoto(null, overlay); // entitlement returns no staff photo today
-    const positions = Array.isArray(row.positions) ? row.positions : [];
-    const memberAssociations = [
-      ...new Map(
-        positions
-          .map((p: any) => Number(p?.member?.member_id))
-          .filter((id: number) => Number.isFinite(id))
-          .map((id: number) => {
-            const ref = this.resolveMemberRef(base.indexes, id);
-            return [
-              id,
-              {
-                id: `member-${id}`,
-                memberId: id,
-                fullName: ref.fullName,
-                party: ref.party,
-                state: ref.state,
-                district: ref.district,
-              },
-            ];
-          }),
-      ).values(),
-    ];
-    const issues = (base.indexes.staffIssuesByStaffId.get(numericId) ?? []).map((link) => ({
-      issueName: link.issueName,
-      memberId: link.memberId,
-      memberName:
-        link.memberId != null ? this.resolveMemberRef(base.indexes, link.memberId).fullName || null : null,
-      updatedAt: link.updatedAt,
-    }));
-    const roles = (base.indexes.staffRolesByStaffId.get(numericId) ?? []).map((link) => ({
-      roleName: link.roleName,
-      memberId: link.memberId,
-      memberName:
-        link.memberId != null ? this.resolveMemberRef(base.indexes, link.memberId).fullName || null : null,
-      updatedAt: link.updatedAt,
-    }));
-    return {
-      kind: 'staff',
-      id: personId,
-      source: {
-        snapshotId: base.sourceId,
-        staffId: numericId,
-        lastUpdatedAt: this.latestUpdatedAt([row.positions]),
-      },
-      identity: {
-        staffId: numericId,
-        firstName: String(staff.first_name ?? ''),
-        lastName: String(staff.last_name ?? ''),
-        preferredFirstName: staff.preferred_first_name ?? null,
-        preferredLastName: staff.preferred_last_name ?? null,
-        suffix: staff.suffix ?? null,
-        gender: staff.gender ?? null,
-      },
-      bioDetails: {
-        dob: bio.dob ?? null,
-        dateOfDeath: bio.date_of_death ?? null,
-        hometown: bio.hometown ?? null,
-        placeOfBirth: bio.pob ?? null,
-        nativeOf: bio.native_of ?? null,
-        majMin: bio.maj_min ?? null,
-        partyName: bio.party_name ?? null,
-        occupation: bio.occupation ?? null,
-        pronunciation: bio.pronunciation ?? null,
-        raceName: bio.race_name ?? null,
-        religionName: bio.religion_name ?? null,
-      },
-      photoUrl: photo.url,
-      photoSource: photo.source,
-      emails: this.mapContactMethods(row.staff_emails),
-      socialContacts: this.mapContactMethods(row.social_media),
-      officeAddresses: this.mapStaffOfficeAddresses(row.office_member_addresses),
-      positions: this.mapStaffPositions(row.positions),
-      memberAssociations,
-      committeeAssociations: this.membershipsForPerson(base.indexes, personId),
-      issues,
-      roles,
-      availability: {
-        photo: photo.url ? 'available' : 'not_provided',
-        socialContacts: this.mapContactMethods(row.social_media).length ? 'available' : 'not_provided',
-      },
-    };
-  }
-
-  /**
-   * Minimal staff detail for a staffer who appears via a member's roster but has no
-   * /staff/list row (name + issues + roles + member associations; everything else
-   * "not provided"). Prevents a 404 when such a staffer's profile is opened.
-   */
-  private buildRosterOnlyStaffDetail(
-    base: CachedContacts['data'],
-    numericId: number,
-  ): DirectoryStaffDetail {
-    const name = base.indexes.staffNamesByStaffId.get(numericId);
-    if (!name) throw new NotFoundException('Directory staffer not found');
-    const personId = `staff-${numericId}`;
-    const parts = name.split(' ').filter(Boolean);
-    const firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : name;
-    const lastName = parts.length > 1 ? parts[parts.length - 1]! : '';
-    const overlay = base.photoOverlay.people[personId] ?? null;
-    const photo = resolveStaffPhoto(null, overlay);
-    const memberName = (memberId: number | null): string | null =>
-      memberId != null ? this.resolveMemberRef(base.indexes, memberId).fullName || null : null;
-    const issues = (base.indexes.staffIssuesByStaffId.get(numericId) ?? []).map((link) => ({
-      issueName: link.issueName,
-      memberId: link.memberId,
-      memberName: memberName(link.memberId),
-      updatedAt: link.updatedAt,
-    }));
-    const roles = (base.indexes.staffRolesByStaffId.get(numericId) ?? []).map((link) => ({
-      roleName: link.roleName,
-      memberId: link.memberId,
-      memberName: memberName(link.memberId),
-      updatedAt: link.updatedAt,
-    }));
-    const memberIds = [
-      ...new Set(
-        [...issues, ...roles]
-          .map((x) => x.memberId)
-          .filter((id): id is number => id != null),
-      ),
-    ];
-    const memberAssociations = memberIds.map((id) => {
-      const ref = this.resolveMemberRef(base.indexes, id);
-      return {
-        id: `member-${id}`,
-        memberId: id,
-        fullName: ref.fullName,
-        party: ref.party,
-        state: ref.state,
-        district: ref.district,
-      };
-    });
-    return {
-      kind: 'staff',
-      id: personId,
-      source: { snapshotId: base.sourceId, staffId: numericId, lastUpdatedAt: null },
-      identity: {
-        staffId: numericId,
-        firstName,
-        lastName,
-        preferredFirstName: null,
-        preferredLastName: null,
-        suffix: null,
-        gender: null,
-      },
-      bioDetails: {
-        dob: null,
-        dateOfDeath: null,
-        hometown: null,
-        placeOfBirth: null,
-        nativeOf: null,
-        majMin: null,
-        partyName: null,
-        occupation: null,
-        pronunciation: null,
-        raceName: null,
-        religionName: null,
-      },
-      photoUrl: photo.url,
-      photoSource: photo.source,
-      emails: [],
-      socialContacts: [],
-      officeAddresses: [],
-      positions: [],
-      memberAssociations,
-      committeeAssociations: this.membershipsForPerson(base.indexes, personId),
-      issues,
-      roles,
-      availability: {
-        photo: photo.url ? 'available' : 'not_provided',
-        socialContacts: 'not_provided',
-      },
-    };
+    if (!row) {
+      const name = base.indexes.staffNamesByStaffId.get(numericId);
+      if (!name) throw new NotFoundException('Directory staffer not found');
+      return projectRosterOnlyStaffDetail(base, numericId, name);
+    }
+    return projectStaffDetail(base, row, numericId);
   }
 
   async getCommitteeDetail(committeeId: string): Promise<DirectoryCommitteeDetail> {
@@ -732,10 +478,7 @@ export class DirectoryService implements OnModuleInit {
   }
 
   private membershipsForPerson(idx: DirectoryIndexes, personId: string): DirectoryCommitteeMembership[] {
-    const committeeIds = idx.committeesByPersonId.get(personId) ?? [];
-    return committeeIds.flatMap((cid) =>
-      (idx.membershipsByCommitteeId.get(cid) ?? []).filter((m) => m.person.id === personId),
-    );
+    return membershipsForPerson(idx, personId);
   }
 
   private personResult(base: CachedContacts['data'], personId: string): DirectoryPersonResult | null {
@@ -785,390 +528,9 @@ export class DirectoryService implements OnModuleInit {
     };
   }
 
-  private mapMemberOffices(raw: unknown): DirectoryMemberDetail['offices'] {
-    return (Array.isArray(raw) ? raw : []).filter((o) => o && typeof o === 'object').map((o: any) => ({
-      officeId: Number.isFinite(Number(o.office?.office_id)) ? Number(o.office.office_id) : null,
-      name: o.office?.name ?? null,
-      officeTypeId: o.office_type_id ?? null,
-      state: o.state_id ?? null,
-      district: o.district_no == null ? null : String(o.district_no),
-      party: o.party ?? null,
-      senateClass: o.senate_class == null ? null : String(o.senate_class),
-      outgoingStatus: o.outgoing_status ?? null,
-      status: o.status ?? null,
-      startDate: o.start_date ?? null,
-      endDate: o.end_date ?? null,
-      updatedAt: o.updated_at ?? null,
-    }));
-  }
-
-  private mapLeaderships(raw: unknown): DirectoryMemberDetail['leaderships'] {
-    return (Array.isArray(raw) ? raw : []).filter((l) => l && typeof l === 'object').map((l: any) => ({
-      position: l.position ?? null,
-      startDate: l.start_date ?? null,
-      endDate: l.end_date ?? null,
-      updatedAt: l.updated_at ?? null,
-    }));
-  }
-
-  private mapContactMethods(raw: unknown): DirectoryMemberDetail['socialContacts'] {
-    return (Array.isArray(raw) ? raw : [])
-      .filter((c) => c && typeof c === 'object' && typeof (c as any).contact_string === 'string')
-      .map((c: any) => ({
-        type: c.contact_type ?? null,
-        value: String(c.contact_string),
-        updatedAt: c.updated_at ?? null,
-      }));
-  }
-
-  private mapStaffRoles(raw: unknown): DirectoryMemberDetail['staffRoles'] {
-    return (Array.isArray(raw) ? raw : []).filter((r) => r && typeof r === 'object').map((r: any) => ({
-      memberId: Number.isFinite(Number(r.staffer?.member_id ?? r.member_id)) ? Number(r.staffer?.member_id ?? r.member_id) : null,
-      roleName: r.role_name ?? null,
-      updatedAt: r.updated_at ?? null,
-    }));
-  }
-
-  private mapStaffIssues(raw: unknown): DirectoryMemberDetail['staffIssues'] {
-    return (Array.isArray(raw) ? raw : []).filter((r) => r && typeof r === 'object').map((r: any) => ({
-      memberId: Number.isFinite(Number(r.member_id)) ? Number(r.member_id) : null,
-      issueName: r.issue_name ?? null,
-      updatedAt: r.updated_at ?? null,
-    }));
-  }
-
-  private mapStaffPositions(raw: unknown): DirectoryStaffDetail['positions'] {
-    return (Array.isArray(raw) ? raw : []).filter((p) => p && typeof p === 'object').map((p: any) => {
-      const m = p.member && typeof p.member === 'object' ? p.member : null;
-      const profile = m?.profile && typeof m.profile === 'object' ? m.profile : null;
-      const memberFullName = profile
-        ? [profile.preferred_first_name ?? profile.first_name, profile.preferred_last_name ?? profile.last_name]
-            .filter(Boolean)
-            .join(' ')
-            .trim()
-        : '';
-      return {
-        officeId: Number.isFinite(Number(p.office?.office_id)) ? Number(p.office.office_id) : null,
-        officeName: p.office?.name ?? null,
-        memberId: Number.isFinite(Number(m?.member_id)) ? Number(m.member_id) : null,
-        title: p.position_title ?? null,
-        positionType: p.position_type ?? null,
-        isCurrent: p.is_current === true,
-        isOnLeave: p.is_on_leave === true,
-        startDate: p.start_date ?? null,
-        endDate: p.end_date ?? null,
-        updatedAt: p.updated_at ?? null,
-        member: m
-          ? {
-              memberId: Number.isFinite(Number(m.member_id)) ? Number(m.member_id) : null,
-              fullName: memberFullName || null,
-              party: typeof m.party === 'string' ? m.party : null,
-              state: typeof m.state_id === 'string' ? m.state_id : null,
-              district: m.district_no === undefined || m.district_no === null ? null : String(m.district_no),
-              officeTypeId:
-                m.office_type_id === undefined || m.office_type_id === null
-                  ? null
-                  : String(m.office_type_id),
-            }
-          : null,
-      };
-    });
-  }
-
-  private mapStaffOfficeAddresses(raw: unknown): DirectoryStaffDetail['officeAddresses'] {
-    return (Array.isArray(raw) ? raw : [])
-      .filter((a) => a && typeof a === 'object')
-      .map((a: any) => ({
-        addressId: Number.isFinite(Number(a.id)) ? Number(a.id) : null,
-        officeId: Number.isFinite(Number(a.office?.office_id)) ? Number(a.office.office_id) : null,
-        officeName: a.office?.name ?? null,
-        label: a.title ?? null,
-        address1: a.address1 ?? null,
-        address2: a.address2 ?? null,
-        city: a.city ?? null,
-        state: a.state_id ?? null,
-        zip: a.zip ?? null,
-        zipExt: a.zip_ext ?? null,
-        phone: a.phone ?? null,
-        fax: a.fax ?? null,
-        isMain: a.is_main === true,
-        publicNotes: a.public_notes ?? null,
-        updatedAt: a.updated_at ?? null,
-      }));
-  }
-
-  /** Resolve a member's canonical display fields from the indexed member row. */
-  private resolveMemberRef(
-    indexes: DirectoryIndexes,
-    memberId: number,
-  ): { fullName: string; party: string | null; state: string | null; district: string | null } {
-    const row = indexes.membersById.get(memberId) as Record<string, any> | undefined;
-    const member = (row?.member ?? {}) as Record<string, any>;
-    const profile = (member.profile ?? {}) as Record<string, any>;
-    const fullName = [
-      profile.preferred_first_name ?? profile.first_name,
-      profile.preferred_last_name ?? profile.last_name,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
-    // Use the authoritative current-office selector (in-office > open end_date >
-    // last term), NOT the first array element: member_offices is stored
-    // oldest-first, so .find(first) would surface a stale/former term's
-    // party/state/district for any multi-term member.
-    const office = selectCurrentMemberOffice(row?.member_offices);
-    return {
-      fullName,
-      party: typeof office?.party === 'string' ? office.party : null,
-      state: typeof office?.state_id === 'string' ? office.state_id : null,
-      district:
-        office?.district_no === undefined || office?.district_no === null
-          ? null
-          : String(office.district_no),
-    };
-  }
-
-  private latestUpdatedAt(sources: unknown[]): string | null {
-    let latest: string | null = null;
-    for (const source of sources) {
-      for (const entry of Array.isArray(source) ? source : []) {
-        const updatedAt = (entry as any)?.updated_at;
-        if (typeof updatedAt === 'string' && (latest === null || updatedAt > latest)) latest = updatedAt;
-      }
-    }
-    return latest;
-  }
-
-  // Builds the committee catalog (from office-list) and the per-committee staff
-  // roster (from staff-list `positions[].office`). A staffer can appear under
-  // multiple committees; within one committee we keep a single entry per person,
-  // preferring their current position and a titled role.
+  /** Keep the service seam used by snapshot loading and its characterization tests. */
   private buildCommitteeIndex(officeRaw: unknown, staffRaw: unknown[], membersRaw: unknown[]) {
-    // Normalize BOTH the live array shape ([{ office, office_member_addresses, ... }])
-    // and the legacy object shape ({ office: [...], office_member_addresses: [...] }).
-    // The live combined file is an array; the old code assumed the object shape and
-    // silently produced an empty committee catalog against real data.
-    const rows = this.normalizeOfficeRows(officeRaw);
-    const offices = rows.map((row) => row.office);
-    const committeesByOfficeId = new Map<number, DirectoryCommittee>();
-
-    // Committee leadership (Chair / Ranking Member / Vice Chair) lives on the
-    // MEMBER side as committees[].position; invert it into an officeId -> roles map.
-    const leadershipByOffice = this.buildCommitteeLeadershipMap(membersRaw);
-
-    // Committee office phone/address comes from each office's office_member_addresses.
-    const contactByOffice = this.buildOfficeContactMap(rows);
-
-    for (const office of offices as any[]) {
-      const meta = FED_COMMITTEE_OFFICE_TYPES[String(office?.office_type ?? '')];
-      const officeId = Number(office?.office_id);
-      if (!meta || !Number.isFinite(officeId)) continue;
-      const name = String(office?.name ?? '').trim();
-      if (!name) continue;
-      const leadership = leadershipByOffice.get(officeId);
-      const contact = contactByOffice.get(officeId);
-      committeesByOfficeId.set(officeId, {
-        id: `committee-${officeId}`,
-        officeId,
-        name,
-        chamber: meta.chamber,
-        kind: meta.kind,
-        committeeCode: office?.congress_committee_code
-          ? String(office.congress_committee_code)
-          : null,
-        parentOfficeId: Number(office?.parent_office?.office_id) || null,
-        staffCount: 0,
-        chair: leadership?.chair ?? null,
-        rankingMember: leadership?.rankingMember ?? null,
-        viceChairs: leadership?.viceChairs ?? [],
-        phone: contact?.phone ?? '',
-        officeLocation: contact?.officeLocation ?? '',
-      });
-    }
-
-    // committee id -> (staffId -> staffer), deduped per person per committee.
-    const rosterById = new Map<string, Map<number, DirectoryCommitteeStaffer>>();
-    const staffList = Array.isArray(staffRaw) ? staffRaw : [];
-
-    for (const row of staffList as any[]) {
-      const staff = row?.staff;
-      const staffId = Number(staff?.id);
-      if (!Number.isFinite(staffId)) continue;
-      const fullName = [
-        staff?.preferred_first_name ?? staff?.first_name,
-        staff?.preferred_last_name ?? staff?.last_name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      if (!fullName) continue;
-
-      const emails = Array.isArray(row?.staff_emails) ? row.staff_emails : [];
-      const email = String(
-        emails.find(
-          (entry: any) =>
-            typeof entry?.contact_string === 'string' && entry.contact_string.includes('@'),
-        )?.contact_string ?? '',
-      );
-      const addresses = Array.isArray(row?.office_member_addresses)
-        ? row.office_member_addresses
-        : [];
-      const address = addresses.find((entry: any) => entry?.is_main) ?? addresses[0];
-      const phone = String(address?.phone ?? '');
-      const officeLocation = [address?.address1, address?.city, address?.state_id]
-        .filter(Boolean)
-        .join(', ');
-
-      const positions = Array.isArray(row?.positions) ? row.positions : [];
-      for (const position of positions) {
-        const officeId = Number(position?.office?.office_id);
-        const committee = committeesByOfficeId.get(officeId);
-        if (!committee) continue;
-
-        const byStaffId =
-          rosterById.get(committee.id) ?? new Map<number, DirectoryCommitteeStaffer>();
-        const isCurrent = Boolean(position?.is_current);
-        const title = String(position?.position_title ?? position?.position_type ?? 'Staff');
-        const existing = byStaffId.get(staffId);
-        // Prefer a current position; otherwise keep the first seen.
-        if (!existing || (isCurrent && !existing.isCurrent)) {
-          byStaffId.set(staffId, {
-            id: `staff-${staffId}`,
-            fullName,
-            title,
-            email,
-            phone,
-            officeLocation,
-            isCurrent,
-            committee: {
-              id: committee.id,
-              name: committee.name,
-              chamber: committee.chamber,
-              kind: committee.kind,
-            },
-          });
-        }
-        rosterById.set(committee.id, byStaffId);
-      }
-    }
-
-    const committeeStaff = new Map<string, DirectoryCommitteeStaffer[]>();
-    for (const committee of committeesByOfficeId.values()) {
-      const roster = [...(rosterById.get(committee.id)?.values() ?? [])].sort((left, right) => {
-        if (left.isCurrent !== right.isCurrent) return left.isCurrent ? -1 : 1;
-        return left.fullName.localeCompare(right.fullName);
-      });
-      committee.staffCount = roster.filter((staffer) => staffer.isCurrent).length;
-      committeeStaff.set(committee.id, roster);
-    }
-
-    const committees = [...committeesByOfficeId.values()].sort((left, right) => {
-      if (right.staffCount !== left.staffCount) return right.staffCount - left.staffCount;
-      return left.name.localeCompare(right.name);
-    });
-
-    return { committees, committeeStaff };
-  }
-
-  // officeId -> { chair, rankingMember, viceChairs[] } from members' committees[].position.
-  private buildCommitteeLeadershipMap(
-    membersRaw: unknown[],
-  ): Map<
-    number,
-    { chair?: CommitteeMemberRef; rankingMember?: CommitteeMemberRef; viceChairs: string[] }
-  > {
-    const map = new Map<
-      number,
-      { chair?: CommitteeMemberRef; rankingMember?: CommitteeMemberRef; viceChairs: string[] }
-    >();
-    const members = Array.isArray(membersRaw) ? membersRaw : [];
-    for (const row of members as any[]) {
-      const memberId = Number(row?.member?.member_id);
-      if (!Number.isFinite(memberId)) continue;
-      const profile = row?.member?.profile;
-      const name = [
-        profile?.preferred_first_name ?? profile?.first_name,
-        profile?.preferred_last_name ?? profile?.last_name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      if (!name) continue;
-      const ref: CommitteeMemberRef = { id: `member-${memberId}`, name };
-      const committees = Array.isArray(row?.committees) ? row.committees : [];
-      for (const committee of committees) {
-        const officeId = Number(committee?.committee_office?.office_id);
-        const position = String(committee?.position ?? '').trim();
-        if (!Number.isFinite(officeId) || !position) continue;
-        const entry = map.get(officeId) ?? { viceChairs: [] };
-        if (position === 'Chair' && !entry.chair) entry.chair = ref;
-        else if (position === 'Ranking Member' && !entry.rankingMember) entry.rankingMember = ref;
-        else if (position === 'Vice Chair') entry.viceChairs.push(name);
-        map.set(officeId, entry);
-      }
-    }
-    return map;
-  }
-
-  /**
-   * Normalize the office combined file into `{ office, office_member_addresses }`
-   * rows, tolerating BOTH shapes:
-   *   - LIVE array: [{ office: {...}, office_member_addresses: [...], ... }, ...]
-   *   - LEGACY object: { office: [...offices], office_member_addresses: [...flat] }
-   * For the legacy shape the flat addresses are grouped back onto their office by
-   * office_id so downstream code can treat every row uniformly. Pure/defensive:
-   * any other shape yields an empty list.
-   */
-  private normalizeOfficeRows(officeRaw: unknown): NormalizedOfficeRow[] {
-    if (Array.isArray(officeRaw)) {
-      return (officeRaw as any[]).map((row) => ({
-        office: row?.office ?? null,
-        office_member_addresses: Array.isArray(row?.office_member_addresses)
-          ? row.office_member_addresses
-          : [],
-      }));
-    }
-    const legacy = officeRaw as any;
-    if (legacy && Array.isArray(legacy.office)) {
-      const flat = Array.isArray(legacy.office_member_addresses)
-        ? legacy.office_member_addresses
-        : [];
-      const addressesByOfficeId = new Map<number, any[]>();
-      for (const entry of flat as any[]) {
-        const officeId = Number(entry?.office?.office_id);
-        if (!Number.isFinite(officeId)) continue;
-        const list = addressesByOfficeId.get(officeId) ?? [];
-        list.push(entry);
-        addressesByOfficeId.set(officeId, list);
-      }
-      return (legacy.office as any[]).map((office) => ({
-        office,
-        office_member_addresses: addressesByOfficeId.get(Number(office?.office_id)) ?? [],
-      }));
-    }
-    return [];
-  }
-
-  // officeId -> { phone, officeLocation } from each office's office_member_addresses.
-  private buildOfficeContactMap(
-    rows: NormalizedOfficeRow[],
-  ): Map<number, { phone: string; officeLocation: string }> {
-    const map = new Map<number, { phone: string; officeLocation: string }>();
-    for (const row of rows) {
-      const officeId = Number(row.office?.office_id);
-      if (!Number.isFinite(officeId)) continue;
-      const addresses = row.office_member_addresses ?? [];
-      if (addresses.length === 0) continue;
-      // Prefer the main office address.
-      const entry = addresses.find((address: any) => address?.is_main) ?? addresses[0];
-      map.set(officeId, {
-        phone: String(entry?.phone ?? ''),
-        officeLocation: [entry?.address1, entry?.city, entry?.state_id, entry?.zip]
-          .filter(Boolean)
-          .join(', '),
-      });
-    }
-    return map;
+    return buildCommitteeIndex(officeRaw, staffRaw, membersRaw);
   }
 
   private buildStafferIndex(contacts: DirectoryContact[]): DirectoryStaffer[] {
@@ -2170,49 +1532,7 @@ export class DirectoryService implements OnModuleInit {
    */
   async getContactTrips(contactId: string): Promise<DirectoryContactTripsPayload> {
     const normalizedContactId = normalizeContactId(contactId);
-    const isStaff = normalizedContactId.startsWith('staff-');
-    const numericId = Number(normalizedContactId.replace(/^(member|staff)-/, ''));
-    if (!Number.isFinite(numericId)) {
-      return { contactId: normalizedContactId, trips: [] };
-    }
-
-    const rows = await this.prisma.legistormTrip.findMany({
-      where: isStaff
-        ? { travelerStaffId: numericId }
-        : { OR: [{ approverMemberId: numericId }, { travelerMemberId: numericId }] },
-      orderBy: [{ startDate: 'desc' }, { filedDate: 'desc' }],
-      take: 50,
-    });
-
-    const trips: DirectoryContactTripSummary[] = rows.map((t) => {
-      // A member could theoretically be both approver and traveler on the
-      // same trip (self-approved travel) — prefer the more specific
-      // 'traveler' role in that case, never a false 'approver' label.
-      const role: 'approver' | 'traveler' =
-        !isStaff && t.approverMemberId === numericId && t.travelerMemberId !== numericId
-          ? 'approver'
-          : 'traveler';
-      return {
-        id: t.id,
-        role,
-        otherPartyName: role === 'approver' ? t.travelerName : t.approverName,
-        companionName: t.companionName,
-        startDate: t.startDate ? t.startDate.toISOString().slice(0, 10) : null,
-        endDate: t.endDate ? t.endDate.toISOString().slice(0, 10) : null,
-        durationDays: t.durationDays,
-        purpose: t.purpose,
-        totalCost: t.totalCost,
-        destinations: Array.isArray(t.destinations)
-          ? (t.destinations as Array<{ id: number; name: string | null; stateId: string | null }>)
-          : [],
-        sponsors: Array.isArray(t.sponsors)
-          ? (t.sponsors as Array<{ id: number; name: string | null }>)
-          : [],
-        filedDate: t.filedDate ? t.filedDate.toISOString().slice(0, 10) : null,
-      };
-    });
-
-    return { contactId: normalizedContactId, trips };
+    return readContactTrips(this.prisma, normalizedContactId);
   }
 
 }
