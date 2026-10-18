@@ -41,6 +41,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { assertMeriToolAllowed } from './meri-tool-allowlist.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -544,6 +545,7 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
+    assertMeriToolAllowed(name);
     const admittedRead = admitMeriReadObservation(name, body, req);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(

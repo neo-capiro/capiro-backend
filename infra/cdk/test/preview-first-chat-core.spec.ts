@@ -5,39 +5,132 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import {
+  FIRST_CHAT_CORE_GET_PATHS,
   FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
   FIRST_CHAT_CORE_HOST,
-  FIRST_CHAT_CORE_IMAGE_DIGEST,
-  FIRST_CHAT_CORE_SOURCE,
+  FIRST_CHAT_CORE_IMAGE_PINS,
+  FIRST_CHAT_CORE_MERI_TOOLS,
+  FIRST_CHAT_CORE_POST_PATHS,
+  FIRST_CHAT_CORE_RETIRED_PR48,
   firstChatCoreImageBinding,
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
+import meriTools from '../lib/preview/first-chat-core-meri-tools.json';
 
+// Synthetic qualified-image pins; the committed source pins stay null until the
+// integrated image is built and scanned.
+const pins = {
+  sourceHead: '0123456789abcdef0123456789abcdef01234567',
+  imageDigest: `sha256:${'b'.repeat(64)}`,
+};
+const secretArn = (name: string) => `arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/${name}-AbC123`;
 const binding = {
-  schemaVersion: 1,
-  sourceHead: FIRST_CHAT_CORE_SOURCE,
-  imageDigest: FIRST_CHAT_CORE_IMAGE_DIGEST,
+  schemaVersion: 2,
+  sourceHead: pins.sourceHead,
+  imageDigest: pins.imageDigest,
+  internalServiceSecretArn: secretArn('internal-service'),
+  retainedTrust: null,
+};
+const trust = {
+  issuer: 'capiro-core-retained',
+  intelOrigin: 'https://intel.example.invalid',
+  principalKeyId: 'retained-principal-1',
+  principalPrivateKeySecretArn: secretArn('retained-principal'),
+  probeKeyId: 'retained-probe-1',
+  probePrivateKeySecretArn: secretArn('retained-probe'),
 };
 
-test('requires the exact Core source and immutable image digest', () => {
-  assert.deepEqual(firstChatCoreImageBinding(binding), binding);
-  for (const invalid of [
-    { ...binding, sourceHead: 'e50aed3c5b5cce58317b37de442482fa970842cb' },
-    { ...binding, imageDigest: 'latest' },
-    { ...binding, imageDigest: `sha256:${'A'.repeat(64)}` },
-    { ...binding, imageDigest: `sha256:${'a'.repeat(64)}` },
-    { ...binding, databaseUrl: 'postgres://unreviewed.invalid/capiro' },
-    { ...binding, schemaVersion: 2 },
-  ]) {
-    assert.throws(() => firstChatCoreImageBinding(invalid));
-  }
-});
-
-test('renders two stable listener rules for four POSTs and three GETs before the retained guard', () => {
+function render(input: unknown, assertions: (stacks: ReturnType<typeof previewFirstChatCoreApplication>) => void) {
   const output = fs.mkdtempSync(path.join(os.tmpdir(), 'capiro-first-chat-'));
   const tempRoot = fs.realpathSync(os.tmpdir());
   try {
-  const { guard, service } = previewFirstChatCoreApplication(binding, output);
+    assertions(previewFirstChatCoreApplication(input, output, pins));
+  } finally {
+    const resolved = fs.realpathSync(output);
+    assert.equal(fs.lstatSync(output).isSymbolicLink(), false);
+    assert.ok(resolved.startsWith(`${tempRoot}${path.sep}`));
+    fs.rmSync(resolved, { recursive: true });
+  }
+}
+
+const serveContainer = (service: any) => {
+  const stack = Template.fromStack(service).toJSON();
+  const task = (Object.values(stack.Resources) as any[]).find((r) => r.Type === 'AWS::ECS::TaskDefinition');
+  return task.Properties.ContainerDefinitions[0];
+};
+const envOf = (container: any) => Object.fromEntries(container.Environment.map((entry: any) => [entry.Name, entry.Value]));
+
+test('refuses to render until a qualified integrated image is pinned, and never PR48', () => {
+  assert.equal(FIRST_CHAT_CORE_IMAGE_PINS, null);
+  assert.throws(() => firstChatCoreImageBinding(binding), /No qualified integrated Core image/);
+  assert.throws(() => firstChatCoreImageBinding({ ...binding, ...FIRST_CHAT_CORE_RETIRED_PR48 }, pins));
+  assert.throws(() => firstChatCoreImageBinding({ schemaVersion: 1, ...FIRST_CHAT_CORE_RETIRED_PR48 }, FIRST_CHAT_CORE_RETIRED_PR48));
+});
+
+test('requires the exact pinned image, exact secret ARNs and fixed retained trust fields', () => {
+  assert.deepEqual(firstChatCoreImageBinding(binding, pins), binding);
+  assert.deepEqual(firstChatCoreImageBinding({ ...binding, retainedTrust: trust }, pins), { ...binding, retainedTrust: trust });
+  const { retainedTrust: _omitted, ...withoutTrust } = binding;
+  for (const invalid of [
+    { ...binding, sourceHead: 'e50aed3c5b5cce58317b37de442482fa970842cb' },
+    { ...binding, imageDigest: 'latest' },
+    { ...binding, imageDigest: `sha256:${'B'.repeat(64)}` },
+    { ...binding, imageDigest: `sha256:${'a'.repeat(64)}` },
+    { ...binding, databaseUrl: 'postgres://unreviewed.invalid/capiro' },
+    { ...binding, schemaVersion: 1 },
+    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:111111111111:secret:other-AbC123' },
+    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-west-2:967807252336:secret:other-AbC123' },
+    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:partial' },
+    { ...binding, internalServiceSecretArn: 'plain-text-secret-value' },
+    withoutTrust,
+    { ...binding, retainedTrust: { ...trust, intelOrigin: 'http://intel.example.invalid' } },
+    { ...binding, retainedTrust: { ...trust, intelOrigin: 'https://intel.example.invalid/intel-api' } },
+    { ...binding, retainedTrust: { ...trust, principalKeyId: 'has space' } },
+    { ...binding, retainedTrust: { ...trust, probePrivateKeySecretArn: trust.principalPrivateKeySecretArn } },
+    { ...binding, retainedTrust: { ...trust, principalPrivateKeyPem: '-----BEGIN PRIVATE KEY-----' } },
+  ]) {
+    assert.throws(() => firstChatCoreImageBinding(invalid, pins), JSON.stringify(invalid).slice(0, 80));
+  }
+});
+
+test('keeps the exact Meri tool list and every listener pattern within ALB limits', () => {
+  assert.deepEqual([...FIRST_CHAT_CORE_MERI_TOOLS], meriTools.tools);
+  assert.ok(FIRST_CHAT_CORE_MERI_TOOLS.length > 0);
+  assert.ok(!FIRST_CHAT_CORE_MERI_TOOLS.includes('get_florida_budget_project'));
+  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS]) {
+    assert.ok(values.length <= 3);
+    for (const value of values) {
+      assert.ok(value.length <= 128, value);
+      assert.ok(value.startsWith('^') && value.endsWith('$'), value);
+      assert.ok(!value.includes('(?'), value);
+    }
+  }
+});
+
+test('renders the retained-trust variant with server-side signing-key secrets only', () => {
+  render({ ...binding, retainedTrust: trust }, ({ service }) => {
+    const serve = serveContainer(service);
+    const env = envOf(serve);
+    assert.equal(env.RETAINED_READS_ENABLED, 'true');
+    assert.equal(env.RETAINED_TRUST_ISSUER, trust.issuer);
+    assert.equal(env.RETAINED_CORE_ORIGIN, `https://${FIRST_CHAT_CORE_HOST}`);
+    assert.equal(env.RETAINED_INTEL_ORIGIN, trust.intelOrigin);
+    assert.equal(env.RETAINED_PRINCIPAL_KEY_ID, trust.principalKeyId);
+    assert.equal(env.RETAINED_PROBE_KEY_ID, trust.probeKeyId);
+    assert.ok(Object.keys(env).every((name) => !name.endsWith('_PEM') && name !== 'INTERNAL_SERVICE_SECRET'));
+    assert.deepEqual(serve.Secrets.map((secret: any) => secret.Name).sort(), [
+      'CLERK_SECRET_KEY', 'CLERK_WEBHOOK_SIGNING_SECRET', 'DB_PASSWORD', 'DB_USER',
+      'INTERNAL_SERVICE_SECRET', 'RETAINED_PRINCIPAL_PRIVATE_KEY_PEM', 'RETAINED_PROBE_PRIVATE_KEY_PEM',
+    ]);
+    const byName = Object.fromEntries(serve.Secrets.map((secret: any) => [secret.Name, secret.ValueFrom]));
+    assert.equal(byName.RETAINED_PRINCIPAL_PRIVATE_KEY_PEM, trust.principalPrivateKeySecretArn);
+    assert.equal(byName.RETAINED_PROBE_PRIVATE_KEY_PEM, trust.probePrivateKeySecretArn);
+    assert.equal(byName.INTERNAL_SERVICE_SECRET, binding.internalServiceSecretArn);
+  });
+});
+
+test('renders two stable listener rules for every Meri/Intel Core route before the retained guard', () => {
+  render(binding, ({ guard, service }) => {
   const guardStack = Template.fromStack(guard).toJSON();
   const guardResources = Object.values(guardStack.Resources) as any[];
   assert.equal(guardResources.length, 1);
@@ -73,11 +166,16 @@ test('renders two stable listener rules for four POSTs and three GETs before the
   const containers = tasks.map((task) => task.Properties.ContainerDefinitions[0]);
   assert.deepEqual(containers.map((container) => container.Command), [['serve']]);
   for (const container of containers) {
-    assert.equal(container.Image, `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@${FIRST_CHAT_CORE_IMAGE_DIGEST}`);
+    assert.equal(container.Image, `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@${pins.imageDigest}`);
     const environment = Object.fromEntries(
       container.Environment.map((entry: any) => [entry.Name, entry.Value]),
     );
-    assert.equal(environment.RELEASE_SHA, FIRST_CHAT_CORE_SOURCE);
+    assert.equal(environment.RELEASE_SHA, pins.sourceHead);
+    assert.equal(environment.PREVIEW_NATIVE_GETS_ENABLED, 'true');
+    assert.equal(environment.MERI_TOOL_ALLOWLIST, meriTools.tools.join(','));
+    assert.equal(environment.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
+    assert.equal(environment.RETAINED_READS_ENABLED, 'false');
+    assert.ok(!Object.keys(environment).some((name) => name.startsWith('RETAINED_') && name !== 'RETAINED_READS_ENABLED'));
   }
   const serve = containers.find((container) => container.Name === 'core');
   assert.deepEqual(serve.HealthCheck, {
@@ -92,6 +190,7 @@ test('renders two stable listener rules for four POSTs and three GETs before the
     'CLERK_WEBHOOK_SIGNING_SECRET',
     'DB_PASSWORD',
     'DB_USER',
+    'INTERNAL_SERVICE_SECRET',
   ]);
   const serveEnv = Object.fromEntries(
     serve.Environment.map((entry: any) => [entry.Name, entry.Value]),
@@ -171,17 +270,29 @@ test('renders two stable listener rules for four POSTs and three GETs before the
   assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2]);
   const allowed = stack.Resources.FirstChatPostsOnly;
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
-  assert.deepEqual(path.PathPatternConfig, {
-    RegexValues: ['^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$'],
-  });
-  const postPattern = new RegExp(path.PathPatternConfig.RegexValues[0]);
+  assert.deepEqual(path.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] });
+  const postPatterns = path.PathPatternConfig.RegexValues.map((value: string) => new RegExp(value));
+  const postMatches = (candidate: string) => postPatterns.some((pattern: RegExp) => pattern.test(candidate));
   for (const allowedPath of [
     '/api/clio/conversations/bootstrap',
     '/api/clio/application-authority/identity',
     '/api/clio/application-authority/context',
     '/api/clio/application-authority/membership',
+    '/api/clio/application-authority/read-mode-observation',
+    '/api/clio/clients/check-ref',
+    '/api/clio/application-authority/retained-research-portfolio',
+    '/api/clio/application-authority/retained-research-portfolio-changes',
+    '/api/clio/application-authority/retained-florida-budget',
+    '/api/clio/application-authority/retained-research-portfolio-principal',
+    '/api/clio/application-authority/retained-research-portfolio-changes-principal',
+    '/api/clio/application-authority/retained-florida-principal',
+    '/api/clio/application-authority/retained-florida-current',
+    '/api/clio/application-authority/retained-florida-native-current',
+    '/api/clio/retained-reads/research-portfolio',
+    '/api/clio/retained-reads/research-portfolio-changes',
+    ...meriTools.tools.map((name: string) => `/api/clio/tools/${name}`),
   ]) {
-    assert.ok(postPattern.test(allowedPath), allowedPath);
+    assert.ok(postMatches(allowedPath), allowedPath);
   }
   for (const rejectedPath of [
     '/api/clio/conversations',
@@ -190,9 +301,19 @@ test('renders two stable listener rules for four POSTs and three GETs before the
     '/api/clio/application-authority/context/extra',
     '/api/clio/application-authority/identity/extra',
     '/api/clio/application-authority/membership/extra',
+    '/api/clio/application-authority/retained-florida-budget-principal',
+    '/api/clio/application-authority/retained-florida-native',
+    '/api/clio/retained-reads/research-portfolio/extra',
+    '/api/clio/tools',
+    '/api/clio/tools/',
+    '/api/clio/tools/Search_Federal',
+    '/api/clio/tools/a/b',
+    '/api/clio/approvals/check',
+    '/api/internal/objective-workload-authority/decisions',
+    '/intel-api/internal/legiwatch/retained-florida-budget',
     '/api/me',
   ]) {
-    assert.equal(postPattern.test(rejectedPath), false, rejectedPath);
+    assert.equal(postMatches(rejectedPath), false, rejectedPath);
   }
   const postMethod = allowed.Properties.Conditions.find(
     (condition: any) => condition.Field === 'http-request-method',
@@ -202,13 +323,7 @@ test('renders two stable listener rules for four POSTs and three GETs before the
   const readPath = reads.Properties.Conditions.find(
     (condition: any) => condition.Field === 'path-pattern',
   );
-  assert.deepEqual(readPath.PathPatternConfig, {
-    RegexValues: [
-      '^/api/me$',
-      '^/api/clients$',
-      '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-    ],
-  });
+  assert.deepEqual(readPath.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_GET_PATHS] });
   const readMethod = reads.Properties.Conditions.find(
     (condition: any) => condition.Field === 'http-request-method',
   );
@@ -218,6 +333,11 @@ test('renders two stable listener rules for four POSTs and three GETs before the
     '/api/me',
     '/api/clients',
     '/api/clients/123e4567-e89b-42d3-a456-426614174000',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/changes',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/reviews',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/annual-review',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/snapshots/123e4567-e89b-42d3-a456-426614174001',
   ]) {
     assert.ok(readPatterns.some((pattern: RegExp) => pattern.test(allowedPath)), allowedPath);
   }
@@ -230,6 +350,10 @@ test('renders two stable listener rules for four POSTs and three GETs before the
     '/api/clio/application-authority/identity',
     '/api/conversations/history',
     '/api/me/extra',
+    '/api/research-portfolios',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/snapshots',
+    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/analytics',
+    '/api/research-portfolios/not-a-uuid',
   ]) {
     assert.ok(readPatterns.every((pattern: RegExp) => !pattern.test(rejectedPath)), rejectedPath);
   }
@@ -243,10 +367,5 @@ test('renders two stable listener rules for four POSTs and three GETs before the
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');
     assert.deepEqual(host.HostHeaderConfig.Values, [FIRST_CHAT_CORE_HOST]);
   }
-  } finally {
-    const resolved = fs.realpathSync(output);
-    assert.equal(fs.lstatSync(output).isSymbolicLink(), false);
-    assert.ok(resolved.startsWith(`${tempRoot}${path.sep}`));
-    fs.rmSync(resolved, { recursive: true });
-  }
+  });
 });

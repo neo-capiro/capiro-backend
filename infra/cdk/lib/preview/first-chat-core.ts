@@ -7,12 +7,25 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
+import meriTools from './first-chat-core-meri-tools.json';
 
 // This is a separate, held service. The drifted live ComputeStack and its
 // production API service are not owned or updated by this composition.
-export const FIRST_CHAT_CORE_SOURCE = '6542f5b089656b6d255465edd464d06c2a0b408f';
-export const FIRST_CHAT_CORE_IMAGE_DIGEST =
-  'sha256:722a483259ebb5e9162b9294c26895bafa890fcfee45dc927ff1d2ec35fa071b';
+export interface FirstChatCoreImagePins {
+  readonly sourceHead: string;
+  readonly imageDigest: string;
+}
+/** The qualified integrated image (built from capiro-backend PR #84 or its
+ * successor, scanned and recorded). Null until that build exists: rendering
+ * refuses rather than describing a task its image cannot serve. Set both values
+ * together in the image-qualification commit. */
+export const FIRST_CHAT_CORE_IMAGE_PINS: FirstChatCoreImagePins | null = null;
+/** No longer accepted: PR48 predates native preview GETs, retained reads, the
+ * tool allowlist and the service-identity binding this template now requires. */
+export const FIRST_CHAT_CORE_RETIRED_PR48: FirstChatCoreImagePins = {
+  sourceHead: '6542f5b089656b6d255465edd464d06c2a0b408f',
+  imageDigest: 'sha256:722a483259ebb5e9162b9294c26895bafa890fcfee45dc927ff1d2ec35fa071b',
+};
 export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
 // Reserved alongside Meri and the hand-managed rules in
 // infra/routing/capiro-prod-alb-priorities.json. Neither rule is live merely
@@ -52,25 +65,103 @@ const live = {
   clerkIssuer: 'https://clerk.app.capiro.ai',
 } as const;
 
-export interface FirstChatCoreImageBinding {
-  schemaVersion: 1;
-  sourceHead: typeof FIRST_CHAT_CORE_SOURCE;
-  imageDigest: typeof FIRST_CHAT_CORE_IMAGE_DIGEST;
+/** Exact tool names Meri may execute on this task (MERI_TOOL_ALLOWLIST). The
+ * listener cannot hold 65 names within ALB limits (3 values x 128 characters
+ * per condition, priorities 1-2 before the retained guard), so it forwards a
+ * bounded tool pattern and Core refuses any name outside this list. */
+export const FIRST_CHAT_CORE_MERI_TOOLS: readonly string[] = Object.freeze([...meriTools.tools]);
+
+/** Core paths Meri and Intel call on this host (route/method/authority packet in
+ * docs/integration/CORE-INTEGRATION-LEDGER.md section 8). Each value is at most
+ * 128 characters; ALB permits three per condition and five evaluations per rule. */
+export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([
+  // Native bearer (control credential only at identity/context/membership).
+  '^/api/clio/application-authority/(identity|context|membership|read-mode-observation|retained-florida-(budget|principal))$',
+  // Native issuance, plus Intel's signed CapiroRetained/CapiroRetainedAuthority current checks.
+  '^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?|florida-(native-)?current)$',
+  // Native bootstrap/check-ref, service-identity tools, signed CapiroRetained data reads.
+  '^/api/clio/(conversations/bootstrap|clients/check-ref|tools/[a-z][a-z0-9_]{1,63}|retained-reads/research-portfolio(-changes)?)$',
+]);
+export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([
+  '^/api/(me|clients)$',
+  '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+  '^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$',
+]);
+
+const SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}$`);
+const PIN_TEXT = /^[\x21-\x7e]{1,256}$/;
+
+/** Retained-read trust for this task. Private keys arrive only as Secrets
+ * Manager references; Core is the sole signer and Intel holds public keys. */
+export interface FirstChatCoreRetainedTrustBinding {
+  issuer: string;
+  intelOrigin: string;
+  principalKeyId: string;
+  principalPrivateKeySecretArn: string;
+  probeKeyId: string;
+  probePrivateKeySecretArn: string;
 }
 
-/** No arbitrary resource, credential, image tag, or environment override. */
-export function firstChatCoreImageBinding(input: unknown): FirstChatCoreImageBinding {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error('First-chat image binding object required');
+export interface FirstChatCoreImageBinding {
+  schemaVersion: 2;
+  sourceHead: string;
+  imageDigest: string;
+  /** Server-side service identity for tools and read-mode observation. */
+  internalServiceSecretArn: string;
+  /** null keeps retained reads disabled (every retained route 503). */
+  retainedTrust: FirstChatCoreRetainedTrustBinding | null;
+}
+
+function exactKeys(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} object required`);
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).sort().join('|') !== [...keys].sort().join('|')) throw new Error(`${label} fields are fixed`);
+  return record;
+}
+
+function httpsOrigin(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.origin === value && !url.username && !url.password;
+  } catch {
+    return false;
   }
-  const record = input as Record<string, unknown>;
+}
+
+/** No arbitrary resource, credential, image tag, or environment override. The
+ * image must equal the pinned qualified build; secrets are exact ARNs in this
+ * account and region. */
+export function firstChatCoreImageBinding(
+  input: unknown,
+  pins: FirstChatCoreImagePins | null = FIRST_CHAT_CORE_IMAGE_PINS,
+): FirstChatCoreImageBinding {
+  const record = exactKeys(input,
+    ['schemaVersion', 'sourceHead', 'imageDigest', 'internalServiceSecretArn', 'retainedTrust'],
+    'First-chat image binding');
+  if (!pins) throw new Error('No qualified integrated Core image is pinned yet');
   if (
-    Object.keys(record).sort().join('|') !== 'imageDigest|schemaVersion|sourceHead' ||
-    record.schemaVersion !== 1 ||
-    record.sourceHead !== FIRST_CHAT_CORE_SOURCE ||
-    record.imageDigest !== FIRST_CHAT_CORE_IMAGE_DIGEST
+    record.schemaVersion !== 2 ||
+    !/^[0-9a-f]{40}$/.test(pins.sourceHead) || !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
+    record.sourceHead !== pins.sourceHead ||
+    record.imageDigest !== pins.imageDigest
   ) {
-    throw new Error('Exact PR48 source and qualified Core image digest required');
+    throw new Error('Exact qualified Core source and image digest required');
+  }
+  if (typeof record.internalServiceSecretArn !== 'string' || !SECRET_ARN.test(record.internalServiceSecretArn)) {
+    throw new Error('Exact internal service secret ARN required');
+  }
+  if (record.retainedTrust !== null) {
+    const trust = exactKeys(record.retainedTrust, ['issuer', 'intelOrigin', 'principalKeyId',
+      'principalPrivateKeySecretArn', 'probeKeyId', 'probePrivateKeySecretArn'], 'Retained trust');
+    if (
+      ![trust.issuer, trust.principalKeyId, trust.probeKeyId].every((text) => typeof text === 'string' && PIN_TEXT.test(text)) ||
+      !httpsOrigin(trust.intelOrigin) ||
+      ![trust.principalPrivateKeySecretArn, trust.probePrivateKeySecretArn].every((arn) => typeof arn === 'string' && SECRET_ARN.test(arn)) ||
+      trust.principalPrivateKeySecretArn === trust.probePrivateKeySecretArn
+    ) {
+      throw new Error('Exact retained trust pins required');
+    }
   }
   return record as unknown as FirstChatCoreImageBinding;
 }
@@ -136,6 +227,16 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     const clerkWebhook = secrets.Secret.fromSecretAttributes(this, 'ExistingClerkWebhook', {
       secretCompleteArn: live.clerkWebhookSecretArn,
     });
+    const serviceIdentity = secrets.Secret.fromSecretCompleteArn(
+      this, 'InternalServiceSecret', binding.internalServiceSecretArn,
+    );
+    const trust = binding.retainedTrust;
+    const principalKey = trust && secrets.Secret.fromSecretCompleteArn(
+      this, 'RetainedPrincipalSigningKey', trust.principalPrivateKeySecretArn,
+    );
+    const probeKey = trust && secrets.Secret.fromSecretCompleteArn(
+      this, 'RetainedProbeSigningKey', trust.probePrivateKeySecretArn,
+    );
     const image = ecs.ContainerImage.fromRegistry(
       `${account}.dkr.ecr.${region}.amazonaws.com/${imageRepoName}@${binding.imageDigest}`,
     );
@@ -147,6 +248,9 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     appCredential.grantRead(serveExecutionRole);
     clerk.grantRead(serveExecutionRole);
     clerkWebhook.grantRead(serveExecutionRole);
+    serviceIdentity.grantRead(serveExecutionRole);
+    principalKey?.grantRead(serveExecutionRole);
+    probeKey?.grantRead(serveExecutionRole);
     serveExecutionRole.addToPolicy(new iam.PolicyStatement({
       actions: ['kms:Decrypt'],
       resources: [live.dataKeyArn, live.secretsKeyArn],
@@ -190,8 +294,23 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         DB_NAME: 'capiro',
         CLERK_JWT_ISSUER: live.clerkIssuer,
         WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
-        RELEASE_SHA: FIRST_CHAT_CORE_SOURCE,
-        // PR48 boots the full AppModule. Explicitly disable its worker and
+        RELEASE_SHA: binding.sourceHead,
+        // Native-session preview GETs, the exact Meri tool set and enforced
+        // service identity on tools/read-mode (server-side secret only).
+        PREVIEW_NATIVE_GETS_ENABLED: 'true',
+        MERI_TOOL_ALLOWLIST: FIRST_CHAT_CORE_MERI_TOOLS.join(','),
+        MERI_TOOLS_REQUIRE_SERVICE_SECRET: 'true',
+        ...(trust
+          ? {
+              RETAINED_READS_ENABLED: 'true',
+              RETAINED_TRUST_ISSUER: trust.issuer,
+              RETAINED_CORE_ORIGIN: `https://${FIRST_CHAT_CORE_HOST}`,
+              RETAINED_INTEL_ORIGIN: trust.intelOrigin,
+              RETAINED_PRINCIPAL_KEY_ID: trust.principalKeyId,
+              RETAINED_PROBE_KEY_ID: trust.probeKeyId,
+            }
+          : { RETAINED_READS_ENABLED: 'false' }),
+        // The image boots the full AppModule. Explicitly disable its worker and
         // outbound-action posture in this separate API task.
         CAPIRO_SERVICE_NAME: 'api',
         ENGAGEMENT_PROCESS_MODE: 'shadow',
@@ -211,6 +330,13 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         DB_PASSWORD: ecs.Secret.fromSecretsManager(appCredential, 'password'),
         CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerk),
         CLERK_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(clerkWebhook),
+        INTERNAL_SERVICE_SECRET: ecs.Secret.fromSecretsManager(serviceIdentity),
+        ...(principalKey && probeKey
+          ? {
+              RETAINED_PRINCIPAL_PRIVATE_KEY_PEM: ecs.Secret.fromSecretsManager(principalKey),
+              RETAINED_PROBE_PRIVATE_KEY_PEM: ecs.Secret.fromSecretsManager(probeKey),
+            }
+          : {}),
       },
     });
     serve.addPortMappings({ containerPort: 4000 });
@@ -239,12 +365,14 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     service.attachToApplicationTargetGroup(target);
 
     // ALB permits at most three path match evaluations per condition and five
-    // per rule. One anchored expression covers the four exact authority POST
-    // paths. Preserve both existing listener rule logical IDs so an in-place
-    // update remains possible if this stack owns the physical rules. Confirm
-    // that ownership from the current template before any application. The
-    // independently retained host-only 404 guard prevents production /api/*
-    // fallback on this host.
+    // per rule, and 128 characters per pattern. Three anchored expressions cover
+    // every Meri/Intel POST on this host; three cover the native GETs. Preserve
+    // both existing listener rule logical IDs so an in-place update remains
+    // possible if this stack owns the physical rules. Confirm that ownership
+    // from the current template before any application. The independently
+    // retained host-only 404 guard (priority 3, unchanged) prevents production
+    // /api/* fallback on this host. Intel routes are not served here: Meri and
+    // Core reach Intel at RETAINED_INTEL_ORIGIN through the existing Intel rule.
     const firstChatPosts = new elb.CfnListenerRule(this, 'FirstChatPostsOnly', {
       listenerArn: live.listenerArn,
       priority: 1,
@@ -253,9 +381,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         {
           field: 'path-pattern',
           pathPatternConfig: {
-            regexValues: [
-              '^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$',
-            ],
+            regexValues: [...FIRST_CHAT_CORE_POST_PATHS],
           },
         },
         { field: 'http-request-method', httpRequestMethodConfig: { values: ['POST'] } },
@@ -263,7 +389,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
     // This logical ID previously carried membership POST. Its ID remains
-    // stable while priority 2 now admits only the three browser GET reads.
+    // stable while priority 2 now admits only the native GET reads.
     const browserReads = new elb.CfnListenerRule(this, 'FirstChatMembershipPostOnly', {
       listenerArn: live.listenerArn,
       priority: 2,
@@ -272,11 +398,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         {
           field: 'path-pattern',
           pathPatternConfig: {
-            regexValues: [
-              '^/api/me$',
-              '^/api/clients$',
-              '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-            ],
+            regexValues: [...FIRST_CHAT_CORE_GET_PATHS],
           },
         },
         { field: 'http-request-method', httpRequestMethodConfig: { values: ['GET'] } },
@@ -299,8 +421,12 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
 }
 
 /** Deterministic, import-safe source composition. Never deploys by itself. */
-export function previewFirstChatCoreApplication(input: unknown, outdir: string) {
-  const binding = firstChatCoreImageBinding(input);
+export function previewFirstChatCoreApplication(
+  input: unknown,
+  outdir: string,
+  pins: FirstChatCoreImagePins | null = FIRST_CHAT_CORE_IMAGE_PINS,
+) {
+  const binding = firstChatCoreImageBinding(input, pins);
   const app = new cdk.App({ outdir });
   const guard = new FirstChatCoreGuardStack(app, FIRST_CHAT_CORE_GUARD_STACK_NAME);
   const service = new FirstChatCoreServiceStack(app, 'Capiro-Preview-First-Chat-Core', binding);
