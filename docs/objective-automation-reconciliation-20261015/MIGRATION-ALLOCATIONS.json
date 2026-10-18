@@ -254,6 +254,28 @@
         "Meri's facts views (meri-greenfield read-delegation 0001) and their grants to capiro_app",
         "expiry sweeping"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql",
+      "owner": "Core Institutional Memory client-scoped clio_memory key uniqueness",
+      "workstream": "codex/memory-client-unique-20261018",
+      "base": "96065aea7076fde961071ebce402b6b2a31ee60c",
+      "allocation": "centrally assigned source-only reservation after Core PR86 migration collision check",
+      "allocatedAt": "2026-10-18T13:11:00Z",
+      "checks": {
+        "CorePR86Head": "b40971b1f8de888687a8fb92fbdf4ff653fe10d3",
+        "latestObservedCoreMigration": "20281018060000_meri_read_delegation",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "preflight old firm index, client/firm row shape, and duplicate keys without data changes",
+        "partial unique index on tenant_id, client_id, key for client scope",
+        "narrow clio_memory_firm_key_uniq to firm scope while preserving user_private Prisma uniqueness"
+      ],
+      "excluded": [
+        "live migration execution",
+        "row deduplication or data deletion"
+      ]
     }
   ]
 }
