@@ -41,6 +41,7 @@ import {
   type SyntheticCandidateWithdrawalGuard,
 } from './synthetic-candidate-withdrawal.helpers.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
+import { clioMemorySlug } from './memory-clio-adapter.helpers.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
 export interface MemorySaveRequest {
@@ -173,6 +174,7 @@ interface LockedCandidate {
   payload: unknown;
   proposedBy: string;
   scope: string;
+  clientId: string | null;
   sourceKind: string;
   /** Governance source type; 'meri' marks W8 Meri memory review submissions. */
   sourceType: string;
@@ -331,6 +333,15 @@ export class MemoryCandidateService {
     if (record.scope === 'client' && !record.clientId) {
       throw new BadRequestException('Client-scope memory requires a clientId.');
     }
+    if (record.scope !== 'client' && record.clientId != null) {
+      throw new BadRequestException('Only client-scope memory may carry a clientId.');
+    }
+    if (record.scope === 'user_private' && record.ownerUserId !== proposedByUserId) {
+      throw new ForbiddenException('Personal memory owner must be the proposer.');
+    }
+    if (record.scope !== 'user_private' && record.ownerUserId !== null) {
+      throw new BadRequestException('Shared memory cannot have a personal owner.');
+    }
 
     const candidateConfidence =
       typeof record.confidence === 'number' && Number.isFinite(record.confidence)
@@ -398,17 +409,17 @@ export class MemoryCandidateService {
     });
 
     const result = await this.prisma.withTenantUser(tenantId, proposedByUserId, async (tx) => {
+      if (record.scope === 'client' &&
+          !(await clientMemoryAllowed(tx, tenantId, proposedByUserId, record.clientId!))) {
+        throw new NotFoundException('Client unavailable for memory proposal.');
+      }
       if (fixtureCandidateId !== undefined) {
         const membership = await tx.$queryRaw<Array<{ user_id: string }>>`
           SELECT user_id::text AS user_id FROM tenant_memberships
           WHERE tenant_id = ${tenantId}::uuid AND user_id = ${proposedByUserId}::uuid
             AND status = 'active' FOR SHARE
         `;
-        if (
-          membership.length !== 1 ||
-          (record.clientId &&
-            !(await clientMemoryAllowed(tx, tenantId, proposedByUserId, record.clientId)))
-        ) {
+        if (membership.length !== 1) {
           throw new ForbiddenException('Synthetic candidate actor or client is not authorized');
         }
       }
@@ -568,6 +579,26 @@ export class MemoryCandidateService {
       this.requireSharedApprovalPolicy(candidate, approverUserId, actorContext);
       this.requireMeriPersonalOwner(candidate, approverUserId);
       const record = payloadToSaveRequest(candidate.payload);
+      const payloadScope = record.scope === 'user_private' ? 'personal' : record.scope;
+      if (candidate.scope !== payloadScope) {
+        throw new ForbiddenException('Memory candidate scope changed before approval.');
+      }
+      if ((candidate.clientId ?? null) !== (record.clientId ?? null)) {
+        throw new ForbiddenException('Memory candidate client changed before approval.');
+      }
+      if (record.scope === 'user_private' && record.ownerUserId !== candidate.proposedBy) {
+        throw new ForbiddenException('Personal memory owner must be the proposer.');
+      }
+      if (record.scope !== 'user_private' && record.ownerUserId !== null) {
+        throw new BadRequestException('Shared memory cannot have a personal owner.');
+      }
+      if (record.scope === 'client') {
+        if (!record.clientId ||
+            !(await clientMemoryAllowed(tx, tenantId, candidate.proposedBy, record.clientId)) ||
+            !(await clientMemoryAllowed(tx, tenantId, approverUserId, record.clientId))) {
+          throw new NotFoundException('Client unavailable for memory approval.');
+        }
+      }
       const governance = governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)
         ? buildCanonicalGovernance({
             record,
@@ -755,6 +786,7 @@ export class MemoryCandidateService {
              payload_jsonb AS payload,
              proposed_by::text AS "proposedBy",
              scope,
+             client_id::text AS "clientId",
              source_kind AS "sourceKind",
              source_type AS "sourceType"
       FROM memory_candidate
@@ -910,17 +942,62 @@ export class MemoryCandidateService {
       ...(governance ? governedClioMetadata(governance) : {}),
     };
 
-    const findExisting = () =>
-      tx.clioMemory.findFirst({
-        where: {
-          tenantId,
-          scope: record.scope,
-          ownerUserId: record.ownerUserId,
-          clientId: record.clientId ?? null,
-          key: record.key,
-        },
-        select: { id: true },
-      });
+    // Serialize an existing-key decision with forget, hold changes, and other
+    // approvals. A plain findFirst followed by update could use a stale target.
+    const findExisting = async () => {
+      const rows = await tx.$queryRaw<Array<{ id: string; source: string }>>`
+        SELECT id::text AS id, source FROM clio_memory
+        WHERE tenant_id = ${tenantId}::uuid AND scope = ${record.scope}
+          AND owner_user_id IS NOT DISTINCT FROM ${record.ownerUserId}::uuid
+          AND client_id IS NOT DISTINCT FROM ${record.clientId ?? null}::uuid
+          AND key = ${record.key}
+        ORDER BY id LIMIT 2 FOR UPDATE
+      `;
+      if (rows.length > 1) throw keyTaken();
+      return rows[0] ?? null;
+    };
+    const assertMutablePersonalTarget = async (clioId: string) => {
+      const slug = clioMemorySlug(clioId);
+      type Target = {
+        id: string; type: string; slug: string; status: string; legalHold: boolean;
+        ownerUserId: string | null; clientId: string | null; governedStatus: string | null;
+      };
+      const targets = governance
+        ? await tx.$queryRaw<Target[]>`
+            SELECT mi.id::text AS id, mi.type, mi.slug, mi.status,
+                   mi.legal_hold AS "legalHold",
+                   mi.owner_user_id::text AS "ownerUserId",
+                   mi.client_id::text AS "clientId", mi.governed_status AS "governedStatus"
+            FROM memory_items mi
+            WHERE mi.tenant_id = ${tenantId}::uuid AND (
+              mi.slug = ${slug} OR EXISTS (
+                SELECT 1 FROM memory_candidate c
+                WHERE c.tenant_id = mi.tenant_id
+                  AND c.committed_memory_id = ${clioId}::uuid
+                  AND c.committed_memory_item_id = mi.id
+              )
+            )
+            FOR UPDATE OF mi
+          `
+        : await tx.$queryRaw<Target[]>`
+            SELECT id::text AS id, type, slug, status,
+                   legal_hold AS "legalHold", owner_user_id::text AS "ownerUserId",
+                   client_id::text AS "clientId", NULL::text AS "governedStatus"
+            FROM memory_items
+            WHERE tenant_id = ${tenantId}::uuid AND slug = ${slug}
+            FOR UPDATE
+          `;
+      const target = targets[0];
+      if (
+        targets.length !== 1 || !target || target.slug !== slug ||
+        target.type !== (governance?.canonicalType ?? 'note') ||
+        target.ownerUserId !== record.ownerUserId || target.clientId !== null ||
+        target.status !== 'active' || target.legalHold ||
+        (governance !== null && target.governedStatus !== 'active')
+      ) {
+        throw keyTaken();
+      }
+    };
     const updateExisting = (id: string) =>
       tx.clioMemory.update({
         where: { id },
@@ -935,7 +1012,12 @@ export class MemoryCandidateService {
     let id: string;
     const existing = await findExisting();
     if (existing) {
-      if (options.insertOnly) throw keyTaken();
+      // Shared additions and Settings first versions never edit a keyed source.
+      // Corrections require the immutable version workflow; a pending addition
+      // has no source version pin to authorize replacement at approval time.
+      if (options.insertOnly || record.scope !== 'user_private' || record.canonicalItem ||
+          existing.source === 'settings_memory_editor') throw keyTaken();
+      await assertMutablePersonalTarget(existing.id);
       await updateExisting(existing.id);
       id = existing.id;
     } else {
@@ -957,11 +1039,9 @@ export class MemoryCandidateService {
         id = created.id;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          if (options.insertOnly) throw keyTaken();
-          const raced = await findExisting();
-          if (!raced) throw err;
-          await updateExisting(raced.id);
-          id = raced.id;
+          // A concurrently created key is a new target with no approved pin.
+          // Abort this transaction rather than updating it after the race.
+          throw keyTaken();
         } else {
           throw err;
         }

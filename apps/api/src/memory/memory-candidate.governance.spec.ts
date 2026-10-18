@@ -59,13 +59,15 @@ function harness(row: CandidateRow, payload?: unknown) {
       const sql = Array.isArray((strings as { raw?: string[] }).raw)
         ? (strings as { raw: string[] }).raw.join('?')
         : String(strings);
-      if (/FOR UPDATE/i.test(sql)) {
+      if (/FROM\s+clio_memory/i.test(sql) && /FOR UPDATE/i.test(sql)) return [];
+      if (/FROM\s+memory_candidate/i.test(sql) && /FOR UPDATE/i.test(sql)) {
         return [
           {
             id: CANDIDATE,
             payload: candidatePayload,
             proposedBy: 'proposer-1',
             scope: row.scope,
+            clientId: row.client_id,
           },
         ];
       }
@@ -76,6 +78,7 @@ function harness(row: CandidateRow, payload?: unknown) {
       return [];
     },
     $executeRaw: async () => 1,
+    $queryRawUnsafe: async () => [{ allowed: true }],
   };
   const withTenantUser = jest.fn(
     async (_tenantId: string, _userId: string, fn: (t: typeof tx) => unknown) => fn(tx),
@@ -234,6 +237,8 @@ describe('MemoryCandidateService governed lifecycle — ARMED', () => {
         key: 'firm-position:fy27',
         value: 'The firm supports the plus-up.',
         source: 'chat',
+        scope: 'firm',
+        ownerUserId: null,
       });
       await h.service.approve(TENANT, CANDIDATE, 'reviewer-1');
       const serialized = JSON.stringify(h.auditRows);

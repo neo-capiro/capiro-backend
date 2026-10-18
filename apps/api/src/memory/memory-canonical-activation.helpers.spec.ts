@@ -130,10 +130,27 @@ describe('canonical governed memory activation', () => {
     expect(sql).toContain('memory_authority');
     expect(sql).toContain('governed_status');
     expect(embeddedSql(params)).toContain('DO UPDATE SET');
+    expect(embeddedSql(params)).toContain("memory_items.governed_status = 'active'");
+    expect(embeddedSql(params)).toContain('memory_items.legal_hold = false');
     expect(params).toContain('firm_approved');
     expect(params).toContain('active');
     expect(params).toContain(PROPOSER);
     expect(params).toContain(REVIEWER);
+  });
+
+  it('refuses a canonical conflict rejected by the active, unheld owner predicate', async () => {
+    const tx = { $queryRaw: async () => [] } as unknown as Prisma.TransactionClient;
+    const proposed = record('user_private');
+    const governance = buildCanonicalGovernance({
+      record: proposed,
+      sourceKind: 'explicit_user',
+      candidateId: CANDIDATE,
+      assertedByUserId: PROPOSER,
+      approvedByUserId: PROPOSER,
+      decision: 'auto_committed',
+    });
+    await expect(upsertCanonicalMemoryItemInTx(tx, TENANT, CLIO, proposed, governance))
+      .rejects.toBeInstanceOf(ConflictException);
   });
 
   it('activates an approved first-time Settings proposal insert-only', async () => {
