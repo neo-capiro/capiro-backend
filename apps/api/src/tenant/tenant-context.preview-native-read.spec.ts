@@ -91,7 +91,12 @@ describe('TenantContextMiddleware preview native GET context', () => {
     else process.env.PREVIEW_NATIVE_GETS_ENABLED = priorPreviewSetting;
   });
 
-  it.each(['/api/me', '/api/clients?includeArchived=true', '/api/clients/11111111-1111-4111-8111-111111111111'])
+  it.each([
+    '/api/me', '/api/clients?includeArchived=true', '/api/clients/11111111-1111-4111-8111-111111111111',
+    '/api/memory/candidates/mine?limit=25',
+    '/api/memory/candidates/mine/11111111-1111-4111-8111-111111111111/status',
+    '/api/memory/owner/items?limit=25',
+  ])
   ('resolves %s from an online native session and existing member without local writes', async (path) => {
     const h = fixture(path);
     await h.middleware.use(h.request, h.response, h.next);
@@ -113,7 +118,10 @@ describe('TenantContextMiddleware preview native GET context', () => {
     expectNoLocalMutation(h.mutations);
   });
 
-  it.each(['/api/me', '/api/clients/11111111-1111-4111-8111-111111111111'])
+  it.each([
+    '/api/me', '/api/clients/11111111-1111-4111-8111-111111111111',
+    '/api/memory/candidates/mine', '/api/memory/owner/items',
+  ])
   ('keeps HEAD %s on the online native read-only path', async (path) => {
     const h = fixture(path, previewHost, 'HEAD');
     await h.middleware.use(h.request, h.response, h.next);
@@ -159,6 +167,8 @@ describe('TenantContextMiddleware preview native GET context', () => {
     for (const [method, path, originalUrl] of [
       ['GET', '/api/me', '/api/me'],
       ['HEAD', '/api/clients', '/api/clients'],
+      ['GET', '/api/memory/candidates/mine', '/api/memory/candidates/mine'],
+      ['HEAD', '/api/memory/owner/items', '/api/memory/owner/items'],
       ['GET', '/api/me', `http://${previewHost}/api/me`],
       ['HEAD', '/api/me', `http://${previewHost}/api/me`],
     ]) {
@@ -210,12 +220,14 @@ describe('TenantContextMiddleware preview native GET context', () => {
     { enabled: 'true', host: `${previewHost}:443` },
   ])('refuses a preview task Host/flag mismatch before auth or DB (%#)', async ({ enabled, host }) => {
     process.env.PREVIEW_NATIVE_GETS_ENABLED = enabled;
-    const h = fixture('/api/me', host);
-    await expect(h.middleware.use(h.request, h.response, h.next)).rejects.toMatchObject({ status: 503 });
-    expect(h.headers.get('cache-control')).toBe('no-store');
-    expect(h.verify).not.toHaveBeenCalled();
-    expect(h.system).not.toHaveBeenCalled();
-    expect(h.next).not.toHaveBeenCalled();
+    for (const path of ['/api/me', '/api/memory/candidates/mine', '/api/memory/owner/items']) {
+      const h = fixture(path, host);
+      await expect(h.middleware.use(h.request, h.response, h.next)).rejects.toMatchObject({ status: 503 });
+      expect(h.headers.get('cache-control')).toBe('no-store');
+      expect(h.verify).not.toHaveBeenCalled();
+      expect(h.system).not.toHaveBeenCalled();
+      expect(h.next).not.toHaveBeenCalled();
+    }
   });
 
   it('leaves the ordinary host with the flag off on the existing update path', async () => {

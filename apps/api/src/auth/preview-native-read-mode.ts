@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 
 const PREVIEW_HOST = 'first-chat-preview.app-dev.capiro.ai';
-const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?)\/?$/i;
+const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidates\/mine(?:\/[^/?]+\/status)?|owner\/items))\/?$/i;
 
 export function previewNativeReadMode(enabled: boolean, host: unknown): 'ordinary' | 'preview' | 'unavailable' {
   const isPreviewHost = typeof host === 'string' && host.toLowerCase() === PREVIEW_HOST;
@@ -9,7 +9,7 @@ export function previewNativeReadMode(enabled: boolean, host: unknown): 'ordinar
   return enabled && isPreviewHost ? 'preview' : 'unavailable';
 }
 
-/** Match only routes handled by the three preview GET methods, before query parsing. */
+/** Match only routes handled by the preview GET methods, before query parsing. */
 export function isPreviewNativeReadRoute(req: Request): boolean {
   // Express may dispatch HEAD through a registered GET controller. Its
   // middleware authority must be just as strict even though ALB forwards GET.

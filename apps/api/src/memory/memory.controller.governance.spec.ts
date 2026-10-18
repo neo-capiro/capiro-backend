@@ -58,6 +58,7 @@ function harness(opts: { candidateDenied?: boolean } = {}) {
     } as unknown as MemoryAccessGrantService,
     { resolve: resolveConflict } as unknown as MemoryConflictService,
     { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>,
+    {} as never,
   );
   return {
     controller,

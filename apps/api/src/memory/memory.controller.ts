@@ -10,6 +10,8 @@ import {
   Post,
   Put,
   Query,
+  Req,
+  Res,
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +21,8 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import type { TenantContext } from '@capiro/shared';
+import type { Request, Response } from 'express';
+import { PreviewNativeReadService } from '../auth/preview-native-read.service.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryPurgeService } from './memory-purge.service.js';
 import { daysOverdue } from './memory-staleness.helpers.js';
@@ -90,6 +94,7 @@ export class MemoryController {
     private readonly grants: MemoryAccessGrantService,
     private readonly conflicts: MemoryConflictService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly preview: PreviewNativeReadService,
   ) {}
 
   /** Section catalog (help text + examples + interview questions source). */
@@ -331,15 +336,30 @@ export class MemoryController {
   @Get('candidates/mine')
   async listOwnCandidates(
     @CurrentTenant() ctx: TenantContext,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
+    if (this.preview.mode(req, res)) {
+      return this.preview.run(req, res, ctx, (visibleClientIds) =>
+        this.candidates.pageOwnPersonalPending(ctx, { limit, cursor, visibleClientIds }));
+    }
     return this.candidates.pageOwnPersonalPending(ctx, { limit, cursor });
   }
 
   /** Exact owner-only status lets a client reconcile an uncertain decision response. */
   @Get('candidates/mine/:id/status')
-  async ownCandidateStatus(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  async ownCandidateStatus(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (this.preview.mode(req, res)) {
+      return this.preview.run(req, res, ctx, (visibleClientIds) =>
+        this.candidates.ownPersonalCandidateStatus(ctx, id, visibleClientIds));
+    }
     return this.candidates.ownPersonalCandidateStatus(ctx, id);
   }
 

@@ -3,6 +3,7 @@ import type { ConfigService } from '@nestjs/config';
 import { PGlite } from '@electric-sql/pglite';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import type { Request, Response } from 'express';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryIngestService } from './memory-ingest.service.js';
@@ -15,6 +16,7 @@ const OTHER = '33333333-3333-4333-8333-333333333333';
 const WALLED = '44444444-4444-4444-8444-444444444444';
 const GRANTED = '55555555-5555-4555-8555-555555555555';
 const ITEM = '66666666-6666-4666-8666-666666666666';
+const ARCHIVED = '77777777-7777-4777-8777-777777777777';
 
 const ctx: TenantContext = {
   tenantId: TENANT,
@@ -31,7 +33,10 @@ function candidateId(index: number): string {
 async function harness() {
   const db = new PGlite();
   await db.exec(`
-    CREATE TABLE clients (id uuid PRIMARY KEY, tenant_id uuid NOT NULL, memory_wall boolean NOT NULL);
+    CREATE TABLE clients (
+      id uuid PRIMARY KEY, tenant_id uuid NOT NULL,
+      status text NOT NULL DEFAULT 'active', memory_wall boolean NOT NULL
+    );
     CREATE TABLE client_memory_access (tenant_id uuid NOT NULL, client_id uuid NOT NULL, user_id uuid NOT NULL);
     CREATE TABLE memory_candidate (
       id uuid PRIMARY KEY, tenant_id uuid NOT NULL, proposed_by uuid NOT NULL,
@@ -44,6 +49,10 @@ async function harness() {
   await db.query(
     'INSERT INTO clients (id,tenant_id,memory_wall) VALUES ($1,$3,true),($2,$3,true)',
     [WALLED, GRANTED, TENANT],
+  );
+  await db.query(
+    "INSERT INTO clients (id,tenant_id,status,memory_wall) VALUES ($1,$2,'archived',false)",
+    [ARCHIVED, TENANT],
   );
   await db.query(
     'INSERT INTO client_memory_access (tenant_id,client_id,user_id) VALUES ($1,$2,$3)',
@@ -144,6 +153,7 @@ describe('owner personal candidate inbox (ephemeral PostgreSQL)', () => {
       await h.insert(207, { scope: 'firm' });
       await h.insert(208, { payloadClientId: WALLED });
       await h.insert(211, { clientId: GRANTED });
+      await h.insert(212, { clientId: ARCHIVED, payloadClientId: ARCHIVED });
       expected.push(await h.insert(209, { createdAt: '2026-10-18T12:00:00.123457Z' }));
       expected.push(await h.insert(210, { createdAt: '2026-10-18T12:00:00.123455Z' }));
 
@@ -162,6 +172,14 @@ describe('owner personal candidate inbox (ephemeral PostgreSQL)', () => {
       expect(new Set(received)).toEqual(new Set(expected));
       expect(received[0]).toBe(candidateId(209));
       expect(received.at(-1)).toBe(candidateId(210));
+      const previewFirst = await h.service.pageOwnPersonalPending(ctx, { limit: 100, visibleClientIds: [] });
+      expect(previewFirst.candidates).toHaveLength(100);
+      expect(previewFirst.candidates.some((candidate) => candidate.id === allowedClient)).toBe(false);
+      const previewSecond = await h.service.pageOwnPersonalPending(ctx, {
+        limit: 100, cursor: previewFirst.nextCursor, visibleClientIds: [],
+      });
+      expect(previewSecond.candidates).toHaveLength(12);
+      expect(previewSecond.nextCursor).toBeNull();
       expect(
         h.queryRaw.mock.calls.some(([sql]) =>
           sql.join('?').includes('ORDER BY mc.created_at DESC, mc.id DESC'),
@@ -189,6 +207,9 @@ describe('owner personal candidate inbox (ephemeral PostgreSQL)', () => {
         payloadClientId: GRANTED,
       });
       const mismatched = await h.insert(6, { status: 'approved', clientId: GRANTED });
+      const archived = await h.insert(11, {
+        status: 'approved', clientId: ARCHIVED, payloadClientId: ARCHIVED,
+      });
       const rejected = await h.insert(7, { status: 'rejected' });
       const committedInline = await h.insert(8, { status: 'auto_committed' });
       const superseded = await h.insert(9, { status: 'superseded' });
@@ -211,6 +232,10 @@ describe('owner personal candidate inbox (ephemeral PostgreSQL)', () => {
         status: 'withdrawn',
         terminal: true,
       });
+      await expect(h.service.ownPersonalCandidateStatus(ctx, allowed, [GRANTED]))
+        .resolves.toMatchObject({ status: 'withdrawn', terminal: true });
+      await expect(h.service.ownPersonalCandidateStatus(ctx, allowed, []))
+        .rejects.toBeInstanceOf(NotFoundException);
       for (const id of [rejected, committedInline, superseded]) {
         await expect(h.service.ownPersonalCandidateStatus(ctx, id)).resolves.toMatchObject({
           terminal: true,
@@ -221,7 +246,7 @@ describe('owner personal candidate inbox (ephemeral PostgreSQL)', () => {
           terminal: false,
         },
       );
-      for (const id of [walled, foreign, mismatched, candidateId(99), 'not-a-uuid']) {
+      for (const id of [walled, foreign, mismatched, archived, candidateId(99), 'not-a-uuid']) {
         await expect(h.service.ownPersonalCandidateStatus(ctx, id)).rejects.toBeInstanceOf(
           NotFoundException,
         );
@@ -284,12 +309,15 @@ describe('owner personal candidate inbox (ephemeral PostgreSQL)', () => {
       {} as never,
       {} as never,
       {} as never,
+      { mode: () => false } as never,
     );
-    await expect(controller.listOwnCandidates(ctx, '50', 'cursor')).resolves.toHaveProperty(
+    const req = {} as Request;
+    const res = {} as Response;
+    await expect(controller.listOwnCandidates(ctx, req, res, '50', 'cursor')).resolves.toHaveProperty(
       'version',
       1,
     );
-    await expect(controller.ownCandidateStatus(ctx, candidateId(1))).resolves.toHaveProperty(
+    await expect(controller.ownCandidateStatus(ctx, candidateId(1), req, res)).resolves.toHaveProperty(
       'terminal',
       false,
     );

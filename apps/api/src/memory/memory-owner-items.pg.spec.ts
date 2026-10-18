@@ -80,6 +80,11 @@ describe('owner memory picker SQL boundary', () => {
         'INSERT INTO client_memory_access (tenant_id,client_id,user_id) VALUES ($1,$2,$3)',
         [ctx.tenantId, walled, ctx.userId],
       );
+      const previewWithoutClient = await service.list(ctx, { limit: 1, visibleClientIds: [] });
+      expect(previewWithoutClient.items.map((item) => item.id)).toEqual([allowedItem]);
+      expect(previewWithoutClient.nextCursor).toBeNull();
+      const previewWithClient = await service.list(ctx, { limit: 1, visibleClientIds: [walled] });
+      expect(previewWithClient.items.map((item) => item.id)).toEqual([deniedItem]);
       const firstPage = await service.list(ctx, { limit: 1 });
       expect(firstPage.items.map((item) => item.id)).toEqual([deniedItem]);
       expect(firstPage.items[0]?.clientId).toBe(walled);

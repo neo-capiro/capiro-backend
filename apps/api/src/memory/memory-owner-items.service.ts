@@ -51,13 +51,14 @@ export class MemoryOwnerItemsService {
 
   async list(
     ctx: TenantContext,
-    input: { cursor?: unknown; limit?: unknown } = {},
+    input: { cursor?: unknown; limit?: unknown; visibleClientIds?: readonly string[] } = {},
   ): Promise<OwnerMemoryItemsPage> {
     const limit = parseLimit(input.limit);
     const cursor = decodeCursor(input.cursor, cursorBinding(ctx));
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
       throw new ServiceUnavailableException('Governed memory owner items are unavailable.');
     }
+    const previewRoster = input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
 
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.$queryRaw<OwnerItemRow[]>(Prisma.sql`
@@ -70,6 +71,10 @@ export class MemoryOwnerItemsService {
           AND mi.owner_user_id = ${ctx.userId}::uuid
           AND mi.memory_scope = 'user_private'
           AND mi.visibility = 'user'
+          AND (${previewRoster}::jsonb IS NULL OR mi.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${previewRoster}::jsonb) AS preview_client(id)
+            WHERE preview_client.id = mi.client_id::text
+          ))
           AND (
             mi.client_id IS NULL OR (
               c.id IS NOT NULL AND c.status::text = 'active'

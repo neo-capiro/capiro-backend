@@ -783,10 +783,13 @@ export class MemoryCandidateService {
    */
   async pageOwnPersonalPending(
     ctx: TenantContext,
-    input: { limit?: unknown; cursor?: unknown } = {},
+    input: { limit?: unknown; cursor?: unknown; visibleClientIds?: readonly string[] } = {},
   ): Promise<OwnPersonalCandidatePage> {
     const limit = ownPersonalPageSize(input.limit);
     const after = ownPersonalCursor(input.cursor, ctx);
+    // Only the preview's current native roster may narrow client-linked rows.
+    // Keep this in SQL before LIMIT so hidden rows cannot consume a page slot.
+    const previewRoster = input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.$queryRaw<OwnPersonalCandidateRow[]>`
         SELECT mc.id::text AS id,
@@ -805,9 +808,14 @@ export class MemoryCandidateService {
           AND jsonb_typeof(mc.payload_jsonb->'key') = 'string'
           AND jsonb_typeof(mc.payload_jsonb->'value') = 'string'
           AND (mc.payload_jsonb->>'clientId') IS NOT DISTINCT FROM mc.client_id::text
+          AND (${previewRoster}::jsonb IS NULL OR mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${previewRoster}::jsonb) AS preview_client(id)
+            WHERE preview_client.id = mc.client_id::text
+          ))
           AND (mc.client_id IS NULL OR EXISTS (
             SELECT 1 FROM clients c
             WHERE c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+              AND c.status::text = 'active'
               AND (NOT c.memory_wall OR EXISTS (
                 SELECT 1 FROM client_memory_access a
                 WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
@@ -847,9 +855,11 @@ export class MemoryCandidateService {
   async ownPersonalCandidateStatus(
     ctx: TenantContext,
     candidateId: string,
+    visibleClientIds?: readonly string[],
   ): Promise<OwnPersonalCandidateStatus> {
     const missing = () => new NotFoundException('No personal memory candidate of yours with that id.');
     if (!CANDIDATE_UUID.test(candidateId)) throw missing();
+    const previewRoster = visibleClientIds === undefined ? null : JSON.stringify(visibleClientIds);
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.$queryRaw<Array<{
         id: string;
@@ -870,9 +880,14 @@ export class MemoryCandidateService {
           AND jsonb_typeof(mc.payload_jsonb->'key') = 'string'
           AND jsonb_typeof(mc.payload_jsonb->'value') = 'string'
           AND (mc.payload_jsonb->>'clientId') IS NOT DISTINCT FROM mc.client_id::text
+          AND (${previewRoster}::jsonb IS NULL OR mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${previewRoster}::jsonb) AS preview_client(id)
+            WHERE preview_client.id = mc.client_id::text
+          ))
           AND (mc.client_id IS NULL OR EXISTS (
             SELECT 1 FROM clients c
             WHERE c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+              AND c.status::text = 'active'
               AND (NOT c.memory_wall OR EXISTS (
                 SELECT 1 FROM client_memory_access a
                 WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id

@@ -48,6 +48,7 @@ function harness(opts: { existing?: any; wallAllowed?: boolean; pending?: any } 
     {} as any,
     {} as any,
     { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>,
+    {} as never,
   );
   return {
     controller,

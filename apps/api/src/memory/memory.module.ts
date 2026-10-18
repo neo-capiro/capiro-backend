@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { TenantModule } from '../tenant/tenant.module.js';
+import { ApplicationAuthorityModule } from '../auth/application-authority.module.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { GovernedMemoryStoreService } from './governed-memory-store.service.js';
 import { LineageAwareMemoryStoreService } from './lineage-aware-memory-store.service.js';
@@ -51,7 +52,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
 
 /** Institutional Memory module. */
 @Module({
-  imports: [PrismaModule, TenantModule, KnowledgeModule],
+  imports: [PrismaModule, TenantModule, KnowledgeModule, ApplicationAuthorityModule],
   controllers: [
     MemoryController,
     MemoryReviewController,
