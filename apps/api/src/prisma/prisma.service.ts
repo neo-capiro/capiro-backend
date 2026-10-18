@@ -145,7 +145,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
   ): Promise<T> {
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
@@ -164,8 +164,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       //   "Transaction already closed: ... however 8061 ms passed since
       //    the start of the transaction"
       // every time the intel tab loaded. Callers can pass a higher
-      // timeoutMs for known-slow paths.
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      // timeoutMs for known-slow paths. A caller that needs all reads to see
+      // one database snapshot may request RepeatableRead explicitly; existing
+      // callers retain Prisma's default isolation level.
+      opts?.timeoutMs || opts?.isolationLevel
+        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
+        : undefined,
     );
   }
 
