@@ -255,7 +255,7 @@ export async function queryMailMessages(
     hasAttachments: row.has_attachments,
     mailbox: row.account_email,
     client: row.client_id ? { id: row.client_id, name: row.client_name } : null,
-    internetMessageId: row.internet_message_id,
+    internetMessageId: row.internet_message_id || null,
     toTruncated: Array.isArray(row.to_recipients) ? row.to_recipients.length > 8 : null,
     ccTruncated: Array.isArray(row.cc_recipients) ? row.cc_recipients.length > 8 : null,
     // These are facts from this authorized SQL read, not a claim that a later

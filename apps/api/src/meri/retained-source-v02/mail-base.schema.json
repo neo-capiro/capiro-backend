@@ -1,0 +1,2148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:contracts:0.1.0",
+  "title": "Meri shared contracts 0.1.0",
+  "$defs": {
+    "Identity": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "tenantId",
+        "actorId"
+      ],
+      "additionalProperties": false
+    },
+    "Scope": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tenant",
+            "client",
+            "mailbox",
+            "memory",
+            "document",
+            "private-user",
+            "public"
+          ]
+        },
+        "resourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "tenantId",
+        "kind",
+        "resourceId",
+        "policyRevision"
+      ],
+      "additionalProperties": false
+    },
+    "RunBinding": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "runId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attemptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "workerId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "writerFence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "tenantId",
+        "actorId",
+        "conversationId",
+        "runId",
+        "attemptId",
+        "workerId",
+        "writerFence"
+      ],
+      "additionalProperties": false
+    },
+    "Budgets": {
+      "type": "object",
+      "properties": {
+        "maxTurns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxRuntimeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxCostMicrousd": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "maxTurns",
+        "maxRuntimeSeconds",
+        "maxCostMicrousd",
+        "maxOutputBytes"
+      ],
+      "additionalProperties": false
+    },
+    "CapabilityClaims": {
+      "type": "object",
+      "properties": {
+        "capabilityId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audience": {
+          "type": "string",
+          "enum": [
+            "meri-gateway",
+            "meri-broker"
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tool.read",
+              "command.propose",
+              "command.execute",
+              "session.persist",
+              "workspace.persist",
+              "artifact.publish",
+              "browser.public"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budgets": {
+          "$ref": "#/$defs/Budgets"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "issuer",
+        "audience",
+        "binding",
+        "actions",
+        "scopes",
+        "issuedAt",
+        "expiresAt",
+        "policyRevision",
+        "budgets"
+      ],
+      "additionalProperties": false
+    },
+    "AuthorizationDecision": {
+      "type": "object",
+      "properties": {
+        "decisionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "actor": {
+          "$ref": "#/$defs/Identity"
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evaluatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "denied"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "decisionId",
+        "actor",
+        "operation",
+        "scopes",
+        "policyRevision",
+        "evaluatedAt",
+        "decision",
+        "reasonCode"
+      ],
+      "additionalProperties": false
+    },
+    "SourceEvidence": {
+      "type": "object",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recordId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceVersionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "sourceUpdatedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "citationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "contentSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "authorizationDecisionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "sourceId",
+        "recordId",
+        "sourceVersionId",
+        "observedAt",
+        "sourceUpdatedAt",
+        "citationId",
+        "scopes",
+        "contentSha256",
+        "authorizationDecisionId"
+      ],
+      "additionalProperties": false
+    },
+    "Coverage": {
+      "type": "object",
+      "properties": {
+        "completeness": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unknown"
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "historySupport": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "unsupported",
+            "bounded"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "completeness",
+        "limitations",
+        "asOf",
+        "historySupport",
+        "truncated"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "truncated": {
+                "const": true
+              }
+            },
+            "required": [
+              "truncated"
+            ]
+          },
+          "then": {
+            "properties": {
+              "completeness": {
+                "type": "string",
+                "enum": [
+                  "partial",
+                  "unknown"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ReadRequest": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "capabilityId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_.-]+$"
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "contractVersion",
+        "requestId",
+        "capabilityId",
+        "tool",
+        "arguments",
+        "idempotencyKey",
+        "cursor"
+      ],
+      "additionalProperties": false
+    },
+    "ReadResult": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "data": {},
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceEvidence"
+          }
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "totalCount": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "contractVersion",
+        "requestId",
+        "binding",
+        "data",
+        "evidence",
+        "scopes",
+        "coverage",
+        "nextCursor",
+        "totalCount"
+      ],
+      "additionalProperties": false
+    },
+    "ObjectReference": {
+      "type": "object",
+      "properties": {
+        "objectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "versionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "objectId",
+        "versionId",
+        "sha256",
+        "bytes",
+        "scopes"
+      ],
+      "additionalProperties": false
+    },
+    "Command": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "commandId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "memory.propose",
+            "task.create",
+            "artifact.file"
+          ]
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectReference"
+          }
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "contractVersion",
+        "commandId",
+        "binding",
+        "action",
+        "arguments",
+        "attachments",
+        "scopes",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalProposal": {
+      "type": "object",
+      "properties": {
+        "proposalId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "command": {
+          "$ref": "#/$defs/Command"
+        },
+        "commandSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "requiredApprover": {
+          "$ref": "#/$defs/Identity"
+        }
+      },
+      "required": [
+        "proposalId",
+        "command",
+        "commandSha256",
+        "createdAt",
+        "expiresAt",
+        "requiredApprover"
+      ],
+      "additionalProperties": false
+    },
+    "CommandExecutionRequest": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "capabilityId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "executorBinding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "proposalId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "commandSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "contractVersion",
+        "requestId",
+        "capabilityId",
+        "executorBinding",
+        "proposalId",
+        "commandSha256",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalDecision": {
+      "type": "object",
+      "properties": {
+        "proposalId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "commandSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "rejected"
+          ]
+        },
+        "decidedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "approver": {
+          "$ref": "#/$defs/Identity"
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "proposalId",
+        "commandSha256",
+        "decision",
+        "decidedAt",
+        "expiresAt",
+        "approver",
+        "policyRevision"
+      ],
+      "additionalProperties": false
+    },
+    "CommandReceipt": {
+      "type": "object",
+      "properties": {
+        "receiptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "commandId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "commandSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "succeeded",
+            "denied",
+            "failed",
+            "indeterminate"
+          ]
+        },
+        "sourceTransactionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "authorizationDecisionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "receiptId",
+        "commandId",
+        "commandSha256",
+        "idempotencyKey",
+        "binding",
+        "outcome",
+        "sourceTransactionId",
+        "completedAt",
+        "scopes",
+        "authorizationDecisionId"
+      ],
+      "additionalProperties": false
+    },
+    "ArtifactVersion": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "artifactId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "versionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parentVersionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "object": {
+          "$ref": "#/$defs/ObjectReference"
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "mimeType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceEvidence"
+          }
+        },
+        "generationStatus": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "validated",
+            "published",
+            "failed"
+          ]
+        },
+        "previewStatus": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "unsupported",
+            "failed"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "contractVersion",
+        "artifactId",
+        "versionId",
+        "parentVersionId",
+        "binding",
+        "object",
+        "filename",
+        "mimeType",
+        "scopes",
+        "evidence",
+        "generationStatus",
+        "previewStatus",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceEntry": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "kind": {
+          "const": "file"
+        },
+        "object": {
+          "$ref": "#/$defs/ObjectReference"
+        },
+        "executable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "object",
+        "executable"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceManifest": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "manifestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "logicalCwd": {
+          "const": "/workspace/conversation"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkspaceEntry"
+          }
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "contractVersion",
+        "manifestId",
+        "binding",
+        "logicalCwd",
+        "entries",
+        "scopes",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "RuntimeVersions": {
+      "type": "object",
+      "properties": {
+        "imageDigest": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "sdk": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "cli": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "contracts": {
+          "const": "0.1.0"
+        },
+        "skillsDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "checkpointFormat": {
+          "const": "0.1.0"
+        }
+      },
+      "required": [
+        "imageDigest",
+        "sdk",
+        "cli",
+        "contracts",
+        "skillsDigest",
+        "checkpointFormat"
+      ],
+      "additionalProperties": false
+    },
+    "Checkpoint": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.1.0"
+        },
+        "checkpointId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parentCheckpointId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "opaqueSession": {
+          "$ref": "#/$defs/ObjectReference"
+        },
+        "workspace": {
+          "$ref": "#/$defs/WorkspaceManifest"
+        },
+        "workspaceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "versions": {
+          "$ref": "#/$defs/RuntimeVersions"
+        },
+        "lastEventSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "durableReceiptId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "contractVersion",
+        "checkpointId",
+        "parentCheckpointId",
+        "binding",
+        "sessionId",
+        "opaqueSession",
+        "workspace",
+        "workspaceSha256",
+        "versions",
+        "lastEventSequence",
+        "scopes",
+        "createdAt",
+        "durableReceiptId"
+      ],
+      "additionalProperties": false
+    },
+    "Lifecycle": {
+      "type": "object",
+      "properties": {
+        "lifecycleId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retentionPolicyVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resourceId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "deletion-pending",
+            "tombstoned"
+          ]
+        },
+        "deleteAfter": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tombstonedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "restoreBarrierRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "legalHold": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "lifecycleId",
+        "tenantId",
+        "retentionPolicyVersion",
+        "resourceId",
+        "state",
+        "deleteAfter",
+        "tombstonedAt",
+        "restoreBarrierRevision",
+        "legalHold"
+      ],
+      "additionalProperties": false
+    },
+    "UsageLedger": {
+      "type": "object",
+      "properties": {
+        "usageId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "attemptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "providerRequestId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "outputTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cacheReadTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cacheWriteTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "costMicrousd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "measurement": {
+          "type": "string",
+          "enum": [
+            "measured",
+            "pending-reconciliation"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "retried"
+          ]
+        },
+        "recordedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "usageId",
+        "binding",
+        "attemptId",
+        "providerRequestId",
+        "inputTokens",
+        "outputTokens",
+        "cacheReadTokens",
+        "cacheWriteTokens",
+        "costMicrousd",
+        "measurement",
+        "status",
+        "recordedAt"
+      ],
+      "additionalProperties": false
+    },
+    "Run": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "starting",
+            "running",
+            "waiting-for-approval",
+            "paused",
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "versions": {
+          "$ref": "#/$defs/RuntimeVersions"
+        }
+      },
+      "required": [
+        "binding",
+        "state",
+        "scopes",
+        "createdAt",
+        "policyRevision",
+        "versions"
+      ],
+      "additionalProperties": false
+    },
+    "Conversation": {
+      "type": "object",
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "owner": {
+          "$ref": "#/$defs/Identity"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "conversationId",
+        "owner",
+        "scopes",
+        "createdAt",
+        "policyRevision"
+      ],
+      "additionalProperties": false
+    },
+    "ScheduleProjection": {
+      "type": "object",
+      "properties": {
+        "scheduleId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "owner": {
+          "$ref": "#/$defs/Identity"
+        },
+        "temporalScheduleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "paused",
+            "cancelled"
+          ]
+        },
+        "maxCostMicrousd": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxRuntimeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "retryLimit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "destinationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "scheduleId",
+        "owner",
+        "temporalScheduleId",
+        "timezone",
+        "scopes",
+        "state",
+        "maxCostMicrousd",
+        "maxRuntimeSeconds",
+        "retryLimit",
+        "destinationId",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "ToolAudit": {
+      "type": "object",
+      "properties": {
+        "auditId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "binding": {
+          "$ref": "#/$defs/RunBinding"
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "argumentsSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "denied"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "auditId",
+        "binding",
+        "requestId",
+        "tool",
+        "argumentsSha256",
+        "scopes",
+        "policyRevision",
+        "decision",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "UIEvent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "run.status"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "starting",
+                    "running",
+                    "waiting-for-approval",
+                    "paused",
+                    "completed",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "reasonCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "state",
+                "reasonCode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "message.delta"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "messageId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "messageId",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "tool.started"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "tool": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "requestId",
+                "tool"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "tool.completed"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "resultReference": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "requestId",
+                "resultReference"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "source.available"
+            },
+            "data": {
+              "$ref": "#/$defs/SourceEvidence"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "approval.required"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "proposalId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "commandSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "Z$"
+                }
+              },
+              "required": [
+                "proposalId",
+                "commandSha256",
+                "expiresAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "artifact.available"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "artifactId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "versionId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "artifactId",
+                "versionId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "checkpoint.verified"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "checkpointId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "checkpointId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "usage.recorded"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "usageId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "usageId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "0.1.0"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "binding": {
+              "$ref": "#/$defs/RunBinding"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Scope"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "type": {
+              "const": "run.error"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "retryable": {
+                  "type": "boolean"
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "code",
+                "retryable",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "contractVersion",
+            "eventId",
+            "binding",
+            "sequence",
+            "createdAt",
+            "scopes",
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

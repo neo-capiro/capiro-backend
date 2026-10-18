@@ -7,7 +7,13 @@
  * source selectors; their use requires a fresh authorized owner read.
  */
 import { createHash } from 'node:crypto';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
+import baseSchema from './mail-base.schema.json';
+import commonSchema from './mail-common.schema.json';
+import retrievalSchema from './mail-retrieval.schema.json';
+import mailSchema from './mail.schema.json';
 
 export type MailRetainedOperationV02 =
   | 'mail.list_messages'
@@ -38,6 +44,17 @@ export type MailRetainedProjectionInput = {
 type JsonObject = Record<string, unknown>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
+const UTC_MILLISECOND_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+// Exact Meri PR158 @ 052f9865 schema bytes are pinned in mail.spec.ts.
+// Compile the complete output shape, including referenced common, retrieval,
+// and base contracts, before any projected page leaves this module.
+const ajv = new Ajv2020({strict: true, allErrors: true});
+addFormats(ajv);
+for (const schema of [baseSchema, commonSchema, retrievalSchema, mailSchema])
+  ajv.addSchema(schema);
+const candidateShape = ajv.getSchema('urn:meri:retrieval:mail:0.2.0#/$defs/MailCandidateSourcePage');
+const threadShape = ajv.getSchema('urn:meri:retrieval:mail:0.2.0#/$defs/MailThreadSourcePage');
+if (!candidateShape || !threadShape) throw new Error('Meri mail 0.2 schema compilation failed');
 
 function refuse(reason: string): never {
   throw new MailRetainedSourceUnavailable(reason);
@@ -63,6 +80,11 @@ function instant(value: unknown, reason: string): string {
   const result = string(value, reason);
   const parsed = Date.parse(result);
   if (!Number.isFinite(parsed) || new Date(parsed).toISOString() !== result) refuse(reason);
+  return result;
+}
+function utcDateTime(value: unknown, reason: string): string {
+  const result = string(value, reason);
+  if (!UTC_MILLISECOND_TIME.test(result) || !Number.isFinite(Date.parse(result))) refuse(reason);
   return result;
 }
 function integer(value: unknown, min: number, max: number, reason: string): number {
@@ -95,6 +117,9 @@ function trustedTask(bindingValue: unknown, subjectValue: unknown, requested: un
   const ids = array(subject.entityIds, 'subject.entityIds');
   if (ids.length !== 1) refuse('subject.entityIds');
   const scopes = array(subject.scopes, 'subject.scopes').map(value => object(value, 'subject.scope'));
+  if (scopes.some(scope => scope.tenantId !== binding.tenantId ||
+      scope.policyRevision !== subject.policyRevision) || subject.rosterVersionId !== null)
+    refuse('subject.scope_lineage');
   if (!scopes.some(scope => scope.kind === 'mailbox' && scope.tenantId === binding.tenantId))
     refuse('subject.mailbox_scope');
   const requestedSubject = object(selection.subject, 'selection.subject');
@@ -147,6 +172,50 @@ export function mailRetainedReadHandleV02(
   return `mail:v02:${mailbox}:${thread}:${message}:${version}`;
 }
 
+const highSurrogate = (unit: number) => unit >= 0xd800 && unit <= 0xdbff;
+const lowSurrogate = (unit: number) => unit >= 0xdc00 && unit <= 0xdfff;
+const surrogatePair = (value: string, at: number) => at >= 0 && at + 1 < value.length &&
+  highSurrogate(value.charCodeAt(at)) && lowSurrogate(value.charCodeAt(at + 1));
+function wellFormedUtf16(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index);
+    if (highSurrogate(unit)) {
+      if (!surrogatePair(value, index)) return false;
+      index++;
+    } else if (lowSurrogate(unit)) return false;
+  }
+  return true;
+}
+
+/** Mirrors Meri's scalar-safe UTF-16 section algorithm for the canonical owner mapper. */
+export function createMailBodySectionV02(text: unknown, bodyOffset: unknown, maxCharacters: unknown) {
+  if (typeof text !== 'string' || !wellFormedUtf16(text)) refuse('thread.body_text');
+  const offset = integer(bodyOffset, 0, 10000000, 'thread.body_offset');
+  const max = integer(maxCharacters, 1, 6000, 'thread.max_characters');
+  let start = Math.min(offset, text.length), end = Math.min(text.length, offset + max);
+  if (start > 0 && surrogatePair(text, start - 1)) start--;
+  if (end > start && end < text.length && surrogatePair(text, end - 1)) end--;
+  if (end === start && start < text.length) end = start + (surrogatePair(text, start) ? 2 : 1);
+  return {bodyText: text.slice(start, end), bodyOffset: start, bodyLength: text.length,
+    bodyTruncated: start > 0 || end < text.length,
+    nextBodyOffset: end < text.length ? end : null};
+}
+
+function assertMailBodySectionV02(text: string, start: number, end: number, total: number,
+  requestedOffset: number, maxCharacters: number, hasMore: boolean) {
+  if (end < start || end - start > maxCharacters + 1 ||
+      text.length !== end - start || !wellFormedUtf16(text)) refuse('thread.utf16_window');
+  const requestedStart = Math.min(requestedOffset, total);
+  const requestedEnd = Math.min(total, requestedOffset + maxCharacters);
+  const startMatches = start === requestedStart || start === requestedStart - 1 && surrogatePair(text, 0);
+  const endMatches = end === requestedEnd ||
+    end === requestedEnd - 1 && end > start && requestedEnd < total ||
+    maxCharacters === 1 && end === requestedEnd + 1 && end <= total &&
+      surrogatePair(text, text.length - 2);
+  if (!startMatches || !endMatches || end > total || hasMore !== (end < total) ||
+      start < total && end <= start) refuse('thread.utf16_window');
+}
+
 function sourceEnvelope(readAt: string, count: number, total: number, truncated: boolean,
   handles: string[], limitations: string[]) {
   return {
@@ -177,7 +246,7 @@ function candidatePage(operation: 'mail.list_messages' | 'mail.search_messages',
   const offset = integer(selection.offset, 0, 10000, 'selection.offset');
   const withinDays = selection.withinDays === null ? null :
     integer(selection.withinDays, 1, 3650, 'selection.withinDays');
-  const asOf = selection.asOf === null ? null : instant(selection.asOf, 'selection.asOf');
+  const asOf = selection.asOf === null ? null : utcDateTime(selection.asOf, 'selection.asOf');
   if (offset > 0 && asOf === null) refuse('selection.continuation_anchor');
   if (operation === 'mail.search_messages') {
     for (const key of ['query', 'from', 'participant']) {
@@ -188,8 +257,12 @@ function candidatePage(operation: 'mail.list_messages' | 'mail.search_messages',
       refuse('selection.unbounded_search');
   }
   const anchor = instant(owner.asOf, 'owner.anchor');
-  if (asOf !== null && anchor !== asOf || Date.parse(anchor) > Date.parse(readAt) + 1000)
+  if (asOf !== null && Date.parse(anchor) !== Date.parse(asOf) ||
+      Date.parse(anchor) > Date.parse(readAt) + 1000)
     refuse('owner.anchor');
+  // Meri retains an explicit caller asOf string verbatim. The owner normalizes
+  // that instant to ISO for SQL; preserve the caller's UTC spelling in q scope.
+  const queryAnchor = asOf ?? anchor;
   const query = object(owner.queryScope, 'owner.query_scope');
   const selectedClient = subject.kind === 'client' ? array(subject.entityIds, 'subject.entityIds')[0] : null;
   if (query.asOf !== anchor || query.folder !== folder || query.withinDays !== withinDays ||
@@ -314,7 +387,7 @@ function candidatePage(operation: 'mail.list_messages' | 'mail.search_messages',
       ['Stored mail only; mailbox history and an immutable source snapshot are unverified.']),
     filterSha256: hash({...selection, offset: 0, asOf: null}),
     order: 'effectiveAt-desc-nullslast_messageId-desc',
-    queryScope: {asOfInclusive: anchor, storedCreatedAtEndInclusive: anchor,
+    queryScope: {asOfInclusive: queryAnchor, storedCreatedAtEndInclusive: queryAnchor,
       effectiveStartInclusive, missingEffectiveDates: withinDays === null ? 'included' : 'excluded'},
     messages, totalMatches: total, hasMore, nextOffset,
     threadGroups: operation === 'mail.list_messages' ? groups : null,
@@ -376,10 +449,11 @@ function threadPage(binding: JsonObject, subject: JsonObject, selection: JsonObj
     const start = integer(row.bodyOffset, 0, 10000000, 'thread.body_offset');
     const totalUnits = integer(row.bodyLength, 0, Number.MAX_SAFE_INTEGER, 'thread.body_length');
     const endExclusive = start + bodyText.length;
-    if (start !== bodyOffset || bodyText.length > maxCharacters || endExclusive > totalUnits ||
-        endExclusive > 10006000 || bodyText.length === 0 && totalUnits > start)
-      refuse('thread.utf16_window');
     const more = endExclusive < totalUnits;
+    assertMailBodySectionV02(bodyText, start, endExclusive, totalUnits,
+      bodyOffset, maxCharacters, more);
+    if (endExclusive > 10006000 || row.bodyTruncated !== (start > 0 || more))
+      refuse('thread.utf16_window');
     if (row.nextBodyOffset !== (more ? endExclusive : null)) refuse('thread.utf16_continuation');
     const contentSha256 = string(sourceProof.bodySha256, 'thread.body_hash');
     if (!SHA256.test(contentSha256) || start === 0 && !more && textHash(bodyText) !== contentSha256)
@@ -423,5 +497,8 @@ export function projectMailRetainedSourceV02(input: MailRetainedProjectionInput)
   const projected = operation === 'mail.read_thread'
     ? threadPage(binding, subject, selection, owner, scopes, stamp, requestId, traceId)
     : candidatePage(operation, binding, subject, selection, owner, scopes, stamp, requestId, traceId);
-  return json(projected, 'projection_result');
+  const result = json(projected, 'projection_result');
+  const valid = operation === 'mail.read_thread' ? threadShape(result) : candidateShape(result);
+  if (!valid) refuse('output.schema');
+  return result;
 }
