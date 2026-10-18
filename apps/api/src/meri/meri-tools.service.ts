@@ -4390,7 +4390,29 @@ export class MeriToolsService {
    * designation / name -> canonical registry rows. Zero matches returns an
    * EXPLICIT not-found note — the model must never fabricate an identifier.
    */
-  private async resolveEntity(input: Record<string, unknown>) {
+  async resolveEntityForRetainedSource(
+    input: Record<string, unknown>,
+    context: { defaultCongress: number },
+  ) {
+    // A future task-bound source controller supplies this context after verifying
+    // the run. It is deliberately separate from the model-facing tool input.
+    if (!context || !Number.isSafeInteger(context.defaultCongress) ||
+        context.defaultCongress < 1 || context.defaultCongress > 2147483647 ||
+        !input || typeof input !== 'object' || Array.isArray(input) ||
+        Object.keys(input).some((key) => !['query', 'type', 'limit'].includes(key)) ||
+        (input.query !== undefined && (typeof input.query !== 'string' || input.query.length > 200)) ||
+        (input.type !== undefined &&
+          (typeof input.type !== 'string' ||
+            !['member', 'committee', 'bill', 'state_bill', 'state_legislator'].includes(input.type))) ||
+        (input.limit !== undefined &&
+          (typeof input.limit !== 'number' || !Number.isSafeInteger(input.limit) ||
+            input.limit < 1 || input.limit > 10))) {
+      throw new BadRequestException('Invalid retained entity source selection');
+    }
+    return this.resolveEntity(input, context.defaultCongress);
+  }
+
+  private async resolveEntity(input: Record<string, unknown>, trustedDefaultCongress?: number) {
     const query = optionalString(input, 'query', 200)?.trim();
     const type = optionalString(input, 'type', 20)?.toLowerCase();
     const limit = clampInt(input.limit, 1, 10, 5);
@@ -4495,11 +4517,12 @@ export class MeriToolsService {
       }
     }
     if (!type || type === 'bill') {
-      const currentCongress = Math.floor((new Date().getUTCFullYear() - 1789) / 2) + 1;
+      const congressForDesignation = trustedDefaultCongress ??
+        Math.floor((new Date().getUTCFullYear() - 1789) / 2) + 1;
       const norm = normalizeCanonicalId('billId', query);
       let billIdCandidate = isValidCanonicalId('billId', norm) ? norm : null;
       if (!billIdCandidate) {
-        const parsed = parseBillDesignation(query, currentCongress);
+        const parsed = parseBillDesignation(query, congressForDesignation);
         if (parsed) billIdCandidate = formatBillId(parsed.congress, parsed.type, parsed.number);
       }
       if (billIdCandidate) {
@@ -4667,7 +4690,13 @@ export class MeriToolsService {
       }
     }
 
-    const trimmed = matches.slice(0, limit);
+    // The direct, crosswalk and name branches above are mutually exclusive.
+    // Keep their canonical order and remove repeated crosswalk identities from
+    // the retained projection without changing legacy tool output.
+    const selected = trustedDefaultCongress === undefined ? matches : matches.filter((match, index) =>
+      matches.findIndex((candidate) =>
+        candidate.entityType === match.entityType && candidate.canonicalId === match.canonicalId) === index);
+    const trimmed = selected.slice(0, limit);
     return {
       tool: 'resolve_entity',
       generatedAt: new Date().toISOString(),
@@ -9569,6 +9598,143 @@ export class MeriToolsService {
       note: clientId
         ? `${contacts.length} correspondent(s) found; ${missing.length} not yet on the People tab. These come from synced mail and calendar — cite them as such. Propose only the missing ones via update_client_profile people[].`
         : `${contacts.length} correspondent(s) found from synced mail and calendar.`,
+    };
+  }
+
+  /** Selected-client source projection for a future task-bound 0.2 ingress.
+   * The source controller must supply its independently verified client ID;
+   * this method never derives scope from a model selector or an email domain.
+   * Personal and cross-client contact searches remain unavailable on this path.
+   */
+  async findContactsForRetainedClient(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    selectedClientId: string,
+  ) {
+    if (!CLIENT_ID_UUID_RE.test(selectedClientId) || !input || typeof input !== 'object' ||
+        Array.isArray(input) || Object.getPrototypeOf(input) !== Object.prototype ||
+        Object.keys(input).some((key) => !['clientId', 'domain', 'query', 'limit'].includes(key)) ||
+        input.clientId !== selectedClientId ||
+        (input.domain !== null && input.domain !== undefined &&
+          (typeof input.domain !== 'string' || !input.domain.trim() || input.domain.length > 200)) ||
+        (input.query !== null && input.query !== undefined &&
+          (typeof input.query !== 'string' || !input.query.trim() || input.query.length > 200)) ||
+        (input.limit !== undefined &&
+          (typeof input.limit !== 'number' || !Number.isSafeInteger(input.limit) ||
+            input.limit < 1 || input.limit > 100))) {
+      throw new BadRequestException('Invalid selected-client contacts source selection');
+    }
+    const domain = typeof input.domain === 'string' ? input.domain.trim().toLowerCase() : null;
+    const query = typeof input.query === 'string' ? input.query.trim() : null;
+    const limit = typeof input.limit === 'number' ? input.limit : 25;
+    const currentClient = async (includePeople: boolean) => {
+      const client = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        const row = await tx.client.findFirst({
+          where: { id: selectedClientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          select: {
+            id: true, name: true,
+            ...(includePeople ? { people: { select: { email: true, name: true } } } : {}),
+          },
+        });
+        if (!row || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, selectedClientId)))
+          return null;
+        return row;
+      });
+      if (!client) throw new NotFoundException('Client not found');
+      return client;
+    };
+    const client = await currentClient(true);
+    const profilePeople = 'people' in client && Array.isArray(client.people) ? client.people : [];
+    const existingEmails = new Set(profilePeople.map((person) => person.email?.trim().toLowerCase()).filter(Boolean));
+    const existingNames = new Set(profilePeople.map((person) => person.name.trim().toLowerCase()).filter(Boolean));
+    const where: Prisma.EngagementContactWhereInput = {
+      tenantId: ctx.tenantId,
+      clientId: selectedClientId,
+      ...(domain ? { email: { endsWith: `@${domain}` } } : {}),
+      ...(query ? { OR: [
+        { fullName: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ] } : {}),
+    };
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementContact.findMany({
+        where,
+        select: {
+          fullName: true, email: true, phone: true, title: true,
+          organization: true, source: true,
+        },
+        take: limit,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+    const contacts = await Promise.all(rows.map(async (row) => {
+      const email = row.email?.trim().toLowerCase() ?? null;
+      let lastContact: Date | null = null;
+      let messageCount = 0;
+      if (email) {
+        const history = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+          Promise.all([
+            tx.mailMessage.findFirst({
+              where: {
+                tenantId: ctx.tenantId, fromEmail: email,
+                thread: { is: { clientId: selectedClientId } },
+                ...ownMailMessageWhere(ctx.userId),
+              },
+              orderBy: { receivedAt: 'desc' },
+              select: { receivedAt: true },
+            }),
+            tx.mailMessage.count({
+              where: {
+                tenantId: ctx.tenantId, fromEmail: email,
+                thread: { is: { clientId: selectedClientId } },
+                ...ownMailMessageWhere(ctx.userId),
+              },
+            }),
+            tx.meetingAttendee.findFirst({
+              where: {
+                tenantId: ctx.tenantId, email,
+                meeting: { is: {
+                  tenantId: ctx.tenantId, clientId: selectedClientId,
+                  status: { notIn: ['cancelled', 'canceled', 'deleted'] },
+                  ...ownMeetingWhere(ctx.userId),
+                } },
+              },
+              orderBy: { createdAt: 'desc' },
+              select: { meeting: { select: { startsAt: true } } },
+            }),
+          ]),
+        );
+        const [lastFrom, count, lastMeeting] = history;
+        messageCount = count;
+        const mailAt = lastFrom?.receivedAt ?? null;
+        const meetingAt = lastMeeting?.meeting?.startsAt ?? null;
+        lastContact = mailAt && meetingAt ? (mailAt > meetingAt ? mailAt : meetingAt) : (mailAt ?? meetingAt);
+      }
+      const nameKey = row.fullName?.trim().toLowerCase() ?? '';
+      return {
+        name: row.fullName,
+        email: row.email,
+        phone: row.phone,
+        title: row.title,
+        organization: row.organization ?? (email ? email.split('@')[1] ?? null : null),
+        lastContact: lastContact?.toISOString() ?? null,
+        messageCount,
+        source: row.source,
+        onProfile: Boolean((email && existingEmails.has(email)) || (nameKey && existingNames.has(nameKey))),
+      };
+    }));
+    contacts.sort((a, b) => (b.lastContact ?? '').localeCompare(a.lastContact ?? '') ||
+      (a.email ?? '').localeCompare(b.email ?? '') || (a.name ?? '').localeCompare(b.name ?? ''));
+    await currentClient(false);
+    const missing = contacts.filter((contact) => !contact.onProfile);
+    return {
+      tool: 'find_contacts',
+      generatedAt: new Date().toISOString(),
+      clientId: selectedClientId,
+      clientName: client.name,
+      matchedOn: { domain, query, linkedClient: true },
+      contacts,
+      note: `${contacts.length} correspondent(s) found; ${missing.length} not yet on the People tab. These come from synced mail and calendar — cite them as such. Propose only the missing ones via update_client_profile people[].`,
     };
   }
 
