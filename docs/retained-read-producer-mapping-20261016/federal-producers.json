@@ -1,0 +1,1496 @@
+{
+  "schemaVersion": 1,
+  "status": "SOURCE-ONLY MAPPING; adapters not implemented, runtime/HTTP/producer qualification not performed",
+  "backend": {
+    "repository": "neo-capiro/capiro-backend",
+    "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+    "tree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+    "scope": "Active registered implementation; duplicate obsolete implementations/docs snapshots excluded."
+  },
+  "ledger": {
+    "repository": "neo-capiro/meri-greenfield",
+    "commit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+    "path": "docs/coordination/ledgers/scope-ledger.json",
+    "blob": "1546e9566cb0719261ca660bd5402732f65146e7",
+    "families": 8,
+    "operations": 18,
+    "inputFile": "MISSING-READS.json"
+  },
+  "executed": "Read-only source/Git blob inspection and artifact JSON syntax/count verification only. No tests, compiler, DB, provider, product HTTP, AWS, network retrieval, installs, trust activation or source modifications.",
+  "priorityVerdicts": [
+    "Bill routes require flat JSON input; {input} wrapper is wrong. RP envelope restriction applies only to RP proposal operations.",
+    "Bill literal response fields/framing/notes source-align supplied frozen copies after actual HTTP Date serialization; implicit-search defaultCongress remains a concrete mismatch risk.",
+    "Public reports have exact existing flat tool routes; Explorer alternatives have different filters/projections.",
+    "Acquisition has canonical native GET producers plus existing flat tool wrappers; exact current Core role capiro_admin gates sensitive fields, and audit writes occur.",
+    "No source evidence here authorizes expanding the existing three-operation CapiroRetained envelope or forwarding/storing user bearer in a new retained protocol."
+  ],
+  "commonTransport": {
+    "id": "native-clio-tools",
+    "route": "POST /api/clio/tools/:name",
+    "registration": [
+      {
+        "path": "apps/api/src/app.module.ts",
+        "lines": "29",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/app.module.ts#L29"
+      },
+      {
+        "path": "apps/api/src/app.module.ts",
+        "lines": "110",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/app.module.ts#L110"
+      },
+      {
+        "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+        "lines": "79-86",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/bootstrap/configure-api-http-app.ts#L79-L86"
+      }
+    ],
+    "admission": "Existing production native Clerk/tenant middleware plus RolesGuard standard_user, and ToolServiceSecretGuard on execute route. Internal service secret is additional service authentication, not a replacement principal. This records an existing user-authenticated tool route, not a new retained-principal transport.",
+    "nativeIdentity": "Tenant middleware verifies Clerk session then selects actual active membership/current user and selected tenant; actor role derives chosen membership (admin impersonation has explicit existing path). Generic clio tool execution does not itself call new retained current-authority/receipt composition.",
+    "input": "Nonattachment/non-RP operations pass raw object body unchanged. All18 assigned operations are ordinary reads, not RP proposal operations. executeFromAuthenticatedUser objectInput is permissive, so frozen adapter must enforce its own existing closed schema before native call.",
+    "response": "Controller HttpCode200 returns raw result unchanged. classifyApiToolReadOutcome emits telemetry only. Valid domain unavailable/invalid/ambiguous payload can be HTTP200. Thrown producer/guard errors remain HTTP errors and are rethrown; no blanket toolpayload wrapping.",
+    "deadline": "Existing x-meri-deadline-at request-control asserts liveness around dispatch with abort/close handling. It does not establish new signed expiry, response byte limit, universal physical query cancellation or a current-resource fence.",
+    "authorizationLimits": "Public source data remains global where owner uses system/public rows. No model-supplied tenantId, actorRole, evidence mode or clientResolution is trusted. Hearing selected-client checks and PE current-user watch context retain their respective current owner.",
+    "sourceReferences": [
+      {
+        "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+        "lines": "170",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/tenant/tenant-context.middleware.ts#L170"
+      },
+      {
+        "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+        "lines": "263-285",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/tenant/tenant-context.middleware.ts#L263-L285"
+      },
+      {
+        "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+        "lines": "382-398",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/tenant/tenant-context.middleware.ts#L382-L398"
+      },
+      {
+        "path": "apps/api/src/auth/roles.guard.ts",
+        "lines": "15-72",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/auth/roles.guard.ts#L15-L72"
+      },
+      {
+        "path": "apps/api/src/meri/meri.controller.ts",
+        "lines": "310-312",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts#L310-L312"
+      },
+      {
+        "path": "apps/api/src/meri/meri.controller.ts",
+        "lines": "512-571",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts#L512-L571"
+      },
+      {
+        "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+        "lines": "21-65",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/tool-service-secret.guard.ts#L21-L65"
+      },
+      {
+        "path": "apps/api/src/meri/meri-chat-attachment-transport.ts",
+        "lines": "56-64",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-chat-attachment-transport.ts#L56-L64"
+      },
+      {
+        "path": "apps/api/src/meri/meri-rp-tool-transport.ts",
+        "lines": "71-80",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-rp-tool-transport.ts#L71-L80"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.service.ts",
+        "lines": "2467-2478",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2467-L2478"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.service.ts",
+        "lines": "2569-2584",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2569-L2584"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.service.ts",
+        "lines": "2821",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2821"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tools.service.ts",
+        "lines": "9861-9878",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L9861-L9878"
+      },
+      {
+        "path": "apps/api/src/meri/meri-local-dispatch.ts",
+        "lines": "10-23",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-local-dispatch.ts#L10-L23"
+      },
+      {
+        "path": "apps/api/src/meri/meri-tool-request-control.ts",
+        "lines": "27-72",
+        "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tool-request-control.ts#L27-L72"
+      }
+    ],
+    "testsInspected": [
+      {
+        "source": {
+          "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+          "lines": "51",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts#L51"
+        },
+        "coverage": "Pinned read coverage passes through; advertised dispatch schema cases at677; published hearing views950.",
+        "execution": "inspected only; not run for this mapping"
+      }
+    ]
+  },
+  "billTextLiteralComparison": {
+    "receivingCommit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+    "references": [
+      {
+        "gitBlob": "cbe0ff527e847ab66a970adf550800e711b7c0d2",
+        "immutableGitBlobApi": "https://api.github.com/repos/neo-capiro/meri-greenfield/git/blobs/cbe0ff527e847ab66a970adf550800e711b7c0d2",
+        "artifactName": "bill-text-validation.mjs",
+        "repository": "neo-capiro/meri-greenfield"
+      },
+      {
+        "gitBlob": "82836c8462cb0ff780e2a9e81bc2c1ff8f5aeabe",
+        "immutableGitBlobApi": "https://api.github.com/repos/neo-capiro/meri-greenfield/git/blobs/82836c8462cb0ff780e2a9e81bc2c1ff8f5aeabe",
+        "artifactName": "bill-text.schema.json",
+        "repository": "neo-capiro/meri-greenfield"
+      }
+    ],
+    "verdict": "Literal schema/normalizer inspection supports source alignment, not executed conformance. Native results must be parsed from HTTP JSON. Trusted implicit SEARCH Congress still needs an explicit owner alignment decision before parser freeze.",
+    "fieldwise": [
+      {
+        "area": "transport",
+        "native": "Flat arguments -> raw result",
+        "receiving": "Normalized input and exact closed output",
+        "verdict": "Use flat POST; no {input}/{output} wrappers."
+      },
+      {
+        "area": "metadata row fields",
+        "native": "Prisma CongressBill scalar selection includes all defined scalar fields and no relations.",
+        "receiving": "CongressBillRaw closed required scalar field set.",
+        "verdict": "Source-aligned field set; raw Prisma Date objects require JSON serialization.",
+        "fields": [
+          "id",
+          "congress",
+          "billType",
+          "billNumber",
+          "title",
+          "introducedDate",
+          "sponsorName",
+          "sponsorState",
+          "sponsorParty",
+          "sponsorBioguideId",
+          "latestActionText",
+          "latestActionDate",
+          "policyArea",
+          "subjects",
+          "peCodes",
+          "committees",
+          "cosponsorsCount",
+          "originChamber",
+          "updateDate",
+          "updateDateIncludingText",
+          "status",
+          "statusAt",
+          "url",
+          "lastSyncedAt"
+        ]
+      },
+      {
+        "area": "dates",
+        "native": "DB DateTime/Date scalars, generatedAt .toISOString()",
+        "receiving": "Canonical ISO string equality to new Date(at).toISOString(); introducedDate/latestActionDate require UTC midnight.",
+        "verdict": "Expected HTTP JSON serialization matches ISO representation; source-only, no live HTTP proof. Do not feed in-process Date object to validator."
+      },
+      {
+        "area": "direct bill",
+        "native": "resolveBillId(raw query) uses shared currentCongress() local year formula",
+        "receiving": "metadata.directBillId uses trusted defaultCongress; normalized input.query remains raw",
+        "verdict": "Concrete unresolved mismatch when defaults differ. READ normalizer emits canonical ID and avoids this; SEARCH needs explicit agreed canonical query bridge or fail closed."
+      },
+      {
+        "area": "text search",
+        "native": "perPage1..10 default8; 10500 JSON-character budget; honest total/omitted/nextPage/notes",
+        "receiving": "Same mode/perPage/count/pagination/budget checks",
+        "verdict": "Source-aligned; preserve exact projected result and notes, do not use generic metadata search."
+      },
+      {
+        "area": "sequential read",
+        "native": "9000 UTF-16 units; surrogate-safe; current complete revision; bill/version/revision/hash/offset continuation",
+        "receiving": "Same fields and detailed coverage/continuation checks",
+        "verdict": "Source-aligned by inspection. Cursor authenticates neither caller nor authority; current owner rechecks current rows."
+      },
+      {
+        "area": "locator",
+        "native": "max6 passages x1000 units; [heading | characters start-end]\\n + exact text; separator LF LF U+2026 LF LF",
+        "receiving": "Exact same U+2026 bytes/framing and coverage constraints",
+        "verdict": "No ellipsis mismatch; terminal font/encoding appearance is misleading."
+      },
+      {
+        "area": "notes",
+        "native": "Actual guillemets U+00AB/U+00BB in search note; exact sequential/locator wording",
+        "receiving": "Same literal Unicode notes",
+        "verdict": "No note punctuation mismatch found; do not replace with ASCII."
+      },
+      {
+        "area": "outcomes",
+        "native": "HTTP200 unavailable/found:false for missing complete revision; HTTP400 malformed/stale cursor",
+        "receiving": "Closed valid available/unavailable output",
+        "verdict": "Classify HTTP refusal separately; never project HTTP errors into valid empty source data."
+      }
+    ],
+    "notExecuted": [
+      "Frozen normalizer/JSON-schema validation against native fixture or HTTP response",
+      "HTTP serialization integration",
+      "DB cursor/current-pointer races",
+      "Source availability/completeness/provider qualification"
+    ],
+    "scope": "Support imports of receiving normalizer were not supplied; compared literal visible contract only, not unobserved helper semantics."
+  },
+  "operations": [
+    {
+      "id": "search_congress_bills",
+      "family": "bill-text",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_congress_bills",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "query|search: trim/cap240",
+        "policyArea: cap120",
+        "congress: Number when truthy",
+        "activeSince: cap30",
+        "page:1..100 default1",
+        "limit:1..50 default20 (text mode 1..10 default8)",
+        "textQuery:cap300"
+      ],
+      "producer": "MeriToolsService.searchCongressBills; text mode uses BILL_TEXT_PASSAGE_SEARCH_SQL over stored current federal evidence; metadata direct bill lookup or LdaIntelService.getCongressBills.",
+      "currentTrustedContext": [
+        "Native authenticated ctx establishes caller but these are global public rows, not a client-grant projection.",
+        "required defaultCongress must be server-owned; this producer resolves designation queries with shared currentCongress() (local year-only), not the Jan-3 UTC helper."
+      ],
+      "responseProjection": {
+        "metadata": "{tool,generatedAt,data:CongressBillRaw[],total,page,limit,resolvedBy?:'bill-id'}; full Prisma scalar fields, Date values become JSON ISO strings over HTTP.",
+        "text": "{tool,generatedAt,mode:'bill_text',textQuery,results:[{billId,title,versionCode,passages:[{snippet,startOffset,readCursor}]}],total,totalBills,page,perPage,hasMore,nextPage?,omittedBills?,note}"
+      },
+      "limitations": [
+        "Frozen normalizer computes metadata.directBillId using trusted defaultCongress but leaves input.query raw; native independently resolves that raw query, so differing default Congress can select another bill or search path.",
+        "Metadata search is title substring, not text search; direct bill lookup bypasses policyArea/activeSince/congress filters by design.",
+        "Text search trims lower-ranked passages/bills to a 10,500 JSON-character response budget and discloses omissions; no transport byte limit follows from that character budget.",
+        "Native legacy input parser is permissive; source alignment is not closed-input admission."
+      ],
+      "minimalAdapterRecommendation": "Closed-validate frozen input/context first. POST flat input. Preserve raw JSON result, pagination, dates and exact notes. Resolve/align direct-query Congress explicitly or fail closed on disagreement; do not silently replace existing clock policy or rewrite text queries. Bound HTTP bytes/deadline separately.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "3636-3641",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3636-L3641"
+        },
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "3702-3766",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3702-L3766"
+        },
+        {
+          "path": "apps/api/src/lda-intel/lda-intel.service.ts",
+          "lines": "482-510",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.service.ts#L482-L510"
+        },
+        {
+          "path": "apps/api/src/meri/meri-bill-text-search.ts",
+          "lines": "190-228",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.ts#L190-L228"
+        },
+        {
+          "path": "apps/api/src/meri/meri-bill-text-search.ts",
+          "lines": "283-359",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.ts#L283-L359"
+        },
+        {
+          "path": "apps/api/prisma/schema.prisma",
+          "lines": "4235-4267",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/prisma/schema.prisma#L4235-L4267"
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "lines": "1078-1093",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/index.ts#L1078-L1093"
+        },
+        {
+          "path": "packages/shared/src/index.ts",
+          "lines": "1201-1203",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/index.ts#L1201-L1203"
+        },
+        {
+          "path": "apps/api/src/common/congress.util.ts",
+          "lines": "15-24",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/common/congress.util.ts#L15-L24"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-bill-text-search.spec.ts",
+            "lines": "29",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.spec.ts#L29"
+          },
+          "coverage": "Deterministic matching, offsets/cursors, response budget and paging (additional cases at38/55/68/81/161/170/180/190/202).",
+          "execution": "inspected only; not run for this mapping"
+        },
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-bill-text-search.pg.spec.ts",
+            "lines": "91",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.pg.spec.ts#L91"
+          },
+          "coverage": "Current complete-revision search and pagination fixtures; DB spec not run.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/lda-intel/congress/bills",
+          "source": {
+            "path": "apps/api/src/lda-intel/lda-intel.controller.ts",
+            "lines": "282-291",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.controller.ts#L282-L291"
+          },
+          "notes": "Metadata query only; not text-search or exact read replacement."
+        }
+      ],
+      "frozenConsumerCompatibility": "See billTextLiteralComparison; source-only compared supplied exact receiving schema/normalizer."
+    },
+    {
+      "id": "read_bill_text",
+      "family": "bill-text",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/read_bill_text",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "billId required cap60, canonical designation resolution",
+        "versionCode optional cap32",
+        "query optional cap300",
+        "cursor optional <=1024 canonical base64url tuple; query and cursor conflict"
+      ],
+      "producer": "MeriToolsService.readBillText and locatedBillText; federal_evidence_current joined to federal_evidence_revision, present/current complete bill text only.",
+      "currentTrustedContext": [
+        "Global public evidence, authenticated native caller required.",
+        "required trusted defaultCongress used for noncanonical bill designations; frozen receiving normalization already sends canonical billId.",
+        "Cursor is an encoded selector, not an authorization token; native verifies bill/version/revision/hash/offset against current candidates."
+      ],
+      "responseProjection": {
+        "unavailable": "{tool,authoritativeOwner:'federal_evidence_current',currentStatus:'unavailable',billId,requestedVersionCode,found:false,coverage:{complete:true,truncated:false,nextCursor:null},note}",
+        "available": "{tool,authoritativeOwner,currentStatus:'available',found:true,billId,versionCode,revisionId,packageId,provider,lineageKey,versionHash,textHash,sourceLocator,sourceModifiedAt,publishedAt,fetchedAt,text,trust:'external_untrusted',coverage,note}; locator adds query/queryParts/totalHits/passages."
+      },
+      "limitations": [
+        "Missing/currently no complete revision is HTTP200 unavailable payload, not HTTP404.",
+        "Malformed cursor, query/cursor conflict, text-hash change or out-of-range offset is HTTP400; missing cursor revision among current selected candidates is unavailable.",
+        "Sequential pages are 9000 UTF-16 code units with surrogate-safe end; coverage.complete alone is not whole-document completeness.",
+        "Locator is at most6 passages x1000 code units, header-framed and joined by LF LF U+2026 LF LF; locator coverage explicitly incomplete/truncated and nextCursor null."
+      ],
+      "minimalAdapterRecommendation": "POST canonical flat input and consume actual HTTP JSON. Preserve unavailable payload and every coverage/lineage/hash/note field. Treat HTTP errors separately from valid unavailable; do not infer absence from empty excerpts. No alternate text fetch or cursor invention.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "3828-3954",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3828-L3954"
+        },
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "3961-4017",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3961-L4017"
+        },
+        {
+          "path": "apps/api/src/meri/meri-bill-text-search.ts",
+          "lines": "12-16",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.ts#L12-L16"
+        },
+        {
+          "path": "apps/api/src/meri/meri-bill-text-search.ts",
+          "lines": "169-175",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.ts#L169-L175"
+        },
+        {
+          "path": "packages/shared/src/meri-read-outcome.ts",
+          "lines": "568-599",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/meri-read-outcome.ts#L568-L599"
+        },
+        {
+          "path": "packages/shared/src/meri-read-outcome.ts",
+          "lines": "655-699",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/meri-read-outcome.ts#L655-L699"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-bill-text-search.spec.ts",
+            "lines": "55",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-text-search.spec.ts#L55"
+          },
+          "coverage": "Passage boundaries and exact offsets; dedicated complete HTTP read qualification not performed.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [],
+      "frozenConsumerCompatibility": "See billTextLiteralComparison; source-only compared supplied exact receiving schema/normalizer."
+    },
+    {
+      "id": "get_bill_status",
+      "family": "federal-legislation",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_bill_status",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "billId|query optional cap60; canonical designation resolution"
+      ],
+      "producer": "MeriToolsService.getBillStatus; congressBill status plus action, vote and governing-rule relations.",
+      "currentTrustedContext": [
+        "Global public rows; defaultCongress from canonical server parser is required for implicit designations; no client authority inferred."
+      ],
+      "responseProjection": "{tool,authoritativeOwner:'congress_bill_status',currentStatus,generatedAt?,billId,found,title?,congress?,status?,statusLabel?,statusAt?,latestAction?,sponsor?,cosponsorsCount?,recentActions?,floorVotes?,governingRules?,note?}",
+      "limitations": [
+        "Invalid selector returns HTTP200 invalid_request/found:false; missing bill returns HTTP200 unavailable/found:false.",
+        "Recent actions/votes are limited15, governing-rule votes3 each; governing-rule list has no corresponding hard response-wide bound.",
+        "Status is source-derived stored status, not text/amendment authority."
+      ],
+      "minimalAdapterRecommendation": "Use fixed flat tool route and trusted defaultCongress; preserve status/owner/note. Closed validate and bound response without reinterpreting unavailable or manufacturing stage.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "4020-4154",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4020-L4154"
+        },
+        {
+          "path": "packages/shared/src/meri-read-outcome.ts",
+          "lines": "849-861",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/meri-read-outcome.ts#L849-L861"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-bill-status-tool.spec.ts",
+            "lines": "84",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-status-tool.spec.ts#L84"
+          },
+          "coverage": "Failed rule plus absent floor-vote honesty.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_floor_votes",
+      "family": "federal-legislation",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_floor_votes",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "billId canonical optional",
+        "query cap200",
+        "member cap80",
+        "chamber house|senate",
+        "congress numeric optional",
+        "limit1..25 default10"
+      ],
+      "producer": "MeriToolsService.searchFloorVotes; stored Congress vote/member-vote rows.",
+      "currentTrustedContext": [
+        "Global public rows; implicit bill defaultCongress server-owned; member must resolve stored identity before scoped vote query."
+      ],
+      "responseProjection": "{tool,generatedAt,votesFound,member?,votes,note?,ambiguousMember?}",
+      "limitations": [
+        "Unknown/ambiguous member short-circuits to disclosed empty/ambiguity; it must not fall back to an unscoped vote search.",
+        "This is bounded stored vote evidence, not exhaustive roll-call coverage."
+      ],
+      "minimalAdapterRecommendation": "Preserve exact selectors and member ambiguity/empty notes. No broad retry when member cannot resolve.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "4161-4316",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4161-L4316"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-bill-status-tool.spec.ts",
+            "lines": "142",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-bill-status-tool.spec.ts#L142"
+          },
+          "coverage": "Vote search; unresolved/ambiguous/resolved member cases at162/196/229.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_cbo_cost_estimates",
+      "family": "public-reports",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_cbo_cost_estimates",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "billId optional trim/lower cap40 (not resolveBillId)",
+        "query cap200",
+        "congress truthy Number",
+        "limit1..25 default10"
+      ],
+      "producer": "MeriToolsService.searchCboCostEstimates; global cboCostEstimate rows ordered pubDate descending.",
+      "currentTrustedContext": [
+        "Current native authenticated principal; no caller-supplied actorRole/client scope needed for these global public records."
+      ],
+      "responseProjection": "{tool,generatedAt,estimatesFound,estimates:[{id,billId,congress,billType,billNumber,title,description,pubDate,cboUrl}],note?}",
+      "limitations": [
+        "No-score empty result has explicit note; no total/cursor/complete-universe claim.",
+        "billId input does not apply bill-designation normalizer."
+      ],
+      "minimalAdapterRecommendation": "Prefer exact existing flat POST producer. Preserve selected fields and no-estimate note, HTTP-serialized pubDate; do not add a synthetic complete/absence claim.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "4323-4364",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4323-L4364"
+        },
+        {
+          "path": "apps/api/prisma/schema.prisma",
+          "lines": "4281-4300",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/prisma/schema.prisma#L4281-L4300"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-cbo-tool.spec.ts",
+            "lines": "20",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-cbo-tool.spec.ts#L20"
+          },
+          "coverage": "Estimate projection and explicit no-estimates result at41.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_gao_reports",
+      "family": "public-reports",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_gao_reports",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "query cap240 across title/summary/topics/agency",
+        "reportType optional cap60 exact",
+        "limit1..50 default20"
+      ],
+      "producer": "MeriToolsService.searchGaoReports; Prisma.withSystem global gaoReport findMany/count.",
+      "currentTrustedContext": [
+        "Current native user/tenant admission remains required although public data query is system-scoped."
+      ],
+      "responseProjection": "{tool,generatedAt,total,data:[{id,title<=240,url,publishDate,reportType,topics,agencies,summary<=400,recommendations}]}",
+      "limitations": [
+        "GET Explorer uses different query fields, filtering, paging and full-length DTO; not byte-equivalent.",
+        "No cursor or result completeness assertion; dates serialize over HTTP."
+      ],
+      "minimalAdapterRecommendation": "Use flat POST legacy producer for frozen tool shape. Preserve truncation and totals rather than inventing fuller report output from Explorer.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5368-5411",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5368-L5411"
+        },
+        {
+          "path": "apps/api/src/explorer/explorer.service.ts",
+          "lines": "475-519",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.service.ts#L475-L519"
+        }
+      ],
+      "existingTests": [],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/explorer/gao",
+          "source": {
+            "path": "apps/api/src/explorer/explorer.controller.ts",
+            "lines": "272-281",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.controller.ts#L272-L281"
+          },
+          "notes": "q,reportTypes,topics,sort,page,pageSize -> {rows,total}; full title/summary and different filter semantics."
+        },
+        {
+          "method": "GET",
+          "path": "/api/explorer/gao/:id",
+          "source": {
+            "path": "apps/api/src/explorer/explorer.controller.ts",
+            "lines": "560",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.controller.ts#L560"
+          },
+          "notes": "Existing detail route; not the search tool result."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_crs_reports",
+      "family": "public-reports",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_crs_reports",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "query cap240 across title/summary/topics/authors",
+        "limit1..50 default20"
+      ],
+      "producer": "MeriToolsService.searchCrsReports; Prisma.withSystem active:true global crsReport findMany/count.",
+      "currentTrustedContext": [
+        "Current native authenticated context; no model actor/client selector establishes authority."
+      ],
+      "responseProjection": "{tool,generatedAt,total,data:[{id,title<=240,date,authors,topics,summary<=400,pdfUrl,htmlUrl}]}",
+      "limitations": [
+        "Tool always active:true; Explorer includes inactive unless activeOnly explicitly true.",
+        "Explorer q matches title/summary only and exposes full-length DTO; not a transparent substitute."
+      ],
+      "minimalAdapterRecommendation": "Use fixed flat POST, preserve active-only and truncated legacy projection; do not substitute Explorer without exact receiving contract review.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "6369-6409",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6369-L6409"
+        },
+        {
+          "path": "apps/api/src/explorer/explorer.service.ts",
+          "lines": "548-590",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.service.ts#L548-L590"
+        }
+      ],
+      "existingTests": [],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/explorer/crs",
+          "source": {
+            "path": "apps/api/src/explorer/explorer.controller.ts",
+            "lines": "291-300",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.controller.ts#L291-L300"
+          },
+          "notes": "q,topics,activeOnly,sort,page,pageSize -> {rows,total}, different projection."
+        },
+        {
+          "method": "GET",
+          "path": "/api/explorer/crs/:id",
+          "source": {
+            "path": "apps/api/src/explorer/explorer.controller.ts",
+            "lines": "565",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.controller.ts#L565"
+          },
+          "notes": "Existing detail route, not search DTO."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_acquisition_personnel",
+      "family": "acquisition-personnel",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_acquisition_personnel",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "query|q cap240",
+        "service cap60",
+        "organization cap200",
+        "role cap60",
+        "peCode cap32 -> native pe_code",
+        "limit1..50 default20",
+        "page1..100 default1"
+      ],
+      "producer": "MeriToolsService.searchAcquisitionPersonnel -> AcquisitionPersonnelReadService.listPersonnel(ctx).",
+      "currentTrustedContext": [
+        "actorRole must be exact current Core ctx.role; only capiro_admin sees email/phone/parentOffice/department.",
+        "Current tenant/user used for withTenant query/audit. User-provided role is a personnel filter, never caller role."
+      ],
+      "responseProjection": "{tool,generatedAt,data:[native personnel list rows],total,page,limit}; native list rows preserve person identity, public metadata/confidence/status/sourceCount; PII fields null for nonadmin.",
+      "limitations": [
+        "Read performs auditLog.create in tenant transaction; source-read does not mean physically write-free.",
+        "Native extra include_superseded field exists; frozen tool does not expose it. Do not widen.",
+        "PII gate is exact capiro_admin, not standard role-rank or claimed actorRole."
+      ],
+      "minimalAdapterRecommendation": "Existing POST gives tool DTO directly. Alternatively GET /api/acquisition-personnel maps query/peCode->q/pe_code and requires explicit tool/generatedAt projection agreed with frozen contract. Derive actorRole only from current server context; never put it in trusted body or add admin fallback.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5241-5264",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5241-L5264"
+        },
+        {
+          "path": "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+          "lines": "84-221",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts#L84-L221"
+        },
+        {
+          "path": "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+          "lines": "7-76",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts#L7-L76"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/acquisition-personnel/acquisition-personnel.controller.spec.ts",
+            "lines": "21",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel.controller.spec.ts#L21"
+          },
+          "coverage": "List filter forwarding.",
+          "execution": "inspected only; not run for this mapping"
+        },
+        {
+          "source": {
+            "path": "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+            "lines": "307",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts#L307"
+          },
+          "coverage": "Email/phone admin-only; earlier cases276/289 upload/current PII behavior.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/acquisition-personnel",
+          "source": {
+            "path": "apps/api/src/acquisition-personnel/acquisition-personnel.controller.ts",
+            "lines": "100-112",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel.controller.ts#L100-L112"
+          },
+          "notes": "RolesGuard standard_user; current ctx passed to canonical read service; native response has no tool/generatedAt wrapper."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_acquisition_person",
+      "family": "acquisition-personnel",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_acquisition_person",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "id required cap80"
+      ],
+      "producer": "MeriToolsService.getAcquisitionPerson -> AcquisitionPersonnelReadService.getPersonDetail(ctx,id).",
+      "currentTrustedContext": [
+        "Exact current ctx.role capiro_admin owns contact/private metadata exposure; current tenant/user own audit context."
+      ],
+      "responseProjection": "{tool,generatedAt,person:PersonDetail}; PersonDetail includes canonical person fields, ISO firstSeenAt/lastSeenAt, role-gated metadata/contact, sources.",
+      "limitations": [
+        "Absent person HTTP404.",
+        "Audit write remains; nonadmin metadata is publicPersonnelMetadata projection."
+      ],
+      "minimalAdapterRecommendation": "Prefer fixed flat POST with current native role context. Existing GET /api/acquisition-personnel/:id returns native PersonDetail and needs agreed outer tool/generatedAt projection; do not add contact data or treat model actorRole as authority.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5270-5277",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5270-L5277"
+        },
+        {
+          "path": "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+          "lines": "224-279",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts#L224-L279"
+        },
+        {
+          "path": "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+          "lines": "1",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/dto/person-detail.dto.ts#L1"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/acquisition-personnel/acquisition-personnel.controller.spec.ts",
+            "lines": "40",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel.controller.spec.ts#L40"
+          },
+          "coverage": "Detail forwarding.",
+          "execution": "inspected only; not run for this mapping"
+        },
+        {
+          "source": {
+            "path": "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+            "lines": "289",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts#L289"
+          },
+          "coverage": "Nonadmin private values hidden.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/acquisition-personnel/:id",
+          "source": {
+            "path": "apps/api/src/acquisition-personnel/acquisition-personnel.controller.ts",
+            "lines": "114-117",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/acquisition-personnel/acquisition-personnel.controller.ts#L114-L117"
+          },
+          "notes": "Current ctx -> canonical person detail; HTTP404 absent."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_program_elements",
+      "family": "program-elements",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_program_elements",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "query|q cap240",
+        "service cap60",
+        "budgetActivity cap120",
+        "hasData boolean optional",
+        "limit1..50 default20",
+        "page1..100 default1"
+      ],
+      "producer": "MeriToolsService.searchProgramElements -> ProgramElementReadService.listProgramElements, followed by model funding-line projection.",
+      "currentTrustedContext": [
+        "evidenceAccuracyMode is server rollout resolver resolveEvidenceAccuracyModeForTenant(ctx.tenantId,'chat'), not model input.",
+        "Native ctx tenant/user controls current-user watch facts; public PE/budget rows are global."
+      ],
+      "responseProjection": "{tool,generatedAt,...native paging,data:model-safe budget-line rows}; removes UI spark and unqualified raw latestCurrent/request/enacted/delta, adds identity/stage/FY/currentFundingClaim.",
+      "limitations": [
+        "GET native list is a UI DTO, not the model-safe tool projection.",
+        "Funding current/unknown semantics and zero handling belong existing model projection; no automatic same-FY/stage joining."
+      ],
+      "minimalAdapterRecommendation": "Prefer exact flat POST to retain model-safe projection. Derive trusted evidenceAccuracyMode from same current tenant/surface resolver and preserve unknown/current stage labels; do not send raw UI funding fields.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "4952-5074",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4952-L5074"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "239-242",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L239-L242"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "420",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L420"
+        },
+        {
+          "path": "apps/api/src/common/meri-evidence-accuracy-flags.ts",
+          "lines": "13-19",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/common/meri-evidence-accuracy-flags.ts#L13-L19"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+            "lines": "37",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.defense-budget.spec.ts#L37"
+          },
+          "coverage": "Stage/current-FY/zero/lineage tool projection; cases64/107/145/188/211/237.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/program-elements",
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.ts",
+            "lines": "310-328",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.ts#L310-L328"
+          },
+          "notes": "UI list uses snake_case query and different funding projection."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_program_element",
+      "family": "program-elements",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_program_element",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "peCode required cap32"
+      ],
+      "producer": "MeriToolsService.getProgramElementDetail -> ProgramElementReadService.getProgramElement plus model funding and optional lineage.",
+      "currentTrustedContext": [
+        "Tenant/surface evidence mode resolved server-side; current ctx supplies user watch.",
+        "Public global cached base detail keyed PE; current-user watch injected separately."
+      ],
+      "responseProjection": "{tool,generatedAt,...identity,currentCycleFy,currentFundingClaim,programElement:{...detail,years:claims.years},lineage? (enforce mode)}",
+      "limitations": [
+        "Absent PE HTTP404.",
+        "Raw native GET years/funding are not equivalent to mode-specific model claims."
+      ],
+      "minimalAdapterRecommendation": "Use flat tool route, preserve mode-specific current/unknown and lineage semantics. No fallback to raw native DTO after rejection.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5076-5122",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5076-L5122"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "832-955",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L832-L955"
+        },
+        {
+          "path": "apps/api/src/common/meri-evidence-accuracy-flags.ts",
+          "lines": "13-19",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/common/meri-evidence-accuracy-flags.ts#L13-L19"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+            "lines": "145",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.defense-budget.spec.ts#L145"
+          },
+          "coverage": "Model funding stage and claim projection.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/program-elements/:peCode",
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.ts",
+            "lines": "350-352",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.ts#L350-L352"
+          },
+          "notes": "Native detail; currentUserIsWatching from current caller."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_pe_budget_timeline",
+      "family": "program-elements",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_pe_budget_timeline",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "peCode required cap32"
+      ],
+      "producer": "MeriToolsService.getPeBudgetTimeline -> ProgramElementReadService.getTimeline, then model-safe funding years/claim and optional lineage.",
+      "currentTrustedContext": [
+        "Server current tenant chat evidenceAccuracyMode; global stored PE and year/milestone source values."
+      ],
+      "responseProjection": "{tool,generatedAt,...timeline,years:claims.years,currentCycleFy,currentFundingClaim,lineage?}; native timeline includes peCode,title,service,appropriationType,budgetActivity,lineNumber,fundingSummary,milestones.",
+      "limitations": [
+        "Absent PE HTTP404.",
+        "Current-cycle/stage/outyear/zero semantics are existing canonical projection, not inferred from newest numeric year."
+      ],
+      "minimalAdapterRecommendation": "Use exact tool projection and trusted rollout mode; preserve milestones/provenance and current funding unknown labels.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5124-5158",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5124-L5158"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "989-1200",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L989-L1200"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.spec.ts",
+            "lines": "173",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.spec.ts#L173"
+          },
+          "coverage": "Timeline delegation.",
+          "execution": "inspected only; not run for this mapping"
+        },
+        {
+          "source": {
+            "path": "apps/api/src/program-element/program-element-read.service.spec.ts",
+            "lines": "689",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.spec.ts#L689"
+          },
+          "coverage": "Timeline funding-stage/FY behavior; additional case807.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/program-elements/:peCode/timeline",
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.ts",
+            "lines": "360-362",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.ts#L360-L362"
+          },
+          "notes": "Raw native timeline; model projection differs."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_pe_contractors",
+      "family": "pe-references",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_pe_contractors",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "peCode required cap32"
+      ],
+      "producer": "MeriToolsService.getPeContractors -> ProgramElementReadService.getContractors.",
+      "currentTrustedContext": [
+        "Current native standard user; public PE/award evidence with explicit provenance and as-of cutoff inside owner."
+      ],
+      "responseProjection": "{tool,generatedAt,...{namedPrimes?,data,evidence?,evidenceNote?,todo}}",
+      "limitations": [
+        "Missing federal_award table yields {data:[],todo:'federal_award table not yet created (Step 28)'}, not authoritative no-contractors.",
+        "24-month award observations; accepted direct PE evidence differs from MDAP/program candidate association.",
+        "Legacy compatibility source provenance is not canonical_snapshot qualification."
+      ],
+      "minimalAdapterRecommendation": "Preserve todo/evidence/evidenceNote and candidate-vs-accepted distinctions. Never flatten missing storage or candidate associations into complete contractor facts.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5219-5227",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5219-L5227"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "1470-1710",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L1470-L1710"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.spec.ts",
+            "lines": "287",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.spec.ts#L287"
+          },
+          "coverage": "Contractor read delegation.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/program-elements/:peCode/contractors",
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.ts",
+            "lines": "384-386",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.ts#L384-L386"
+          },
+          "notes": "Native result without tool/generatedAt."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_pe_bills",
+      "family": "pe-references",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_pe_bills",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "peCode required cap32"
+      ],
+      "producer": "MeriToolsService.getPeBills -> ProgramElementReadService.getBills.",
+      "currentTrustedContext": [
+        "Global public PE/bill evidence; current native admission required."
+      ],
+      "responseProjection": "{tool,generatedAt,bills:[linked bill fields with canonical linkage/provenance]}",
+      "limitations": [
+        "Absent PE HTTP404.",
+        "Up to100 bills from current versioned evidence and legacy peCodes; linkage not_rejected does not itself equal accepted direct proof."
+      ],
+      "minimalAdapterRecommendation": "Preserve canonical linkage provenance and bounds; no rebranding every related bill as enacted PE funding.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5229-5237",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5229-L5237"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "1245-1260",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L1245-L1260"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.spec.ts",
+            "lines": "187",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.spec.ts#L187"
+          },
+          "coverage": "Bills read delegation.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/program-elements/:peCode/bills",
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.ts",
+            "lines": "372-374",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.ts#L372-L374"
+          },
+          "notes": "Native bill array; tool wraps as bills."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_pe_report_language",
+      "family": "pe-references",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_pe_report_language",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "peCode required cap32"
+      ],
+      "producer": "MeriToolsService.getPeReportLanguage -> ProgramElementReadService.getProvisionsForPe; reportLanguageNoteForModel.",
+      "currentTrustedContext": [
+        "Global stored provision linkage; accepted direct PE vs program-level candidate attribution remains distinct."
+      ],
+      "responseProjection": "{tool,generatedAt,peCode,provisions,note}; provision DTO retains full text/source URL/matchScope/attributionCaveat.",
+      "limitations": [
+        "Up to50 canonical ordered provisions; accepted/candidate/rejected eligibility matters.",
+        "Program-level associations remain candidate and do not establish PE-specific binding."
+      ],
+      "minimalAdapterRecommendation": "Use tool projection retaining note and full attribution fields; never omit candidate caveat or imply exhaustive report coverage.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5205-5217",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5205-L5217"
+        },
+        {
+          "path": "apps/api/src/program-element/program-element-read.service.ts",
+          "lines": "2608-2619",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L2608-L2619"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/program-element/program-element-read-provisions.spec.ts",
+            "lines": "102",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read-provisions.spec.ts#L102"
+          },
+          "coverage": "Canonical ordering/full DTO/status behavior; cap50 at202.",
+          "execution": "inspected only; not run for this mapping"
+        },
+        {
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.spec.ts",
+            "lines": "227",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.spec.ts#L227"
+          },
+          "coverage": "Provision delegation.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/program-elements/:peCode/provisions",
+          "source": {
+            "path": "apps/api/src/program-element/program-element.controller.ts",
+            "lines": "421-423",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element.controller.ts#L421-L423"
+          },
+          "notes": "Native provision array; legacy tool adds model note."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "get_committee_roster",
+      "family": "legislative-directory",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/get_committee_roster",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "committee cap200",
+        "jurisdiction explicit federal|state",
+        "chamber cap10 optional",
+        "state cap2 upper required for state"
+      ],
+      "producer": "MeriToolsService.getCommitteeRoster dispatches federalCommitteeRoster/stateCommitteeRoster; global stored canonical registries/membership.",
+      "currentTrustedContext": [
+        "Current native admission; explicit jurisdiction/state selector controls domain resolution, not caller client grant."
+      ],
+      "responseProjection": "Federal {tool,generatedAt,committee:{id,name,chamber,jurisdiction:'federal',isSubcommittee,matchedBy},chair,viceChair,rankingMember,members:[{id,name,party,state,side,rank,title}],note}; state branch is distinct registry projection.",
+      "limitations": [
+        "Missing jurisdiction/state or ambiguous committee produces disclosed empty/not-found payload; do not guess federal or first match.",
+        "Federal roster intentionally lacks member district; no inferred district join.",
+        "State exact shape was not fully fieldwise compared in this mapping; frozen receiving schema not supplied."
+      ],
+      "minimalAdapterRecommendation": "Call fixed tool route with explicit jurisdiction and state when required. Preserve resolution/ambiguity notes and jurisdiction-specific DTO; no generic committee directory substitution.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5872-5986",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5872-L5986"
+        },
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5988-5998",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5988-L5998"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts",
+            "lines": "73",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-committee-roster-representation-tool.spec.ts#L73"
+          },
+          "coverage": "Federal exact/name/notfound/ambiguous cases; state180/208, missingstate236/missingjurisdiction245.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/legiwatch/live-hearings/committees",
+          "source": {
+            "path": "apps/api/src/live-hearings/live-hearings.controller.ts",
+            "lines": "243-245",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/live-hearings/live-hearings.controller.ts#L243-L245"
+          },
+          "notes": "Existing directory list; different DTO/resolver."
+        },
+        {
+          "method": "GET",
+          "path": "/api/legiwatch/live-hearings/committees/:id/members",
+          "source": {
+            "path": "apps/api/src/live-hearings/live-hearings.controller.ts",
+            "lines": "255-258",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/live-hearings/live-hearings.controller.ts#L255-L258"
+          },
+          "notes": "Existing native member roster; not legacy jurisdiction-aware tool result."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "list_members",
+      "family": "legislative-directory",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/list_members",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "state cap40 canonical state-name resolution optional",
+        "chamber house|senate optional",
+        "limit1..100 default100"
+      ],
+      "producer": "MeriToolsService.listMembers; current CongressMember registry isCurrent:true, filtered by state and/or chamber, canonical order.",
+      "currentTrustedContext": [
+        "Public global current directory; native user context required."
+      ],
+      "responseProjection": "{tool,generatedAt,filter:{state,chamber},matchesFound,members:[{id,name,party,state,district,chamber}],note}",
+      "limitations": [
+        "No state/chamber -> disclosed empty without broad roster query; invalid state likewise.",
+        "House district only; Senate district null. Explicit note warns incomplete Senate source coverage."
+      ],
+      "minimalAdapterRecommendation": "Preserve bounded filters, canonical identities and source completeness note. Do not expand an unscoped input into whole Congress roster.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "5690-5755",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5690-L5755"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-tools.list-members.spec.ts",
+            "lines": "27",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.list-members.spec.ts#L27"
+          },
+          "coverage": "Filter requirements, invalid state, current canonical member projection; cases36/44/60/70/78.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    },
+    {
+      "id": "search_committee_hearings",
+      "family": "public-domain-hearings",
+      "route": {
+        "method": "POST",
+        "path": "/api/clio/tools/search_committee_hearings",
+        "body": "Flat normalized operation arguments as the JSON body; no {input} wrapper.",
+        "response": "Raw producer result, not an {output} or tool-result wrapper.",
+        "commonTransport": "native-clio-tools"
+      },
+      "nativeInput": [
+        "query cap240",
+        "hearingId cap200",
+        "chamber cap20",
+        "committeeName|committee cap200",
+        "cursor cap1024",
+        "clientId cap80 resolved visible",
+        "recordsView published|briefs|reconciliation optional",
+        "recordId cap200 optional",
+        "asOf cap60 parseable only with recordsView"
+      ],
+      "producer": "MeriToolsService.searchCommitteeHearings -> MeriContextPlaneService.searchToolData -> governed hearings retrieval / published record owner.",
+      "currentTrustedContext": [
+        "tenantId is current ctx.tenantId, never model body.",
+        "clientResolution must use ensureClientVisible/current canonical server security envelope; selected client must remain currently visible.",
+        "security envelope freshly reads unwalled-or-granted client IDs and mailbox IDs; retrieval adds archive/visibility constraints and current caller identity."
+      ],
+      "responseProjection": "{tool,coverage,note,...retrievalData}; one governed chunk page (pageSize1), not Explorer hearing metadata or whole transcript.",
+      "limitations": [
+        "Absent context-plane service ->HTTP502; migration/no retrieval/enforcement failures ->HTTP503, no legacy fallback.",
+        "Invalid records/asOf selection HTTP400; invisible selected client404; invalid cursor may be disclosed degraded stopReason invalid_cursor payload.",
+        "Government coverage remains degraded/coverageComplete:false; missing browser-session rail and partial transcript coverage disclosed.",
+        "Public federal source visibility does not authorize tenant/client-specific insights."
+      ],
+      "minimalAdapterRecommendation": "Use exact tool producer through existing governed context plane. Resolve current client outside model-controlled context, preserve coverage/cursors/unsupported rails and stop reasons; no Explorer fallback, no complete-hearing/transcript claim.",
+      "sourceReferences": [
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "6319-6367",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6319-L6367"
+        },
+        {
+          "path": "apps/api/src/meri/meri-context-plane.service.ts",
+          "lines": "89-141",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-context-plane.service.ts#L89-L141"
+        },
+        {
+          "path": "apps/api/src/meri/meri-context-plane.service.ts",
+          "lines": "400-425",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-context-plane.service.ts#L400-L425"
+        },
+        {
+          "path": "apps/api/src/retrieval/adapters/hearings-retrieval.adapter.ts",
+          "lines": "53-95",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/adapters/hearings-retrieval.adapter.ts#L53-L95"
+        },
+        {
+          "path": "apps/api/src/retrieval/adapters/hearings-retrieval.adapter.ts",
+          "lines": "160-188",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/adapters/hearings-retrieval.adapter.ts#L160-L188"
+        },
+        {
+          "path": "apps/api/src/retrieval/adapters/hearings-retrieval.adapter.ts",
+          "lines": "281-300",
+          "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/retrieval/adapters/hearings-retrieval.adapter.ts#L281-L300"
+        }
+      ],
+      "existingTests": [
+        {
+          "source": {
+            "path": "apps/api/src/meri/meri-context-plane.tools.spec.ts",
+            "lines": "270",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-context-plane.tools.spec.ts#L270"
+          },
+          "coverage": "Exact hearing filters/chunk; revoked continuation347; compiler rejection no fallback370.",
+          "execution": "inspected only; not run for this mapping"
+        }
+      ],
+      "nativeAlternatives": [
+        {
+          "method": "GET",
+          "path": "/api/explorer/hearings",
+          "source": {
+            "path": "apps/api/src/explorer/explorer.controller.ts",
+            "lines": "247-262",
+            "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/explorer/explorer.controller.ts#L247-L262"
+          },
+          "notes": "Metadata listing with UI paging; not governed source-chunk tool contract."
+        }
+      ],
+      "frozenConsumerCompatibility": "Not qualified: exact frozen receiving output schema/normalizer was not supplied for this family. Native shape below is source evidence, not a compatibility claim."
+    }
+  ],
+  "remainingBlockers": [
+    {
+      "scope": "Receiving-contract comparison",
+      "completed": "All 18 producer/route/auth/context/DTO/test-source mappings and literal bill-text schema/normalizer comparison.",
+      "impact": "Exact frozen receiving compatibility for the other seven families remains unverified. Bill-text comparison covers only the supplied literal contract; imported helper semantics and executed conformance remain unverified. No invented projection is asserted."
+    }
+  ]
+}
