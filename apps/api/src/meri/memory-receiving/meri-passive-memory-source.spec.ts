@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { canonicalSha256 } from '../../auth/read-delegation/read-delegation.contract.js';
+import { canonicalSha256, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
 
 jest.mock('../../memory/memory-wall.helpers.js', () => ({
   clientMemoryAllowed: jest.fn(async () => true),
@@ -61,6 +61,16 @@ function db(rows: unknown[] = []) {
 }
 
 describe('passive memory source contract', () => {
+  it('keeps the emitted body hash separate from the canonical request hash', () => {
+    const body = wire();
+    const emitted = Buffer.from(JSON.stringify({ metadata: body.metadata, input: body.input }), 'utf8');
+    const targetBodySha256 = sha256Hex(emitted);
+    const requestSha256 = canonicalSha256(body);
+    expect(targetBodySha256).not.toBe(requestSha256);
+    expect(parsePassiveMemoryWire(JSON.parse(emitted.toString('utf8')))).toEqual(parsePassiveMemoryWire(body));
+    expect(parsePassiveMemoryEligibilityRequest(callback(), ctx, nowMs).requestSha256).toBe(requestSha256);
+  });
+
   it('passes only the exact normalized input to the existing canonical reader', async () => {
     const read = jest.fn(async () => ({ tool: 'search_memory', records: [] }));
     await readPassiveMemorySource(ctx, wire(), { executeFromAuthenticatedUser: read } as never);
