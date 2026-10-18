@@ -179,21 +179,6 @@ export class LegiStormClient {
   }
 
   /**
-   * Legislative Districts API — ZIP-to-district matching. A ZIP can span
-   * multiple districts (boundaries aren't ZIP-aligned), so this can return
-   * more than one record; `zip4` narrows to a single match when known.
-   */
-  async fetchCongressDistrictsByZip(
-    zip: string,
-    zip4?: string,
-  ): Promise<LegiStormDistrictListResult> {
-    const params: Record<string, string> = { zip };
-    if (zip4) params.zip4 = zip4;
-    const body = await this.requestJson('/congress/zipcode', params);
-    return this.toDistrictListResult('/congress/zipcode', body);
-  }
-
-  /**
    * Fetch a district boundary from a `kml` URL LegiStorm already returned on
    * a district record (see LegiStormCongressDistrictRecord.kml) — this does
    * NOT construct a URL itself. That URL embeds our API key in its PATH, not
