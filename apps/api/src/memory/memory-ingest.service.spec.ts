@@ -12,7 +12,12 @@ import type { MemoryItem } from './memory.types.js';
  * {failed, failures[]} so the "Populate graph" UI can show outcomes.
  */
 describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
-  function makeService() {
+  function makeService(
+    exactLinkedClioIds: string[] = [],
+    governedClio = false,
+    clioSource = 'user_requested',
+    clioKey = 'acme-red-line',
+  ) {
     const capturedSql: string[] = [];
     const upserted: MemoryItem[] = [];
 
@@ -23,6 +28,9 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
       $queryRaw: (strings: TemplateStringsArray, ..._vals: unknown[]) => {
         const sql = strings.join(' ? ');
         capturedSql.push(sql);
+        if (sql.includes('FROM memory_candidate')) {
+          return Promise.resolve(exactLinkedClioIds.map((clioMemoryId) => ({ clioMemoryId })));
+        }
         // Phase E sessions query (grouped over the conversation).
         if (sql.includes('FROM clio_conversations')) {
           return Promise.resolve([
@@ -55,10 +63,10 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
               ownerUserId: null,
               clientId: '77777777-7777-7777-7777-777777777777',
               expiresAt: null,
-              key: 'acme-red-line',
+              key: clioKey,
               value: 'Never support Section 852 offsets.',
-              source: 'user_requested',
-              metadata: {},
+              source: clioSource,
+              metadata: governedClio ? { governance: { canonicalType: 'playbook' } } : {},
               createdAt: new Date('2026-07-01T00:00:00.000Z'),
               updatedAt: new Date('2026-07-01T00:00:00.000Z'),
             },
@@ -141,6 +149,46 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
     expect(clioItem).toBeDefined();
     expect(clioItem!.clientId).toBe('77777777-7777-7777-7777-777777777777');
     expect(clioItem!.visibility).toBe('tenant');
+  });
+
+  it('does not reproject an exact canonical source into a second Clio shadow on backfill', async () => {
+    const clioId = '66666666-6666-6666-6666-666666666666';
+    const { svc, capturedSql, upserted } = makeService([clioId]);
+    await svc.backfillCurrentTenant();
+
+    const linkedRead = capturedSql.find((sql) => sql.includes('FROM memory_candidate'));
+    expect(linkedRead).toContain('committed_memory_id');
+    expect(linkedRead).toContain('committed_memory_item_id IS NOT NULL');
+    expect(upserted.some((item) => item.slug === `clio:${clioId}`)).toBe(false);
+  });
+
+  it('keeps explicit best-effort write-through from shadowing an exact canonical item', async () => {
+    const clioId = '66666666-6666-6666-6666-666666666666';
+    const { svc, capturedSql, upserted } = makeService([clioId]);
+    await svc.projectClioMemory('11111111-1111-1111-1111-111111111111', clioId);
+
+    expect(capturedSql.some((sql) => sql.includes('FROM memory_candidate'))).toBe(true);
+    expect(upserted).toHaveLength(0);
+  });
+
+  it('skips newly committed governed Clio rows even if the linked-ID prefetch missed them', async () => {
+    const { svc, upserted } = makeService([], true);
+    await svc.backfillCurrentTenant();
+    expect(upserted.some((item) => item.slug?.startsWith('clio:'))).toBe(false);
+  });
+
+  it('skips an older Settings source even when approval races after the Clio scan', async () => {
+    // Empty candidate-link snapshot and old Clio metadata model the scan just
+    // before another transaction activates its custom canonical Settings item.
+    const { svc, upserted } = makeService([], false, 'settings_memory_editor');
+    await svc.backfillCurrentTenant();
+    expect(upserted.some((item) => item.slug?.startsWith('clio:'))).toBe(false);
+  });
+
+  it('skips a reserved Settings key before its source is updated by approval', async () => {
+    const { svc, upserted } = makeService([], false, 'user_requested', 'settings-file:playbook:firm');
+    await svc.backfillCurrentTenant();
+    expect(upserted.some((item) => item.slug?.startsWith('clio:'))).toBe(false);
   });
 
   it('uses the connection owner for a private mail projection under system refresh', async () => {
