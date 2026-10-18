@@ -74,7 +74,7 @@ export async function readWithCurrentDocumentFacts(
     const bytes = JSON.stringify(raw);
     if (!bytes || Buffer.byteLength(bytes, 'utf8') > 16 * 1024 * 1024) fail('Document result exceeds source bound');
     body = JSON.parse(bytes) as Record<string, unknown>;
-  } catch { fail('Document result is not JSON'); }
+  } catch { return fail('Document result is not JSON'); }
   const after = facts(await engagement.listAttachments(ctx, { clientId: current.selectedClientId }), current.selectedClientId);
   assertActive();
   sameSelectedFacts(before, after, documentId);
@@ -85,14 +85,15 @@ export async function readWithCurrentDocumentFacts(
     const eligible = afterId ? names.filter((row) => row.id > afterId) : names;
     const expected = eligible.slice(0, normalizedInput.limit as number);
     const data = body as { documents?: Array<{ id?: unknown }> };
-    if (!Array.isArray(data.documents) || sha256(data.documents.map((row) => row.id)) !== sha256(expected.map((row) => row.id)))
-      fail('Canonical document list differs from the same-read visible inventory');
+    const documents = data.documents;
+    if (!Array.isArray(documents) || sha256(documents.map((row) => row.id)) !== sha256(expected.map((row) => row.id)))
+      return fail('Canonical document list differs from the same-read visible inventory');
     if (!body.coverage || typeof body.coverage !== 'object' || Array.isArray(body.coverage))
       fail('Canonical document coverage is malformed');
     const coverage = body.coverage as Record<string, unknown>;
     if (coverage.total !== names.length || coverage.truncated !== (eligible.length > expected.length))
       fail('Canonical document coverage differs from current inventory');
-    for (const [index, returned] of data.documents.entries()) {
+    for (const [index, returned] of documents.entries()) {
       const source = expected[index]!;
       const row = returned as Record<string, unknown>;
       if (row.fileName !== source.fileName || row.contentType !== source.contentType ||

@@ -33,7 +33,7 @@ export async function currentManagedMondayMapping(
     !row.boardIds.every((id) => /^\d{1,24}$/.test(id)) ||
     new Set(row.boardIds).size !== row.boardIds.length ||
     scope.boardIds.some((id) => !row.boardIds.includes(id)))
-    fail('Current managed Monday mapping is unavailable');
+    return fail('Current managed Monday mapping is unavailable');
   // The row identity, modification instant and exact board set are all read
   // from Core's existing owner. No client/model-provided version is accepted.
   const mappingVersionId = sha256({ id: row.id, updatedAt: row.updatedAt.toISOString(), boardIds: row.boardIds });
@@ -71,7 +71,7 @@ export async function readWithCurrentMondayMapping(
     const bytes = JSON.stringify(raw);
     if (!bytes || Buffer.byteLength(bytes, 'utf8') > 16 * 1024 * 1024) fail('Monday result exceeds source bound');
     body = JSON.parse(bytes) as Record<string, unknown>;
-  } catch { fail('Monday result is not JSON'); }
+  } catch { return fail('Monday result is not JSON'); }
   const after = await currentManagedMondayMapping(prisma, ctx, current.selectedClientId, boardContext);
   if (before.mappingVersionId !== after.mappingVersionId ||
     sha256(before.boardIds) !== sha256(after.boardIds)) fail('Managed board mapping changed during the read');
