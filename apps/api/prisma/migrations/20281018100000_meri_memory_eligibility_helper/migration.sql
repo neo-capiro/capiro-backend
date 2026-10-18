@@ -1,6 +1,6 @@
--- Source allocation only. Do not apply while the earlier held 090000 memory
--- disposition migration raises SQLSTATE 55000, or before the signed Meri/Core
--- two-step wire and role readback are qualified. This alters the existing
+-- Source allocation only. Do not apply before the preceding 090000 staged
+-- memory disposition migration is explicitly qualified and applied, or before
+-- the signed Meri/Core two-step wire and role readback are qualified. This alters the existing
 -- Option B token table; it adds no runtime role grant, table or tool slot.
 BEGIN;
 

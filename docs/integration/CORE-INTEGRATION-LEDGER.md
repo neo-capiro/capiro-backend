@@ -12,8 +12,9 @@ and receiver are unmounted and closed. The ordinary `/tokens` controller and
 read-token middleware still reject this kind. The proposed two-step Meri wire
 is backend PR88 comment 6252628690: unchanged 0.2 page JSON plus opaque proof
 header, one distinct helper token request, one byte-bound callback and final
-receipt-expiry check. Migration execution remains held by the earlier `090000`
-release stop; exact Meri source, controller/middleware composition and runtime
+receipt-expiry check. Migration execution remains held until the preceding
+staged `090000` source is qualified and applied; exact Meri source,
+controller/middleware composition and runtime
 role/readback are outstanding.
 
 Branch `fable/core-integration-20261018` → `backend-import` (`c76f5fc0df6688743afeec274211afd2e67fe8f1`).

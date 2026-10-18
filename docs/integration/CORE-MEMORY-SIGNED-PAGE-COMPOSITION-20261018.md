@@ -31,9 +31,9 @@ reject a helper JWT before a route could run. A shared HTTP owner must add the
 fixed helper branch, capture its exact 16 KiB raw body, send only the unchanged
 page plus proof header, and recheck before any byte. Meri must publish the
 matching signed transport and enforce receipt expiry at final dispatcher
-release. The source-only `100000` migration cannot execute while the earlier
-`090000` release stop remains; no SQL, AWS, new credential, grant, provider,
-route or model call was made here. Personal recall remains closed.
+release. The source-only `100000` migration must wait until the preceding
+staged `090000` migration is qualified and applied. No SQL, AWS, new credential,
+grant, provider, route or model call was made here. Personal recall remains closed.
 
 Focused memory page and helper tests: 14/14; scoped TypeScript on ten touched
 source/test files: zero diagnostics.
