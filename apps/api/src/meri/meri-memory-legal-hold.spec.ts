@@ -36,6 +36,7 @@ function buildService(opts: {
   clioMemoryRow: Record<string, unknown> | null;
   legalHold: boolean;
   projectionId?: string | null;
+  projectionStatus?: string;
   wallAllowed?: boolean;
   linked?: Array<{ id: string; slug: string | null; type: string | null }>;
 }) {
@@ -54,7 +55,10 @@ function buildService(opts: {
       }
       if (sql.text.includes('FROM memory_candidate mc')) return opts.linked ?? [];
       if (sql.text.includes('FROM memory_items')) {
-        return projectionId ? [{ id: projectionId, legal_hold: opts.legalHold }] : [];
+        return projectionId ? [{
+          id: projectionId, legal_hold: opts.legalHold,
+          status: opts.projectionStatus ?? 'active',
+        }] : [];
       }
       return [];
     }),
@@ -264,6 +268,15 @@ describe('MeriService.updateMemory — legal hold + audit trail', () => {
     await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(ForbiddenException);
     expect(tx.clioMemory.updateMany).not.toHaveBeenCalled();
     expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(memoryIngest.projectClioMemory).not.toHaveBeenCalled();
+  });
+
+  it('refuses to edit a terminal canonical projection', async () => {
+    const { service, tx, memoryIngest } = buildService({
+      clioMemoryRow: row, legalHold: false, projectionStatus: 'revoked',
+    });
+    await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(NotFoundException);
+    expect(tx.clioMemory.updateMany).not.toHaveBeenCalled();
     expect(memoryIngest.projectClioMemory).not.toHaveBeenCalled();
   });
 
