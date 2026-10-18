@@ -84,11 +84,9 @@ import {
   toUuidArrayLiteral,
 } from '../memory/memory-wall.helpers.js';
 import {
-  governedClioSuppressionSql,
   governedRecallSuppressionEnabled,
-  governedRecallSuppressionSql,
-  TERMINAL_GOVERNED_STATUSES,
 } from '../memory/memory-recall-suppression.helpers.js';
+import { canonicalMemoryEligibilitySql } from '../retrieval/adapters/governed-memory-eligibility.helpers.js';
 import {
   resolveCacheNodeLabels,
   keepCacheEdge,
@@ -114,7 +112,7 @@ import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryCleanupOutboxService } from '../memory/memory-cleanup-outbox.service.js';
 import { evaluateMemoryMutation } from '../memory/memory-mutation-auth.js';
 import { decideMemoryAutoLearn, exactUserExcerpt } from '../memory/memory-autolearn-governance.js';
-import { clioMemorySlug } from '../memory/memory-clio-adapter.helpers.js';
+import { clioMemorySlug, governanceFromClioMetadata } from '../memory/memory-clio-adapter.helpers.js';
 import {
   addUsage,
   applyRoundUsageEvent,
@@ -259,6 +257,19 @@ interface BootstrapConversationInput {
   schemaVersion: 1;
   requestId: string;
   clientId: string;
+}
+
+interface ClioDrawerMemoryRow {
+  id: string;
+  key: string;
+  value: string;
+  scope: 'firm' | 'client' | 'user_private';
+  ownerUserId: string | null;
+  clientId: string | null;
+  source: string | null;
+  expiresAt: Date | null;
+  metadata: unknown;
+  updatedAt: Date;
 }
 
 interface UpdateConversationInput {
@@ -5004,18 +5015,6 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   /**
-   * Effective memory-recall source for a tenant: the global MEMORY_RECALL_SOURCE
-   * env, with a per-tenant `settings_jsonb.clioFeatureFlags.meriMemoryRecallSource`
-   * override winning when present (mirrors resolveTenantAuditorMode). Lets 'union'
-   * (the OpenAI-recall-SPOF-resilient superset path) be canaried on one tenant —
-   * e.g. capiro-internal — before a fleet-wide MEMORY_RECALL_SOURCE flip. One
-   * tenant.settings read per recall; fail-safe: any read error falls back to env.
-   */
-  private async resolveMemoryRecallSource(tenantId: string): Promise<MemoryRecallSource> {
-    return (await this.resolveRecallConfig(tenantId)).mode;
-  }
-
-  /**
    * Phase 5: resolve BOTH the recall backing (mode) AND the unified-reranker
    * switch (rerankOn) from a SINGLE tenant.settings read — env defaults with a
    * per-tenant settings_jsonb.clioFeatureFlags override for each. Fail-safe: a
@@ -5078,7 +5077,35 @@ export class MeriService implements MeriTurnMaintenance {
         // this client's memory (fail-closed; firm/private arms unaffected).
         const clientArm =
           clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId));
-        const rows = await tx.clioMemory.findMany({
+        // Filter before LIMIT: a run of newer revoked, future-effective or
+        // unprojected rows must not hide an older eligible memory.
+        if (governedRecallSuppressionEnabled()) {
+          return tx.$queryRaw<Array<{ id: string; key: string; value: string }>>`
+            SELECT cm.id, cm.key, cm.value
+            FROM clio_memory cm
+            WHERE cm.tenant_id = ${tenantId}::uuid
+              AND (cm.expires_at IS NULL OR cm.expires_at > now())
+              AND (
+                cm.scope = 'firm'
+                OR (cm.scope = 'user_private' AND cm.owner_user_id = ${userId}::uuid)
+                OR (cm.scope = 'client' AND cm.client_id = ${clientArm ? clientId : null}::uuid)
+              )
+              AND EXISTS (
+                SELECT 1 FROM memory_items mi
+                WHERE mi.slug = 'clio:' || cm.id::text
+                  AND mi.type = COALESCE(NULLIF(cm.metadata_jsonb #>> '{governance,canonicalType}', ''), 'note')
+                  AND mi.client_id IS NOT DISTINCT FROM cm.client_id
+                  AND ${canonicalMemoryEligibilitySql({
+                    tenantId,
+                    userId,
+                    allowedClientIds: clientArm && clientId ? [clientId] : [],
+                  })}
+              )
+            ORDER BY cm.updated_at DESC
+            LIMIT 20
+          `;
+        }
+        return tx.clioMemory.findMany({
           where: {
             tenantId,
             // G2 ephemeral: expired working memory never reaches recall.
@@ -5093,22 +5120,6 @@ export class MeriService implements MeriTurnMaintenance {
           take: 20,
           select: { id: true, key: true, value: true },
         });
-        // Governed suppression for the keyword fallback. This one cannot be a SQL
-        // predicate (it is a Prisma findMany), so it is a BOUNDED second query over
-        // exactly the <=20 ids just fetched, served by
-        // memory_items_tenant_type_slug_unique. Dark by default: when off, no extra
-        // query runs and `governed_status` is never referenced.
-        if (!governedRecallSuppressionEnabled() || rows.length === 0) return rows;
-        const slugs = rows.map((r) => `clio:${r.id}`);
-        const suppressed = await tx.$queryRaw<Array<{ slug: string }>>`
-          SELECT slug FROM memory_items
-          WHERE tenant_id = ${tenantId}::uuid
-            AND type = 'note'
-            AND slug = ANY(${slugs}::text[])
-            AND governed_status = ANY(${[...TERMINAL_GOVERNED_STATUSES]}::text[])
-        `;
-        const blocked = new Set(suppressed.map((s) => s.slug));
-        return blocked.size ? rows.filter((r) => !blocked.has(`clio:${r.id}`)) : rows;
       });
       // Keyword-rank with a recency fallback so a stored memory is never
       // silently invisible when embeddings are unavailable (W2 M1).
@@ -5150,6 +5161,33 @@ export class MeriService implements MeriTurnMaintenance {
         clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
           ? clientId
           : null;
+      if (governedRecallSuppressionEnabled()) {
+        return tx.$queryRaw<
+          Array<{
+            title: string;
+            sections: unknown;
+            score: number;
+            confidence: number | null;
+            observed_at: Date | null;
+          }>
+        >(Prisma.sql`
+          SELECT mi.title, mi.sections_jsonb AS sections, mi.confidence,
+                 COALESCE(mi.last_confirmed_at, mi.created_at) AS observed_at,
+                 1 - (ce.embedding <=> ${literal}::vector) AS score
+          FROM context_embeddings ce
+          JOIN memory_items mi ON mi.id::text = ce.source_id
+          WHERE ce.source_type = 'memory_item'
+            AND ce.tenant_id = ${tenantId}::uuid
+            AND mi.slug LIKE 'clio:%'
+            AND ${canonicalMemoryEligibilitySql({
+              tenantId,
+              userId,
+              allowedClientIds: clientArm ? [clientArm] : [],
+            })}
+          ORDER BY ce.embedding <=> ${literal}::vector
+          LIMIT ${fetchN}
+        `);
+      }
       return tx.$queryRawUnsafe<
         Array<{
           title: string;
@@ -5177,7 +5215,7 @@ export class MeriService implements MeriTurnMaintenance {
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
             AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
+            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${fetchN}`,
         tenantId,
@@ -6262,6 +6300,33 @@ export class MeriService implements MeriTurnMaintenance {
           clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
             ? clientId
             : null;
+        if (governedRecallSuppressionEnabled()) {
+          return tx.$queryRaw<Array<{ key: string; value: string; score: number }>>(Prisma.sql`
+            SELECT cm.key, cm.value, 1 - (cm.embedding <=> ${vecStr}::vector) AS score
+            FROM clio_memory cm
+            WHERE cm.tenant_id = ${tenantId}::uuid
+              AND cm.embedding IS NOT NULL
+              AND (cm.expires_at IS NULL OR cm.expires_at > now())
+              AND (
+                cm.scope = 'firm'
+                OR (cm.scope = 'user_private' AND cm.owner_user_id = ${userId}::uuid)
+                OR (cm.scope = 'client' AND cm.client_id = ${clientArm}::uuid)
+              )
+              AND EXISTS (
+                SELECT 1 FROM memory_items mi
+                WHERE mi.slug = 'clio:' || cm.id::text
+                  AND mi.type = COALESCE(NULLIF(cm.metadata_jsonb #>> '{governance,canonicalType}', ''), 'note')
+                  AND mi.client_id IS NOT DISTINCT FROM cm.client_id
+                  AND ${canonicalMemoryEligibilitySql({
+                    tenantId,
+                    userId,
+                    allowedClientIds: clientArm ? [clientArm] : [],
+                  })}
+              )
+            ORDER BY cm.embedding <=> ${vecStr}::vector
+            LIMIT ${limit}
+          `);
+        }
         return tx.$queryRawUnsafe<Array<{ key: string; value: string; score: number }>>(
           `SELECT key, value, 1 - (embedding <=> $1::vector) as score
          FROM clio_memory
@@ -6272,7 +6337,7 @@ export class MeriService implements MeriTurnMaintenance {
              scope = 'firm'
              OR (scope = 'user_private' AND owner_user_id = $3::uuid)
              OR (scope = 'client' AND client_id = $5::uuid)
-           )${governedClioSuppressionSql(governedRecallSuppressionEnabled())}
+           )
          ORDER BY embedding <=> $1::vector
          LIMIT $4`,
           vecStr,
@@ -6295,48 +6360,108 @@ export class MeriService implements MeriTurnMaintenance {
 
   // ── Learned-memory surface (item 5/E: "Meri learned X" + one-click undo) ──
 
-  /**
-   * Recently auto-learned memories visible to this user (firm-scope + this
-   * user's private). Used by the drawer to show "Meri learned: …" chips with an
-   * undo affordance. Only auto-created entries are surfaced (createdBy === 'auto').
-   */
-  async listRecentLearnedMemories(ctx: TenantContext, limit = 5) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const memories = await tx.clioMemory.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          OR: [
-            { scope: 'firm' },
-            { scope: 'client' },
-            { scope: 'user_private', ownerUserId: ctx.userId },
-          ],
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: Math.min(Math.max(limit * 4, 10), 80),
-        select: {
-          id: true,
-          key: true,
-          value: true,
-          scope: true,
-          ownerUserId: true,
-          clientId: true,
-          source: true,
-          expiresAt: true,
-          metadata: true,
-          updatedAt: true,
-        },
-      });
-      const clientIds = [
-        ...new Set(memories.map((memory) => memory.clientId).filter(Boolean)),
-      ] as string[];
+  private async visibleClioDrawerRows(ctx: TenantContext, limit: number, autoOnly: boolean) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const allowedClients = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT c.id::text AS id FROM clients c
+        WHERE c.tenant_id = ${ctx.tenantId}::uuid
+          AND EXISTS (SELECT 1 FROM clio_memory cm
+            WHERE cm.tenant_id = c.tenant_id AND cm.scope = 'client' AND cm.client_id = c.id)
+          AND (NOT c.memory_wall OR EXISTS (
+            SELECT 1 FROM client_memory_access a
+            WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
+              AND a.user_id = ${ctx.userId}::uuid
+          ))
+      `;
+      const allowedClientIds = allowedClients.map((client) => client.id);
+      const expectedType = Prisma.sql`COALESCE(NULLIF(cm.metadata_jsonb #>> '{governance,canonicalType}', ''), 'note')`;
+      const memories = await tx.$queryRaw<ClioDrawerMemoryRow[]>(Prisma.sql`
+        SELECT cm.id::text AS id, cm.key, cm.value, cm.scope,
+               cm.owner_user_id::text AS "ownerUserId", cm.client_id::text AS "clientId",
+               cm.source, cm.expires_at AS "expiresAt", cm.metadata_jsonb AS metadata,
+               cm.updated_at AS "updatedAt"
+        FROM clio_memory cm
+        WHERE cm.tenant_id = ${ctx.tenantId}::uuid
+          AND cm.source IS DISTINCT FROM 'settings_memory_editor'
+          AND (cm.expires_at IS NULL OR cm.expires_at > now())
+          AND (
+            (cm.scope = 'firm' AND cm.client_id IS NULL)
+            OR (cm.scope = 'user_private' AND cm.owner_user_id = ${ctx.userId}::uuid
+              AND cm.client_id IS NULL)
+            OR (cm.scope = 'client' AND cm.client_id = ANY(${allowedClientIds}::uuid[])
+              AND EXISTS (
+                SELECT 1 FROM clients c WHERE c.tenant_id = cm.tenant_id
+                  AND c.id = cm.client_id
+                  AND (NOT c.memory_wall OR EXISTS (
+                    SELECT 1 FROM client_memory_access a
+                    WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
+                      AND a.user_id = ${ctx.userId}::uuid
+                  ))
+              ))
+          )
+          ${autoOnly ? Prisma.sql`AND (
+            cm.metadata_jsonb->>'createdBy' = 'auto'
+            OR cm.metadata_jsonb->>'updatedBy' = 'auto'
+            OR cm.metadata_jsonb->>'reviewState' = 'pending'
+          )` : Prisma.empty}
+          AND NOT EXISTS (
+            SELECT 1 FROM memory_candidate mc
+            LEFT JOIN memory_items linked ON linked.id = mc.committed_memory_item_id
+              AND linked.tenant_id = mc.tenant_id
+            WHERE mc.tenant_id = cm.tenant_id AND mc.committed_memory_id = cm.id
+              AND mc.committed_memory_item_id IS NOT NULL
+              AND (linked.id IS NULL OR linked.slug <> 'clio:' || cm.id::text
+                OR linked.type <> ${expectedType})
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM memory_items terminal
+            WHERE terminal.tenant_id = cm.tenant_id
+              AND terminal.slug = 'clio:' || cm.id::text
+              AND terminal.type = ${expectedType}
+              AND terminal.status <> 'active'
+          )
+          AND (
+            NOT COALESCE(cm.metadata_jsonb ? 'governance', false)
+            OR EXISTS (
+              SELECT 1 FROM memory_candidate mc
+              JOIN memory_items linked ON linked.id = mc.committed_memory_item_id
+                AND linked.tenant_id = mc.tenant_id
+              WHERE mc.tenant_id = cm.tenant_id AND mc.committed_memory_id = cm.id
+                AND linked.slug = 'clio:' || cm.id::text
+                AND linked.type = ${expectedType}
+                AND linked.status = 'active'
+            )
+          )
+          ${governedRecallSuppressionEnabled() ? Prisma.sql`AND EXISTS (
+            SELECT 1 FROM memory_items mi
+            WHERE mi.slug = 'clio:' || cm.id::text
+              AND mi.type = ${expectedType}
+              AND mi.client_id IS NOT DISTINCT FROM cm.client_id
+              AND ${canonicalMemoryEligibilitySql({
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                allowedClientIds,
+              })}
+          )` : Prisma.empty}
+        ORDER BY cm.updated_at DESC, cm.id
+        LIMIT ${limit}
+      `);
+      const clientIds = [...new Set(memories.map((row) => row.clientId).filter(Boolean))] as string[];
       const clients = clientIds.length
-        ? await tx.client.findMany({
-            where: { id: { in: clientIds } },
-            select: { id: true, name: true },
-          })
+        ? await tx.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } })
         : [];
       return { memories, clients };
     });
+  }
+
+  /**
+   * Recently auto-learned memories visible to this user across firm, permitted
+   * client and private scopes. Used by the drawer to show "Meri learned: …" chips with an
+   * undo affordance. Only auto-created entries are surfaced (createdBy === 'auto').
+   */
+  async listRecentLearnedMemories(ctx: TenantContext, limit = 5) {
+    const bounded = Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 5, 1), 20);
+    const rows = await this.visibleClioDrawerRows(ctx, bounded, true);
     const clientNames = new Map(rows.clients.map((client) => [client.id, client.name]));
     return rows.memories
       .filter((row) => {
@@ -6345,7 +6470,7 @@ export class MeriService implements MeriTurnMaintenance {
           meta.createdBy === 'auto' || meta.updatedBy === 'auto' || meta.reviewState === 'pending'
         );
       })
-      .slice(0, Math.min(Math.max(limit, 1), 20))
+      .slice(0, bounded)
       .map((row) => {
         const meta = (row.metadata ?? {}) as Record<string, unknown>;
         const mutation = evaluateMemoryMutation(ctx, row, 'edit');
@@ -6378,6 +6503,7 @@ export class MeriService implements MeriTurnMaintenance {
    *
    * A standard user cannot edit firm- or client-scope memory — evaluateMemoryMutation
    * denies it — but dead-ending them is why auto-learned mistakes used to persist.
+   * Private and custom canonical items use their own bound version workflow.
    * The suggestion becomes a PENDING memory_candidate through Phase 1's real
    * candidate lifecycle, so an admin reviews it and nothing is committed here.
    *
@@ -6396,11 +6522,12 @@ export class MeriService implements MeriTurnMaintenance {
     const note =
       typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 1000) : null;
 
-    // Tenant-scoped read: RLS plus the explicit tenantId filter, so a caller can
-    // never propose a correction against another tenant's memory.
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findFirst({
-        where: { id: memoryId, tenantId: ctx.tenantId },
+    // This legacy proposal route handles shared memory only. Personal
+    // user_correction candidates auto-commit under the old candidate rule, so
+    // a private memory must use the bound canonical version workflow instead.
+    const row = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const source = await tx.clioMemory.findFirst({
+        where: { id: memoryId, tenantId: ctx.tenantId, scope: { in: ['firm', 'client'] } },
         select: {
           id: true,
           key: true,
@@ -6408,20 +6535,60 @@ export class MeriService implements MeriTurnMaintenance {
           scope: true,
           clientId: true,
           ownerUserId: true,
+          expiresAt: true,
+          metadata: true,
+          source: true,
         },
-      }),
-    );
+      });
+      if (!source || (source.scope !== 'firm' && source.scope !== 'client') ||
+          (source.expiresAt && source.expiresAt <= new Date())) {
+        throw new NotFoundException('Memory not found');
+      }
+      if (source.scope === 'client' &&
+          (!source.clientId ||
+            !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, source.clientId)))) {
+        throw new NotFoundException('Memory not found');
+      }
+      if (source.source === 'settings_memory_editor') {
+        throw new ConflictException('This memory requires canonical version review.');
+      }
+      const projected = governedRecallSuppressionEnabled()
+        ? await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT mi.id::text AS id FROM memory_items mi
+          WHERE mi.slug = ${clioMemorySlug(memoryId)} AND mi.type = ${clioProjectionType(source.metadata)}
+            AND ${canonicalMemoryEligibilitySql({
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              allowedClientIds: source.clientId ? [source.clientId] : [],
+            })}
+          LIMIT 1
+        `
+        : await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id::text AS id FROM memory_items
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND slug = ${clioMemorySlug(memoryId)} AND type = ${clioProjectionType(source.metadata)}
+            AND status = 'active'
+          LIMIT 1
+        `;
+      if (governedRecallSuppressionEnabled() && !projected[0]) {
+        throw new NotFoundException('Memory not found');
+      }
+      await assertNoCustomCanonicalClioProjection(
+        tx, ctx.tenantId, memoryId, clioMemorySlug(memoryId),
+        clioProjectionType(source.metadata), projected[0]?.id ?? null,
+        source.metadata, source.source,
+      );
+      return source;
+    });
     if (!row) throw new NotFoundException('Memory not found');
 
-    const scope = (
-      row.scope === 'user_private' ? 'user_private' : row.scope === 'client' ? 'client' : 'firm'
-    ) as 'firm' | 'user_private' | 'client';
+    const scope = row.scope as 'firm' | 'client';
     const result = await this.memoryCandidates.proposeSaveMemory(
       ctx.tenantId,
       ctx.userId,
       {
         scope,
-        ownerUserId: scope === 'user_private' ? row.ownerUserId : null,
+        ownerUserId: null,
         clientId: scope === 'client' ? row.clientId : null,
         key: row.key,
         value: note
@@ -6448,12 +6615,13 @@ export class MeriService implements MeriTurnMaintenance {
    * Governance parity with the chat-tool `forget_memory` verb
    * (memory-store.service.ts): refuses when the projected memory_items row is
    * under legal hold, and writes the same audit_logs tombstone. clio_memory
-   * itself has no legal_hold column — the flag lives on the projection (slug
-   * `clio:<id>`), which is async/best-effort, so an ABSENT projection is not
-   * itself a block; only an EXISTING held row is.
+   * itself has no legal_hold column — the flag lives on the exact projection
+   * (slug `clio:<id>` for this legacy route). An absent projection is a block:
+   * deletion without a durable projection subject can race a backfill.
    */
   async forgetMemory(ctx: TenantContext, memoryId: string) {
     const slug = clioMemorySlug(memoryId);
+    let projectionId: string | null = null;
     // Single withTenantUser transaction (both GUCs set): the hold-check read,
     // the delete, and the audit write are ATOMIC — no TOCTOU window where a
     // legal hold could be applied between the check and the delete. Matches the
@@ -6468,16 +6636,34 @@ export class MeriService implements MeriTurnMaintenance {
           scope: true,
           ownerUserId: true,
           clientId: true,
+          metadata: true,
+          source: true,
           key: true,
           value: true,
         },
       });
       if (!row) throw new NotFoundException('Memory not found');
-      const held = await tx.$queryRaw<Array<{ legal_hold: boolean }>>`
-        SELECT legal_hold FROM memory_items
-        WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
-        LIMIT 1
+      if (row.scope === 'client' &&
+          (!row.clientId || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)))) {
+        throw new NotFoundException('Memory not found');
+      }
+      if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
+        throw new NotFoundException('Memory not found');
+      }
+      const projectionType = clioProjectionType(row.metadata);
+      const held = await tx.$queryRaw<Array<{ id: string; legal_hold: boolean }>>`
+        SELECT id::text AS id, legal_hold FROM memory_items
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${projectionType} AND slug = ${slug}
+        FOR UPDATE
       `;
+      await assertNoCustomCanonicalClioProjection(
+        tx, ctx.tenantId, memoryId, slug, projectionType, held[0]?.id ?? null,
+        row.metadata, row.source,
+      );
+      // Without a projection subject, an in-flight backfill could create one
+      // after the Clio delete and leave forgotten content active with no revoke
+      // outbox target. Keep the source until its exact subject is available.
+      if (!held[0]) throw new ConflictException('Memory projection is not ready for safe deletion.');
       const decision = evaluateMemoryMutation(
         ctx,
         {
@@ -6494,14 +6680,35 @@ export class MeriService implements MeriTurnMaintenance {
         }
         throw new NotFoundException('Memory not found');
       }
-      await tx.clioMemory.deleteMany({
+      projectionId = held[0]?.id ?? null;
+      // Suppress the canonical row in the same transaction as deleting its
+      // Clio source. The asynchronous projection cleanup can fail or lag.
+      if (projectionId) {
+        const revoked = governedRecallSuppressionEnabled()
+          ? await tx.$executeRaw`
+              UPDATE memory_items
+              SET status = 'revoked', governed_status = 'revoked',
+                  revoked_at = now(), revoked_by = ${ctx.userId}::uuid, updated_at = now()
+              WHERE id = ${projectionId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+            `
+          : await tx.$executeRaw`
+              UPDATE memory_items
+              SET status = 'revoked', revoked_at = now(),
+                  revoked_by = ${ctx.userId}::uuid, updated_at = now()
+              WHERE id = ${projectionId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+            `;
+        if (revoked !== 1) throw new Error('memory_forget_projection_revocation_failed');
+      }
+      const deleted = await tx.clioMemory.deleteMany({
         where: {
           id: memoryId,
           tenantId: ctx.tenantId,
           scope: row.scope,
           ownerUserId: row.ownerUserId,
+          clientId: row.clientId,
         },
       });
+      if (deleted.count !== 1) throw new NotFoundException('Memory not found');
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
@@ -6527,15 +6734,10 @@ export class MeriService implements MeriTurnMaintenance {
       // keeps the read inside the RLS/user context that can actually see a
       // user_private projection.
       if (this.cleanupOutbox) {
-        const projected = await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id::text AS id FROM memory_items
-          WHERE tenant_id = ${ctx.tenantId}::uuid AND slug = ${slug}
-          LIMIT 1
-        `;
         await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
           // Both subjects: the projection to strip embeddings from, and the
           // clio id so the fast-path close can find this job.
-          memoryItemId: projected[0]?.id ?? null,
+          memoryItemId: projectionId,
           clioMemoryId: memoryId,
           operation: 'revoke_projections',
           idempotencyKey: `revoke_projections:${memoryId}`,
@@ -6547,7 +6749,7 @@ export class MeriService implements MeriTurnMaintenance {
     // failed revocation is retried by the drain instead of leaving deleted memory
     // recallable through semantic search.
     void this.memoryIngest
-      .removeClioMemory(ctx.tenantId, memoryId)
+      .removeClioMemory(ctx.tenantId, memoryId, projectionId)
       .then(() =>
         this.cleanupOutbox?.markIndexedOnFastPath(ctx.tenantId, memoryId, 'revoke_projections'),
       )
@@ -6561,46 +6763,12 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   /**
-   * All memories visible to this user (firm-scope + this user's private), for the
-   * inspect/edit panel (P2-6). Not limited to auto-created entries.
+   * Current memories visible to this user across firm, permitted client and
+   * private scopes, for the inspect/edit panel (P2-6).
    */
   async listMemories(ctx: TenantContext, limit = 100) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const memories = await tx.clioMemory.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          OR: [
-            { scope: 'firm' },
-            { scope: 'client' },
-            { scope: 'user_private', ownerUserId: ctx.userId },
-          ],
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: Math.min(Math.max(limit, 1), 200),
-        select: {
-          id: true,
-          key: true,
-          value: true,
-          scope: true,
-          ownerUserId: true,
-          clientId: true,
-          source: true,
-          expiresAt: true,
-          metadata: true,
-          updatedAt: true,
-        },
-      });
-      const clientIds = [
-        ...new Set(memories.map((memory) => memory.clientId).filter(Boolean)),
-      ] as string[];
-      const clients = clientIds.length
-        ? await tx.client.findMany({
-            where: { id: { in: clientIds } },
-            select: { id: true, name: true },
-          })
-        : [];
-      return { memories, clients };
-    });
+    const bounded = Math.min(Math.max(Number.isFinite(limit) ? Math.floor(limit) : 100, 1), 200);
+    const rows = await this.visibleClioDrawerRows(ctx, bounded, false);
     const clientNames = new Map(rows.clients.map((client) => [client.id, client.name]));
     return rows.memories.map((row) => {
       const meta = (row.metadata ?? {}) as Record<string, unknown>;
@@ -6653,14 +6821,27 @@ export class MeriService implements MeriTurnMaintenance {
           key: true,
           value: true,
           metadata: true,
+          source: true,
         },
       });
       if (!row) throw new NotFoundException('Memory not found');
-      const held = await tx.$queryRaw<Array<{ legal_hold: boolean }>>`
-        SELECT legal_hold FROM memory_items
-        WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
-        LIMIT 1
+      if (row.scope === 'client' &&
+          (!row.clientId || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)))) {
+        throw new NotFoundException('Memory not found');
+      }
+      if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
+        throw new NotFoundException('Memory not found');
+      }
+      const projectionType = clioProjectionType(row.metadata);
+      const held = await tx.$queryRaw<Array<{ id: string; legal_hold: boolean }>>`
+        SELECT id::text AS id, legal_hold FROM memory_items
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${projectionType} AND slug = ${slug}
+        FOR UPDATE
       `;
+      await assertNoCustomCanonicalClioProjection(
+        tx, ctx.tenantId, memoryId, slug, projectionType, held[0]?.id ?? null,
+        row.metadata, row.source,
+      );
       const decision = evaluateMemoryMutation(
         ctx,
         {
@@ -6681,12 +6862,13 @@ export class MeriService implements MeriTurnMaintenance {
         row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
           ? (row.metadata as Record<string, unknown>)
           : {};
-      await tx.clioMemory.updateMany({
+      const updated = await tx.clioMemory.updateMany({
         where: {
           id: memoryId,
           tenantId: ctx.tenantId,
           scope: row.scope,
           ownerUserId: row.ownerUserId,
+          clientId: row.clientId,
         },
         data: {
           value: next,
@@ -6697,6 +6879,7 @@ export class MeriService implements MeriTurnMaintenance {
           } as unknown as Prisma.InputJsonValue,
         },
       });
+      if (updated.count !== 1) throw new NotFoundException('Memory not found');
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
@@ -6746,6 +6929,46 @@ export class MeriService implements MeriTurnMaintenance {
         );
       });
     return { ok: true, id: memoryId, value: next };
+  }
+}
+
+function clioProjectionType(metadata: unknown): string {
+  const record = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? metadata as Record<string, unknown>
+    : null;
+  return governanceFromClioMetadata(record).canonicalType ?? 'note';
+}
+
+async function assertNoCustomCanonicalClioProjection(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  clioMemoryId: string,
+  slug: string,
+  type: string,
+  derivedId: string | null,
+  metadata: unknown,
+  source: string | null,
+): Promise<void> {
+  if (source === 'settings_memory_editor') {
+    throw new ConflictException('This memory requires canonical version review.');
+  }
+  const linked = await tx.$queryRaw<Array<{ id: string; slug: string | null; type: string | null }>>`
+    SELECT mc.committed_memory_item_id::text AS id, mi.slug, mi.type
+    FROM memory_candidate mc
+    LEFT JOIN memory_items mi ON mi.id = mc.committed_memory_item_id
+      AND mi.tenant_id = mc.tenant_id
+    WHERE mc.tenant_id = ${tenantId}::uuid
+      AND mc.committed_memory_id = ${clioMemoryId}::uuid
+      AND mc.committed_memory_item_id IS NOT NULL
+  `;
+  if (linked.some((item) => item.id !== derivedId || item.slug !== slug || item.type !== type)) {
+    throw new ConflictException('This memory requires canonical version review.');
+  }
+  const raw = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? metadata as Record<string, unknown>
+    : null;
+  if (raw?.governance && (!derivedId || linked.length === 0)) {
+    throw new ConflictException('This memory requires canonical version review.');
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ContextCompiler } from './compiler.js';
+import { ContextCompiler, governedSteeringRowDecision } from './compiler.js';
 import {
   MERI_FIXTURE_SEMANTIC_INSTANT,
   MERI_FIXTURE_SEMANTIC_ZONE,
@@ -238,6 +238,22 @@ function v2(packet: CompiledContextPacket): CompiledContextPacketV2 {
   expect(packet.version).toBe(2);
   return packet as CompiledContextPacketV2;
 }
+
+it('withholds future-effective steering during compile and later packet recheck', async () => {
+  const future = row({
+    id: 'future-steering',
+    effectiveFrom: '2026-08-01T00:00:00.000Z',
+  });
+  const req = request({ now: new Date('2026-07-28T00:00:00.000Z') });
+  const packet = v2(await compilerFor([future]).compiler.compile(req));
+  expect(packet.items).toEqual([]);
+  expect(packet.exclusions).toContainEqual(
+    expect.objectContaining({ id: future.id, reason: 'unavailable' }),
+  );
+  expect(
+    governedSteeringRowDecision(future, req, new Date('2026-07-28T00:00:00.000Z')),
+  ).toEqual({ include: false, reason: 'not_yet_effective' });
+});
 
 describe('ContextPacket v2 deterministic compilation', () => {
   it('emits source-rich governed metadata and typed data blocks', async () => {

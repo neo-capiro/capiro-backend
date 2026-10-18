@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { federalAwardDates } from '../../common/federal-award-date-serialization.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
+import { canonicalMemoryEligibilitySql } from '../../retrieval/adapters/governed-memory-eligibility.helpers.js';
 import { AttachmentContentService } from '../../engagement/attachment-content.service.js';
 import { AttachmentScannerService } from '../../engagement/attachment-scanner.service.js';
 import { CapabilityAuthorizationService } from '../capability-authorization.service.js';
@@ -193,28 +194,35 @@ export class OutreachContextReferenceService {
     ctx: TenantContext,
     locator: Extract<OutreachContextLocatorV1, { source: 'memory_item' }>,
   ): Promise<ResolvedSourceContext> {
+    // The locator's client is exact. Resolve the wall before the canonical
+    // query so an absent or denied client never supplies an allowed client id.
+    const allowedClientIds =
+      locator.clientId &&
+      (await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, locator.clientId))
+        ? [locator.clientId]
+        : [];
+    if (locator.clientId && allowedClientIds.length === 0) throw contextNotFound();
     const rows = await tx.$queryRaw<MemoryContextRow[]>`
-      SELECT id, client_id, owner_user_id, visibility, title, type, sections_jsonb,
-             status, sensitivity, instructions_allowed, source_type,
-             source_version, source_excerpt, governed_status, memory_authority,
-             conflict_status, as_of, valid_until, updated_at
-      FROM memory_items
-      WHERE tenant_id = ${ctx.tenantId}::uuid
-        AND id = ${locator.id}::uuid
-        AND status NOT IN ('revoked', 'rejected', 'withdrawn')
-        AND (expires_at IS NULL OR expires_at > now())
+      SELECT mi.id, mi.client_id, mi.owner_user_id, mi.visibility, mi.title, mi.type,
+             mi.sections_jsonb, mi.status, mi.sensitivity, mi.instructions_allowed,
+             mi.source_type, mi.source_version, mi.source_excerpt, mi.governed_status,
+             mi.memory_authority, mi.conflict_status, mi.as_of, mi.valid_until,
+             mi.updated_at
+      FROM memory_items mi
+      WHERE ${canonicalMemoryEligibilitySql({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        allowedClientIds,
+        memoryItemId: locator.id,
+      })}
+        AND mi.client_id IS NOT DISTINCT FROM ${locator.clientId}::uuid
       LIMIT 1
     `;
     const row = rows[0];
-    if (!row || (row.visibility === 'user' && row.owner_user_id !== ctx.userId)) {
-      throw contextNotFound();
-    }
-    // clientId is an exact scope locator, never a wildcard. null means the
-    // memory item itself must be tenant-neutral.
-    if (row.client_id !== locator.clientId) throw contextNotFound();
-    if (row.client_id && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.client_id))) {
-      throw contextNotFound();
-    }
+    if (!row || row.client_id !== locator.clientId) throw contextNotFound();
+    // Recall eligibility and use as outreach evidence are distinct. A stale
+    // approved item or a controlling conflict may be shown for context while
+    // the campaign still must not treat it as settled evidence.
     const approved = ['approved', 'active'].includes(row.governed_status ?? row.status);
     const conflicted = Boolean(row.conflict_status && row.conflict_status !== 'none');
     const expired = row.valid_until ? row.valid_until.getTime() < Date.now() : false;
@@ -224,7 +232,7 @@ export class OutreachContextReferenceService {
       clientId: row.client_id,
       verificationClass: memoryVerificationClass(row),
       sensitivity: normalizeSensitivity(row.sensitivity),
-      instructionsAllowed: Boolean(row.instructions_allowed),
+      instructionsAllowed: Boolean(row.instructions_allowed) && approved && !conflicted && !expired,
       usableAsEvidence: approved && !conflicted && !expired,
       sourceSystem: row.source_type ?? 'capiro_memory',
       sourceVersion: row.source_version ?? row.updated_at.toISOString(),

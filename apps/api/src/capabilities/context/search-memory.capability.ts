@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
+import { canonicalMemoryEligibilitySql } from '../../retrieval/adapters/governed-memory-eligibility.helpers.js';
 import { CapabilityAuthorizationService } from '../capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
 import type { CapabilityDefinition, CapabilityRuntimeSchema } from '../capability-definition.js';
@@ -45,6 +46,7 @@ interface MemorySearchRow {
   instructions_allowed: boolean | null;
   sensitivity: string | null;
   governed_status: string | null;
+  conflict_status: string | null;
   memory_authority: string | null;
   source_type: string | null;
   source_version: string | null;
@@ -126,33 +128,43 @@ export class SearchMemoryCapability {
     if (effectiveClientId) await this.authorization.authorizeClient(ctx, effectiveClientId);
 
     const pattern = `%${escapeLike(input.query.trim())}%`;
-    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, (tx) =>
-      tx.$queryRaw<MemorySearchRow[]>`
-        SELECT id, client_id, owner_user_id, visibility, title, type,
-               source_excerpt, sections_jsonb, instructions_allowed, sensitivity,
-               governed_status, memory_authority, source_type, source_version,
-               updated_at
-        FROM memory_items
-        WHERE tenant_id = ${ctx.tenantId}::uuid
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, async (tx) => {
+      const allowedClientIds =
+        effectiveClientId &&
+        (await clientMemoryAllowed(tx, ctx.tenantId, ctx.actorUserId, effectiveClientId))
+          ? [effectiveClientId]
+          : [];
+      if (effectiveClientId && allowedClientIds.length === 0) return [];
+      return tx.$queryRaw<MemorySearchRow[]>`
+        SELECT mi.id, mi.client_id, mi.owner_user_id, mi.visibility, mi.title, mi.type,
+               mi.source_excerpt, mi.sections_jsonb, mi.instructions_allowed, mi.sensitivity,
+               mi.governed_status, mi.conflict_status, mi.memory_authority,
+               mi.source_type, mi.source_version,
+               mi.updated_at
+        FROM memory_items mi
+        WHERE ${canonicalMemoryEligibilitySql({
+          tenantId: ctx.tenantId,
+          userId: ctx.actorUserId,
+          allowedClientIds,
+        })}
           ${effectiveClientId
-            ? Prisma.sql`AND client_id = ${effectiveClientId}::uuid`
-            : Prisma.sql`AND client_id IS NULL`}
-          AND status NOT IN ('revoked', 'rejected', 'withdrawn')
-          AND (expires_at IS NULL OR expires_at > now())
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.actorUserId}::uuid)
+            ? Prisma.sql`AND mi.client_id = ${effectiveClientId}::uuid`
+            : Prisma.sql`AND mi.client_id IS NULL`}
           AND (
-            title ILIKE ${pattern} ESCAPE '\\'
-            OR COALESCE(source_excerpt, '') ILIKE ${pattern} ESCAPE '\\'
-            OR sections_jsonb::text ILIKE ${pattern} ESCAPE '\\'
-            OR tags::text ILIKE ${pattern} ESCAPE '\\'
+            mi.title ILIKE ${pattern} ESCAPE '\\'
+            OR COALESCE(mi.source_excerpt, '') ILIKE ${pattern} ESCAPE '\\'
+            OR mi.sections_jsonb::text ILIKE ${pattern} ESCAPE '\\'
+            OR mi.tags::text ILIKE ${pattern} ESCAPE '\\'
           )
-        ORDER BY updated_at DESC, id
+        ORDER BY mi.updated_at DESC, mi.id
         LIMIT ${Math.min(150, input.limit * 3)}
-      `,
-    );
+      `;
+    });
 
     const candidates: MemorySearchCandidateV1[] = [];
     for (const row of rows) {
+      // Recheck at release, after the search transaction, so a wall grant
+      // revoked between selection and response cannot expose its content.
       if (
         row.client_id &&
         !(await this.prisma.withTenantUser(ctx.tenantId, ctx.actorUserId, (tx) =>
@@ -174,7 +186,7 @@ export class SearchMemoryCapability {
         clientId: row.client_id,
         verificationClass: verificationClass(row),
         sensitivity: sensitivity(row.sensitivity),
-        instructionsAllowed: Boolean(row.instructions_allowed),
+        instructionsAllowed: Boolean(row.instructions_allowed) && settledMemory(row),
         lastVerifiedAt: row.updated_at.toISOString(),
         selection,
       });
@@ -220,19 +232,28 @@ export class SearchMemoryCapability {
 }
 
 function compatibleWithClass(row: MemorySearchRow, contextClass: OutreachContextClass): boolean {
-  if (contextClass === 'writing_guidance') return Boolean(row.instructions_allowed);
+  if (contextClass === 'writing_guidance') {
+    return Boolean(row.instructions_allowed) && settledMemory(row);
+  }
   if (contextClass === 'required_policy') {
-    return row.memory_authority === 'authoritative' || row.governed_status === 'approved';
+    return settledMemory(row) &&
+      (row.memory_authority === 'authoritative' || row.governed_status === 'approved');
   }
   if (contextClass === 'group_safe') return sensitivity(row.sensitivity) === 'normal';
   return true;
 }
 
 function verificationClass(row: MemorySearchRow): MemorySearchCandidateV1['verificationClass'] {
+  if (!settledMemory(row)) return 'unverified';
   if (row.memory_authority === 'authoritative') return 'authoritative';
   if (row.governed_status === 'approved') return 'first_party';
   if (row.governed_status === 'pending' || row.governed_status === 'proposed') return 'unverified';
   return 'derived';
+}
+
+function settledMemory(row: MemorySearchRow): boolean {
+  return row.governed_status === 'active' &&
+    (!row.conflict_status || row.conflict_status === 'none');
 }
 
 function sensitivity(value: string | null): MemorySearchCandidateV1['sensitivity'] {

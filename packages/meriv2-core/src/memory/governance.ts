@@ -298,8 +298,8 @@ export function governedMemoryLifecycleEnabled(raw: string | undefined): boolean
 const SAFE_SQL_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
- * The ONE definition of the governed suppression predicate for a `memory_items`
- * read, as a raw SQL fragment. It lives here — pure and dependency-free — because
+ * The shared current-memory predicate for a `memory_items` read, as a raw SQL
+ * fragment. It lives here — pure and dependency-free — because
  * apps/api and apps/meriv2-orchestrator both read memory_items directly and must
  * not each hand-roll a security predicate that can drift.
  *
@@ -322,19 +322,29 @@ export function governedRecallEligibilitySql(alias = ''): string {
   const conflict = `${prefix}conflict_status`;
   const controlling = `${prefix}controlling_item_id`;
   const id = `${prefix}id`;
+  const legacyStatus = `${prefix}status`;
+  const effectiveFrom = `${prefix}effective_from`;
+  const validUntil = `${prefix}valid_until`;
+  const expiresAt = `${prefix}expires_at`;
 
   return `(
-              (
-                ${status} IN ('active', 'stale')
-                AND (
-                  COALESCE(${conflict}, 'none') NOT IN ('open', 'controlling')
-                  OR ${controlling} = ${id}
+              ${legacyStatus} = 'active'
+              AND (${effectiveFrom} IS NULL OR ${effectiveFrom} <= now())
+              AND (${validUntil} IS NULL OR ${validUntil} > now())
+              AND (${expiresAt} IS NULL OR ${expiresAt} > now())
+              AND (
+                (
+                  ${status} IN ('active', 'stale')
+                  AND (
+                    COALESCE(${conflict}, 'none') NOT IN ('open', 'controlling')
+                    OR ${controlling} = ${id}
+                  )
                 )
-              )
-              OR (
-                ${status} = 'conflicted'
-                AND COALESCE(${conflict}, 'none') IN ('open', 'controlling')
-                AND ${controlling} = ${id}
+                OR (
+                  ${status} = 'conflicted'
+                  AND COALESCE(${conflict}, 'none') IN ('open', 'controlling')
+                  AND ${controlling} = ${id}
+                )
               )
             )`;
 }
@@ -375,6 +385,7 @@ export type MemorySuppressionReason =
   | 'ethical_wall'
   | 'inactive_status'
   | 'invalid_until'
+  | 'not_yet_effective'
   | 'unapproved'
   | 'sensitivity_denied'
   | 'conflict_unresolved'
@@ -433,6 +444,9 @@ export function filterGovernedMemory(
   }
   if (record.validUntil && dateMs(record.validUntil) <= now.getTime()) {
     return { include: false, reason: 'invalid_until' };
+  }
+  if (record.effectiveFrom && dateMs(record.effectiveFrom) > now.getTime()) {
+    return { include: false, reason: 'not_yet_effective' };
   }
   if (record.expiresAt && dateMs(record.expiresAt) <= now.getTime()) {
     return { include: false, reason: 'inactive_status' };

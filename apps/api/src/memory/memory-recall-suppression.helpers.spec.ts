@@ -1,6 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
 import {
-  governedClioSuppressionSql,
   governedRecallEligibilitySql,
   governedRecallSuppressionEnabled,
   governedRecallSuppressionSql,
@@ -39,34 +38,6 @@ describe('governedRecallSuppressionSql', () => {
       if (alias === '') continue;
       expect(() => governedRecallSuppressionSql(true, alias)).toThrow(/unsafe alias/);
     }
-  });
-});
-
-describe('governedClioSuppressionSql', () => {
-  it('emits nothing at all when disabled', () => {
-    expect(governedClioSuppressionSql(false)).toBe('');
-  });
-
-  /**
-   * clio_memory has no governed_status of its own, so the only handle is the
-   * memory_items projection keyed 'clio:'||id — served by the existing
-   * memory_items_tenant_type_slug_unique index, so no new index is required.
-   */
-  it('suppresses through the memory_items projection on the unique-index key', () => {
-    const sql = governedClioSuppressionSql(true);
-    expect(sql).toContain('NOT EXISTS');
-    expect(sql).toContain("mi_sup.type = 'note'");
-    expect(sql).toContain("mi_sup.slug = 'clio:' || clio_memory.id::text");
-    expect(sql).toContain('mi_sup.tenant_id = clio_memory.tenant_id');
-    expect(sql).toContain('AND NOT');
-    expect(sql).toContain("mi_sup.governed_status IN ('active', 'stale')");
-    expect(sql).toContain('mi_sup.controlling_item_id = mi_sup.id');
-  });
-
-  it('refuses an unsafe alias', () => {
-    expect(() => governedClioSuppressionSql(true, 'cm; DELETE FROM clio_memory --')).toThrow(
-      /unsafe alias/,
-    );
   });
 });
 
