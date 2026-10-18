@@ -76,6 +76,12 @@ function fixture(memories: MemoryFixtureRow[] = []) {
       return 1;
     }),
     $queryRawUnsafe: jest.fn(async (_sql: string, _tenant: string, clientId: string) => [{ allowed: clientId !== walledClient }]),
+    // logicalKey(): the Meri submission behind a synthetic storage key.
+    $queryRaw: jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+      const [, id, memory] = values as [string, string, string];
+      const submission = submissions.get(id), committed = candidates.get(id);
+      return submission && committed?.committedMemoryId === memory ? [{ logicalNull: submission.candidate.key === null }] : [];
+    }),
   };
   const prisma = {
     withTenantUser: jest.fn(async (_t: string, _u: string, fn: (t: typeof tx) => unknown) => fn(tx)),
@@ -154,6 +160,17 @@ describe('MeriMemoryReceivingService.submit', () => {
     await expect(f.service.submit(verifiedRequest(), ctx, submitBody(c))).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('refuses an addition whose key is already committed in that scope (a correction is required)', async () => {
+    const f = fixture([{ id: memoryId, tenantId, scope: 'user_private', ownerUserId: actorId, clientId: null, key: 'briefing-time', value: 'x', expiresAt: null, updatedAt: new Date() }]);
+    await expect(f.service.submit(verifiedRequest(), ctx, submitBody())).rejects.toBeInstanceOf(ConflictException);
+    expect(f.inserts).toHaveLength(0);
+  });
+
+  it('refuses the reserved synthetic storage-key form as a logical key', async () => {
+    const f = fixture();
+    await expect(f.service.submit(verifiedRequest(), ctx, submitBody(candidate({ key: `meri:${candidateId}` })))).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('maps a concurrent first insert to the winner', async () => {
     const f = fixture();
     const body = submitBody();
@@ -223,7 +240,7 @@ describe('MeriMemoryReceivingService reads', () => {
       tenantId, memoryId, scope: 'personal', clientId: null, ownerActorId: actorId, key: 'briefing-time', state: 'active',
       memorySha256: nativeCanonicalSha256({
         schema: 'capiro.clio-memory.v1', memoryId, scope: 'personal', clientId: null, ownerActorId: actorId,
-        key: 'briefing-time', value: 'Mornings', expiresAt: null, updatedAt: updatedAt.toISOString(),
+        key: 'briefing-time', storageKey: 'briefing-time', value: 'Mornings', expiresAt: null, updatedAt: updatedAt.toISOString(),
       }),
     });
   });
@@ -235,6 +252,20 @@ describe('MeriMemoryReceivingService reads', () => {
     await expect(f.service.readTarget(verifiedRequest(), ctx, { memoryId: walled.id })).resolves.toEqual({ memory: null });
     await expect(f.service.readTarget(verifiedRequest(), ctx, { memoryId: 'not-a-uuid' })).resolves.toEqual({ memory: null });
     await expect(f.service.readTarget(verifiedRequest(), ctx, { memoryId: '13131313-1313-4131-8131-131313131313' })).resolves.toEqual({ memory: null });
+  });
+
+  it('reports a memory committed from an unkeyed Meri addition with its logical null key', async () => {
+    const synthetic: MemoryFixtureRow = { ...personal, id: '16161616-1616-4161-8161-161616161616', key: `meri:${candidateId}` };
+    const f = fixture([synthetic]);
+    await f.service.submit(verifiedRequest(), ctx, submitBody(candidate({ key: null })));
+    f.candidates.set(candidateId, { id: candidateId, status: 'approved', decidedAt: new Date(), committedMemoryId: synthetic.id });
+    const { memory } = await f.service.readTarget(verifiedRequest(), ctx, { memoryId: synthetic.id });
+    expect(memory).toMatchObject({ memoryId: synthetic.id, key: null });
+    await expect(f.service.findByKey(verifiedRequest(), ctx, { scope: 'personal', clientId: null, key: `meri:${candidateId}` }))
+      .resolves.toEqual({ memory: null });
+    // Without the Meri lineage the same storage key stays the logical key.
+    f.candidates.set(candidateId, { id: candidateId, status: 'approved', decidedAt: new Date(), committedMemoryId: memoryId });
+    expect((await f.service.readTarget(verifiedRequest(), ctx, { memoryId: synthetic.id })).memory!.key).toBe(`meri:${candidateId}`);
   });
 
   it('marks an expired memory expired', async () => {

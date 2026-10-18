@@ -23,6 +23,9 @@ import {
 } from './meri-memory.contract.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** Storage key for an unkeyed Meri addition (clio_memory.key is NOT NULL). It
+ * is never a logical key: reads report such a memory with `key: null`. */
+const SYNTHETIC_KEY = /^meri:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const DAY_MS = 86_400_000;
 const CORE_SCOPE: Record<MeriMemoryScope, string> = { personal: 'user_private', client: 'client', firm: 'firm' };
 const MERI_SCOPE: Record<string, MeriMemoryScope> = { user_private: 'personal', client: 'client', firm: 'firm' };
@@ -83,11 +86,25 @@ export class MeriMemoryReceivingService {
       // owner; the Meri target id (clio_memory) has no agreed mapping yet.
       throw new ConflictException('Memory corrections are not supported by this receiving route yet');
     }
+    if (candidate.key !== null && SYNTHETIC_KEY.test(candidate.key)) throw new BadRequestException('Reserved memory key');
     const existing = await this.findSubmission(ctx.tenantId, candidate.candidateId);
     if (existing) return this.replay(existing, ctx, request.candidateSha256);
     try {
       const stored = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
         if (candidate.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, candidate.clientId))) throw forbidden();
+        // An addition never replaces committed memory with the same key; that is
+        // a correction. Approval re-checks under the row lock (insert-only), which
+        // also closes the race between two pending additions with one key.
+        if (candidate.key !== null && (await tx.clioMemory.findFirst({
+          where: {
+            tenantId: ctx.tenantId, scope: CORE_SCOPE[candidate.scope], key: candidate.key,
+            ownerUserId: candidate.scope === 'personal' ? ctx.userId : null,
+            clientId: candidate.scope === 'client' ? candidate.clientId : null,
+          },
+          select: { id: true },
+        }))) {
+          throw new ConflictException('A memory with this key already exists; submit a correction instead');
+        }
         await insertPendingCandidate(tx, ctx, candidate, request.candidateSha256);
         return tx.clioMeriMemorySubmission.create({
           data: {
@@ -151,7 +168,7 @@ export class MeriMemoryReceivingService {
     if (!UUID.test(memoryId)) return { memory: null };
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await tx.clioMemory.findFirst({ where: { id: memoryId, tenantId: ctx.tenantId } }) as MemoryRow | null;
-      return { memory: row && (await visible(tx, ctx, row)) ? target(row) : null };
+      return { memory: row && (await visible(tx, ctx, row)) ? await target(tx, ctx, row) : null };
     });
   }
 
@@ -168,7 +185,9 @@ export class MeriMemoryReceivingService {
         },
         orderBy: { updatedAt: 'desc' },
       }) as MemoryRow | null;
-      return { memory: row && (await visible(tx, ctx, row)) ? target(row) : null };
+      const found = row && (await visible(tx, ctx, row)) ? await target(tx, ctx, row) : null;
+      // A memory whose logical key is null is never found by key.
+      return { memory: found && found.key === query.key ? found : null };
     });
   }
 
@@ -243,10 +262,27 @@ async function visible(tx: Prisma.TransactionClient, ctx: TenantContext, row: Me
   return true;
 }
 
-/** Meri addresses at most 120-character keys; a longer Core key would fail
- * Meri's closed target check, so it is treated as not addressable. */
-function target(row: MemoryRow): MeriMemoryTarget | null {
-  if (row.key.length > 120) return null;
+/** The logical key Meri submitted: null for a memory committed from an unkeyed
+ * Meri addition (its storage key is synthetic), else the storage key. */
+async function logicalKey(tx: Prisma.TransactionClient, ctx: TenantContext, row: MemoryRow): Promise<string | null> {
+  const synthetic = SYNTHETIC_KEY.exec(row.key);
+  if (!synthetic) return row.key;
+  const rows = await tx.$queryRaw<Array<{ logicalNull: boolean }>>`
+    SELECT (s.candidate->>'key') IS NULL AS "logicalNull"
+    FROM clio_meri_memory_submissions s
+    JOIN memory_candidate mc ON mc.tenant_id = s.tenant_id AND mc.id = s.candidate_id
+    WHERE s.tenant_id = ${ctx.tenantId}::uuid AND s.candidate_id = ${synthetic[1]}::uuid
+      AND mc.committed_memory_id = ${row.id}::uuid`;
+  return rows.length === 1 && rows[0]!.logicalNull === true ? null : row.key;
+}
+
+/** Meri addresses at most 120-character keys. A longer Core key would fail
+ * Meri's closed target check, so it is not addressable (D23, not truncated).
+ * The projection hash covers the logical and the storage key; it is not a
+ * memory_items version hash. */
+async function target(tx: Prisma.TransactionClient, ctx: TenantContext, row: MemoryRow): Promise<MeriMemoryTarget | null> {
+  const key = await logicalKey(tx, ctx, row);
+  if (key !== null && key.length > 120) return null;
   const scope = MERI_SCOPE[row.scope]!;
   const clientId = scope === 'client' ? row.clientId : null;
   const ownerActorId = scope === 'personal' ? row.ownerUserId : null;
@@ -254,13 +290,13 @@ function target(row: MemoryRow): MeriMemoryTarget | null {
     tenantId: row.tenantId,
     memoryId: row.id,
     memorySha256: nativeCanonicalSha256({
-      schema: 'capiro.clio-memory.v1', memoryId: row.id, scope, clientId, ownerActorId, key: row.key, value: row.value,
-      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null, updatedAt: row.updatedAt.toISOString(),
+      schema: 'capiro.clio-memory.v1', memoryId: row.id, scope, clientId, ownerActorId, key, storageKey: row.key,
+      value: row.value, expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null, updatedAt: row.updatedAt.toISOString(),
     }),
     scope,
     clientId,
     ownerActorId,
-    key: row.key,
+    key,
     state: row.expiresAt && row.expiresAt.getTime() <= Date.now() ? 'expired' : 'active',
   };
 }

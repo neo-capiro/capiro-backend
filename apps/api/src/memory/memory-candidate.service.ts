@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -135,6 +136,21 @@ export interface ProposeSaveMemoryResult {
 
 type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
 
+const CANDIDATE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** A W8 Meri personal submission: pending until its owner decides (never inline). */
+function isMeriPersonal(candidate: { scope: string; sourceType?: string | null }): boolean {
+  return candidate.scope === 'personal' && candidate.sourceType === 'meri';
+}
+
+export interface OwnPersonalCandidate {
+  id: string;
+  key: string;
+  value: string;
+  sourceType: string;
+  createdAt: string;
+}
+
 export interface SettingsMemoryCandidateInput {
   type: MemoryItemType;
   slug: string;
@@ -156,6 +172,8 @@ interface LockedCandidate {
   proposedBy: string;
   scope: string;
   sourceKind: string;
+  /** Governance source type; 'meri' marks W8 Meri memory review submissions. */
+  sourceType: string;
 }
 
 interface ActivatedCandidate {
@@ -546,6 +564,7 @@ export class MemoryCandidateService {
         actorContext,
       );
       this.requireSharedApprovalPolicy(candidate, approverUserId, actorContext);
+      this.requireMeriPersonalOwner(candidate, approverUserId);
       const record = payloadToSaveRequest(candidate.payload);
       const governance = governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)
         ? buildCanonicalGovernance({
@@ -560,7 +579,11 @@ export class MemoryCandidateService {
       if (fixtureGuard && !governance) {
         throw new ForbiddenException('Synthetic memory requires canonical governed activation');
       }
-      const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance);
+      // A Meri addition never replaces a committed memory with the same key: that
+      // change must arrive as an immutable correction (dot #121 6246374007).
+      const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance, {
+        insertOnly: candidate.sourceType === 'meri',
+      });
       await this.markDecidedInTx(
         tx,
         tenantId,
@@ -597,7 +620,7 @@ export class MemoryCandidateService {
     actorContext?: CandidateActorContext,
   ): Promise<void> {
     await this.prisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
-      await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
+      const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
       await this.authorizeCandidateInTx(
         tx,
         tenantId,
@@ -606,8 +629,74 @@ export class MemoryCandidateService {
         'review',
         actorContext,
       );
+      this.requireMeriPersonalOwner(candidate, reviewerUserId);
       await this.markDecidedInTx(tx, tenantId, candidateId, 'rejected', reviewerUserId, null);
     });
+  }
+
+  /**
+   * The canonical policy lets only the private owner decide personal memory.
+   * Governed enforcement is still dark for most tenants, so for W8 Meri personal
+   * submissions (the only pending personal candidates that are never committed
+   * inline) the owner rule is applied always, independent of that switch.
+   */
+  private requireMeriPersonalOwner(
+    candidate: { proposedBy: string; scope: string; sourceType?: string | null },
+    deciderUserId: string,
+  ): void {
+    if (isMeriPersonal(candidate) && candidate.proposedBy !== deciderUserId) {
+      throw new ForbiddenException('Only the owner may decide their personal memory submission.');
+    }
+  }
+
+  /** The caller's own pending personal candidates, newest first. */
+  async listOwnPersonalPending(ctx: TenantContext): Promise<OwnPersonalCandidate[]> {
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.memoryCandidate.findMany({
+        where: { tenantId: ctx.tenantId, proposedBy: ctx.userId, scope: 'personal', status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: { id: true, payload: true, sourceType: true, createdAt: true },
+      }),
+    );
+    return rows.flatMap((row) => {
+      const p = row.payload as { key?: unknown; value?: unknown; ownerUserId?: unknown } | null;
+      if (!p || p.ownerUserId !== ctx.userId || typeof p.key !== 'string' || typeof p.value !== 'string') return [];
+      return [{ id: row.id, key: p.key, value: p.value, sourceType: row.sourceType, createdAt: row.createdAt.toISOString() }];
+    });
+  }
+
+  /**
+   * Explicit owner decision for the caller's own personal-scope candidate
+   * (dot #121 6246374007). Shared scopes keep the admin review workflow; this
+   * path never decides a candidate the caller did not propose for themselves.
+   * Scope, proposer and owner are immutable on the row, so checking them before
+   * the locked approve/reject transaction leaves no race.
+   */
+  async decideOwnPersonalCandidate(
+    ctx: TenantContext,
+    candidateId: string,
+    decision: 'approve' | 'reject',
+  ): Promise<{ status: 'approved'; memoryId: string } | { status: 'rejected' }> {
+    const missing = () => new NotFoundException('No personal memory candidate of yours with that id.');
+    if (!CANDIDATE_UUID.test(candidateId)) throw missing();
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.$queryRaw<Array<{ proposedBy: string; scope: string; ownerUserId: string | null }>>`
+        SELECT proposed_by::text AS "proposedBy", scope, payload_jsonb->>'ownerUserId' AS "ownerUserId"
+        FROM memory_candidate
+        WHERE id = ${candidateId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+      `,
+    );
+    const row = rows[0];
+    if (!row || row.scope !== 'personal' || row.proposedBy !== ctx.userId || row.ownerUserId !== ctx.userId) {
+      throw missing();
+    }
+    if (decision === 'approve') {
+      const { memoryId } = await this.approve(ctx.tenantId, candidateId, ctx.userId, ctx);
+      return { status: 'approved', memoryId };
+    }
+    await this.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
+    return { status: 'rejected' };
   }
 
   /**
@@ -637,8 +726,11 @@ export class MemoryCandidateService {
         orderBy: { createdAt: 'asc' },
       });
       if (!viewerUserId) return rows;
+      // A Meri personal submission is its owner's alone: never in another
+      // viewer's review queue (its content is private memory).
+      const visible = rows.filter((r) => !isMeriPersonal(r) || r.proposedBy === viewerUserId);
       const denied = new Set(await fetchDeniedClientIds(tx, tenantId, viewerUserId));
-      return denied.size ? rows.filter((r) => !r.clientId || !denied.has(r.clientId)) : rows;
+      return denied.size ? visible.filter((r) => !r.clientId || !denied.has(r.clientId)) : visible;
     });
   }
 
@@ -652,7 +744,8 @@ export class MemoryCandidateService {
              payload_jsonb AS payload,
              proposed_by::text AS "proposedBy",
              scope,
-             source_kind AS "sourceKind"
+             source_kind AS "sourceKind",
+             source_type AS "sourceType"
       FROM memory_candidate
       WHERE id = ${candidateId}::uuid
         AND tenant_id = ${tenantId}::uuid
@@ -789,7 +882,10 @@ export class MemoryCandidateService {
     tenantId: string,
     record: MemorySaveRequest,
     governance: CanonicalGovernance | null = null,
+    options: { insertOnly?: boolean } = {},
   ): Promise<{ clioMemoryId: string; memoryItemId: string | null }> {
+    const keyTaken = () =>
+      new ConflictException('A memory with this key already exists; submit a correction instead.');
     const metadata = {
       tool: 'save_memory',
       createdBy: 'user-requested',
@@ -828,6 +924,7 @@ export class MemoryCandidateService {
     let id: string;
     const existing = await findExisting();
     if (existing) {
+      if (options.insertOnly) throw keyTaken();
       await updateExisting(existing.id);
       id = existing.id;
     } else {
@@ -849,6 +946,7 @@ export class MemoryCandidateService {
         id = created.id;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          if (options.insertOnly) throw keyTaken();
           const raced = await findExisting();
           if (!raced) throw err;
           await updateExisting(raced.id);

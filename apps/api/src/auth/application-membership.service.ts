@@ -7,7 +7,7 @@ import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js'
 import { fetchAccessibleClientRevisionsForClerkActor } from '../memory/memory-wall.helpers.js';
 import { applicationAuthorityIdentityReceipt, type ApplicationAuthorityIdentityEvidence } from './application-authority.js';
 import {
-  APPLICATION_MEMBERSHIP_MAX_CLIENTS, applicationMembershipRevision,
+  APPLICATION_MEMBERSHIP_MAX_CLIENTS, applicationMembershipPermissions, applicationMembershipRevision,
   type ApplicationMembershipControl, type ApplicationMembershipReceipt, type ApplicationMembershipSnapshot,
 } from './application-membership.js';
 
@@ -50,7 +50,7 @@ export class ApplicationMembershipService {
     });
     return {
       tenantId: ctx.tenantId, actorId: ctx.userId, status: 'active', role: latest.role,
-      permissions: [], clientIds: latest.clients.map(({ id }) => id),
+      permissions: applicationMembershipPermissions(latest.role, ctx.userId), clientIds: latest.clients.map(({ id }) => id),
       membershipRevision: applicationMembershipRevision(latest),
       checkedAtMs: identity.checkedAtMs, expiresAtMs: identity.expiresAtMs,
     };

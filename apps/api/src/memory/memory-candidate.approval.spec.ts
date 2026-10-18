@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryIngestService } from './memory-ingest.service.js';
@@ -98,5 +98,107 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
     await expect(service.approve('tenant-1', 'cand-4', 'user-1')).rejects.not.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+});
+
+describe('MemoryCandidateService.approve — Meri additions are insert-only', () => {
+  function makeKeyedService(sourceType: string) {
+    const update = jest.fn(async () => ({ id: 'mem-1' }));
+    const create = jest.fn(async () => ({ id: 'mem-2' }));
+    const tx = {
+      $queryRaw: jest.fn(async () => [{
+        id: 'cand-9',
+        payload: { ...PAYLOAD, scope: 'user_private', ownerUserId: 'user-1' },
+        proposedBy: 'user-1',
+        scope: 'personal',
+        sourceKind: 'explicit_user',
+        sourceType,
+      }]),
+      clioMemory: { findFirst: jest.fn(async () => ({ id: 'mem-1' })), update, create },
+    };
+    const withTenantUser = jest.fn(
+      async (_tenantId: string, _userId: string, fn: (t: unknown) => unknown) => fn(tx),
+    );
+    const prisma = { withTenantUser } as unknown as PrismaService;
+    const config = { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>;
+    return { service: new MemoryCandidateService(prisma, {} as MemoryIngestService, config), update, create };
+  }
+
+  it('refuses a Meri addition whose key is already committed, before any write', async () => {
+    const { service, update, create } = makeKeyedService('meri');
+    await expect(service.approve('tenant-1', 'cand-9', 'user-1')).rejects.toBeInstanceOf(ConflictException);
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('keeps the existing upsert for every other source', async () => {
+    const { service, update } = makeKeyedService('unknown');
+    await service.approve('tenant-1', 'cand-9', 'user-1').catch(() => undefined);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MemoryCandidateService — W8 Meri personal submissions are owner-only', () => {
+  const OWNER = '22222222-2222-4222-8222-222222222222';
+  const OTHER = '33333333-3333-4333-8333-333333333333';
+  const CANDIDATE = '66666666-6666-4666-8666-666666666666';
+  function makeOwnerService(row: { scope: string; sourceType: string; proposedBy: string; ownerUserId: string | null }) {
+    const update = jest.fn(async () => ({ id: 'mem-1' }));
+    const findMany = jest.fn(async () => [
+      { id: 'a', proposedBy: OWNER, scope: 'personal', sourceType: 'meri', clientId: null },
+      { id: 'b', proposedBy: OTHER, scope: 'firm', sourceType: 'meri', clientId: null },
+      { id: 'c', proposedBy: OTHER, scope: 'personal', sourceType: 'unknown', clientId: null },
+    ]);
+    const tx = {
+      $queryRaw: jest.fn(async () => [{
+        id: CANDIDATE,
+        payload: { ...PAYLOAD, scope: 'user_private', ownerUserId: row.ownerUserId },
+        proposedBy: row.proposedBy,
+        ownerUserId: row.ownerUserId,
+        scope: row.scope,
+        sourceKind: 'explicit_user',
+        sourceType: row.sourceType,
+      }]),
+      $executeRaw: jest.fn(async () => 1),
+      $queryRawUnsafe: jest.fn(async () => []),
+      clioMemory: { findFirst: jest.fn(async () => null), update, create: jest.fn(async () => ({ id: 'mem-2' })) },
+      memoryCandidate: { findMany, update: jest.fn(async () => ({ id: CANDIDATE })) },
+    };
+    const run = async (...args: unknown[]) => (args.at(-1) as (t: unknown) => unknown)(tx);
+    const prisma = { withTenantUser: jest.fn(run), withTenant: jest.fn(run) } as unknown as PrismaService;
+    const config = { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>;
+    return { service: new MemoryCandidateService(prisma, {} as MemoryIngestService, config), tx };
+  }
+  const ctx = (userId: string) => ({ tenantId: 'tenant-1', userId, role: 'user_admin' }) as never;
+
+  it('refuses another user, even an administrator, approving or rejecting it', async () => {
+    const { service, tx } = makeOwnerService({ scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OWNER });
+    await expect(service.approve('tenant-1', CANDIDATE, OTHER, ctx(OTHER))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.reject('tenant-1', CANDIDATE, OTHER, ctx(OTHER))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.clioMemory.create).not.toHaveBeenCalled();
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it('hides it from every other viewer of the review queue', async () => {
+    const { service } = makeOwnerService({ scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OWNER });
+    expect((await service.listPending('tenant-1', OTHER)).map((row) => row.id)).toEqual(['b', 'c']);
+    expect((await service.listPending('tenant-1', OWNER)).map((row) => row.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it.each([
+    ['a non-UUID id', 'not-a-uuid', { scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OWNER }],
+    ['a shared-scope candidate', CANDIDATE, { scope: 'firm', sourceType: 'meri', proposedBy: OWNER, ownerUserId: null }],
+    ["another user's candidate", CANDIDATE, { scope: 'personal', sourceType: 'meri', proposedBy: OTHER, ownerUserId: OTHER }],
+    ['a candidate owned by someone else', CANDIDATE, { scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OTHER }],
+  ] as Array<[string, string, { scope: string; sourceType: string; proposedBy: string; ownerUserId: string | null }]>)(
+    'the owner decision path answers not found for %s', async (_label, id, row) => {
+      const { service } = makeOwnerService(row);
+      await expect(service.decideOwnPersonalCandidate(ctx(OWNER), id, 'approve')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+  it('lets the owner reject their own personal submission', async () => {
+    const { service, tx } = makeOwnerService({ scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OWNER });
+    await expect(service.decideOwnPersonalCandidate(ctx(OWNER), CANDIDATE, 'reject')).resolves.toEqual({ status: 'rejected' });
+    expect(tx.memoryCandidate.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'rejected' }) }));
   });
 });

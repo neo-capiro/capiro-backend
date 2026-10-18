@@ -74,10 +74,16 @@ const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '../auth/preview-native-read-mode.js': previewNativeReadMode,
   '../auth/retained-native-authority.js': retainedNativeAuthority,
 });
+// The actual canonical governed-memory policy (type-only imports), not a stub.
+const memoryAdminPolicy = load(source('memory/memory-review-admin-policy.ts'), {});
+const memoryPolicy = load(source('memory/memory-authorization.policy.ts'), {
+  './memory-review-admin-policy.js': memoryAdminPolicy,
+});
 const membershipContract = load(source('auth/application-membership.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared,
   'node:crypto': { createHash }, 'node:util': { types: nodeTypes, isDeepStrictEqual },
   './application-authority.js': authority,
+  '../memory/memory-authorization.policy.js': memoryPolicy,
 });
 const serviceOwner = load(source('auth/application-membership.service.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared,
@@ -234,7 +240,7 @@ describe('Current application membership through actual canonical owners', () =>
     const startedAt = Date.now();
     const receipt = await h.read();
     expect(Object.keys(receipt).sort()).toEqual(['actorId', 'checkedAtMs', 'clientIds', 'expiresAtMs', 'membershipRevision', 'permissions', 'role', 'status', 'tenantId']);
-    expect(receipt).toMatchObject({ tenantId, actorId, status: 'active', role: 'standard_user', permissions: [], clientIds: [firstClient, secondClient] });
+    expect(receipt).toMatchObject({ tenantId, actorId, status: 'active', role: 'standard_user', permissions: ['memory.propose.firm'], clientIds: [firstClient, secondClient] });
     expect(receipt.membershipRevision).toMatch(/^[a-f0-9]{64}$/);
     expect(receipt.checkedAtMs).toBeGreaterThanOrEqual(startedAt);
     expect(receipt.expiresAtMs).toBeGreaterThan(receipt.checkedAtMs);
@@ -356,7 +362,7 @@ describe('Current application membership through actual canonical owners', () =>
 
   it('returns an empty authorized roster as active empty scope, without granting tenant-wide clients', async () => {
     const h = await fixture({ clients: [] });
-    expect(await h.read()).toMatchObject({ status: 'active', clientIds: [], permissions: [] });
+    expect(await h.read()).toMatchObject({ status: 'active', clientIds: [], permissions: ['memory.propose.firm'] });
   });
 
   it('includes canonical role in membership revision while keeping the same actor and client IDs', async () => {

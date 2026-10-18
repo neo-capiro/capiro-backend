@@ -327,6 +327,30 @@ export class MemoryController {
     return { ok: true };
   }
 
+  /**
+   * The caller's own pending personal-scope candidates. W8 Meri submissions
+   * stay pending (no inline commit), and personal candidates have no shared
+   * review request, so this is where their owner sees them.
+   */
+  @Get('candidates/mine')
+  async listOwnCandidates(@CurrentTenant() ctx: TenantContext) {
+    return { candidates: await this.candidates.listOwnPersonalPending(ctx) };
+  }
+
+  /** Owner decision on the caller's own personal-scope candidate only. */
+  @Post('candidates/:id/owner-decision')
+  async decideOwnCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const decision = (body as { decision?: unknown } | null)?.decision;
+    if (decision !== 'approve' && decision !== 'reject') {
+      throw new BadRequestException('decision must be "approve" or "reject".');
+    }
+    return this.candidates.decideOwnPersonalCandidate(ctx, id, decision);
+  }
+
   // ── Governed memory grants (memory_access_grant) ──────────────────────────
   //
   // MemoryAuthorizationService has READ this table since Phase 3, but nothing

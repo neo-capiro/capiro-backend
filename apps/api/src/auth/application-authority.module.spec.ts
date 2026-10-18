@@ -258,7 +258,7 @@ describe('current membership authority registered HTTP boundary', () => {
       'permissions', 'role', 'status', 'tenantId',
     ]);
     expect(response.body).toMatchObject({
-      tenantId, actorId, status: 'active', role: 'standard_user', permissions: [],
+      tenantId, actorId, status: 'active', role: 'standard_user', permissions: ['memory.propose.firm'],
       clientIds: [clientId, otherClientId],
     });
     expect(response.body.membershipRevision).toMatch(/^[a-f0-9]{64}$/);
@@ -278,7 +278,7 @@ describe('current membership authority registered HTTP boundary', () => {
     f.setAllowedClients([]);
     const response = await f.request('membership', {});
     expect(response.statusCode).toBe(200);
-    expect(response.body).toMatchObject({ tenantId, actorId, status: 'active', permissions: [], clientIds: [] });
+    expect(response.body).toMatchObject({ tenantId, actorId, status: 'active', permissions: ['memory.propose.firm'], clientIds: [] });
     expect(response.body.membershipRevision).toMatch(/^[a-f0-9]{64}$/);
     expect(response.headers['cache-control']).toBe('no-store');
   });
@@ -290,7 +290,7 @@ describe('current membership authority registered HTTP boundary', () => {
       headers: { 'x-meri-permitted-client-ids': clientId, 'x-meri-tenant-id': clientId },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.body).toMatchObject({ tenantId, actorId, role, permissions: [], clientIds: [] });
+    expect(response.body).toMatchObject({ tenantId, actorId, role, permissions: ['memory.propose.firm'], clientIds: [] });
   });
 
   it('refuses a client_portal_user below the standard_user role floor', async () => {
