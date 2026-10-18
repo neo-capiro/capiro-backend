@@ -211,6 +211,27 @@
         "live migration execution",
         "decision revocation (not yet specified)"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018050000_clio_meri_routine_unattended/migration.sql",
+      "owner": "Core Meri unattended routine firing (D016-A item 5): lifts the approvals fence; consents, schedule revocations, firing-grant ledger",
+      "workstream": "fable/core-integration-20261018",
+      "base": "5eefddc0",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018040000_clio_meri_execution_authority)",
+      "allocatedAt": "2026-10-18T09:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018040000_clio_meri_execution_authority",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "drop clio_meri_routine_approvals_unattended_fence (packet only)",
+        "consents <= 30 days with RLS and insert-only grants",
+        "schedule revocations",
+        "firing-grant ledger"
+      ],
+      "excluded": [
+        "live migration execution"
+      ]
     }
   ]
 }

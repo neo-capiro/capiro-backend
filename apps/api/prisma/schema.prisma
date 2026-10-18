@@ -240,6 +240,8 @@ model Tenant {
   clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
   clioMeriMemorySubmissions          ClioMeriMemorySubmission[]
   clioMeriRoutineApprovals           ClioMeriRoutineApproval[]
+  clioMeriRoutineConsents            ClioMeriRoutineConsent[]
+  clioMeriRoutineConsentRevocations  ClioMeriRoutineConsentRevocation[]
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
@@ -2364,6 +2366,70 @@ model ClioMeriRoutineApproval {
   @@id([tenantId, intentId], map: "clio_meri_routine_approvals_pkey")
   @@unique([tenantId, intentId, intentSha256], map: "clio_meri_routine_approvals_intent_key")
   @@map("clio_meri_routine_approvals")
+}
+
+/// D016-A item 5: the routine owner's signed-in consent to unattended firing
+/// of one exact schedule intent (<= 30 days; renewed only by another approval).
+model ClioMeriRoutineConsent {
+  consentId        String   @id(map: "clio_meri_routine_consents_pkey") @map("consent_id") @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  ownerUserId      String   @map("owner_user_id") @db.Uuid
+  scheduleId       String   @map("schedule_id") @db.Uuid
+  intentId         String   @map("intent_id") @db.Uuid
+  generation       Int
+  intentSha256     String   @map("intent_sha256") @db.Char(64)
+  projectionSha256 String   @map("projection_sha256") @db.Char(64)
+  decisionSha256   String   @map("decision_sha256") @db.Char(64)
+  scopes           Json
+  limits           Json
+  policyRevision   String   @map("policy_revision") @db.VarChar(128)
+  issuedAt         DateTime @map("issued_at") @db.Timestamptz(3)
+  expiresAt        DateTime @map("expires_at") @db.Timestamptz(3)
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_routine_consents_tenant_fkey")
+  fireGrants ClioMeriRoutineFireGrant[]
+
+  @@unique([tenantId, intentId, decisionSha256], map: "clio_meri_routine_consents_decision_key")
+  @@index([tenantId, scheduleId, generation, intentSha256, projectionSha256, issuedAt], map: "clio_meri_routine_consents_lookup_idx")
+  @@map("clio_meri_routine_consents")
+}
+
+/// D016-A item 5: an attended pause or delete ends every earlier consent for the schedule.
+model ClioMeriRoutineConsentRevocation {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  intentId        String   @map("intent_id") @db.Uuid
+  scheduleId      String   @map("schedule_id") @db.Uuid
+  revokedByUserId String   @map("revoked_by_user_id") @db.Uuid
+  reason          String   @db.VarChar(16)
+  revokedAt       DateTime @map("revoked_at") @db.Timestamptz(3)
+  recordedAt      DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_routine_consent_revocations_tenant_fkey")
+
+  @@id([tenantId, intentId], map: "clio_meri_routine_consent_revocations_pkey")
+  @@index([tenantId, scheduleId, revokedAt], map: "clio_meri_routine_consent_revocations_schedule_idx")
+  @@map("clio_meri_routine_consent_revocations")
+}
+
+/// D016-A item 5: one row per unattended firing grant (wire C), written before signing.
+model ClioMeriRoutineFireGrant {
+  jti           String   @id(map: "clio_meri_routine_fire_grants_pkey") @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  consentId     String   @map("consent_id") @db.Uuid
+  scheduleId    String   @map("schedule_id") @db.Uuid
+  generation    Int
+  occurrenceKey String   @map("occurrence_key") @db.Char(64)
+  phase         String   @db.VarChar(32)
+  signerIssuer  String   @map("signer_issuer") @db.VarChar(256)
+  signerKeyId   String   @map("signer_key_id") @db.VarChar(64)
+  iatSeconds    BigInt   @map("iat_seconds")
+  expSeconds    BigInt   @map("exp_seconds")
+  recordedAt    DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  consent ClioMeriRoutineConsent @relation(fields: [consentId], references: [consentId], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_routine_fire_grants_consent_fkey")
+
+  @@map("clio_meri_routine_fire_grants")
 }
 
 /// DRAFT item 5: issuance ledger of routine cancellation proofs (claims and

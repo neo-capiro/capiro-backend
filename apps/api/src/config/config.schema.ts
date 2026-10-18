@@ -804,6 +804,14 @@ export const configSchema = z.object({
   MERI_ROUTINE_CANCEL_SIGNER_KID: z.string().optional(),
   MERI_ROUTINE_CANCEL_SIGNER_KMS_KEY_ARN: z.string().optional(),
   MERI_ROUTINE_CANCEL_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_ISSUER: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_KID: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  // D016-A 3 configured routine maxima (wire A ceilings; create/update answers 503 without them).
+  MERI_ROUTINE_MAX_COST_MICROUSD: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_ROUTINE_MAX_RUNTIME_SECONDS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_ROUTINE_RETRY_LIMIT: z.string().regex(/^(0|[1-9][0-9]{0,3})$/).optional(),
   // D016-A 3 configured platform maxima for execution capabilities (optional,
   // positive integers; budgets always come from the authenticated allocation).
   MERI_EXECUTION_MAX_TURNS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),

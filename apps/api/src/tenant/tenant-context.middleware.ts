@@ -29,7 +29,11 @@ import {
   type TenantRole,
 } from '@capiro/shared';
 import { readCoreEd25519KeyConfig, readMeriExecutionIdentity } from '../auth/core-ed25519-key-config.js';
-import { isMeriExecutionCapabilityPost, markMeriExecutionRequest } from '../auth/meri-execution-request.js';
+import {
+  isMeriExecutionCapabilityPost,
+  isMeriRoutineUnattendedGrantPost,
+  markMeriExecutionRequest,
+} from '../auth/meri-execution-request.js';
 import { ClerkService, isWellFormedMeriControlCredentialClaims, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
@@ -172,6 +176,15 @@ export class TenantContextMiddleware implements NestMiddleware {
     if (isMeriExecutionCapabilityPost(req)) {
       res.setHeader('Cache-Control', 'no-store');
       await this.useMeriExecutionCapability(req, next);
+      return;
+    }
+    // Meri's unattended routine firing grant (wire C, D016-A item 5): the
+    // service identity alone, no bearer and no tenant context; the controller
+    // requires the verified service identity and answers only from the
+    // owner's stored consent. Exact path and method only.
+    if (isMeriRoutineUnattendedGrantPost(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
       return;
     }
     // Belt-and-suspenders bypass for paths that authenticate via a different

@@ -14,7 +14,7 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
 import { createInProcessEd25519Signer } from '../../auth/core-ed25519-signer.js';
 import { nativeCanonicalSha256 } from '../native-approvals/native-approval.contract.js';
-import { ROUTINE_POLICY_LIMITS, decideRoutinePolicy } from './meri-routine-policy.js';
+import { decideRoutinePolicy, readRoutinePolicyLimits, type RoutineLimits } from './meri-routine-policy.js';
 import {
   ROUTINE_CANCEL_MAX_TTL_SECONDS,
   cancellationCoversRun,
@@ -36,6 +36,8 @@ const intentId = '77777777-7777-4777-8777-777777777777';
 const revision = 'a'.repeat(64);
 const NOW = Date.parse('2026-10-18T07:00:00.000Z');
 const principal = { tenantId, actorId };
+/** The D016 default integration profile, as the deployment template configures it. */
+const LIMITS: RoutineLimits = { maxCostMicrousd: 2_000_000, maxRuntimeSeconds: 900, retryLimit: 0 };
 const membership = { tenantId, actorId, clientIds: [clientId], expiresAtMs: NOW + 50_000 };
 const binding = {
   tenantId, actorId, conversationId: '88888888-8888-4888-8888-888888888888', runId: '99999999-9999-4999-8999-999999999999',
@@ -77,8 +79,9 @@ function meriAccepts(r: Record<string, unknown>, s: ReturnType<typeof selection>
     Object.keys(l).length === 3 && ['maxCostMicrousd', 'maxRuntimeSeconds', 'retryLimit'].every((k) => Number.isSafeInteger(l[k]) && l[k]! >= (k === 'retryLimit' ? 0 : 1));
 }
 
-const decide = (s: Record<string, unknown>, o: Partial<{ principal: typeof principal; membership: typeof membership; body: unknown }> = {}) =>
-  decideRoutinePolicy({ body: o.body ?? body(s), principal: o.principal ?? principal, membership: o.membership ?? membership, nowMs: NOW });
+const decide = (s: Record<string, unknown>, o: Partial<{ principal: typeof principal; membership: typeof membership; body: unknown; limits: RoutineLimits | null }> = {}) =>
+  decideRoutinePolicy({ body: o.body ?? body(s), principal: o.principal ?? principal, membership: o.membership ?? membership, nowMs: NOW,
+    limits: o.limits === undefined ? LIMITS : o.limits });
 
 describe('Wire A — routine selection-policy receipt', () => {
   it.each(['schedule_task', 'update_scheduled_task', 'list_scheduled_tasks', 'cancel_scheduled_task'])("%s: passes Meri's own policy() receipt checks", (operation) => {
@@ -87,10 +90,17 @@ describe('Wire A — routine selection-policy receipt', () => {
     expect(meriAccepts(receipt as never, s, NOW, NOW)).toBe(true);
   });
 
-  it('takes its limits from the pinned approved allocation and expires with the membership receipt or 30 s', () => {
+  it('takes its limits from configured maxima (never hard-coded) and expires with the membership receipt or 30 s', () => {
     const receipt = decide(selection('schedule_task'));
-    expect(receipt.limits).toEqual({ maxCostMicrousd: 2_000_000, maxRuntimeSeconds: 900, retryLimit: 0 });
-    expect(ROUTINE_POLICY_LIMITS).toEqual(receipt.limits);
+    expect(receipt.limits).toEqual(LIMITS);
+    expect(decide(selection('schedule_task'), { limits: { maxCostMicrousd: 5_000_000, maxRuntimeSeconds: 1800, retryLimit: 1 } }).limits)
+      .toEqual({ maxCostMicrousd: 5_000_000, maxRuntimeSeconds: 1800, retryLimit: 1 });
+    expect(() => decide(selection('schedule_task'), { limits: null })).toThrow(ServiceUnavailableException);
+    expect(decide(selection('list_scheduled_tasks'), { limits: null }).limits).toBeNull();
+    expect(readRoutinePolicyLimits({})).toBeNull();
+    expect(readRoutinePolicyLimits({ MERI_ROUTINE_MAX_COST_MICROUSD: '2000000', MERI_ROUTINE_MAX_RUNTIME_SECONDS: '900' })).toEqual(LIMITS);
+    expect(() => readRoutinePolicyLimits({ MERI_ROUTINE_MAX_COST_MICROUSD: '2000000' })).toThrow();
+    expect(() => readRoutinePolicyLimits({ MERI_ROUTINE_MAX_COST_MICROUSD: '2e6', MERI_ROUTINE_MAX_RUNTIME_SECONDS: '900' })).toThrow();
     expect(receipt.expiresAtMs).toBe(NOW + 30_000);
     expect(decide(selection('schedule_task'), { membership: { ...membership, expiresAtMs: NOW + 5_000 } }).expiresAtMs).toBe(NOW + 5_000);
   });
@@ -177,7 +187,7 @@ describe('Wire B — routine cancellation proof', () => {
   });
 });
 
-describe('MeriRoutinesService (draft, unmounted)', () => {
+describe('MeriRoutinesService', () => {
   const SECRET = 'synthetic-service-secret';
   function verifiedRequest(verified = true): Request {
     const req = { headers: { 'x-internal-service-secret': verified ? SECRET : 'wrong' }, method: 'POST', path: '/x' } as unknown as Request;
@@ -214,11 +224,17 @@ describe('MeriRoutinesService (draft, unmounted)', () => {
     try {
       const f = fixture();
       const s = selection('schedule_task');
+      process.env.MERI_ROUTINE_MAX_COST_MICROUSD = '2000000';
+      process.env.MERI_ROUTINE_MAX_RUNTIME_SECONDS = '900';
       const receipt = await f.service.policyCheck(verifiedRequest(), ctx, body(s));
       expect(meriAccepts(receipt as never, s, NOW, NOW)).toBe(true);
       expect(f.membershipService.read).toHaveBeenCalledTimes(1);
       await expect(f.service.policyCheck(verifiedRequest(false), ctx, body(s))).rejects.toBeInstanceOf(ForbiddenException);
-    } finally { jest.useRealTimers(); }
+    } finally {
+      jest.useRealTimers();
+      delete process.env.MERI_ROUTINE_MAX_COST_MICROUSD;
+      delete process.env.MERI_ROUTINE_MAX_RUNTIME_SECONDS;
+    }
   });
 
   it('records the fenced consent row and the proof jti before signing', async () => {

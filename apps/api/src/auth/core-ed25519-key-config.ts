@@ -15,7 +15,7 @@ import { CORE_ED25519_ISSUER, CORE_ED25519_KID } from './core-ed25519-signer.js'
  *   <PREFIX>_KMS_KEY_ARN   arn:aws:kms:<region>:<account>:key/<uuid>
  *   <PREFIX>_PUBLIC_KEY_X  base64url Ed25519 public key: the GetPublicKey readback
  */
-export type CoreEd25519Purpose = 'MERI_EXECUTION_SIGNER' | 'MERI_ROUTINE_CANCEL_SIGNER';
+export type CoreEd25519Purpose = 'MERI_EXECUTION_SIGNER' | 'MERI_ROUTINE_CANCEL_SIGNER' | 'MERI_ROUTINE_FIRE_SIGNER';
 
 export interface CoreEd25519KeyConfig {
   issuer: string;

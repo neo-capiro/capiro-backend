@@ -23,6 +23,6 @@
   ],
   "nativeOps": [
     "^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$",
-    "^/api/clio/application-authority/artifact$"
+    "^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$"
   ]
 }
