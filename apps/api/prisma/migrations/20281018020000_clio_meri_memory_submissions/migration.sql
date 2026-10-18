@@ -1,21 +1,23 @@
 -- W8 Meri memory review submissions. One immutable row per (tenant, Meri
--- candidate id) keeps a content-free RFC 8785 SHA-256 receipt and the stable
--- reviewId Core acknowledged. The full payload belongs only to the existing
--- memory_candidate review owner, inserted in the same transaction and removed
--- by its normal client purge. A retained receipt suppresses re-submission
--- after that candidate is deleted; review decisions stay with that owner.
+-- candidate id) keeps the exact submitted candidate, its RFC 8785 SHA-256 and
+-- the stable reviewId Core acknowledged, so a replay answers the same
+-- acknowledgement and a different hash is refused. The candidate itself is the
+-- pending memory_candidate row with the same id (inserted in the same
+-- transaction); review decisions stay with the existing memory review owner.
 CREATE TABLE "clio_meri_memory_submissions" (
   "tenant_id" UUID NOT NULL,
   "candidate_id" UUID NOT NULL,
   "candidate_sha256" CHAR(64) NOT NULL,
   "proposer_user_id" UUID NOT NULL,
   "review_id" UUID NOT NULL,
+  "candidate" JSONB NOT NULL,
   "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "clio_meri_memory_submissions_pkey" PRIMARY KEY ("tenant_id", "candidate_id"),
   CONSTRAINT "clio_meri_memory_submissions_review_id_key" UNIQUE ("review_id"),
   CONSTRAINT "clio_meri_memory_submissions_tenant_fkey"
     FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE,
-  CONSTRAINT "clio_meri_memory_submissions_sha_check" CHECK ("candidate_sha256" ~ '^[0-9a-f]{64}$')
+  CONSTRAINT "clio_meri_memory_submissions_sha_check" CHECK ("candidate_sha256" ~ '^[0-9a-f]{64}$'),
+  CONSTRAINT "clio_meri_memory_submissions_candidate_check" CHECK (jsonb_typeof("candidate") = 'object')
 );
 
 CREATE FUNCTION clio_meri_memory_submission_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
