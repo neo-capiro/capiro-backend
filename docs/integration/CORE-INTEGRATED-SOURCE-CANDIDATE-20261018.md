@@ -39,10 +39,14 @@ limit. The Objective adapter is unmounted, and `/decisions` and issuance remain
 disabled. PR88 memory source and unmounted task-bound page/proposal guards are
 included. The signed one-use eligibility helper, reservation-bound proposal
 alias, and final receipt-expiry release still need an allocated shared contract.
-The `20281018090000` memory content-free migration intentionally raises before
-dropping its payload column, so plain Prisma migration deploy across this source
-will stop until the release owner verifies each target's applied checksum,
-retention/hold disposition, and separately authorizes the forward path.
+At this candidate's original source pin, `20281018090000` intentionally raised
+before dropping the receipt payload. The later
+[staged source successor](CORE-STAGED-SOURCE-SUCCESSOR-20261018.md) replaces only
+the presumed-unapplied `090000` bytes with a guarded Stage 1 that makes
+`candidate` nullable and preserves every payload. Neither source is a qualified
+live migration: the release owner must first read each target's applied ledger
+and exact receipt shape. The old `4b858a87` build archive still has the
+unconditional stop; the staged successor has no qualified build archive.
 
 The A8 `actions.query@0.2.0` receiver retains the original UNKNOWN
 reservation, call key, arguments hash and exact emitted-body hash. Its
