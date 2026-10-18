@@ -5,6 +5,15 @@ import type { Request } from 'express';
 import { hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import type { CapabilityRolloutMode } from '@capiro/meriv2-core';
+import {
+  isMeriEvidenceModeRead,
+  MERI_EVIDENCE_MODE_READS,
+  type MeriEvidenceModeReadOperation,
+} from '../auth/meri-evidence-mode-reads.js';
+
+// Compatibility re-exports: the list and predicate are owned by the neutral
+// authority module so application authority does not import this directory.
+export { isMeriEvidenceModeRead, MERI_EVIDENCE_MODE_READS, type MeriEvidenceModeReadOperation };
 
 const HEADER = 'x-meri-read-observation';
 const SCHEMA_VERSION = 'meri-native-read-observation/1';
@@ -20,14 +29,6 @@ const FUNDING_READS = [
 type FundingReadOperation = (typeof FUNDING_READS)[number];
 const KB_READ = 'search_client_knowledge' as const;
 type ClockReadOperation = FundingReadOperation | typeof KB_READ;
-export const MERI_EVIDENCE_MODE_READS = [
-  'search_federal_grants',
-  'search_federal_awards',
-  'search_program_elements',
-  'get_program_element',
-  'get_pe_budget_timeline',
-] as const;
-export type MeriEvidenceModeReadOperation = (typeof MERI_EVIDENCE_MODE_READS)[number];
 type ObservedReadOperation = ClockReadOperation | MeriEvidenceModeReadOperation;
 
 interface MeriClockReadObservation {
@@ -103,10 +104,6 @@ function isFundingRead(name: string): name is FundingReadOperation {
 
 function isObservedRead(name: string): name is ObservedReadOperation {
   return isFundingRead(name) || name === KB_READ || isMeriEvidenceModeRead(name);
-}
-
-export function isMeriEvidenceModeRead(name: string): name is MeriEvidenceModeReadOperation {
-  return (MERI_EVIDENCE_MODE_READS as readonly string[]).includes(name);
 }
 
 function assertKnowledgeBody(body: Record<string, unknown>): void {

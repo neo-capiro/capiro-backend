@@ -3,8 +3,8 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import type { TenantContext } from '@capiro/shared';
 import type { Request } from 'express';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
-import { isMeriEvidenceModeRead, type MeriEvidenceModeReadOperation } from '../meri/meri-funding-read-observation.js';
-import { hasVerifiedToolServiceIdentity } from '../meri/tool-service-secret.guard.js';
+import { isMeriEvidenceModeRead, type MeriEvidenceModeReadOperation } from './meri-evidence-mode-reads.js';
+import { hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
 import type { ApplicationMembershipControl } from './application-membership.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
 

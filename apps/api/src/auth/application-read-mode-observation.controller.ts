@@ -2,7 +2,7 @@ import { Body, Controller, Header, HttpCode, Post, Req, Res, UseGuards } from '@
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
-import { ToolServiceSecretGuard } from '../meri/tool-service-secret.guard.js';
+import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { Roles } from './roles.decorator.js';
 import { RolesGuard } from './roles.guard.js';
 import { applicationMembershipRequest } from './application-membership-request.js';

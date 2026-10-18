@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { ApplicationAuthorityModule } from './application-authority.module.js';
+import { ApplicationReadModeObservationModule } from './application-read-mode-observation.module.js';
 import { ApplicationAuthorityController } from './application-authority.controller.js';
 import { ApplicationMembershipController } from './application-membership.controller.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
@@ -84,7 +85,7 @@ async function fixture() {
     },
   };
   const module = await Test.createTestingModule({
-    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), ApplicationAuthorityModule],
+    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), ApplicationAuthorityModule, ApplicationReadModeObservationModule],
   }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(ClerkService).useValue(clerk).compile();
   const app = module.createNestApplication({ logger: false });
   app.setGlobalPrefix('api');

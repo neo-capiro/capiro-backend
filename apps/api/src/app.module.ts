@@ -6,6 +6,7 @@ import { validateConfig } from './config/config.schema.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ApplicationAuthorityModule } from './auth/application-authority.module.js';
+import { ApplicationReadModeObservationModule } from './auth/application-read-mode-observation.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
 import { TenantContextMiddleware } from './tenant/tenant-context.middleware.js';
 import { UsersModule } from './users/users.module.js';
@@ -90,6 +91,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     PrismaModule,
     AuthModule,
     ApplicationAuthorityModule,
+    ApplicationReadModeObservationModule,
     TenantModule,
     UsersModule,
     WebhooksModule,
