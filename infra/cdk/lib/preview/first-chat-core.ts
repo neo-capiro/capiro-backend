@@ -83,12 +83,13 @@ export const FIRST_CHAT_CORE_MERI_TOOLS: readonly string[] = Object.freeze([...m
  * per rule (host + method + three paths). */
 export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([...routes.post]);
 export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([...routes.get]);
+/** P2 alternative used only when the schema-v6 memory slot is enabled. */
 export const FIRST_CHAT_CORE_MEMORY_GET_PATHS: readonly string[] = Object.freeze([...routes.memoryGet]);
 /** Exact Core POSTs for P-INT-10 approvals, D016 #9 execution issuance, W8 memory receiving, the D31 artifact authority and the item 5 routines wires (A, B, C). */
 export const FIRST_CHAT_CORE_NATIVE_OPS_PATHS: readonly string[] = Object.freeze([...routes.nativeOps]);
 export const FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY: number = routes.packet.nativeOps;
-/** Seven native memory owner routes: three GETs in the existing read rule and
- * four POSTs behind their own exact host-and-method listener rule. */
+/** Optional native memory owner POSTs behind an exact host-and-method rule.
+ * The matching three GETs are folded into P2 only in the enabled packet. */
 export const FIRST_CHAT_CORE_MEMORY_POST_PATHS: readonly string[] = Object.freeze([...routes.memoryPost]);
 
 const SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}$`);
