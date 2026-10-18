@@ -82,6 +82,8 @@ export interface MeriExecutionBinding {
   idempotencyKey: string;
   action: string;
   argumentsSha256: string;
+  /** SHA-256(JCS(Meri `commandSourceBody(command)`)): the exact tool body. */
+  sourceBodySha256: string;
   clientIds: string[];
   decisionSha256: string;
   approver: NativeIdentity;
@@ -164,6 +166,22 @@ function sameRun(a: NativeRunBinding, b: NativeRunBinding): boolean {
   return a.tenantId === b.tenantId && a.actorId === b.actorId && a.conversationId === b.conversationId && a.runId === b.runId;
 }
 
+/**
+ * Meri `apps/control/commands/source-projection.mjs` `commandSourceBody` for
+ * `task.create` (meri-greenfield 09781127): the `create_task` body drops a null
+ * clientId or dueDate. `TaskCreateArguments` is closed {title, clientId, dueDate}.
+ */
+export function taskCreateSourceBody(args: unknown): Record<string, string> {
+  const a = own(args, ['title', 'clientId', 'dueDate']);
+  if (typeof a.title !== 'string' || !(a.clientId === null || typeof a.clientId === 'string') ||
+      !(a.dueDate === null || typeof a.dueDate === 'string')) refuse();
+  return {
+    title: a.title as string,
+    ...(a.clientId === null ? {} : { clientId: a.clientId as string }),
+    ...(a.dueDate === null ? {} : { dueDate: a.dueDate as string }),
+  };
+}
+
 function guarded<T>(fn: () => T): T {
   try { return fn(); } catch { return refuse(); }
 }
@@ -223,6 +241,7 @@ export async function issueMeriExecutionCapability(
       execution: {
         requestId: execution.requestId, proposalId: execution.proposalId, commandSha256: execution.commandSha256,
         idempotencyKey: execution.idempotencyKey, action: command.action, argumentsSha256: sha256(command.arguments),
+        sourceBodySha256: sha256(taskCreateSourceBody(command.arguments)),
         clientIds: clientIdsOf(command.scopes), decisionSha256: sha256(d),
         approver: { tenantId: approver.tenantId as string, actorId: approver.actorId as string }, requestSha256: sha256(execution),
       },
@@ -287,11 +306,12 @@ export function verifyMeriExecutionCapability(token: string, trust: MeriExecutio
       policyRevision: c.policyRevision as string, budgets: budgets(c.budgets),
     };
     const e = own(p.execution, ['requestId', 'proposalId', 'commandSha256', 'idempotencyKey', 'action', 'argumentsSha256',
-      'clientIds', 'decisionSha256', 'approver', 'requestSha256']);
+      'sourceBodySha256', 'clientIds', 'decisionSha256', 'approver', 'requestSha256']);
     const approver = own(e.approver, ['tenantId', 'actorId']);
     if (!exact(UUID, e.requestId) || !exact(UUID, e.proposalId) || !exact(HEX64, e.commandSha256) ||
         typeof e.idempotencyKey !== 'string' || e.idempotencyKey.length < 1 || e.idempotencyKey.length > 128 ||
-        !MERI_EXECUTION_ACTIONS.includes(e.action as string) || !exact(HEX64, e.argumentsSha256) || !exact(HEX64, e.decisionSha256) ||
+        !MERI_EXECUTION_ACTIONS.includes(e.action as string) || !exact(HEX64, e.argumentsSha256) ||
+        !exact(HEX64, e.sourceBodySha256) || !exact(HEX64, e.decisionSha256) ||
         approver.tenantId !== binding.tenantId || approver.actorId !== binding.actorId ||
         canonicalizeCoreRetainedJson(e.clientIds) !== canonicalizeCoreRetainedJson(clientIdsOf(scopes))) refuse();
     const request: MeriCommandExecutionRequest = {

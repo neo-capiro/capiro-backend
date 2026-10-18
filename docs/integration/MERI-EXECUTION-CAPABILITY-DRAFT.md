@@ -45,7 +45,8 @@ A JWS in compact form: `base64url(header).base64url(payload).base64url(signature
 | `capability` | Exactly Meri `CapabilityClaims`:<br>- `capabilityId = jti`, `issuer = iss`, `audience = aud`;<br>- `binding` = the **executor** RunBinding (same tenant, actor, conversation and run as the proposal; current attempt, worker and fence);<br>- `actions = ["command.execute"]` only;<br>- `scopes` = `proposal.command.scopes` verbatim;<br>- `issuedAt` / `expiresAt` = ISO forms of `iat` / `exp`;<br>- `policyRevision` = `decision.policyRevision`, which must equal every scope's revision;<br>- `budgets` (see §7 Q1). |
 | `execution.requestId` / `proposalId` / `commandSha256` / `idempotencyKey` | Fields of the `CommandExecutionRequest` |
 | `execution.action` | `proposal.command.action`. `task.create` only (Meri `APPROVABLE_ACTIONS`). |
-| `execution.argumentsSha256` | `SHA-256(JCS(proposal.command.arguments))` |
+| `execution.argumentsSha256` | `SHA-256(JCS(proposal.command.arguments))`, the approved command |
+| `execution.sourceBodySha256` | `SHA-256(JCS(commandSourceBody(command)))`: Meri's exact `create_task` body (`source-projection.mjs`, which drops a null `clientId`/`dueDate`; dot 6246527853). `TaskCreateArguments` is closed `{title, clientId, dueDate}`. |
 | `execution.clientIds` | The scopes' client `resourceId`s, lowercase, sorted and unique |
 | `execution.decisionSha256` | `SHA-256(JCS(ApprovalDecision))`: the immutable approved decision (R12 row) |
 | `execution.approver` | The decision approver. It must equal the binding's tenant and actor. |
@@ -79,20 +80,24 @@ Meri receives `claimsJson`, the exact `CapabilityClaims`. Public keys reach Meri
 
 ## 5. Replay and revocation
 
-- **Replay.** `jti` is unique in Core's issuance ledger. Meri binds grant facts immutably per grant (`bindTrustedGrant`). The command journal claims `(proposal, idempotencyKey)` once, so a replayed capability gets the journaled outcome and never a second effect.
+**Both receiver behaviours below are obligations, not supplied behaviour** (dot 6246534408). Nothing is mounted until they exist.
+
+- **Replay at Meri.** `jti` is unique in Core's issuance ledger. Meri binds grant facts immutably per grant (`bindTrustedGrant`). The command journal claims `(proposal, idempotencyKey)` once, so a replay *through Meri* gets the journaled outcome.
+- **Replay at Core (unique consumption, required).** Unique issuance is not unique consumption: the same capability, service identity and body could otherwise reach the Core receiver repeatedly. The receiver must claim a durable effect identity, `(tenant, proposalId, commandSha256, idempotencyKey)`, in a Core consumption row **in the same transaction as the effect**, and store the result there. A repeat answers the stored result. If a claim exists with no result, it answers `UNKNOWN` and **never redispatches**. One capability is consumed at most once.
 - **Revocation.** There is no capability revocation list, by design. The token lives at most 120 s. Inside that window the executor already re-checks CURRENT facts:
   - **`approval/decision`:** a revoked or absent decision refuses the execution.
   - **`currentRun`:** a fence or attempt change refuses it.
   - **`authorizeBusiness`:** a membership or policy revision change refuses it.
 
-  Core's receiver branch also refuses a ledger row whose `revokedAt` is set. Core sets `revokedAt` on decision revocation, membership loss or run cancellation.
+  Core's receiver branch would also refuse a ledger row whose `revokedAt` is set.
+- **Revocation is not supplied today.** R12 decisions are immutable, and `approval/decision` always answers `revoked: false`: there is no revocation record or path. Before the receiver mounts, Core must add an append-only decision-revocation record, answer `revoked: true` from `approval/decision`, and set the capability's `revokedAt` on decision revocation, membership loss or run cancellation. Until then the only bounds are the 120 s TTL and the CURRENT run and policy checks.
 
 ## 6. Receiver branch: the executor with no user bearer (dot 6246253130)
 
 **Attended UI calls keep native auth unchanged.** For the executor or lifecycle path, which has no user bearer, the verified capability **is** the authority that is bound to the run and the approval. Core would accept `Authorization: Bearer <capiro-meri-execution+jwt>` together with the verified service secret, and **only** for:
 
 1. **`POST /api/clio/approvals/native/decision`,** when the body's proposal, `commandSha256` and binding (tenant, actor, conversation, run) equal the token's. This is `executionCoversDecisionRead` in source.
-2. **`POST /api/clio/tools/create_task`,** when `SHA-256(JCS(body))` equals `execution.argumentsSha256` and the actor and client scopes are the token's.
+2. **`POST /api/clio/tools/create_task`,** when `SHA-256(JCS(body))` equals `execution.sourceBodySha256`, the actor and client scopes are the token's, and the §5 consumption claim succeeds.
 
 It is never the control credential and never any other route or tool. **Not mounted.** This branch stays open until R0 and dot agree on it, because it changes which credential the tool route accepts.
 
@@ -100,7 +105,7 @@ It is never the control credential and never any other route or tool. **Not moun
 
 1. **Budgets.** `CapabilityClaims.budgets` is a Meri run-allocation fact. Should Core copy the issuance request's budgets, capped by a Core maximum, or should Meri drop the field for `command.execute`?
 2. **Clock.** Meri requires `checkedAtMs ≥` its own call start. Core and Meri clocks differ, so either Meri allows a skew or Core echoes Meri's start time.
-3. **Tool input.** Is the executor's `create_task` input exactly `command.arguments`? §6.2 assumes it is.
+3. ~~**Tool input.**~~ Answered by dot (6246527853): the body is Meri's projection, not `command.arguments`. Both hashes are now bound.
 4. **Lifecycle issuance.** Who issues for resume or `approval.wait`, when there is no attended request? This depends on the #150 delegation policy, which is pending with Neo.
 5. **Grant mapping.** Is `grant_id` for `bindTrustedGrant` the `capabilityId`, and which grant facts does Meri bind?
 6. **Other port suppliers.** `currentRun`, `authorizeBusiness`, `authorizeSources` and per-run result release still need production suppliers (D19). This draft covers only `verifyCapability` and `issueExecution`.

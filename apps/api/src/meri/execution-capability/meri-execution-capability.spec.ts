@@ -13,6 +13,7 @@ import {
   MERI_EXECUTION_MAX_TTL_SECONDS,
   executionCoversDecisionRead,
   issueMeriExecutionCapability,
+  taskCreateSourceBody,
   verifyMeriExecutionCapability,
 } from './meri-execution-capability.js';
 
@@ -57,6 +58,7 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
       idempotencyKey: proposal.command.idempotencyKey,
     });
     expect(execution.argumentsSha256).toBe(nativeCanonicalSha256(proposal.command.arguments));
+    expect(execution.sourceBodySha256).toBe(nativeCanonicalSha256({ title: 'Call the delegation', clientId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' }));
     expect(execution.clientIds).toEqual(['cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
     expect(execution.decisionSha256).toBe(nativeCanonicalSha256(vector.inputs.decision));
     expect(execution.requestSha256).toBe(nativeCanonicalSha256(issued.execution));
@@ -86,6 +88,13 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     await expect(issueMeriExecutionCapability(inputs(o), signer)).rejects.toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
   });
 
+  it("binds Meri's create_task body projection, which drops a null clientId or dueDate", () => {
+    expect(taskCreateSourceBody({ title: 'T', clientId: null, dueDate: null })).toEqual({ title: 'T' });
+    expect(taskCreateSourceBody({ title: 'T', clientId: 'c', dueDate: '2026-11-01' })).toEqual({ title: 'T', clientId: 'c', dueDate: '2026-11-01' });
+    expect(() => taskCreateSourceBody({ title: 'T', clientId: null })).toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
+    expect(() => taskCreateSourceBody({ title: 'T', clientId: null, dueDate: null, extra: 1 })).toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
+  });
+
   it('refuses a tampered command (hash no longer matches) and a non-task action', async () => {
     const proposal = clone(vector.inputs.proposal);
     proposal.command.arguments.title = 'Something else';
@@ -107,7 +116,9 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     refused(() => verifyMeriExecutionCapability(credential, trust(vector.expected.expiresAtMs)));
     refused(() => verifyMeriExecutionCapability(credential, trust(vector.inputs.nowMs - 1000)));
     const [h, p, s] = credential.split('.');
-    const flipped = `${h}.${p}.${s!.slice(0, -2)}${s!.endsWith('A') ? 'B' : 'A'}${s!.slice(-1)}`;
+    const at = s!.length - 2;
+    const flipped = `${h}.${p}.${s!.slice(0, at)}${s![at] === 'A' ? 'B' : 'A'}${s!.slice(at + 1)}`;
+    expect(flipped).not.toBe(credential);
     refused(() => verifyMeriExecutionCapability(flipped, trust()));
   });
 
