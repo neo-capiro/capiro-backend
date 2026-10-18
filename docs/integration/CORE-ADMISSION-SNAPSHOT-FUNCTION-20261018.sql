@@ -5,20 +5,23 @@
 -- calls exactly this signature on its existing transaction connection.
 --
 -- Contract `capiro.meri-core-admission-snapshot.v1`:
---   meri_core_authority.current_admission_v1(p_run_id uuid) RETURNS jsonb
+--   meri_core_authority.current_admission_v1(p_tenant_id uuid, p_conversation_id uuid, p_run_id uuid) RETURNS jsonb
 --   SECURITY DEFINER, VOLATILE, PARALLEL UNSAFE, SET search_path = pg_catalog, pg_temp,
 --   owned by the dedicated NOLOGIN role meri_core_admission_reader.
 -- Order inside the call (Core takes its proposal advisory lock BEFORE calling it):
 --   1. FOR SHARE on meri_product_budget.budget id=1, the canonical lock Meri's admission, revocation,
 --      execution-grant installation and fence changes take FOR UPDATE first;
 --   2. clock_timestamp(), in its own statement after the lock;
---   3. runs, tool_run_allocations, grants LEFT JOIN tool_grant_bindings (grants in stable grant_id order).
+--   3. Meri's saved ADMITTED record (meri_conversations.native_allocations, read only, no lock: run retirement
+--      revokes the grants under the budget lock first), then runs, tool_run_allocations and grants LEFT JOIN
+--      tool_grant_bindings (grants in stable grant_id order).
 -- Returned JSON (closed; every key always present; times are integer epoch milliseconds, floored):
 --   {
 --     "contract": "capiro.meri-core-admission-snapshot.v1",
 --     "budgetPresent": true|false,
 --     "quarantined": true|false|null,
 --     "dbNowMs": <int>,
+--     "admitted": null | {"state", "binding", "allocationSha256", "grantFactsJsons"},   -- from native_allocations.record
 --     "run": null | {"runId","attempt","workerArn","fence","policyRevision"},
 --     "allocation": null | {"allocation": <jsonb>, "allocationSha256", "startedAtMs"},
 --     "grants": [ {"grantId","runId","attempt","workerArn","fence","policyRevision","capabilitySha256",
@@ -31,6 +34,8 @@ BEGIN;
 -- Dedicated owner: no login, no inheritance, not a superuser; only what the four reads and the row lock need.
 CREATE ROLE meri_core_admission_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
 GRANT USAGE ON SCHEMA meri_product_budget TO meri_core_admission_reader;
+GRANT USAGE ON SCHEMA meri_conversations TO meri_core_admission_reader;
+GRANT SELECT ON meri_conversations.native_allocations TO meri_core_admission_reader;
 GRANT SELECT ON meri_product_budget.budget, meri_product_budget.runs, meri_product_budget.tool_run_allocations,
   meri_product_budget.grants, meri_product_budget.tool_grant_bindings TO meri_core_admission_reader;
 -- PostgreSQL requires UPDATE privilege for FOR SHARE; one column only, held by the definer role, never used.
@@ -39,7 +44,7 @@ GRANT UPDATE (quarantined) ON meri_product_budget.budget TO meri_core_admission_
 CREATE SCHEMA meri_core_authority;
 REVOKE ALL ON SCHEMA meri_core_authority FROM PUBLIC;
 
-CREATE FUNCTION meri_core_authority.current_admission_v1(p_run_id uuid)
+CREATE FUNCTION meri_core_authority.current_admission_v1(p_tenant_id uuid, p_conversation_id uuid, p_run_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 VOLATILE
@@ -51,6 +56,7 @@ DECLARE
   v_present boolean := false;
   v_quarantined boolean;
   v_now timestamptz;
+  v_admitted jsonb;
   v_run jsonb;
   v_allocation jsonb;
   v_grants jsonb;
@@ -61,7 +67,13 @@ BEGIN
   v_present := COALESCE(v_present, false);
   -- 2. The database clock, in its own statement after the lock.
   v_now := pg_catalog.clock_timestamp();
-  -- 3. The admission rows.
+  -- 3. Meri's saved ADMITTED record for exactly this tenant/conversation/run, then the admission rows.
+  SELECT pg_catalog.jsonb_build_object(
+           'state', n.record -> 'state', 'binding', n.record -> 'binding',
+           'allocationSha256', n.record -> 'allocationSha256', 'grantFactsJsons', n.record -> 'resource' -> 'grantFactsJsons')
+    INTO v_admitted
+    FROM meri_conversations.native_allocations AS n
+   WHERE n.tenant_id = p_tenant_id::text AND n.conversation_id = p_conversation_id AND n.run_id = p_run_id;
   SELECT pg_catalog.jsonb_build_object(
            'runId', r.run_id::text, 'attempt', r.attempt, 'workerArn', r.worker_arn,
            'fence', r.fence, 'policyRevision', r.policy_revision::text)
@@ -91,30 +103,33 @@ BEGIN
     'budgetPresent', v_present,
     'quarantined', v_quarantined,
     'dbNowMs', pg_catalog.floor(pg_catalog.date_part('epoch', v_now) * 1000)::bigint,
+    'admitted', v_admitted,
     'run', v_run,
     'allocation', v_allocation,
     'grants', v_grants);
 END
 $fn$;
 
-ALTER FUNCTION meri_core_authority.current_admission_v1(uuid) OWNER TO meri_core_admission_reader;
-REVOKE EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid) FROM PUBLIC;
+ALTER FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) OWNER TO meri_core_admission_reader;
+REVOKE EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) FROM PUBLIC;
 -- Core API runtime role only (the preview Core task's DB_USER; `capiro_app` in Core source, to be
 -- confirmed by the packet readback of the app credential's username).
 GRANT USAGE ON SCHEMA meri_core_authority TO capiro_app;
-GRANT EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid) TO capiro_app;
+GRANT EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) TO capiro_app;
 
 COMMIT;
 
 -- ROLLBACK (run as one transaction):
 -- BEGIN;
--- REVOKE EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid) FROM capiro_app;
+-- REVOKE EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) FROM capiro_app;
 -- REVOKE USAGE ON SCHEMA meri_core_authority FROM capiro_app;
--- DROP FUNCTION meri_core_authority.current_admission_v1(uuid);
+-- DROP FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid);
 -- DROP SCHEMA meri_core_authority;
 -- REVOKE UPDATE (quarantined) ON meri_product_budget.budget FROM meri_core_admission_reader;
 -- REVOKE SELECT ON meri_product_budget.budget, meri_product_budget.runs, meri_product_budget.tool_run_allocations,
 --   meri_product_budget.grants, meri_product_budget.tool_grant_bindings FROM meri_core_admission_reader;
+-- REVOKE SELECT ON meri_conversations.native_allocations FROM meri_core_admission_reader;
+-- REVOKE USAGE ON SCHEMA meri_conversations FROM meri_core_admission_reader;
 -- REVOKE USAGE ON SCHEMA meri_product_budget FROM meri_core_admission_reader;
 -- DROP ROLE meri_core_admission_reader;
 -- COMMIT;

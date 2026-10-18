@@ -192,7 +192,11 @@ export class MeriExecutionReceiverService {
         if (existing.commandSha256 !== execution.commandSha256 || existing.argumentsSha256 !== execution.argumentsSha256) {
           throw conflict('Execution identity belongs to another command');
         }
-        if (existing.state === 'COMPLETED' && existing.result !== null) return existing.result;
+        if (existing.state === 'COMPLETED' && existing.result !== null) {
+          // The release boundary: the database clock again (dot 6248171459 item 1).
+          assertLive(await meriExecutionDbNow(tx));
+          return existing.result;
+        }
         throw conflict('Execution outcome unknown');
       }
       await tx.clioMeriExecutionConsumption.create({

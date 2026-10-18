@@ -93,7 +93,7 @@ A compact JWS of at most 8192 bytes; the signing input is at most 4096 bytes.
   - the stored hash equals the RFC 8785 hash of the allocation;
   - the allocation's run is the executor's;
   - the qualification is the run row's, at the executor's fence and the decision's revision.
-- **Admitted grants.** Every grant on the run that is not a Core-issued capability is an admitted grant. Each must be ACTIVE, unexpired and bound in `tool_grant_bindings`. Its facts must have the executor binding, the run's qualification, the allocation hash and the row's digest.
+- **Admitted grants (R26).** Meri's saved ADMITTED record (`meri_conversations.native_allocations`) must be ADMITTED, with exactly the executor binding and the allocation hash. **Every grant it declares** must exist, be ACTIVE, unexpired and bound with exactly the declared facts. Every other grant on the run must be a Core-issued capability. At the receiver, this capability's own grant must be current, and its expiry joins the deadline. A completed result is released only after a fresh database-clock check.
 - **Deadline.** `min(started_at + maxRuntimeSeconds, schedule.expiresAt, admitted grant expiries)` must be ahead.
 
 The request's `allocation`, `allocationSha256`, `qualification` and `runDeadlineMs` must **equal** the owner's.

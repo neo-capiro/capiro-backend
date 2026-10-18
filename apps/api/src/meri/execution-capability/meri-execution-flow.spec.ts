@@ -113,6 +113,11 @@ function world(options: { proposal?: ReturnType<typeof makeProposal> } = {}) {
     runStartedAt: new Date(now - 60_000),
     admitted: { grantId: ADMITTED_GRANT, capabilitySha256: 'f'.repeat(64), expiresAt: new Date(now + 3_600_000), state: 'ACTIVE' } as GrantState,
     executionGrants: [] as GrantState[],
+    /** Grants on the run that neither Meri's record declares nor Core issued. */
+    foreignGrants: [] as GrantState[],
+    /** Declared in Meri's ADMITTED record but with no grant row. */
+    extraDeclared: [] as Array<Record<string, unknown>>,
+    admittedRecord: 'ADMITTED' as string | null,
     ownerUnavailable: false,
     /** Database clock shifts: under the budget lock, and at the effect boundary. */
     lockClockShiftMs: 0,
@@ -141,15 +146,20 @@ function world(options: { proposal?: ReturnType<typeof makeProposal> } = {}) {
       // budget FOR SHARE first, then the clock, then the rows, as one JSON value.
       if (sql.includes('meri_core_authority.current_admission_v1')) {
         if (state.ownerUnavailable) throw new Error('permission denied for function current_admission_v1');
-        expect(values[0]).toBe(binding.runId);
+        expect(values).toEqual([binding.tenantId, binding.conversationId, binding.runId]);
         state.budgetLocks++;
         const r = state.run;
+        const admittedFacts = grantRow(state.admitted).facts;
         return [{ snapshot: clone({
           contract: 'capiro.meri-core-admission-snapshot.v1', budgetPresent: true, quarantined: state.quarantined,
           dbNowMs: Date.now() + state.lockClockShiftMs,
+          admitted: state.admittedRecord === null ? null : {
+            state: state.admittedRecord, binding: admittedFacts.binding, allocationSha256: nativeCanonicalSha256(state.allocation),
+            grantFactsJsons: [JSON.stringify(admittedFacts), ...state.extraDeclared.map((f) => JSON.stringify(f))],
+          },
           run: r ? { runId: r.run_id, attempt: r.attempt, workerArn: r.worker_arn, fence: r.fence, policyRevision: r.policy_revision } : null,
           allocation: r ? { allocation: state.allocation, allocationSha256: nativeCanonicalSha256(state.allocation), startedAtMs: state.runStartedAt.getTime() } : null,
-          grants: [state.admitted, ...state.executionGrants].map(grantRow).sort((a, b) => a.grant_id.localeCompare(b.grant_id)).map((g) => ({
+          grants: [state.admitted, ...state.executionGrants, ...state.foreignGrants].map(grantRow).sort((a, b) => a.grant_id.localeCompare(b.grant_id)).map((g) => ({
             grantId: g.grant_id, runId: g.run_id, attempt: g.attempt, workerArn: g.worker_arn, fence: g.fence, policyRevision: g.policy_revision,
             capabilitySha256: g.capability_sha256, expiresAtMs: g.expires_at.getTime(), state: g.state, boundGrantId: g.bound_grant_id,
             boundRunId: g.bound_run_id, facts: g.facts,
@@ -467,6 +477,40 @@ describe('Meri execution receiver (POST /api/clio/tools/create_task)', () => {
     run.state.lockClockShiftMs = run.deadline() - Date.now() + 1;
     await expect(receive(run, c.credential, body(run))).rejects.toThrow();
     expect(run.createTask).not.toHaveBeenCalled();
+  });
+
+  it("regression (dot 6248171459, 2): verifies Meri's exact declared grant set and bounds the effect by the capability's own grant", async () => {
+    const missing = world();
+    const a = await issueInstalled(missing);
+    missing.state.extraDeclared.push({ grantId: 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2', binding, qualificationBinding: qualification,
+      capabilitySha256: 'e'.repeat(64), allocationSha256: nativeCanonicalSha256(missing.state.allocation) });
+    await expect(receive(missing, a.credential, body(missing))).rejects.toThrow('Execution run is not admitted');
+    const foreign = world();
+    const b = await issueInstalled(foreign);
+    foreign.state.foreignGrants.push({ grantId: 'c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3', capabilitySha256: 'd'.repeat(64),
+      expiresAt: new Date(Date.now() + 60_000), state: 'ACTIVE' });
+    await expect(receive(foreign, b.credential, body(foreign))).rejects.toThrow('Execution run is not admitted');
+    const retired = world();
+    const c = await issueInstalled(retired);
+    retired.state.admittedRecord = 'RETIRED';
+    await expect(receive(retired, c.credential, body(retired))).rejects.toThrow('Execution run is not admitted');
+    // The capability's own execution grant expires before the token: the effect boundary refuses after it.
+    const own = world();
+    const d = await issueInstalled(own);
+    own.state.executionGrants[0]!.expiresAt = new Date(Date.now() + 2_000);
+    own.state.effectClockShiftMs = 2_001;
+    await expect(receive(own, d.credential, body(own))).rejects.toThrow('Execution authority expired');
+    for (const w of [missing, foreign, retired, own]) expect(w.createTask).not.toHaveBeenCalled();
+  });
+
+  it('regression (dot 6248171459, 1): a completed result is released only after a fresh database clock check', async () => {
+    const w = world();
+    const a = await issueInstalled(w);
+    const result = await receive(w, a.credential, body(w));
+    expect(await receive(w, a.credential, body(w))).toEqual(result);
+    w.state.effectClockShiftMs = a.expiresAtMs - Date.now() + 1;
+    await expect(receive(w, a.credential, body(w))).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(w.createTask).toHaveBeenCalledTimes(1);
   });
 
   it('rolls the claim back with a failed task write, so a retry creates the task exactly once', async () => {

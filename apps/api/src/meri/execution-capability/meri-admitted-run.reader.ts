@@ -75,14 +75,20 @@ const ms = (v: unknown): number => {
  *  - one run and one allocation; the stored hash is the RFC 8785 hash of the
  *    stored allocation; the allocation's run is the executor's; the
  *    qualification is the executor's run and fence at the expected revision;
- *  - every grant on the run that is not a Core-issued execution capability is
- *    an admitted grant: ACTIVE, unexpired, bound to this run, with facts whose
- *    binding is EXACTLY the executor binding (authenticating attemptId,
- *    workerId and writerFence), whose qualification is the run row's, whose
- *    allocation hash is the allocation's and whose digest is the row's; at
- *    least one exists;
+ *  - Meri's saved ADMITTED allocation record (`meri_conversations.
+ *    native_allocations`) for exactly this tenant/conversation/run is
+ *    ADMITTED, its binding is EXACTLY the executor binding (authenticating
+ *    attemptId, workerId and writerFence) and its allocation hash is the
+ *    allocation's (dot 6248171459 item 2);
+ *  - EVERY grant that record declares (`resource.grantFactsJsons`) exists and
+ *    is ACTIVE, unexpired, bound to this run with exactly the declared facts,
+ *    at the run row's qualification and the row's digest; a missing declared
+ *    grant refuses;
+ *  - every other grant on the run is a Core-issued execution capability;
+ *    anything else refuses;
  *  - when `expect` is given, that capability's own execution grant exists, is
- *    ACTIVE and unexpired, and carries the token's digest and the same facts;
+ *    ACTIVE and unexpired, and carries the token's digest and the same
+ *    binding/qualification/allocation facts; its expiry joins the deadline;
  *  - the deadline is ahead.
  * Until the function exists and Core's role may execute it, every call fails
  * closed with 503.
@@ -96,17 +102,17 @@ export async function readMeriAdmittedRun(
   let raw: unknown;
   try {
     const rows = await tx.$queryRaw<Array<{ snapshot: unknown }>>`
-      SELECT meri_core_authority.current_admission_v1(${binding.runId}::uuid) AS snapshot`;
+      SELECT meri_core_authority.current_admission_v1(${binding.tenantId}::uuid, ${binding.conversationId}::uuid, ${binding.runId}::uuid) AS snapshot`;
     if (!Array.isArray(rows) || rows.length !== 1) throw new Error('snapshot');
     raw = rows[0]!.snapshot;
   } catch {
     throw unavailable();
   }
-  const snap = closed(raw, ['contract', 'budgetPresent', 'quarantined', 'dbNowMs', 'run', 'allocation', 'grants']);
+  const snap = closed(raw, ['contract', 'budgetPresent', 'quarantined', 'dbNowMs', 'admitted', 'run', 'allocation', 'grants']);
   if (snap.contract !== MERI_ADMISSION_SNAPSHOT_CONTRACT) throw unavailable();
   if (snap.budgetPresent !== true || snap.quarantined !== false) throw notAdmitted();
   const dbNowMs = ms(snap.dbNowMs);
-  if (snap.run === null || snap.allocation === null) throw notAdmitted();
+  if (snap.run === null || snap.allocation === null || snap.admitted === null) throw notAdmitted();
   const run = closed(snap.run, ['runId', 'attempt', 'workerArn', 'fence', 'policyRevision']);
   const alloc = closed(snap.allocation, ['allocation', 'allocationSha256', 'startedAtMs']);
   const startedAtMs = ms(alloc.startedAtMs);
@@ -125,14 +131,25 @@ export async function readMeriAdmittedRun(
     Date.parse((alloc.allocation as { schedule: { expiresAt?: unknown } }).schedule.expiresAt as string),
   );
 
+  // Meri's saved ADMITTED record: the exact declared grant set.
+  const record = closed(snap.admitted, ['state', 'binding', 'allocationSha256', 'grantFactsJsons']);
+  if (record.state !== 'ADMITTED' || !sameJson(record.binding, binding) || record.allocationSha256 !== alloc.allocationSha256 ||
+      !Array.isArray(record.grantFactsJsons) || record.grantFactsJsons.length < 1 || record.grantFactsJsons.length > 16) throw notAdmitted();
+  let declared: Array<Record<string, unknown>>;
+  try {
+    declared = record.grantFactsJsons.map((text) => {
+      if (typeof text !== 'string') throw new Error('facts');
+      const f = JSON.parse(text) as unknown;
+      return closed(f, ['grantId', 'binding', 'qualificationBinding', 'capabilitySha256', 'allocationSha256']);
+    });
+  } catch {
+    throw notAdmitted();
+  }
+  if (new Set(declared.map((f) => f.grantId)).size !== declared.length) throw notAdmitted();
+
   if (!Array.isArray(snap.grants) || snap.grants.length > 64) throw notAdmitted();
   const grants = snap.grants.map((g) => closed(g, ['grantId', 'runId', 'attempt', 'workerArn', 'fence', 'policyRevision',
     'capabilitySha256', 'expiresAtMs', 'state', 'boundGrantId', 'boundRunId', 'facts']) as unknown as SnapshotGrant);
-  // Core-issued execution capabilities on this run; every other grant is admitted.
-  const issued = await tx.clioMeriExecutionIssuance.findMany({
-    where: { tenantId: options.tenantId, runId: binding.runId }, select: { jti: true },
-  });
-  const executionIds = new Set(issued.map((r) => r.jti));
   const factsOf = (g: SnapshotGrant): Record<string, unknown> => (plain(g.facts) ? g.facts : {});
   const current = (g: SnapshotGrant) => {
     const facts = factsOf(g);
@@ -144,12 +161,24 @@ export async function readMeriAdmittedRun(
       facts.allocationSha256 === alloc.allocationSha256 && sameJson(facts.qualificationBinding, qualification) &&
       sameJson(facts.binding, binding);
   };
-  const admitted = grants.filter((g) => !executionIds.has(g.grantId));
-  if (admitted.length < 1 || admitted.some((g) => !current(g))) throw notAdmitted();
-  for (const g of admitted) deadlineMs = Math.min(deadlineMs, g.expiresAtMs);
+  // Every declared grant: present, current, and bound to exactly the declared facts.
+  for (const f of declared) {
+    const rows = grants.filter((g) => g.grantId === f.grantId);
+    if (rows.length !== 1 || !current(rows[0]!) || !sameJson(factsOf(rows[0]!), f)) throw notAdmitted();
+    deadlineMs = Math.min(deadlineMs, rows[0]!.expiresAtMs);
+  }
+  // Every undeclared grant must be a Core-issued execution capability of this run.
+  const declaredIds = new Set(declared.map((f) => f.grantId));
+  const issued = await tx.clioMeriExecutionIssuance.findMany({
+    where: { tenantId: options.tenantId, runId: binding.runId }, select: { jti: true },
+  });
+  const executionIds = new Set(issued.map((r) => r.jti));
+  if (grants.some((g) => !declaredIds.has(g.grantId) && !executionIds.has(g.grantId))) throw notAdmitted();
   if (options.expect) {
     const own = grants.filter((g) => g.grantId === options.expect!.jti);
-    if (own.length !== 1 || !current(own[0]!) || own[0]!.capabilitySha256 !== options.expect.capabilitySha256) throw notAdmitted();
+    if (declaredIds.has(options.expect.jti) || own.length !== 1 || !current(own[0]!) ||
+        own[0]!.capabilitySha256 !== options.expect.capabilitySha256) throw notAdmitted();
+    deadlineMs = Math.min(deadlineMs, own[0]!.expiresAtMs);
   }
   if (!Number.isSafeInteger(deadlineMs) || deadlineMs <= dbNowMs) throw notAdmitted();
   return { allocation: alloc.allocation, allocationSha256: alloc.allocationSha256 as string, budgets, qualification, deadlineMs, dbNowMs };
