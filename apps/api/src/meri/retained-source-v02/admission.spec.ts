@@ -14,6 +14,7 @@ const DECISION = '22222222-2222-4222-8222-222222222222';
 const POLICY = 'a'.repeat(64);
 
 function fixture(operationId = 'get_client_context', input: Record<string, unknown> = { clientId: C }) {
+  const operationVersion = operationId === 'get_client_context' ? '0.3.0' : '0.2.0';
   const protocol = { input, metadata: {} };
   const correlation = {
     binding: { tenantId: T, actorId: A, conversationId: X, runId: R, attemptId: D, workerId: W, writerFence: 1 },
@@ -28,7 +29,7 @@ function fixture(operationId = 'get_client_context', input: Record<string, unkno
     binding: { tenantId: T, actorId: A, conversationId: X, runId: R, attemptId: D, writerFence: 3 },
     admittedBinding: correlation.binding, policyRevision: POLICY,
     correlationSha256: canonicalSha256(correlation), argumentsSha256: canonicalSha256(input),
-    callKey: 'call-one', kind: 'tool', operation: { id: operationId, version: '0.2.0' }, toolRequestSha256: null,
+    callKey: 'call-one', kind: 'tool', operation: { id: operationId, version: operationVersion }, toolRequestSha256: null,
     referenceSha256: null, jti: D, hardExpiryMs: 2000,
   };
   return { grant, protocol, correlation };
@@ -49,7 +50,7 @@ describe('Core retained source 0.2 post-auth admission', () => {
     const { grant, protocol, correlation } = fixture();
     expect(Object.keys(correlation)).toEqual(['binding', 'subject', 'policyRevision', 'normalizationContext']);
     expect(assertRetainedSourceV02Admission(grant, protocol, correlation, options)).toMatchObject({
-      clientId: C, operation: { id: 'get_client_context', version: '0.2.0' },
+      clientId: C, operation: { id: 'get_client_context', version: '0.3.0' },
       binding: { runId: R, actorId: A }, input: { clientId: C },
       argumentsSha256: canonicalSha256(protocol.input), requestSha256: canonicalSha256(protocol),
     });
@@ -90,6 +91,17 @@ describe('Core retained source 0.2 post-auth admission', () => {
     const changedMetadata = { input: protocol.input, metadata: { changed: true } };
     expect(assertRetainedSourceV02Admission(grant, changedMetadata, correlation,
       options).requestSha256).toBe(canonicalSha256(changedMetadata));
+  });
+
+  it('accepts only the revised profile version and keeps every other source at 0.2.0', () => {
+    const profile = fixture();
+    expect(() => assertRetainedSourceV02Admission({ ...profile.grant,
+      operation: { id: 'get_client_context', version: '0.2.0' } },
+    profile.protocol, profile.correlation, options)).toThrow(ForbiddenException);
+    const mail = fixture('mail.list_messages', { subject: { kind: 'client', entityId: C } });
+    expect(() => assertRetainedSourceV02Admission({ ...mail.grant,
+      operation: { id: 'mail.list_messages', version: '0.3.0' } },
+    mail.protocol, mail.correlation, options)).toThrow(ForbiddenException);
   });
 
   it('refuses client, conversation and subject widening even when the hash matches', () => {

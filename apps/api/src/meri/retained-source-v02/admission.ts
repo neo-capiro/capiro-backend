@@ -1,10 +1,11 @@
 import { types as nodeTypes } from 'node:util';
 import { ForbiddenException } from '@nestjs/common';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
-import { MERI_RETAINED_SOURCE_TOOLS, READ_DELEGATION_LIMITS, canonicalSha256, isSha, isUuid, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
+import { MERI_RETAINED_SOURCE_TOOLS, READ_DELEGATION_LIMITS, canonicalSha256,
+  isMeriRetainedSourceOperationVersion, isSha, isUuid, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
 import type { MeriReadDelegationGrant } from '../../auth/read-delegation/read-delegation-request.js';
 
-/** Exact Core 0.2 source names. These are deliberately separate from the legacy
+/** Exact Core retained source names. These are deliberately separate from the legacy
  * `/api/clio/tools/:name` manifest and do not activate those routes. */
 export const RETAINED_SOURCE_V02_OPERATIONS: ReadonlySet<string> = MERI_RETAINED_SOURCE_TOOLS;
 
@@ -34,7 +35,7 @@ export interface AuthenticatedRetainedSourceCorrelation {
 }
 
 export interface RetainedSourceV02Admission {
-  operation: { id: string; version: '0.2.0' };
+  operation: { id: string; version: '0.2.0' | '0.3.0' };
   binding: AuthenticatedRetainedSourceCorrelation['binding'];
   subject: AuthenticatedRetainedSourceCorrelation['subject'];
   input: Record<string, unknown>;
@@ -107,7 +108,7 @@ export function assertRetainedSourceV02Admission(
 ): RetainedSourceV02Admission {
   if (!grant || grant.kind !== 'tool' || !grant.operation ||
       !Number.isSafeInteger(options.nowMs) || options.nowMs >= grant.hardExpiryMs ||
-      !RETAINED_SOURCE_V02_OPERATIONS.has(grant.operation.id) || grant.operation.version !== '0.2.0') throw denied();
+      !isMeriRetainedSourceOperationVersion(grant.operation)) throw denied();
   const wire = snapshot(exact(protocol, ['input', 'metadata']));
   if (!record(wire.input)) throw denied();
   let correlationJson: string;
@@ -118,7 +119,7 @@ export function assertRetainedSourceV02Admission(
       !isSha(grant.correlationSha256) || sha256Hex(Buffer.from(correlationJson, 'utf8')) !== grant.correlationSha256) throw denied();
   const correlation = snapshot(exact(authenticatedCorrelation,
     ['binding', 'subject', 'policyRevision', 'normalizationContext']));
-  const operation = { id: grant.operation.id, version: '0.2.0' as const };
+  const operation = { id: grant.operation.id, version: grant.operation.version };
   const binding = exact(correlation.binding,
     ['tenantId', 'actorId', 'conversationId', 'runId', 'attemptId', 'workerId', 'writerFence']);
   if (binding.tenantId !== grant.tenantId || binding.actorId !== grant.actorId ||

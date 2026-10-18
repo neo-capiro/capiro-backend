@@ -451,6 +451,13 @@ describe('RC1 option B read delegation, Core owner', () => {
       const mail = { id: 'mail.list_messages', version: '0.2.0' };
       expect(parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail.list_messages',
         operation: mail, argumentsSha256: sha('a'), correlationSha256: sha('correlation') }), d.delegationId).operation).toEqual(mail);
+      const profile = { id: 'get_client_context', version: '0.3.0' };
+      expect(parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/get_client_context',
+        operation: profile, argumentsSha256: sha('a'), correlationSha256: sha('correlation') }),
+      d.delegationId).operation).toEqual(profile);
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/get_client_context',
+        operation: { ...profile, version: '0.2.0' }, argumentsSha256: sha('a'),
+        correlationSha256: sha('correlation') }), d.delegationId)).toThrow();
       expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail.list_messages',
         operation: mail, argumentsSha256: sha('a') }), d.delegationId)).toThrow();
       expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/query_tasks',

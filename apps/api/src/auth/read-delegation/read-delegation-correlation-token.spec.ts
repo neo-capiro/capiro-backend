@@ -61,4 +61,19 @@ describe('retained source read token correlation claim', () => {
     await expect(signReadToken(signer, { ...source, operation: { id: 'mail.list_messages', version: '0.3.0' },
       correlationSha256 })).rejects.toThrow();
   });
+
+  it('signs only get_client_context 0.3.0 while preserving other 0.2.0 source versions', async () => {
+    const correlationSha256 = sha('profile-observation-correlation');
+    const legacy = claims('get_client_context');
+    await expect(signReadToken(signer, {...legacy, correlationSha256})).rejects.toThrow();
+    const profile = {...legacy, operation: {id: 'get_client_context', version: '0.3.0'}, correlationSha256};
+    const {token} = await signReadToken(signer, profile);
+    expect(verifyReadToken(token, config, nowMs)?.operation).toEqual(profile.operation);
+    expect(verifyReadToken(mutateSigned(token, (body) => {
+      body.operation = {id: 'get_client_context', version: '0.2.0'};
+    }), config, nowMs)).toBeNull();
+    expect(verifyReadToken(mutateSigned(token, (body) => {
+      body.operation = {id: 'read_client_documents', version: '0.3.0'};
+    }), config, nowMs)).toBeNull();
+  });
 });
