@@ -1,6 +1,7 @@
 import { KeyObject, createHash, createPublicKey, sign, verify } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { readerLimits, readerPurposes, readerTokenType } from './objective-reader-v2-contract.js';
+import type { CoreEd25519Signer } from '../core-ed25519-signer.js';
 
 /** A distinct Objective-only protocol. These primitives authenticate a bounded
  * request; the issuer and reader still require genuine native/source authority.
@@ -99,24 +100,94 @@ const headerJson = (kid: string): string => JSON.stringify({ alg: 'EdDSA', typ: 
 const claimsJson = (v: ObjectiveReaderV2Claims): string => JSON.stringify({ iss: v.iss, sub: v.sub, aud: v.aud,
   iat: v.iat, nbf: v.nbf, exp: v.exp, jti: v.jti, objective: v.objective });
 
+/** Header and claims segments for one purpose; the caller signs the ASCII input. */
+function signingInput(b: ObjectiveReaderV2Request, issuer: string, kid: string, decision: ObjectiveReaderV2Decision): string {
+  const d = own(decision, ['jti', 'nowSeconds', 'expiresAtSeconds']) as unknown as ObjectiveReaderV2Decision;
+  if (!exact(issuerPattern, issuer) || !exact(kidPattern, kid) ||
+      !exact(uuid4, d.jti) || !integer(d.nowSeconds) || !integer(d.expiresAtSeconds)) refuse();
+  const exp = Math.min(d.expiresAtSeconds, d.nowSeconds + readerLimits.maxTokenSeconds);
+  if (exp <= d.nowSeconds) refuse();
+  const claims: ObjectiveReaderV2Claims = { iss: issuer, sub: readerPurposes[b.purpose].subject,
+    aud: readerPurposes[b.purpose].audience, iat: d.nowSeconds, nbf: d.nowSeconds, exp, jti: d.jti, objective: scope(b) };
+  return `${Buffer.from(headerJson(kid)).toString('base64url')}.${Buffer.from(claimsJson(claims)).toString('base64url')}`;
+}
+
 /** Only call after current native/source decisions and durable JTI allocation.
  * This helper neither creates a grant nor renews an original execution expiry. */
 export function issueObjectiveReaderV2Jwt(binding: ObjectiveReaderV2Request, signer: ObjectiveReaderV2Signer,
   decision: ObjectiveReaderV2Decision): string {
   try {
     const b = request(binding), s = own(signer, ['purpose', 'issuer', 'kid', 'privateKey']) as unknown as ObjectiveReaderV2Signer;
-    const d = own(decision, ['jti', 'nowSeconds', 'expiresAtSeconds']) as unknown as ObjectiveReaderV2Decision;
-    if (s.purpose !== b.purpose || !exact(issuerPattern, s.issuer) || !exact(kidPattern, s.kid) || !edKey(s.privateKey, 'private') ||
-        !exact(uuid4, d.jti) || !integer(d.nowSeconds) || !integer(d.expiresAtSeconds)) refuse();
-    const exp = Math.min(d.expiresAtSeconds, d.nowSeconds + readerLimits.maxTokenSeconds);
-    if (exp <= d.nowSeconds) refuse();
-    const claims: ObjectiveReaderV2Claims = { iss: s.issuer, sub: readerPurposes[b.purpose].subject,
-      aud: readerPurposes[b.purpose].audience, iat: d.nowSeconds, nbf: d.nowSeconds, exp, jti: d.jti, objective: scope(b) };
-    const input = `${Buffer.from(headerJson(s.kid)).toString('base64url')}.${Buffer.from(claimsJson(claims)).toString('base64url')}`;
+    if (s.purpose !== b.purpose || !edKey(s.privateKey, 'private')) refuse();
+    const input = signingInput(b, s.issuer, s.kid, decision);
     const token = `${input}.${sign(null, Buffer.from(input, 'ascii'), s.privateKey).toString('base64url')}`;
     if (Buffer.byteLength(token) > readerLimits.tokenBytes) refuse();
     return token;
   } catch { return refuse(); }
+}
+
+/**
+ * D7-2: the same token through the asynchronous pure-Ed25519 signer shape
+ * (`core-ed25519-signer.ts`), so the private key can be an AWS KMS
+ * `ECC_NIST_EDWARDS25519` key (ED25519_SHA_512 over RAW) or an in-process key.
+ * Byte-identical to `issueObjectiveReaderV2Jwt` for the same key and inputs.
+ */
+export async function issueObjectiveReaderV2JwtAsync(binding: ObjectiveReaderV2Request,
+  signer: { readonly purpose: ObjectiveReaderV2Purpose; readonly signer: CoreEd25519Signer },
+  decision: ObjectiveReaderV2Decision, options: { signal?: AbortSignal } = {}): Promise<string> {
+  let input: string, ed: CoreEd25519Signer;
+  try {
+    const b = request(binding), s = own(signer, ['purpose', 'signer']);
+    ed = s.signer as CoreEd25519Signer;
+    if (s.purpose !== b.purpose || !ed || typeof ed.sign !== 'function' || !edKey(ed.publicKey, 'public')) refuse();
+    input = signingInput(b, ed.issuer, ed.kid, decision);
+  } catch { return refuse(); }
+  let signature: Buffer;
+  try { signature = await ed.sign(Buffer.from(input, 'ascii'), { signal: options.signal }); } catch { return refuse(); }
+  if (!verify(null, Buffer.from(input, 'ascii'), ed.publicKey, signature)) refuse();
+  const token = `${input}.${signature.toString('base64url')}`;
+  if (Buffer.byteLength(token) > readerLimits.tokenBytes) refuse();
+  return token;
+}
+
+/** Published per-purpose public JWK pin for Meri's v2 reader gate:
+ * `(iss, sub, aud, kid) -> OKP/Ed25519`. No private material. */
+export interface ObjectiveReaderV2PublicPin {
+  readonly purpose: ObjectiveReaderV2Purpose;
+  readonly iss: string; readonly sub: string; readonly aud: string; readonly kid: string;
+  readonly jwk: { readonly kty: 'OKP'; readonly crv: 'Ed25519'; readonly x: string;
+    readonly kid: string; readonly alg: 'EdDSA'; readonly use: 'sig' };
+}
+
+/**
+ * Server-owned three-purpose set over the async signer shape. Purposes may not
+ * share a key, issuer or kid (same rule as the in-process set). `publicPins`
+ * is the exact material Meri pins; it is produced from the signers' pinned
+ * public keys (KMS `GetPublicKey` readback), never from request input.
+ */
+export function createObjectiveReaderV2AsyncSigner(signers: Readonly<Record<ObjectiveReaderV2Purpose, CoreEd25519Signer>>) {
+  const values = own(signers, Object.keys(readerPurposes));
+  const seenKeys = new Set<string>(), seenIssuers = new Set<string>(), seenKids = new Set<string>();
+  const captured = {} as Record<ObjectiveReaderV2Purpose, CoreEd25519Signer>;
+  for (const p of Object.keys(readerPurposes) as ObjectiveReaderV2Purpose[]) {
+    const s = values[p] as CoreEd25519Signer;
+    if (!s || typeof s.sign !== 'function' || !edKey(s.publicKey, 'public') ||
+        !exact(issuerPattern, s.issuer) || !exact(kidPattern, s.kid)) refuse();
+    const key = createHash('sha256').update(s.publicKey.export({ type: 'spki', format: 'der' })).digest('hex');
+    if (seenKeys.has(key) || seenIssuers.has(s.issuer) || seenKids.has(s.kid)) refuse();
+    seenKeys.add(key); seenIssuers.add(s.issuer); seenKids.add(s.kid); captured[p] = s;
+  }
+  const publicPins: readonly ObjectiveReaderV2PublicPin[] = Object.freeze((Object.keys(readerPurposes) as ObjectiveReaderV2Purpose[]).map(p => {
+    const s = captured[p], x = s.publicKey.export({ format: 'jwk' }).x;
+    if (typeof x !== 'string') refuse();
+    return Object.freeze({ purpose: p, iss: s.issuer, sub: readerPurposes[p].subject, aud: readerPurposes[p].audience, kid: s.kid,
+      jwk: Object.freeze({ kty: 'OKP' as const, crv: 'Ed25519' as const, x: x as string, kid: s.kid, alg: 'EdDSA' as const, use: 'sig' as const }) });
+  }));
+  return Object.freeze({
+    publicPins,
+    issue: (b: ObjectiveReaderV2Request, d: ObjectiveReaderV2Decision, options?: { signal?: AbortSignal }): Promise<string> =>
+      issueObjectiveReaderV2JwtAsync(b, { purpose: b.purpose, signer: captured[b.purpose] }, d, options),
+  });
 }
 function decode(part: string, maxBytes: number): string {
   if (!exact(segment, part)) refuse();
