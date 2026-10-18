@@ -34,10 +34,12 @@ history; the memory migrations have not been run or qualified in a live database
 
 Core's approval verifier now reads a bounded prepared-approval aggregate from the
 existing `run_facts_v1` interface and fails closed on missing, overflow, or mismatched
-facts. The corresponding Meri projection remains a **PLAN / receiving proposal**, not
-a runtime-available view. Meri source publication, migration registration, restricted
-role readback, and allocation-before-prepare proof remain gates. No raw-table grant is
-added. Confirm the exact source/image/config pins, migrations and restricted-role
+facts. The corresponding Meri projection is draft PR165 at
+`8a0fdd1fd874fef37899f550b3142329122bd3f5`, stacked on PR157. Its SQL is a
+**non-runnable receiving proposal** outside executable migrations and PLAN until
+Meri centrally allocates and pins a migration ID. Restricted-role runtime readback
+and allocation-before-prepare proof remain gates. No raw-table grant is added.
+Confirm the exact source/image/config pins, migrations and restricted-role
 behavior, signed relay, listener and output validation, and runtime readback before
 changing availability.
 
