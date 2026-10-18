@@ -83,8 +83,8 @@ import {
   wallExclusionSql,
 } from '../memory/memory-wall.helpers.js';
 import {
-  governedRecallSuppressionEnabled,
-  governedRecallSuppressionSql,
+  currentMemoryReadSql,
+  governedRecallColumnsAvailableInTx,
 } from '../memory/memory-recall-suppression.helpers.js';
 import { enrichFromKgCache } from '../memory/kg-cache-enrich.helpers.js';
 import { pickKgTraversalSource, type KgTraversalSource } from './memory-recall-source.helpers.js';
@@ -3186,21 +3186,18 @@ export class MeriToolsService {
         // not granted are excluded (fail-closed; empty denied set adds no SQL).
         const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
         const deniedSet = new Set(denied);
+        const memoryColumnsAvailable = await governedRecallColumnsAvailableInTx(tx);
         // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
         const items = await tx.$queryRaw<
           Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
         >`
         SELECT id, type, slug, title, sections_jsonb AS sections
         FROM memory_items
-        WHERE (owner_user_id IS NULL OR owner_user_id = ${ctx.userId}::uuid)
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND ((visibility = 'tenant' AND owner_user_id IS NULL)
+               OR (visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid))
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
-          -- Pre-existing defect this closes: query_knowledge_graph / find_path_to
-          -- filtered NO status at all, so revoked and superseded items still
-          -- surfaced to the model as graph nodes. Fixing it WITHHOLDS content that
-          -- is visible today, so it rides the same dark switch rather than shipping
-          -- armed. The legacy status column is deliberately still not filtered
-          -- here: narrowing that is a behaviour change with its own blast radius.
-          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
+          ${Prisma.raw(currentMemoryReadSql(memoryColumnsAvailable))}
       `;
         const itemNodeById = new Map(
           items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
@@ -3211,9 +3208,11 @@ export class MeriToolsService {
         SELECT e.src_item_id, e.relation, e.dst_type, e.dst_slug
         FROM memory_edges e
         JOIN memory_items i ON i.id = e.src_item_id
-        WHERE (i.owner_user_id IS NULL OR i.owner_user_id = ${ctx.userId}::uuid)
+        WHERE e.tenant_id = ${ctx.tenantId}::uuid AND i.tenant_id = ${ctx.tenantId}::uuid
+          AND ((i.visibility = 'tenant' AND i.owner_user_id IS NULL)
+               OR (i.visibility = 'user' AND i.owner_user_id = ${ctx.userId}::uuid))
           ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
-          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'i'))}
+          ${Prisma.raw(currentMemoryReadSql(memoryColumnsAvailable, 'i'))}
       `;
         // FK relations (structural backbone): client->bill/issue/person, meeting->client
         const fk: FkRelation[] = [];
