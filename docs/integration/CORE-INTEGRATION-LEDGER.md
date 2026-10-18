@@ -18,7 +18,7 @@ header, one distinct helper token request, one byte-bound callback and final
 receipt-expiry check. Migration execution remains held until the preceding
 staged `090000` source is qualified and applied. The selected-client proposal
 alias is also source-wired and hard disabled. Meri's durable proposal
-continuation port, an actual HTTP mount/raw-body check, Core target role and
+continuation port, deployed route/raw-body readback, Core target role and
 runtime readback remain outstanding.
 Keep this `100000` directory in the separate source packet and **out of the
 Stage1 migration tree** until Meri wire, target DB role/readback, disposable

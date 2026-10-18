@@ -12,7 +12,7 @@ The `receiveSignedMemoryProposalPage` export in `apps/api/src/meri/memory-receiv
 
 The shared read-token owner recognizes **only** `memory.list_own_proposals@0.2.0` as this correlated read operation at its exact versioned path. Its source gate refuses issuance **before minting the sole ordinary tool token** and refuses a disabled target before JTI consumption. The pre-byte release transaction also rereads the original exact UNKNOWN reservation. The original ADMITTED set, callKey, argument SHA, tool-token ceiling and current read-delegation checks remain unchanged. There is no source alias to `list_memory_proposals`.
 
-Meri's real `memory-proposals` task composition separately requires a trusted durable `memoryContextPortsForTask` continuation store; PR172's CLI has no production port. An in-memory map or synthetic test store does not satisfy that gate. An actual Nest HTTP route/raw-body mount test, current runtime image/config and proposal token/route readback are also absent. This source slice does not authorize enabling the receiver.
+Meri's real `memory-proposals` task composition separately requires a trusted durable `memoryContextPortsForTask` continuation store; PR172's CLI has no production port. An in-memory map or synthetic test store does not satisfy that gate. A focused local Nest HTTP route/raw-body mount test passed 2/2; current runtime image/config and proposal token/route readback are absent. This source slice does not authorize enabling the receiver.
 
 ## Focused evidence
 
