@@ -32,6 +32,11 @@ test('stage 1 is guarded, bounded, transactional and data-preserving', () => {
   assert.match(stage1Sql, /\bBEGIN;[\s\S]*\bCOMMIT;/);
   assert.match(stage1Sql, /SET LOCAL lock_timeout = '5s'/);
   assert.match(stage1Sql, /SET LOCAL statement_timeout = '30s'/);
+  const lockAt = stage1Sql.indexOf('LOCK TABLE public."clio_meri_memory_submissions" IN ACCESS EXCLUSIVE MODE;');
+  const guardAt = stage1Sql.indexOf('DO $stage1_guard$');
+  const alterAt = stage1Sql.indexOf('ALTER TABLE public."clio_meri_memory_submissions"');
+  assert.ok(lockAt > stage1Sql.indexOf('SET LOCAL lock_timeout'));
+  assert.ok(lockAt < guardAt && guardAt < alterAt);
   assert.match(stage1Sql, /public\."_prisma_migrations"/);
   assert.match(stage1Sql, /m\.finished_at IS NOT NULL/);
   assert.match(stage1Sql, /m\.rolled_back_at IS NULL/);
@@ -39,7 +44,17 @@ test('stage 1 is guarded, bounded, transactional and data-preserving', () => {
   assert.match(stage1Sql, /d70772020ba2cec0a4a590a62fa45c1922c774b77a0514836fbeb6204d3ecb97/);
   assert.match(stage1Sql, /r\.relrowsecurity AND r\.relforcerowsecurity/);
   assert.match(stage1Sql, /a\.atttypid = 'pg_catalog\.jsonb'::regtype[\s\S]*a\.attnotnull/);
+  for (const column of [
+    'tenant_id', 'candidate_id', 'candidate_sha256', 'proposer_user_id',
+    'review_id', 'candidate', 'created_at',
+  ]) {
+    assert.match(stage1Sql, new RegExp(`\\('${column}', 'pg_catalog\\.`));
+  }
+  assert.match(stage1Sql, /a\.atttypmod = expected\.typmod[\s\S]*a\.attnotnull/);
+  assert.match(stage1Sql, /\(d\.oid IS NOT NULL\) = expected\.has_default/);
+  assert.match(stage1Sql, /pg_catalog\.pg_get_expr\(d\.adbin, d\.adrelid\)\) = 'CURRENT_TIMESTAMP'/);
   assert.match(stage1Sql, /clio_meri_memory_submissions_candidate_check/);
+  assert.match(stage1Sql, /c\.convalidated/);
   assert.match(stage1Sql, /clio_meri_memory_submission_immutable/);
   assert.match(stage1Sql, /clio_meri_memory_submissions_isolation/);
   assert.match(stage1Sql, /ALTER TABLE public\."clio_meri_memory_submissions"\s+ALTER COLUMN "candidate" DROP NOT NULL;/);
