@@ -3,6 +3,9 @@
 -- Requested by dot #121 6248138427 / 6248171459 (instead of a column-level UPDATE grant to Core).
 -- NOT applied anywhere. Core's receiver (apps/api/src/meri/execution-capability/meri-admitted-run.reader.ts)
 -- calls exactly this signature on its existing transaction connection.
+-- Install as the verified Aurora installer (current_user = session_user), which must be able to
+-- CREATE ROLE, SET ROLE meri_product_migrator, grant a temporary SET-only reader membership,
+-- and create the authority schema. The Meri packet must read back these capabilities first.
 --
 -- Contract `capiro.meri-core-admission-snapshot.v1`:
 --   meri_core_authority.current_admission_v1(p_tenant_id uuid, p_conversation_id uuid, p_run_id uuid) RETURNS jsonb
@@ -31,8 +34,24 @@
 
 BEGIN;
 
+DO $install$
+BEGIN
+  IF current_user <> session_user THEN
+    RAISE EXCEPTION 'MERI_CORE_ADMISSION_INSTALLER_ROLE_REQUIRED';
+  END IF;
+END
+$install$;
+
 -- Dedicated owner: no login, no inheritance, not a superuser; only what the four reads and the row lock need.
 CREATE ROLE meri_core_admission_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+-- PostgreSQL 16 grants a CREATEROLE installer ADMIN but not SET on a newly created role.
+-- Add SET without inherited privileges, then remove this installer-issued membership before COMMIT.
+-- PostgreSQL retains the bootstrap ADMIN-only membership (SET FALSE, INHERIT FALSE) for
+-- a non-superuser CREATEROLE installer; that creator cannot revoke it.
+GRANT meri_core_admission_reader TO SESSION_USER WITH SET TRUE, INHERIT FALSE, ADMIN FALSE;
+
+-- The base objects belong to Meri's migrator. Grant as that owner, not as the Aurora installer.
+SET ROLE meri_product_migrator;
 GRANT USAGE ON SCHEMA meri_product_budget TO meri_core_admission_reader;
 GRANT USAGE ON SCHEMA meri_conversations TO meri_core_admission_reader;
 GRANT SELECT ON meri_conversations.native_allocations TO meri_core_admission_reader;
@@ -40,9 +59,18 @@ GRANT SELECT ON meri_product_budget.budget, meri_product_budget.runs, meri_produ
   meri_product_budget.grants, meri_product_budget.tool_grant_bindings TO meri_core_admission_reader;
 -- PostgreSQL requires UPDATE privilege for FOR SHARE; one column only, held by the definer role, never used.
 GRANT UPDATE (quarantined) ON meri_product_budget.budget TO meri_core_admission_reader;
+SET ROLE NONE;
 
 CREATE SCHEMA meri_core_authority;
 REVOKE ALL ON SCHEMA meri_core_authority FROM PUBLIC;
+-- The reader needs CREATE only while installing its SECURITY DEFINER function. Retain USAGE.
+GRANT USAGE, CREATE ON SCHEMA meri_core_authority TO meri_core_admission_reader;
+-- Core API runtime role only (the preview Core task's DB_USER; `capiro_app` in Core source, to be
+-- confirmed by the packet readback of the app credential's username).
+GRANT USAGE ON SCHEMA meri_core_authority TO capiro_app;
+
+-- Create as the definer so no ALTER OWNER (which also requires schema CREATE) is needed.
+SET ROLE meri_core_admission_reader;
 
 CREATE FUNCTION meri_core_authority.current_admission_v1(p_tenant_id uuid, p_conversation_id uuid, p_run_id uuid)
 RETURNS jsonb
@@ -110,12 +138,13 @@ BEGIN
 END
 $fn$;
 
-ALTER FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) OWNER TO meri_core_admission_reader;
 REVOKE EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) FROM PUBLIC;
--- Core API runtime role only (the preview Core task's DB_USER; `capiro_app` in Core source, to be
--- confirmed by the packet readback of the app credential's username).
-GRANT USAGE ON SCHEMA meri_core_authority TO capiro_app;
 GRANT EXECUTE ON FUNCTION meri_core_authority.current_admission_v1(uuid, uuid, uuid) TO capiro_app;
+SET ROLE NONE;
+
+REVOKE CREATE ON SCHEMA meri_core_authority FROM meri_core_admission_reader;
+-- Revoke the installer-issued SET membership; the bootstrap ADMIN-only edge remains.
+REVOKE meri_core_admission_reader FROM SESSION_USER;
 
 COMMIT;
 
