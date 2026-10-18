@@ -103,6 +103,13 @@ entry). All on the integrated tree.
 | intel-api `retained-florida-read.service.spec.ts` | 36/36 |
 | After R10 (`8baab30b`): apps/api `nest build`, `tsc --noEmit --rootDir .` | pass, pass |
 | After R10: 18 suites touching the guard, read-mode or evidence-mode list (`application-authority-boundary`, authority module/spec/membership, read-mode controller/service, guard + compat, meri funding observation (+http), tools registration/award/federal-grants/program-elements, action-proposal/RP/attachment HTTP transports) | 17/18 suites. **Boundary spec passes.** The remaining red is `meri-tools.program-elements-mode.spec.ts`, pre-existing at #82 (D12). The RP transport spec needed `@capiro/meriv2-orchestrator` deps installed; after that, 8/8. |
+| After R11 + §8 enumeration: apps/api `nest build`, `tsc --noEmit --rootDir .`; intel-api `tsc`; infra/cdk `tsc --noEmit` | pass |
+| Jest after R11: 18 api suites (retained trust/JCS/signed admission, tool allowlist, authority/membership/boundary, tenant middleware incl. #83 control credential and preview GETs, retained principal/request/native, Meri funding/RP/attachment HTTP transports) | 18/18, 449/449 |
+| Jest after R11: intel-api `tracker/editorial` (retained Florida read/controller/trust, current authority, publisher coverage) | 5/5, 102/102 |
+| infra/cdk node:test: `preview-first-chat-core.spec.ts` + `first-chat-meri-ingress.spec.ts` | 8/8 |
+| `infra/routing/capiro-prod-alb-first-match.test.mjs` (per-step routing equality, enumerated Core layout) | 8/8 |
+| `scripts/engagement-api-infra-discover.spec.mjs` | 17/17 |
+| `scripts/ci/newsletter-declared-edge.contract.spec.mjs` | 0/1, pre-existing since #78 (D14) |
 
 Not run: full API/intel/strategy suites, DB-backed or native PostgreSQL
 qualification, CDK synth, image build/scan, any e2e/browser test. Those belong to the integrated candidate.
@@ -155,7 +162,7 @@ closed for a family until its row is wired or deferred by a Neo record.
 | W2 Objective admission issuance | `createObjectiveAdmissionRuntime()` disabled factory | Qualified genuine admission/base authority and purpose-qualified credentials (Core decision RS256) | Fable |
 | W3 Strategy acceptance/results receiving | Zero-arg closed factory in api-strategy `PlannerModule` | Core native/retained-access/credential owners + qualified Meri custody (`meri_objective_source.custody`) | Fable |
 | W4 Planner continuation / Strategy intake | Code mounted, flags off | Flag flip only after W2/W3 + migration reconciliation | Neo/dot |
-| W5 Preview listener scope | **Encoded in source (§8.1).** Priority 1 = 3 POST patterns, priority 2 = 3 GET patterns, guard 3 unchanged, all within ALB limits | Listener ownership readback plus one coordinated change set (dot). No live change here | dot |
+| W5 Preview listener scope | **Encoded in source (§8.1).** Six Core rules at priorities 1–6 (exact tool enumeration) and the guard at 7. The registry reservation shifts every later rule up in its existing order; the simulator proves routing is unchanged for all other hosts at every step | Owner approvals for the hand-managed rule moves, listener readback, then one coordinated change set (dot). No live change here | dot |
 | W6 New Core image | `FIRST_CHAT_CORE_IMAGE_PINS = null`; PR48 is refused | Build and scan the integrated image, then pin its source and digest together (§8.4) | Fable (when builds are authorized) |
 | W8 Meri memory M2 routes (source task) | Meri `apps/control/memory/core-review.mjs` / `core-memory.mjs` @ `39278a97` call four Core POSTs that do not exist | Implement a bounded receiving contract over the existing owners (dot #121 6245767749). It must not alias `proposeSaveMemory`, which randomizes candidate IDs and can commit inline on PASS. <br>1. `POST /api/clio/memory/review/submit {candidate,candidateSha256}`: immutable candidateId with hash dedup, conflict refusal, review-only ack `{candidateId,candidateSha256,reviewId,accepted:true}`. <br>2. `/review/status`: batch pairs, each pair once, returning `{reviews,checkedAt}`, with proposer visibility. <br>3. `/read_target {memoryId}` returning `{memory}`. <br>4. `/find_by_key {scope,clientId,key}` returning `{memory}`. <br>Target facts: canonical tenantId, memoryId, memorySha256, scope, clientId, ownerActorId, key, state. <br>Authority: native bearer + service identity, preserving the existing review/publication lifecycle. Hash/status mapping is agreed with R0. <br>Firm memory also needs permission reconciliation: `ApplicationMembershipService` emits `permissions:[]`, but M2 requires `memory.propose.firm`. <br>Anchors: Core `memory-candidate.service.ts` 271–285, `application-membership.service.ts` 51–55 | Fable (Core) with R0 |
 | W9 Service identity on the preview task | **Encoded in source (§8.3):** `INTERNAL_SERVICE_SECRET` from an exact Secrets Manager ARN, server-side only | Choose and read back the secret; the Meri broker holds the same value | Fable + dot |
@@ -178,6 +185,7 @@ closed for a family until its row is wired or deferred by a Neo record.
 | D11 | **resolved** `12ce8b79` | api-strategy TS6059 (already red at `e5c8f920`): Objective reader-v2 specs import the Core reader-v2 contract from outside `rootDir: src`. `rootDir` is an emit concern, so it now lives only in `tsconfig.build.json` (the `nest build` config). Typecheck/ts-jest use `tsconfig.json` without it. No `include` was widened; build output is unchanged. | #64/#66 |
 | D12 | test red, pre-existing | `apps/api/src/meri/meri-tools.program-elements-mode.spec.ts` (12 tests) mocks `./meri-defense-budget-tool.helpers.js` as `{}`, but `MeriToolsService`'s PE tools call `modelBudgetLineMetadata` from it (`TypeError … is not a function`). The spec, the service and the helper are byte-identical at #82 `fca52341`, where #68's commit is titled "Preserve incomplete native read mode source handoff". Not changed here, since the mock's intent is the #68 owner's call. Likely fix: `jest.requireActual` for that helper, or add `modelBudgetLineMetadata` to the mock. | #68 |
 | D13 **SEC** | activation gate | The retained codecs require a trusted RFC 8785 JCS provider. This branch adds an in-repo serializer (`@capiro/shared/core-retained-jcs`) that refuses non-JSON input (non-finite numbers, lone surrogates, sparse arrays, non-plain objects, cycles) and passes the RFC 8785 §3.2.3/§3.2.4 vectors. The #35 handoff called for a separately qualified provider; the only published package (`canonicalize` 5.x) is ESM-only and was updated 2026-09, so it was not added to a signing path or the shared lockfile without an owner decision. Qualify (or replace) before `RETAINED_READS_ENABLED=true` | R11 |
+| D14 | test red, pre-existing | `scripts/ci/newsletter-declared-edge.contract.spec.mjs` fingerprints `scripts/engagement-api-alb-rules.sh` at backend-import's bytes/SHA-256 (`133d9067…`) and expects preview priority 6. #78 (`bcdd6899`) already changed that script (to 7), so the spec fails at #84's merge without my edits. This branch moves it again (to 10, per §8.1). Re-seal the contract fingerprint and priority with the newsletter owner | #78 / newsletter contract |
 | X1 | cross-repo (Meri), **fixed by R0** | Meri callers built `/clio/...` without Core's `/api` prefix. dot counted at least 6 caller files (memory core-http, commands source-http, action-items, memory-proposals, original-tracking, research-portfolio-evidence). R0 prefixed them in meri-greenfield `adcdd120` (#121 6245813936). Core: the §8 packet now includes the RP-evidence GETs | meri-greenfield |
 
 ## 7. Next actions
@@ -195,22 +203,64 @@ Scope: the shared ALB listener `capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc44
 6245767749. dot reviews read-only. **No listener, task, secret, key, image or AWS change is made by #84.**
 Physical rule ownership and the current template must be read back before any change set.
 
-### 8.1 Listener rules (source)
+### 8.1 Listener rules and priority reservation (source)
 
-ALB limits (AWS "Condition types for listener rules"): at most 3 match values per condition, 5 match
-evaluations per rule (host + method + 3 paths = 5), and 128 characters per path pattern. Rules after the
-priority-3 host-only guard never match this host. Priority 5 is another host, and priority 6 is a path-only
-rule, so every Core rule must stay in priorities 1–2. The guard stays at 3, unchanged.
+ALB limits (AWS "Condition types for listener rules"):
+- at most 3 match values per condition;
+- 5 match evaluations per rule (host + method + 3 paths = 5);
+- 128 characters per path pattern;
+- no lookaround.
 
-| Priority (logical ID) | Method | Path regex values (each ≤128) |
+Ordering constraints:
+- Every Core preview rule, and the host-only guard, must precede **every any-host rule**. The first one today is `engagement-preview` at 6; after it come recall, onboard-path, prod-api … prod-webhooks. Otherwise preview-host traffic reaches production.
+- All existing rules keep their current relative order. For example, onboarding-host traffic depends on `engagement-preview` < `recall-webhook` < `onboard-host`.
+
+Exact tool enumeration (dot, no `tools/*` wildcard) needs 11 patterns, so 4 tool rules. With the non-tool POST rule, the GET rule and the guard, Core needs 7 slots ahead of the any-host block. The reservation therefore shifts every later rule upward in its existing order.
+
+**Core rules** (`infra/cdk/lib/preview/first-chat-core-routes.json`, shared by CDK and the simulator):
+
+| Priority | Logical ID | Method | Path regex values |
+| --- | --- | --- | --- |
+| 1 | `FirstChatPostsOnly` (existing) | POST | `^/api/clio/application-authority/(identity\|context\|membership\|read-mode-observation\|retained-florida-(budget\|principal))$` · `^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?\|florida-(native-)?current)$` · `^/api/clio/(conversations/bootstrap\|clients/check-ref\|retained-reads/research-portfolio(-changes)?)$` |
+| 2 | `FirstChatMembershipPostOnly` (existing) | GET | `^/api/(me\|clients)$` · `^/api/clients/<uuid v1-5>$` · `^/api/research-portfolios/[0-9a-f-]{36}(/(changes\|reviews\|annual-review\|snapshots/[0-9a-f-]{36}))?$` |
+| 3 | `FirstChatMeriTools1` | POST | `^/api/clio/tools/(create_task\|get_(acquisition_person\|b(ill_status\|usiness_development_(context\|recent_changes))))$` · `^/api/clio/tools/(get_(committee_roster\|district_(federal_market\|nexus_c(hanges\|ontext))\|funding_opportunity(_requirements)?))$` · `^/api/clio/tools/(get_(legal_reference\|opportunity_(client_context\|government_landscape)\|pe_b(ills\|udget_timeline)))$` |
+| 4 | `FirstChatMeriTools2` | POST | `^/api/clio/tools/(get_(p(e_(contractors\|report_language)\|rogram_element)\|representation\|state_(bill_status\|legislator)))$` · `^/api/clio/tools/(l(ist_mem(bers\|ory_proposals)\|ookup_client_registry)\|query_(action_items\|economic_data\|global_data))$` · `^/api/clio/tools/(query_(intelligence\|knowledge_graph\|outreach\|regulatory_dockets\|tasks)\|read_bill_text\|save_chat_attachments)$` |
+| 5 | `FirstChatMeriTools3` | POST | `^/api/clio/tools/(s(ave_memory\|crape_web_page\|earch_(acquisition_personnel\|c(apiro_data\|bo_cost_estimates\|lient_knowledge))))$` · `^/api/clio/tools/(search_(c(o(mmittee_hearings\|n(gress_bills\|tract_vehicles))\|rs_reports)\|f(ara_registrations\|ederal_awards)))$` · `^/api/clio/tools/(search_(f(ederal_(contract_awards\|grants\|subawards)\|loor_votes\|unding_opportunities)\|gao_reports))$` |
+| 6 | `FirstChatMeriTools4` | POST | `^/api/clio/tools/(search_(intel_articles\|l(da_filings\|egi(slative_research\|watch_news))\|pro(curement_forecasts\|gram_elements)))$` · `^/api/clio/tools/(search_(public_web\|s(ec_filings\|tate_(bills\|floor_votes))\|tracked_bills)\|update_task)$` |
+| 7 | retained guard stack | any | host-only 404 (moved from 3; conditions unchanged) |
+
+The tool patterns are generated deterministically from the 65-name list (`first-chat-core-route-packing.ts`, trie-factored). The CDK spec expands every pattern's exact language and asserts that, together, they accept exactly the 65 names, each exactly once, and nothing else.
+
+**Reservation for existing rules.** The relative order is unchanged. Apply highest-first, so no move crosses another rule:
+
+| Step | Rule (owner) | Live → reserved |
 | --- | --- | --- |
-| 1 (`FirstChatPostsOnly`) | POST | `^/api/clio/application-authority/(identity\|context\|membership\|read-mode-observation\|retained-florida-(budget\|principal))$` · `^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?\|florida-(native-)?current)$` · `^/api/clio/(conversations/bootstrap\|clients/check-ref\|tools/[a-z][a-z0-9_]{1,63}\|retained-reads/research-portfolio(-changes)?)$` |
-| 2 (`FirstChatMembershipPostOnly`) | GET | `^/api/(me\|clients)$` · `^/api/clients/<uuid v1-5>$` · `^/api/research-portfolios/[0-9a-f-]{36}(/(changes\|reviews\|annual-review\|snapshots/[0-9a-f-]{36}))?$` |
-| 3 (retained guard stack) | any | host-only 404, unchanged |
+| 1 | `prod-webhooks` `/webhooks/*` | 15 → 19 |
+| 2 | `dev-intel` `/intel-api/*` | 14 → 18 |
+| 3 | `prod-meriv2` `/meri-api/*` (`scripts/meri-alb-rules.sh` default updated) | 13 → 17 |
+| 4 | `prod-workspace` `/workspace-api/*` | 12 → 16 |
+| 5 | `prod-strategy` `/strategy-api/*` | 11 → 15 |
+| 6 | `prod-api` `/api/*` | 10 → 14 |
+| 7 | `onboard-path` `/onboard-api/*` (`scripts/onboard-alb-rules.sh` updated) | 9 → 13 |
+| 8 | `onboard-host` onboarding.capiro.ai (same script) | 8 → 12 |
+| 9 | `recall-webhook` `/webhooks/recall*` | 7 → 11 |
+| 10 | `engagement-preview` header + `/api/engagement/*` (`scripts/engagement-api-alb-rules.sh` updated) | 6 → 10 |
+| 11 | `engagement-callbacks` app.capiro.ai | 5 → 8 |
+| 12 | `core-guard` (retained guard stack, `FIRST_CHAT_CORE_GUARD_PRIORITY`) | 3 → 7 |
+| then | `meri-preview` (held, not live; `FIRST_CHAT_MERI_INGRESS_PRIORITY`) | candidate 6 → 9 |
+| then | Core rules 1–2 updated in place; `FirstChatMeriTools1–4` created at 3–6 | — |
 
-The spec (`infra/cdk/test/preview-first-chat-core.spec.ts`) asserts every value ≤128 characters, ≤3 per
-condition, anchored, with no lookaround. It also checks every route below and every allowlisted tool path
-matches, and lists near-miss paths that must not.
+`marketing-host` (20), `os-host` (50) and the default are unchanged.
+
+Proof (offline, `infra/routing/capiro-prod-alb-first-match.test.mjs`, 8/8):
+- Every step yields identical first-match results for every non-Core request in the host × path × method × header matrix.
+- In the final layout, every §8.2 route and every allowlisted tool reaches Core.
+- Near-misses on the preview host (unlisted tools, Florida via tools, `GET` tools, analytics, `/health`, other APIs) hit the guard's 404.
+- The guard precedes every any-host rule.
+
+These are **live priority changes to hand-managed production rules**; the registry marks several of them "do not alter". Each owner must approve, and the current listener must be read back (it is unverified against the frozen snapshot) before a coordinated change set. Nothing is applied here.
+
+Alternative with no relocation: keep the earlier two-rule layout with a bounded `tools/[a-z][a-z0-9_]{1,63}` pattern and rely on Core's `MERI_TOOL_ALLOWLIST`. dot preferred exact enumeration, so this branch encodes the reservation. The Core allowlist stays as defense in depth.
 
 ### 8.2 Route / method / authority bindings
 
@@ -221,7 +271,7 @@ ALB query strings are not part of the path match. Core enforces method, authorit
 | A1 | POST `/api/clio/application-authority/{identity,context,membership}` | Meri control | Native Clerk session bearer **or** the marked control credential (#83: only these three, early online check). `RolesGuard` |
 | A2 | POST `/api/clio/conversations/bootstrap`, `/api/clio/clients/check-ref` | browser / Meri | Native session bearer. `RolesGuard` |
 | A3 | POST `/api/clio/application-authority/read-mode-observation` | Meri gateway | Native bearer **and** a *matching* `x-internal-service-secret`; the service requires the verified proof |
-| A4 | POST `/api/clio/tools/:name` | Meri gateway / control | Native bearer **and** `x-internal-service-secret` (enforced: `NODE_ENV=production`, `MERI_TOOLS_REQUIRE_SERVICE_SECRET=true`). `:name` must be in `MERI_TOOL_ALLOWLIST`: the **65 exact names** from dot's fixed inventory (`infra/cdk/lib/preview/first-chat-core-meri-tools.json`), intersected with the Core manifest. Anything else returns 404 like an unknown tool. Writes in the list: `create_task`, `update_task`, `save_memory`, `save_chat_attachments`. Florida budget is **not** a tool here. |
+| A4 | POST `/api/clio/tools/:name` | Meri gateway / control | Native bearer **and** `x-internal-service-secret` (enforced: `NODE_ENV=production`, `MERI_TOOLS_REQUIRE_SERVICE_SECRET=true`). The listener enumerates exactly these names (rules 3–6), and Core also refuses any other `:name` through `MERI_TOOL_ALLOWLIST`: the **65 exact names** from dot's fixed inventory (`infra/cdk/lib/preview/first-chat-core-meri-tools.json`), intersected with the Core manifest. Anything else returns 404 like an unknown tool. Writes in the list: `create_task`, `update_task`, `save_memory`, `save_chat_attachments`. Florida budget is **not** a tool here. |
 | A5 | POST `/api/clio/application-authority/retained-{research-portfolio,research-portfolio-changes,florida-budget}` and `retained-{research-portfolio,research-portfolio-changes,florida}-principal` | Meri control | Native bearer. Issuer + current facts. `RolesGuard standard_user` |
 | A6 | POST `/api/clio/retained-reads/research-portfolio(-changes)`, `/api/clio/application-authority/retained-florida-current` | Meri retained transport (validates the legacy shape, then emits the signed POST); Intel | Signed `Authorization: CapiroRetained <envelope>`. **Not** `RolesGuard` or Bearer: the tenant middleware admits only this exact path + POST + scheme while `RETAINED_READS_ENABLED=true`; the controller verifies the pinned Ed25519 signature and digests, then freshly rechecks native and resource authority |
 | A7 | POST `/api/clio/application-authority/retained-florida-native-current` | Intel | Signed `CapiroRetainedAuthority <probe>` only, admitted the same exact way; verified with the probe key |
@@ -260,4 +310,4 @@ routes (no Core owner yet).
    - an Intel image that contains this branch's Intel wiring.
    If the new secrets use a CMK other than the two already granted, the execution role needs `kms:Decrypt` via Secrets Manager for it.
 4. JCS qualification of the in-repo RFC 8785 serializer (D13) before trust is enabled.
-5. Listener ownership readback, then one coordinated change set (dot).
+5. Owner approval for each hand-managed rule move in §8.1, a readback of the current listener against the frozen snapshot, then one coordinated change set (dot), applied in the §8.1 step order.

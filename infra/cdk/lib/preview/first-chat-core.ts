@@ -8,6 +8,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import meriTools from './first-chat-core-meri-tools.json';
+import routes from './first-chat-core-routes.json';
 
 // This is a separate, held service. The drifted live ComputeStack and its
 // production API service are not owned or updated by this composition.
@@ -28,9 +29,11 @@ export const FIRST_CHAT_CORE_RETIRED_PR48: FirstChatCoreImagePins = {
 };
 export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
 // Reserved alongside Meri and the hand-managed rules in
-// infra/routing/capiro-prod-alb-priorities.json. Neither rule is live merely
+// infra/routing/capiro-prod-alb-priorities.json. No rule is live merely
 // because this source is rendered; the retained guard is deployed separately.
-export const FIRST_CHAT_CORE_GUARD_PRIORITY = 3;
+// The guard moves from 3 to 7 only after the registry's relocation order has
+// shifted every any-host rule above it (see the routing first-match tests).
+export const FIRST_CHAT_CORE_GUARD_PRIORITY = 7;
 export const FIRST_CHAT_CORE_GUARD_STACK_NAME = 'Capiro-Preview-First-Chat-Core-Guard';
 export const FIRST_CHAT_CORE_GUARD_RULE_EXPORT =
   'Capiro-Preview-First-Chat-Core-Guard-RuleArn';
@@ -65,28 +68,22 @@ const live = {
   clerkIssuer: 'https://clerk.app.capiro.ai',
 } as const;
 
-/** Exact tool names Meri may execute on this task (MERI_TOOL_ALLOWLIST). The
- * listener cannot hold 65 names within ALB limits (3 values x 128 characters
- * per condition, priorities 1-2 before the retained guard), so it forwards a
- * bounded tool pattern and Core refuses any name outside this list. */
+/** Exact tool names Meri may execute on this task (dot's fixed inventory). The
+ * listener enumerates them (FIRST_CHAT_CORE_TOOL_PATH_GROUPS) and Core also
+ * refuses any other name through MERI_TOOL_ALLOWLIST. */
 export const FIRST_CHAT_CORE_MERI_TOOLS: readonly string[] = Object.freeze([...meriTools.tools]);
 
 /** Core paths Meri and Intel call on this host (route/method/authority packet in
- * docs/integration/CORE-INTEGRATION-LEDGER.md section 8). Each value is at most
- * 128 characters; ALB permits three per condition and five evaluations per rule. */
-export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([
-  // Native bearer (control credential only at identity/context/membership).
-  '^/api/clio/application-authority/(identity|context|membership|read-mode-observation|retained-florida-(budget|principal))$',
-  // Native issuance, plus Intel's signed CapiroRetained/CapiroRetainedAuthority current checks.
-  '^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?|florida-(native-)?current)$',
-  // Native bootstrap/check-ref, service-identity tools, signed CapiroRetained data reads.
-  '^/api/clio/(conversations/bootstrap|clients/check-ref|tools/[a-z][a-z0-9_]{1,63}|retained-reads/research-portfolio(-changes)?)$',
-]);
-export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([
-  '^/api/(me|clients)$',
-  '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-  '^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$',
-]);
+ * docs/integration/CORE-INTEGRATION-LEDGER.md section 8), shared with the
+ * offline first-match model through first-chat-core-routes.json. Each value is
+ * at most 128 characters; ALB permits three per condition and five evaluations
+ * per rule (host + method + three paths). */
+export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([...routes.post]);
+export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([...routes.get]);
+export const FIRST_CHAT_CORE_TOOL_PATH_GROUPS: readonly (readonly string[])[] = Object.freeze(
+  routes.tools.map((group) => Object.freeze([...group])),
+);
+export const FIRST_CHAT_CORE_TOOL_RULE_PRIORITIES: readonly number[] = Object.freeze([...routes.priorities.tools]);
 
 const SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}$`);
 const PIN_TEXT = /^[\x21-\x7e]{1,256}$/;
@@ -365,14 +362,14 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     service.attachToApplicationTargetGroup(target);
 
     // ALB permits at most three path match evaluations per condition and five
-    // per rule, and 128 characters per pattern. Three anchored expressions cover
-    // every Meri/Intel POST on this host; three cover the native GETs. Preserve
-    // both existing listener rule logical IDs so an in-place update remains
-    // possible if this stack owns the physical rules. Confirm that ownership
-    // from the current template before any application. The independently
-    // retained host-only 404 guard (priority 3, unchanged) prevents production
-    // /api/* fallback on this host. Intel routes are not served here: Meri and
-    // Core reach Intel at RETAINED_INTEL_ORIGIN through the existing Intel rule.
+    // per rule, and 128 characters per pattern. Priority 1 holds the non-tool
+    // POSTs, 2 the native GETs, and 3-6 the enumerated Meri tools; the retained
+    // host-only 404 guard follows at 7. Preserve both existing listener rule
+    // logical IDs so an in-place update remains possible if this stack owns the
+    // physical rules. Confirm that ownership from the current template, and
+    // complete the registry relocation, before any application. Intel routes
+    // are not served here: Meri and Core reach Intel at RETAINED_INTEL_ORIGIN
+    // through the existing Intel rule.
     const firstChatPosts = new elb.CfnListenerRule(this, 'FirstChatPostsOnly', {
       listenerArn: live.listenerArn,
       priority: 1,
@@ -405,6 +402,17 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
+    const toolRules = FIRST_CHAT_CORE_TOOL_PATH_GROUPS.map((group, index) =>
+      new elb.CfnListenerRule(this, `FirstChatMeriTools${index + 1}`, {
+        listenerArn: live.listenerArn,
+        priority: FIRST_CHAT_CORE_TOOL_RULE_PRIORITIES[index]!,
+        conditions: [
+          { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
+          { field: 'path-pattern', pathPatternConfig: { regexValues: [...group] } },
+          { field: 'http-request-method', httpRequestMethodConfig: { values: ['POST'] } },
+        ],
+        actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+      }));
     // CloudFormation must resolve an export from the independently completed
     // guard stack. Its rule is not owned by this stack or removed on rollback.
     new cdk.CfnOutput(this, 'RequiredPreviewHostGuardRuleArn', {
@@ -412,7 +420,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     });
     // ECS registration requires the target group to be associated with the
     // listener before CreateService, even while desiredCount is zero.
-    service.node.addDependency(firstChatPosts, browserReads);
+    service.node.addDependency(firstChatPosts, browserReads, ...toolRules);
 
     new cdk.CfnOutput(this, 'CoreApiBaseUrl', {
       value: `https://${FIRST_CHAT_CORE_HOST}/api`,

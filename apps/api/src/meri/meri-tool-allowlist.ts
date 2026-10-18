@@ -2,9 +2,10 @@ import { NotFoundException } from '@nestjs/common';
 
 /** Exact tool names a deployment may execute through `POST /api/clio/tools/:name`.
  * Unset keeps today's behavior (every registered tool). The preview Core task
- * sets it from infra/cdk/lib/preview/first-chat-core-meri-tools.json so the
- * listener's bounded tool pattern never widens to unlisted (including write)
- * tools. Config validation rejects a malformed list at startup. */
+ * sets it from infra/cdk/lib/preview/first-chat-core-meri-tools.json, the same
+ * list the preview listener enumerates, so an unlisted (including write) tool
+ * is refused here even if it reached the task another way. Config validation
+ * rejects a malformed list at startup. */
 export const MERI_TOOL_ALLOWLIST_PATTERN = /^[a-z][a-z0-9_]{1,63}(,[a-z][a-z0-9_]{1,63})*$/;
 
 export function parseMeriToolAllowlist(raw: string | undefined): ReadonlySet<string> | null {

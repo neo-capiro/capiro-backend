@@ -36,7 +36,7 @@ test('defaults to one retained exact-host deny with no target, service, DNS, or 
   assert.equal(rule.Properties.ListenerArn,
     'arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440');
   assert.equal(rule.Properties.Priority, FIRST_CHAT_MERI_INGRESS_PRIORITY);
-  assert.equal(rule.Properties.Priority, 6);
+  assert.equal(rule.Properties.Priority, 9); // reserved in infra/routing/capiro-prod-alb-priorities.json
   assert.deepEqual(rule.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_MERI_HOST] } },
   ]);
