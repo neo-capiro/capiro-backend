@@ -16,6 +16,7 @@ import * as keyConfig from '../../auth/core-ed25519-key-config.js';
 import * as helperSource from './meri-memory-helper-source.js';
 import * as helperReceiver from './meri-memory-helper-receiver.js';
 import * as signedPage from './meri-memory-signed-page-source.js';
+import * as proposalPage from './meri-memory-proposal-receiver.js';
 import * as proofIssuer from './meri-memory-proof-issuer.js';
 import * as requestControl from '../meri-tool-request-control.js';
 import * as toolAllowlist from '../meri-tool-allowlist.js';
@@ -109,6 +110,48 @@ describe('signed passive memory HTTP composition remains closed in source', () =
       .rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(read).not.toHaveBeenCalled();
     expect(sign).not.toHaveBeenCalled();
+  });
+
+  it('keeps the exact dotted proposal alias at 503 before the receiver or tool allowlist', async () => {
+    const controller = bareMeriController();
+    const receive = jest.spyOn(proposalPage, 'receiveSignedMemoryProposalPage');
+    const allow = jest.spyOn(toolAllowlist, 'assertMeriToolAllowed');
+    await expect(controller.executeTool(ctx, 'memory.list_own_proposals', {}, req(proposalPath)))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(receive).not.toHaveBeenCalled();
+    expect(allow).not.toHaveBeenCalled();
+  });
+
+  it('passes the signed proposal grant, correlation, service marker and pre-byte release to its owner', async () => {
+    // Exercise the held composition without changing its source-only hard gate.
+    jest.spyOn(gate, 'signedMemoryProposalEnabled').mockReturnValue(true);
+    jest.spyOn(serviceIdentity, 'hasVerifiedToolServiceIdentity').mockReturnValue(true);
+    const grant = { kind: 'tool', operation: { id: 'memory.list_own_proposals', version: '0.2.0' } };
+    const correlation = { binding: 'signed-test' };
+    jest.spyOn(delegationRequest, 'meriReadDelegationOf').mockReturnValue(grant as never);
+    jest.spyOn(delegationRequest, 'meriRetainedCorrelationOf').mockReturnValue(correlation);
+    const release = jest.spyOn(delegationRequest, 'assertMeriReadDelegationReleasable')
+      .mockResolvedValue(undefined);
+    jest.spyOn(requestControl, 'withMeriToolRequestControl').mockImplementation(async (_request, run) => run());
+    const result = { tool: 'list_memory_proposals', candidates: [] };
+    const receive = jest.spyOn(proposalPage, 'receiveSignedMemoryProposalPage').mockImplementation(async (options) => {
+      await options.releaseDelegatedRead();
+      return result as never;
+    });
+    const allow = jest.spyOn(toolAllowlist, 'assertMeriToolAllowed');
+    const controller = bareMeriController();
+    const owner = { listOwnProposals: jest.fn() };
+    (controller as unknown as { memoryCandidateOwner: unknown }).memoryCandidateOwner = owner;
+    const request = req(proposalPath);
+    const body = { input: { clientId: tenantId, cursor: null, limit: 5 }, metadata: null };
+    await expect(controller.executeTool(ctx, 'memory.list_own_proposals', body, request)).resolves.toBe(result);
+    expect(receive).toHaveBeenCalledWith({
+      ctx, raw: body, grant, authenticatedCorrelation: correlation,
+      verifiedServiceIdentity: true, prisma: {}, owner,
+      releaseDelegatedRead: expect.any(Function),
+    });
+    expect(release).toHaveBeenCalledWith({}, request);
+    expect(allow).not.toHaveBeenCalled();
   });
 
   it('keeps a normal Bearer search_memory request on the existing tool route', async () => {

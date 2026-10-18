@@ -28,13 +28,20 @@ unchanged.
 The shared pre-byte transaction now rechecks the original UNKNOWN reservation
 for the exact page and proposal operations before either result is released.
 
+The exact dotted `memory.list_own_proposals@0.2.0` alias branches before the
+ordinary tool allowlist and sends its authenticated grant, correlation and
+service marker to the PR172 receiver. That receiver uses the canonical
+`GovernedMemoryCandidateService` owner and calls the same delegated release
+transaction after validating the result. The alias is excluded from ordinary
+model tool discovery and remains hard disabled before token mint and consume.
+
 Both page and helper routes are **hard disabled in source**. The source gate
 has no environment activation. It refuses `search_memory@0.2.0` before
 ordinary token minting and before middleware consumes its JTI; the helper
 issuer and fixed callback return 503 before any database action. The dynamic
-ordinary tool route also refuses the helper name. Proposal source has its own
-separate hard-off decision. None of these changes makes passive memory reads
-available on a deployed runtime.
+ordinary tool route also refuses the helper name. Proposal alias dispatch has
+its own source-only hard-off decision. None of these changes makes passive
+memory reads available on a deployed runtime.
 
 Activation requires review of the matching Meri wire, the held Core `100000`
 helper migration and target role, source image/config identity, signed relay,

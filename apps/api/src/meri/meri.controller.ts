@@ -55,6 +55,7 @@ import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MERI_JOB_KINDS, type MeriJobKind } from './meri-job.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
@@ -74,11 +75,14 @@ import {
   assertMeriReadDelegationReleasable, isMeriReadTokenRequest, meriReadDelegationOf, meriRetainedCorrelationOf,
   type MeriReadDelegationGrant,
 } from '../auth/read-delegation/read-delegation-request.js';
-import { signedMemoryPageEnabled } from '../auth/read-delegation/signed-memory-http-gate.js';
+import { signedMemoryPageEnabled, signedMemoryProposalEnabled } from '../auth/read-delegation/signed-memory-http-gate.js';
 import { createCoreKmsSigner, readCoreEd25519KeyConfig } from '../auth/core-ed25519-kms-config.js';
 import { readTaskBoundPassiveMemoryPage } from './memory-receiving/meri-memory-signed-page-source.js';
 import { issueMemoryPageProof } from './memory-receiving/meri-memory-proof-issuer.js';
 import { MEMORY_PAGE_PROOF_HEADER } from './memory-receiving/meri-memory-page-proof.js';
+import {
+  receiveSignedMemoryProposalPage, SIGNED_MEMORY_PROPOSAL_OPERATION,
+} from './memory-receiving/meri-memory-proposal-receiver.js';
 import {
   assertRetainedSourceV02Admission, RETAINED_SOURCE_V02_OPERATIONS,
 } from './retained-source-v02/admission.js';
@@ -372,6 +376,7 @@ export class MeriController {
     private readonly claimWriter: MeriClaimWriterService,
     @Optional() private readonly executionReceiver?: MeriExecutionReceiverService,
     @Optional() private readonly readDelegationPrisma?: PrismaService,
+    @Optional() private readonly memoryCandidateOwner?: GovernedMemoryCandidateService,
   ) {}
 
   @Get('status')
@@ -577,6 +582,23 @@ export class MeriController {
     @Req() req: Request,
     @Res({ passthrough: true }) res?: Response,
   ) {
+    // PR172's dotted alias has its own signed, correlated receiver and must
+    // never fall through to the ordinary model-facing tool allowlist.
+    if (name === SIGNED_MEMORY_PROPOSAL_OPERATION.id) {
+      if (!signedMemoryProposalEnabled())
+        throw new ServiceUnavailableException('Reserved memory proposal read unavailable');
+      const prisma = this.readDelegationPrisma;
+      const owner = this.memoryCandidateOwner;
+      if (!prisma || !owner)
+        throw new ServiceUnavailableException('Reserved memory proposal read unavailable');
+      return withMeriToolRequestControl(req, () => receiveSignedMemoryProposalPage({
+        ctx, raw: body, grant: meriReadDelegationOf(req),
+        authenticatedCorrelation: meriRetainedCorrelationOf(req),
+        verifiedServiceIdentity: hasVerifiedToolServiceIdentity(req),
+        prisma, owner,
+        releaseDelegatedRead: () => this.releaseDelegatedRead(req),
+      }));
+    }
     // PR172 keeps the 0.2 JSON page unchanged and carries its opaque signed
     // proof in a separate response header. This source route stays unavailable
     // until the Meri wire, helper table and runtime role/readback are qualified.
