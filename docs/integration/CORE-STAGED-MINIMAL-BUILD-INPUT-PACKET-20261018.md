@@ -56,14 +56,18 @@ not an image build, migration installation or preview readback.
 
 ## Source boundary with Meri
 
-Meri draft PR174 at `4c95aa2c92beae0dbe68e786757ba567985d7c59`
+Meri draft PR174 at `f265435c910555b63c5908b1f1f7546436cf8759`
 provides the durable task-scoped `loadPrevious`/`retain` continuation source.
 Its signed page, proof, helper and dotted proposal alias transport matches
 Core `63e426b0`, which this packet descends from without changing receiver
-wire. PR174 still needs its numbered continuation-table migration, retention
-inventory and purge wiring, atomic suppression fence, cross-host receipt clock
-qualification, and measured runtime image/config/readback. Meri's handoff
-should pin this Core source instead of older `8712e508`. Core's issuer and
+wire. Its latest commit adds source advisory-lock fencing for suppression and
+retention transitions and an exact inventory slice. PR174 still needs central
+allocation of its proposed conversation migration `0018`, the production
+retention inventory composer, real-pool purge/trigger qualification, mixed
+version owner/lock and bounded pool-pressure checks, cross-host receipt clock
+qualification, and measured runtime image/config/readback. Its purge route
+remains default closed. Meri's handoff currently pins the underlying Core
+`63e426b0`; this packet's guarded source is `7b1bde0a`. Core's issuer and
 receiver remain hard disabled before one-use token consumption; the document
 receiver remains 503 without its independent identity provider. The eleven
 retained read adapters are source-wired, not proven available in preview.
@@ -83,8 +87,8 @@ retained read adapters are source-wired, not proven available in preview.
 2. **Held helper and Meri database.** Core `100000` is outside this archive and
    requires a separate source packet after `060000`/`090000`, target role/RLS
    qualification and bounded DDL window. Meri must allocate and install its
-   PR174 continuation migration and read back its retention/suppression
-   behavior. Separately read back Meri facts `0001`, prepared-approval facts
+   PR174 `0018` continuation migration and read back its retention/suppression
+   behavior, including actual target role and trigger. Separately read back Meri facts `0001`, prepared-approval facts
    `0002`, integration grants, actual restricted `capiro_app` view-only access
    and installer `current_user`/`session_user`/owner role choreography. Preserve
    `current_admission_v1`'s exact original ADMITTED grant set and transaction
