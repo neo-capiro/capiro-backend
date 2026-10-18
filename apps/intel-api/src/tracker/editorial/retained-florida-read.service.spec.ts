@@ -187,14 +187,14 @@ describe('actual retained Florida service composition with synthetic owner ports
     expect(f.probeVerifier).toHaveBeenCalledWith(PROBE_HEADER, {
       nowMs: NOW, deadlineMs: NOW + 30_000, selector: f.selector,
     });
-    expect(f.probeVerifier.mock.calls[0][1]).not.toHaveProperty('expectedDigests');
+    expect(f.probeVerifier.mock.calls[0]![1]).not.toHaveProperty('expectedDigests');
     expect(result).toEqual({ schemaVersion: 1, principal: f.envelope.principal, identityRevision: f.envelope.identityRevision,
       ...f.currentFacts(), checkedAtMs: NOW, originalExpiresAtMs: NOW + 3_000 });
     expect(f.dataVerifier).not.toHaveBeenCalled();
     expect(f.dataCurrent).not.toHaveBeenCalled();
     expect(f.budget).not.toHaveBeenCalled();
     for (const call of f.probeCurrent.mock.calls) expect(call[2].deadlineMs).toBe(NOW + 5_000);
-    expect(f.facts.mock.calls[0][2].deadlineMs).toBe(NOW + 5_000);
+    expect(f.facts.mock.calls[0]![2].deadlineMs).toBe(NOW + 5_000);
   });
 
   it('passes actual parsed three-digest bounds and normalized arguments to the canonical owner and releases its exact DTO last', async () => {
@@ -202,7 +202,7 @@ describe('actual retained Florida service composition with synthetic owner ports
     const result = await f.invoke('budget');
     expect(result).toBe(f.dto);
     expect(f.events).toEqual(['codec:data', 'core:data', 'facts', 'budget', 'facts', 'core:data']);
-    const bounds = f.dataVerifier.mock.calls[0][1] as { nowMs: number; deadlineMs: number; expectedDigests: Record<string, string> };
+    const bounds = f.dataVerifier.mock.calls[0]![1] as { nowMs: number; deadlineMs: number; expectedDigests: Record<string, string> };
     expect(bounds.nowMs).toBe(NOW); expect(bounds.deadlineMs).toBe(NOW + 30_000);
     expect(Object.keys(bounds.expectedDigests).sort()).toEqual(['normalizationContextSha256', 'normalizedArgsSha256', 'rawRequestSha256']);
     for (const digest of Object.values(bounds.expectedDigests)) expect(digest).toMatch(/^[0-9a-f]{64}$/);
