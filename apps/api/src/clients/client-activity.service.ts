@@ -5,7 +5,17 @@ import type { Prisma } from '@prisma/client';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
-import { ownMeetingWhere, ownOutreachRecordWhere } from '../engagement/engagement-access.helpers.js';
+import {
+  ownMeetingWhere,
+  ownOutreachRecordWhere,
+} from '../engagement/engagement-access.helpers.js';
+import {
+  activityDetailsMetadata,
+  normalizeActivityDetails,
+  projectActivityDetails,
+  type ActivityDetails,
+  type ActivityDetailsInput,
+} from './client-activity-details.js';
 
 /**
  * Client relationship history — the normalized CRM activity read model
@@ -49,7 +59,7 @@ export const RECORDABLE_KINDS: readonly ActivityKind[] = [
   'commitment',
 ];
 
-export interface ActivityItem {
+export interface ActivityItem extends Partial<ActivityDetails> {
   id: string;
   kind: ActivityKind;
   occurredAt: string;
@@ -66,7 +76,7 @@ export interface ActivityItem {
   origin: 'recorded' | 'derived';
 }
 
-export interface CreateActivityInput {
+export interface CreateActivityInput extends ActivityDetailsInput {
   kind: ActivityKind;
   title: string;
   body?: string | null;
@@ -140,13 +150,22 @@ export class ClientActivityService {
           where: { tenantId: ctx.tenantId, clientId, ...ownOutreachRecordWhere(ctx.userId) },
           orderBy: { createdAt: 'desc' },
           take: limit,
-          select: { id: true, title: true, subject: true, createdAt: true, type: true, status: true },
+          select: {
+            id: true,
+            title: true,
+            subject: true,
+            createdAt: true,
+            type: true,
+            status: true,
+          },
         }),
         this.engagement.listMailThreads(ctx, { clientId }),
       ]);
 
+      const details = await projectActivityDetails(tx, ctx, clientId, recorded);
       const items: ActivityItem[] = [
-        ...recorded.map((row) => ({
+        ...recorded.map((row, index) => ({
+          ...details[index],
           id: row.id,
           kind: row.kind as ActivityKind,
           occurredAt: row.occurredAt.toISOString(),
@@ -231,12 +250,17 @@ export class ClientActivityService {
     });
   }
 
-  private async requireClientWall(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string) {
-    if (!await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId ?? null, clientId))
+  private async requireClientWall(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientId: string,
+  ) {
+    if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId ?? null, clientId)))
       throw new NotFoundException('Client not found');
   }
 
   private validateCreate(input: CreateActivityInput) {
+    normalizeActivityDetails(input, input.kind);
     if (!RECORDABLE_KINDS.includes(input.kind)) {
       // meeting/document/outreach are owned by their own features; letting the
       // quick-add write one would create a second, diverging copy.
@@ -244,8 +268,13 @@ export class ClientActivityService {
     }
     if (input.occurredAt != null) {
       const occurredAt = new Date(input.occurredAt);
-      if (!isISO8601(input.occurredAt, { strict: true, strictSeparator: true }) || !Number.isFinite(occurredAt.getTime())) throw new BadRequestException('Enter a valid activity date and time');
-      if (occurredAt.getTime() > Date.now()) throw new BadRequestException('Activity must have already occurred');
+      if (
+        !isISO8601(input.occurredAt, { strict: true, strictSeparator: true }) ||
+        !Number.isFinite(occurredAt.getTime())
+      )
+        throw new BadRequestException('Enter a valid activity date and time');
+      if (occurredAt.getTime() > Date.now())
+        throw new BadRequestException('Activity must have already occurred');
     }
     if (input.dueAt && input.kind !== 'commitment' && input.kind !== 'request') {
       throw new BadRequestException('Only commitments and requests carry a due date');
@@ -254,7 +283,9 @@ export class ClientActivityService {
 
   async create(ctx: TenantContext, clientId: string, input: CreateActivityInput) {
     this.validateCreate(input);
-    return this.prisma.withTenant(ctx.tenantId, (tx) => this.createInTransaction(tx, ctx, clientId, input));
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      this.createInTransaction(tx, ctx, clientId, input),
+    );
   }
 
   /** Compose canonical creation with an owner's receipt in the same transaction. */
@@ -285,7 +316,13 @@ export class ClientActivityService {
       if (!person) throw new BadRequestException('That person is not a contact of this client');
     }
 
-    return tx.clientActivity.create({
+    const metadata = await activityDetailsMetadata(
+      tx,
+      ctx,
+      clientId,
+      normalizeActivityDetails(input, input.kind),
+    );
+    const row = await tx.clientActivity.create({
       data: {
         tenantId: ctx.tenantId,
         clientId,
@@ -300,8 +337,12 @@ export class ClientActivityService {
         pinned: input.pinned ?? false,
         actorUserId: ctx.userId ?? null,
         createdByUserId: ctx.userId ?? null,
+        ...(metadata ? { metadata } : {}),
       },
     });
+    const { metadata: _metadata, ...record } = row;
+    const [details] = await projectActivityDetails(tx, ctx, clientId, [row]);
+    return { ...record, ...details };
   }
 
   /** Pin/unpin, settle a commitment, or edit a recorded row. */
@@ -325,7 +366,7 @@ export class ClientActivityService {
         throw new BadRequestException('Only a commitment or request can be settled');
       }
 
-      return tx.clientActivity.update({
+      const row = await tx.clientActivity.update({
         where: { id },
         data: {
           ...(input.pinned != null ? { pinned: input.pinned } : {}),
@@ -334,6 +375,9 @@ export class ClientActivityService {
           ...('body' in input ? { body: input.body?.trim() || null } : {}),
         },
       });
+      const { metadata: _metadata, ...record } = row;
+      const [details] = await projectActivityDetails(tx, ctx, clientId, [row]);
+      return { ...record, ...details };
     });
   }
 
@@ -348,4 +392,3 @@ export class ClientActivityService {
     });
   }
 }
-
