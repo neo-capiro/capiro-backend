@@ -18,12 +18,14 @@ The merge commits preserve the published source commits and their ancestry.
 | Unmounted task-bound memory page and proposal source | `ab1675ade0da4da2820e667a06497109b53d9f27` |
 | Fail-closed document runtime identity adapter | `93ac25e0ef3a59ec10adf269bc8455bdd856b308` |
 | Default-off reservation-bound A8 action query receiver | `868aafea8a6d731a0cab4210c169a955359daecc` |
+| Exact PR171 wrapped-body and signed-correlation A8 receiver | `3f726d585860ac9e43097c293d6824f96682381f` |
+| Retained-source TypeScript control-flow repair | `1955e5d3c202ddd68030d2d8719153b3b31320f7` |
 
 Retained reads are **source-wired, not available in preview**. The document receiver
 now has an ECS metadata selector and fail-closed adapter for independent Core
 image/config identity readback. Its trusted control-plane readback port and Nest
 provider remain unimplemented and unregistered, so the default 503 remains in force.
-The Meri post-reservation signed relay and runtime readback are still outstanding.
+The remaining Meri relay/runtime integration and live readback are still outstanding.
 The exact source_text_only tariff is tied to the original ADMITTED
 allocation under the existing transaction lock; do not substitute a later allocation
 or claim a source pin as proof of deployment. The current admission snapshot and its
@@ -46,12 +48,17 @@ The A8 `actions.query@0.2.0` receiver retains the original UNKNOWN
 reservation, call key, arguments hash and exact emitted-body hash. Its
 `/api/clio/tools/actions.query` branch is default-off and requires a one-use
 `CapiroMeriRead` token plus selected-client authority before dispatching to
-the existing `query_action_items` owner. Meri PR166
-`15288a7954862e348af86bf1eab119fdb30863a0` and PR167
-`2c53e6c5123d392308d84a74eb8da2e5741f5dc1` do not yet provide that
-post-reservation signed transport: PR167 still uses ordinary Bearer/service
-secret credentials with no request hash. Keep the alias disabled until the
-Meri adapter, source/image/config readback and preview gates are qualified.
+the existing `query_action_items` owner. The current Meri receiving counterpart
+is draft PR171 `eeeda2d415a976ea240de482e62f71a32020c9b7`, including
+PR169/170 action source. It emits exact `JSON.stringify({input,metadata:null})`
+bytes with a signed four-field correlation after UNKNOWN reservation;
+the Core successor `3f726d58` validates that wrapper and correlation before
+projecting a bounded flat body to the canonical owner. Original
+`query_action_items@0.2.0` remains a separate uncorrelated flat-body path.
+PR171 preserves the full 76-operation desired catalog; its measured desired
+source is `8850af4b50666deef9e4c7edc23d32f25d663840748380c7baaa066585602f6a`.
+Keep the alias disabled until the Meri relay and Core source/image/config pins,
+provider and preview readbacks are qualified through reviewed shipping configuration.
 Legal citation observations, nested Outreach detail authority, unscoped
 Outreach, and four separate news facts remain held.
 
