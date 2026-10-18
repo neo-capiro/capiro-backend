@@ -8,7 +8,9 @@ const TASK_DEFINITION_ARN = /^arn:aws:ecs:us-east-1:967807252336:task-definition
 const SHA = /^[a-f0-9]{64}$/;
 const IMAGE_DIGEST = /^sha256:[a-f0-9]{64}$/;
 const SOURCE_HEAD = /^[a-f0-9]{40}$/;
-const DOCKER_ID = /^[a-f0-9]{64}$/;
+// ECS Fargate metadata DockerId is 32 hex digits followed by 10 decimal
+// digits; ECS DescribeTasks containers[].runtimeId uses that Docker ID.
+const DOCKER_ID = /^[a-f0-9]{32}[0-9]{10}$/;
 const METADATA_MAX_BYTES = 1024 * 1024;
 
 /** The metadata endpoint supplies a current task/container selector only. It

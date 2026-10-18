@@ -30,14 +30,18 @@ document allocation before and after the canonical owner read. It does not
 change admission, the signed request, task credential, tariff, or provider-free
 extraction rule.
 
-**Runtime dependency:** there is no implementation or registered provider for
-`TrustedCoreDeploymentReadbackPort`. The preview Core task role currently has
-only its bounded KMS signing permission, not an ECS control-plane describe
-permission. A shipping owner must review the actual readback implementation,
-its role access, image provenance and effective-config hashing procedure,
-then qualify the running task and allocation pins before registering it.
-Source compilation and test doubles do not establish that runtime evidence.
-No new credential, grant, AWS call, live SQL, or deployment is in this branch.
+**Runtime dependency:** a source-only implementation of
+`TrustedCoreDeploymentReadbackPort` now validates ECS `DescribeTasks` and
+`DescribeTaskDefinition` results, including the selected running container
+and immutable digest. See
+[the control-plane source handoff](CORE-DOCUMENT-CONTROL-PLANE-READBACK-20261018.md).
+It has no Nest provider. Its separate qualified-build and current-effective-
+configuration evidence ports have no implementations, and the preview task
+role has bounded KMS signing permission but no ECS Describe permission. A
+shipping owner must bind those current readbacks and approved access, then
+qualify the running task and allocation pins before registering it. Source
+tests do not establish runtime evidence. No new credential, grant, AWS call,
+live SQL or deployment is in this branch.
 
 Focused tests cover current selector matching, each readback pin, malformed
 locators, stopped or ambiguous tasks, missing port evidence, metadata size,

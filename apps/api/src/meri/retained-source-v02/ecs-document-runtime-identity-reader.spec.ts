@@ -8,7 +8,7 @@ import { qualifyDocumentTextOnlyRuntime } from './document-runtime-qualification
 const uri = 'http://169.254.170.2/v4/170b79d4-31ca-4d9c-9908-5ab64c959972';
 const taskArn = `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/${'a'.repeat(32)}`;
 const taskDefinitionArn = 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-preview-first-chat-core:8';
-const dockerId = 'd'.repeat(64);
+const dockerId = `${'d'.repeat(32)}1234567890`;
 const pins = {
   sourceHead: 'a'.repeat(40), imageDigest: `sha256:${'b'.repeat(64)}`,
   configurationSha256: 'c'.repeat(64),
@@ -80,6 +80,8 @@ describe('ECS document runtime identity adapter', () => {
     ['wrong container', { ...container, Name: 'worker' }],
     ['stopped container', { ...container, KnownStatus: 'STOPPED' }],
     ['missing Docker ID', { ...container, DockerId: undefined }],
+    ['non-Fargate Docker ID', { ...container, DockerId: 'd'.repeat(64) }],
+    ['nondecimal Fargate suffix', { ...container, DockerId: 'd'.repeat(42) }],
   ])('refuses %s without calling the trusted readback', async (_label, changedContainer) => {
     const { reader, readCurrentTask } = harness({ container: changedContainer });
     await expect(reader.readCurrent()).rejects.toThrow();
