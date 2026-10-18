@@ -23,3 +23,19 @@ export function bindUnscopedMemoryTool(
   }
   return { input: bound };
 }
+
+/** Recheck the live ethical wall immediately before a client memory proposal. */
+export async function clientMemorySaveWallRefusal(
+  toolName: string,
+  input: Record<string, unknown>,
+  selectedClientId: string | null,
+  allowed: (clientId: string) => Promise<boolean>,
+): Promise<string | undefined> {
+  if (toolName !== 'save_memory' || !selectedClientId ||
+      typeof input.scope !== 'string' || input.scope.trim().toLowerCase() !== 'client') {
+    return undefined;
+  }
+  return (await allowed(selectedClientId))
+    ? undefined
+    : 'Client memory access is not authorized for this conversation.';
+}

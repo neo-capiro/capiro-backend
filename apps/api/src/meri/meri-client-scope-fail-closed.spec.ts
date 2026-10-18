@@ -84,12 +84,13 @@ describe('Session client scope — the chat tool loop enforces, it does not defa
 
   it('binds clientless memory tools and checks the current wall before dispatching a client save', () => {
     const binding = text.indexOf('bindUnscopedMemoryTool(t.name, parsedInput)');
-    const wall = text.indexOf('clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, conversation.clientId!)');
+    const wall = text.indexOf('clientMemorySaveWallRefusal(');
     const dispatch = text.indexOf('preparedTools.push({', binding);
     expect(binding).toBeGreaterThan(-1);
     expect(wall).toBeGreaterThan(binding);
     expect(dispatch).toBeGreaterThan(wall);
     expect(text.slice(binding, dispatch)).toContain('if (bound.refusal) scopeViolation = bound.refusal;');
+    expect(text.slice(wall, dispatch)).toContain('clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)');
   });
 
   it('resolves an exact client NAME for this session rather than refusing it', () => {
