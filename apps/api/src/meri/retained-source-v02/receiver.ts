@@ -116,6 +116,18 @@ export async function readRetainedSourceV02(
       });
     }
   }
+  if (admission.operation.id === 'read_client_documents') {
+    try {
+      // The owner requires the original allocation's exact text-only tariff
+      // and fresh independent runtime qualification before and after reading.
+      // No runtime identity reader is installed by default. No legacy fallback.
+      return boundedPage(await tools.readRetainedDocumentSourceV02(ctx, admission));
+    } catch {
+      throw new ServiceUnavailableException({
+        code: 'MERI_RETAINED_SOURCE_UNAVAILABLE', operation: admission.operation.id,
+      });
+    }
+  }
   if (admission.operation.id === 'read_monday_client_boards') {
     try {
       return boundedPage(await tools.readRetainedMondaySourceV02(ctx, admission));

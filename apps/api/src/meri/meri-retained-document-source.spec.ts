@@ -41,8 +41,12 @@ const subject = {kind:'client',entityType:'client',entityIds:[clientId],tenantId
  scopes:[{tenantId:ctx.tenantId,kind:'client',resourceId:clientId,policyRevision:'policy-1'}]};
 const normalizationContext = {binding,subject};
 const input = documentContractV02.normalizeClientDocumentsInput({clientId},normalizationContext);
+const pricing = {mode:'source_text_only' as const,route:'/api/clio/tools/read_client_documents' as const,
+ coreSourceCommit:'a'.repeat(40),coreImageDigest:'sha256:'+'b'.repeat(64),configurationSha256:'c'.repeat(64)};
+const runtimeIdentity = {sourceHead:pricing.coreSourceCommit,imageDigest:pricing.coreImageDigest,configurationSha256:pricing.configurationSha256};
+const textAllocation = {allocationSha256:'d'.repeat(64),profileVersion:'1.1.0' as const,chargeMicrousd:1 as const,documentPricing:pricing};
 const admission = () => ({operation:{id:'read_client_documents',version:'0.2.0'},binding,subject,input,metadata:null,
- normalizationContext,argumentsSha256:'a'.repeat(64),requestSha256:'b'.repeat(64),clientId,hardExpiryMs:Date.now()+60000}) as RetainedSourceV02Admission;
+ normalizationContext,documentTextOnlyAllocation:textAllocation,argumentsSha256:'a'.repeat(64),requestSha256:'b'.repeat(64),clientId,hardExpiryMs:Date.now()+60000}) as RetainedSourceV02Admission;
 const row = {id:'doc-1',clientId,fileName:'Evidence.txt',contentType:'text/plain',byteSize:10,
  calculatedSha256:null,s3Key:'stored/1',lifecycleStatus:'ready',usable:true,viewerMode:'all',viewerUserIds:[],blockedReason:null};
 function harness() {
@@ -52,9 +56,10 @@ function harness() {
  note:'Inventory only',documents:[{id:row.id,fileName:row.fileName,contentType:row.contentType,byteSize:row.byteSize,
  createdAt:'2026-10-18T09:00:00Z',indexedAt:null,extractionStatus:null,extractionMetadata:null,usable:true,blockedReason:null,disclosure:null}]}));
  const listAttachments = jest.fn(async()=>[row]);
+ const readCurrent = jest.fn(async()=>({...runtimeIdentity}));
  const service = Object.assign(Object.create(MeriToolsService.prototype),{ensureClientVisible,readClientDocuments,
- engagement:{listAttachments},prisma:{withTenantUser:jest.fn(async(_t,_a,run)=>run({}))}}) as MeriToolsService;
- return {service,ensureClientVisible,readClientDocuments,listAttachments};
+ engagement:{listAttachments},retainedDocumentRuntimeIdentity:{readCurrent},prisma:{withTenantUser:jest.fn(async(_t,_a,run)=>run({}))}}) as MeriToolsService;
+ return {service,ensureClientVisible,readClientDocuments,listAttachments,readCurrent};
 }
 describe('retained document owner preparation',()=>{
  beforeEach(()=>jest.mocked(fetchDeniedClientIds).mockResolvedValue([]));
@@ -64,6 +69,7 @@ describe('retained document owner preparation',()=>{
   expect(m.readClientDocuments).toHaveBeenCalledWith(ctx,{clientId,limit:25},{allowPaidExtraction:false});
   expect(m.ensureClientVisible).toHaveBeenCalledTimes(2);
   expect(m.listAttachments).toHaveBeenCalledTimes(2);
+  expect(m.readCurrent).toHaveBeenCalledTimes(2);
  });
  it('rejects substituted context and expired admission before owner reads',async()=>{
   const m=harness(),a=admission();
@@ -80,8 +86,28 @@ describe('retained document owner preparation',()=>{
  });
  it('keeps the receiver closed until the Meri tariff contract agrees',async()=>{
   const m=harness();
+  Object.assign(m.service,{retainedDocumentRuntimeIdentity:undefined});
   const prepared=jest.spyOn(m.service,'readRetainedDocumentSourceV02');
   await expect(readRetainedSourceV02(admission(),ctx as any,m.service)).rejects.toMatchObject({response:{code:'MERI_RETAINED_SOURCE_UNAVAILABLE'}});
-  expect(prepared).not.toHaveBeenCalled();
+  expect(prepared).toHaveBeenCalledTimes(1);
+  expect(m.readClientDocuments).not.toHaveBeenCalled();
+ });
+ it.each(['sourceHead','imageDigest','configurationSha256'])('withholds reads and results on current %s mismatch',async(key)=>{
+  const m=harness();
+  m.readCurrent.mockResolvedValueOnce({...runtimeIdentity,[key]:'other'});
+  await expect(readRetainedSourceV02(admission(),ctx as any,m.service)).rejects.toMatchObject({response:{code:'MERI_RETAINED_SOURCE_UNAVAILABLE'}});
+  expect(m.readClientDocuments).not.toHaveBeenCalled();
+  const during=harness();
+  during.readCurrent.mockResolvedValueOnce({...runtimeIdentity}).mockResolvedValueOnce({...runtimeIdentity,[key]:'other'});
+  await expect(readRetainedSourceV02(admission(),ctx as any,during.service)).rejects.toMatchObject({response:{code:'MERI_RETAINED_SOURCE_UNAVAILABLE'}});
+  expect(during.readClientDocuments).toHaveBeenCalledTimes(1);
+  expect(during.readCurrent).toHaveBeenCalledTimes(2);
+ });
+ it('requires the original allocation tariff and never falls through to the legacy dispatcher',async()=>{
+  const m=harness(),a=admission();
+  delete a.documentTextOnlyAllocation;
+  const execute=jest.fn();Object.assign(m.service,{execute});
+  await expect(readRetainedSourceV02(a,ctx as any,m.service)).rejects.toMatchObject({response:{code:'MERI_RETAINED_SOURCE_UNAVAILABLE'}});
+  expect(m.readCurrent).not.toHaveBeenCalled();expect(m.readClientDocuments).not.toHaveBeenCalled();expect(execute).not.toHaveBeenCalled();
  });
 });

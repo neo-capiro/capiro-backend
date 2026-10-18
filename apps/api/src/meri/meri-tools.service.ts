@@ -144,6 +144,7 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { readWithCurrentDocumentFacts } from './retained-source-v02/document-current-source.js';
 import { NO_DOCUMENT_PROVIDER_CALLS } from './retained-source-v02/documents-monday.js';
 import { canonicalSha256 } from '../auth/read-delegation/read-delegation.contract.js';
+import { qualifyDocumentTextOnlyRuntime, RetainedDocumentRuntimeIdentityReader } from './retained-source-v02/document-runtime-qualification.js';
 import type { RetainedSourceV02Admission } from './retained-source-v02/admission.js';
 import { createMailBodySectionV02 } from './retained-source-v02/mail.js';
 import { readWithCurrentMondayMapping } from './retained-source-v02/monday-current-source.js';
@@ -449,6 +450,7 @@ export class MeriToolsService {
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly federalMarket?: FederalMarketService,
     @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
+    @Optional() private readonly retainedDocumentRuntimeIdentity?: RetainedDocumentRuntimeIdentityReader,
   ) {}
 
   manifest() {
@@ -518,9 +520,9 @@ export class MeriToolsService {
     };
   }
 
-  /** Source preparation only: the receiver remains closed until Meri admits a
-   * matching tariff. This path forbids provider extraction in the real owner,
-   * rechecks current inventory and validates the complete pinned document DTO. */
+  /** The exact 0.2 source always forbids provider extraction. Expected tariff
+   * pins come from the locked original allocation; an independent runtime
+   * reader is absent by default, so deployment qualification stays closed. */
   async readRetainedDocumentSourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
     const active = () => {
       assertMeriToolRequestActive();
@@ -535,6 +537,16 @@ export class MeriToolsService {
         canonicalSha256(admission.normalizationContext) !==
           canonicalSha256({ binding: admission.binding, subject: admission.subject }))
       throw new ServiceUnavailableException('Retained document source unavailable');
+    const runtimeReader = this.retainedDocumentRuntimeIdentity;
+    if (!admission.documentTextOnlyAllocation || !runtimeReader)
+      throw new ServiceUnavailableException('Current retained document runtime qualification unavailable');
+    const qualify = async () => {
+      active();
+      const runtime = await runtimeReader.readCurrent();
+      active();
+      return qualifyDocumentTextOnlyRuntime(admission.documentTextOnlyAllocation, runtime);
+    };
+    const initialQualification = await qualify();
     const assertWall = async () => {
       active();
       await this.ensureClientVisible(ctx, admission.clientId);
@@ -550,6 +562,9 @@ export class MeriToolsService {
     (legacyInput) => this.readClientDocuments(ctx, legacyInput, { allowPaidExtraction: false }),
     Date.now, active);
     await assertWall();
+    if (await qualify() !== initialQualification)
+      throw new ServiceUnavailableException('Current retained document runtime qualification changed');
+    active();
     return result;
   }
 

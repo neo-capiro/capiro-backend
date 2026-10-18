@@ -6,6 +6,11 @@ output validator and prepares a current, selected-client owner read with all
 provider extraction disabled. **The document receiver remains 503.** This is
 source preparation, not a runtime, pricing, allocation or deployment receipt.
 
+The additive [receiver source gate](CORE-CLIENT-DOCUMENTS-RECEIVER-20261018.md)
+now receives Meri PR162's immutable text-only tariff from the original locked
+allocation. It remains unavailable by default because no independent current
+runtime image/configuration identity reader is registered.
+
 ## Exact contract
 
 `read_client_documents@0.2.0` remains unchanged. The complete document schema

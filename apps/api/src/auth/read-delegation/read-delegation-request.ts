@@ -11,11 +11,12 @@ import { readCoreEd25519KeyConfig } from '../core-ed25519-key-config.js';
 import { applicationAuthorityRevision, type ApplicationAuthorityIdentityEvidence, type ApplicationAuthorityIdentityProof } from '../application-authority.js';
 import { fetchAccessibleClientRevisionsForClerkActor } from '../../memory/memory-wall.helpers.js';
 import {
-  READ_DELEGATION_LIMITS, READ_DELEGATION_ROUTES, READ_TOKEN_SCHEME, delegationPath, sha256Hex, toolPath,
+  READ_DELEGATION_LIMITS, READ_DELEGATION_ROUTES, READ_TOKEN_SCHEME, canonicalSha256, delegationPath, sha256Hex, toolPath,
   type OperationRef, type ReadTokenKind,
 } from './read-delegation.contract.js';
 import { assertDelegationFacts, assertToolReservation, readRunFacts, type DelegationFacts } from './read-delegation-facts.js';
 import { readTokenFromAuthorization, readTokenSha256, verifyReadToken, type ReadTokenClaims } from './read-delegation-token.js';
+import type { DocumentTextOnlyAllocation } from './read-delegation-document-pricing.js';
 
 /**
  * Tenant-middleware support for run-bound read delegation (RC1 option B,
@@ -113,6 +114,8 @@ export interface MeriReadDelegationGrant {
   binding: { tenantId: string; actorId: string; conversationId: string; runId: string; attemptId: string; writerFence: number };
   /** Exact seven-field original ADMITTED binding under the snapshot lock. */
   admittedBinding: { tenantId: string; actorId: string; conversationId: string; runId: string; attemptId: string; workerId: string; writerFence: number };
+  /** Document tariff from the original locked allocation; not a token claim. */
+  documentTextOnlyAllocation?: DocumentTextOnlyAllocation | null;
   policyRevision: string;
   /** Digest of a separately authenticated retained-source correlation header. */
   correlationSha256: string | null;
@@ -271,7 +274,8 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
         const member = await readDelegatedMember(tx, d);
         await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
         if (!facts.admittedBinding) throw denied();
-        return { d, member, hardExpiryMs, argumentsSha256: u.arguments_sha256, admittedBinding: facts.admittedBinding };
+        return { d, member, hardExpiryMs, argumentsSha256: u.arguments_sha256, admittedBinding: facts.admittedBinding,
+          documentTextOnlyAllocation: facts.documentTextOnlyAllocation ?? null };
       }, { timeoutMs: 5000 });
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -289,6 +293,8 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
       conversationId: admitted.d.conversationId, runId: admitted.d.runId, attemptId: admitted.d.attemptId,
       writerFence: admitted.d.writerFence }), policyRevision: admitted.d.policyRevision,
     admittedBinding: Object.freeze({ ...admitted.admittedBinding }),
+    ...(claims.operation?.id === 'read_client_documents'
+      ? { documentTextOnlyAllocation: admitted.documentTextOnlyAllocation } : {}),
     correlationSha256: claims.correlationSha256 ?? null, argumentsSha256: admitted.argumentsSha256,
     kind: claims.kind, operation: claims.operation ? Object.freeze({ ...claims.operation }) : null, toolRequestSha256: claims.toolRequestSha256,
     referenceSha256: claims.referenceSha256, jti: claims.jti, hardExpiryMs: admitted.hardExpiryMs,
@@ -311,6 +317,9 @@ export async function assertMeriReadDelegationReleasable(prisma: SystemPrisma, r
       const d = await lockDelegation(tx, grant.tenantId, grant.delegationId, 'share');
       if (!d) throw changed();
       const facts = await readRunFacts(tx, d.tenantId, d.runId);
+      if (grant.operation?.id === 'read_client_documents' &&
+          canonicalSha256(facts.documentTextOnlyAllocation ?? null) !== canonicalSha256(grant.documentTextOnlyAllocation ?? null))
+        throw changed();
       const hard = Math.min(assertDelegationFacts(facts, d, grant.operation ? { operation: grant.operation } : {}), await assertConsentCurrent(tx, d));
       if (facts.dbNowMs >= Math.min(hard, grant.hardExpiryMs)) throw new GoneException('Read delegation expired');
       const member = await readDelegatedMember(tx, d);

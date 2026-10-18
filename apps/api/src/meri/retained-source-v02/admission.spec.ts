@@ -56,6 +56,24 @@ describe('Core retained source 0.2 post-auth admission', () => {
     });
   });
 
+  it('copies document pricing only from the trusted request-local original allocation', () => {
+    const { grant, protocol, correlation } = fixture('read_client_documents', { clientId: C });
+    const original = { allocationSha256: 'f'.repeat(64), profileVersion: '1.1.0' as const, chargeMicrousd: 1 as const,
+      documentPricing: { mode: 'source_text_only' as const, route: '/api/clio/tools/read_client_documents' as const,
+        coreSourceCommit: 'a'.repeat(40), coreImageDigest: `sha256:${'b'.repeat(64)}`, configurationSha256: 'c'.repeat(64) } };
+    grant.documentTextOnlyAllocation = original;
+    const admitted = assertRetainedSourceV02Admission(grant, protocol, correlation, options);
+    expect(admitted.documentTextOnlyAllocation).toEqual(original);
+    original.documentPricing.coreSourceCommit = 'd'.repeat(40);
+    expect(admitted.documentTextOnlyAllocation!.documentPricing.coreSourceCommit).toBe('a'.repeat(40));
+    expect(Object.isFrozen(admitted.documentTextOnlyAllocation!.documentPricing)).toBe(true);
+    expect(() => assertRetainedSourceV02Admission(grant, { ...protocol, documentPricing: original.documentPricing },
+      correlation, options)).toThrow(ForbiddenException);
+    const other = fixture(); other.grant.documentTextOnlyAllocation = original;
+    expect(Object.hasOwn(assertRetainedSourceV02Admission(other.grant, other.protocol, other.correlation, options),
+      'documentTextOnlyAllocation')).toBe(false);
+  });
+
   it('refuses bare input and metadata without an independently authenticated correlation', () => {
     const { grant, protocol } = fixture();
     expect(() => assertRetainedSourceV02Admission(grant, protocol, undefined, options)).toThrow(ForbiddenException);

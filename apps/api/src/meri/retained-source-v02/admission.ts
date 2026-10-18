@@ -4,6 +4,7 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { MERI_RETAINED_SOURCE_TOOLS, READ_DELEGATION_LIMITS, canonicalSha256,
   isMeriRetainedSourceOperationVersion, isSha, isUuid, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
 import type { MeriReadDelegationGrant } from '../../auth/read-delegation/read-delegation-request.js';
+import type { DocumentTextOnlyAllocation } from '../../auth/read-delegation/read-delegation-document-pricing.js';
 
 /** Exact Core retained source names. These are deliberately separate from the legacy
  * `/api/clio/tools/:name` manifest and do not activate those routes. */
@@ -45,6 +46,7 @@ export interface RetainedSourceV02Admission {
   requestSha256: string;
   clientId: string;
   hardExpiryMs: number;
+  documentTextOnlyAllocation?: DocumentTextOnlyAllocation | null;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -160,9 +162,17 @@ export function assertRetainedSourceV02Admission(
   }
   if (correlation.normalizationContext !== null && !record(correlation.normalizationContext)) throw denied();
   const normalizationContext = snapshot(correlation.normalizationContext as Record<string, unknown> | null);
+  const documentTextOnlyAllocation = operation.id === 'read_client_documents'
+    ? snapshot(grant.documentTextOnlyAllocation ?? null) : undefined;
+  if (documentTextOnlyAllocation) {
+    Object.freeze(documentTextOnlyAllocation.documentPricing);
+    Object.freeze(documentTextOnlyAllocation);
+  }
   return Object.freeze({ operation: snapshot(operation) as unknown as RetainedSourceV02Admission['operation'],
     binding: snapshot(binding) as unknown as RetainedSourceV02Admission['binding'],
     subject: snapshot(subject) as unknown as RetainedSourceV02Admission['subject'],
     input, metadata, normalizationContext,
-    argumentsSha256, requestSha256, clientId: grant.clientId, hardExpiryMs: grant.hardExpiryMs });
+    argumentsSha256, requestSha256, clientId: grant.clientId, hardExpiryMs: grant.hardExpiryMs,
+    ...(operation.id === 'read_client_documents'
+      ? { documentTextOnlyAllocation } : {}) });
 }
