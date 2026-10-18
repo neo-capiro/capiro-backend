@@ -60,6 +60,13 @@ phases:
         stage=integrated-source-presence
         test -f apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql
         test -f apps/api/src/meri/execution-capability/meri-execution-receiver.service.ts
+        stage=reviewed-stage1-migration
+        printf '%s  %s\n' \
+          'f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51' \
+          apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql \
+          | sha256sum -c -
+        stage=held-helper-migration-absence
+        test ! -e apps/api/prisma/migrations/20281018100000_meri_memory_eligibility_helper
         stage=ecr-login
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
         stage=docker-build

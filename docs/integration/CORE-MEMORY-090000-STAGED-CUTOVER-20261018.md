@@ -28,9 +28,11 @@ Do not edit the original `020000` bytes. If any target already records `090000` 
 
 An isolated localhost PostgreSQL 16.15 cluster applied the actual original
 `020000` SQL to minimal synthetic dependencies and an original-checksum
-`_prisma_migrations` row. With one existing non-null JSONB receipt, the exact
-Stage 1 `090000` source (SHA-256
-`0e358884bff11be352931045e212f60e4a5aa607d656a442b72ad94e218d0fa1`)
+`_prisma_migrations` row. With one existing non-null JSONB receipt, the
+Stage 1 `090000` Windows CRLF checkout (SHA-256
+`0e358884bff11be352931045e212f60e4a5aa607d656a442b72ad94e218d0fa1`;
+Git/archive LF SHA-256
+`f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51`)
 completed `BEGIN` / lock / guard / `ALTER` / `COMMIT`. The old receipt's
 payload MD5 `ca60529ceda47bc7d9bafd2ce43c1428` was unchanged; a second
 receipt omitting `candidate` inserted successfully, leaving one old non-null

@@ -36,11 +36,17 @@ const inputPaths = [
   'pnpm-lock.yaml',
   'tsconfig.base.json',
 ];
+const reviewedStage1Migration =
+  'apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql';
+// Git archive preserves LF blob bytes. The Windows CRLF checkout hashes to
+// 0e358884..., which is not the migration shipped in this tracked-only ZIP.
+const reviewedStage1Sha256 = 'f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51';
+const heldHelperMigration = 'apps/api/prisma/migrations/20281018100000_meri_memory_eligibility_helper';
 const migrationFiles = [
   'apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql',
   'apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql',
   'apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql',
-  'apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql',
+  reviewedStage1Migration,
 ];
 const forbiddenPath = /(^|\/)(?:\.env(?:\.[^/]*)?|\.npmrc|\.aws|\.ssh|id_rsa|id_ed25519|credentials\.json|service-account\.json)$|\.(?:pem|p12|pfx|key)$/i;
 
@@ -179,6 +185,13 @@ if (archivePath && verifyArchivePath) throw new Error('Choose either --archive o
 const sourceSha = git(['rev-parse', `${ref}^{commit}`]).trim();
 if (sourceSha !== ref) throw new Error('Source ref did not resolve to the exact requested commit.');
 const treeSha = git(['rev-parse', `${ref}^{tree}`]).trim();
+if (git(['ls-tree', '-r', '--name-only', ref, '--', heldHelperMigration]).trim()) {
+  throw new Error(`Held helper migration must remain outside this Stage 1 source packet: ${heldHelperMigration}.`);
+}
+const stage1Sha256 = sha256(git(['show', `${ref}:${reviewedStage1Migration}`], null));
+if (stage1Sha256 !== reviewedStage1Sha256) {
+  throw new Error(`Unreviewed Stage 1 memory migration ${stage1Sha256}; expected ${reviewedStage1Sha256}.`);
+}
 const raw = git(['ls-tree', '-r', '-l', '-z', ref, '--', ...inputPaths]);
 const files = raw.split('\0').filter(Boolean).map(row => {
   const match = /^(\d{6}) blob ([0-9a-f]{40})\s+(\d+)\t(.+)$/.exec(row);
