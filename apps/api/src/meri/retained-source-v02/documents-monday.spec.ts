@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import {
   assertDocumentPricing,
@@ -33,9 +35,18 @@ const documentInput = (documentId: string | null = null) => ({
 const mondayBody = () => ({
   tool: 'read_monday_client_boards', authoritativeOwner: 'managed_monday_mcp', currentStatus: 'healthy', clientId,
   records: [{ domain: 'monday', recordId: '101:202', payload: {
-    clientId, sourceActorUserId: id('2'), origin: { provider: 'monday', boardId: '101', itemId: '202', itemType: 'item', scope: 'saved_mapping' },
+    clientId, sourceActorUserId: id('2'), title: 'Task', status: 'Working', owners: [], dueDate: null,
+    updatedAt: '2026-10-18T09:00:00.000Z', description: null, updates: [], columns: [], url: null,
+    origin: { provider: 'monday', boardId: '101', itemId: '202', itemType: 'item', scope: 'saved_mapping' },
   }, provenance: { source: 'managed_monday_mcp', boardId: '101', itemId: '202' } }],
-  coverage: { requestedDomains: ['monday'], recordsReturned: 1, sources: [{ domain: 'monday', sourceStatus: 'healthy' }] },
+  coverage: {
+    requestedDomains: ['monday'], searchedDomains: ['monday'], requestedEntityCount: 1,
+    searchedEntityCount: 1, recordsEvaluated: 1, recordsReturned: 1,
+    paginationComplete: true, unavailableSources: [], complete: true, stopReason: 'complete',
+    sources: [{ domain: 'monday', sourceStatus: 'healthy', returned: 1, recordsEvaluated: 1,
+      requestedEntityCount: 1, searchedEntityCount: 1, pagesRead: 1, hasMore: false,
+      truncated: false, paginationComplete: true, coverageComplete: true, stopReason: 'complete' }],
+  },
 });
 const pin = 'a'.repeat(64);
 const pricing: DocumentPricingEvidence = {
@@ -47,6 +58,15 @@ const pricing: DocumentPricingEvidence = {
 };
 
 describe('retained 0.2 Monday and document source projections', () => {
+  it('pins the exact Meri PR158 Monday output schema and its data-search references', () => {
+    const pins = {
+      'monday.schema.json': '20bb7df536c0ae285b609f974619a6c910e35748f2a51c3f552e82c4f260afb1',
+      'monday-data-search.schema.json': 'b390270625b4662df487f04b13df745f422d10a2a8aa90e79e90a7ce75219d60',
+    };
+    for (const [name, expected] of Object.entries(pins))
+      expect(createHash('sha256').update(readFileSync(join(__dirname, name))).digest('hex')).toBe(expected);
+  });
+
   it('requires the task-selected client and an exact current managed board mapping', () => {
     expect(prepareMondayRead(mondayInput, current, mapping)).toEqual({ clientId });
     expect(() => prepareMondayRead({ ...mondayInput, clientId: id('b') }, current, mapping)).toThrow();
@@ -67,9 +87,28 @@ describe('retained 0.2 Monday and document source projections', () => {
       receipt(requestBoard, mapping.mappingVersionId))).toThrow();
     expect(projectMondayRead(requestBoard, mondayInput, current, { ...mapping, requestBoardIds: ['101'] },
       receipt(requestBoard, mapping.mappingVersionId))).toBe(requestBoard);
+    expect(() => projectMondayRead(body, mondayInput, current, { ...mapping, requestBoardIds: ['101'] },
+      receipt(body, mapping.mappingVersionId))).toThrow();
     expect(() => projectMondayRead(body, mondayInput, current, mapping, receipt(body, 'newer-revision'))).toThrow();
     expect(() => projectMondayRead(body, mondayInput, current, mapping,
       { ...receipt(body, mapping.mappingVersionId), resultSha256: 'b'.repeat(64) })).toThrow();
+  });
+
+  it('rejects schema gaps and Monday-specific row correlations even with a matching result hash', () => {
+    const base = mondayBody();
+    const mutate = (change: (body: ReturnType<typeof mondayBody>) => void) => {
+      const body = structuredClone(base);
+      change(body);
+      expect(() => projectMondayRead(body, mondayInput, current, mapping,
+        receipt(body, mapping.mappingVersionId))).toThrow();
+    };
+    mutate((body) => { (body as Record<string, unknown>).extra = true; });
+    mutate((body) => { delete (body.records[0]!.payload as Record<string, unknown>).owners; });
+    mutate((body) => { body.coverage.sources[0]!.sourceStatus = 'fictional'; });
+    mutate((body) => { body.records[0]!.payload.status = ' Working '; });
+    mutate((body) => { (body.records[0]!.payload as Record<string, unknown>).url = 'https://other.example/item'; });
+    mutate((body) => { body.records[0]!.payload.origin.itemType = 'subitem'; });
+    mutate((body) => { (body.records[0]!.payload.origin as Record<string, unknown>).parentItemId = '303'; });
   });
 
   it('requires measured prices and a matching enforced whisper cap even for a list', () => {

@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
+import dataSearchSchema from './monday-data-search.schema.json';
+import mondaySchema from './monday.schema.json';
 
 /**
  * Source-specific checks for the two retained 0.2 reads. These functions do not
@@ -79,6 +83,16 @@ const integer = (value: unknown, min: number, max = Number.MAX_SAFE_INTEGER): va
   Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= max;
 const timestamp = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 
+// Byte-exact Meri PR158 0.2 output schemas, pinned by the focused spec.
+// Shape validation supplements the current mapping and row-scope checks below.
+const mondayAjv = new Ajv2020({ strict: true, allErrors: true });
+addFormats(mondayAjv);
+mondayAjv.addSchema(dataSearchSchema);
+mondayAjv.addSchema(mondaySchema);
+const mondayOutputShape = mondayAjv.compile({
+  $ref: `${mondaySchema.$id}#/$defs/ClientKnowledgeMondayOutput`,
+});
+
 function assertCurrentClient(input: JsonObject, current: TrustedClientReadContext): string {
   const { binding, subject, selectedClientId } = current;
   if (!uuid(input.clientId) || !uuid(selectedClientId) || input.clientId !== selectedClientId ||
@@ -131,6 +145,7 @@ export function projectMondayRead(body: unknown, input: JsonObject, current: Tru
   mapping: CurrentManagedBoardMapping, receipt: CurrentSourceReceipt): JsonObject {
   prepareMondayRead(input, current, mapping);
   assertSourceReceipt(body, receipt);
+  if (!mondayOutputShape(body)) fail('Monday result differs from the 0.2 output schema');
   if (receipt.mappingVersionId !== mapping.mappingVersionId) fail('Managed board mapping changed during the read');
   const data = object(body), coverage = object(data.coverage), rows = data.records;
   if (data.tool !== 'read_monday_client_boards' || data.authoritativeOwner !== 'managed_monday_mcp' ||
@@ -153,7 +168,14 @@ export function projectMondayRead(body: unknown, input: JsonObject, current: Tru
       row.recordId !== `${boardId}:${origin.itemId}` || seen.has(row.recordId as string) ||
       provenance.source !== 'managed_monday_mcp' || provenance.boardId !== boardId ||
       provenance.itemId !== origin.itemId ||
+      provenance.parentItemId !== origin.parentItemId ||
+      ((origin.itemType === 'subitem') !== (typeof origin.parentItemId === 'string' && !!origin.parentItemId)) ||
+      (payload.status !== null && (!nonempty(payload.status))) ||
+      (payload.url !== null && (typeof payload.url !== 'string' ||
+        !/^https:\/\/[a-z0-9-]+\.monday\.com\//i.test(payload.url))) ||
       (origin.scope !== 'saved_mapping' && origin.scope !== 'request') ||
+      (mapping.requestBoardIds !== undefined && origin.scope !== 'request') ||
+      (mapping.requestBoardIds === undefined && origin.scope !== 'saved_mapping') ||
       (origin.scope === 'request' && !mapping.requestBoardIds?.includes(boardId)))
       fail('Monday row is outside the current mapped board or client');
     seen.add(row.recordId as string);
