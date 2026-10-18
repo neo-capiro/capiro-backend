@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { ApplicationAuthorityModule } from './auth/application-authority.module.js';
 import { ApplicationReadModeObservationModule } from './auth/application-read-mode-observation.module.js';
 import { RetainedPrincipalModule } from './auth/retained-principal.module.js';
+import { NativeApprovalModule } from './meri/native-approvals/native-approval.controller.js';
 import { TenantModule } from './tenant/tenant.module.js';
 import { TenantContextMiddleware } from './tenant/tenant-context.middleware.js';
 import { UsersModule } from './users/users.module.js';
@@ -94,6 +95,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     ApplicationAuthorityModule,
     ApplicationReadModeObservationModule,
     RetainedPrincipalModule,
+    NativeApprovalModule,
     TenantModule,
     UsersModule,
     WebhooksModule,

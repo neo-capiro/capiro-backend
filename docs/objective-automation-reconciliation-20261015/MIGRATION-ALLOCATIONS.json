@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "CENTRAL_SOURCE_ALLOCATION_RECORD",
   "coordinatorThread": "01a0ff18-26cd-7609-beba-87726d0300c6",
-  "recordedAt": "2026-10-16T18:10:26Z",
+  "recordedAt": "2026-10-18T05:30:00Z",
   "reservations": [
     {
       "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
@@ -128,6 +128,26 @@
         "live migration execution or native database qualification",
         "Objective workload delegation and Strategy replay migrations",
         "new credentials or deployment"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018010000_clio_meri_approval_decisions/migration.sql",
+      "owner": "Core P-INT-10 native approval decisions (Meri conversation write intents)",
+      "workstream": "fable/core-integration-20261018",
+      "base": "7dd72a0e5",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281017010000_client_objective_strategy_intake)",
+      "allocatedAt": "2026-10-18T05:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281017010000_client_objective_strategy_intake",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable per-(tenant, proposal) decision ledger with RLS",
+        "no Core foreign key to Meri conversation/run ids"
+      ],
+      "excluded": [
+        "live migration execution",
+        "grants on meri_commands.approval_metadata"
       ]
     }
   ]

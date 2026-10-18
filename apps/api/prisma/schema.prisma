@@ -237,6 +237,7 @@ model Tenant {
   outreachJobItems                   OutreachJobItem[]
   clioConversations                  ClioConversation[]
   clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
+  clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
@@ -2295,6 +2296,29 @@ model ClioConversationBootstrapReceipt {
 
   @@id([tenantId, actorUserId, requestId], map: "clio_bootstrap_receipts_pkey")
   @@map("clio_conversation_bootstrap_receipts")
+}
+
+/// P-INT-10 native approval decisions for Meri conversation write intents.
+/// Immutable and idempotent per (tenant, proposal): a repeat answers the stored
+/// decision. Conversation/run ids are Meri identifiers, not Core foreign keys.
+model ClioMeriApprovalDecision {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  proposalId         String   @map("proposal_id") @db.Uuid
+  commandSha256      String   @map("command_sha256") @db.Char(64)
+  decision           String   @db.VarChar(8)
+  decidedAt          DateTime @map("decided_at") @db.Timestamptz(3)
+  expiresAt          DateTime @map("expires_at") @db.Timestamptz(3)
+  approverUserId     String   @map("approver_user_id") @db.Uuid
+  policyRevision     String   @map("policy_revision") @db.VarChar(128)
+  bindingActorUserId String   @map("binding_actor_user_id") @db.Uuid
+  conversationId     String   @map("conversation_id") @db.Uuid
+  runId              String   @map("run_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_approval_decisions_tenant_fkey")
+
+  @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
+  @@map("clio_meri_approval_decisions")
 }
 
 /// User-owned reusable instructions for the Meri vNext workspace.
