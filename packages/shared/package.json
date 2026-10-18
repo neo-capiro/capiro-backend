@@ -18,6 +18,9 @@
       "client-registration-integrity": [
         "dist/client-registration-integrity.d.ts"
       ],
+      "memory-review": [
+        "dist/memory-review.d.ts"
+      ],
       "money": [
         "dist/money.d.ts"
       ],
@@ -83,6 +86,12 @@
       "require": "./dist/client-registration-integrity.js",
       "import": "./dist/client-registration-integrity.js",
       "default": "./dist/client-registration-integrity.js"
+    },
+    "./memory-review": {
+      "types": "./dist/memory-review.d.ts",
+      "require": "./dist/memory-review.js",
+      "import": "./dist/memory-review.js",
+      "default": "./dist/memory-review.js"
     },
     ".": {
       "types": "./dist/index.d.ts",
