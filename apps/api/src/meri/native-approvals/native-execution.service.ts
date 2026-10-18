@@ -163,11 +163,11 @@ export class NativeExecutionService {
     }
     // 5. (scope containment)
     if (!taskClientWithinScopes(clientId, command.scopes, ctx.tenantId)) throw conflict('Execution client is outside the approved scope');
-    // 2. (prepared record)
-    await this.metadata.verify(proposal);
-
     const planned = await this.prisma.withTenant(ctx.tenantId, async (tx): Promise<Planned> => {
       await lockMeriExecutionProposal(tx, ctx.tenantId, proposal.proposalId);
+      // 2. The Meri-owned prepared record is reread under this proposal lock
+      // on the same tenant transaction as the decision and issuance checks.
+      await this.metadata.verify(proposal, tx);
       // 2. (stored decision, revocation)
       const row = await tx.clioMeriApprovalDecision.findUnique({
         where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: proposal.proposalId } },
