@@ -190,10 +190,12 @@ closed for a family until its row is wired or deferred by a Neo record.
 
 ## 7. Next actions
 
-1. dot: read-only review of R10, D11's fix and the §8 packet. Choose §8.3 items 1–2 or the private-path alternative.
-2. Fable/R0: fix X1 (`/api` prefix) in Meri; design W8 memory routes with the lane 5 owner. W1 retained-read activation inputs.
-3. Fable: W6/W9 image + task change once builds are authorized, as one coordinated change set with §8.3 item 1.
-3. Integrated-candidate qualification (full suites, DB-backed tests, CDK synth, image scan, authenticated first chat) after the three repo integration branches settle.
+1. dot: read-only review of §8.1. Either approve the enumerated layout with its order-preserving priority reservation, or choose the bounded two-rule alternative.
+2. Rule owners: approve each hand-managed priority move in §8.1, then dot reads back the current listener. Nothing is applied before that.
+3. Fable (Core): implement W8, the four memory receiving routes, against dot's contract with R0. Review issuance/revocation of the reads lane's run-bound delegation contract (B) when it is drafted.
+4. Fable/owners: W1 activation inputs (Ed25519 keypairs, secrets, issuer and Intel origin), D13 JCS qualification, and the W6 integrated image with the W9 service secret, as one coordinated change set with item 2.
+5. Newsletter owner: re-seal the declared-edge contract fingerprint and priority (D14).
+6. Integrated-candidate qualification (full suites, DB-backed tests, CDK synth, image scan, authenticated first chat) after the three repo integration branches settle.
 
 ## 8. Preview Core deployment packet (source encoded; nothing applied)
 
