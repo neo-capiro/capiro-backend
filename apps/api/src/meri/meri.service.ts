@@ -4823,8 +4823,39 @@ export class MeriService implements MeriTurnMaintenance {
       }),
     });
 
+    // The v1 Context Compiler deliberately keeps ordinary voice/firm files
+    // available before the governance migration. A Clio-derived steering item
+    // is different: its canonical memory_items row can be revoked, conflicted
+    // or future-effective even while the legacy source still looks active.
+    // Recheck only those items at the point of prompt injection. If the
+    // governance schema is unavailable, withhold the Clio items and retain the
+    // unrelated voice/firm files.
+    const clioIds = packet.rendered
+      .filter((item) => item.slug.startsWith('clio:'))
+      .map((item) => item.id);
+    let eligibleClioIds = new Set<string>();
+    if (clioIds.length) {
+      try {
+        const eligible = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+          tx.$queryRaw<Array<{ id: string }>>`
+            SELECT mi.id::text AS id FROM memory_items mi
+            WHERE mi.id = ANY(${clioIds}::uuid[])
+              AND ${canonicalMemoryEligibilitySql({
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                allowedClientIds: ethicalWallAllowed && clientId ? [clientId] : [],
+              })}
+          `,
+        );
+        eligibleClioIds = new Set(eligible.map((item) => item.id));
+      } catch {
+        // No canonical eligibility evidence means no Clio-derived prompt text.
+      }
+    }
+
     const blocks: string[] = [];
     for (const r of packet.rendered) {
+      if (r.slug.startsWith('clio:') && !eligibleClioIds.has(r.id)) continue;
       if (r.layer === 'user-voice') {
         const label =
           r.type === 'user-voice'
@@ -5071,7 +5102,7 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   /** Pre-cutover recall path — clio_memory semantic (OpenAI) then keyword
-   *  fallback. Extracted verbatim so MEMORY_RECALL_SOURCE='clio' is unchanged. */
+   *  fallback, with the same canonical current-memory eligibility as governed search. */
   private async clioRecall(
     tenantId: string,
     userId: string,
@@ -5097,8 +5128,7 @@ export class MeriService implements MeriTurnMaintenance {
           clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId));
         // Filter before LIMIT: a run of newer revoked, future-effective or
         // unprojected rows must not hide an older eligible memory.
-        if (governedRecallSuppressionEnabled()) {
-          return tx.$queryRaw<Array<{ id: string; key: string; value: string }>>`
+        return tx.$queryRaw<Array<{ id: string; key: string; value: string }>>`
             SELECT cm.id, cm.key, cm.value
             FROM clio_memory cm
             WHERE cm.tenant_id = ${tenantId}::uuid
@@ -5122,22 +5152,6 @@ export class MeriService implements MeriTurnMaintenance {
             ORDER BY cm.updated_at DESC
             LIMIT 20
           `;
-        }
-        return tx.clioMemory.findMany({
-          where: {
-            tenantId,
-            // G2 ephemeral: expired working memory never reaches recall.
-            AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
-            OR: [
-              { scope: 'firm' },
-              { scope: 'user_private', ownerUserId: userId },
-              ...(clientId && clientArm ? [{ scope: 'client', clientId }] : []),
-            ],
-          },
-          orderBy: { updatedAt: 'desc' },
-          take: 20,
-          select: { id: true, key: true, value: true },
-        });
       });
       // Keyword-rank with a recency fallback so a stored memory is never
       // silently invisible when embeddings are unavailable (W2 M1).
@@ -5179,8 +5193,7 @@ export class MeriService implements MeriTurnMaintenance {
         clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
           ? clientId
           : null;
-      if (governedRecallSuppressionEnabled()) {
-        return tx.$queryRaw<
+      return tx.$queryRaw<
           Array<{
             title: string;
             sections: unknown;
@@ -5205,41 +5218,6 @@ export class MeriService implements MeriTurnMaintenance {
           ORDER BY ce.embedding <=> ${literal}::vector
           LIMIT ${fetchN}
         `);
-      }
-      return tx.$queryRawUnsafe<
-        Array<{
-          title: string;
-          sections: unknown;
-          score: number;
-          confidence: number | null;
-          observed_at: Date | null;
-        }>
-      >(
-        // Phase 5: freshness timestamp for recency decay. Deliberately does NOT
-        // use updated_at — the nightly backfill re-upserts every projected row,
-        // bumping updated_at to now() and flattening recency to ~1 for all rows.
-        // last_confirmed_at (human re-affirmation) wins; else created_at (first
-        // projection ≈ when first learned), which ON CONFLICT never rewrites.
-        // Confidence + this are consulted ONLY when rerankOn.
-        `SELECT mi.title, mi.sections_jsonb AS sections, mi.confidence AS confidence,
-                COALESCE(mi.last_confirmed_at, mi.created_at) AS observed_at,
-                1 - (ce.embedding <=> '${literal}'::vector) AS score
-           FROM context_embeddings ce
-           JOIN memory_items mi ON mi.id::text = ce.source_id
-          WHERE ce.source_type = 'memory_item'
-            AND ce.tenant_id = $1::uuid
-            AND mi.type = 'note'
-            AND mi.slug LIKE 'clio:%'
-            AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
-            AND mi.status = 'active'
-            AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))
-          ORDER BY ce.embedding <=> '${literal}'::vector
-          LIMIT ${fetchN}`,
-        tenantId,
-        userId,
-        clientArm,
-      );
     });
     // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, default 0.4) applied on RAW
     // similarity, BEFORE rerank — so rerank only REORDERS floor-passing survivors
@@ -6318,8 +6296,7 @@ export class MeriService implements MeriTurnMaintenance {
           clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
             ? clientId
             : null;
-        if (governedRecallSuppressionEnabled()) {
-          return tx.$queryRaw<Array<{ key: string; value: string; score: number }>>(Prisma.sql`
+        return tx.$queryRaw<Array<{ key: string; value: string; score: number }>>(Prisma.sql`
             SELECT cm.key, cm.value, 1 - (cm.embedding <=> ${vecStr}::vector) AS score
             FROM clio_memory cm
             WHERE cm.tenant_id = ${tenantId}::uuid
@@ -6344,26 +6321,6 @@ export class MeriService implements MeriTurnMaintenance {
             ORDER BY cm.embedding <=> ${vecStr}::vector
             LIMIT ${limit}
           `);
-        }
-        return tx.$queryRawUnsafe<Array<{ key: string; value: string; score: number }>>(
-          `SELECT key, value, 1 - (embedding <=> $1::vector) as score
-         FROM clio_memory
-         WHERE tenant_id = $2::uuid
-           AND embedding IS NOT NULL
-           AND (expires_at IS NULL OR expires_at > now())
-           AND (
-             scope = 'firm'
-             OR (scope = 'user_private' AND owner_user_id = $3::uuid)
-             OR (scope = 'client' AND client_id = $5::uuid)
-           )
-         ORDER BY embedding <=> $1::vector
-         LIMIT $4`,
-          vecStr,
-          tenantId,
-          userId,
-          limit,
-          clientArm,
-        );
       });
       // Phase 5: clio (OpenAI-space) floor is now configurable; default 0.3 is
       // exact parity with the previously-hardcoded threshold.
