@@ -180,4 +180,43 @@ describe('canonical document extraction access', () => {
       }),
     } });
   });
+
+  it('forbids audio provider calls without treating upload bytes as duration', async () => {
+    const m = harness();
+    m.findFirst.mockResolvedValue({ id: 'doc-1', clientId: 'client-1', meetingId: null,
+      fileName: 'Recording.mp3', contentType: 'audio/mpeg', lifecycleStatus: 'active',
+      scanStatus: null, s3Key: 'file-key' });
+    const transcribe = jest.fn();
+    Object.assign(m.service, { transcribeAttachmentWithOpenAi: transcribe });
+    await expect(m.service.extractAttachmentText(ctx, 'doc-1', { clientId: 'client-1', section: 1,
+      allowPaidExtraction: false })).rejects.toThrow('Provider transcription is disabled');
+    expect(transcribe).not.toHaveBeenCalled();
+    expect(m.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('returns a blank PDF text layer without vision or credential resolution in forbidden mode', async () => {
+    const m = harness();
+    m.findFirst.mockResolvedValue({ id: 'doc-1', clientId: 'client-1', meetingId: null,
+      fileName: 'Scan.pdf', contentType: 'application/pdf', lifecycleStatus: 'active',
+      scanStatus: null, s3Key: 'file-key' });
+    const visual = jest.fn(), resolveProvider = jest.fn();
+    Object.assign(m.service, {
+      attachmentContent: Object.assign(new AttachmentContentService(), { extractSection: jest.fn().mockResolvedValue({
+        source: 'pdf', text: '', section: 1, sectionCount: 2, sectionKind: 'page', sectionLabel: 'Page 1',
+      }) }), attachmentPdfVision: { read: visual }, documentAiCredentials: { resolveProvider },
+    });
+    const result = await m.service.extractAttachmentText(ctx, 'doc-1', { clientId: 'client-1', section: 1,
+      allowPaidExtraction: false });
+    expect(result).toMatchObject({ text: '', readability: { status: 'no_readable_text', method: 'text',
+      section: 1, sectionCount: 2, chars: 0 } });
+    expect(visual).not.toHaveBeenCalled();
+    expect(resolveProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not allow context import to bypass the provider exclusion', async () => {
+    const m = harness();
+    await expect(m.service.extractAttachmentText(ctx, 'doc-1', { clientId: 'client-1', contextImport: true,
+      allowPaidExtraction: false })).rejects.toThrow('Provider extraction is disabled');
+    expect(m.findFirst).not.toHaveBeenCalled();
+  });
 });
