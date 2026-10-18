@@ -92,4 +92,45 @@ describe('MemoryVersionController Phase 15 contract', () => {
       held.proposeCorrection(ctx, 'held-item', { content: 'Attempted correction' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('exposes an owner correction receipt only from the always-pending version path', async () => {
+    const proposeOwnerReviewCorrection = jest.fn(async () => ({
+      status: 'pending_review' as const,
+      candidateId: 'candidate-1',
+      activeItemUnchanged: true as const,
+    }));
+    const controller = new MemoryVersionController({
+      proposeOwnerReviewCorrection,
+    } as unknown as ImmutableMemoryVersionService);
+    const expectedUpdatedAt = '2026-10-18T12:34:56.123456Z';
+
+    await expect(
+      controller.proposeOwnerReviewCorrection(ctx, 'item-1', {
+        newContent: 'Corrected private truth.',
+        expectedUpdatedAt,
+      }),
+    ).resolves.toEqual({
+      status: 'pending_review',
+      candidateId: 'candidate-1',
+      activeItemUnchanged: true,
+    });
+    expect(proposeOwnerReviewCorrection).toHaveBeenCalledWith(
+      ctx,
+      'item-1',
+      'Corrected private truth.',
+      expectedUpdatedAt,
+    );
+    await expect(
+      controller.proposeOwnerReviewCorrection(ctx, 'item-1', {
+        newContent: ' ',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      controller.proposeOwnerReviewCorrection(ctx, 'item-1', {
+        newContent: 'New truth.',
+        expectedUpdatedAt: 42,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(proposeOwnerReviewCorrection).toHaveBeenCalledTimes(1);
+  });
 });

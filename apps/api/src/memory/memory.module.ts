@@ -44,6 +44,8 @@ import { MemoryReviewInboxController } from './memory-review-inbox.controller.js
 import { MemoryReviewSummaryController } from './memory-review-summary.controller.js';
 import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
+import { MemoryOwnerItemsController } from './memory-owner-items.controller.js';
+import { MemoryOwnerItemsService } from './memory-owner-items.service.js';
 import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
@@ -57,6 +59,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryReviewSummaryController,
     MemoryProposalController,
     MemoryVersionController,
+    MemoryOwnerItemsController,
     MemoryGovernanceController,
     InternalMemoryController,
   ],
@@ -65,6 +68,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     { provide: GovernedMemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     { provide: MemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     ImmutableMemoryVersionService,
+    MemoryOwnerItemsService,
     MemoryFkLoader,
     StrictMemoryProjectorService,
     GovernedMemoryIngestService,
