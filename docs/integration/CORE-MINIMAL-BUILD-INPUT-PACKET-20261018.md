@@ -148,7 +148,12 @@ earlier PR86, PR90 or PR43 pin. Build/readback details remain in
    Its SQL unconditionally raises SQLSTATE `55000` before dropping the candidate
    JSONB column. That is an intentional release hold, not a passing migration.
    The memory owner must read target checksums, retention/hold disposition and
-   table shape, then agree a separately reviewed forward path. Do not remove
+   table shape, then agree a separately reviewed forward path. The exact
+   [staged cutover plan](CORE-MEMORY-090000-STAGED-CUTOVER-20261018.md) first
+   relaxes the legacy payload column's `NOT NULL` constraint while preserving
+   every existing JSONB value; a later column drop needs separate action-time
+   disposition approval. The built `4b858a87` archive still contains the
+   unconditional exception and is **not deployment-ready**. Do not remove
    the hold, skip the migration, or rewrite Prisma history as part of packaging.
 4. Read Meri's own applied phase ledger and PLAN pins. Draft Meri PR165
    `e2d62589742fd349907274e5ee325e39059f14f4` registers the exact
@@ -215,6 +220,25 @@ adds unmounted page admission and client-scoped proposal continuation source.
 Its signed one-use eligibility helper, reservation-bound Meri proposal alias,
 and final receipt-expiry enforcement remain open. Do not count unmounted
 preparation as live memory availability.
+
+There is no safe provider-only composition left to perform for these held
+receivers. Core already mounts all eleven retained read branches with the
+existing pre-release check; ten non-document owners have source composition.
+The memory producer could inject existing Prisma and governed candidate
+providers, but no mounted caller can safely receive its result until Meri
+provides the signed parent page token, a separately allocated one-use
+eligibility helper, proposal alias and final expiry enforcement. The document
+reader's ECS metadata selector is also insufficient by itself: its independent
+`TrustedCoreDeploymentReadbackPort` has no implementation or registered Nest
+provider, and the preview task role has bounded KMS Sign but no ECS/ECR
+Describe. An operator must bind the reviewed running task/container identity,
+immutable image-to-source build record and effective-configuration hash on
+every call, then register a provider using separately reviewed existing
+access or leave documents at 503. Meri's post-UNKNOWN signed invocation and
+call-key relay, qualified signer/service identity, migration/view role
+readback, exact listener, source/image/config pins and authenticated response
+validation are additional runtime bindings. None is supplied by an env pin,
+test double or Core DI registration alone.
 
 ## Failure and rollback boundary
 
