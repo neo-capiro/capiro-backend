@@ -13,7 +13,9 @@
 **What exists in source (capiro-backend #84):**
 - the pure codec `apps/api/src/meri/execution-capability/meri-execution-capability.ts`, with its spec;
 - the async signer shape `apps/api/src/auth/core-ed25519-signer.ts`;
-- the golden vector `docs/integration/meri-execution-capability.vector.json` (a SYNTHETIC key).
+- the golden vector `docs/integration/meri-execution-capability.vector.json` (a SYNTHETIC key; production-shaped since rev 3: a 64-hex policy revision, closed task arguments, an allocation and qualification facts).
+
+**Revisions:** rev 2 bound the `create_task` body projection; rev 3 applies dot's review (#121 6246551969): budgets from the authenticated allocation, the allocation hash, the qualification facts, and a trusted comparison before dispatch. D19 stays open for the composition fixes below.
 
 This draft closes ledger D19's spec gap only once R0 and dot agree that it matches.
 
@@ -42,7 +44,7 @@ A JWS in compact form: `base64url(header).base64url(payload).base64url(signature
 | `iat` = `nbf` | Issuance second |
 | `exp` | `min(iat + 120, decision.expiresAt, proposal.expiresAt, run deadline)`, always greater than `iat` |
 | `jti` | `capabilityId`, a UUIDv4 and the replay key |
-| `capability` | Exactly Meri `CapabilityClaims`:<br>- `capabilityId = jti`, `issuer = iss`, `audience = aud`;<br>- `binding` = the **executor** RunBinding (same tenant, actor, conversation and run as the proposal; current attempt, worker and fence);<br>- `actions = ["command.execute"]` only;<br>- `scopes` = `proposal.command.scopes` verbatim;<br>- `issuedAt` / `expiresAt` = ISO forms of `iat` / `exp`;<br>- `policyRevision` = `decision.policyRevision`, which must equal every scope's revision;<br>- `budgets` (see §7 Q1). |
+| `capability` | Exactly Meri `CapabilityClaims`:<br>- `capabilityId = jti`, `issuer = iss`, `audience = aud`;<br>- `binding` = the **executor** RunBinding (same tenant, actor, conversation and run as the proposal; current attempt, worker and fence);<br>- `actions = ["command.execute"]` only;<br>- `scopes` = `proposal.command.scopes` verbatim;<br>- `issuedAt` / `expiresAt` = ISO forms of `iat` / `exp`;<br>- `policyRevision` = `decision.policyRevision`, which must equal every scope's revision;<br>- `budgets` copied from the authenticated `currentAllocation` (Meri's admitted-run owner), mapping `maxCostMicroUSD` to `maxCostMicrousd`. Caller-chosen numbers are refused. |
 | `execution.requestId` / `proposalId` / `commandSha256` / `idempotencyKey` | Fields of the `CommandExecutionRequest` |
 | `execution.action` | `proposal.command.action`. `task.create` only (Meri `APPROVABLE_ACTIONS`). |
 | `execution.argumentsSha256` | `SHA-256(JCS(proposal.command.arguments))`, the approved command |
@@ -51,6 +53,8 @@ A JWS in compact form: `base64url(header).base64url(payload).base64url(signature
 | `execution.decisionSha256` | `SHA-256(JCS(ApprovalDecision))`: the immutable approved decision (R12 row) |
 | `execution.approver` | The decision approver. It must equal the binding's tenant and actor. |
 | `execution.requestSha256` | `SHA-256(JCS(CommandExecutionRequest))`, which the verifier recomputes |
+| `execution.allocationSha256` | `SHA-256(JCS(currentAllocation))`, the allocation the budgets came from (Meri grant fact `allocationSha256`) |
+| `execution.qualification` | Meri grant fact `qualificationBinding`: `{runId, attempt (numeric), workerArn (ECS task ARN), fence, policyRevision}`. It must match the executor binding's run and fence and the decision's revision; UUID attempt/worker ids cannot substitute for it. |
 
 ## 3. Issuance (Core owner; route proposed, not mounted)
 
@@ -78,6 +82,8 @@ The same checks run in Meri's `verifyCapability` port and in Core's receiver bra
 
 Meri receives `claimsJson`, the exact `CapabilityClaims`. Public keys reach Meri as pinned OKP JWKs `(iss, kid) → x`. Meri never fetches keys at run time.
 
+**Verification is only self-consistency.** Before any dispatch, the holder must also run `assertExecutionMatches` against the actual external `CommandExecutionRequest`, the approved proposal, the current decision, the allocation and the qualification facts. Every hash and the scopes must be equal.
+
 ## 5. Replay and revocation
 
 **Both receiver behaviours below are obligations, not supplied behaviour** (dot 6246534408). Nothing is mounted until they exist.
@@ -101,14 +107,14 @@ Meri receives `claimsJson`, the exact `CapabilityClaims`. Public keys reach Meri
 
 It is never the control credential and never any other route or tool. **Not mounted.** This branch stays open until R0 and dot agree on it, because it changes which credential the tool route accepts.
 
-## 7. Open questions (R0 / dot)
+## 7. Questions and answers (dot #121 6246551969)
 
-1. **Budgets.** `CapabilityClaims.budgets` is a Meri run-allocation fact. Should Core copy the issuance request's budgets, capped by a Core maximum, or should Meri drop the field for `command.execute`?
-2. **Clock.** Meri requires `checkedAtMs ≥` its own call start. Core and Meri clocks differ, so either Meri allows a skew or Core echoes Meri's start time.
+1. ~~**Budgets.**~~ Copied from the authenticated `currentAllocation`, with the allocation hash bound (rev 3).
+2. ~~**Clock.**~~ Meri's trusted adapter stamps `checkedAtMs` with its own local observation after a correlated fresh Core response; the signed `iat`/`exp` are enforced separately. An idempotent re-issue may return the same immutable token, but only after a fresh current-authority check.
 3. ~~**Tool input.**~~ Answered by dot (6246527853): the body is Meri's projection, not `command.arguments`. Both hashes are now bound.
-4. **Lifecycle issuance.** Who issues for resume or `approval.wait`, when there is no attended request? This depends on the #150 delegation policy, which is pending with Neo.
-5. **Grant mapping.** Is `grant_id` for `bindTrustedGrant` the `capabilityId`, and which grant facts does Meri bind?
-6. **Other port suppliers.** `currentRun`, `authorizeBusiness`, `authorizeSources` and per-run result release still need production suppliers (D19). This draft covers only `verifyCapability` and `issueExecution`.
+4. ~~**Lifecycle issuance.**~~ A ≤120 s approved-execution token cannot bootstrap a pre-approval wait or an arbitrary continuation. Core owns current approval and issuance; R0 owns the proposal reader, continuation authority and admission, and the executor binding. #150 read delegation does not authorize unattended write capabilities.
+5. ~~**Grant mapping.**~~ `grantId = capabilityId (jti)`. The grant binds the exact executor RunBinding, `qualificationBinding`, the SHA-256 of the exact compact token (`capabilitySha256`) and `allocationSha256`. `bindTrustedGrant` requires an already ACTIVE matching row; it neither creates nor activates a grant, so the existing grant owner creates it on the same allocation.
+6. **Suppliers (R0).** `currentRun` and `currentAllocation` come from `createPostgresAdmittedRunOwner`. Business and source authority come from Core's canonical current membership, client, policy and source owners through exact current-tool-authority adapters. `createIntentResultRelease` only validates a supplied authority. The executor's pre-release re-checks stay.
 
 ## 8. Keys (deployment packet only)
 

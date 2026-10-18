@@ -11,6 +11,7 @@ import {
 import { nativeCanonicalSha256 } from '../native-approvals/native-approval.contract.js';
 import {
   MERI_EXECUTION_MAX_TTL_SECONDS,
+  assertExecutionMatches,
   executionCoversDecisionRead,
   issueMeriExecutionCapability,
   taskCreateSourceBody,
@@ -50,7 +51,15 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     const { claims, execution } = verifyMeriExecutionCapability(issued.credential, trust());
     expect(Object.keys(JSON.parse(JSON.stringify(claims))).sort()).toEqual(
       ['actions', 'audience', 'binding', 'budgets', 'capabilityId', 'expiresAt', 'issuedAt', 'issuer', 'policyRevision', 'scopes']);
-    expect(claims).toMatchObject({ audience: 'meri-gateway', actions: ['command.execute'], policyRevision: 'policy-r1', binding: vector.inputs.executorBinding });
+    expect(claims).toMatchObject({
+      audience: 'meri-gateway', actions: ['command.execute'], policyRevision: vector.inputs.decision.policyRevision,
+      binding: vector.inputs.executorBinding,
+      // Copied from the authenticated allocation; maxCostMicroUSD -> maxCostMicrousd.
+      budgets: { maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicrousd: 2000000, maxOutputBytes: 262144 },
+    });
+    expect(claims.policyRevision).toMatch(/^[a-f0-9]{64}$/);
+    expect(execution.allocationSha256).toBe(nativeCanonicalSha256(vector.inputs.allocation));
+    expect(execution.qualification).toEqual(vector.inputs.qualification);
     const proposal = vector.inputs.proposal;
     expect(issued.execution).toEqual({
       contractVersion: '0.1.0', requestId: vector.inputs.requestId, capabilityId: vector.inputs.capabilityId,
@@ -84,6 +93,11 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     ['a non-v4 capability id', { capabilityId: '15151515-1515-1151-8151-151515151515' }],
     ['a decision taken after now', { nowMs: Date.parse(vector.inputs.decision.decidedAt) - 1 }],
     ['an unknown input key', { extra: true }],
+    ['qualification facts for another fence', { qualification: { ...vector.inputs.qualification, fence: 5 } }],
+    ['qualification facts for another policy revision', { qualification: { ...vector.inputs.qualification, policyRevision: 'f'.repeat(64) } }],
+    ['qualification facts for another run', { qualification: { ...vector.inputs.qualification, runId: '13131313-1313-4131-8131-131313131313' } }],
+    ['a worker that is not an ECS task ARN', { qualification: { ...vector.inputs.qualification, workerArn: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' } }],
+    ['caller-chosen budgets instead of an allocation', { allocation: { budgets: { maxTurns: 1, maxRuntimeSeconds: 1, maxCostMicrousd: 1, maxOutputBytes: 1 } } }],
   ] as Array<[string, Record<string, unknown>]>)('refuses to issue for %s', async (_label, o) => {
     await expect(issueMeriExecutionCapability(inputs(o), signer)).rejects.toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
   });
@@ -137,6 +151,25 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     const otherRequest = clone(payload);
     otherRequest.execution.idempotencyKey = 'intent-2';
     expect(() => verifyMeriExecutionCapability(resign(canonicalizeCoreRetainedJson(otherRequest)), trust())).toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
+  });
+
+  it('authorizes nothing until it equals the actual request, proposal, decision, allocation and qualification', async () => {
+    const issued = await issueMeriExecutionCapability(inputs(), signer);
+    const verified = verifyMeriExecutionCapability(issued.credential, trust());
+    const actual = () => clone({
+      request: issued.execution, proposal: vector.inputs.proposal, decision: vector.inputs.decision,
+      allocation: vector.inputs.allocation, qualification: vector.inputs.qualification,
+    });
+    expect(() => assertExecutionMatches(verified, actual())).not.toThrow();
+    const refused = (mutate: (a: ReturnType<typeof actual>) => void) => {
+      const a = actual(); mutate(a);
+      expect(() => assertExecutionMatches(verified, a)).toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
+    };
+    refused((a) => { a.request.requestId = '17171717-1717-4171-8171-171717171717'; });
+    refused((a) => { a.proposal.command.arguments.title = 'Other'; });
+    refused((a) => { a.decision.decidedAt = '2026-10-18T06:01:30.000Z'; });
+    refused((a) => { a.allocation.budgets.maxCostMicroUSD = 1; });
+    refused((a) => { a.qualification.attempt = 3; });
   });
 
   it('covers only its own proposal decision read in its own run (receiver-branch draft)', async () => {
