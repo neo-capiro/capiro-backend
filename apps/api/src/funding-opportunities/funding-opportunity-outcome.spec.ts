@@ -242,6 +242,7 @@ describe('P36 — the memory candidate is client-scoped, never auto-promoted, fa
     if (result.state === 'recorded') expect(result.memoryCandidateProposed).toBe(true);
     expect((captured as { scope: string }).scope).toBe('client');
     expect((captured as { clientId: string }).clientId).toBe(CLIENT);
+    expect((captured as { ownerUserId: string | null }).ownerUserId).toBeNull();
   });
 
   it('a memory-candidate failure never loses the outcome record', async () => {

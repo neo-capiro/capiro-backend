@@ -59,7 +59,8 @@ function harness(allowed: boolean) {
     $queryRaw: jest.fn(async (strings: unknown, ...params: unknown[]) => {
       const raw = (strings as { raw?: string[] }).raw;
       const sql = Array.isArray(raw) ? raw.join('?') : String(strings);
-      if (/FOR UPDATE/i.test(sql)) {
+      if (/FROM\s+clio_memory/i.test(sql) && /FOR UPDATE/i.test(sql)) return [];
+      if (/FROM\s+memory_candidate/i.test(sql) && /FOR UPDATE/i.test(sql)) {
         order.push('lock');
         if (candidateStatus !== 'pending') return [];
         return [
@@ -75,6 +76,7 @@ function harness(allowed: boolean) {
             },
             proposedBy: PROPOSER,
             scope: 'client',
+            clientId: CLIENT,
             sourceKind: 'settings_sections',
           },
         ];
@@ -84,6 +86,7 @@ function harness(allowed: boolean) {
       }
       return [];
     }),
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
     $executeRaw: jest.fn(async () => 1),
   };
 

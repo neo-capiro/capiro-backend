@@ -327,7 +327,7 @@ export class FundingOpportunityOutcomeService {
         actor.userId,
         {
           scope: 'client',
-          ownerUserId: actor.userId,
+          ownerUserId: null,
           clientId: input.clientId,
           key: `funding-opportunity-outcome:${input.source}:${input.sourceRecordId}:${outcome.id}`,
           value: learningCandidateSummary(input, outcome),
