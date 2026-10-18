@@ -10,6 +10,7 @@ const actorId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const firstClient = '11111111-1111-4111-8111-111111111111';
 const secondClient = '22222222-2222-4222-8222-222222222222';
 const previewHost = 'first-chat-preview.app-dev.capiro.ai';
+const rosterHost = 'core-roster-preview.capiro.ai';
 
 const ctx = {
   tenantId, userId: actorId, tenantSlug: 'preview-test', clerkUserId: 'user_preview_test', role: 'standard_user',
@@ -27,11 +28,18 @@ function receipt(overrides: Partial<ApplicationMembershipReceipt> = {}): Applica
 function fixture(options: {
   host?: string;
   enabled?: boolean;
+  rosterEnabled?: boolean;
+  method?: string;
+  target?: string;
   reads?: ApplicationMembershipReceipt[];
 } = {}) {
   const headers = new Map<string, string>();
+  const host = options.host ?? previewHost;
+  const target = options.target ?? '/api/clients';
   const request = Object.assign(new EventEmitter(), {
-    headers: { host: options.host ?? previewHost },
+    method: options.method ?? 'GET', path: target.split('?')[0],
+    originalUrl: target, url: target,
+    headers: { host }, rawHeaders: ['Host', host],
     aborted: false,
   }) as unknown as Request;
   const response = Object.assign(new EventEmitter(), {
@@ -51,8 +59,9 @@ function fixture(options: {
     },
   };
   const config = { get(key: string) {
-    expect(key).toBe('PREVIEW_NATIVE_GETS_ENABLED');
-    return options.enabled ?? true;
+    if (key === 'PREVIEW_NATIVE_GETS_ENABLED') return options.enabled ?? true;
+    if (key === 'CORE_ROSTER_PREVIEW_ENABLED') return options.rosterEnabled ?? false;
+    throw new Error(`Unexpected config ${key}`);
   } };
   const service = new PreviewNativeReadService(config as never, membership as never);
   return { service, request, response, calls, headers };
@@ -97,6 +106,36 @@ describe('Preview native GET read gate', () => {
     expect(h.headers.get('cache-control')).toBe('no-store');
     await expect(h.service.run(h.request, h.response, ctx, async () => 'unreachable')).rejects.toMatchObject({ status: 503 });
     expect(h.calls).toEqual([]);
+  });
+
+  it('runs the exact roster Host through the same two current membership reads', async () => {
+    const h = fixture({ host: rosterHost, rosterEnabled: true });
+    await expect(h.service.run(h.request, h.response, ctx, async (ids) => ids))
+      .resolves.toEqual([firstClient, secondClient]);
+    expect(h.calls).toHaveLength(2);
+    expect(h.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('does not release a roster result after the membership revision changes', async () => {
+    const h = fixture({ host: rosterHost, rosterEnabled: true,
+      reads: [receipt(), receipt({ membershipRevision: 'b'.repeat(64) })] });
+    await expect(h.service.run(h.request, h.response, ctx, async () => [firstClient]))
+      .rejects.toMatchObject({ status: 409 });
+    expect(h.calls).toHaveLength(2);
+  });
+
+  it('holds roster reads when either setting is off or the target is not the list GET', () => {
+    for (const options of [
+      { rosterEnabled: false, enabled: true },
+      { rosterEnabled: true, enabled: false },
+      { rosterEnabled: true, enabled: true, method: 'HEAD' },
+      { rosterEnabled: true, enabled: true, target: '/api/clients/client-id' },
+    ]) {
+      const h = fixture({ host: rosterHost, ...options });
+      expect(() => h.service.mode(h.request, h.response)).toThrow();
+      expect(h.calls).toHaveLength(0);
+      expect(h.headers.get('cache-control')).toBe('no-store');
+    }
   });
 
   it.each([previewHost.toUpperCase(), `${previewHost}:443`, 'app.capiro.ai', 'localhost'])

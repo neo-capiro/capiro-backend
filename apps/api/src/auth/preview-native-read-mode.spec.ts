@@ -1,6 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import type { Request } from 'express';
-import { isPreviewNativeReadRoute, previewNativeReadMode } from './preview-native-read-mode.js';
+import {
+  coreRosterPreviewDecision, isPreviewNativeReadRoute, previewNativeReadMode,
+} from './preview-native-read-mode.js';
 
 function request(method: string, path: string, originalUrl = path): Request {
   return { method, path, originalUrl, url: originalUrl } as Request;
@@ -45,5 +47,89 @@ describe('preview native memory route predicate', () => {
     expect(previewNativeReadMode(true, 'app.capiro.ai')).toBe('unavailable');
     expect(previewNativeReadMode(true, `${host}:443`)).toBe('unavailable');
     expect(previewNativeReadMode(false, 'app.capiro.ai')).toBe('ordinary');
+  });
+});
+
+const rosterHost = 'core-roster-preview.capiro.ai';
+function rosterRequest(
+  method = 'GET', target = '/api/clients', host = rosterHost,
+  parsedPath = target.split('?')[0]!, rawHosts: string[] = [host],
+): Request {
+  return {
+    method, path: parsedPath, originalUrl: target, url: target,
+    headers: { host }, rawHeaders: rawHosts.flatMap((value) => ['Host', value]),
+  } as unknown as Request;
+}
+
+describe('Core roster preview exact Host and target decision', () => {
+  it('allows only the origin-form roster GET with both task settings enabled', () => {
+    expect(coreRosterPreviewDecision(rosterRequest(), true, true)).toBe('preview');
+    expect(coreRosterPreviewDecision(rosterRequest('GET',
+      '/api/clients?profileStatus=ACTIVE&sectorTag=defense&includeArchived=false'), true, true))
+      .toBe('preview');
+    expect(coreRosterPreviewDecision(rosterRequest(), false, true)).toBe('unavailable');
+    expect(coreRosterPreviewDecision(rosterRequest(), true, false)).toBe('unavailable');
+    expect(coreRosterPreviewDecision(rosterRequest(), false, false)).toBe('unavailable');
+  });
+
+  it.each([
+    ['HEAD', '/api/clients', '/api/clients'],
+    ['POST', '/api/clients', '/api/clients'],
+    ['GET', '/api/clients/', '/api/clients/'],
+    ['GET', '/api/clients/client-id', '/api/clients/client-id'],
+    ['GET', '/api/me', '/api/me'],
+    ['GET', '/api/memory/owner/items', '/api/memory/owner/items'],
+    ['GET', '/health', '/health'],
+    ['POST', '/webhooks/clerk', '/webhooks/clerk'],
+    ['GET', '/api/internal/status', '/api/internal/status'],
+    ['GET', 'http://core-roster-preview.capiro.ai/api/clients', '/api/clients'],
+    ['GET', '//core-roster-preview.capiro.ai/api/clients', '/api/clients'],
+    ['GET', '/api/%63lients', '/api/clients'],
+    ['GET', '/api/clients', '/api/me'],
+  ])('denies method/target ambiguity %s %s', (method, target, parsedPath) => {
+    expect(coreRosterPreviewDecision(rosterRequest(method, target, rosterHost, parsedPath), true, true))
+      .toBe('not-found');
+  });
+
+  it.each([
+    rosterHost.toUpperCase(), `${rosterHost}:443`, `${rosterHost}.`,
+    `${rosterHost}.evil.example`, `evil.example, ${rosterHost}`,
+  ])('denies a malformed reserved Host (%s)', (host) => {
+    expect(coreRosterPreviewDecision(rosterRequest('GET', '/api/clients', host), true, true))
+      .toBe('not-found');
+  });
+
+  it('rejects duplicate or missing raw Host headers even when Node retains the exact parsed Host', () => {
+    expect(coreRosterPreviewDecision(rosterRequest('GET', '/api/clients', rosterHost,
+      '/api/clients', [rosterHost, 'portfolio-preview.app.capiro.ai']), true, true))
+      .toBe('not-found');
+    expect(coreRosterPreviewDecision(rosterRequest('GET', '/api/clients', rosterHost,
+      '/api/clients', []), true, true)).toBe('not-found');
+  });
+
+  it('reserves an absolute-form roster target even when Host claims ordinary Portfolio', () => {
+    expect(coreRosterPreviewDecision(rosterRequest('GET',
+      `http://${rosterHost}/api/clients`, 'portfolio-preview.app.capiro.ai', '/api/clients'), true, true))
+      .toBe('not-found');
+  });
+
+  it.each([
+    '/api/clients?unknown=x',
+    '/api/clients?sectorTag=defense&sectorTag=energy',
+    '/api/clients?sectorTag=%XX',
+    `/api/clients?sectorTag=${'a'.repeat(513)}`,
+    '/api/clients?sectorTag=defense#fragment',
+  ])('rejects unbounded or ambiguous query parsing (%s)', (target) => {
+    expect(coreRosterPreviewDecision(rosterRequest('GET', target), true, true)).toBe('not-found');
+  });
+
+  it('keeps the composed Portfolio Host ordinary and ignores X-Forwarded-Host', () => {
+    const portfolio = rosterRequest('GET', '/api/clients', 'portfolio-preview.app.capiro.ai');
+    portfolio.headers['x-forwarded-host'] = rosterHost;
+    expect(coreRosterPreviewDecision(portfolio, true, true)).toBe('unrelated');
+    expect(previewNativeReadMode(true, portfolio.headers.host, true)).toBe('ordinary');
+    expect(previewNativeReadMode(true, rosterHost, true)).toBe('unavailable');
+    expect(previewNativeReadMode(true, 'other.example', true)).toBe('unavailable');
+    expect(previewNativeReadMode(true, 'first-chat-preview.app-dev.capiro.ai', true)).toBe('preview');
   });
 });

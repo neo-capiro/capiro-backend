@@ -3,6 +3,7 @@ import { request as httpRequest, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import type { ClerkService } from '../auth/clerk.service.js';
+import { coreRosterPreviewHttpGate } from '../auth/core-roster-preview-http-gate.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextMiddleware } from './tenant-context.middleware.js';
 import { TenantContextStore } from './tenant-context.store.js';
@@ -14,7 +15,9 @@ jest.mock('@clerk/backend', () => ({
 }));
 
 const previewHost = 'first-chat-preview.app-dev.capiro.ai';
+const rosterHost = 'core-roster-preview.capiro.ai';
 const priorPreviewSetting = process.env.PREVIEW_NATIVE_GETS_ENABLED;
+const priorRosterSetting = process.env.CORE_ROSTER_PREVIEW_ENABLED;
 const user = { id: 'actor_preview', clerkUserId: 'clerk_preview_actor' };
 const tenant = { id: 'tenant_preview', clerkOrgId: 'org_preview', slug: 'preview', status: 'active' };
 const membership = {
@@ -58,6 +61,13 @@ function fixture() {
   const prisma = { withSystem } as unknown as PrismaService;
   const middleware = new TenantContextMiddleware(clerk, prisma, new TenantContextStore());
   const app = express();
+  app.use(coreRosterPreviewHttpGate(
+    process.env.CORE_ROSTER_PREVIEW_ENABLED === 'true',
+    process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true',
+  ));
+  const excludedReached = jest.fn();
+  app.get('/health', (_req, res) => { excludedReached(); res.status(200).end(); });
+  app.post('/webhooks/clerk', (_req, res) => { excludedReached(); res.status(200).end(); });
   app.use((req, res, next) => { void middleware.use(req, res, next).catch(next); });
   const reached = jest.fn();
   const reply = (req: express.Request, res: express.Response) => {
@@ -74,7 +84,7 @@ function fixture() {
   app.use((error: { getStatus?: () => number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(error.getStatus?.() ?? 500).end();
   });
-  return { app, reached, verifySessionToken, assertActiveApplicationAuthoritySession, withSystem, mutations };
+  return { app, reached, excludedReached, verifySessionToken, assertActiveApplicationAuthoritySession, withSystem, mutations };
 }
 
 async function send(server: Server, method: string, target: string, host = previewHost,
@@ -104,6 +114,8 @@ describe('preview native reads through real Node HTTP and Express routing', () =
   afterEach(() => {
     if (priorPreviewSetting === undefined) delete process.env.PREVIEW_NATIVE_GETS_ENABLED;
     else process.env.PREVIEW_NATIVE_GETS_ENABLED = priorPreviewSetting;
+    if (priorRosterSetting === undefined) delete process.env.CORE_ROSTER_PREVIEW_ENABLED;
+    else process.env.CORE_ROSTER_PREVIEW_ENABLED = priorRosterSetting;
   });
 
   it('routes all six GETs and HEAD through online native authority without a local write', async () => {
@@ -181,6 +193,115 @@ describe('preview native reads through real Node HTTP and Express routing', () =
     try {
       const result = await send(server, 'GET', '/api/me');
       expect(result.status).toBe(503);
+      expect(result.headers['cache-control']).toBe('no-store');
+      expect(h.reached).not.toHaveBeenCalled();
+      expect(h.verifySessionToken).not.toHaveBeenCalled();
+      expect(h.withSystem).not.toHaveBeenCalled();
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('routes the exact roster GET through live native membership without ordinary writes', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      const result = await send(server, 'GET',
+        '/api/clients?profileStatus=ACTIVE&sectorTag=defense&includeArchived=false', rosterHost);
+      expect(result.status).toBe(200);
+      expect(result.headers['cache-control']).toBe('no-store');
+      expect(h.reached).toHaveBeenCalledWith('GET', '/api/clients');
+      expect(h.verifySessionToken).toHaveBeenCalledTimes(1);
+      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(1);
+      expect(h.withSystem).toHaveBeenCalledTimes(1);
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('keeps first-chat HEAD and absolute-form native reads on the composed task', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      for (const [method, target] of ([
+        ['HEAD', '/api/me'],
+        ['GET', `http://${previewHost}/api/memory/owner/items`],
+      ] as const)) {
+        const result = await send(server, method, target, previewHost);
+        expect(result.status).toBe(200);
+        expect(result.headers['cache-control']).toBe('no-store');
+      }
+      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(2);
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('blocks roster Host methods, other paths and excluded handlers before Clerk or DB', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      for (const [method, target] of ([
+        ['HEAD', '/api/clients'], ['POST', '/api/clients'],
+        ['GET', '/api/clients/client-id'], ['GET', '/api/me'],
+        ['GET', '/api/memory/owner/items'], ['GET', '/health'],
+        ['POST', '/webhooks/clerk'], ['GET', `http://${rosterHost}/api/clients`],
+      ] as const)) {
+        const result = await send(server, method, target, rosterHost);
+        expect(result.status).toBe(404);
+        expect(result.headers['cache-control']).toBe('no-store');
+      }
+      expect(h.reached).not.toHaveBeenCalled();
+      expect(h.excludedReached).not.toHaveBeenCalled();
+      expect(h.verifySessionToken).not.toHaveBeenCalled();
+      expect(h.withSystem).not.toHaveBeenCalled();
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('holds the exact roster Host when its flag is off, without ordinary fallback', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'false';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      const result = await send(server, 'GET', '/api/clients', rosterHost);
+      expect(result.status).toBe(503);
+      expect(result.headers['cache-control']).toBe('no-store');
+      expect(h.reached).not.toHaveBeenCalled();
+      expect(h.verifySessionToken).not.toHaveBeenCalled();
+      expect(h.withSystem).not.toHaveBeenCalled();
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('denies a roster absolute-form target with an ordinary Host before tenant writes', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      const result = await send(server, 'GET', `http://${rosterHost}/api/clients`,
+        'portfolio-preview.app.capiro.ai');
+      expect(result.status).toBe(404);
       expect(result.headers['cache-control']).toBe('no-store');
       expect(h.reached).not.toHaveBeenCalled();
       expect(h.verifySessionToken).not.toHaveBeenCalled();

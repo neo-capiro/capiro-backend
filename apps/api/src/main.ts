@@ -8,6 +8,7 @@ import {
 } from './bootstrap/configure-api-http-app.js';
 import { assertEngagementRuntimeEnvironment } from './engagement/runtime/engagement-runtime-env.js';
 import { disablePersistedMeriPolicyPackEnforcement } from './meri/meri-policy-pack-runtime.js';
+import { coreRosterPreviewHttpGate } from './auth/core-roster-preview-http-gate.js';
 
 disablePersistedMeriPolicyPackEnforcement();
 
@@ -17,6 +18,10 @@ async function bootstrap() {
   assertEngagementRuntimeEnvironment(process.env as Record<string, unknown>);
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.use(coreRosterPreviewHttpGate(
+    process.env.CORE_ROSTER_PREVIEW_ENABLED === 'true',
+    process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true',
+  ));
   app.enableShutdownHooks();
   const logger = new Logger('Bootstrap');
 

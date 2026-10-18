@@ -15,6 +15,7 @@ import {
   Injectable,
   Logger,
   NestMiddleware,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -43,7 +44,7 @@ import {
   type ApplicationAuthorityIdentityEvidence,
   type ApplicationAuthorityIdentityProof,
 } from '../auth/application-authority.js';
-import { isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
+import { coreRosterPreviewDecision, isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
 import {
   admitMeriReadToken,
   isMeriReadDelegationServicePost,
@@ -155,6 +156,21 @@ export class TenantContextMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+    // This mirror is first so neither signed-service bypasses nor the ordinary
+    // Clerk resolver can run on the reserved roster Host, even if process
+    // registration changes. The main bootstrap gate also covers excluded paths.
+    const roster = coreRosterPreviewDecision(
+      req,
+      process.env.CORE_ROSTER_PREVIEW_ENABLED === 'true',
+      process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true',
+    );
+    if (roster !== 'unrelated') {
+      res.setHeader('Cache-Control', 'no-store');
+      if (roster === 'unavailable') throw new ServiceUnavailableException('Preview reads unavailable');
+      if (roster === 'not-found') throw new NotFoundException();
+      await this.usePreviewNativeRead(req, next);
+      return;
+    }
     // Also cover authentication/authorization denials before the controller.
     const authorityPaths = [
       '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
@@ -275,7 +291,10 @@ export class TenantContextMiddleware implements NestMiddleware {
     // identity-rebind, membership self-heal or lastSeenAt write path. Resolve an
     // existing native member only; the same request is checked again at release.
     if (isPreviewNativeReadRoute(req)) {
-      const mode = previewNativeReadMode(process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true', req.headers.host);
+      const mode = previewNativeReadMode(
+        process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true', req.headers.host,
+        process.env.CORE_ROSTER_PREVIEW_ENABLED === 'true',
+      );
       if (mode !== 'ordinary') {
         res.setHeader('Cache-Control', 'no-store');
         if (mode === 'unavailable') throw new ServiceUnavailableException('Preview reads unavailable');
