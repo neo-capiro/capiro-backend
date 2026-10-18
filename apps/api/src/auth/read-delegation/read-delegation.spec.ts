@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { createHash, generateKeyPairSync, randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
-import { ConflictException, ForbiddenException, GoneException, HttpException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, GoneException, HttpException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import type { ClerkService } from '../clerk.service.js';
@@ -519,6 +519,43 @@ describe('RC1 option B read delegation, Core owner', () => {
       const t = await h.issue(d.delegationId);
       return { h, d, t, path: delegationPath(d.delegationId, 'current') };
     }
+
+    it('binds the A8 action read to its original UNKNOWN reservation and emitted bytes', async () => {
+      const priorEnabled = process.env.MERI_ACTION_QUERY_ALIAS_ENABLED;
+      try {
+        const operation = { id: 'actions.query', version: '0.2.0' };
+        const h = harness({ ...allocation, manifest: { allowedOperations: [...OPS, operation] } });
+        const d = await h.create();
+        const queryBody = { clientId: C, limit: 20, sort: 'deadline' };
+        const args = sha('original actions.query arguments');
+        const target = '/api/clio/tools/actions.query';
+        const request = { kind: 'tool', path: target, operation, argumentsSha256: args,
+          bodySha256: sha(JSON.stringify(queryBody)) };
+        delete process.env.MERI_ACTION_QUERY_ALIAS_ENABLED;
+        await expect(h.issue(d.delegationId, request)).rejects.toBeInstanceOf(ServiceUnavailableException);
+        expect(h.db.state.tokens.size).toBe(0);
+        process.env.MERI_ACTION_QUERY_ALIAS_ENABLED = 'true';
+        expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { ...request,
+          operation: { id: 'actions.query', version: '0.3.0' } }), d.delegationId)).toThrow();
+        await expect(h.issue(d.delegationId, request)).rejects.toBeInstanceOf(ForbiddenException);
+        h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation,
+          arguments_sha256: sha('wrong original arguments'), state: 'UNKNOWN' });
+        await expect(h.issue(d.delegationId, request)).rejects.toBeInstanceOf(ForbiddenException);
+        h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation,
+          arguments_sha256: args, state: 'UNKNOWN' });
+        const token = await h.issue(d.delegationId, request);
+        await expect(h.use(target, token.token, { ...queryBody, limit: 21 })).rejects.toBeInstanceOf(ForbiddenException);
+        expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+        const used = await h.use(target, token.token, queryBody);
+        expect(meriReadDelegationOf(used.req)).toMatchObject({ kind: 'tool', operation,
+          callKey: 'call-1', argumentsSha256: args, clientId: C });
+        await assertMeriReadDelegationReleasable(h.db.prisma, used.req);
+        await expect(h.use(target, token.token, queryBody)).rejects.toBeInstanceOf(UnauthorizedException);
+      } finally {
+        if (priorEnabled === undefined) delete process.env.MERI_ACTION_QUERY_ALIAS_ENABLED;
+        else process.env.MERI_ACTION_QUERY_ALIAS_ENABLED = priorEnabled;
+      }
+    });
 
     it('admits the token once on its exact target, builds the context from the delegation and never reaches Clerk', async () => {
       const { h, d, t, path } = await admitted();
