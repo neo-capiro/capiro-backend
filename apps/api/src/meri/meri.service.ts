@@ -128,6 +128,7 @@ import {
   type SystemTextBlock,
 } from './meri-prompt.helpers.js';
 import { rankMemoriesByKeyword, memorySectionValue } from './meri-memory.helpers.js';
+import { bindUnscopedMemoryTool } from './meri-memory-client-binding.js';
 import { runToolsConcurrently } from './meri-tool-exec.helpers.js';
 import {
   extractCitationsFromToolResult,
@@ -2217,6 +2218,23 @@ export class MeriService implements MeriTurnMaintenance {
               } else {
                 scopeViolation = clientScopeRefusal(await resolveSessionClientName());
               }
+            }
+          } else if (!isBridged) {
+            // Memory tools are never allowed to inherit a client UUID from the
+            // model when this conversation has no selected client. Other tool
+            // parameter namespaces retain their existing behavior.
+            const bound = bindUnscopedMemoryTool(t.name, parsedInput);
+            parsedInput = bound.input;
+            if (bound.refusal) scopeViolation = bound.refusal;
+          }
+          if (!scopeViolation && !isBridged && t.name === 'save_memory' &&
+              typeof parsedInput.scope === 'string' &&
+              parsedInput.scope.trim().toLowerCase() === 'client' && conversation.clientId) {
+            const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+              clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, conversation.clientId!),
+            );
+            if (!allowed) {
+              scopeViolation = 'Client memory access is not authorized for this conversation.';
             }
           }
           // Always thread the active conversationId into the tool input. The
@@ -6501,40 +6519,28 @@ export class MeriService implements MeriTurnMaintenance {
   /**
    * "Suggest correction" for a memory the caller may not mutate (Phase 2 Step 9).
    *
-   * A standard user cannot edit firm- or client-scope memory — evaluateMemoryMutation
-   * denies it — but dead-ending them is why auto-learned mistakes used to persist.
-   * Private and custom canonical items use their own bound version workflow.
-   * The suggestion becomes a PENDING memory_candidate through Phase 1's real
-   * candidate lifecycle, so an admin reviews it and nothing is committed here.
-   *
-   * `isAdmin: false` is passed unconditionally and on purpose: this route only
-   * ever PROPOSES. An admin who genuinely wants to write uses the normal PATCH
-   * path, so a correction suggestion can never become a silent direct write.
+   * The legacy key-only candidate cannot bind a correction to an immutable
+   * source version. A later approval could overwrite an intervening edit, and
+   * personal user_correction can auto-commit. Keep the authorization boundary
+   * while callers move to canonical version review; do not create a candidate.
    */
   async suggestMemoryCorrection(
     ctx: TenantContext,
     memoryId: string,
     input: { value?: unknown; note?: unknown },
-  ): Promise<{ ok: true; state: 'pending_review'; candidateId: string | null }> {
+  ): Promise<never> {
     const proposed = typeof input.value === 'string' ? input.value.trim() : '';
     if (!proposed) throw new BadRequestException('A corrected value is required.');
     if (proposed.length > 8000) throw new BadRequestException('The correction is too long.');
-    const note =
-      typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 1000) : null;
-
-    // This legacy proposal route handles shared memory only. Personal
-    // user_correction candidates auto-commit under the old candidate rule, so
-    // a private memory must use the bound canonical version workflow instead.
-    const row = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    // A private ID is hidden before inspecting its contents. Shared client
+    // sources still require the current ethical wall before the 409 response.
+    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const source = await tx.clioMemory.findFirst({
         where: { id: memoryId, tenantId: ctx.tenantId, scope: { in: ['firm', 'client'] } },
         select: {
           id: true,
-          key: true,
-          value: true,
           scope: true,
           clientId: true,
-          ownerUserId: true,
           expiresAt: true,
           metadata: true,
           source: true,
@@ -6552,25 +6558,33 @@ export class MeriService implements MeriTurnMaintenance {
       if (source.source === 'settings_memory_editor') {
         throw new ConflictException('This memory requires canonical version review.');
       }
-      const projected = governedRecallSuppressionEnabled()
-        ? await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT mi.id::text AS id FROM memory_items mi
-          WHERE mi.slug = ${clioMemorySlug(memoryId)} AND mi.type = ${clioProjectionType(source.metadata)}
-            AND ${canonicalMemoryEligibilitySql({
-              tenantId: ctx.tenantId,
-              userId: ctx.userId,
-              allowedClientIds: source.clientId ? [source.clientId] : [],
-            })}
-          LIMIT 1
-        `
-        : await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id::text AS id FROM memory_items
-          WHERE tenant_id = ${ctx.tenantId}::uuid
-            AND slug = ${clioMemorySlug(memoryId)} AND type = ${clioProjectionType(source.metadata)}
-            AND status = 'active'
-          LIMIT 1
-        `;
-      if (governedRecallSuppressionEnabled() && !projected[0]) {
+      // Distinguish held and terminal sources even while governed recall is
+      // disabled; neither should be presented as correctable by this route.
+      const projected = await tx.$queryRaw<Array<{
+        id: string; status: string; legalHold: boolean; eligible: boolean;
+      }>>`
+        SELECT mi.id::text AS id, mi.status, mi.legal_hold AS "legalHold",
+          ${governedRecallSuppressionEnabled()
+            ? Prisma.sql`COALESCE((${canonicalMemoryEligibilitySql({
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                allowedClientIds: source.clientId ? [source.clientId] : [],
+              })}), false)`
+            : Prisma.sql`true`} AS eligible
+        FROM memory_items mi
+        WHERE mi.tenant_id = ${ctx.tenantId}::uuid
+          AND mi.slug = ${clioMemorySlug(memoryId)}
+          AND mi.type = ${clioProjectionType(source.metadata)}
+          AND mi.client_id IS NOT DISTINCT FROM ${source.clientId}::uuid
+        LIMIT 1
+      `;
+      if (projected[0]?.legalHold) {
+        throw new ConflictException('This memory is on legal hold.');
+      }
+      if (projected[0] && projected[0].status !== 'active') {
+        throw new NotFoundException('Memory not found');
+      }
+      if (governedRecallSuppressionEnabled() && projected[0]?.eligible !== true) {
         throw new NotFoundException('Memory not found');
       }
       await assertNoCustomCanonicalClioProjection(
@@ -6578,34 +6592,8 @@ export class MeriService implements MeriTurnMaintenance {
         clioProjectionType(source.metadata), projected[0]?.id ?? null,
         source.metadata, source.source,
       );
-      return source;
     });
-    if (!row) throw new NotFoundException('Memory not found');
-
-    const scope = row.scope as 'firm' | 'client';
-    const result = await this.memoryCandidates.proposeSaveMemory(
-      ctx.tenantId,
-      ctx.userId,
-      {
-        scope,
-        ownerUserId: null,
-        clientId: scope === 'client' ? row.clientId : null,
-        key: row.key,
-        value: note
-          ? `${proposed}
-
-[Correction note] ${note}`
-          : proposed,
-        source: 'user_correction',
-      },
-      false,
-      'user_correction',
-    );
-    const candidateId =
-      result && typeof result === 'object' && 'candidateId' in result
-        ? (((result as { candidateId?: unknown }).candidateId as string | null) ?? null)
-        : null;
-    return { ok: true, state: 'pending_review', candidateId };
+    throw new ConflictException('Corrections require canonical version review.');
   }
 
   /**
@@ -6629,19 +6617,7 @@ export class MeriService implements MeriTurnMaintenance {
     // (not withTenant) is required so the memory_items projection row is visible
     // even when it's a user_private (visibility='user') projection.
     await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const row = await tx.clioMemory.findFirst({
-        where: { id: memoryId, tenantId: ctx.tenantId },
-        select: {
-          id: true,
-          scope: true,
-          ownerUserId: true,
-          clientId: true,
-          metadata: true,
-          source: true,
-          key: true,
-          value: true,
-        },
-      });
+      const row = await lockClioMemoryForMutation(tx, ctx.tenantId, memoryId);
       if (!row) throw new NotFoundException('Memory not found');
       if (row.scope === 'client' &&
           (!row.clientId || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)))) {
@@ -6811,19 +6787,7 @@ export class MeriService implements MeriTurnMaintenance {
     // Single atomic withTenantUser transaction — same rationale as forgetMemory
     // (no TOCTOU window; the projection row is visible under both GUCs).
     await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const row = await tx.clioMemory.findFirst({
-        where: { id: memoryId, tenantId: ctx.tenantId },
-        select: {
-          id: true,
-          scope: true,
-          ownerUserId: true,
-          clientId: true,
-          key: true,
-          value: true,
-          metadata: true,
-          source: true,
-        },
-      });
+      const row = await lockClioMemoryForMutation(tx, ctx.tenantId, memoryId);
       if (!row) throw new NotFoundException('Memory not found');
       if (row.scope === 'client' &&
           (!row.clientId || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)))) {
@@ -6937,6 +6901,41 @@ function clioProjectionType(metadata: unknown): string {
     ? metadata as Record<string, unknown>
     : null;
   return governanceFromClioMetadata(record).canonicalType ?? 'note';
+}
+
+/** Keep Clio → canonical row lock order aligned with keyed candidate commits. */
+async function lockClioMemoryForMutation(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  memoryId: string,
+): Promise<{
+  id: string;
+  scope: string;
+  ownerUserId: string | null;
+  clientId: string | null;
+  key: string;
+  value: string;
+  metadata: unknown;
+  source: string | null;
+} | null> {
+  const rows = await tx.$queryRaw<Array<{
+    id: string;
+    scope: string;
+    ownerUserId: string | null;
+    clientId: string | null;
+    key: string;
+    value: string;
+    metadata: unknown;
+    source: string | null;
+  }>>`
+    SELECT id::text AS id, scope, owner_user_id::text AS "ownerUserId",
+           client_id::text AS "clientId", key, value,
+           metadata_jsonb AS metadata, source
+    FROM clio_memory
+    WHERE id = ${memoryId}::uuid AND tenant_id = ${tenantId}::uuid
+    FOR UPDATE
+  `;
+  return rows[0] ?? null;
 }
 
 async function assertNoCustomCanonicalClioProjection(

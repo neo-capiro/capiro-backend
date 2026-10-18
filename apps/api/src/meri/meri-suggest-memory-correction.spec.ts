@@ -12,6 +12,7 @@ const ctx = {
 function harness(row: Record<string, unknown> | null, opts: {
   wallAllowed?: boolean;
   linked?: Array<{ id: string; slug: string | null; type: string | null }>;
+  projection?: { id: string; status: string; legalHold: boolean; eligible: boolean };
 } = {}) {
   const tx = {
     clioMemory: { findFirst: jest.fn(async () => row) },
@@ -19,7 +20,10 @@ function harness(row: Record<string, unknown> | null, opts: {
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = Prisma.sql(strings, ...values);
       if (sql.text.includes('FROM memory_candidate mc')) return opts.linked ?? [];
-      return [{ id: '33333333-3333-4333-8333-333333333333' }];
+      return [opts.projection ?? {
+        id: '33333333-3333-4333-8333-333333333333', status: 'active',
+        legalHold: false, eligible: true,
+      }];
     }),
   };
   const candidates = { proposeSaveMemory: jest.fn(async () => ({ candidateId: 'candidate-1' })) };
@@ -76,14 +80,30 @@ describe('Meri legacy correction suggestion source authorization', () => {
     expect(linked.candidates.proposeSaveMemory).not.toHaveBeenCalled();
   });
 
-  it('keeps an authorized shared correction as a proposal', async () => {
+  it('refuses a held projection before proposing a correction', async () => {
+    const { service, candidates } = harness(source, { projection: {
+      id: '33333333-3333-4333-8333-333333333333', status: 'active',
+      legalHold: true, eligible: true,
+    } });
+    await expect(service.suggestMemoryCorrection(ctx, source.id, { value: 'New budget' }))
+      .rejects.toThrow('legal hold');
+    expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
+  });
+
+  it('refuses a terminal projection even while governed recall is disabled', async () => {
+    const { service, candidates } = harness(source, { projection: {
+      id: '33333333-3333-4333-8333-333333333333', status: 'revoked',
+      legalHold: false, eligible: true,
+    } });
+    await expect(service.suggestMemoryCorrection(ctx, source.id, { value: 'New budget' }))
+      .rejects.toThrow(NotFoundException);
+    expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized shared correction to canonical version review without a candidate', async () => {
     const { service, candidates } = harness(source);
     await expect(service.suggestMemoryCorrection(ctx, source.id, { value: 'New budget' }))
-      .resolves.toEqual({ ok: true, state: 'pending_review', candidateId: 'candidate-1' });
-    expect(candidates.proposeSaveMemory).toHaveBeenCalledWith(
-      ctx.tenantId, ctx.userId, expect.objectContaining({
-        scope: 'firm', ownerUserId: null, key: 'Budget', value: 'New budget',
-      }), false, 'user_correction',
-    );
+      .rejects.toThrow('canonical version review');
+    expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
   });
 });
