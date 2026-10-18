@@ -1,5 +1,26 @@
 # Core integration ledger — 2026-10-18
 
+**R29 memory helper source allocation (held, 2026-10-18):**
+`20281018100000_meri_memory_eligibility_helper` is reserved for an additive
+alteration of existing `meri_read_tokens` only. Its distinct
+`memory_eligibility` child of a consumed `search_memory@0.2.0` page token is
+unique per `(run_id, call_key)` and parent JTI and stores exact callback/page
+hashes. Existing `capiro_app` SELECT/INSERT and `consumed_at` UPDATE privileges
+suffice; there is no grant, new table, second ordinary tool token, or change to
+the original ADMITTED set and snapshot lock. Core's source proof, helper issuer
+and receiver are unmounted and closed. The ordinary `/tokens` controller and
+read-token middleware still reject this kind. The proposed two-step Meri wire
+is backend PR88 comment 6252628690 and Meri draft PR172
+`432006eb2b1d87af8c73e11d4222be2a5930952b`: unchanged 0.2 page JSON plus opaque proof
+header, one distinct helper token request, one byte-bound callback and final
+receipt-expiry check. Migration execution remains held until the preceding
+staged `090000` source is qualified and applied; Meri source installation,
+Core controller/middleware composition and runtime role/readback are outstanding.
+Keep this `100000` directory in the separate source packet and **out of the
+Stage1 migration tree** until Meri wire, target DB role/readback, disposable
+PostgreSQL rehearsal and a bounded DDL window qualify it. The DDL has local
+5-second lock and 30-second statement timeouts; no migration was executed.
+
 Branch `fable/core-integration-20261018` → `backend-import` (`c76f5fc0df6688743afeec274211afd2e67fe8f1`).
 Owner: Fable (Core lane). Coordination: meri-greenfield PR #121 ("Fable Core lane:" posts).
 
