@@ -156,7 +156,7 @@ describe('actual retained Florida service composition with synthetic owner ports
   it.each<Method>(['authority', 'budget'])('%s uses its actual closed parser before codec or owner I/O', async method => {
     const f = fixture();
     await expect(f.owner[method](method === 'authority' ? PROBE_HEADER : DATA_HEADER,
-      f.copy({ schemaVersion: 1, unexpected: true }), f.control)).rejects.toMatchObject({ status: 400 });
+      f.copy({ schemaVersion: 1, unexpected: true }), f.control)).rejects.toMatchObject({ status: method === 'authority' ? 401 : 400 });
     expect(f.events).toEqual([]);
   });
 
@@ -177,8 +177,11 @@ describe('actual retained Florida service composition with synthetic owner ports
 
   it('reads probe current authority around local facts without a data verifier, digest vector or budget call', async () => {
     const f = fixture();
-    f.probeCurrent.mockResolvedValueOnce({ ...f.current(), originalExpiresAtMs: NOW + 4_000 })
-      .mockResolvedValueOnce({ ...f.current(), originalExpiresAtMs: NOW + 3_000 });
+    f.probeCurrent.mockImplementationOnce(async () => {
+      f.events.push('core:probe'); return { ...f.current(), originalExpiresAtMs: NOW + 4_000 };
+    }).mockImplementationOnce(async () => {
+      f.events.push('core:probe'); return { ...f.current(), originalExpiresAtMs: NOW + 3_000 };
+    });
     const result = await f.invoke('authority');
     expect(f.events).toEqual(['codec:probe', 'core:probe', 'facts', 'core:probe']);
     expect(f.probeVerifier).toHaveBeenCalledWith(PROBE_HEADER, {

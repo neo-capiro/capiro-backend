@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "status": "TARGETED_SYNTHETIC_PASS",
+  "repository": "neo-capiro/capiro-backend",
+  "testedSource": {
+    "commit": "cbe15efc8c10ffff80b75a3c8f05e023c92393a1",
+    "tree": "d72cccd86eaabd8c5879514c31ab260eeddcd472",
+    "parent": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+    "changedFiles": [
+      "apps/intel-api/src/tracker/editorial/retained-florida-read.service.spec.ts"
+    ],
+    "correctedSpecSha256": "12eaa6c6e119530f046d07edb341dba5aa83303b63ef0f49d4740b64554454f6",
+    "gitBlob": "4506791542f63dbd0a60cba08fcb94a03192326f",
+    "allProductionAndOtherGitBlobsUnchanged": true
+  },
+  "actual": {
+    "suites": 1,
+    "cases": 36,
+    "passed": 36,
+    "failed": 0,
+    "pending": 0,
+    "todo": 0,
+    "runtimeErrorSuites": 0,
+    "strictDiscoveryComplete": true,
+    "primaryExit": 0,
+    "cleanupExit": 0,
+    "ownedProcessRemains": false,
+    "timeout": false,
+    "sourceRuntimeDependencyHashesUnchanged": true
+  },
+  "evidence": {
+    "manifestSha256": "09dc6ffcde42172f12969a9e8ceb60a96db69a8a7e06335d7d399367535256d2",
+    "stageSha256": "c36e9833b16a8f7b117f0f15c398ab233868ead8881bdd6893d785f2aea6ea98",
+    "runnerReceiptSha256": "5e888447d8094c389cff17e55c1d48c45154b6032c628d954c8283f405d3f23d",
+    "resultSha256": "66a76d7d7eabf8949b1fc5f006058a16a4930f49b8465ba69d33a9c4a3cfe719",
+    "runtimeReviewSha256": "9c0cac074bf85b421b9bb458b011f63d1fe4989aa9c9ba01f0ddeb630064bc79",
+    "preflightGuards": 17,
+    "frozenAnchors": 97,
+    "rawOperationalArtifactsPublished": false
+  },
+  "priorFailure": {
+    "cases": 184,
+    "passed": 182,
+    "failed": 2,
+    "resultSha256": "f9b8a7d6ac99a059e400b48a9e5365a4f36d6fbb28b2a7d0283d81f0cf081361",
+    "preserved": true,
+    "broad184Rerun": false
+  },
+  "qualificationLimits": [
+    "Actual service and shared parsers with synthetic codec/current-HTTP/facts/canonical-budget ports.",
+    "This run does not qualify real credentials, native HTTP, database access, provider calls, production composition or trust activation.",
+    "No production source, existing business policy, ALL3 protocol, runtime availability or credential configuration changed."
+  ],
+  "cases": [
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority rejects null ports503 before codec or owner I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget rejects null ports503 before codec or owner I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority uses its actual closed parser before codec or owner I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget uses its actual closed parser before codec or owner I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority preserves a wrong-purpose codec denial without another verifier or owner",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget preserves a wrong-purpose codec denial without another verifier or owner",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports rejects wrong data operation before any current facts or budget I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports rejects wrong data recipientPath before any current facts or budget I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports reads probe current authority around local facts without a data verifier, digest vector or budget call",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports passes actual parsed three-digest bounds and normalized arguments to the canonical owner and releases its exact DTO last",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for first Core principal mismatch before any local facts",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for first Core identityRevision mismatch before any local facts",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for first Core resourceRevision mismatch before any local facts",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for first Core extendedExpiry mismatch before any local facts",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for first Core expired mismatch before any local facts",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds probe local facts for first Core principal mismatch",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds probe local facts for first Core identityRevision mismatch",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for pre-read producer resourceRevision drift",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for pre-read producer effectiveScope drift",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds budget for pre-read producer clientResolution drift",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds an already computed DTO for post-read producer resourceRevision drift before another Core call",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds an already computed DTO for post-read producer effectiveScope drift before another Core call",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds an already computed DTO for post-read producer clientResolution drift before another Core call",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds computed budget for final Core principal mismatch",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds computed budget for final Core identityRevision mismatch",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds computed budget for final Core resourceRevision mismatch",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports withholds computed budget on final current-authority revocation",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority rejects a signed cutoff already reached before online I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget rejects a signed cutoff already reached before online I/O",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority retains the earlier caller deadline in every online owner control",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget retains the earlier caller deadline in every online owner control",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority cannot extend signed cutoff while the first Core await settles",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget cannot extend signed cutoff while the first Core await settles",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports authority performs no next owner I/O after signed cutoff while local facts await settles",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports budget performs no next owner I/O after signed cutoff while local facts await settles",
+      "status": "passed"
+    },
+    {
+      "name": "actual retained Florida service composition with synthetic owner ports performs no post-budget facts/current I/O and releases no DTO after cutoff while canonical budget awaits",
+      "status": "passed"
+    }
+  ]
+}
