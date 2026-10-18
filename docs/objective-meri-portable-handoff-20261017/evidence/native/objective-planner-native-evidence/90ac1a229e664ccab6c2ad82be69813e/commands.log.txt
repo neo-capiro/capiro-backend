@@ -1,0 +1,645 @@
+
+EXEC node.exe exit=0
+v22.23.3
+
+EXEC node.exe exit=0
+
+EXEC node.exe exit=0
+
+EXEC node.exe exit=0
+PASS apps/api-strategy/test/objective-planner-continuation.db.int-spec.ts (6.251 s)
+PASS apps/api-strategy/test/objective-planner-native-fixture.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       12 skipped, 6 passed, 18 total
+Snapshots:   0 total
+Time:        6.945 s, estimated 12 s
+Ran all test suites within paths "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-native-fixture.spec.ts", "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-continuation.db.int-spec.ts".
+
+EXEC postgres.exe exit=0
+postgres (PostgreSQL) 16.15
+
+EXEC initdb.exe exit=0
+The files belonging to this database system will be owned by user "Administrator".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/postgres-data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... windows
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    ^"C^:^\Program^ Files^\PostgreSQL^\16^\bin^\pg^_ctl^" -D ^"C^:^\Users^\Administrator^\Documents^\Codex^\2026^-10^-16^\task^-5^\objective^-native^-b8^\^.objective^-planner^-native^\postgres^-data^" -l logfile start
+
+
+EXEC pg_ctl.exe start (uncaptured daemon output) exit=0
+
+EXEC psql.exe exit=0
+0
+
+EXEC psql.exe exit=0
+CREATE ROLE
+CREATE ROLE
+
+EXEC createdb.exe exit=0
+
+EXEC psql.exe exit=0
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE EXTENSION
+ALTER SCHEMA
+GRANT
+SET
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+RESET
+COMMENT
+
+EXEC psql.exe exit=0
+SET
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE EXTENSION
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE FUNCTION
+CREATE TABLE
+CREATE INDEX
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE FUNCTION
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/001-core-identity.sql:9: NOTICE:  extension "uuid-ossp" already exists, skipping
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/001-core-identity.sql:10: NOTICE:  extension "citext" already exists, skipping
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/001-core-identity.sql:11: NOTICE:  extension "pg_trgm" already exists, skipping
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE POLICY
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+psql:C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/sql/010-strategy-20260722000000_init_strategy.sql:355: NOTICE:  trigger "sp_activity_log_append_only" for relation "sp_activity_log" does not exist, skipping
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+ALTER TYPE
+ALTER TYPE
+ALTER TYPE
+ALTER TYPE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+
+EXEC psql.exe exit=0
+SET
+ALTER TYPE
+
+EXEC psql.exe exit=0
+SET
+CREATE TYPE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE POLICY
+CREATE FUNCTION
+CREATE TRIGGER
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+CREATE TRIGGER
+REVOKE
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+ALTER TABLE
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+SET
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+CREATE TRIGGER
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+ALTER TABLE
+ALTER TABLE
+CREATE POLICY
+DO
+
+EXEC psql.exe exit=0
+16386
+
+EXEC node.exe exit=0
+PASS apps/api-strategy/test/objective-planner-continuation.db.int-spec.ts (18.129 s)
+  ΓêÜ ordinary default-off worker startup and both runtime entry points perform no database work (7 ms)
+  Objective Planner concrete runtime on task-owned native PostgreSQL
+    ΓêÜ durable tenant discovery continues a completed generation without a browser and commits paired accounting (535 ms)
+    ΓêÜ two independent native clients contend for one operation and create one output set (537 ms)
+    ΓêÜ throwing after actual application writes rolls back outputs and receipt before operation accounting (401 ms)
+    ΓêÜ discarded committed caller reply recovers the exact original operation from a fresh runtime (531 ms)
+    ΓêÜ actual expiry after accounting rolls back accounting and outputs at the final native release fence (8118 ms)
+    ΓêÜ expired original Planner consent cannot be extended into a new operation (95 ms)
+    ΓêÜ retained recovery preserves actual human Planner edits and reports their current versions (476 ms)
+    ΓêÜ actual reciprocal consent cancellation denies a new effect without changing generation evidence (103 ms)
+    ΓêÜ fresh native membership and client-wall revocation deny retained reads of committed effects (794 ms)
+    ΓêÜ native tenant opt-out denies effects despite process opt-in (92 ms)
+    ΓêÜ reserved generation delegation still refuses enabled=true for otherwise complete fixture scope (66 ms)
+    ΓêÜ native tenant isolation and immutable revision privileges are checked through the actual runtime role (118 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+Time:        18.459 s
+Ran all test suites within paths "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-continuation.db.int-spec.ts".

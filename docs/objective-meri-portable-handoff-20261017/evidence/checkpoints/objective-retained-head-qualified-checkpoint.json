@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "status": "reviewed-source-published-and-bounded-native-qualified",
+  "pullRequest": "https://github.com/neo-capiro/capiro-backend/pull/51",
+  "draft": true,
+  "branch": "feat/objective-planner-retained-head-20261017",
+  "head": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+  "tree": "81a3ea3ed95bdaf2410301a922cf4431acece7d7",
+  "parent": "5591eac08428635bf911a0aa32acea859e2a5d95",
+  "basePullRequest": "https://github.com/neo-capiro/capiro-backend/pull/50",
+  "sourceDirectory": "objective-planner-retained-head",
+  "nativeDirectory": "objective-retained-native",
+  "changedFiles": 8,
+  "behavior": "Read-only not_started status for immediate current native consent with no current operation, proving a retained complete older v2/v3 applied ancestry and exact output identities. Existing command authority refuses this status-only proof.",
+  "sourceChecks": {
+    "ownerKernelPassed": 159,
+    "currentConsentPassed": 101,
+    "actualCoreStatusPassed": 30,
+    "strictImportGraphsPassed": true,
+    "independentlyRepeated": ["ownerKernel", "currentConsent"]
+  },
+  "sourceReview": {
+    "decision": "accepted",
+    "receipt": "objective-retained-head-final-independent-review.md",
+    "sha256": "e3eec6f7e027d1b4d4b93aef6946abedc3c457106484887186e59af42a561c6d",
+    "packetSha256": "9872e514fd972a5e462561a618f2a3100c2fe6c730ffe88741f9f472ee19a0e3"
+  },
+  "native": {
+    "runId": "14317236bdb14f3b8c39a39217f6a9c3",
+    "evidenceDirectory": "objective-retained-head-native-evidence/14317236bdb14f3b8c39a39217f6a9c3",
+    "sourceHead": "81dd0313760c0f18858cb8aa2ad73191da71f138",
+    "driver": "run-isolated-retained-head.ps1",
+    "driverSha256": "76c30a3fa8a3cf8b4f2ebfb41212db337a0004c58ab6d37de5759a417795b945",
+    "driverExit": 0,
+    "preflightPassed": 13,
+    "preflightNativeSkipped": 19,
+    "enabledPassed": 20,
+    "enabledFailed": 0,
+    "enabledSkipped": 0,
+    "childExitsZero": 52,
+    "sqlUnits": 38,
+    "fullCoreMigrationReplay": false,
+    "commandLogSha256": "41b2f1fb694a1cb5b6750485e37711f84c06fa5c5c7a73331f6c4616aeae20f8",
+    "sourcePlanSha256": "43568af44a14700678ed733d07da8475162ec10362b551757ab4c9873f427bf8",
+    "reviewDecision": "accepted",
+    "reviewReceipt": "objective-retained-head-final-native-independent-review.md",
+    "reviewSha256": "7740f29f5888def56733c7a9a1c44bfff36685015655f5e6983b77cff889ae86"
+  },
+  "cleanup": {
+    "ownedClusterRemoved": true,
+    "ownedProcess26664Gone": true,
+    "privatePort56455Removed": true,
+    "testCredentialsRetiredWithCluster": true,
+    "hostPort5432Process4936Unchanged": true,
+    "newSourceAndNativeClean": true,
+    "priorSourceAndNativeCleanAt5591": true,
+    "noPostTestSourceCommit": true,
+    "recordedFreeBytes": 5539233792
+  },
+  "remainingContracts": [
+    "Current queued, leased, failed or cancelled operation beside an older applied head remains uncertain.",
+    "Intervening consents without operations need a complete native consent-chain proof.",
+    "Unknown human-added output identities need an explicit ownership/provenance rule."
+  ],
+  "qualificationLimits": [
+    "Request-proof adapter/transport, Strategy-generation consent issuer and Meri/provider custody observations remain synthetic.",
+    "An edit to a real native output is synthetic rather than an authenticated UI interaction.",
+    "Separate runtime consumption without a request proof callback is tested; real browser-process closure and socket/commit-ack failure are not.",
+    "Actual HTTP/JWT/session/protected issuer, Meri SDK/provider and frontend activation remain unqualified."
+  ],
+  "executionDefaultDisabled": true,
+  "ordinaryChatIndependent": true,
+  "shippingPinsAndBindingsUnchanged": true,
+  "liveAwsOrAppDatabaseChanges": false,
+  "migrationSourceOrIdsChanged": false,
+  "deploymentOrMerge": false,
+  "actionBlockers": []
+}
