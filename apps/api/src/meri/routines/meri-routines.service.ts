@@ -72,8 +72,9 @@ export class MeriRoutinesService {
     const principal = { tenantId: ctx.tenantId, actorId: ctx.userId };
     const nowMs = Date.now();
     const receipt = decideRoutinePolicy({ body: raw, principal, membership, nowMs, limits });
-    const event = routineConsentEvent({ selection: parseSelectionRequest(raw).selection, principal, scopes: receipt.scopes, limits, nowMs });
-    if (event) await this.recordConsentEvent(ctx, event, nowMs);
+    const eventInput = { selection: parseSelectionRequest(raw).selection, principal, scopes: receipt.scopes, limits };
+    const event = routineConsentEvent({ ...eventInput, nowMs });
+    if (event) await this.recordConsentEvent(ctx, event, eventInput, receipt.expiresAtMs);
     return receipt;
   }
 
@@ -82,9 +83,21 @@ export class MeriRoutinesService {
    * it as a new row) or an attended pause/delete revocation. Idempotent: a
    * repeated `before_claim` for the same approval keeps the first row.
    */
-  private async recordConsentEvent(ctx: TenantContext, event: NonNullable<ReturnType<typeof routineConsentEvent>>, nowMs: number) {
+  private async recordConsentEvent(
+    ctx: TenantContext,
+    event: NonNullable<ReturnType<typeof routineConsentEvent>>,
+    eventInput: Omit<Parameters<typeof routineConsentEvent>[0], 'nowMs'>,
+    receiptExpiresAtMs: number,
+  ) {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await lockRoutineSchedule(tx, ctx.tenantId, event.kind === 'consent' ? event.consent.scheduleId : event.scheduleId);
+      // The grant path reads consent and revocation under this same schedule lock
+      // using the database clock. Recheck the attended approval at that instant,
+      // then order and expire its durable event on the same clock.
+      const nowMs = await meriExecutionDbNow(tx);
+      if (nowMs >= receiptExpiresAtMs) throw forbidden();
+      const currentEvent = routineConsentEvent({ ...eventInput, nowMs });
+      if (!currentEvent || nativeCanonicalSha256(currentEvent) !== nativeCanonicalSha256(event)) throw forbidden();
       if (event.kind === 'revoke') {
         await tx.clioMeriRoutineConsentRevocation.createMany({
           data: [{ tenantId: ctx.tenantId, intentId: event.intentId, scheduleId: event.scheduleId, revokedByUserId: ctx.userId,
