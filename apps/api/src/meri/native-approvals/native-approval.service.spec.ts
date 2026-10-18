@@ -253,7 +253,7 @@ describe('P-INT-10 approval/revoke', () => {
     expect(() => parseApprovalRevokeInput({ proposalId: revoke.proposalId, commandSha256: revoke.commandSha256, binding }))
       .toThrow(BadRequestException);
     expect(() => parseApprovalRevokeInput({ ...revoke, extra: true })).toThrow(BadRequestException);
-    expect(() => parseApprovalRevokeInput({ ...revoke, approver: { ...revoke.approver, actorId: otherActor.toUpperCase() } }))
+    expect(() => parseApprovalRevokeInput({ ...revoke, approver: { ...revoke.approver, actorId: `A${otherActor.slice(1)}` } }))
       .toThrow(BadRequestException);
     expect(() => parseApprovalRevokeInput({ ...revoke, commandSha256: 'not-a-hash' })).toThrow(BadRequestException);
   });
