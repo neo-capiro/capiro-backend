@@ -103,6 +103,14 @@ function fixture(memories: MemoryFixtureRow[] = [], items: ItemFixtureRow[] = []
         const submission = submissions.get(values[1] as string), committed = candidates.get(values[1] as string);
         return submission && committed ? [{ logicalNull: submission.candidate.key === null, committedMemoryId: committed.committedMemoryId }] : [];
       }
+      if (text.includes('WITH RECURSIVE ancestry')) {
+        let node = items.find((row) => row.id === values[1]);
+        while (node) {
+          if (node.slug === values[3]) return [{ found: 1 }];
+          node = items.find((row) => row.id === node!.supersedesId);
+        }
+        return [];
+      }
       if (text.includes('WITH RECURSIVE')) {
         const lineage: ItemFixtureRow[] = [];
         let frontier = items.filter((row) => row.slug === values[1]);
@@ -270,6 +278,14 @@ describe('MeriMemoryReceivingService.submit (corrections)', () => {
     expect(f.submissions.size).toBe(0);
   });
 
+  it('refuses a correction that asks for its own TTL instead of dropping it', async () => {
+    const f = fixture([personal], [projection()]);
+    const pin = { memoryId: `clio:${memoryId}`, memorySha256: await pinOf(f, `clio:${memoryId}`) };
+    await expect(f.service.submit(verifiedRequest(), ctx, submitBody(correction(pin, { ttlDays: 7 })))).rejects.toBeInstanceOf(ConflictException);
+    expect(f.versions.proposeReviewOnlyCorrection).not.toHaveBeenCalled();
+    expect(f.submissions.size).toBe(0);
+  });
+
   it('refuses a correction whose scope differs from its target', async () => {
     const f = fixture([personal], [projection()]);
     const pin = { memoryId: `clio:${memoryId}`, memorySha256: await pinOf(f, `clio:${memoryId}`) };
@@ -390,6 +406,18 @@ describe('MeriMemoryReceivingService reads', () => {
     // Without the Meri lineage the same storage key stays the logical key.
     f.candidates.set(candidateId, { ...f.candidates.get(candidateId), committedMemoryId: memoryId });
     expect((await f.service.readTarget(verifiedRequest(), ctx, { memoryId: `clio:${synthetic.id}` })).memory!.key).toBe(`meri:${candidateId}`);
+  });
+
+  it('gives an item the logical null key only when it descends from the committed Meri addition', async () => {
+    const synthetic: MemoryFixtureRow = { ...personal, id: '17171717-1717-4171-8171-171717171717', key: `meri:${candidateId}` };
+    const root = projection({ id: '18181818-1818-4181-8181-181818181818', slug: `clio:${synthetic.id}`, title: `meri:${candidateId}`, status: 'superseded', governedStatus: 'superseded' });
+    const descendant = version({ id: '19191919-1919-4191-8191-191919191919', supersedesId: root.id, title: `meri:${candidateId}` });
+    const unrelated = version({ id: '20202020-2020-4202-8202-202020202020', supersedesId: null, slug: 'note:other', title: `meri:${candidateId}` });
+    const f = fixture([synthetic], [root, descendant, unrelated]);
+    await f.service.submit(verifiedRequest(), ctx, submitBody(candidate({ key: null })));
+    f.candidates.set(candidateId, { ...f.candidates.get(candidateId), status: 'approved', decidedAt: new Date(), committedMemoryId: synthetic.id });
+    expect((await f.service.readTarget(verifiedRequest(), ctx, { memoryId: `item:${descendant.id}` })).memory!.key).toBeNull();
+    expect((await f.service.readTarget(verifiedRequest(), ctx, { memoryId: `item:${unrelated.id}` })).memory!.key).toBe(`meri:${candidateId}`);
   });
 
   it('finds by key the clio memory, or the controlling version that corrected it', async () => {

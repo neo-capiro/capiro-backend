@@ -125,6 +125,10 @@ export class MeriMemoryReceivingService {
     }) as Promise<SubmissionRow>;
     try {
       if (candidate.kind === 'correction') {
+        // An immutable version keeps its target's expiry; a correction asking for
+        // another lifetime would silently lose it, so it is refused until both
+        // sides define correction TTL semantics (dot #121 6246764290).
+        if (candidate.ttlDays !== null) throw new ConflictException('A correction with ttlDays is not supported yet');
         await this.submitCorrection(ctx, candidate, request.candidateSha256, async (tx) => { await record(tx); });
       } else {
         await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -370,11 +374,15 @@ async function readScoped(tx: Prisma.TransactionClient, ctx: TenantContext, memo
   return null;
 }
 
-/** The logical key Meri submitted: null for memory that came from an unkeyed
- * Meri addition (its storage key is synthetic), else the storage key. For a
- * clio row the committing candidate must be that submission. */
+/**
+ * The logical key Meri submitted: null for memory that came from an unkeyed
+ * Meri addition (its storage key is synthetic), else the storage key. The
+ * null is translated only with proven lineage (dot #121 6246772795): a clio
+ * row must be the one that submission committed; an item must descend
+ * (supersedes ancestry) from that committed row's canonical projection.
+ */
 async function logicalKey(
-  tx: Prisma.TransactionClient, ctx: TenantContext, storageKey: string, committedClioId: string | null,
+  tx: Prisma.TransactionClient, ctx: TenantContext, storageKey: string, subject: { clioId: string } | { itemId: string },
 ): Promise<string | null> {
   const synthetic = SYNTHETIC_KEY.exec(storageKey);
   if (!synthetic) return storageKey;
@@ -384,8 +392,19 @@ async function logicalKey(
     JOIN memory_candidate mc ON mc.tenant_id = s.tenant_id AND mc.id = s.candidate_id
     WHERE s.tenant_id = ${ctx.tenantId}::uuid AND s.candidate_id = ${synthetic[1]}::uuid`;
   const row = rows.length === 1 ? rows[0]! : null;
-  const lineage = committedClioId === null || row?.committedMemoryId === committedClioId;
-  return row && row.logicalNull === true && lineage ? null : storageKey;
+  if (!row || row.logicalNull !== true || !row.committedMemoryId) return storageKey;
+  if ('clioId' in subject) return row.committedMemoryId === subject.clioId ? null : storageKey;
+  const ancestry = await tx.$queryRaw<Array<{ found: number }>>`
+    WITH RECURSIVE ancestry AS (
+      SELECT id, supersedes_id, slug FROM memory_items
+      WHERE tenant_id = ${ctx.tenantId}::uuid AND id = ${subject.itemId}::uuid
+      UNION ALL
+      SELECT parent.id, parent.supersedes_id, parent.slug FROM memory_items parent
+      JOIN ancestry child ON parent.id = child.supersedes_id
+      WHERE parent.tenant_id = ${ctx.tenantId}::uuid
+    )
+    SELECT 1 AS found FROM ancestry WHERE slug = ${clioMemorySlug(row.committedMemoryId)} LIMIT 1`;
+  return ancestry.length === 1 ? null : storageKey;
 }
 
 /** Meri addresses at most 120-character keys. A longer Core key would fail
@@ -393,7 +412,7 @@ async function logicalKey(
  * The projection hash covers the logical and the storage key and the state;
  * it is not a memory_items version hash. */
 async function clioTarget(tx: Prisma.TransactionClient, ctx: TenantContext, row: MemoryRow): Promise<MeriMemoryTarget | null> {
-  const key = await logicalKey(tx, ctx, row.key, row.id);
+  const key = await logicalKey(tx, ctx, row.key, { clioId: row.id });
   if (key !== null && key.length > 120) return null;
   const scope = MERI_SCOPE[row.scope]!;
   const clientId = scope === 'client' ? row.clientId : null;
@@ -426,7 +445,7 @@ async function itemTarget(tx: Prisma.TransactionClient, ctx: TenantContext, row:
   const state = itemState(row);
   const value = sectionsText(row.sections);
   if (state === null || value === null) return null;
-  const key = await logicalKey(tx, ctx, row.title, null);
+  const key = await logicalKey(tx, ctx, row.title, { itemId: row.id });
   if (key !== null && key.length > 120) return null;
   const scope = MERI_SCOPE[coreScope]!;
   const clientId = scope === 'client' ? row.clientId : null;
