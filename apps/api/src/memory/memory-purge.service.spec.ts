@@ -72,6 +72,13 @@ describe('MemoryPurgeService.purgeClient', () => {
     expect(rec.audits[0]?.action).toBe('memory.purge_client');
   });
 
+  it('deletes the client candidate payload while leaving the content-free Meri replay receipt', async () => {
+    const { svc, rec } = makeService();
+    await svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' });
+    expect(rec.executed.find((sql) => /DELETE FROM memory_candidate/.test(sql))).toMatch(/client_id = /);
+    expect(rec.executed.join('\n')).not.toContain('DELETE FROM clio_meri_memory_submissions');
+  });
+
   it('every delete is tenant-scoped (no cross-tenant reach)', async () => {
     const { svc, rec } = makeService();
     await svc.purgeClient(T, C, actor, { dryRun: false, reason: 'x' });
