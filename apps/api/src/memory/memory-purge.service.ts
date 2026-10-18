@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -9,9 +9,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * across every store that holds it: memory_items (+ their context_embeddings and
  * memory_edges), the clio_memory client-scope rows that project into them,
  * pending memory_candidate proposals, and the client_memory_access wall grants.
- * The Meri submission receipt has no candidate payload (migration
- * 20281018020000) and remains as an immutable suppression marker. Its owner
- * refuses replay with HTTP 410 once the payload-owning candidate is gone.
+ * The original Meri submission receipt can retain candidate JSONB even after
+ * its pending memory_candidate has gone. Its receipt has no client_id, so a
+ * client purge cannot safely attribute every retained payload to a client.
+ * Execution remains held while the legacy candidate column exists, including
+ * the nullable compatibility stage. Once a reviewed forward migration removes
+ * that column, the content-free receipt remains as a suppression marker.
  *
  * Invariants:
  *  - LEGAL HOLD is absolute: a memory_item with legal_hold=true (and its
@@ -39,6 +42,31 @@ export class MemoryPurgeService {
   ): Promise<MemoryPurgeResult> {
     const dryRun = opts.dryRun !== false; // default TRUE — never delete unless explicit
     return this.prisma.withSystem(async (tx) => {
+      // A regular SELECT holds ACCESS SHARE on the receipt through this
+      // transaction. This prevents concurrent DDL from adding/dropping the
+      // candidate column between the shape check and the destructive deletes,
+      // without requiring a new table-lock privilege. Receipt inserts can
+      // continue, but execution is refused for the entire compatibility stage
+      // while that column exists, so no insert can evade this guard.
+      await tx.$queryRaw`SELECT 1 FROM clio_meri_memory_submissions
+        WHERE tenant_id = ${tenantId}::uuid LIMIT 1`;
+      const receiptShape = await tx.$queryRaw<Array<{ hasCandidateColumn: boolean }>>`
+        SELECT EXISTS (
+          SELECT 1 FROM pg_catalog.pg_attribute
+          WHERE attrelid = 'clio_meri_memory_submissions'::regclass
+            AND attname = 'candidate' AND NOT attisdropped
+        ) AS "hasCandidateColumn"
+      `;
+      const receiptPayloadDispositionHold = receiptShape.length === 1 &&
+        typeof receiptShape[0]?.hasCandidateColumn === 'boolean'
+        ? receiptShape[0].hasCandidateColumn
+        : true; // missing or malformed shape readback must never enable purge
+      if (!dryRun && receiptPayloadDispositionHold) {
+        throw new ServiceUnavailableException(
+          'Client memory purge is held until Meri receipt candidate payload disposition is complete.',
+        );
+      }
+
       // Match embedding writers: source rows first, then their projections.
       // Execute deletes only this locked set; dry-run remains read-only.
       const lockedItems = dryRun ? null : await tx.$queryRaw<Array<{ id: string }>>`
@@ -67,6 +95,7 @@ export class MemoryPurgeService {
         dryRun,
         heldBack: held.length,
         deleted: counts,
+        receiptPayloadDispositionHold,
       };
 
       if (!dryRun) {
@@ -118,6 +147,7 @@ export class MemoryPurgeService {
             reason: opts.reason,
             heldBack: held.length,
             selection: { ...counts },
+            receiptPayloadDispositionHold,
           } as Prisma.InputJsonObject,
         },
       });
@@ -180,4 +210,6 @@ export interface MemoryPurgeResult {
   /** memory_items withheld because legal_hold=true (and their clio sources). */
   heldBack: number;
   deleted: MemoryPurgeCounts;
+  /** True while the legacy receipt candidate column can retain client payload. */
+  receiptPayloadDispositionHold: boolean;
 }

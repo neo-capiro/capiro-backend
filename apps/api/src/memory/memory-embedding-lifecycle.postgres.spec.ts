@@ -39,7 +39,9 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       const q = stringsSql(strings, values);
       // Other ingestion sources are deliberately empty. Phase F and every
       // memory/source/embedding query execute real SQL in this isolated schema.
-      if (!q.text.includes('memory_items') && !q.text.includes('count(*) AS n')) return [];
+      if (!q.text.includes('memory_items') && !q.text.includes('count(*) AS n') &&
+          !q.text.includes('clio_meri_memory_submissions') &&
+          !q.text.includes('pg_catalog.pg_attribute')) return [];
       return (await connection.query(q)).rows;
     },
     $executeRaw: async (strings: TemplateStringsArray, ...values: unknown[]) =>
@@ -111,7 +113,9 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       CREATE TABLE clio_memory(id uuid,tenant_id uuid,client_id uuid,scope text,expires_at timestamptz);
       CREATE TABLE memory_edges(tenant_id uuid,src_item_id uuid);
       CREATE TABLE memory_candidate(tenant_id uuid,client_id uuid);
-      CREATE TABLE client_memory_access(tenant_id uuid,client_id uuid);`);
+      CREATE TABLE client_memory_access(tenant_id uuid,client_id uuid);
+      -- Content-free receipt shape: the purge guard must permit execution here.
+      CREATE TABLE clio_meri_memory_submissions(tenant_id uuid,candidate_id uuid);`);
     await writer.connect();
     await mutation.connect();
     await writer.query(`SET search_path TO "${schema}"`);

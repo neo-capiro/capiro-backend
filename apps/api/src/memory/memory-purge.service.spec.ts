@@ -9,7 +9,13 @@ import { MemoryPurgeService } from './memory-purge.service.js';
  */
 type Recorded = { executed: string[]; queried: string[]; audits: Array<Record<string, unknown>> };
 
-function makeService(opts?: { held?: Array<{ id: string; slug: string }> }): {
+function makeService(opts?: {
+  held?: Array<{ id: string; slug: string }>;
+  receiptCandidateColumn?: boolean;
+  receiptShape?: Array<{ hasCandidateColumn: boolean }>;
+  receiptReadError?: Error;
+  receiptShapeError?: Error;
+}): {
   svc: MemoryPurgeService;
   rec: Recorded;
 } {
@@ -19,6 +25,16 @@ function makeService(opts?: { held?: Array<{ id: string; slug: string }> }): {
     $queryRaw: (strings: TemplateStringsArray) => {
       const sql = strings.join('?');
       rec.queried.push(sql);
+      if (/SELECT 1 FROM clio_meri_memory_submissions/.test(sql)) {
+        if (opts?.receiptReadError) return Promise.reject(opts.receiptReadError);
+        return Promise.resolve([]);
+      }
+      if (/pg_catalog\.pg_attribute/.test(sql)) {
+        if (opts?.receiptShapeError) return Promise.reject(opts.receiptShapeError);
+        return Promise.resolve(
+          opts?.receiptShape ?? [{ hasCandidateColumn: opts?.receiptCandidateColumn ?? false }],
+        );
+      }
       if (/legal_hold = true/.test(sql)) return Promise.resolve(held);
       if (/count\(\*\)/.test(sql)) return Promise.resolve([{ n: 0n }]);
       return Promise.resolve([]);
@@ -54,6 +70,7 @@ describe('MemoryPurgeService.purgeClient', () => {
     expect(result.dryRun).toBe(true);
     expect(rec.audits).toHaveLength(1);
     expect(rec.audits[0]?.action).toBe('memory.purge_client.dry_run');
+    expect(result.receiptPayloadDispositionHold).toBe(false);
   });
 
   it('defaults to dry-run when dryRun is omitted (never delete by accident)', async () => {
@@ -70,6 +87,44 @@ describe('MemoryPurgeService.purgeClient', () => {
     expect(rec.executed).toHaveLength(6);
     expect(result.dryRun).toBe(false);
     expect(rec.audits[0]?.action).toBe('memory.purge_client');
+    expect(result.receiptPayloadDispositionHold).toBe(false);
+    expect(rec.queried[0]).toMatch(/SELECT 1 FROM clio_meri_memory_submissions/);
+    expect(rec.queried[1]).toMatch(/pg_catalog\.pg_attribute/);
+  });
+
+  it('reports the legacy receipt hold in dry-run without deleting', async () => {
+    const { svc, rec } = makeService({ receiptCandidateColumn: true });
+    const result = await svc.purgeClient(T, C, actor, { reason: 'offboarding' });
+    expect(result.receiptPayloadDispositionHold).toBe(true);
+    expect(rec.executed).toHaveLength(0);
+    expect(
+      (rec.audits[0]?.before as { receiptPayloadDispositionHold: boolean })
+        .receiptPayloadDispositionHold,
+    ).toBe(true);
+  });
+
+  it('refuses execute before any delete when the legacy receipt column exists', async () => {
+    const { svc, rec } = makeService({ receiptCandidateColumn: true });
+    await expect(svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' }))
+      .rejects.toThrow(/receipt candidate payload disposition/);
+    expect(rec.executed).toHaveLength(0);
+    expect(rec.audits).toHaveLength(0);
+    expect(rec.queried).toHaveLength(2);
+  });
+
+  it('keeps execution closed on missing or malformed receipt shape readback', async () => {
+    for (const opts of [
+      { receiptReadError: new Error('receipt table unavailable') },
+      { receiptShapeError: new Error('catalog read unavailable') },
+      { receiptShape: [] },
+      { receiptShape: [{ hasCandidateColumn: null as never }] },
+    ]) {
+      const { svc, rec } = makeService(opts);
+      await expect(svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' }))
+        .rejects.toThrow();
+      expect(rec.executed).toHaveLength(0);
+      expect(rec.audits).toHaveLength(0);
+    }
   });
 
   it('deletes the client candidate payload while leaving the content-free Meri replay receipt', async () => {

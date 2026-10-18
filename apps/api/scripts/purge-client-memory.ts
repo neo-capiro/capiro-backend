@@ -8,6 +8,8 @@
  * counts across every store. --execute runs MemoryPurgeService.purgeClient and
  * prints the audited result. Legal-held memory_items (and their clio sources)
  * are NEVER deleted. Gated by MEMORY_PURGE_ENABLED (refuses --execute when off).
+ * Receipt candidate JSONB keeps --execute held until its separately reviewed
+ * disposition; dry-run reports receiptPayloadDispositionHold.
  *
  * No-Nest-container pattern (mirrors refresh-memory-graph.ts): services are
  * instantiated manually around PrismaService so the script cannot drift from the
