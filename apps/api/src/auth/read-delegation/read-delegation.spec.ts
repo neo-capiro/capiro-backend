@@ -9,6 +9,7 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { TenantContextStore } from '../../tenant/tenant-context.store.js';
 import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
 import { ApplicationMembershipService } from '../application-membership.service.js';
+import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { createInProcessEd25519Signer } from '../core-ed25519-signer.js';
 import { ToolServiceSecretGuard } from '../tool-service-secret.guard.js';
 import {
@@ -17,6 +18,7 @@ import {
 } from './read-delegation.contract.js';
 import {
   assertMeriReadDelegationReleasable, isMeriReadDelegationServicePost, isMeriReadTokenRequest, meriReadDelegationOf,
+  meriRetainedCorrelationOf,
   meriReadDelegationRawBody,
 } from './read-delegation-request.js';
 import { verifyReadToken } from './read-delegation-token.js';
@@ -40,7 +42,8 @@ const CLERK = 'user_reader';
 const SECRET = 'svc-secret';
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const P = sha('policy'), BP = sha('budget-policy'), PROJ = sha('projection'), OCC = sha('occurrence');
-const OPS = [{ id: 'search_tracked_bills', version: '0.2.0' }, { id: 'get_bill_status', version: '0.2.0' }];
+const OPS = [{ id: 'search_tracked_bills', version: '0.2.0' }, { id: 'get_bill_status', version: '0.2.0' },
+  { id: 'find_contacts', version: '0.2.0' }];
 const binding = { tenantId: T, actorId: A, conversationId: V, runId: R, attemptId: AT, writerFence: 3 };
 const originalBinding = { ...binding, workerId: WORKER, writerFence: 7 };
 const allocation = {
@@ -518,6 +521,36 @@ describe('RC1 option B read delegation, Core owner', () => {
       expect(h.verify).not.toHaveBeenCalled();
       expect(h.db.state.writes.filter((w) => w !== 'delegation')).toEqual(['consume']);
       await expect(h.use(path, t.token, body)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('binds retained source correlation to the one-use token before consuming it', async () => {
+      const h = harness();
+      const d = await h.create();
+      const input = { clientId: C, domain: null, query: null, limit: 10 };
+      const body = { input, metadata: null };
+      const correlation = { binding: originalBinding,
+        subject: { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A,
+          authorizationDecisionId: ORIGINAL_GRANT, policyRevision: P,
+          scopes: [{ kind: 'client', resourceId: C, tenantId: T, policyRevision: P }], rosterVersionId: null },
+        policyRevision: P, normalizationContext: null };
+      const header = Buffer.from(canonicalizeCoreRetainedJson(correlation), 'utf8').toString('base64url');
+      const operation = { id: 'find_contacts', version: '0.2.0' };
+      const args = canonicalSha256(input);
+      h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation,
+        arguments_sha256: args, state: 'UNKNOWN' });
+      const t = await h.issue(d.delegationId, { kind: 'tool', path: '/api/clio/tools/find_contacts', operation,
+        argumentsSha256: args, bodySha256: sha(JSON.stringify(body)), correlationSha256: canonicalSha256(correlation) });
+      await expect(h.use('/api/clio/tools/find_contacts', t.token, body)).rejects.toBeInstanceOf(ForbiddenException);
+      expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+      await expect(h.use('/api/clio/tools/find_contacts', t.token, body,
+        { headers: { 'x-meri-read-correlation': `${header}A` } })).rejects.toBeInstanceOf(ForbiddenException);
+      expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+      const used = await h.use('/api/clio/tools/find_contacts', t.token, body,
+        { headers: { 'x-meri-read-correlation': header } });
+      expect(meriReadDelegationOf(used.req)).toMatchObject({ correlationSha256: canonicalSha256(correlation),
+        argumentsSha256: args, admittedBinding: originalBinding });
+      expect(meriRetainedCorrelationOf(used.req)).toEqual(correlation);
+      await assertMeriReadDelegationReleasable(h.db.prisma, used.req);
     });
 
     it('withholds token issue, use and release after the original ADMITTED grant is revoked', async () => {
