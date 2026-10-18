@@ -2,8 +2,10 @@ import {
   DescribeTaskDefinitionCommand,
   DescribeTasksCommand,
   ECSClient,
+  ListTasksCommand,
   type DescribeTaskDefinitionCommandOutput,
   type DescribeTasksCommandOutput,
+  type ListTasksCommandOutput,
 } from '@aws-sdk/client-ecs';
 import {
   type CurrentCoreTaskSelector,
@@ -12,6 +14,7 @@ import {
 
 const CLUSTER = 'arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev';
 const SERVICE = 'service:capiro-preview-first-chat-core';
+const SERVICE_NAME = 'capiro-preview-first-chat-core';
 const FAMILY = 'capiro-preview-first-chat-core';
 const IMAGE = /^967807252336\.dkr\.ecr\.us-east-1\.amazonaws\.com\/capiro\/preview-core@(sha256:[a-f0-9]{64})$/;
 const SHA = /^[a-f0-9]{64}$/;
@@ -21,12 +24,19 @@ const SOURCE = /^[a-f0-9]{40}$/;
  * preview task role has no ECS Describe permission, and no permission is added
  * by this source. */
 export interface CoreEcsDescribePort {
+  listServiceTasks(signal: AbortSignal): Promise<ListTasksCommandOutput>;
   describeTask(taskArn: string, signal: AbortSignal): Promise<DescribeTasksCommandOutput>;
   describeTaskDefinition(taskDefinitionArn: string, signal: AbortSignal): Promise<DescribeTaskDefinitionCommandOutput>;
 }
 
 export class AwsSdkCoreEcsDescribePort implements CoreEcsDescribePort {
   constructor(private readonly ecs: ECSClient) {}
+
+  listServiceTasks(signal: AbortSignal): Promise<ListTasksCommandOutput> {
+    return this.ecs.send(new ListTasksCommand({
+      cluster: CLUSTER, serviceName: SERVICE_NAME, desiredStatus: 'RUNNING', maxResults: 100,
+    }), { abortSignal: signal });
+  }
 
   describeTask(taskArn: string, signal: AbortSignal): Promise<DescribeTasksCommandOutput> {
     return this.ecs.send(new DescribeTasksCommand({ cluster: CLUSTER, tasks: [taskArn] }), { abortSignal: signal });
@@ -60,6 +70,17 @@ function exact(value: unknown, keys: readonly string[]): Record<string, unknown>
   if (Object.keys(row).length !== keys.length || !keys.every((key) => Object.hasOwn(row, key)))
     throw new Error('Current Core deployment readback unavailable');
   return row;
+}
+
+/** The task's group string is not service membership: RunTask may supply it.
+ * ECS ListTasks with a serviceName filter is the independent service index.
+ * Fail closed on truncated pages instead of accepting an incomplete index. */
+async function assertServiceMembership(ecs: CoreEcsDescribePort,
+  selector: CurrentCoreTaskSelector, signal: AbortSignal): Promise<void> {
+  const response = await ecs.listServiceTasks(signal);
+  if (response.nextToken != null || !Array.isArray(response.taskArns) ||
+      response.taskArns.filter((arn) => arn === selector.taskArn).length !== 1)
+    throw new Error('Current Core ECS service membership unavailable');
 }
 
 function currentDigest(response: DescribeTasksCommandOutput, selector: CurrentCoreTaskSelector): string {
@@ -104,6 +125,7 @@ export class EcsControlPlaneDocumentReadback extends TrustedCoreDeploymentReadba
   ) { super(); }
 
   async readCurrentTask(selector: CurrentCoreTaskSelector, signal: AbortSignal): Promise<unknown> {
+    await assertServiceMembership(this.ecs, selector, signal);
     const digest = currentDigest(await this.ecs.describeTask(selector.taskArn, signal), selector);
     assertTaskDefinition(await this.ecs.describeTaskDefinition(selector.taskDefinitionArn, signal), selector, digest);
     const build = exact(await this.provenance.readForDigest(digest, signal), ['imageDigest', 'sourceHead']);
@@ -117,6 +139,7 @@ export class EcsControlPlaneDocumentReadback extends TrustedCoreDeploymentReadba
       throw new Error('Current Core effective configuration unavailable');
     if (currentDigest(await this.ecs.describeTask(selector.taskArn, signal), selector) !== digest)
       throw new Error('Current Core ECS image changed during readback');
+    await assertServiceMembership(this.ecs, selector, signal);
     return {
       taskArn: selector.taskArn,
       taskDefinitionArn: selector.taskDefinitionArn,

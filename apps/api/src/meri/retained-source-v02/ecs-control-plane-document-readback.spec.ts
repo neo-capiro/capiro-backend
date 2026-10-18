@@ -2,8 +2,10 @@ import {
   DescribeTaskDefinitionCommand,
   DescribeTasksCommand,
   ECSClient,
+  ListTasksCommand,
   type DescribeTaskDefinitionCommandOutput,
   type DescribeTasksCommandOutput,
+  type ListTasksCommandOutput,
 } from '@aws-sdk/client-ecs';
 import type { CurrentCoreTaskSelector } from './ecs-document-runtime-identity-reader.js';
 import {
@@ -38,11 +40,17 @@ const config = { taskArn, taskDefinitionArn, imageDigest: digest, configurationS
 const signal = new AbortController().signal;
 
 function harness(changes: {
+  membership?: unknown; secondMembership?: unknown;
   task?: unknown; secondTask?: unknown; definition?: unknown; build?: unknown; config?: unknown;
 } = {}) {
   const selected = (key: keyof typeof changes, fallback: unknown) =>
     Object.hasOwn(changes, key) ? changes[key] : fallback;
   let readCount = 0;
+  let membershipCount = 0;
+  const listServiceTasks = jest.fn(async () => selected(
+    ++membershipCount === 1 ? 'membership' : 'secondMembership',
+    selected('membership', { $metadata: {}, taskArns: [taskArn] }),
+  ) as ListTasksCommandOutput);
   const describeTask = jest.fn(async () => ({
     $metadata: {}, tasks: [++readCount === 1
       ? selected('task', task) : selected('secondTask', selected('task', task))],
@@ -52,11 +60,11 @@ function harness(changes: {
   const readForDigest = jest.fn(async () => selected('build', build));
   const readForTask = jest.fn(async () => selected('config', config));
   const reader = new EcsControlPlaneDocumentReadback(
-    { describeTask, describeTaskDefinition } as CoreEcsDescribePort,
+    { listServiceTasks, describeTask, describeTaskDefinition } as CoreEcsDescribePort,
     { readForDigest } as QualifiedCoreImageProvenancePort,
     { readForTask } as CurrentCoreEffectiveConfigurationPort,
   );
-  return { reader, describeTask, describeTaskDefinition, readForDigest, readForTask };
+  return { reader, listServiceTasks, describeTask, describeTaskDefinition, readForDigest, readForTask };
 }
 
 describe('Core ECS independent control-plane readback', () => {
@@ -66,10 +74,30 @@ describe('Core ECS independent control-plane readback', () => {
       ...selector, sourceHead, imageDigest: digest, configurationSha256,
     });
     expect(h.describeTask).toHaveBeenCalledTimes(2);
+    expect(h.listServiceTasks).toHaveBeenCalledTimes(2);
     expect(h.describeTask).toHaveBeenNthCalledWith(1, taskArn, signal);
     expect(h.describeTaskDefinition).toHaveBeenCalledWith(taskDefinitionArn, signal);
     expect(h.readForDigest).toHaveBeenCalledWith(digest, signal);
     expect(h.readForTask).toHaveBeenCalledWith(selector, digest, signal);
+  });
+
+  it('rejects a forged RunTask group when the service-filtered index omits that task', async () => {
+    const h = harness({ membership: { $metadata: {}, taskArns: [] } });
+    await expect(h.reader.readCurrentTask(selector, signal)).rejects.toThrow('service membership');
+    expect(h.describeTask).not.toHaveBeenCalled();
+    expect(h.readForDigest).not.toHaveBeenCalled();
+  });
+
+  it('rejects a truncated service index rather than trusting a matching task group', async () => {
+    const h = harness({ membership: { $metadata: {}, taskArns: [taskArn], nextToken: 'more' } });
+    await expect(h.reader.readCurrentTask(selector, signal)).rejects.toThrow('service membership');
+    expect(h.describeTask).not.toHaveBeenCalled();
+  });
+
+  it('rejects service removal during provenance/config observation', async () => {
+    const h = harness({ secondMembership: { $metadata: {}, taskArns: [] } });
+    await expect(h.reader.readCurrentTask(selector, signal)).rejects.toThrow('service membership');
+    expect(h.listServiceTasks).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -120,14 +148,20 @@ describe('Core ECS independent control-plane readback', () => {
   it('sends read-only ECS commands with the exact cluster and selected ARNs', async () => {
     const send = jest.fn(async (_command: unknown, _options: unknown) => ({ $metadata: {} }));
     const port = new AwsSdkCoreEcsDescribePort({ send } as unknown as ECSClient);
+    await port.listServiceTasks(signal);
     await port.describeTask(taskArn, signal);
     await port.describeTaskDefinition(taskDefinitionArn, signal);
-    expect(send.mock.calls[0]![0]).toBeInstanceOf(DescribeTasksCommand);
-    expect((send.mock.calls[0]![0] as DescribeTasksCommand).input).toEqual({
+    expect(send.mock.calls[0]![0]).toBeInstanceOf(ListTasksCommand);
+    expect((send.mock.calls[0]![0] as ListTasksCommand).input).toEqual({
+      cluster: 'arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev',
+      serviceName: 'capiro-preview-first-chat-core', desiredStatus: 'RUNNING', maxResults: 100,
+    });
+    expect(send.mock.calls[1]![0]).toBeInstanceOf(DescribeTasksCommand);
+    expect((send.mock.calls[1]![0] as DescribeTasksCommand).input).toEqual({
       cluster: 'arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev', tasks: [taskArn],
     });
-    expect(send.mock.calls[1]![0]).toBeInstanceOf(DescribeTaskDefinitionCommand);
-    expect((send.mock.calls[1]![0] as DescribeTaskDefinitionCommand).input).toEqual({ taskDefinition: taskDefinitionArn });
+    expect(send.mock.calls[2]![0]).toBeInstanceOf(DescribeTaskDefinitionCommand);
+    expect((send.mock.calls[2]![0] as DescribeTaskDefinitionCommand).input).toEqual({ taskDefinition: taskDefinitionArn });
     expect(send.mock.calls[0]![1]).toEqual({ abortSignal: signal });
   });
 });

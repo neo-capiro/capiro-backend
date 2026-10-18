@@ -31,13 +31,13 @@ change admission, the signed request, task credential, tariff, or provider-free
 extraction rule.
 
 **Runtime dependency:** a source-only implementation of
-`TrustedCoreDeploymentReadbackPort` now validates ECS `DescribeTasks` and
-`DescribeTaskDefinition` results, including the selected running container
-and immutable digest. See
+`TrustedCoreDeploymentReadbackPort` now validates service-filtered ECS
+`ListTasks`, `DescribeTasks` and `DescribeTaskDefinition` results, including
+the selected running container and immutable digest. See
 [the control-plane source handoff](CORE-DOCUMENT-CONTROL-PLANE-READBACK-20261018.md).
 It has no Nest provider. Its separate qualified-build and current-effective-
 configuration evidence ports have no implementations, and the preview task
-role has bounded KMS signing permission but no ECS Describe permission. A
+role has bounded KMS signing permission but no ECS List/Describe permission. A
 shipping owner must bind those current readbacks and approved access, then
 qualify the running task and allocation pins before registering it. Source
 tests do not establish runtime evidence. No new credential, grant, AWS call,
