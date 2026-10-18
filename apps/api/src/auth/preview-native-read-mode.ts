@@ -2,7 +2,6 @@ import type { Request } from 'express';
 
 const PREVIEW_HOST = 'first-chat-preview.app-dev.capiro.ai';
 export const CORE_ROSTER_PREVIEW_HOST = 'core-roster-preview.capiro.ai';
-const PORTFOLIO_PREVIEW_HOST = 'portfolio-preview.app.capiro.ai';
 const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidates\/mine(?:\/[^/?]+\/status)?|owner\/items))\/?$/i;
 
 export type CoreRosterPreviewDecision = 'unrelated' | 'preview' | 'unavailable' | 'not-found';
@@ -69,11 +68,11 @@ export function previewNativeReadMode(
   host: unknown,
   rosterEnabled = false,
 ): 'ordinary' | 'preview' | 'unavailable' {
-  // The composed task still serves both the original first-chat Host and
-  // Portfolio's ordinary routes. Its additional roster Host is admitted only
-  // by coreRosterPreviewDecision, which checks the complete request.
+  // The composed task still serves the original first-chat Host. Native GETs
+  // under every other Host remain unavailable, exactly as on the parent task.
+  // Its additional roster Host is admitted only by coreRosterPreviewDecision,
+  // which checks the complete request before this legacy mode is consulted.
   if (rosterEnabled) {
-    if (host === PORTFOLIO_PREVIEW_HOST) return 'ordinary';
     if (typeof host === 'string' && host.toLowerCase() === PREVIEW_HOST) {
       return enabled ? 'preview' : 'unavailable';
     }

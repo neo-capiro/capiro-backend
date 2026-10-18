@@ -312,4 +312,28 @@ describe('preview native reads through real Node HTTP and Express routing', () =
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   }, 15000);
+
+  it('preserves native-on refusal for Portfolio Host GET and HEAD without tenant writes', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      for (const [method, target] of ([
+        ['GET', '/api/me'], ['GET', '/api/clients'],
+        ['HEAD', '/api/clients'], ['GET', '/api/memory/owner/items'],
+      ] as const)) {
+        const result = await send(server, method, target, 'portfolio-preview.app.capiro.ai');
+        expect(result.status).toBe(503);
+        expect(result.headers['cache-control']).toBe('no-store');
+      }
+      expect(h.reached).not.toHaveBeenCalled();
+      expect(h.verifySessionToken).not.toHaveBeenCalled();
+      expect(h.withSystem).not.toHaveBeenCalled();
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
 });

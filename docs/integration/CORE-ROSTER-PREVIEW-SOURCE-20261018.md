@@ -8,7 +8,7 @@ This source successor starts at Core preview template `5cf5ca630cd4c237fd23019a1
 
 The first statement of `TenantContextMiddleware.use` mirrors the same decision before retained, execution, delegation, public, and ordinary paths. The admitted request uses existing `usePreviewNativeRead`: an unmarked live Clerk `sid`, online session check, and existing active local actor/member only. `PreviewNativeReadService.run` checks current membership before and after the application read. `ClientsService.listPreviewVisible` keeps tenant ID, current wall-visible IDs, and nonarchived status in the SQL predicate. The ordinary provisioning, rebind, self-heal, and `lastSeenAt` path is not used for roster Host traffic.
 
-The composed Core task still serves the existing first-chat Host's native GET/HEAD and absolute-form read behavior, and the Portfolio Host's ordinary behavior. First-chat bootstrap and Meri service paths have no new route or credential behavior. The reserved roster Host cannot fall back to ordinary mode if its flag is off.
+The composed Core task still serves the existing first-chat Host's native GET/HEAD and absolute-form read behavior. With native GETs on, Portfolio Host GET/HEAD routes that match the first-chat native route shapes remain unavailable, as in the parent source; they cannot fall through to ordinary provisioning or client listing. First-chat bootstrap and Meri service paths have no new route or credential behavior. The reserved roster Host cannot fall back to ordinary mode if its flag is off.
 
 ## Exact task settings and holds
 

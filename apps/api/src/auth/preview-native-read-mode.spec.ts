@@ -123,11 +123,11 @@ describe('Core roster preview exact Host and target decision', () => {
     expect(coreRosterPreviewDecision(rosterRequest('GET', target), true, true)).toBe('not-found');
   });
 
-  it('keeps the composed Portfolio Host ordinary and ignores X-Forwarded-Host', () => {
+  it('keeps non-first-chat native GETs unavailable and ignores X-Forwarded-Host', () => {
     const portfolio = rosterRequest('GET', '/api/clients', 'portfolio-preview.app.capiro.ai');
     portfolio.headers['x-forwarded-host'] = rosterHost;
     expect(coreRosterPreviewDecision(portfolio, true, true)).toBe('unrelated');
-    expect(previewNativeReadMode(true, portfolio.headers.host, true)).toBe('ordinary');
+    expect(previewNativeReadMode(true, portfolio.headers.host, true)).toBe('unavailable');
     expect(previewNativeReadMode(true, rosterHost, true)).toBe('unavailable');
     expect(previewNativeReadMode(true, 'other.example', true)).toBe('unavailable');
     expect(previewNativeReadMode(true, 'first-chat-preview.app-dev.capiro.ai', true)).toBe('preview');
