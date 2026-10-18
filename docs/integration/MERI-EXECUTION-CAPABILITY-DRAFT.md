@@ -87,7 +87,7 @@ A compact JWS of at most 8192 bytes; the signing input is at most 4096 bytes.
    - **the task's client is inside the approved client scope**: a non-null `clientId` is one of the client scopes; a null `clientId` needs no client scope and the tenant's own tenant scope;
    - every client is visible now.
 
-**Meri's canonical admission** (`readCurrentAdmission` + `execution-grant-admission`), read by Core on its transaction:
+**Meri's canonical admission** (`readCurrentAdmission` + `execution-grant-admission`). Core reads it through ONE call on its transaction: Meri's SECURITY DEFINER function `meri_core_authority.current_admission_v1(run_id)` (dot 6248138427 / 6248171459; proposal `docs/integration/CORE-ADMISSION-SNAPSHOT-FUNCTION-20261018.sql`, placed by R0 in Meri's integration grants). Core takes its proposal lock first. Inside the function:
 - **Lock.** `SELECT … FROM meri_product_budget.budget WHERE id = 1 FOR SHARE`. This conflicts with the `FOR UPDATE` that Meri's admission, revocation, grant installation and fence changes take, so nothing commits in between. It also requires the budget not to be quarantined, and supplies the database clock.
 - **Run and allocation rows.** There must be one `runs` row and one `tool_run_allocations` row, and all of these hold:
   - the stored hash equals the RFC 8785 hash of the allocation;
@@ -175,7 +175,6 @@ The Core task needs:
 - optionally `MERI_EXECUTION_MAX_*`;
 - `kms:Sign` on the key only.
 
-Core's database role needs:
-- SELECT on `meri_product_budget.{budget,runs,tool_run_allocations,grants,tool_grant_bindings}`;
-- the row lock on the single `budget` row. PostgreSQL requires UPDATE privilege for `FOR SHARE`, so this means a column-level UPDATE grant on one column of `meri_product_budget.budget`. Core never issues an UPDATE, and a spec pins `FOR SHARE`. A narrower alternative is a Meri-owned `SECURITY DEFINER` snapshot function with EXECUTE only; that is Meri's choice;
+Core's database role (`capiro_app` in Core source; the packet reads back the app credential's username) needs:
+- USAGE on schema `meri_core_authority` and EXECUTE on exactly `meri_core_authority.current_admission_v1(uuid)`. It needs no grant on Meri's tables: the function's NOLOGIN owner holds SELECT and the one-column privilege `FOR SHARE` requires;
 - SELECT on `meri_commands.approval_metadata` (D17).

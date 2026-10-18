@@ -137,18 +137,24 @@ function world(options: { proposal?: ReturnType<typeof makeProposal> } = {}) {
       const sql = strings.join('?');
       if (sql.includes('pg_advisory_xact_lock')) { state.locks++; return [{ locked: '' }]; }
       if (sql.includes('FROM clients')) return state.visible ? (values[1] as string[]).map((id) => ({ id })) : [];
-      if (sql.includes('meri_product_budget')) {
-        if (state.ownerUnavailable) throw new Error('permission denied for schema meri_product_budget');
-        if (sql.includes('meri_product_budget.budget')) {
-          expect(sql).toContain('FOR SHARE');
-          state.budgetLocks++;
-          return [{ quarantined: state.quarantined, db_now: new Date(Date.now() + state.lockClockShiftMs) }];
-        }
-        if (sql.includes('meri_product_budget.runs')) {
-          expect(values[0]).toBe(binding.runId);
-          return state.run ? [{ ...state.run, allocation: clone(state.allocation), allocation_sha256: nativeCanonicalSha256(state.allocation), started_at: state.runStartedAt }] : [];
-        }
-        if (sql.includes('meri_product_budget.grants')) return [state.admitted, ...state.executionGrants].map(grantRow);
+      // Meri's SECURITY DEFINER admission snapshot (docs/integration/CORE-ADMISSION-SNAPSHOT-FUNCTION-20261018.sql):
+      // budget FOR SHARE first, then the clock, then the rows, as one JSON value.
+      if (sql.includes('meri_core_authority.current_admission_v1')) {
+        if (state.ownerUnavailable) throw new Error('permission denied for function current_admission_v1');
+        expect(values[0]).toBe(binding.runId);
+        state.budgetLocks++;
+        const r = state.run;
+        return [{ snapshot: clone({
+          contract: 'capiro.meri-core-admission-snapshot.v1', budgetPresent: true, quarantined: state.quarantined,
+          dbNowMs: Date.now() + state.lockClockShiftMs,
+          run: r ? { runId: r.run_id, attempt: r.attempt, workerArn: r.worker_arn, fence: r.fence, policyRevision: r.policy_revision } : null,
+          allocation: r ? { allocation: state.allocation, allocationSha256: nativeCanonicalSha256(state.allocation), startedAtMs: state.runStartedAt.getTime() } : null,
+          grants: [state.admitted, ...state.executionGrants].map(grantRow).sort((a, b) => a.grant_id.localeCompare(b.grant_id)).map((g) => ({
+            grantId: g.grant_id, runId: g.run_id, attempt: g.attempt, workerArn: g.worker_arn, fence: g.fence, policyRevision: g.policy_revision,
+            capabilitySha256: g.capability_sha256, expiresAtMs: g.expires_at.getTime(), state: g.state, boundGrantId: g.bound_grant_id,
+            boundRunId: g.bound_run_id, facts: g.facts,
+          })),
+        }) }];
       }
       if (sql.includes('clock_timestamp() AS db_now')) return [{ db_now: new Date(Date.now() + state.effectClockShiftMs) }];
       throw new Error(`unexpected SQL ${sql}`);
