@@ -627,6 +627,7 @@ function suppressionToExclusion(
     wrong_client: 'wrong-client',
     ethical_wall: 'unauthorized',
     invalid_until: 'invalid-until',
+    not_yet_effective: 'unavailable',
     unapproved: 'unapproved',
     sensitivity_denied: 'sensitivity-denied',
     conflict_unresolved: 'conflicted',

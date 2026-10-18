@@ -30,7 +30,7 @@ export function canonicalMemoryEligibilitySql({
     AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
     AND (
       mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
-      OR mi.approved_by_user_id IS NOT NULL
+      OR (mi.approved_by_user_id IS NOT NULL AND mi.approved_at IS NOT NULL)
     )
     AND (
       mi.source_type <> 'unknown'
