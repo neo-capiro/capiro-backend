@@ -13,6 +13,7 @@ import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
+import { currentMeriFundingReadAsOf, currentMeriReadAsOf, currentMeriEvidenceAccuracyMode } from './meri-funding-read-observation.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -20,6 +21,7 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -2275,7 +2277,7 @@ export class MeriToolsService {
     const query = typeof input.query === 'string' ? input.query.trim() : '';
     if (!query) throw new BadRequestException('query is required');
     const clientId = typeof input.clientId === 'string' && input.clientId ? input.clientId : null;
-    const generatedAt = new Date().toISOString();
+    const generatedAt = currentMeriReadAsOf('search_client_knowledge') ?? new Date().toISOString();
     if (!clientId) {
       return {
         tool: 'search_client_knowledge',
@@ -2745,32 +2747,44 @@ export class MeriToolsService {
       update_task: () => this.updateEngagementTask(ctx, input),
       update_client_profile: () => this.updateClientProfile(ctx, input),
       search_funding_opportunities: () => {
-        return this.opportunityTools.searchFundingOpportunities(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: input.source as string | undefined,
           query: input.query as string | undefined,
           page: input.page as number | undefined,
           pageSize: input.pageSize as number | undefined,
           activeState: input.activeState as string | undefined,
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('search_funding_opportunities');
+        return asOf
+          ? this.opportunityTools.searchFundingOpportunities(toolActor(ctx), request, asOf)
+          : this.opportunityTools.searchFundingOpportunities(toolActor(ctx), request);
       },
       get_funding_opportunity_requirements: () => {
-        return this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
           offset: input.offset as number | undefined,
           limit: input.limit as number | undefined,
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_funding_opportunity_requirements');
+        return asOf
+          ? this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), request);
       },
       get_funding_opportunity: () => {
-        return this.opportunityTools.getFundingOpportunity(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
           summaryOffset: input.summaryOffset as number | undefined,
           summaryLimit: input.summaryLimit as number | undefined,
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_funding_opportunity');
+        return asOf
+          ? this.opportunityTools.getFundingOpportunity(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getFundingOpportunity(toolActor(ctx), request);
       },
       explain_opportunity_match: () => {
         return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {
@@ -2780,16 +2794,24 @@ export class MeriToolsService {
         });
       },
       get_opportunity_client_context: () => {
-        return this.opportunityTools.getOpportunityClientContext(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_opportunity_client_context');
+        return asOf
+          ? this.opportunityTools.getOpportunityClientContext(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getOpportunityClientContext(toolActor(ctx), request);
       },
       get_opportunity_government_landscape: () => {
-        return this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), {
+        const request = {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
-        });
+        };
+        const asOf = currentMeriFundingReadAsOf('get_opportunity_government_landscape');
+        return asOf
+          ? this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), request, asOf)
+          : this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), request);
       },
       compare_funding_opportunities: () => {
         return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), {
@@ -4877,6 +4899,7 @@ export class MeriToolsService {
   }
 
   private async searchFederalAwards(ctx: TenantContext, input: Record<string, unknown>) {
+    const observedMode = currentMeriEvidenceAccuracyMode('search_federal_awards', ctx.tenantId);
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const peCode = optionalString(input, 'peCode', 16);
@@ -4902,7 +4925,7 @@ export class MeriToolsService {
     const hasMore = page * limit < total;
     const paginationLimitReached = hasMore && page >= 10_000;
 
-    const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    const mode = observedMode ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     if (mode === 'shadow') {
       this.logger.warn('meri.evidence_accuracy.shadow', {
         tool: 'search_federal_awards',
@@ -4950,7 +4973,7 @@ export class MeriToolsService {
   // ── Program Element (DoD budget) tools ──────────────────────────────
 
   private async searchProgramElements(ctx: TenantContext, input: Record<string, unknown>) {
-    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    const accuracyMode = currentMeriEvidenceAccuracyMode('search_program_elements', ctx.tenantId) ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const q = optionalString(input, 'query', 240) ?? optionalString(input, 'q', 240);
     const service = optionalString(input, 'service', 60);
     const budgetActivity = optionalString(input, 'budgetActivity', 120);
@@ -5074,7 +5097,7 @@ export class MeriToolsService {
   }
 
   private async getProgramElementDetail(ctx: TenantContext, input: Record<string, unknown>) {
-    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    const accuracyMode = currentMeriEvidenceAccuracyMode('get_program_element', ctx.tenantId) ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const programElement = (await this.programElement.getProgramElement(peCode, ctx)) as Record<
       string,
@@ -5122,7 +5145,7 @@ export class MeriToolsService {
   }
 
   private async getPeBudgetTimeline(input: Record<string, unknown>, ctx?: TenantContext) {
-    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx?.tenantId, 'chat');
+    const accuracyMode = currentMeriEvidenceAccuracyMode('get_pe_budget_timeline', ctx?.tenantId) ?? resolveEvidenceAccuracyModeForTenant(ctx?.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const timeline = await this.programElement.getTimeline(peCode);
     const identity = modelBudgetLineMetadata({
@@ -5278,6 +5301,7 @@ export class MeriToolsService {
   }
 
   private async searchFederalGrants(ctx: TenantContext, input: Record<string, unknown>) {
+    const observedMode = currentMeriEvidenceAccuracyMode('search_federal_grants', ctx.tenantId);
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const status = optionalString(input, 'status', 30);
@@ -5315,7 +5339,7 @@ export class MeriToolsService {
     const asOf = new Date();
     const nowIso = asOf.toISOString();
     const todayYmdEt = ymdInZone(asOf, 'America/New_York');
-    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+    const enforce = (observedMode ?? resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat')) === 'enforce';
     const deadlineStatus = (closeDate: Date | null): 'open' | 'closed' | 'unknown' => {
       if (!closeDate) return 'unknown';
       const closeYmd = ymdInZone(closeDate, 'UTC');
@@ -6723,17 +6747,21 @@ export class MeriToolsService {
           orderBy: { updatedAt: 'desc' },
           take: limit,
         }),
-        tx.meeting.findMany({
+        readActiveMeetings(limit, (take, cursor) => tx.meeting.findMany({
           where: {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
-            ...ownMeetingWhere(ctx.userId),
-            OR: [
-              { subject: { contains: query, mode: 'insensitive' } },
-              { description: { contains: query, mode: 'insensitive' } },
-              { location: { contains: query, mode: 'insensitive' } },
-              { organizerEmail: { contains: query, mode: 'insensitive' } },
-              { organizerName: { contains: query, mode: 'insensitive' } },
+            status: { notIn: ['cancelled', 'canceled', 'deleted'] },
+            // Ownership and text search are independent OR clauses; intersect both.
+            AND: [
+              ownMeetingWhere(ctx.userId),
+              { OR: [
+                { subject: { contains: query, mode: 'insensitive' } },
+                { description: { contains: query, mode: 'insensitive' } },
+                { location: { contains: query, mode: 'insensitive' } },
+                { organizerEmail: { contains: query, mode: 'insensitive' } },
+                { organizerName: { contains: query, mode: 'insensitive' } },
+              ] },
             ],
           },
           select: {
@@ -6742,12 +6770,14 @@ export class MeriToolsService {
             subject: true,
             description: true,
             startsAt: true,
+            status: true,
             organizerEmail: true,
             organizerName: true,
           },
-          orderBy: { startsAt: 'desc' },
-          take: limit,
-        }),
+          orderBy: [{ startsAt: 'desc' }, { id: 'desc' }],
+          take,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        })),
         tx.mailThread.findMany({
           where: {
             tenantId: ctx.tenantId,
@@ -7397,15 +7427,16 @@ export class MeriToolsService {
       tenantId: ctx.tenantId,
       ...ownMeetingWhere(ctx.userId),
       startsAt: { gte: now, lt: until },
-      status: { not: 'cancelled' },
+      status: { notIn: ['cancelled', 'canceled', 'deleted'] },
     };
     if (clientId) where.clientId = clientId;
 
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meeting.findMany({
+      readActiveMeetings(limit, (take, cursor) => tx.meeting.findMany({
         where,
-        orderBy: { startsAt: 'asc' },
-        take: limit,
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        take,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         select: {
           id: true,
           subject: true,
@@ -7424,7 +7455,7 @@ export class MeriToolsService {
             select: { name: true, email: true, role: true, responseStatus: true },
           },
         },
-      }),
+      })),
     );
 
     const meetings = rows.map((m) => ({
@@ -10079,6 +10110,35 @@ function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
   return {
     OR: [{ createdByUserId: userId }, { connection: { createdByUserId: userId } }],
   };
+}
+
+function isInactiveMeetingStatus(status: string): boolean {
+  return ['cancelled', 'canceled', 'deleted'].includes(status.trim().toLowerCase());
+}
+
+async function readActiveMeetings<T extends { id: string; status: string }>(
+  limit: number,
+  readPage: (take: number, cursor?: string) => Promise<T[]>,
+): Promise<T[]> {
+  const active: T[] = [];
+  let cursor: string | undefined;
+  let scanned = 0;
+  const maxScanned = 250;
+
+  while (scanned < maxScanned) {
+    const take = Math.min(Math.max(limit, 25), maxScanned - scanned);
+    const page = await readPage(take, cursor);
+    scanned += page.length;
+    active.push(...page.filter((meeting) => !isInactiveMeetingStatus(meeting.status)));
+    if (active.length >= limit) return active.slice(0, limit);
+    if (page.length < take) return active;
+    const last = page.at(-1);
+    if (!last) throw new ServiceUnavailableException('Meeting cursor unavailable');
+    cursor = last.id;
+  }
+
+  // A bounded scan must not report an empty result while more rows may exist.
+  throw new ServiceUnavailableException('Meeting status scan limit reached');
 }
 
 function renderMeetingBrief(input: {

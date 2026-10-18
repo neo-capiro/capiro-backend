@@ -1,0 +1,24 @@
+{
+  "startedAtUtc": "2026-10-16T03:07:44.8955497Z",
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=512",
+    "current-authority-runtime/run-focused.cjs",
+    "--suite",
+    "primary",
+    "--output-prefix",
+    "focused-attempt2"
+  ],
+  "workingDirectory": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3",
+  "hardWallMs": 58000,
+  "approvedSuite": "primary",
+  "processId": 40272,
+  "primaryExit": 1,
+  "timedOut": false,
+  "peakWorkingSetBytes": 434798592,
+  "peakPrivateBytes": 449978368,
+  "cleanupExit": 0,
+  "terminalAtUtc": "2026-10-16T03:08:06.9232367Z",
+  "ownedProcessRemains": false,
+  "elapsedMs": 22020
+}

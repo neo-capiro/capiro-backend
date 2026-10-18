@@ -84,9 +84,12 @@ export async function fetchDeniedClientIds(
   tx: Tx,
   tenantId: string,
   userId: string | null,
+  maxRows?: number,
 ): Promise<string[]> {
-  const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-    `SELECT c.id
+  if (maxRows !== undefined && (!Number.isSafeInteger(maxRows) || maxRows < 1 || maxRows > 4097)) {
+    throw new Error('invalid denied client bound');
+  }
+  const sql = `SELECT c.id
        FROM clients c
       WHERE c.tenant_id = $1::uuid
         AND c.memory_wall
@@ -94,10 +97,14 @@ export async function fetchDeniedClientIds(
               SELECT 1 FROM client_memory_access a
               WHERE a.tenant_id = c.tenant_id
                 AND a.client_id = c.id
-                AND a.user_id = $2::uuid))`,
-    tenantId,
-    userId,
-  );
+                AND a.user_id = $2::uuid))`;
+  // Preserve the existing three-argument query exactly. New bounded callers
+  // overfetch one sentinel row and refuse incomplete observations themselves.
+  const rows = maxRows === undefined
+    ? await tx.$queryRawUnsafe<Array<{ id: string }>>(sql, tenantId, userId)
+    : await tx.$queryRawUnsafe<Array<{ id: string }>>(
+      sql + ' ORDER BY c.id LIMIT $3::integer', tenantId, userId, maxRows,
+    );
   return rows.map((r) => r.id);
 }
 

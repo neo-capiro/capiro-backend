@@ -5,8 +5,9 @@
 #
 # Multi-stage:
 #   1. base    pnpm + corepack on slim node
-#   2. build   install + generate Prisma client + compile, then `pnpm prune --prod` in place
-#   3. runtime minimal node slim, non-root user, copies the pruned workspace
+#   2. build   install development deps + generate Prisma client + compile
+#   3. production-dependencies fresh production install + canonical Prisma generation
+#   4. runtime minimal node slim, non-root user
 #
 # Mirrors apps/workspace's Dockerfile (the closest separate-service precedent),
 # with the shared canonical Objective authority helper; @capiro/meriv2-core is
@@ -54,10 +55,24 @@ RUN pnpm --filter @capiro/strategy-verifier build
 RUN cd apps/api-strategy && pnpm exec prisma generate
 RUN pnpm --filter @capiro/api-strategy build
 
-# Prune dev dependencies in place (keeps the .pnpm store intact for the
-# generated Prisma client).
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+# Fresh production dependency graph, separate from the dev build.
+FROM base AS production-dependencies
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
+COPY apps/api-strategy/package.json apps/api-strategy/package.json
+COPY packages/auth/package.json packages/auth/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
+RUN test ! -e /workspace/node_modules \
+ && test ! -e /workspace/apps/api-strategy/node_modules \
+ && test ! -e /workspace/apps/api-strategy/generated
+RUN --mount=type=cache,id=pnpm-strategy-production-gnu,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/api-strategy... --filter=@capiro/auth... --filter=@capiro/strategy-verifier...
+COPY apps/api-strategy/prisma apps/api-strategy/prisma
+RUN pnpm --filter @capiro/api-strategy exec prisma generate
+
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -77,8 +92,8 @@ ENV TMPDIR=/app/tmp
 ENV STRATEGY_PDF_CHROMIUM_PATH=/usr/bin/chromium
 WORKDIR /app
 
-# Copy the entire workspace's pnpm-symlinked node_modules + the compiled dist.
-COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
+# Copy the fresh production dependency store alongside the compiled dist.
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/node_modules /app/node_modules
 # @capiro/auth (shared Clerk guard): dist + manifest + its OWN node_modules —
 # root /app/node_modules/@capiro/auth is a pnpm symlink to here, and
 # packages/auth/dist require()s @nestjs/common / @clerk/backend from its own
@@ -86,19 +101,19 @@ COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_module
 # boot with "Cannot find module '@capiro/auth'".
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
-COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/packages/auth/node_modules /app/packages/auth/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 # @capiro/strategy-verifier (pure/zero-dep) — dist + manifest only, no node_modules needed.
 COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/dist /app/packages/strategy-verifier/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/package.json /app/packages/strategy-verifier/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/dist /app/apps/api-strategy/dist
-COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/node_modules /app/apps/api-strategy/node_modules
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-strategy/node_modules /app/apps/api-strategy/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/package.json /app/apps/api-strategy/package.json
 # Generated Prisma client + schema + migrations (the migrate verb runs
 # `prisma migrate deploy` against prisma/migrations at task launch).
-COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/generated /app/apps/api-strategy/generated
-COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/prisma /app/apps/api-strategy/prisma
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-strategy/generated /app/apps/api-strategy/generated
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-strategy/prisma /app/apps/api-strategy/prisma
 COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/tsconfig.json /app/apps/api-strategy/tsconfig.json
 COPY --chown=capiro:capiro apps/api-strategy/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh

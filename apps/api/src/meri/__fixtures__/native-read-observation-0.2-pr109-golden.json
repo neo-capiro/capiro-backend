@@ -1,0 +1,160 @@
+{
+  "format": "meri-native-read-observation-golden/1",
+  "status": "Cross-repository agreement candidate; no installed Core bridge claimed",
+  "vectors": [
+    {
+      "operation": {
+        "id": "search_funding_opportunities",
+        "version": "0.2.0"
+      },
+      "request": {
+        "query": " Civic & energía 🌱 ",
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "pageSize": 5
+      },
+      "context": {
+        "asOf": "2026-10-17T12:34:56.789Z"
+      },
+      "requestCanonicalJson": "{\"clientId\":\"a1234567-b123-4c12-8d12-e123456789ab\",\"pageSize\":5,\"query\":\" Civic & energía 🌱 \"}",
+      "requestSha256": "5092f8ebfa1797833f96353e93b807dfc24cf1107a6c98ce99ad49f8b864b4e8",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "search_funding_opportunities",
+          "version": "0.2.0"
+        },
+        "requestSha256": "5092f8ebfa1797833f96353e93b807dfc24cf1107a6c98ce99ad49f8b864b4e8",
+        "context": {
+          "asOf": "2026-10-17T12:34:56.789Z"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"asOf\":\"2026-10-17T12:34:56.789Z\"},\"operation\":{\"id\":\"search_funding_opportunities\",\"version\":\"0.2.0\"},\"requestSha256\":\"5092f8ebfa1797833f96353e93b807dfc24cf1107a6c98ce99ad49f8b864b4e8\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 247,
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoic2VhcmNoX2Z1bmRpbmdfb3Bwb3J0dW5pdGllcyIsInZlcnNpb24iOiIwLjIuMCJ9LCJyZXF1ZXN0U2hhMjU2IjoiNTA5MmY4ZWJmYTE3OTc4MzNmOTYzNTNlOTNiODA3ZGZjMjRjZjExMDdhNmM5OGNlOTlhZDQ5ZjhiODY0YjRlOCIsInNjaGVtYVZlcnNpb24iOiJtZXJpLW5hdGl2ZS1yZWFkLW9ic2VydmF0aW9uLzEifQ",
+      "observationSha256": "3ccc4e60d5f85af4bdd02607f498737ea02457706e61796e05e3b702eb1cd849"
+    },
+    {
+      "operation": {
+        "id": "get_funding_opportunity_requirements",
+        "version": "0.2.0"
+      },
+      "request": {
+        "sourceRecordId": "SYNTHETIC-NOFO-001",
+        "source": "grants_gov",
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "limit": 10
+      },
+      "context": {
+        "asOf": "2026-10-17T12:34:56.789Z"
+      },
+      "requestCanonicalJson": "{\"clientId\":\"a1234567-b123-4c12-8d12-e123456789ab\",\"limit\":10,\"source\":\"grants_gov\",\"sourceRecordId\":\"SYNTHETIC-NOFO-001\"}",
+      "requestSha256": "cb5eaa36416231d877f4f6ac28096b75c5551c64b48b206bc4ce79a5a9b496bb",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "get_funding_opportunity_requirements",
+          "version": "0.2.0"
+        },
+        "requestSha256": "cb5eaa36416231d877f4f6ac28096b75c5551c64b48b206bc4ce79a5a9b496bb",
+        "context": {
+          "asOf": "2026-10-17T12:34:56.789Z"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"asOf\":\"2026-10-17T12:34:56.789Z\"},\"operation\":{\"id\":\"get_funding_opportunity_requirements\",\"version\":\"0.2.0\"},\"requestSha256\":\"cb5eaa36416231d877f4f6ac28096b75c5551c64b48b206bc4ce79a5a9b496bb\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 255,
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoiZ2V0X2Z1bmRpbmdfb3Bwb3J0dW5pdHlfcmVxdWlyZW1lbnRzIiwidmVyc2lvbiI6IjAuMi4wIn0sInJlcXVlc3RTaGEyNTYiOiJjYjVlYWEzNjQxNjIzMWQ4NzdmNGY2YWMyODA5NmI3NWM1NTUxYzY0YjQ4YjIwNmJjNGNlNzlhNWE5YjQ5NmJiIiwic2NoZW1hVmVyc2lvbiI6Im1lcmktbmF0aXZlLXJlYWQtb2JzZXJ2YXRpb24vMSJ9",
+      "observationSha256": "c9f78134ad572c931a0477607b0ea20912aae1eca73ebc0f8e8788ff751613f8"
+    },
+    {
+      "operation": {
+        "id": "get_funding_opportunity",
+        "version": "0.2.0"
+      },
+      "request": {
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "source": "grants_gov",
+        "sourceRecordId": "SYNTHETIC-NOFO-001"
+      },
+      "context": {
+        "asOf": "2026-10-17T12:34:56.789Z"
+      },
+      "requestCanonicalJson": "{\"clientId\":\"a1234567-b123-4c12-8d12-e123456789ab\",\"source\":\"grants_gov\",\"sourceRecordId\":\"SYNTHETIC-NOFO-001\"}",
+      "requestSha256": "f0d6e0ebf2a0c5590d9421347bcf19195350fef8a3559725af5097b2132b43a4",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "get_funding_opportunity",
+          "version": "0.2.0"
+        },
+        "requestSha256": "f0d6e0ebf2a0c5590d9421347bcf19195350fef8a3559725af5097b2132b43a4",
+        "context": {
+          "asOf": "2026-10-17T12:34:56.789Z"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"asOf\":\"2026-10-17T12:34:56.789Z\"},\"operation\":{\"id\":\"get_funding_opportunity\",\"version\":\"0.2.0\"},\"requestSha256\":\"f0d6e0ebf2a0c5590d9421347bcf19195350fef8a3559725af5097b2132b43a4\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 242,
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoiZ2V0X2Z1bmRpbmdfb3Bwb3J0dW5pdHkiLCJ2ZXJzaW9uIjoiMC4yLjAifSwicmVxdWVzdFNoYTI1NiI6ImYwZDZlMGViZjJhMGM1NTkwZDk0MjEzNDdiY2YxOTE5NTM1MGZlZjhhMzU1OTcyNWFmNTA5N2IyMTMyYjQzYTQiLCJzY2hlbWFWZXJzaW9uIjoibWVyaS1uYXRpdmUtcmVhZC1vYnNlcnZhdGlvbi8xIn0",
+      "observationSha256": "f5a5ea5858a641664b5f6dc128344a23daf9a28a837a2df46a2ba49f557c6375"
+    },
+    {
+      "operation": {
+        "id": "get_opportunity_client_context",
+        "version": "0.2.0"
+      },
+      "request": {
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab"
+      },
+      "context": {
+        "asOf": "2026-10-17T12:34:56.789Z"
+      },
+      "requestCanonicalJson": "{\"clientId\":\"a1234567-b123-4c12-8d12-e123456789ab\"}",
+      "requestSha256": "cb897668b29f3a0995f328a79857119f9e118f5b8805c55e6d291fb0c47c2af0",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "get_opportunity_client_context",
+          "version": "0.2.0"
+        },
+        "requestSha256": "cb897668b29f3a0995f328a79857119f9e118f5b8805c55e6d291fb0c47c2af0",
+        "context": {
+          "asOf": "2026-10-17T12:34:56.789Z"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"asOf\":\"2026-10-17T12:34:56.789Z\"},\"operation\":{\"id\":\"get_opportunity_client_context\",\"version\":\"0.2.0\"},\"requestSha256\":\"cb897668b29f3a0995f328a79857119f9e118f5b8805c55e6d291fb0c47c2af0\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 249,
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoiZ2V0X29wcG9ydHVuaXR5X2NsaWVudF9jb250ZXh0IiwidmVyc2lvbiI6IjAuMi4wIn0sInJlcXVlc3RTaGEyNTYiOiJjYjg5NzY2OGIyOWYzYTA5OTVmMzI4YTc5ODU3MTE5ZjllMTE4ZjViODgwNWM1NWU2ZDI5MWZiMGM0N2MyYWYwIiwic2NoZW1hVmVyc2lvbiI6Im1lcmktbmF0aXZlLXJlYWQtb2JzZXJ2YXRpb24vMSJ9",
+      "observationSha256": "8d3c6200fcee518c3eb25cc8c2b634abeb49058ca20789ef40b2f5d671e10eaf"
+    },
+    {
+      "operation": {
+        "id": "get_opportunity_government_landscape",
+        "version": "0.2.0"
+      },
+      "request": {
+        "source": "sam_gov",
+        "clientId": "a1234567-b123-4c12-8d12-e123456789ab",
+        "sourceRecordId": "b1234567-c123-4d12-8e12-f123456789ab"
+      },
+      "context": {
+        "asOf": "2026-10-17T12:34:56.789Z"
+      },
+      "requestCanonicalJson": "{\"clientId\":\"a1234567-b123-4c12-8d12-e123456789ab\",\"source\":\"sam_gov\",\"sourceRecordId\":\"b1234567-c123-4d12-8e12-f123456789ab\"}",
+      "requestSha256": "df2b314b70d8fab9b47a5fa55be56c319f40d7c8a513c58e7bc50a21dca3e799",
+      "observation": {
+        "schemaVersion": "meri-native-read-observation/1",
+        "operation": {
+          "id": "get_opportunity_government_landscape",
+          "version": "0.2.0"
+        },
+        "requestSha256": "df2b314b70d8fab9b47a5fa55be56c319f40d7c8a513c58e7bc50a21dca3e799",
+        "context": {
+          "asOf": "2026-10-17T12:34:56.789Z"
+        }
+      },
+      "canonicalJson": "{\"context\":{\"asOf\":\"2026-10-17T12:34:56.789Z\"},\"operation\":{\"id\":\"get_opportunity_government_landscape\",\"version\":\"0.2.0\"},\"requestSha256\":\"df2b314b70d8fab9b47a5fa55be56c319f40d7c8a513c58e7bc50a21dca3e799\",\"schemaVersion\":\"meri-native-read-observation/1\"}",
+      "decodedBytes": 255,
+      "carrier": "eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTE3VDEyOjM0OjU2Ljc4OVoifSwib3BlcmF0aW9uIjp7ImlkIjoiZ2V0X29wcG9ydHVuaXR5X2dvdmVybm1lbnRfbGFuZHNjYXBlIiwidmVyc2lvbiI6IjAuMi4wIn0sInJlcXVlc3RTaGEyNTYiOiJkZjJiMzE0YjcwZDhmYWI5YjQ3YTVmYTU1YmU1NmMzMTlmNDBkN2M4YTUxM2M1OGU3YmM1MGEyMWRjYTNlNzk5Iiwic2NoZW1hVmVyc2lvbiI6Im1lcmktbmF0aXZlLXJlYWQtb2JzZXJ2YXRpb24vMSJ9",
+      "observationSha256": "cd08f3f088ddfcd800db424ca071286f4ea988b1a9326f4e0437c5e57fbb8d0b"
+    }
+  ]
+}

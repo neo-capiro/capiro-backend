@@ -1,0 +1,200 @@
+{
+  "base": "68da33ac6ad9264c60d867dbaed41c1b8fdcf08f",
+  "branch": "feat/core-retained-authority",
+  "productionOnly": false,
+  "files": [
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "sha256": "b50b498890fd3137f84af501132988309055b5d62adee5c13f30436a0e83d21f",
+      "bytes": 8543
+    },
+    {
+      "path": "apps/api/src/auth/retained-florida-current.controller.ts",
+      "sha256": "b9e4a60cc46b831b5b723096bad534646c80db94e91e5cc0b0a6d13568c9598f",
+      "bytes": 3925
+    },
+    {
+      "path": "apps/api/src/auth/retained-native-authority.spec.ts",
+      "sha256": "642b6b727fbe4aa796ab96fac2ccaf6337ba286b500b262e4bf1def2101ff719",
+      "bytes": 15698
+    },
+    {
+      "path": "apps/api/src/auth/retained-native-authority.ts",
+      "sha256": "112051648b312bc41a6c5a2be7ce7b2e5b7600f9868c79e2fba24374381939c1",
+      "bytes": 15731
+    },
+    {
+      "path": "apps/api/src/auth/retained-principal.controller.ts",
+      "sha256": "e2e35e4809c14a7a49ca6fa2af787027f2af33361eacfc2db87f03b1ad31580d",
+      "bytes": 3577
+    },
+    {
+      "path": "apps/api/src/auth/retained-principal.module.ts",
+      "sha256": "0d63c204cf047887fd8081bea398735fcd316c2962f45d470365b821910f5743",
+      "bytes": 1484
+    },
+    {
+      "path": "apps/api/src/auth/retained-principal.service.spec.ts",
+      "sha256": "b66082d2c3456741bca0515d630abfdc57a9418591b09ecb60f41cf778109848",
+      "bytes": 30760
+    },
+    {
+      "path": "apps/api/src/auth/retained-principal.service.ts",
+      "sha256": "b4cddcfa153c51a25240816aaed71c4612512cb5b2b98a728c5c89cfe8bc6e58",
+      "bytes": 12104
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-authority.controller.ts",
+      "sha256": "f5420f6c1272721897be3f26cc1c2f82f669ece0594373fa765170f2410f1f6b",
+      "bytes": 2653
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-authority.module.ts",
+      "sha256": "2e40a9392e2fc828d9bef42372454dbf2d539c6e05304789f3bc7f77f7fe67dc",
+      "bytes": 1257
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-authority.service.ts",
+      "sha256": "7067ffb919bed5ead33019fb879ee14f81e514fc46767665224f04d1587b8b12",
+      "bytes": 12799
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-authority.ts",
+      "sha256": "18976b4ab00737e2d0d7a79bb7f2c9945d95f9d44ea7fda7954fc33052637ed6",
+      "bytes": 6785
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-request.spec.ts",
+      "sha256": "1fcee3eae1ef5b4b02549ee0efadb8127f92784c7dc0b8f99d2cd9753d2fb898",
+      "bytes": 16149
+    },
+    {
+      "path": "apps/api/src/auth/retained-read-request.ts",
+      "sha256": "903fdc6b78056be015d1c377b8302842153abbb59b620ee756411e90bb7d9a09",
+      "bytes": 1211
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "sha256": "ed05acb78a2594fdcda1c2598e0bba19e79ab52894c7fba309704783a3394e01",
+      "bytes": 8018
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-access.ts",
+      "sha256": "37056fe9c97ca1abae17eaa6eac779beea72fc4a35859e2e25c903bf7f6f6757",
+      "bytes": 3282
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-current-authority.spec.ts",
+      "sha256": "9c8ce1a64422f8284ed07339a08cc820aa2006f685499eefbf00eada17c4b85c",
+      "bytes": 13091
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-current-authority.ts",
+      "sha256": "3e46b874b437f90c9070a74c52d07e0a30f6c482af5c3c8da705c18df93fc100",
+      "bytes": 5824
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "d8091a0fb1d09e1475a68c86664ab5a51126d6a03c42d13dbf3779f25e6c9e7d",
+      "bytes": 33339
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/florida-current-authority.service.spec.ts",
+      "sha256": "2b85739abc2c4e462c4a911c78fae46ec05054ba7517e5ccfb24fd848c410ffd",
+      "bytes": 12404
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/florida-current-authority.service.ts",
+      "sha256": "1f79db767b74f026f123231530fd97733a613e2f7662fa641c09560944815207",
+      "bytes": 15116
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/retained-florida-read.controller.spec.ts",
+      "sha256": "67d4a49889ddc3a7fe00213d9cd18afccc7f4b8abd0b507e305595ae47540b97",
+      "bytes": 12643
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/retained-florida-read.controller.ts",
+      "sha256": "d663193676ad1143508cced08593cb40ed4c56a99045f51fa9588c5012208a69",
+      "bytes": 2010
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/retained-florida-read.module.ts",
+      "sha256": "1276d21d6809c8523cc91d93dd2a73eb0c5be2039415a4cb3dd56ac986c3c0b5",
+      "bytes": 1666
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/retained-florida-read.service.spec.ts",
+      "sha256": "5fa5bb90d098f3763b827646f5b9665b771cf348ff430e60ef90606e54654a57",
+      "bytes": 20856
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/retained-florida-read.service.ts",
+      "sha256": "6555f7cd1eaada769de3d6b38dc1af68eb4b39067a0bca4f37e4a72ad9d131f9",
+      "bytes": 8947
+    },
+    {
+      "path": "apps/intel-api/src/tracker/editorial/retained-florida-request.ts",
+      "sha256": "ff01277f2acd940ab83150ad44aa305b12c420b8deb4951ac5edd413e86d02cc",
+      "bytes": 2829
+    },
+    {
+      "path": "packages/shared/package.json",
+      "sha256": "35ebe871831ff66e5cb78677b42010571369c73d7b606c1c2c5cc6806ec5834f",
+      "bytes": 5219
+    },
+    {
+      "path": "packages/shared/src/core-retained-authority-http.spec.ts",
+      "sha256": "9f4dc2c7af788f1e816ad98cc6a3cbde1c07e2aa3ed0021530166708ea70e15b",
+      "bytes": 19073
+    },
+    {
+      "path": "packages/shared/src/core-retained-authority-http.ts",
+      "sha256": "588f5cf878c08762b0c2ecc1b0b742d21eeb49bc30b653c6d35510315131a848",
+      "bytes": 26399
+    },
+    {
+      "path": "packages/shared/src/core-retained-authority-probe.spec.ts",
+      "sha256": "2201c3d518501ab165717b55f3cb83bf52bb34b50d542cdc3a4781adf15f22f9",
+      "bytes": 17498
+    },
+    {
+      "path": "packages/shared/src/core-retained-authority-probe.ts",
+      "sha256": "62037476acf41009263015c877a34c78c8c2996a83ebf0a3c0476d33a1777a62",
+      "bytes": 18132
+    },
+    {
+      "path": "packages/shared/src/core-retained-principal.spec.ts",
+      "sha256": "fbd6d24807be99d7873efd924d2ad4618bbd841bc7467413337a51a0f68131e6",
+      "bytes": 18666
+    },
+    {
+      "path": "packages/shared/src/core-retained-principal.ts",
+      "sha256": "334eb08cd9518bc871e8d943f841ba103c7a84ecfca9ab81593eaebb560197d9",
+      "bytes": 16568
+    },
+    {
+      "path": "packages/shared/src/core-retained-read-request.spec.ts",
+      "sha256": "d0ccd709d6722e3660514a60331e7e5da4db1229dab667564ea037ed3294317b",
+      "bytes": 4689
+    },
+    {
+      "path": "packages/shared/src/core-retained-read-request.ts",
+      "sha256": "ce8e1ecfecaed02a3f9c10794e4cc370817b5c2c69e85f9eb4d0ea3b635275a7",
+      "bytes": 17723
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "sha256": "445057d9e94673b7026401c302996aa4729288de372f11ab9e7ab77de10cf583",
+      "bytes": 540
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "ecfa1a2a20fe6c186bebcd6948c62846b4634259c64a0fab8bc09dfeebe79899",
+      "bytes": 749990
+    }
+  ],
+  "sourceSetSha256": "6519eb442080ae600124e10a96de5b2959d69158d86526f39c5adc56bf65395d",
+  "mode": "DISABLED_SOURCE_ONLY",
+  "liveAuthority": false
+}

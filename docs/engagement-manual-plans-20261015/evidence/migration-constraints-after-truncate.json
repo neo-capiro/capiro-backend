@@ -1,0 +1,1 @@
+{"status":"passed","checks":79,"database":"engagement_migration_candidate","postgres":"16.14","candidate":"C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-plan-implementation/apps/api/prisma/migrations/20281015040000_engagement_plans/migration.sql","migrationSha256":"40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a"}

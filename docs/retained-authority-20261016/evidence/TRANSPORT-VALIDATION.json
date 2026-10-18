@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "action": "source-only fixed Core/Intel retained authority adapters",
+  "sourceRoot": "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-retained-authority",
+  "sourceFiles": [
+    {
+      "path": "packages/shared/src/core-retained-authority-http.ts",
+      "sha256": "c1e08fcd473dd63be8710c6c0b4fb27cf015fa317df24ad1c1adc339df7f6e48"
+    },
+    {
+      "path": "packages/shared/src/core-retained-authority-http.spec.ts",
+      "sha256": "31f3d64c7347ef99067ea020a3517ce9b967260ab2aed4cf9cd4fa3863e7dfc1"
+    }
+  ],
+  "finalSyntheticRun": {
+    "command": [
+      "C:/Program Files/nodejs/node.exe",
+      "--max-old-space-size=128",
+      "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/retained-transport-runtime/run-http-tests.cjs"
+    ],
+    "pid": 3432,
+    "primaryExit": 0,
+    "cleanup": "direct Node terminal, no child process created",
+    "cases": 42,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 109.86,
+    "observedMaxRssBytes": 98394112,
+    "recordedV8TotalHeapLimitBytes": 335544320,
+    "heapLimitNote": "The128MiB flag limits old space; observed RSS98,394,112B. Do not describe335,544,320B total V8 limit as128MiB total.",
+    "stdout": "attempt-final.stdout.log",
+    "stdoutSha256": "21ec109466949f7a36767111589b4d06e6e470b3bbebbeccd61f6598cf36ae79",
+    "runner": "run-http-tests.cjs",
+    "runnerSha256": "8d96cc532d70a1ece32f2f39a71de1b290895f831f0655f6c0eaf76844995c38"
+  },
+  "earlierAttempts": [
+    {
+      "attempt": "first temporary runner",
+      "primaryExit": 1,
+      "cases": 0,
+      "reason": "MODULE_NOT_FOUND ./core-retained-authority-probe.js; .js->.ts resolver compared slash-form root to Windows backslash parent filename",
+      "testAssertionsExecuted": false
+    },
+    {
+      "attempt": "temporary correction command",
+      "wrapperExit": 0,
+      "cases": 0,
+      "reason": "per-invocation sandbox TEMP path changed; Get-Content path missing and null Replace error; no assertions executed; wrapper0 is NOT a test pass",
+      "testAssertionsExecuted": false
+    },
+    {
+      "attempt": "persistent task-root runner",
+      "primaryExit": 0,
+      "cases": 40,
+      "passed": 40,
+      "reason": "path-normalized temporary harness corrected; later changed-source42-case final run supersedes this evidence"
+    }
+  ],
+  "canonicalizer": {
+    "path": "C:/Users/neoma/Documents/Codex/2026-10-15/task-4/meri-greenfield/node_modules/canonicalize/lib/canonicalize.js",
+    "sha256": "c1d0195af2a0748454b06af8f218e5c90415c19d39154d0058fee8229c12d859",
+    "source": "existing installed RFC8785 canonicalize dependency; read only"
+  },
+  "independentSemanticCheck": {
+    "owner": "/root/frontend_contracts",
+    "reported": "zero diagnostics;4 explicit implementation roots;159 declaration files; noEmit/strict/skipLibCheck false;256MiB;1,561ms",
+    "receipt": "owner separately seals exact-source receipt"
+  },
+  "limits": {
+    "sockets": false,
+    "database": false,
+    "provider": false,
+    "installation": false,
+    "jest": false,
+    "build": false,
+    "activation": false,
+    "realCredentials": false,
+    "syntheticEphemeralEd25519": true,
+    "httpSources": "required injected fetch only; tests use in-memory Response objects"
+  }
+}
