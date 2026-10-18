@@ -40,8 +40,13 @@ BEGIN
     SELECT 1 FROM pg_catalog.pg_class r
     JOIN pg_catalog.pg_namespace n ON n.oid = r.relnamespace
     WHERE r.oid = receipt_oid AND n.nspname = 'public'
-      AND r.relkind = 'r'
+      AND r.relkind = 'r' AND r.relpersistence = 'p'
+      AND NOT r.relispartition
       AND r.relrowsecurity AND r.relforcerowsecurity
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_inherits i
+        WHERE i.inhrelid = receipt_oid OR i.inhparent = receipt_oid
+      )
   ) THEN
     RAISE EXCEPTION 'Stage 1 requires the original RLS-forced receipt table'
       USING ERRCODE = '55000';
@@ -105,7 +110,56 @@ BEGIN
       USING ERRCODE = '55000';
   END IF;
 
+  -- An additional CHECK can silently preserve NOT NULL semantics after the
+  -- ALTER (for example CHECK (candidate IS NOT NULL)). Do not let a named
+  -- original constraint hide any extra constraint on this receipt table.
+  IF (
+    SELECT count(*) FROM pg_catalog.pg_constraint c
+    WHERE c.conrelid = receipt_oid
+  ) <> 5 OR (
+    SELECT count(*)
+    FROM (
+      VALUES
+        ('clio_meri_memory_submissions_pkey', 'p'),
+        ('clio_meri_memory_submissions_review_id_key', 'u'),
+        ('clio_meri_memory_submissions_tenant_fkey', 'f'),
+        ('clio_meri_memory_submissions_sha_check', 'c'),
+        ('clio_meri_memory_submissions_candidate_check', 'c')
+    ) AS expected(name, kind)
+    JOIN pg_catalog.pg_constraint c
+      ON c.conrelid = receipt_oid AND c.conname = expected.name
+    WHERE c.contype = expected.kind::"char" AND c.convalidated
+  ) <> 5 THEN
+    RAISE EXCEPTION 'Stage 1 requires only the five original validated receipt constraints'
+      USING ERRCODE = '55000';
+  END IF;
+
   IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint c
+    JOIN pg_catalog.pg_attribute a
+      ON a.attrelid = c.conrelid AND a.attname = 'candidate_sha256'
+      AND a.attnum > 0 AND NOT a.attisdropped
+    WHERE c.conrelid = receipt_oid
+      AND c.conname = 'clio_meri_memory_submissions_sha_check'
+      AND c.contype = 'c' AND c.convalidated
+      AND c.conkey = ARRAY[a.attnum]::smallint[]
+      AND regexp_replace(
+        pg_catalog.pg_get_expr(c.conbin, c.conrelid), '[[:space:]()"]', '', 'g'
+      ) IN (
+        'candidate_sha256::text~''^[0-9a-f]{64}$''::text',
+        'candidate_sha256~''^[0-9a-f]{64}$''::text',
+        'candidate_sha256::text~''^[0-9a-f]{64}$''',
+        'candidate_sha256~''^[0-9a-f]{64}$'''
+      )
+  ) THEN
+    RAISE EXCEPTION 'Stage 1 requires the original SHA check, not another candidate constraint'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF (
+    SELECT count(*) FROM pg_catalog.pg_trigger t
+    WHERE t.tgrelid = receipt_oid AND NOT t.tgisinternal
+  ) <> 1 OR NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_trigger t
     JOIN pg_catalog.pg_proc f ON f.oid = t.tgfoid
     JOIN pg_catalog.pg_namespace n ON n.oid = f.pronamespace
@@ -113,16 +167,34 @@ BEGIN
       AND t.tgname = 'clio_meri_memory_submission_immutable'
       -- tgtype 19 = row (1) + before (2) + update (16).
       AND NOT t.tgisinternal AND t.tgenabled = 'O' AND t.tgtype = 19
+      AND t.tgqual IS NULL AND t.tgattr = ''::pg_catalog.int2vector
+      AND t.tgconstraint = 0
       AND n.nspname = 'public'
       AND f.proname = 'clio_meri_memory_submission_immutable'
       AND pg_catalog.pg_get_function_identity_arguments(f.oid) = ''
-  ) OR NOT EXISTS (
+      AND f.prorettype = 'pg_catalog.trigger'::regtype
+      AND f.pronargs = 0 AND NOT f.prosecdef
+      AND f.prolang = (
+        SELECT l.oid FROM pg_catalog.pg_language l WHERE l.lanname = 'plpgsql'
+      )
+      AND regexp_replace(f.prosrc, '[[:space:]]', '', 'g') =
+        'BEGINRAISEEXCEPTION''Merimemorysubmissionisimmutable''USINGERRCODE=''23514'';END'
+  ) OR (
+    SELECT count(*) FROM pg_catalog.pg_policy p WHERE p.polrelid = receipt_oid
+  ) <> 1 OR NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_policy p
     WHERE p.polrelid = receipt_oid
       AND p.polname = 'clio_meri_memory_submissions_isolation'
-      AND p.polcmd = '*'
+      AND p.polcmd = '*' AND p.polpermissive
+      AND p.polroles = ARRAY[0]::oid[]
+      AND replace(regexp_replace(
+        pg_catalog.pg_get_expr(p.polqual, p.polrelid), '[[:space:]()"]', '', 'g'
+      ), 'public.', '') = 'rls_bypassORtenant_id=current_tenant_id'
+      AND replace(regexp_replace(
+        pg_catalog.pg_get_expr(p.polwithcheck, p.polrelid), '[[:space:]()"]', '', 'g'
+      ), 'public.', '') = 'rls_bypassORtenant_id=current_tenant_id'
   ) THEN
-    RAISE EXCEPTION 'Stage 1 requires the named enabled trigger and RLS policy footprint'
+    RAISE EXCEPTION 'Stage 1 requires the original immutable trigger and RLS policy semantics'
       USING ERRCODE = '55000';
   END IF;
 END
