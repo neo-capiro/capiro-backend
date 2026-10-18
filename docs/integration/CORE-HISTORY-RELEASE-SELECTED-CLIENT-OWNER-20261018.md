@@ -1,0 +1,11 @@
+# Core saved-history selected-client owner source
+
+Status: unmounted source leaf, based on backend PR96 `784b1c3a91eb6d78f16d92c42e71f05c12c5b5bb`. No route, migration, role grant, or runtime activation.
+
+`assertSelectedClientHistoryReleaseWithinTx` accepts the caller's transaction and refuses every subject unless it names one active conversation owned by the authenticated tenant/actor, one nonarchived selected client, and exactly one matching `client` scope. It locks owned conversations, clients, then required actor wall grants in sorted order with explicit tenant/actor predicates. It returns nothing: a later subject failure cannot yield a partial receipt. It refuses prospect and research-portfolio metadata because those owners have additional mutable facts and their current methods open independent transactions. Other scope kinds and clientless conversations also refuse. The scope's `policyRevision` is Meri-owned and opaque to this Core leaf; it cannot serve as Core authorization.
+
+The composition owner must start one tenant-scoped `REPEATABLE READ` transaction, establish and lock local membership/impersonation facts in that same transaction, run this leaf, and then perform a **new** online Clerk observation while locks remain held. It must compare the principal and identity revision with the initial identity, enforce receipt expiry, and return a receipt only after commit. A separate transaction or earlier cached Clerk observation does not close the race. Core cannot make Clerk and PostgreSQL jointly atomic or prove the response bytes represented by the Meri-supplied digest.
+
+Meri must keep the whole-page retention fence, derive the complete ordered subjects from the filtered response (including cursor-visible identifiers), freeze and hash exact response bytes, make one final Core batch call, verify the receipt, then publish the frozen bytes synchronously. The native bearer relay and special-scope owner adapters remain unresolved. No release should be enabled on this leaf alone.
+
+Focused PGlite cases exercise two-client ordering, wall grant, empty list and transcript, malformed/unsupported vectors, tenant/actor/client mismatch, archive/status drift, and special metadata refusal. These are source checks, not live role/lock-contention or deployment evidence.
