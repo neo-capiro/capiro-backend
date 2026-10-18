@@ -156,19 +156,31 @@ export function compactCorePreviewRules(rules) {
   return next;
 }
 
+const coreRuleIds = ['core-post', 'core-membership', 'core-guard', 'core-native-ops'];
+
+/** True when a rule's host condition could admit `host` (no host condition, or a matching pattern). */
+function admitsHost(rule, host) {
+  return !rule.conditions.hosts || rule.conditions.hosts.some((item) => globMatches(item, host, 'i'));
+}
+
 /**
- * Source-only transform from the compact layout to the Core preview packet
- * (dot #121 6246021908): the same priority-1 POST and priority-2 GET rules
- * carry every Meri/Intel Core route; the host-only guard stays at 3 and no
- * other rule moves.
+ * Source-only transform from the compact layout to the Core preview packet.
+ * The priority-1 POST and priority-2 GET rules carry every Meri/Intel Core
+ * route (dot #121 6246021908). One exact Core POST rule for approvals and
+ * memory takes `routes.packet.nativeOps`, and ONLY the Core host guard moves,
+ * to `guardPriority` (dot #121 6246253130). That slot comes from the live
+ * listener readback, never from source: it must be unused, after the
+ * native-operations rule, and before the first non-Core rule that could
+ * match the Core host, so same-host precedence is unchanged.
  */
-export function corePreviewPacketRules(rules, routes = readCoreRoutes()) {
+export function corePreviewPacketRules(rules, routes = readCoreRoutes(), { guardPriority } = {}) {
   const next = cloneRules(rules);
-  const host = 'first-chat-preview.app-dev.capiro.ai';
+  const host = routes.host;
   const post = next.filter((rule) => rule.id === 'core-post');
   const second = next.filter((rule) => rule.id === 'core-membership');
   const guard = next.filter((rule) => rule.id === 'core-guard');
   if (post.length !== 1 || second.length !== 1 || guard.length !== 1 ||
+      next.some((rule) => rule.id === 'core-native-ops') ||
       post[0].priority !== routes.priorities.post || second[0].priority !== routes.priorities.get ||
       guard[0].priority !== routes.priorities.guard ||
       !isDeepStrictEqual(post[0].conditions, {
@@ -178,7 +190,24 @@ export function corePreviewPacketRules(rules, routes = readCoreRoutes()) {
       second[0].conditions.methods?.[0] !== 'GET') {
     throw new Error('Exact compact Core rules and guard required');
   }
+  const nativeOps = routes.packet.nativeOps;
+  const shared = next.filter((rule) => !coreRuleIds.includes(rule.id) && rule.priority !== 'default');
+  const firstSharedForHost = Math.min(...shared.filter((rule) => admitsHost(rule, host)).map((rule) => rule.priority));
+  if (!Number.isSafeInteger(guardPriority) || guardPriority <= nativeOps || guardPriority > 50000 ||
+      guardPriority >= firstSharedForHost || shared.some((rule) => rule.priority === guardPriority)) {
+    throw new Error('Readback-verified unused guard priority before the first shared rule for the Core host required');
+  }
+  if (next.some((rule) => rule.priority === nativeOps && rule.id !== 'core-guard')) {
+    throw new Error(`Native-operations priority ${nativeOps} is occupied`);
+  }
   post[0].conditions = { hosts: [host], methods: ['POST'], pathRegexes: [...routes.post] };
   second[0].conditions = { hosts: [host], methods: ['GET'], pathRegexes: [...routes.get] };
+  guard[0].priority = guardPriority;
+  next.push({
+    id: 'core-native-ops',
+    priority: nativeOps,
+    conditions: { hosts: [host], methods: ['POST'], pathRegexes: [...routes.nativeOps] },
+    action: structuredClone(post[0].action),
+  });
   return next;
 }

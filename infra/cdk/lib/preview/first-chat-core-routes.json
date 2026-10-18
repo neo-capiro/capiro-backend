@@ -1,11 +1,15 @@
 {
   "schemaVersion": 1,
   "host": "first-chat-preview.app-dev.capiro.ai",
-  "note": "Shared by infra/cdk/lib/preview/first-chat-core.ts and the offline first-match model. Compact preview layout chosen by dot (#121 6246021908): existing priorities 1 (POST) and 2 (GET) before the retained host-only guard at 3; no shared rule moves.",
+  "note": "Shared by infra/cdk/lib/preview/first-chat-core.ts and the offline first-match model. `priorities` is the compact layout dot chose (#121 6246021908), as live and in the shared registry: POST 1, GET 2, retained host-only guard 3. The packet (#121 6246253130) adds one exact Core POST rule at `packet.nativeOps` and moves ONLY the Core guard to a readback-verified unused slot supplied at render (`listener.guardPriority`); no other rule moves and no slot is assumed.",
   "priorities": {
     "post": 1,
     "get": 2,
     "guard": 3
+  },
+  "packet": {
+    "nativeOps": 3,
+    "guard": "readback"
   },
   "post": [
     "^/api/clio/application-authority/(identity|context|membership|read-mode-observation|retained-florida-(budget|principal))$",
@@ -16,5 +20,8 @@
     "^/api/(me|clients)$",
     "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     "^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$"
+  ],
+  "nativeOps": [
+    "^/api/clio/(approvals/native/(record|decision)|memory/(review/(submit|status)|read_target|find_by_key))$"
   ]
 }

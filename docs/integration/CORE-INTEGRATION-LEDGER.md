@@ -110,6 +110,7 @@ entry). All on the integrated tree.
 | Jest after R11: 18 api suites (retained trust/JCS/signed admission, tool allowlist, authority/membership/boundary, tenant middleware incl. #83 control credential and preview GETs, retained principal/request/native, Meri funding/RP/attachment HTTP transports) | 18/18, 449/449 |
 | Jest after R11: intel-api `tracker/editorial` (retained Florida read/controller/trust, current authority, publisher coverage) | 5/5, 102/102 |
 | After R13 (W8 memory receiving): `prisma validate` + `generate`; `meri-memory-receiving.service.spec.ts`; apps/api `tsc --noEmit` (8 GB heap); `nest build` | pass; 24/24; pass; pass |
+| After the native-operations rule (dot 6246253130): infra/cdk `tsc --noEmit`; `preview-first-chat-core.spec.ts`; `infra/routing` | pass; 6/6; 9/9 |
 | `scripts/engagement-api-infra-discover.spec.mjs` | 17/17 |
 | `scripts/ci/newsletter-declared-edge.contract.spec.mjs` | 0/1, pre-existing since #78 (D14) |
 
@@ -193,12 +194,13 @@ closed for a family until its row is wired or deferred by a Neo record.
 | D17 | grant | `meri_commands.approval_metadata` (Meri migration `approval-metadata/0001`, unapplied) must be readable by Core's database role (SELECT), or every approval answers 503 | deployment packet |
 | D18 | spec gap | `approval/read` (lifecycle `readProposal`) has no envelope in Meri (`product-ports/lifecycle.mjs:11-16,30`); the proposal is Meri-held data. Not implemented until Meri defines it | Meri R0 |
 | D19 | cross-repo, blocks item 3 | `issueExecution` is an in-process Meri port (`approval.mjs:121-135`). Its `credential` is verified by Meri `verifyCapability` (`current-tool-authority.mjs:28-42`) and must match a grant bound by `bindTrustedGrant` in Meri's budget store. The capability claims, signature and verifier key are unspecified; `BACKLOG.md:53` names a Core "intent capability issuer" without a contract. `verifyCapability`/`currentRun`/`authorizeBusiness`/`authorizeSources` and `getCredentials` for `/api/clio/tools/*` have no production supplier. Per-run result release (`intents/result-release.mjs:27-47`) names no Core route | Meri R0 + Core, spec first |
-| D20 | listener | Rule 1 is at capacity (3 values). New Core POST families (`/api/clio/approvals/native/{record,decision}`, W8 `/api/clio/memory/{review/submit,review/status,read_target,find_by_key}`) need one more Core rule. Its one value, 104 characters, matches exactly those six paths: `^/api/clio/(approvals/native/(record|decision)|memory/(review/(submit|status)|read_target|find_by_key))$`. Proposal: a new Core rule at priority 3 and the Core guard 3→4 (4 is unoccupied; both are Core preview rules; no shared rule moves; 4 < the first any-host rule at 6). Awaiting dot | dot |
+| D20 | listener, **encoded per dot 6246253130** | Rule 1 is at capacity (3 values). New Core POST families (`/api/clio/approvals/native/{record,decision}`, W8 `/api/clio/memory/{review/submit,review/status,read_target,find_by_key}`) need one more Core rule. Its one value, 104 characters, matches exactly those six paths: `^/api/clio/(approvals/native/(record|decision)|memory/(review/(submit|status)|read_target|find_by_key))$`. Encoded (§8.1): the new Core rule is at P3, and the guard moves to the readback-verified `listener.guardPriority`. P4 is not assumed (Meri may hold it live). No live rule is authorized; the readback and the slot go into the coordinated change set | dot (readback) |
 | D21 | cross-repo, blocks memory corrections | Meri's `corrects.memoryId` is the `clio_memory` id that `read_target` returns. Core corrections run through `ImmutableMemoryVersionService` on `memory_items`, a different id namespace. Submit therefore refuses `kind:'correction'` with 409 until the clio_memory→memory_items mapping and its approval path are specified. No Meri change requested yet | Meri R0 + Core memory owner |
 | D22 | product decision | Meri personal additions stay **pending**; Core's legacy `proposeSaveMemory` commits them inline. Core's review trigger opens a `review_request` only for firm/client scope, so a personal Meri candidate waits for the existing candidate approve route (proposer or admin) and does not appear in the review inbox. Meri `core-review.mjs` names Core the only review authority, so pending is the conservative reading. Decide whether personal Meri memory should auto-commit | Neo / dot |
 | D23 | contract mismatch | Keys. Core `clio_memory.key` is NOT NULL `VARCHAR(200)`; Meri keys are null or up to 120 characters. An unkeyed Meri addition is stored and read back as `meri:<candidateId>`. A Core key longer than 120 characters answers `{memory:null}`, because Meri's closed target check would refuse it. Client-scope keys are unique per tenant **across clients**: the partial index `clio_memory_firm_key_uniq` covers every owner-less row, so the same key for two clients collides at approval | Meri R0 + Core memory owner |
 | D24 | contract note | States. Core emits only `active` and `expired`: forgotten rows are deleted, and superseded history lives in `memory_items`. Review status never emits `expired`, because Core has no candidate expiry. Meri's `MEMORY_STATES` and `REVIEW_STATUSES` keep those values; no change requested | recorded |
 | D25 | contract mismatch | Firm authority. Core admits firm reads and firm proposals for every tenant member, and review gates publication. Core membership receipts carry `permissions:[]`, so no Core fact backs any Meri firm-permission check. Candidate `tenantId` and `proposerActorId` must be Core's authenticated tenant and user ids | dot |
+| D26 | environmental, pre-existing | `infra/deploy/first-chat-core-ledger-audit-taskdef.spec.mjs` hashes `docs/meri/releases/2026-10-02/.../rds-us-east-1-bundle.pem` as checked out. The pinned hash is the **CRLF** form, so the spec passes only on a `core.autocrlf=true` checkout and fails on this LF worktree (required by the CRLF lockfile rule). The file is not touched by this branch | owner of `13668f72` |
 | X1 | cross-repo (Meri), **fixed by R0** | Meri callers built `/clio/...` without Core's `/api` prefix. dot counted at least 6 caller files (memory core-http, commands source-http, action-items, memory-proposals, original-tracking, research-portfolio-evidence). R0 prefixed them in meri-greenfield `adcdd120` (#121 6245813936). Core: the §8 packet now includes the RP-evidence GETs | meri-greenfield |
 
 ## 7. Next actions
@@ -224,7 +226,14 @@ Physical rule ownership and the current template must be read back before any ch
 
 ### 8.1 Listener rules (source, compact preview layout chosen by dot)
 
-dot chose the compact preview-only option (#121 6246021908) over relocating shared rules (6246004526). Rules 1 and 2 keep their logical IDs, the retained host-only guard stays at 3, and **no shared dev/prod rule, priority, default or fingerprint changes**. `infra/routing` and the ALB scripts are byte-identical to before.
+dot chose the compact preview-only option (#121 6246021908) over relocating shared rules (6246004526). Rules 1 and 2 keep their logical IDs, and **no shared dev/prod rule, priority, default or fingerprint changes**. The shared registry, snapshot and ALB scripts are unchanged.
+
+**Native-operations rule (dot 6246253130, source layout only, no live rule authorized).** One new exact Core POST rule, `FirstChatNativeOpsPostOnly`, takes priority 3 for the P-INT-10 approval and W8 memory routes. **Only the Core-host guard moves.** Its new slot is not fixed in source: the render binding (schema v3) requires `listener.guardPriority`, read back from the live listener.
+- **Before rendering**, run `corePreviewPacketRules(readback, routes, { guardPriority })` in `infra/routing`. It refuses the slot unless it is unused, after the native-operations rule, and before the first non-Core rule that could match the Core host. So same-host precedence is unchanged.
+- **On the frozen snapshot plus the registry relocations, only 4 qualifies.** 5 and 6 are taken, and the any-host header rule sits at 7.
+- **If the readback shows Meri's public rule at 4** (earlier live reports), 4 is refused and the slot Meri left (6) qualifies. The simulator covers both cases.
+- **If a readback leaves no qualifying slot**, no packet is valid. The fallback would merge native-ops into rule 2 with methods GET+POST, widening both method sets. That is dot's call, not encoded.
+- **Order.** The guard stack updates first, which frees 3; the service stack then creates the P3 rule. The CDK stack dependency enforces this.
 
 ALB limits (AWS "Condition types for listener rules"):
 - at most 3 match values per condition;
@@ -236,7 +245,8 @@ ALB limits (AWS "Condition types for listener rules"):
 | --- | --- | --- |
 | 1 (`FirstChatPostsOnly`) | POST | `^/api/clio/application-authority/(identity\|context\|membership\|read-mode-observation\|retained-florida-(budget\|principal))$` (121) · `^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?\|florida-(native-)?current)$` (113) · `^/api/clio/(conversations/bootstrap\|clients/check-ref\|retained-reads/research-portfolio(-changes)?\|tools/[a-z][a-z0-9_]{1,63})$` (127, dot's exact pattern) |
 | 2 (`FirstChatMembershipPostOnly`) | GET | `^/api/(me\|clients)$` · `^/api/clients/<uuid v1-5>$` · `^/api/research-portfolios/[0-9a-f-]{36}(/(changes\|reviews\|annual-review\|snapshots/[0-9a-f-]{36}))?$` |
-| 3 (retained guard stack) | any | host-only 404, unchanged |
+| 3 (`FirstChatNativeOpsPostOnly`) | POST | `^/api/clio/(approvals/native/(record\|decision)\|memory/(review/(submit\|status)\|read_target\|find_by_key))$` (104) |
+| readback `listener.guardPriority` (retained guard stack) | any | host-only 404, moved from 3; nothing else changes |
 
 **Perimeter tradeoff (recorded per dot 6246011427).** The listener forwards any *syntactically valid* tool name (`[a-z][a-z0-9_]{1,63}`), not only the 65. That is a wider network perimeter than exact ALB enumeration. Core closes it:
 - **Profile requirement.** The task runs `CORE_DEPLOYMENT_PROFILE=first-chat-preview`. In that profile, startup refuses to run without an exact, non-empty `MERI_TOOL_ALLOWLIST` (config validation), and the route refuses every tool if the list were somehow absent.
@@ -247,9 +257,14 @@ ALB limits (AWS "Condition types for listener rules"):
 
 Proof:
 - **CDK spec** (`infra/cdk/test/preview-first-chat-core.spec.ts`): exact patterns and lengths, the profile env, and that the 65 names plus an unlisted name such as `send_email` match rule 1 (the tradeoff).
-- **Simulator** (`infra/routing` 8/8): every shared priority is unchanged; every non-Core request routes identically; every §8.2 route reaches Core; malformed tool paths, `GET` tools, analytics, `/health` and other APIs hit the guard.
+- **Simulator** (`infra/routing` 9/9):
+  - every shared priority is unchanged, and only the guard moves;
+  - every non-Core request routes identically;
+  - every §8.2 route reaches Core, and the six native operations reach P3;
+  - malformed tool paths, `GET` tools or native ops, analytics, `/health`, other APIs and `memory/recent` hit the guard;
+  - invalid, occupied or post-header-rule slots are refused.
 
-Future M2 memory routes (W8) and any other new Core POSTs must be added to these patterns when implemented. They are not covered implicitly.
+Any other new Core POSTs must be added to these patterns when implemented. They are not covered implicitly.
 
 ### 8.2 Route / method / authority bindings
 
@@ -286,7 +301,7 @@ routes (no Core owner yet).
   - `RETAINED_PRINCIPAL_PRIVATE_KEY_PEM` and `RETAINED_PROBE_PRIVATE_KEY_PEM` (Ed25519 PKCS8; distinct secrets), only when trust is bound.
   - The execution role gets `GetSecretValue` on exactly these.
   - No secret or PEM value appears in the environment, the browser or the template.
-- **Binding v2** (`schemaVersion`, `sourceHead`, `imageDigest`, `internalServiceSecretArn`, `retainedTrust|null`): exact keys, complete secret ARNs, an exact HTTPS Intel origin, and visible-ASCII key IDs.
+- **Binding v3** (`schemaVersion`, `sourceHead`, `imageDigest`, `internalServiceSecretArn`, `retainedTrust|null`, `listener.guardPriority`): exact keys, complete secret ARNs, an exact HTTPS Intel origin, visible-ASCII key IDs, and an integer guard slot after the native-operations rule (occupancy and precedence checked offline against the readback, §8.1).
 
 ### 8.4 Inputs still needed before any change set (no AWS action here)
 

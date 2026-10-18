@@ -127,7 +127,7 @@ test('Core, Meri and manual-script candidate priorities agree with the shared re
   const engagement = source('scripts/engagement-api-alb-rules.sh');
   const onboard = source('scripts/onboard-alb-rules.sh');
   const at = (id) => registry.candidateRules.find((item) => item.id === id).candidatePriority;
-  assert.match(core, new RegExp(`FIRST_CHAT_CORE_GUARD_PRIORITY\\s*=\\s*${at('core-guard')};`));
+  assert.match(core, new RegExp(`FIRST_CHAT_CORE_COMPACT_GUARD_PRIORITY\\s*=\\s*${at('core-guard')};`));
   assert.match(core, /FirstChatPostsOnly'[\s\S]*?priority: 1,/);
   assert.match(core, /FirstChatMembershipPostOnly'[\s\S]*?priority: 2,/);
   assert.equal(registry.candidateRules.some((item) => item.id === 'core-get'), false);
@@ -245,7 +245,7 @@ test('reported compact Core layout preserves snapshot IDs for four POSTs and thr
   }).id, 'core-guard');
 });
 
-test('Core preview packet keeps P1/P2/P3 and every shared priority, and routes every packet path', () => {
+test('Core preview packet adds the P3 native-operations rule, moves only the guard, and routes every packet path', () => {
   const routes = readCoreRoutes();
   const meriTools = JSON.parse(readFileSync(new URL('../cdk/lib/preview/first-chat-core-meri-tools.json', import.meta.url), 'utf8')).tools;
   const source = readFileSync(new URL('../../infra/cdk/lib/preview/first-chat-core.ts', import.meta.url), 'utf8');
@@ -253,11 +253,13 @@ test('Core preview packet keeps P1/P2/P3 and every shared priority, and routes e
   let relocated = live;
   for (const move of registry.relocationOrder) relocated = movePriority(relocated, move.id, move.from, move.to);
   const compact = compactCorePreviewRules(addMeriRule(relocated));
-  const packet = corePreviewPacketRules(compact, routes);
+  assert.throws(() => corePreviewPacketRules(compact, routes), /Readback-verified/);
+  const packet = corePreviewPacketRules(compact, routes, { guardPriority: 4 });
   assertUniquePriorities(packet);
-  assert.deepEqual(packet.map(({ id, priority }) => [id, priority]), compact.map(({ id, priority }) => [id, priority]));
+  const priorities = (rules) => Object.fromEntries(rules.map(({ id, priority }) => [id, priority]));
+  assert.deepEqual(priorities(packet), { ...priorities(compact), 'core-guard': 4, 'core-native-ops': routes.packet.nativeOps });
   assertRoutingEqual(compact, packet, hosts.filter((host) => host.toLowerCase() !== coreHost));
-  for (const rule of packet.filter((item) => ['core-post', 'core-membership'].includes(item.id))) {
+  for (const rule of packet.filter((item) => ['core-post', 'core-membership', 'core-native-ops'].includes(item.id))) {
     assert.ok(rule.conditions.pathRegexes.length <= 3);
     for (const regex of rule.conditions.pathRegexes) assert.ok(regex.length <= 128, regex);
   }
@@ -283,6 +285,14 @@ test('Core preview packet keeps P1/P2/P3 and every shared priority, and routes e
     `/api/research-portfolios/${validClient}/reviews`, `/api/research-portfolios/${validClient}/annual-review`,
     `/api/research-portfolios/${validClient}/snapshots/${validClient}`,
   ]) assert.equal(at('GET', path).id, 'core-membership', path);
+  for (const path of [
+    '/api/clio/approvals/native/record', '/api/clio/approvals/native/decision',
+    '/api/clio/memory/review/submit', '/api/clio/memory/review/status',
+    '/api/clio/memory/read_target', '/api/clio/memory/find_by_key',
+  ]) {
+    assert.equal(at('POST', path).id, 'core-native-ops', path);
+    assert.equal(at('GET', path).id, 'core-guard', `GET ${path}`);
+  }
   // Recorded perimeter tradeoff: a syntactically valid unlisted tool reaches Core,
   // which refuses it after authentication through the mandatory preview allowlist.
   assert.equal(at('POST', '/api/clio/tools/send_email').id, 'core-post');
@@ -290,8 +300,33 @@ test('Core preview packet keeps P1/P2/P3 and every shared priority, and routes e
     ['POST', '/api/clio/tools/'], ['POST', '/api/clio/tools/Send'], ['POST', '/api/clio/tools/a/b'],
     ['GET', '/api/clio/tools/search_federal_grants'], ['POST', '/api/clio/approvals/check'],
     ['GET', `/api/research-portfolios/${validClient}/analytics`], ['GET', '/health'], ['POST', '/webhooks/recall'],
+    ['POST', '/api/clio/approvals/native/read'], ['POST', '/api/clio/memory/recent'],
+    ['POST', '/api/clio/memory/review/submit/x'], ['POST', '/api/clio/memory/read_target/'],
   ]) assert.equal(at(method, path).id, 'core-guard', `${method} ${path}`);
-  assert.throws(() => corePreviewPacketRules(packet, routes), /Exact compact Core/);
+  assert.throws(() => corePreviewPacketRules(packet, routes, { guardPriority: 4 }), /Exact compact Core/);
+});
+
+test('the Core guard slot comes from the listener readback and is never assumed', () => {
+  const routes = readCoreRoutes();
+  let relocated = live;
+  for (const move of registry.relocationOrder) relocated = movePriority(relocated, move.id, move.from, move.to);
+  const compact = compactCorePreviewRules(addMeriRule(relocated));
+  // 3 is the native-operations slot; 5 and 6 are occupied; 7 is the first
+  // shared rule that can match the Core host (the header route), so 7 or later
+  // would let it precede the guard.
+  for (const guardPriority of [undefined, null, '4', 4.5, 2, 3, 5, 6, 7, 8, 50001]) {
+    assert.throws(() => corePreviewPacketRules(compact, routes, { guardPriority }), /Readback-verified/, String(guardPriority));
+  }
+  // Earlier live reports placed Meri's public rule at 4. On such a readback
+  // 4 is refused and the slot Meri left qualifies instead.
+  const meriAtFour = movePriority(compact, 'meri-preview', 6, 4);
+  assert.throws(() => corePreviewPacketRules(meriAtFour, routes, { guardPriority: 4 }), /Readback-verified/);
+  const packet = corePreviewPacketRules(meriAtFour, routes, { guardPriority: 6 });
+  assertUniquePriorities(packet);
+  assertRoutingEqual(meriAtFour, packet, hosts.filter((host) => host.toLowerCase() !== coreHost));
+  assert.equal(firstMatch(packet, {
+    host: coreHost, path: '/api/engagement/x', method: 'GET', headers: { 'X-Capiro-Engagement-Preview': 'v3' },
+  }).id, 'core-guard');
 });
 
 test('one stable Meri rule performs deny, forward, deny without any production fallthrough', () => {

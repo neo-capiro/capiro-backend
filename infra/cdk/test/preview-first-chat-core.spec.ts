@@ -10,6 +10,8 @@ import {
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
   FIRST_CHAT_CORE_MERI_TOOLS,
+  FIRST_CHAT_CORE_NATIVE_OPS_PATHS,
+  FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY,
   FIRST_CHAT_CORE_POST_PATHS,
   FIRST_CHAT_CORE_RETIRED_PR48,
   firstChatCoreImageBinding,
@@ -25,12 +27,15 @@ const pins = {
   imageDigest: `sha256:${'b'.repeat(64)}`,
 };
 const secretArn = (name: string) => `arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/${name}-AbC123`;
+// Synthetic readback slot; the real one comes from the live listener readback
+// checked by infra/routing corePreviewPacketRules.
 const binding = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   sourceHead: pins.sourceHead,
   imageDigest: pins.imageDigest,
   internalServiceSecretArn: secretArn('internal-service'),
   retainedTrust: null,
+  listener: { guardPriority: 4 },
 };
 const trust = {
   issuer: 'capiro-core-retained',
@@ -79,6 +84,7 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     { ...binding, imageDigest: `sha256:${'a'.repeat(64)}` },
     { ...binding, databaseUrl: 'postgres://unreviewed.invalid/capiro' },
     { ...binding, schemaVersion: 1 },
+    { ...binding, schemaVersion: 2 },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:111111111111:secret:other-AbC123' },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-west-2:967807252336:secret:other-AbC123' },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:partial' },
@@ -89,6 +95,13 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     { ...binding, retainedTrust: { ...trust, principalKeyId: 'has space' } },
     { ...binding, retainedTrust: { ...trust, probePrivateKeySecretArn: trust.principalPrivateKeySecretArn } },
     { ...binding, retainedTrust: { ...trust, principalPrivateKeyPem: '-----BEGIN PRIVATE KEY-----' } },
+    (({ listener: _listener, ...rest }) => rest)(binding),
+    { ...binding, listener: null },
+    { ...binding, listener: {} },
+    { ...binding, listener: { guardPriority: 4, rulePriority: 3 } },
+    ...[undefined, null, '4', 4.5, 0, 2, FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 50001].map((guardPriority) => ({
+      ...binding, listener: { guardPriority },
+    })),
   ]) {
     assert.throws(() => firstChatCoreImageBinding(invalid, pins), JSON.stringify(invalid).slice(0, 80));
   }
@@ -98,7 +111,7 @@ test('keeps the exact Meri tool list and every listener pattern within ALB limit
   assert.deepEqual([...FIRST_CHAT_CORE_MERI_TOOLS], meriTools.tools);
   assert.ok(FIRST_CHAT_CORE_MERI_TOOLS.length > 0);
   assert.ok(!FIRST_CHAT_CORE_MERI_TOOLS.includes('get_florida_budget_project'));
-  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS]) {
+  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS, FIRST_CHAT_CORE_NATIVE_OPS_PATHS]) {
     assert.ok(values.length <= 3);
     for (const value of values) {
       assert.ok(value.length <= 128, value);
@@ -111,6 +124,13 @@ test('keeps the exact Meri tool list and every listener pattern within ALB limit
 test("uses dot's compact preview layout and records the bounded tool perimeter", () => {
   // dot #121 6246021908: existing P1 POST / P2 GET / P3 host404, no shared rule moves.
   assert.deepEqual(routes.priorities, { post: 1, get: 2, guard: 3 });
+  // dot #121 6246253130: one exact Core POST rule at P3; only the guard moves,
+  // to a slot read back from the listener (never fixed in source).
+  assert.deepEqual(routes.packet, { nativeOps: 3, guard: 'readback' });
+  assert.equal(FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 3);
+  assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
+    '^/api/clio/(approvals/native/(record|decision)|memory/(review/(submit|status)|read_target|find_by_key))$',
+  ]);
   assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
   assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);
   assert.equal(routes.post[2],
@@ -146,7 +166,7 @@ test('renders the retained-trust variant with server-side signing-key secrets on
   });
 });
 
-test('renders two stable listener rules for every Meri/Intel Core route before the retained guard', () => {
+test('renders the stable P1/P2 rules and the P3 native-operations rule before the readback-slot guard', () => {
   render(binding, ({ guard, service }) => {
   const guardStack = Template.fromStack(guard).toJSON();
   const guardResources = Object.values(guardStack.Resources) as any[];
@@ -155,7 +175,7 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
   assert.equal(guardRule.DeletionPolicy, 'Retain');
   assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
-  assert.equal(guardRule.Properties.Priority, 3);
+  assert.equal(guardRule.Properties.Priority, binding.listener.guardPriority);
   assert.deepEqual(guardRule.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
   ]);
@@ -282,10 +302,27 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   );
   assert.deepEqual(ruleEntries.map(([id]) => id).sort(), [
     'FirstChatMembershipPostOnly',
+    'FirstChatNativeOpsPostOnly',
     'FirstChatPostsOnly',
   ]);
   const rules = ruleEntries.map(([, rule]) => rule as any);
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2]);
+  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3]);
+  const nativeOps = stack.Resources.FirstChatNativeOpsPostOnly;
+  assert.deepEqual(nativeOps.Properties.Conditions, [
+    { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+    { Field: 'path-pattern', PathPatternConfig: { RegexValues: [...FIRST_CHAT_CORE_NATIVE_OPS_PATHS] } },
+    { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['POST'] } },
+  ]);
+  const nativePattern = new RegExp(FIRST_CHAT_CORE_NATIVE_OPS_PATHS[0]!);
+  for (const opPath of [
+    '/api/clio/approvals/native/record', '/api/clio/approvals/native/decision',
+    '/api/clio/memory/review/submit', '/api/clio/memory/review/status',
+    '/api/clio/memory/read_target', '/api/clio/memory/find_by_key',
+  ]) assert.ok(nativePattern.test(opPath), opPath);
+  for (const opPath of [
+    '/api/clio/approvals/native/read', '/api/clio/memory/recent', '/api/clio/memory/review/submit/x',
+    '/api/clio/memory/read_target/', '/api/clio/approvals/native/record?x=1',
+  ]) assert.ok(!nativePattern.test(opPath), opPath);
   const allowed = stack.Resources.FirstChatPostsOnly;
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] });
@@ -379,7 +416,7 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   assert.ok(rules.every((rule) => rule.Properties.Actions[0].Type === 'forward'));
   assert.deepEqual(
     rules.map((rule) => rule.Properties.Actions[0].TargetGroupArn),
-    [1, 2].map(() => ({ Ref: targetLogicalId })),
+    [1, 2, 3].map(() => ({ Ref: targetLogicalId })),
   );
   for (const rule of rules) {
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');

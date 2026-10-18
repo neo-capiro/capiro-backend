@@ -31,7 +31,11 @@ export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
 // Reserved alongside Meri and the hand-managed rules in
 // infra/routing/capiro-prod-alb-priorities.json. Neither rule is live merely
 // because this source is rendered; the retained guard is deployed separately.
-export const FIRST_CHAT_CORE_GUARD_PRIORITY = 3;
+/** The retained guard's current (compact) priority. The packet gives this slot
+ * to the native-operations POST rule and moves only the guard. */
+export const FIRST_CHAT_CORE_COMPACT_GUARD_PRIORITY = 3;
+/** ALB's highest rule priority. */
+const MAX_LISTENER_PRIORITY = 50000;
 export const FIRST_CHAT_CORE_GUARD_STACK_NAME = 'Capiro-Preview-First-Chat-Core-Guard';
 export const FIRST_CHAT_CORE_GUARD_RULE_EXPORT =
   'Capiro-Preview-First-Chat-Core-Guard-RuleArn';
@@ -79,6 +83,9 @@ export const FIRST_CHAT_CORE_MERI_TOOLS: readonly string[] = Object.freeze([...m
  * per rule (host + method + three paths). */
 export const FIRST_CHAT_CORE_POST_PATHS: readonly string[] = Object.freeze([...routes.post]);
 export const FIRST_CHAT_CORE_GET_PATHS: readonly string[] = Object.freeze([...routes.get]);
+/** Exact Core POSTs for P-INT-10 approvals and W8 memory receiving, one value. */
+export const FIRST_CHAT_CORE_NATIVE_OPS_PATHS: readonly string[] = Object.freeze([...routes.nativeOps]);
+export const FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY: number = routes.packet.nativeOps;
 
 const SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}$`);
 const PIN_TEXT = /^[\x21-\x7e]{1,256}$/;
@@ -94,14 +101,32 @@ export interface FirstChatCoreRetainedTrustBinding {
   probePrivateKeySecretArn: string;
 }
 
+/** Listener slot read back from the live listener, never assumed in source.
+ * Occupancy and same-host precedence are verified offline against that
+ * readback by infra/routing `corePreviewPacketRules` before rendering. */
+export interface FirstChatCoreListenerBinding {
+  guardPriority: number;
+}
+
 export interface FirstChatCoreImageBinding {
-  schemaVersion: 2;
+  schemaVersion: 3;
   sourceHead: string;
   imageDigest: string;
   /** Server-side service identity for tools and read-mode observation. */
   internalServiceSecretArn: string;
   /** null keeps retained reads disabled (every retained route 503). */
   retainedTrust: FirstChatCoreRetainedTrustBinding | null;
+  listener: FirstChatCoreListenerBinding;
+}
+
+function guardPriority(value: unknown): number {
+  if (
+    typeof value !== 'number' || !Number.isSafeInteger(value) ||
+    value <= FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY || value > MAX_LISTENER_PRIORITY
+  ) {
+    throw new Error('Readback-verified guard priority after the native-operations rule required');
+  }
+  return value;
 }
 
 function exactKeys(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
@@ -129,11 +154,11 @@ export function firstChatCoreImageBinding(
   pins: FirstChatCoreImagePins | null = FIRST_CHAT_CORE_IMAGE_PINS,
 ): FirstChatCoreImageBinding {
   const record = exactKeys(input,
-    ['schemaVersion', 'sourceHead', 'imageDigest', 'internalServiceSecretArn', 'retainedTrust'],
+    ['schemaVersion', 'sourceHead', 'imageDigest', 'internalServiceSecretArn', 'retainedTrust', 'listener'],
     'First-chat image binding');
   if (!pins) throw new Error('No qualified integrated Core image is pinned yet');
   if (
-    record.schemaVersion !== 2 ||
+    record.schemaVersion !== 3 ||
     !/^[0-9a-f]{40}$/.test(pins.sourceHead) || !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
     record.sourceHead !== pins.sourceHead ||
     record.imageDigest !== pins.imageDigest
@@ -155,16 +180,18 @@ export function firstChatCoreImageBinding(
       throw new Error('Exact retained trust pins required');
     }
   }
+  guardPriority(exactKeys(record.listener, ['guardPriority'], 'Listener').guardPriority);
   return record as unknown as FirstChatCoreImageBinding;
 }
 
-/** Independent, retained host guard. It must be complete before the service stack. */
+/** Independent, retained host guard. It must be complete before the service
+ * stack: its update frees the native-operations slot before that rule exists. */
 export class FirstChatCoreGuardStack extends cdk.Stack {
-  constructor(scope: Construct, id: string) {
+  constructor(scope: Construct, id: string, priority: number) {
     super(scope, id, { env });
     const guard = new elb.CfnListenerRule(this, 'RejectOtherPreviewHostTraffic', {
       listenerArn: live.listenerArn,
-      priority: FIRST_CHAT_CORE_GUARD_PRIORITY,
+      priority: guardPriority(priority),
       conditions: [{ field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } }],
       actions: [
         {
@@ -361,8 +388,10 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
 
     // ALB permits at most three path match evaluations per condition and five
     // per rule, and 128 characters per pattern. Priority 1 holds every Meri and
-    // Intel POST (tools by a bounded name pattern), priority 2 the native GETs;
-    // the retained host-only 404 guard stays at 3 and no shared rule moves.
+    // Intel POST (tools by a bounded name pattern), priority 2 the native GETs,
+    // priority 3 the exact approval and memory POSTs. Only the retained
+    // host-only 404 guard moved, to the readback-verified slot; no shared rule
+    // moves.
     // Preserve both existing listener rule logical IDs so an in-place update
     // remains possible if this stack owns the physical rules. Confirm that
     // ownership from the current template before any application. Intel routes
@@ -400,6 +429,21 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     });
+    const nativeOps = new elb.CfnListenerRule(this, 'FirstChatNativeOpsPostOnly', {
+      listenerArn: live.listenerArn,
+      priority: FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY,
+      conditions: [
+        { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
+        {
+          field: 'path-pattern',
+          pathPatternConfig: {
+            regexValues: [...FIRST_CHAT_CORE_NATIVE_OPS_PATHS],
+          },
+        },
+        { field: 'http-request-method', httpRequestMethodConfig: { values: ['POST'] } },
+      ],
+      actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+    });
     // CloudFormation must resolve an export from the independently completed
     // guard stack. Its rule is not owned by this stack or removed on rollback.
     new cdk.CfnOutput(this, 'RequiredPreviewHostGuardRuleArn', {
@@ -407,7 +451,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     });
     // ECS registration requires the target group to be associated with the
     // listener before CreateService, even while desiredCount is zero.
-    service.node.addDependency(firstChatPosts, browserReads);
+    service.node.addDependency(firstChatPosts, browserReads, nativeOps);
 
     new cdk.CfnOutput(this, 'CoreApiBaseUrl', {
       value: `https://${FIRST_CHAT_CORE_HOST}/api`,
@@ -423,7 +467,7 @@ export function previewFirstChatCoreApplication(
 ) {
   const binding = firstChatCoreImageBinding(input, pins);
   const app = new cdk.App({ outdir });
-  const guard = new FirstChatCoreGuardStack(app, FIRST_CHAT_CORE_GUARD_STACK_NAME);
+  const guard = new FirstChatCoreGuardStack(app, FIRST_CHAT_CORE_GUARD_STACK_NAME, binding.listener.guardPriority);
   const service = new FirstChatCoreServiceStack(app, 'Capiro-Preview-First-Chat-Core', binding);
   service.addStackDependency(guard);
   return { app, guard, service, binding };
