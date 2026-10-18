@@ -83,7 +83,7 @@ export function parseRunBinding(value: unknown, field: string): NativeRunBinding
   };
 }
 
-function parseScope(value: unknown, field: string): NativeScope {
+export function parseScope(value: unknown, field: string): NativeScope {
   const v = record(value, ['tenantId', 'kind', 'resourceId', 'policyRevision'], field);
   if (!SCOPE_KINDS.includes(v.kind as (typeof SCOPE_KINDS)[number])) throw invalid(`${field}.kind`);
   return {
