@@ -62,7 +62,9 @@ Its signed page, proof, helper and dotted proposal alias transport matches
 Core `63e426b0`, which this packet descends from without changing receiver
 wire. Its latest commit adds source advisory-lock fencing for suppression and
 retention transitions and an exact inventory slice. PR174 still needs central
-allocation of its proposed conversation migration `0018`, the production
+implementation and registration of the source-only reserved
+`0019_memory_proposal_contexts.sql` continuation migration (after occupied
+`0018_memory_candidate_targets.sql`), the production
 retention inventory composer, real-pool purge/trigger qualification, mixed
 version owner/lock and bounded pool-pressure checks, cross-host receipt clock
 qualification, and measured runtime image/config/readback. Its purge route
@@ -87,7 +89,7 @@ retained read adapters are source-wired, not proven available in preview.
 2. **Held helper and Meri database.** Core `100000` is outside this archive and
    requires a separate source packet after `060000`/`090000`, target role/RLS
    qualification and bounded DDL window. Meri must allocate and install its
-   PR174 `0018` continuation migration and read back its retention/suppression
+   PR174 `0019_memory_proposal_contexts.sql` continuation migration and read back its retention/suppression
    behavior, including actual target role and trigger. Separately read back Meri facts `0001`, prepared-approval facts
    `0002`, integration grants, actual restricted `capiro_app` view-only access
    and installer `current_user`/`session_user`/owner role choreography. Preserve
