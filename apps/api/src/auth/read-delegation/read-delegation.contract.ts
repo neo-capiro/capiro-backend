@@ -43,9 +43,13 @@ export const toolPath = (operationId: string) => `/api/clio/tools/${operationId}
  * the tools controller also runs writes, so only these names are ever issued
  * or admitted, and the tools owner refuses any side-effecting name again at
  * dispatch. Source: the preview Core tool list (first-chat-core-meri-tools.json)
- * minus every write (create_task, update_task, save_memory, save_chat_attachments).
+ * minus every write (create_task, update_task, save_memory, save_chat_attachments),
+ * plus the separately gated A8 source operation below.
  */
 export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
+  // Exact reserved A8 operation. Its separate, closed-by-default receiver
+  // dispatches to query_action_items only after the token/body checks.
+  'actions.query',
   'get_acquisition_person', 'get_bill_status', 'get_business_development_context', 'get_business_development_recent_changes',
   'get_committee_roster', 'get_district_federal_market', 'get_district_nexus_changes', 'get_district_nexus_context',
   'get_funding_opportunity', 'get_funding_opportunity_requirements', 'get_legal_reference', 'get_opportunity_client_context',
@@ -184,6 +188,9 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
       v.method !== 'POST' || typeof v.path !== 'string' || !isSha(v.bodySha256) || !(v.retryOf === null || isSha(v.retryOf))) throw invalid('token');
   const kind = v.kind as ReadTokenKind;
   const operation = v.operation === null ? null : operationRef(v.operation, 'operation');
+  if (kind === 'tool' && operation?.id === 'actions.query' && operation.version !== '0.2.0') {
+    throw invalid('actions.query operation');
+  }
   const retainedSource = kind === 'tool' && operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id);
   if (retainedSource && !isMeriRetainedSourceOperationVersion(operation)) throw invalid('retained source operation');
   if (retainedSource ? !isSha(v.correlationSha256) : Object.hasOwn(v, 'correlationSha256')) throw invalid('correlationSha256');
