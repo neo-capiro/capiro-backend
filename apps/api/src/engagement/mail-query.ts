@@ -6,6 +6,15 @@ import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { withMailQueryDeadline } from './mail-query-deadline.js';
 
 const MAIL_PROVIDERS = ['microsoft_365', 'google_workspace'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface MailQueryOptions {
+  allowUnfiltered?: boolean;
+  defaultLimit?: number;
+  /** Supplied only by a caller that has verified the current subject's mailbox
+   * scopes. An empty or invalid list refuses before any owner SQL executes. */
+  authorizedMailboxIds?: readonly string[];
+}
 
 type MailRow = {
   id: string;
@@ -37,8 +46,19 @@ export async function queryMailMessages(
   prisma: PrismaService,
   ctx: TenantContext,
   input: Record<string, unknown>,
-  options: { allowUnfiltered?: boolean; defaultLimit?: number } = {},
+  options: MailQueryOptions = {},
 ) {
+  const suppliedMailboxIds = options.authorizedMailboxIds;
+  if (suppliedMailboxIds !== undefined &&
+      (!Array.isArray(suppliedMailboxIds) || suppliedMailboxIds.length === 0 ||
+        suppliedMailboxIds.length > 4096 ||
+        suppliedMailboxIds.some((id) => typeof id !== 'string' || !UUID.test(id)) ||
+        new Set(suppliedMailboxIds.map((id) => id.toLowerCase())).size !== suppliedMailboxIds.length)) {
+    return { error: 'Verified mailbox scopes are required for this mail read.' };
+  }
+  const authorizedMailboxIds = suppliedMailboxIds === undefined
+    ? undefined : [...suppliedMailboxIds].sort();
+  const mailboxList = authorizedMailboxIds?.map((id) => Prisma.sql`${id}::uuid`);
   const term = (key: string, max = 200) =>
     typeof input[key] === 'string' ? (input[key] as string).trim().slice(0, max) : '';
   const query = term('query');
@@ -113,6 +133,7 @@ export async function queryMailMessages(
     Prisma.sql`m.created_at <= ${asOf}`,
     Prisma.sql`(COALESCE(m.received_at, m.sent_at) <= ${asOf} OR COALESCE(m.received_at, m.sent_at) IS NULL)`,
   ];
+  if (mailboxList) conds.push(Prisma.sql`m.connection_id IN (${Prisma.join(mailboxList)})`);
   if (query) {
     const p = pattern(query);
     conds.push(
@@ -197,6 +218,7 @@ export async function queryMailMessages(
       LEFT JOIN mail_messages m ON m.connection_id = c.id AND m.tenant_id = c.tenant_id AND m.removed_at IS NULL
       WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
             AND c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})
+            ${mailboxList ? Prisma.sql`AND c.id IN (${Prisma.join(mailboxList)})` : Prisma.empty}
       GROUP BY c.id, c.created_at ORDER BY c.created_at
     `);
     return { total: counted[0]?.n ?? 0, rows, coverage };

@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import { queryMailMessages } from './mail-query.js';
+import { queryMailMessages, type MailQueryOptions } from './mail-query.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 /** Canonical mailbox queries retain scope, literal lookup, bounded pages and honest coverage. */
@@ -13,6 +13,7 @@ const CTX = {
 type SearchEmails = (
   ctx: TenantContext,
   input: Record<string, unknown>,
+  options?: MailQueryOptions,
 ) => Promise<{
   error?: string;
   totalMatches?: number;
@@ -82,8 +83,8 @@ function makeService(input: { count?: number; rows?: unknown[]; coverage?: unkno
     withTenant: (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) =>
       fn({ $queryRaw: queryRaw, $executeRaw: jest.fn().mockResolvedValue(0) }),
   };
-  const searchEmails: SearchEmails = (ctx, input) =>
-    queryMailMessages(prisma as unknown as PrismaService, ctx, input);
+  const searchEmails: SearchEmails = (ctx, input, options) =>
+    queryMailMessages(prisma as unknown as PrismaService, ctx, input, options);
   return { searchEmails, queryRaw };
 }
 
@@ -191,6 +192,42 @@ describe('canonical mailbox query', () => {
       expect(values).toContain(CTX.tenantId);
       expect(values).toContain(CTX.userId);
     }
+  });
+
+  it('applies verified mailbox scope to distinct count, page rows, and inventory together', async () => {
+    const first = '11111111-1111-4111-8111-111111111111';
+    const second = '22222222-2222-4222-8222-222222222222';
+    const clientId = '33333333-3333-4333-8333-333333333333';
+    const { searchEmails, queryRaw } = makeService({});
+    await searchEmails(CTX, { query: 'radiant', clientId },
+      { authorizedMailboxIds: [second, first] });
+    expect(queryRaw).toHaveBeenCalledTimes(3);
+    for (const call of [0, 1, 2]) {
+      const sql = queryRaw.mock.calls[call]![0] as Prisma.Sql;
+      expect(sql.values).toContain(CTX.tenantId);
+      expect(sql.values).toContain(CTX.userId);
+      expect(sql.values).toContain(first);
+      expect(sql.values).toContain(second);
+      expect(sql.sql).toContain('::uuid');
+      expect(sql.sql).toContain(call === 2 ? 'c.id IN (' : 'm.connection_id IN (');
+    }
+    for (const call of [0, 1]) {
+      const sql = queryRaw.mock.calls[call]![0] as Prisma.Sql;
+      expect(sql.sql).toContain('t.client_id =');
+      expect(sql.values).toContain(clientId);
+    }
+  });
+
+  it.each([
+    { authorizedMailboxIds: [] },
+    { authorizedMailboxIds: ['not-a-uuid'] },
+    { authorizedMailboxIds: ['11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'] },
+    { authorizedMailboxIds: ['11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'.toUpperCase()] },
+  ])('rejects invalid verified mailbox scope before any SQL: $authorizedMailboxIds', async ({ authorizedMailboxIds }) => {
+    const { searchEmails, queryRaw } = makeService({});
+    const out = await searchEmails(CTX, { query: 'radiant' }, { authorizedMailboxIds });
+    expect(out.error).toMatch(/verified mailbox scopes/i);
+    expect(queryRaw).not.toHaveBeenCalled();
   });
 
   it('deduplicates folder copies in SQL before applying the page limit', async () => {
