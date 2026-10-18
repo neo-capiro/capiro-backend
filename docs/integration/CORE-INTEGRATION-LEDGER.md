@@ -331,6 +331,11 @@ routes (no Core owner yet).
 
 ### 8.3 Task definition (source)
 
+- **Capacity (source only):** the approved preview target is **1 vCPU / 2 GiB per Core task**, encoded as
+  `cpu: 1024` and `memoryLimitMiB: 2048` in the CDK template. The prior source setting is 0.5 vCPU / 1 GiB;
+  read back the currently running task definition and service before the coordinated change, retain its revision
+  for rollback, and verify the new task definition and service after deployment. This is per-task sizing;
+  production replica count and availability remain separate decisions. Measure utilization before further scaling.
 - **Image:** `FIRST_CHAT_CORE_IMAGE_PINS` is `null` and PR48 (`6542f5b0…` / `sha256:722a4832…`) is no longer
   accepted. Rendering refuses until the integrated image is built from #84 (or its successor), scanned,
   and its source SHA + digest are pinned together. `RELEASE_SHA` follows the binding.

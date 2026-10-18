@@ -362,8 +362,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     ] : [])));
     const serveTask = new ecs.FargateTaskDefinition(this, 'ServeTask', {
       family: 'capiro-preview-first-chat-core',
-      cpu: 512,
-      memoryLimitMiB: 1024,
+      cpu: 1024,
+      memoryLimitMiB: 2048,
       executionRole: serveExecutionRole,
       taskRole: serveTaskRole,
       runtimePlatform: {

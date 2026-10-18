@@ -73,6 +73,16 @@ const serveContainer = (service: any) => {
 };
 const envOf = (container: any) => Object.fromEntries(container.Environment.map((entry: any) => [entry.Name, entry.Value]));
 
+test('renders the approved 1 vCPU and 2 GiB Core preview task size', () => {
+  render(binding, ({ service }) => {
+    const resources = Template.fromStack(service).toJSON().Resources;
+    const task = (Object.values(resources) as any[]).find((resource) => resource.Type === 'AWS::ECS::TaskDefinition');
+    assert.ok(task);
+    assert.equal(task.Properties.Cpu, '1024');
+    assert.equal(task.Properties.Memory, '2048');
+  });
+});
+
 test('refuses to render until a qualified integrated image is pinned, and never PR48', () => {
   assert.equal(FIRST_CHAT_CORE_IMAGE_PINS, null);
   assert.throws(() => firstChatCoreImageBinding(binding), /No qualified integrated Core image/);
