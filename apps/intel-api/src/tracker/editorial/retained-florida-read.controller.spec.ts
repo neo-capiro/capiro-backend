@@ -67,7 +67,7 @@ function clean(f: ReturnType<typeof fixture>) {
   expect(jest.getTimerCount()).toBe(0);
 }
 
-describe('actual unmounted signed-only Intel controller and response lifetime source', () => {
+describe('actual signed-only Intel controller and response lifetime source', () => {
   beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(1_700_000_000_000); });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
 
@@ -85,9 +85,12 @@ describe('actual unmounted signed-only Intel controller and response lifetime so
     const text = f.source('retained-florida-read.controller.ts');
     for (const forbidden of ['UseGuards', 'TenantGuard', 'serviceSecret', 'Bearer ', 'tenantContext']) expect(text).not.toContain(forbidden);
     expect(readFileSync(resolve(__dirname, '../../main.ts'), 'utf8')).toContain("app.setGlobalPrefix('intel-api'");
-    for (const file of ['../../app.module.ts', '../tracker.module.ts']) {
-      expect(readFileSync(resolve(__dirname, file), 'utf8')).not.toContain('RetainedFloridaReadModule');
-    }
+    // Mounted exactly once at the application root with TrackerModule's canonical
+    // Phase8 provider and verifier-only ports; TrackerModule itself does not mount it.
+    const app = readFileSync(resolve(__dirname, '../../app.module.ts'), 'utf8');
+    expect(app.match(/RetainedFloridaReadModule\.register\(/g)).toHaveLength(1);
+    expect(app).toContain('RetainedFloridaReadModule.register({ imports: [TrackerModule], ports: intelRetainedFloridaPortsFromEnv() })');
+    expect(readFileSync(resolve(__dirname, '../tracker.module.ts'), 'utf8')).not.toContain('RetainedFloridaReadModule');
   });
 
   it('forwards only the authorization header to the correct fixed service method and cleans up', async () => {

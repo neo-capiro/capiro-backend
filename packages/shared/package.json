@@ -12,6 +12,8 @@
       "core-retained-principal": [
         "dist/core-retained-principal.d.ts"
       ],
+      "core-retained-jcs": ["dist/core-retained-jcs.d.ts"],
+      "core-retained-trust": ["dist/core-retained-trust.d.ts"],
       "ai-model-policy": [
         "dist/ai-model-policy.d.ts"
       ],
@@ -77,6 +79,18 @@
       "require": "./dist/core-retained-principal.js",
       "import": "./dist/core-retained-principal.js",
       "default": "./dist/core-retained-principal.js"
+    },
+    "./core-retained-jcs": {
+      "types": "./dist/core-retained-jcs.d.ts",
+      "require": "./dist/core-retained-jcs.js",
+      "import": "./dist/core-retained-jcs.js",
+      "default": "./dist/core-retained-jcs.js"
+    },
+    "./core-retained-trust": {
+      "types": "./dist/core-retained-trust.d.ts",
+      "require": "./dist/core-retained-trust.js",
+      "import": "./dist/core-retained-trust.js",
+      "default": "./dist/core-retained-trust.js"
     },
     "./ai-model-policy": {
       "types": "./dist/ai-model-policy.d.ts",

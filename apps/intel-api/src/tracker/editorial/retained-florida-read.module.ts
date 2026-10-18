@@ -11,7 +11,9 @@ function source(evidence: Phase8EvidenceService | undefined, ports: RetainedFlor
   return new RetainedFloridaReadService(new FloridaCurrentAuthorityService(evidence), evidence, ports);
 }
 
-/** Intentionally absent from TrackerModule/AppModule. Bare/default import is503. */
+/** Mounted once by AppModule through register() with TrackerModule's exported
+ * Phase8EvidenceService and verifier-only ports from retained-florida-trust.ts.
+ * A bare/default import, or disabled trust, is 503. */
 @Module({
   controllers: [RetainedFloridaReadController],
   providers: [

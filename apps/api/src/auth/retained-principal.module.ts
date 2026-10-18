@@ -17,14 +17,24 @@ import {
   RETAINED_FLORIDA_PROBE_VERIFIER,
   RetainedFloridaCurrentController,
 } from './retained-florida-current.controller.js';
+import {
+  RETAINED_TRUST,
+  RetainedTrustModule,
+  createRetainedFloridaProbeVerifier,
+  createRetainedPrincipalPorts,
+} from './retained-trust.js';
 
-/** Deliberately unmounted. No key, issuer, audience, transport or route bypass. */
+/** Mounted by AppModule. Ports come from the validated retained trust pins and stay
+ * null (every route 503) unless RETAINED_READS_ENABLED=true. The signed data and
+ * Florida current routes are admitted past the Bearer-only tenant middleware only
+ * by their exact path, POST method and signed authorization scheme. */
 @Module({
   imports: [
     AuthModule,
     TenantModule,
     PrismaModule,
     RetainedReadAuthorityModule,
+    RetainedTrustModule,
   ],
   controllers: [
     RetainedPrincipalIssuerController,
@@ -35,8 +45,8 @@ import {
     RetainedPrincipalService,
     ResearchPortfoliosService,
     ResearchPortfolioChangesService,
-    { provide: RETAINED_PRINCIPAL_PORTS, useValue: null },
-    { provide: RETAINED_FLORIDA_PROBE_VERIFIER, useValue: null },
+    { provide: RETAINED_PRINCIPAL_PORTS, useFactory: createRetainedPrincipalPorts, inject: [RETAINED_TRUST] },
+    { provide: RETAINED_FLORIDA_PROBE_VERIFIER, useFactory: createRetainedFloridaProbeVerifier, inject: [RETAINED_TRUST] },
   ],
 })
 export class RetainedPrincipalModule {}

@@ -24,7 +24,8 @@ export const RETAINED_FLORIDA_PROBE_VERIFIER = Symbol(
   'retained-florida-probe-verifier',
 );
 
-/** Private fixed-purpose source boundary; intentionally not mounted in AppModule. */
+/** Private fixed-purpose source boundary, mounted through RetainedPrincipalModule.
+ * Callers are Intel only; both routes refuse (503) until retained trust is enabled. */
 @Controller('clio/application-authority')
 export class RetainedFloridaCurrentController {
   constructor(

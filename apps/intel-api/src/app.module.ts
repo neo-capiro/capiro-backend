@@ -11,6 +11,8 @@ import { IntelAlertModule } from './intel-alert/intel-alert.module.js';
 import { UpcomingHearingsModule } from './upcoming-hearings/upcoming-hearings.module.js';
 import { FeedModule } from './feed/feed.module.js';
 import { BillDossierModule } from './bill-dossier/bill-dossier.module.js';
+import { RetainedFloridaReadModule } from './tracker/editorial/retained-florida-read.module.js';
+import { intelRetainedFloridaPortsFromEnv } from './tracker/editorial/retained-florida-trust.js';
 
 /**
  * Intel API root module.
@@ -34,6 +36,9 @@ import { BillDossierModule } from './bill-dossier/bill-dossier.module.js';
     UpcomingHearingsModule,
     FeedModule,
     BillDossierModule,
+    // Signed-only retained Florida reads. Inert (503) unless RETAINED_READS_ENABLED=true
+    // with complete verifier-only trust pins; no Clerk/tenant guard applies to them.
+    RetainedFloridaReadModule.register({ imports: [TrackerModule], ports: intelRetainedFloridaPortsFromEnv() }),
   ],
 })
 export class AppModule {}

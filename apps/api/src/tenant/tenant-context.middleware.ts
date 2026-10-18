@@ -78,6 +78,35 @@ function isMeriControlAuthorityPost(req: Request): boolean {
   return parsed === original && MERI_CONTROL_POST_PATHS.has(normalized(parsed));
 }
 
+// Signed retained-read routes authenticate with a Core-issued Ed25519 envelope,
+// never a Clerk Bearer. Each fixed POST accepts exactly one scheme.
+const RETAINED_SIGNED_POSTS = new Map([
+  ['/clio/retained-reads/research-portfolio', 'CapiroRetained'],
+  ['/clio/retained-reads/research-portfolio-changes', 'CapiroRetained'],
+  ['/clio/application-authority/retained-florida-current', 'CapiroRetained'],
+  ['/clio/application-authority/retained-florida-native-current', 'CapiroRetainedAuthority'],
+]);
+
+/** Admits a signed retained POST past Bearer verification only while retained
+ * reads are enabled, when the parsed and original targets are the same exact
+ * fixed path, and when the Authorization scheme is the one that path accepts.
+ * No tenant context is created here: the controller verifies the pinned
+ * signature and freshly rechecks native and resource authority before any read,
+ * and refuses (503) when trust is not configured. */
+function isRetainedSignedPost(req: Request): boolean {
+  if (req.method !== 'POST') return false;
+  const parsed = req.path;
+  const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
+  if (parsed !== original) return false;
+  const scheme = RETAINED_SIGNED_POSTS.get(parsed.startsWith('/api/') ? parsed.slice(4) : parsed);
+  const header = req.headers.authorization;
+  if (!scheme || typeof header !== 'string') return false;
+  const space = header.indexOf(' ');
+  if (space <= 0 || header.slice(0, space) !== scheme || header.length === space + 1 ||
+      header.includes(' ', space + 1)) return false;
+  return typeof process !== 'undefined' && process.env.RETAINED_READS_ENABLED === 'true';
+}
+
 /**
  * Resolves the tenant context for an authenticated request.
  *
@@ -131,6 +160,10 @@ export class TenantContextMiddleware implements NestMiddleware {
       // those same handler spellings on pre-controller authentication denials.
       (path) => path !== undefined && authorityPaths.includes(path.replace(/\/$/, '').toLowerCase()),
     )) res.setHeader('Cache-Control', 'no-store');
+    if (isRetainedSignedPost(req)) {
+      next();
+      return;
+    }
     // Belt-and-suspenders bypass for paths that authenticate via a different
     // channel than the Clerk session. The OAuth callback is reached via a
     // top-level browser redirect from Microsoft and authenticates via the

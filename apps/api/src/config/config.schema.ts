@@ -37,6 +37,19 @@ export const configSchema = z.object({
   // Only the separately pinned first-chat Core task opts into native GETs.
   // Exact strings prevent a typo from silently opening ordinary read policy.
   PREVIEW_NATIVE_GETS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Retained-read trust pins (server-only; see @capiro/shared/core-retained-trust).
+  // Absent or 'false' keeps every retained route at 503. 'true' requires every
+  // pin below and fails startup if any is missing or invalid.
+  RETAINED_READS_ENABLED: z.enum(['true', 'false']).optional(),
+  RETAINED_TRUST_ISSUER: z.string().optional(),
+  RETAINED_CORE_ORIGIN: z.string().optional(),
+  RETAINED_INTEL_ORIGIN: z.string().optional(),
+  RETAINED_PRINCIPAL_KEY_ID: z.string().optional(),
+  RETAINED_PRINCIPAL_PRIVATE_KEY_PEM: z.string().optional(),
+  RETAINED_PRINCIPAL_PUBLIC_KEY_PEM: z.string().optional(),
+  RETAINED_PROBE_KEY_ID: z.string().optional(),
+  RETAINED_PROBE_PRIVATE_KEY_PEM: z.string().optional(),
+  RETAINED_PROBE_PUBLIC_KEY_PEM: z.string().optional(),
 
   WEB_ORIGIN: z.string().optional(),
 
@@ -766,6 +779,12 @@ export const configSchema = z.object({
   // Gate-bypass hardening for POST /api/clio/tools/:name and internal proposal
   // creation. Staging/production ALWAYS enforce the shared secret; this switch
   // controls explicit observe-only behavior in development/test only.
+  // Exact comma-separated tool names POST /api/clio/tools/:name may execute.
+  // Unset = every registered tool (unchanged). See meri/meri-tool-allowlist.ts.
+  MERI_TOOL_ALLOWLIST: z
+    .string()
+    .regex(/^[a-z][a-z0-9_]{1,63}(,[a-z][a-z0-9_]{1,63})*$/)
+    .optional(),
   MERI_TOOLS_REQUIRE_SERVICE_SECRET: z
     .string()
     .default('false')

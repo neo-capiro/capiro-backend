@@ -44,7 +44,8 @@ const unavailable = () =>
 const changed = () =>
   new ConflictException('Retained authority changed; reload');
 const denied = () => new ForbiddenException('Retained principal unavailable');
-const DATA_PATHS = Object.freeze({
+/** Fixed delegated data recipients; the trust composition pins signers to these. */
+export const DATA_PATHS = Object.freeze({
   get_research_portfolio: '/api/clio/retained-reads/research-portfolio',
   get_research_portfolio_changes:
     '/api/clio/retained-reads/research-portfolio-changes',
