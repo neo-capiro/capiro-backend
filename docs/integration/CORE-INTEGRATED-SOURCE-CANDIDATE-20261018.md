@@ -17,6 +17,7 @@ The merge commits preserve the published source commits and their ancestry.
 | Memory receiving, preserving published and local histories | `20fc9f5473e0b5f3a7d9057c4e0417b9701855d3` (PR88) |
 | Unmounted task-bound memory page and proposal source | `ab1675ade0da4da2820e667a06497109b53d9f27` |
 | Fail-closed document runtime identity adapter | `93ac25e0ef3a59ec10adf269bc8455bdd856b308` |
+| Default-off reservation-bound A8 action query receiver | `868aafea8a6d731a0cab4210c169a955359daecc` |
 
 Retained reads are **source-wired, not available in preview**. The document receiver
 now has an ECS metadata selector and fail-closed adapter for independent Core
@@ -40,6 +41,19 @@ The `20281018090000` memory content-free migration intentionally raises before
 dropping its payload column, so plain Prisma migration deploy across this source
 will stop until the release owner verifies each target's applied checksum,
 retention/hold disposition, and separately authorizes the forward path.
+
+The A8 `actions.query@0.2.0` receiver retains the original UNKNOWN
+reservation, call key, arguments hash and exact emitted-body hash. Its
+`/api/clio/tools/actions.query` branch is default-off and requires a one-use
+`CapiroMeriRead` token plus selected-client authority before dispatching to
+the existing `query_action_items` owner. Meri PR166
+`15288a7954862e348af86bf1eab119fdb30863a0` and PR167
+`2c53e6c5123d392308d84a74eb8da2e5741f5dc1` do not yet provide that
+post-reservation signed transport: PR167 still uses ordinary Bearer/service
+secret credentials with no request hash. Keep the alias disabled until the
+Meri adapter, source/image/config readback and preview gates are qualified.
+Legal citation observations, nested Outreach detail authority, unscoped
+Outreach, and four separate news facts remain held.
 
 Core's approval verifier now reads a bounded prepared-approval aggregate from the
 existing `run_facts_v1` interface and fails closed on missing, overflow, or mismatched
