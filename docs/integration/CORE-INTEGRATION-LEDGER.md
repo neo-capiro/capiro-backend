@@ -362,6 +362,9 @@ routes (no Core owner yet).
 
 ### 8.4 Inputs still needed before any change set (no AWS action here)
 
+The successor's existing-preview chat cohort and exact build/action inputs are recorded in
+`CORE-SUCCESSOR-CHAT-COHORT-20261018.md`. Source tests do not establish live readiness.
+
 1. Build and scan the integrated Core image (W6), then pin it in the image-qualification commit.
 2. Create the `meri/preview/core/internal-service-secret` secret (no surrounding whitespace) and pass its exact complete ARN as `internalServiceSecretArn`. Meri's render references the same ARN. The older `capiro/dev/internal-service-secret` reference in `api-strategy-serve-taskdef.json` is not used by the preview task.
 3. For retained reads, the following must be allocated and pinned:
