@@ -66,8 +66,9 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
 
   it('memory_items read paths keep their visibility/owner guard (regression lock)', () => {
     const store = readFileSync(join(SRC_ROOT, 'memory', 'memory-store.service.ts'), 'utf8');
-    const guards = store.match(/visibility = 'tenant' OR owner_user_id =/g) ?? [];
-    // listForCurrentTenant, getByTypeSlug, loadGraphInputs.
+    const guards = store.match(/AND \(\(visibility = 'tenant' AND owner_user_id IS NULL\)\s+OR \(visibility = 'user' AND owner_user_id = \$\{ctx\.userId\}::uuid\)\)/g) ?? [];
+    // listForCurrentTenant, getByTypeSlug, loadGraphInputs. The stronger
+    // predicate also refuses tenant-visible rows carrying a private owner.
     expect(guards.length).toBeGreaterThanOrEqual(3);
 
     // G1: the per-surface voice loaders (meri.service loadUserVoiceContext,
