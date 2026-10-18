@@ -65,3 +65,44 @@ original Meri run readback. Core source has the seven-phase echo correlation,
 ten-field issue-request decoder, raw-body capture and named caller-proof
 boundary. These are parsers and checks; no `/credentials` controller, later-
 phase issuer, release authority or Meri owner composition is mounted.
+
+## PR87 source audit (2026-10-18)
+
+The current source does not support mounting the seven-phase echo safely. The
+existing decision/issuance/proof-use/delivery tables already reserve all seven
+generation-worker phases, with unique effect claims for `admit`, `publish`,
+`accept` and `complete`; the missing part is a current-authority relay issuer
+and its post-effect release transaction, not another unguarded HTTP route.
+
+| Boundary | Source pin | Current limit |
+| --- | --- | --- |
+| Ten-field issue request and fixed seven-phase route/hash parser; raw-body and named RSA caller-proof check | `objective-credential-relay-{request,ingress}.ts` at `2e32a6baf5201b2ce4900cbf8bf03e35d9051fd0` | Source-only; does not consume the proof JTI, load authority or issue. |
+| Closed 13-field seven-phase Meri echo | `objective-phase-credential-echo.ts` at `b40971b1f8de888687a8fb92fbdf4ff653fe10d3` | Correlates a trusted Core-issued token; does not verify its signature, resolve the actor, or establish current authority. |
+| Later-phase native decision kernel | `objective-workload-later-current.ts` at `a42a1d61b510383f42029a9b6e142befb4f4b0d3` | Requires concrete tenant SQL/resource adapters and an authenticated original Meri ISSUED-run readback; neither is mounted. |
+| Durable decision, issuance, delivery and proof-use schema | migration `20281016010000_client_objective_workload_delegations` at `6d24414da975b52ab9802a883b22c868ad14fc92` | The delegation still has `CHECK(enabled=false)`; schema alone grants no phase. |
+| Production admission composition | `objective-workload-admission.module.ts` and `objective-workload-admission-runtime.ts` at `6c97e0f993ab47d5cc5c94b8021c985b0399ef8a` | Mounts only `/decisions`, calls `createObjectiveAdmissionRuntime()` without enabled bindings, and remains admit-only and closed. |
+
+The required source order remains:
+
+1. Meri passes one stable operation ID through both `readCredential` callbacks
+   and defines a separate release call carrying the first token identity. An
+   uncertain effect is reconciled by the matching read phase, without issuing
+   another effect token. The proposed wire and phase matrix are in
+   `OBJECTIVE-D29-SEVEN-PHASE-RELAY-CONTRACT-20261018.md`.
+2. Core obtains an authenticated original Meri accepted-run readback and
+   implements the tenant-scoped later-phase SQL/resource adapters in their
+   declared lock order. It resolves the actor and current delegation from
+   native custody, never from the request or Strategy echo.
+3. Core composes the bounded issue parser and caller proof with the native
+   phase decision and existing durable issuer ledger. In the same tenant
+   transaction it consumes each proof JTI and preserves the unique effect
+   claim; exact retries reproduce only the original live token. A distinct
+   release path
+   rechecks current authority and persisted effect state against that saved
+   token without signing or allocating another JTI.
+4. Both owners check seven-phase vectors and the issue-to-release races. Only
+   then can the Objective delegation fence, policy revision, RSA caller pin,
+   RS256 issuer key and runtime bindings be qualified for activation.
+
+This audit did not mount an Objective route or change a credential, role,
+database, signer, security grant or live service.

@@ -59,7 +59,7 @@ import {
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
-import { queryMailMessages } from './mail-query.js';
+import { queryMailMessages, type MailQueryOptions } from './mail-query.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
   GenerationGatewayService,
@@ -2535,13 +2535,15 @@ export class EngagementService {
    * drawer's message history). Same ownership + active-message filtering as
    * the list.
    */
-  async getMailThread(ctx: TenantContext, threadId: string, clientId?: string) {
+  async getMailThread(ctx: TenantContext, threadId: string, clientId?: string,
+    authorizedMailboxIds?: readonly string[]) {
     const thread = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.mailThread.findFirst({
         where: {
           id: threadId,
           tenantId: ctx.tenantId,
           ...(clientId ? { clientId } : {}),
+          ...(authorizedMailboxIds ? { connectionId: { in: [...authorizedMailboxIds] } } : {}),
           ...ownMailThreadWhere(ctx.userId),
         },
         include: {
@@ -2551,7 +2553,7 @@ export class EngagementService {
           // reply to (see EngagementService.getMailThread callers), since a
           // thread's own participants/messages carry no notion of "which one
           // of these is me".
-          connection: { select: { accountEmail: true, status: true } },
+          connection: { select: { id: true, tenantId: true, createdByUserId: true, accountEmail: true, status: true } },
           messages: {
             where: activeMailMessageWhere(),
             orderBy: [{ sentAt: 'asc' }, { receivedAt: 'asc' }, { createdAt: 'asc' }],
@@ -2565,6 +2567,8 @@ export class EngagementService {
       ...rest,
       connectionEmail: connection?.accountEmail ?? null,
       connectionStatus: connection?.status ?? null,
+      connectionOwnerTenantId: connection?.tenantId ?? null,
+      connectionOwnerActorId: connection?.createdByUserId ?? null,
     };
   }
 
@@ -2572,7 +2576,7 @@ export class EngagementService {
   searchMailMessages(
     ctx: TenantContext,
     input: Record<string, unknown>,
-    options: { allowUnfiltered?: boolean; defaultLimit?: number } = {},
+    options: MailQueryOptions = {},
   ) {
     return queryMailMessages(this.prisma, ctx, input, options);
   }

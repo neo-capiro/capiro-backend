@@ -1,0 +1,786 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:retrieval:0.2.0",
+  "title": "Meri R2 retrieval contract foundation 0.2.0",
+  "$defs": {
+    "EvidenceRecord": {
+      "type": "object",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_.-]*$"
+        },
+        "recordId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "recordVersionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "citationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "contentSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:meri:contracts:0.1.0#/$defs/Scope"
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "content": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "snippet"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100000
+                },
+                "readHandle": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              },
+              "required": [
+                "kind",
+                "text",
+                "readHandle"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "full-read"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000000
+                }
+              },
+              "required": [
+                "kind",
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "structured"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[a-z][a-z0-9_.-]*$"
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "kind",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "sourceId",
+        "recordId",
+        "recordVersionId",
+        "citationId",
+        "contentSha256",
+        "scopes",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "SourceState": {
+      "type": "object",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_.-]*$"
+        },
+        "authority": {
+          "type": "string",
+          "enum": [
+            "authoritative",
+            "derived",
+            "approved-memory"
+          ]
+        },
+        "snapshotVersionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "adapterVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "checked",
+            "partial",
+            "unavailable",
+            "denied"
+          ]
+        },
+        "synchronizedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "asOf": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retrievedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "freshness": {
+          "type": "string",
+          "enum": [
+            "fresh",
+            "stale",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "sourceId",
+        "authority",
+        "snapshotVersionId",
+        "adapterVersion",
+        "status",
+        "synchronizedAt",
+        "asOf",
+        "retrievedAt",
+        "freshness"
+      ],
+      "additionalProperties": false
+    },
+    "Coverage": {
+      "type": "object",
+      "properties": {
+        "sourcesRequested": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "sourcesChecked": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "minItems": 0,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "sourcesUnavailable": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "minItems": 0,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "enumeration": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unknown"
+          ]
+        },
+        "enumerableTotal": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "returnedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "historySupport": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "bounded",
+            "unsupported"
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "minItems": 0,
+          "maxItems": 4096,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "sourcesRequested",
+        "sourcesChecked",
+        "sourcesUnavailable",
+        "enumeration",
+        "enumerableTotal",
+        "returnedCount",
+        "truncated",
+        "historySupport",
+        "limitations"
+      ],
+      "additionalProperties": false
+    },
+    "EvidenceEnvelope": {
+      "type": "object",
+      "properties": {
+        "contractVersion": {
+          "const": "0.2.0"
+        },
+        "requestId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "traceId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "operation": {
+          "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/OperationRef"
+        },
+        "binding": {
+          "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding"
+        },
+        "subject": {
+          "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject"
+        },
+        "window": {
+          "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/NormalizedWindow"
+        },
+        "argumentsSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "appliedFilters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[a-z][a-z0-9_.-]*$"
+              },
+              "valueSha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "name",
+              "valueSha256"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "candidate-search",
+            "exact",
+            "source-read"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "empty",
+            "unavailable",
+            "denied",
+            "error"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "enum": [
+            "OK",
+            "NO_MATCH",
+            "PARTIAL_COVERAGE",
+            "SOURCE_UNAVAILABLE",
+            "ACCESS_DENIED",
+            "INVALID_ARGUMENTS",
+            "AMBIGUOUS_SUBJECT",
+            "STALE_SOURCE",
+            "TIMEOUT",
+            "INDETERMINATE",
+            "INTERNAL_ERROR"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/SourceState"
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "candidates"
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceRecord"
+                  },
+                  "minItems": 0,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "kind",
+                "records"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "count"
+                },
+                "value": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "kind",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "status"
+                },
+                "statusCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceRecord"
+                  },
+                  "minItems": 0,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "kind",
+                "statusCode",
+                "records"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "history"
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceRecord"
+                  },
+                  "minItems": 0,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "kind",
+                "records"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "comparison"
+                },
+                "left": {
+                  "type": "object",
+                  "properties": {
+                    "recordId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "versionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "stage": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z][a-z0-9_.-]*$"
+                    },
+                    "unit": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z][a-z0-9_.-]*$"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "recordId",
+                    "versionId",
+                    "stage",
+                    "unit",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                "right": {
+                  "type": "object",
+                  "properties": {
+                    "recordId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "versionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "stage": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z][a-z0-9_.-]*$"
+                    },
+                    "unit": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[a-z][a-z0-9_.-]*$"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "recordId",
+                    "versionId",
+                    "stage",
+                    "unit",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceRecord"
+                  },
+                  "minItems": 1,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "kind",
+                "left",
+                "right",
+                "records"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "source-read"
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceRecord"
+                  },
+                  "minItems": 0,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "kind",
+                "records"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/Coverage"
+        },
+        "continuation": {
+          "type": "object",
+          "properties": {
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "requiredReads": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "minItems": 0,
+              "maxItems": 4096,
+              "uniqueItems": true
+            },
+            "remainingSources": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[a-z][a-z0-9_.-]*$"
+              },
+              "minItems": 0,
+              "maxItems": 4096,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "cursor",
+            "requiredReads",
+            "remainingSources"
+          ],
+          "additionalProperties": false
+        },
+        "negativeAssertion": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "none"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "absence"
+                },
+                "sourceIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "minItems": 1,
+                  "maxItems": 4096,
+                  "uniqueItems": true
+                },
+                "predicateSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "kind",
+                "sourceIds",
+                "predicateSha256"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "contractVersion",
+        "requestId",
+        "traceId",
+        "operation",
+        "binding",
+        "subject",
+        "window",
+        "argumentsSha256",
+        "appliedFilters",
+        "method",
+        "status",
+        "reasonCode",
+        "retryable",
+        "sources",
+        "data",
+        "coverage",
+        "continuation",
+        "negativeAssertion"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

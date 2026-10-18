@@ -1,0 +1,2655 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:client-knowledge-profile:0.2.0",
+  "$defs": {
+    "ProfileClient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "website": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "productDescription": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "primaryContactName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "primaryContactEmail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "primaryContactPhone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "logoS3Key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "logoContentType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "logoUploadedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intakeData": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "status": {
+          "type": "string"
+        },
+        "sectorTag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profileType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profileStatus": {
+          "type": "string"
+        },
+        "submissionTracks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "issueCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uei": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cageCode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "naicsCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pscCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tangoEntityLastSyncedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tangoEntityLastAttemptAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tangoEntityLastError": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "applicantTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "setAsideCertifications": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ldaClientIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        },
+        "memoryWall": {
+          "type": "boolean"
+        },
+        "createdByUserId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "canonicalEntityId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "name",
+        "website",
+        "description",
+        "productDescription",
+        "primaryContactName",
+        "primaryContactEmail",
+        "primaryContactPhone",
+        "logoS3Key",
+        "logoContentType",
+        "logoUploadedAt",
+        "intakeData",
+        "status",
+        "sectorTag",
+        "profileType",
+        "profileStatus",
+        "submissionTracks",
+        "issueCodes",
+        "uei",
+        "cageCode",
+        "naicsCodes",
+        "pscCodes",
+        "tangoEntityLastSyncedAt",
+        "tangoEntityLastAttemptAt",
+        "tangoEntityLastError",
+        "applicantTypes",
+        "setAsideCertifications",
+        "ldaClientIds",
+        "memoryWall",
+        "createdByUserId",
+        "createdAt",
+        "updatedAt",
+        "canonicalEntityId"
+      ]
+    },
+    "ProfileMailThread": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "connectionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "enum": [
+            "outlook",
+            "google",
+            "imap_caldav",
+            "manual"
+          ]
+        },
+        "externalId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subject": {
+          "type": "string"
+        },
+        "snippet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "participants": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "lastMessageAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "raw": {
+          "anyOf": [
+            {
+              "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "associationScore": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "associationReason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "associationSignals": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "clientId",
+        "connectionId",
+        "source",
+        "externalId",
+        "subject",
+        "snippet",
+        "participants",
+        "lastMessageAt",
+        "status",
+        "metadata",
+        "raw",
+        "associationScore",
+        "associationReason",
+        "associationSignals",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProfileEngagementTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "meetingId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "contactId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mailThreadId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ownerUserId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dueDate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "todo",
+            "in_progress",
+            "done",
+            "blocked",
+            "canceled"
+          ]
+        },
+        "sourceType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdByUserId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "clientId",
+        "meetingId",
+        "contactId",
+        "mailThreadId",
+        "title",
+        "description",
+        "ownerUserId",
+        "dueDate",
+        "status",
+        "sourceType",
+        "sourceId",
+        "createdByUserId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProfileClientCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "issueCodes": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "trl": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mrl": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "peNumber": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "peNumbers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "appropriationAccount": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serviceBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targetSubcommittee": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fundingAsk": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fundingAskLabel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "justification": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "districtNexus": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "existingContracts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sortOrder": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "clientId",
+        "name",
+        "type",
+        "description",
+        "sector",
+        "tags",
+        "issueCodes",
+        "trl",
+        "mrl",
+        "peNumber",
+        "peNumbers",
+        "keywords",
+        "appropriationAccount",
+        "serviceBranch",
+        "targetSubcommittee",
+        "fundingAsk",
+        "fundingAskLabel",
+        "justification",
+        "districtNexus",
+        "existingContracts",
+        "notes",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProfileClientPerson": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastContact": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hierarchyLevel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reportsToPersonId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "placementSource": {
+          "type": "string"
+        },
+        "placementConfidence": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^-?(?:0|[1-9])(?:\\.[0-9]{1,3})?$"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewRequired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "clientId",
+        "name",
+        "title",
+        "email",
+        "phone",
+        "role",
+        "lastContact",
+        "notes",
+        "createdAt",
+        "updatedAt",
+        "hierarchyLevel",
+        "reportsToPersonId",
+        "placementSource",
+        "placementConfidence",
+        "reviewRequired"
+      ]
+    },
+    "ProfileClientFacility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "addressLine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "zip": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "congressionalDistrict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "congressionalDistrictCongress": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "districtSource": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "employeeCount": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stateHouseDistrict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stateSenateDistrict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodeStatus": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodeInputHash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodeAttemptCount": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "geocodeNextAttemptAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodeLastError": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodeMatchedAddress": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geocodeCandidates": {
+          "anyOf": [
+            {
+              "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "clientId",
+        "name",
+        "addressLine",
+        "city",
+        "state",
+        "zip",
+        "congressionalDistrict",
+        "congressionalDistrictCongress",
+        "districtSource",
+        "employeeCount",
+        "notes",
+        "latitude",
+        "longitude",
+        "stateHouseDistrict",
+        "stateSenateDistrict",
+        "geocodedAt",
+        "geocodeStatus",
+        "geocodeInputHash",
+        "geocodeAttemptCount",
+        "geocodeNextAttemptAt",
+        "geocodeLastError",
+        "geocodeMatchedAddress",
+        "geocodeCandidates",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProfileClientSubmissionHistory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "capabilityId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fiscalYear": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outcomeType": {
+          "type": "string"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "clientId",
+        "capabilityId",
+        "fiscalYear",
+        "title",
+        "meta",
+        "outcome",
+        "outcomeType",
+        "notes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProfileCapabilitiesSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "sector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "trl": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "peNumber": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "peNumbers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "appropriationAccount": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serviceBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targetSubcommittee": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fundingAsk": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fundingAskLabel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "districtNexus": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "sector",
+        "description",
+        "trl",
+        "peNumber",
+        "peNumbers",
+        "appropriationAccount",
+        "serviceBranch",
+        "targetSubcommittee",
+        "fundingAsk",
+        "fundingAskLabel",
+        "districtNexus"
+      ]
+    },
+    "ProfilePeopleSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastContact": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "title",
+        "email",
+        "phone",
+        "role",
+        "lastContact"
+      ]
+    },
+    "ProfileFacilitiesSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "congressionalDistrict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "employeeCount": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "city",
+        "state",
+        "congressionalDistrict",
+        "employeeCount"
+      ]
+    },
+    "ProfileSubmissionHistorySummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "capabilityId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fiscalYear": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "outcomeType": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "capabilityId",
+        "fiscalYear",
+        "title",
+        "outcomeType",
+        "outcome"
+      ]
+    },
+    "ProfileAdvocacyMatter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "matterType": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primaryPeCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primaryBillId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "externalKey": {
+          "type": "string"
+        },
+        "autoGenerated": {
+          "type": "boolean"
+        },
+        "openedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lastActivityAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "recordCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outcomeCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "linkCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "matterType",
+        "status",
+        "summary",
+        "primaryPeCode",
+        "primaryBillId",
+        "externalKey",
+        "autoGenerated",
+        "openedAt",
+        "lastActivityAt",
+        "recordCount",
+        "outcomeCount",
+        "linkCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProfileAdvocacyMattersSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "matterType": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "primaryPeCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primaryBillId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "autoGenerated": {
+          "type": "boolean"
+        },
+        "lastActivityAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "recordCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outcomeCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "linkCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "matterType",
+        "status",
+        "summary",
+        "primaryPeCode",
+        "primaryBillId",
+        "autoGenerated",
+        "lastActivityAt",
+        "recordCount",
+        "outcomeCount",
+        "linkCount",
+        "updatedAt"
+      ]
+    },
+    "ProfileAdvocacyRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "recordType": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "activityDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outcome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidenceClass": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "metadata": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonObject"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "matterLocked": {
+          "type": "boolean"
+        },
+        "matterId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "matterTitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "recordType",
+        "title",
+        "summary",
+        "activityDate",
+        "status",
+        "outcome",
+        "sourceType",
+        "sourceId",
+        "sourceUrl",
+        "evidenceClass",
+        "confidence",
+        "metadata",
+        "createdAt",
+        "matterLocked",
+        "matterId",
+        "matterTitle",
+        "updatedAt"
+      ]
+    },
+    "ProfileAdvocacyRecordsSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "recordType": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "activityDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidenceClass": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "matterId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "matterTitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "recordType",
+        "title",
+        "summary",
+        "activityDate",
+        "status",
+        "outcome",
+        "sourceType",
+        "sourceId",
+        "sourceUrl",
+        "evidenceClass",
+        "confidence",
+        "matterId",
+        "matterTitle",
+        "updatedAt"
+      ]
+    },
+    "ClientKnowledgeProfileContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "asOf": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clientResolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "selector": {
+              "type": "string"
+            },
+            "clientId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "selector",
+            "clientId"
+          ]
+        }
+      },
+      "required": [
+        "asOf",
+        "clientResolution"
+      ]
+    },
+    "ClientKnowledgeProfileRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "type": "string"
+        },
+        "section": {
+          "enum": [
+            "capabilities",
+            "people",
+            "facilities",
+            "submissionHistory",
+            "advocacyMatters",
+            "advocacyRecords"
+          ]
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 50
+        },
+        "representation": {
+          "enum": [
+            "summary",
+            "full"
+          ]
+        }
+      },
+      "required": [
+        "clientId"
+      ]
+    },
+    "ClientKnowledgeProfileInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "section": {
+          "enum": [
+            null,
+            "capabilities",
+            "people",
+            "facilities",
+            "submissionHistory",
+            "advocacyMatters",
+            "advocacyRecords"
+          ]
+        },
+        "afterId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "representation": {
+          "enum": [
+            "summary",
+            "full"
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "section",
+        "afterId",
+        "limit",
+        "representation"
+      ]
+    },
+    "ProfileCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "section": {
+          "enum": [
+            "capabilities",
+            "people",
+            "facilities",
+            "submissionHistory",
+            "advocacyMatters",
+            "advocacyRecords"
+          ]
+        },
+        "afterId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "v",
+        "clientId",
+        "section",
+        "afterId"
+      ]
+    },
+    "ProfileCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable",
+            "not_requested"
+          ]
+        },
+        "total": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "truncated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "representation": {
+          "enum": [
+            "summary",
+            "full"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "get_client_context"
+            },
+            "clientId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "section": {
+              "enum": [
+                "capabilities",
+                "people",
+                "facilities",
+                "submissionHistory",
+                "advocacyMatters",
+                "advocacyRecords"
+              ]
+            }
+          },
+          "required": [
+            "tool",
+            "clientId",
+            "section"
+          ]
+        },
+        "error": {
+          "const": "section_unavailable"
+        }
+      },
+      "required": [
+        "status",
+        "total",
+        "returned",
+        "limit",
+        "truncated",
+        "nextCursor",
+        "representation",
+        "source"
+      ]
+    },
+    "ProfileSourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recordId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+        },
+        "sourceUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "recordId"
+      ]
+    },
+    "ProfileEngagementContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client": {
+          "$ref": "#/$defs/ProfileClient"
+        },
+        "recentActivity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "meeting",
+                  "mail_thread"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "title",
+              "date"
+            ]
+          },
+          "maxItems": 12
+        },
+        "keyStakeholders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fullName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "organization": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "enum": [
+                  "Contact",
+                  "Meeting",
+                  "Email",
+                  "Contact + Meeting",
+                  "Contact + Email",
+                  "Meeting + Email",
+                  "Contact + Meeting + Email"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "fullName",
+              "title",
+              "organization",
+              "source"
+            ]
+          },
+          "maxItems": 40
+        },
+        "openThreads": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProfileMailThread"
+          },
+          "maxItems": 10
+        },
+        "openTasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProfileEngagementTask"
+          },
+          "maxItems": 20
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "meetings": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "mailThreads": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "contacts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 40
+            },
+            "openTasks": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20
+            }
+          },
+          "required": [
+            "meetings",
+            "mailThreads",
+            "contacts",
+            "openTasks"
+          ]
+        }
+      },
+      "required": [
+        "client",
+        "recentActivity",
+        "keyStakeholders",
+        "openThreads",
+        "openTasks",
+        "summary"
+      ]
+    },
+    "ClientKnowledgeProfileOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "const": "get_client_context"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "profileSections": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "capabilities": {
+              "$ref": "#/$defs/ProfileCoverage"
+            },
+            "people": {
+              "$ref": "#/$defs/ProfileCoverage"
+            },
+            "facilities": {
+              "$ref": "#/$defs/ProfileCoverage"
+            },
+            "submissionHistory": {
+              "$ref": "#/$defs/ProfileCoverage"
+            },
+            "advocacyMatters": {
+              "$ref": "#/$defs/ProfileCoverage"
+            },
+            "advocacyRecords": {
+              "$ref": "#/$defs/ProfileCoverage"
+            }
+          },
+          "required": [
+            "capabilities",
+            "people",
+            "facilities",
+            "submissionHistory",
+            "advocacyMatters",
+            "advocacyRecords"
+          ]
+        },
+        "coverageNote": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ProfileClientCapability"
+                  },
+                  {
+                    "$ref": "#/$defs/ProfileCapabilitiesSummary"
+                  }
+                ]
+              },
+              "maxItems": 50
+            },
+            "people": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ProfileClientPerson"
+                  },
+                  {
+                    "$ref": "#/$defs/ProfilePeopleSummary"
+                  }
+                ]
+              },
+              "maxItems": 50
+            },
+            "facilities": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ProfileClientFacility"
+                  },
+                  {
+                    "$ref": "#/$defs/ProfileFacilitiesSummary"
+                  }
+                ]
+              },
+              "maxItems": 50
+            },
+            "submissionHistory": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ProfileClientSubmissionHistory"
+                  },
+                  {
+                    "$ref": "#/$defs/ProfileSubmissionHistorySummary"
+                  }
+                ]
+              },
+              "maxItems": 50
+            },
+            "advocacyMatters": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ProfileAdvocacyMatter"
+                  },
+                  {
+                    "$ref": "#/$defs/ProfileAdvocacyMattersSummary"
+                  }
+                ]
+              },
+              "maxItems": 50
+            },
+            "advocacyRecords": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ProfileAdvocacyRecord"
+                  },
+                  {
+                    "$ref": "#/$defs/ProfileAdvocacyRecordsSummary"
+                  }
+                ]
+              },
+              "maxItems": 50
+            }
+          },
+          "required": [
+            "capabilities",
+            "people",
+            "facilities",
+            "submissionHistory",
+            "advocacyMatters",
+            "advocacyRecords"
+          ]
+        },
+        "profileSources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileSourceReference"
+              },
+              "maxItems": 50
+            },
+            "people": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileSourceReference"
+              },
+              "maxItems": 50
+            },
+            "facilities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileSourceReference"
+              },
+              "maxItems": 50
+            },
+            "submissionHistory": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileSourceReference"
+              },
+              "maxItems": 50
+            },
+            "advocacyMatters": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileSourceReference"
+              },
+              "maxItems": 50
+            },
+            "advocacyRecords": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileSourceReference"
+              },
+              "maxItems": 50
+            }
+          },
+          "required": [
+            "capabilities",
+            "people",
+            "facilities",
+            "submissionHistory",
+            "advocacyMatters",
+            "advocacyRecords"
+          ]
+        },
+        "context": {
+          "$ref": "#/$defs/ProfileEngagementContext"
+        }
+      },
+      "required": [
+        "tool",
+        "generatedAt",
+        "profileSections",
+        "coverageNote",
+        "profile",
+        "profileSources",
+        "context"
+      ]
+    }
+  }
+}

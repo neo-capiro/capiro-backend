@@ -61,10 +61,28 @@ export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
   'search_state_bills', 'search_state_floor_votes', 'search_tracked_bills',
 ]);
 
+/** Exact retained source operation IDs. These require the additional signed
+ * correlation digest; no legacy tool receives that claim. */
+export const MERI_RETAINED_SOURCE_TOOLS: ReadonlySet<string> = new Set([
+  'read_monday_client_boards', 'get_client_context', 'resolve_entity',
+  'mail.list_messages', 'mail.search_messages', 'mail.read_thread',
+  'meeting.list_upcoming_meetings', 'meeting.query_debriefs', 'meeting.read_client_meetings',
+  'read_client_documents', 'find_contacts',
+]);
+
+/** Profile observation changed its output contract: only 0.3.0 may cross
+ * this source route. Other retained source operations remain exact 0.2.0. */
+export function isMeriRetainedSourceOperationVersion(operation: { id: string; version: string } | null): boolean {
+  return operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id) &&
+    operation.version === (operation.id === 'get_client_context' ? '0.3.0' : '0.2.0');
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[a-f0-9]{64}$/;
 const CALL_KEY = /^[A-Za-z0-9_-]{1,128}$/;
-const OPERATION_ID = /^[a-z][a-z0-9_]{1,63}$/;
+// Retained 0.2 catalog IDs include dotted namespaces (mail.*, meeting.*).
+// Keep each segment nonempty and lower-case; token targets still use the exact ID.
+const OPERATION_ID = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/;
 const OPERATION_VERSION = /^\d+\.\d+\.\d+$/;
 export const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID.test(v);
 export const isSha = (v: unknown): v is string => typeof v === 'string' && SHA.test(v);
@@ -84,7 +102,8 @@ export function closed(value: unknown, keys: readonly string[], field: string, o
 export interface OperationRef { id: string; version: string }
 function operationRef(value: unknown, field: string): OperationRef {
   const v = closed(value, ['id', 'version'], field);
-  if (typeof v.id !== 'string' || !OPERATION_ID.test(v.id) || typeof v.version !== 'string' || !OPERATION_VERSION.test(v.version)) throw invalid(field);
+  if (typeof v.id !== 'string' || v.id.length < 2 || v.id.length > 64 || !OPERATION_ID.test(v.id) ||
+      typeof v.version !== 'string' || !OPERATION_VERSION.test(v.version)) throw invalid(field);
   return { id: v.id, version: v.version };
 }
 /** Meri `operationsDigest`: canonical SHA-256 of the sorted `{id, version}` list. */
@@ -149,6 +168,7 @@ export interface TokenRequest {
   argumentsSha256: string | null;
   toolRequestSha256: string | null;
   referenceSha256: string | null;
+  correlationSha256: string | null;
   retryOf: string | null;
   /** Canonical request digest (dot 6248070410): the request with `retryOf` normalized to null. */
   requestDigest: string;
@@ -159,11 +179,14 @@ export const currentBodySha256 = (conversation: boolean) => sha256Hex(Buffer.fro
 
 export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequest {
   const v = closed(raw, ['schemaVersion', 'kind', 'callKey', 'method', 'path', 'bodySha256', 'operation', 'argumentsSha256',
-    'toolRequestSha256', 'referenceSha256', 'retryOf'], 'body');
+    'toolRequestSha256', 'referenceSha256', 'retryOf'], 'body', ['correlationSha256']);
   if (v.schemaVersion !== 1 || !READ_TOKEN_KINDS.includes(v.kind as ReadTokenKind) || typeof v.callKey !== 'string' || !CALL_KEY.test(v.callKey) ||
       v.method !== 'POST' || typeof v.path !== 'string' || !isSha(v.bodySha256) || !(v.retryOf === null || isSha(v.retryOf))) throw invalid('token');
   const kind = v.kind as ReadTokenKind;
   const operation = v.operation === null ? null : operationRef(v.operation, 'operation');
+  const retainedSource = kind === 'tool' && operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id);
+  if (retainedSource && !isMeriRetainedSourceOperationVersion(operation)) throw invalid('retained source operation');
+  if (retainedSource ? !isSha(v.correlationSha256) : Object.hasOwn(v, 'correlationSha256')) throw invalid('correlationSha256');
   const nulls = (...keys: string[]) => keys.every((k) => v[k] === null);
   if (kind === 'tool') {
     if (!operation || v.path !== toolPath(operation.id) || !isSha(v.argumentsSha256) || !nulls('toolRequestSha256', 'referenceSha256')) throw invalid('tool');
@@ -180,12 +203,14 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
   }
   const request = {
     schemaVersion: 1, kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256, operation,
-    argumentsSha256: v.argumentsSha256, toolRequestSha256: v.toolRequestSha256, referenceSha256: v.referenceSha256, retryOf: null,
+    argumentsSha256: v.argumentsSha256, toolRequestSha256: v.toolRequestSha256, referenceSha256: v.referenceSha256,
+    ...(retainedSource ? { correlationSha256: v.correlationSha256 } : {}), retryOf: null,
   };
   return {
     kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256 as string, operation,
     argumentsSha256: v.argumentsSha256 as string | null, toolRequestSha256: v.toolRequestSha256 as string | null,
-    referenceSha256: v.referenceSha256 as string | null, retryOf: v.retryOf as string | null, requestDigest: canonicalSha256(request),
+    referenceSha256: v.referenceSha256 as string | null, correlationSha256: retainedSource ? v.correlationSha256 as string : null,
+    retryOf: v.retryOf as string | null, requestDigest: canonicalSha256(request),
   };
 }
 
