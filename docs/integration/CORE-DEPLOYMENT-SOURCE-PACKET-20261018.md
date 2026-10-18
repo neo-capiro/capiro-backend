@@ -7,20 +7,27 @@ and coordinating scope in the [remaining deployment plan](../deployment/CAPIRO-R
 
 ## Source pins observed for this packet
 
-GitHub PR metadata was read on 2026-10-18 at approximately 14:35 UTC. These are
-source revisions, not image or running-service attestations. Reconcile later
-receiving commits before freezing the build input.
+Initial source pins were read at approximately 14:35 UTC; document/profile
+successor evidence was refreshed at approximately 15:09 UTC on 2026-10-18.
+These are source revisions, not image or running-service attestations.
+Reconcile the separate receiving branches before freezing one build input.
 
 | Source | Exact observed head | Meaning |
 | --- | --- | --- |
 | [Core PR87](https://github.com/neo-capiro/capiro-backend/pull/87) | `8130f4404d770db396b6732aac436d6e9ac93b82` | This packet's exact source base; draft, stacked on PR86. |
 | [Core PR86](https://github.com/neo-capiro/capiro-backend/pull/86) | `b40971b1f8de888687a8fb92fbdf4ff653fe10d3` | Preview template, snapshot installer and successor source in PR87 ancestry. |
 | [Meri PR157](https://github.com/neo-capiro/meri-greenfield/pull/157) | `ab83ee97e9cb88b4727291284da9e2485157c309` | Integration SQL already mirrors the Core snapshot function and temporary installer-role choreography in source. |
-| [Meri PR158](https://github.com/neo-capiro/meri-greenfield/pull/158) | `cdc1c04342da022117401284b4e6bbac032ef84d` | Retained source adapters; shared signed task relay remains a receiving dependency. |
-| [Meri PR160](https://github.com/neo-capiro/meri-greenfield/pull/160) | `0114f1a97ff9ca0f7b90ec281b557d0d24c1d225` | Profile successor `get_client_context@0.3.0`; shared catalog/validator/skill/measurement receipt remains outstanding. |
+| [Core PR92](https://github.com/neo-capiro/capiro-backend/pull/92) | `7f72239d4f7746ea99fe10df701190132af84e87` | Complete document validator and current provider-disabled owner, stacked on PR87. |
+| [Core document receiver successor](https://github.com/neo-capiro/capiro-backend/commit/01b5d90c8a50fee6076768dd4f226abb3e258581) | `01b5d90c8a50fee6076768dd4f226abb3e258581` | Branch `codex/core-client-documents-receiver-20261018`, additive to PR92; all eleven operations source-wired, documents still 503 by default. |
+| [Meri PR158](https://github.com/neo-capiro/meri-greenfield/pull/158) | `cdc1c04342da022117401284b4e6bbac032ef84d` | Retained source adapter input received by PR161. Shared signed task relay remains a dependency. |
+| [Meri PR160](https://github.com/neo-capiro/meri-greenfield/pull/160) | `0114f1a97ff9ca0f7b90ec281b557d0d24c1d225` | Versioned `get_client_context@0.3.0` input received by PR161. |
+| [Meri PR161](https://github.com/neo-capiro/meri-greenfield/pull/161) | `f4cf0385471d9c57fbe7c537e3f352a0378ece24` | Profile catalog/validator, nine skill successors and source measurement received; no in-image or runtime receipt. |
+| [Meri PR162](https://github.com/neo-capiro/meri-greenfield/pull/162) | `dee9ac55546d9a59dc6bba79cd4fc2cbba869000` | Immutable text-only document allocation variant, stacked on PR161; received by the Core receiver successor. |
 
-The document-owner and memory successor lanes are pending stacked source work;
-they are not included in this frozen base or a qualified integrated image.
+The document receiver is a separately published source successor; this PR90
+documentation branch still descends directly from PR87 and does not merge its
+implementation. Memory successors also need separate source receipt. No
+qualified integrated image includes these changes in the evidence here.
 There is no new accepted frontend/chat source-and-image pair in this packet.
 The [existing-preview cohort record](CORE-SUCCESSOR-CHAT-COHORT-20261018.md)
 reports Meri N17 `4172e474`, Core rev 2 `ade7fc88` and FE rev 17 `4ea553fe`.
@@ -130,27 +137,82 @@ Do not rerun successful installation phases or replace migration history.
 | Approval metadata | Core's `native-approval-metadata.ts` directly SELECTs `meri_commands.approval_metadata`. The observed Meri integration SQL grants Core only the four facts views and snapshot, and its privilege audit rejects other Core Meri-table access. Reconcile this narrow owner-read contract and its audit before execution activation; the snapshot does not supply approval metadata. No grant was added here. |
 | Execution cohort | Successor preview `create_task` removes the ordinary bearer fallback. Meri `features.intents.execution`, its matching verifier/grant composition, Core signer/pins, exact service identity, snapshot and migrations must ship together. Retain the compatible existing cohort until proven. |
 
-## Retained reads and remaining source receipt
+## All eleven retained operations: source status
 
-At the exact Core PR87 pin, ten retained operations have owner reads and full
-pinned output validation. `get_client_context` accepts **0.3.0 only**, schema
-SHA-256 `7d422f92a4771b2d7e869e45371396c12b8a69934f9cb8ca50f5821ccab514a2`.
-The other ten operation IDs remain 0.2.0, including the **503**
-`read_client_documents`. The [retained handoff](CORE-RETAINED-SOURCE-V02-HANDOFF-20261018.md)
-records exact families, signed correlation, single-use token, owner window,
-16 MiB output ceiling and final release checks. **All eleven remain unavailable
-in the preview runtime.**
+PR87 source-wires ten operations. Receiver successor `01b5d90c` adds the
+document family after PR92's current owner and full validator. At that exact
+successor, **all eleven are source-wired; all eleven remain unavailable in the
+preview runtime**. Documents still answer 503 by default. The original
+[PR87 retained handoff](CORE-RETAINED-SOURCE-V02-HANDOFF-20261018.md) describes
+the baseline; the pinned [document receiver gate](https://github.com/neo-capiro/capiro-backend/blob/01b5d90c8a50fee6076768dd4f226abb3e258581/docs/integration/CORE-CLIENT-DOCUMENTS-RECEIVER-20261018.md)
+describes the additive successor.
 
-Meri must receive the 0.3 catalog/validator/skill/measurement slice without
-silently reinterpreting 0.2 or duplicating its registry row, and compose the
-signed post-UNKNOWN task relay with trusted invocation ID/tool credential,
-exact body and correlation digests. Preserve the measured 76 operations; the
-profile successor operation-list digest is
-`2b7e65b59487a85bbf8c938d42a76865c4eb8b3e9b5cab4330e1b8399a9fa973`.
-The read-delegation key, facts, migrations, listener and service readbacks are
-separate gates. Paid document extraction still needs measured pricing and an
-enforced pre-call audio-duration cap in its actual owner before receiver receipt.
-Personal and Portfolio reads require their own subjects/authority.
+| Operations | Source version and owner boundary |
+| --- | --- |
+| `resolve_entity`, `find_contacts` | 0.2.0; canonical entity/contact reads, selected-client wall and full output validation. |
+| `get_client_context` | **0.3.0 only**; measured owner read window and full pinned output/cursor/coverage validation. |
+| `read_monday_client_boards` | 0.2.0; managed mapping checked around the same canonical owner read. |
+| `read_client_documents` | 0.2.0; current inventory, full validator, provider-disabled owner and original ADMITTED text-only allocation/runtime gate below. |
+| `mail.list_messages`, `mail.search_messages`, `mail.read_thread` | 0.2.0; verified mailbox scopes constrain owner SQL; same-read scope, body and output proofs. |
+| `meeting.list_upcoming_meetings`, `meeting.query_debriefs`, `meeting.read_client_meetings` | 0.2.0; current owner result/inventory, scope, lineage and full output validation. |
+
+Meri PR161 receives the profile catalog/validator/skill/source-measurement
+slice, preserving the legacy 0.2 bytes and replacing its single active binding.
+Catalog `0.2.16` has SHA-256
+`58673ff38658c07e608ad209f007c4c6e30b9ee06a04c0f52afa97ac222bca9c`;
+profile schema SHA-256 is
+`7d422f92a4771b2d7e869e45371396c12b8a69934f9cb8ca50f5821ccab514a2`.
+The measured selection remains **76 operations / 42 families**, operation-list
+digest `2b7e65b59487a85bbf8c938d42a76865c4eb8b3e9b5cab4330e1b8399a9fa973`.
+Meri must still compose the signed post-UNKNOWN task relay with trusted
+`invocationId` / `toolCredential`, exact body/correlation digests and final
+release. Source measurement must be rerun in the qualified image. Keys, facts,
+migrations, listener and service readbacks remain separate gates. Wired output
+is bounded to 16 MiB before delegated release; personal and Portfolio reads
+require their own subjects/authority.
+
+### Document text-only allocation and current-runtime gate
+
+Meri PR162 preserves `read_client_documents@0.2.0` and unchanged document
+schema SHA-256
+`71dd53119af2c0226372916e3645765687e8653da2f48b60d55c1a7a75c05247`.
+Its closed `manifest.documentPricing` variant is
+`{mode:"source_text_only",route:"/api/clio/tools/read_client_documents",coreSourceCommit,coreImageDigest,configurationSha256}`:
+base manifest **1.1.0**, exactly **1 µUSD per call**. Unconditional tariff stays
+null. The source/catalog measurement stays **76 operations / 42 families**;
+a particular allocation excludes documents when qualified evidence is absent.
+Document-bearing 1.0.0 manifests retain only the complete paid-pricing variant;
+document-free allocations may still use 1.0.0.
+
+Core derives the closed tariff and exact schedule charge from the **original
+locked ADMITTED allocation**, verifies its hash/manifest/budget/operation
+bindings, carries a frozen request-local projection, and reconstructs it at
+release. The request, token, correlation and unsigned headers cannot select
+pricing or runtime identity. The paid manifest cannot qualify this source path.
+
+The receiver separately calls `RetainedDocumentRuntimeIdentityReader.readCurrent()`
+before and after the source read; independently current `sourceHead`,
+`imageDigest` and `configurationSha256` must match the allocation. **No runtime
+reader implementation/provider is registered**, so the default 503 occurs
+before attachment metadata/bytes. Missing, malformed, unavailable or changed
+evidence withholds results. RELEASE_SHA/GIT_SHA, environment digest equality,
+release headers and OCI labels alone do not open it.
+
+Shipping/render must qualify the exact integrated source and digest-addressed
+ECR image, read back the current ECS task/container, define and measure the
+effective-configuration hash, and implement/register the independent reader.
+Meri's shipping owner must compare those same **current** Core pins before
+issuing a 1.1.0 allocation; Meri-source measurement or pin syntax is insufficient.
+The extraction owner unconditionally enforces `allowPaidExtraction:false`
+before both vision and Whisper for every retained document token. Blank PDF
+text layers return truthful missing-content coverage; audio/video fails closed
+before Whisper. Meri currently maps unavailable documents to `INVALID_RESULT`,
+so a completed user-facing unsupported-material result is not claimed.
+
+Paid extraction on this endpoint requires complete measured pricing and a
+reliable pre-call audio cap, plus either draining/expiring all text-only
+runs/delegations or a future signed/versioned mode selector checked before
+both paid branches. No paid-mode activation is part of this source receipt.
 
 Objective D7-3 remains a separate held dependency: source parser/echo exists,
 while issuer/post-effect routes, later-phase adapters, authenticated original
@@ -180,9 +242,12 @@ not establish production routing, Clerk acceptance or production cutover.
 
 ## Checks performed for this packet
 
-Docs-only change on the exact Core PR87 base. Local focused checks:
+Docs-only commits on the exact Core PR87 base. Original local focused checks:
 `node --test infra/routing/capiro-prod-alb-first-match.test.mjs` **10/10**;
 `node --test infra/deploy/first-chat-core-preview-source-pin.spec.mjs` **3/3**;
-`git diff --check` clean. The snapshot definition comparison and template
+`git diff --check` clean. This additive refresh checked the exact source pins,
+receiver gate and unchanged template; the receiver owner's **112/112** focused
+checks and narrow TypeScript/diff success are reported source evidence, not a
+rerun by this packet lane. The snapshot definition comparison and template
 capacity/held-service/image-pin inspection are source checks. No CDK deploy,
 live AWS/SQL, credential read, grant, image build or paid source call was run.
