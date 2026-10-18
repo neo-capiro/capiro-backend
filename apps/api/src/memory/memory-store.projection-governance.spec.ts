@@ -1,4 +1,5 @@
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { Prisma } from '@prisma/client';
 import type { TenantContextStore } from '../tenant/tenant-context.store.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
@@ -13,8 +14,8 @@ const CANDIDATE = '44444444-4444-4444-8444-444444444444';
 const PROPOSER = '55555555-5555-4555-8555-555555555555';
 const APPROVER = '66666666-6666-4666-8666-666666666666';
 
-function sqlText(strings: unknown): string {
-  if (Array.isArray(strings)) return strings.join('?');
+function sqlText(strings: unknown, values: unknown[] = []): string {
+  if (Array.isArray(strings)) return Prisma.sql(strings as TemplateStringsArray, ...values).text;
   const sql = strings as { strings?: string[]; raw?: string[] };
   return (sql.strings ?? sql.raw ?? []).join('?');
 }
@@ -23,11 +24,11 @@ function harness(existingId?: string) {
   const queries: string[] = [];
   const tx = {
     $queryRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
-      queries.push(sqlText(strings));
+      queries.push(sqlText(strings, values));
       return [{ id: existingId ?? values[0] }];
     }),
-    $executeRaw: jest.fn(async (strings: unknown) => {
-      queries.push(sqlText(strings));
+    $executeRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
+      queries.push(sqlText(strings, values));
       return 1;
     }),
   };
@@ -41,7 +42,7 @@ function harness(existingId?: string) {
     new MemoryTransitionAuditService(),
     {} as MemoryCleanupOutboxService,
   );
-  return { service, queries };
+  return { service, queries, tx };
 }
 
 function baseItem(): MemoryItem {
@@ -69,6 +70,45 @@ function baseItem(): MemoryItem {
 }
 
 describe('MemoryStoreService projection governance restoration', () => {
+  it('refuses to overwrite a hidden Settings identity on the conflict path', async () => {
+    const h = harness();
+    h.tx.$queryRaw.mockImplementationOnce(async (strings: unknown, ...values: unknown[]) => {
+      h.queries.push(sqlText(strings, values));
+      return [];
+    });
+    await expect(
+      h.service.upsertSystem(baseItem(), undefined, {
+        expectedExistingId: null,
+      }),
+    ).rejects.toThrow('Memory changed before the Settings save');
+    const insert = h.queries.find((sql) => sql.includes('INSERT INTO memory_items'));
+    expect(insert).toContain('ON CONFLICT (tenant_id, type, slug) DO UPDATE SET');
+    expect(insert).toContain('WHERE FALSE');
+  });
+
+  it('pins a previously read Settings identity and its current governed state under conflict', async () => {
+    const h = harness();
+    h.tx.$queryRaw
+      .mockImplementationOnce(async (strings: unknown, ...values: unknown[]) => {
+        h.queries.push(sqlText(strings, values));
+        return [{ ready: true }];
+      })
+      .mockImplementationOnce(async (strings: unknown, ...values: unknown[]) => {
+        h.queries.push(sqlText(strings, values));
+        return [];
+      });
+    await expect(
+      h.service.upsertSystem(baseItem(), undefined, {
+        expectedExistingId: ITEM,
+      }),
+    ).rejects.toThrow('Memory changed before the Settings save');
+    const insert = h.queries.find((sql) => sql.includes('INSERT INTO memory_items'));
+    expect(insert).toMatch(/WHERE memory_items\.id = \$\d+::uuid/);
+    expect(insert).toContain("memory_items.governed_status IN ('active', 'stale')");
+    expect(insert).toContain('memory_items.effective_from <= now()');
+    expect(insert).toContain('memory_items.valid_until > now()');
+  });
+
   it('keeps generic projection SQL free of governed columns', async () => {
     const h = harness();
     await h.service.upsertSystem(baseItem());

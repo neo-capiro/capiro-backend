@@ -254,6 +254,53 @@
         "Meri's facts views (meri-greenfield read-delegation 0001) and their grants to capiro_app",
         "expiry sweeping"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql",
+      "owner": "Core Institutional Memory client-scoped clio_memory key uniqueness",
+      "workstream": "codex/memory-client-unique-20261018",
+      "base": "96065aea7076fde961071ebce402b6b2a31ee60c",
+      "allocation": "centrally assigned source-only reservation after Core PR86 migration collision check",
+      "allocatedAt": "2026-10-18T13:11:00Z",
+      "checks": {
+        "CorePR86Head": "b40971b1f8de888687a8fb92fbdf4ff653fe10d3",
+        "latestObservedCoreMigration": "20281018060000_meri_read_delegation",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "preflight old firm index, client/firm row shape, and duplicate keys without data changes",
+        "partial unique index on tenant_id, client_id, key for client scope",
+        "narrow clio_memory_firm_key_uniq to firm scope while preserving user_private Prisma uniqueness"
+      ],
+      "excluded": [
+        "live migration execution",
+        "row deduplication or data deletion"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql",
+      "owner": "Core Institutional Memory Meri submission receipt payload disposition",
+      "workstream": "codex/memory-receipt-forward-20261018",
+      "base": "f357bf477f9cf31e4d2ca5e165b89d203d02b6e8",
+      "allocation": "centrally assigned source-only forward migration after Core PR86 collision check; preserve original 020000 history from 5c105cfefe5a23a10a2d3f7c8eb0d148e9e0ef17",
+      "allocatedAt": "2026-10-18T13:26:57Z",
+      "checks": {
+        "CorePR86Head": "b40971b1f8de888687a8fb92fbdf4ff653fe10d3",
+        "latestObservedCoreMigration": "20281018080000_clio_memory_scope_unique",
+        "proposedPrefixPresent": false,
+        "original020000Sha256": "090b3140156c8cb40630101e6fd3b8bb5135a846a6d79528fa2fc4d523f0c2c5"
+      },
+      "scope": [
+        "held forward source for redundant candidate JSONB/check removal from immutable submission receipts",
+        "explicit fail-closed release guard pending applied checksum, table-shape, retention and hold readback",
+        "keep idempotency digest, proposer and stable review ID after candidate payload disposition"
+      ],
+      "excluded": [
+        "live migration execution",
+        "column drop or purge authorization",
+        "applied checksum reconciliation without target database evidence",
+        "canonical memory or memory_candidate deletion"
+      ]
     }
   ]
 }

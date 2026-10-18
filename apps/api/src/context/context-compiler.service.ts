@@ -22,10 +22,7 @@ import {
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
-import {
-  governedRecallSuppressionEnabled,
-  governedRecallSuppressionSql,
-} from '../memory/memory-recall-suppression.helpers.js';
+import { currentMemoryReadSqlInTx } from '../memory/memory-recall-suppression.helpers.js';
 import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
 import { contextStageTimer } from './context-stage-timer.service.js';
 
@@ -138,9 +135,11 @@ export class ContextCompilerService {
     );
 
     const run = async (tx: Prisma.TransactionClient): Promise<SteeringRow[]> => {
-      const wantsClient =
-        wantsClientReq &&
-        (await clientMemoryAllowed(tx, req.tenantId, req.userId ?? null, req.clientId as string));
+      const selectedClientAllowed = req.clientId
+        ? await clientMemoryAllowed(tx, req.tenantId, req.userId ?? null, req.clientId)
+        : false;
+      const wantsClient = wantsClientReq && selectedClientAllowed;
+      const currentMemorySql = await currentMemoryReadSqlInTx(tx);
       const sql = Prisma.sql`
         SELECT id, type, slug, title, client_id AS "clientId", status,
                expires_at AS "expiresAt", updated_at AS "updatedAt",
@@ -148,14 +147,18 @@ export class ContextCompilerService {
                sections_jsonb AS sections
                ${Prisma.raw(opts.governed ? GOVERNED_STEERING_COLUMNS_SQL : '')}
         FROM memory_items
-        WHERE (
-          (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
+        WHERE tenant_id = ${req.tenantId}::uuid AND (
+          (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm'
+              AND visibility = 'tenant' AND owner_user_id IS NULL AND client_id IS NULL)
           OR (${wantsUser} AND type = ANY(${userTypes})
-              AND owner_user_id = ${req.userId ?? null}::uuid)
+              AND visibility = 'user' AND owner_user_id = ${req.userId ?? null}::uuid
+              AND (client_id IS NULL OR (${selectedClientAllowed}
+                   AND client_id = ${req.clientId ?? null}::uuid)))
           OR (${wantsClient} AND type = ANY(${clientTypes})
+              AND visibility = 'tenant' AND owner_user_id IS NULL
               AND client_id = ${req.clientId ?? null}::uuid)
         )
-        ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
+        ${Prisma.raw(currentMemorySql)}
         ORDER BY
           CASE type
             WHEN 'firm-soul' THEN 10
