@@ -15,6 +15,7 @@ The merge commits preserve the published source commits and their ancestry.
 | Modules receiving map | `76c193e8c86eb6132aba765b5d03c58db8848b87` (PR89) |
 | Core prepared-approval verifier through bounded run facts | `3d30faca6cdaaf906705ddfbcee2da8ac68050a0` |
 | Memory receiving, preserving published and local histories | `20fc9f5473e0b5f3a7d9057c4e0417b9701855d3` (PR88) |
+| Unmounted task-bound memory page and proposal source | `ab1675ade0da4da2820e667a06497109b53d9f27` |
 | Fail-closed document runtime identity adapter | `93ac25e0ef3a59ec10adf269bc8455bdd856b308` |
 
 Retained reads are **source-wired, not available in preview**. The document receiver
@@ -32,8 +33,13 @@ downstream Planner command creation is a resumable idempotent saga. The Planner
 command route, migration, configuration, and live readback still need qualification.
 The storage endpoint reports usage and a per-client allowance; it does not enforce a
 limit. The Objective adapter is unmounted, and `/decisions` and issuance remain
-disabled. PR88 memory source is included with its published nonrewriting merge
-history; the memory migrations have not been run or qualified in a live database.
+disabled. PR88 memory source and unmounted task-bound page/proposal guards are
+included. The signed one-use eligibility helper, reservation-bound proposal
+alias, and final receipt-expiry release still need an allocated shared contract.
+The `20281018090000` memory content-free migration intentionally raises before
+dropping its payload column, so plain Prisma migration deploy across this source
+will stop until the release owner verifies each target's applied checksum,
+retention/hold disposition, and separately authorizes the forward path.
 
 Core's approval verifier now reads a bounded prepared-approval aggregate from the
 existing `run_facts_v1` interface and fails closed on missing, overflow, or mismatched
