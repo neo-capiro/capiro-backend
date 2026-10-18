@@ -26,15 +26,20 @@ Meri must produce this correlation from its task effect authority and issue the 
 | Operations | Core PR #87 local source status | Remaining dependency |
 | --- | --- | --- |
 | `resolve_entity`, `find_contacts` | Source wired: canonical owner reads, selected-client contacts/history wall checks, and complete byte-pinned Meri 0.2 output schemas with semantic source lineage. | Signed Meri relay and preview activation/readback. |
-| `get_client_context` | Core now accepts only version `0.3.0`; **receiver remains 503**. The earlier pure six-section 0.2 projector/schema mirror is historical source preparation, not a qualified 0.3 result. | Meri publishes its exact 0.3 `readWindow` schema/hash; Core mirrors it, captures bounded canonical owner-read start/completion, sets `generatedAt` to completion, and adds focused receiver/release checks. |
+| `get_client_context` | Core now accepts only version `0.3.0`; **receiver remains 503**. An inert owner wrapper brackets the canonical profile collector and rechecks the client wall; an inert 0.3 projector requires the exact Meri validator. The earlier six-section 0.2 schema mirror is historical preparation, not a qualified 0.3 result. | Meri publishes its exact 0.3 `readWindow` schema/hash; Core mirrors it, stamps `generatedAt` to the captured completion time, and adds focused receiver/release checks. |
 | `read_monday_client_boards` | Source wired: current managed mapping before and after the canonical owner read; exact row board/request scope, result hash and byte-pinned Meri 0.2 output schema. | Signed Meri relay and preview activation/readback. |
 | `read_client_documents` | Pure selected-client, source hash and pricing/cap checks exist. **Receiver remains 503**; an unmeasured or unenforced tariff cannot be treated as available. | Measured vision and Whisper prices, a reliable pre-call audio-duration cap in the actual extraction owner, and complete pinned output validation before receiver integration or a paid call. |
-| `mail.list_messages`, `mail.search_messages`, `mail.read_thread` | Source wired: same-read mailbox inventory, handles, per-row mailbox scope and active-state checks, UTF-16 body proof, and complete byte-pinned Meri 0.2 output schemas. Coverage stays conservative. | Signed Meri relay and preview activation/readback. |
-| `meeting.list_upcoming_meetings`, `meeting.query_debriefs`, `meeting.read_client_meetings` | Source wired: current owner result and source inventory, request/trace identity and limitations, and complete byte-pinned Meri 0.2 output schemas. Coverage stays conservative. The pre-release output ceiling is 16 MiB. | Signed Meri relay and preview activation/readback; admission does not yet expose a lower claim-specific output budget. |
+| `mail.list_messages`, `mail.search_messages`, `mail.read_thread` | Source wired: verified mailbox IDs constrain owner SQL count, rows, inventory and thread loading; same-read handles, per-row scope and active-state checks, UTF-16 body proof, and complete byte-pinned Meri 0.2 output schemas. Coverage stays conservative. | Signed Meri relay and preview activation/readback. |
+| `meeting.list_upcoming_meetings`, `meeting.query_debriefs`, `meeting.read_client_meetings` | Source wired: current owner result and source inventory, request/trace identity and limitations, and complete byte-pinned Meri 0.2 output schemas. Coverage stays conservative. | Signed Meri relay and preview activation/readback; admission does not yet expose a lower claim-specific output budget. |
 
 The disabled families do not fall through to a broad legacy handler. Wired
 families call their canonical owners with same-read checks, and their
-projectors refuse absent evidence. Personal mail/meeting reads need an
+projectors refuse absent evidence.
+Every wired receiver also enforces a 16 MiB serialized output ceiling before
+the delegation release check. The current admission receipt does not carry a
+smaller authenticated claim-specific output budget.
+
+Personal mail/meeting reads need an
 explicit personal subject and a separate owner authorization decision; the
 selected-client delegation alone does not grant personal or Portfolio scope.
 Portfolio entity selection and portfolio-wide `query_tasks` remain separate

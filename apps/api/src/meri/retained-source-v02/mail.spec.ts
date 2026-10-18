@@ -101,6 +101,9 @@ describe('mail retained 0.2 source projection', () => {
     const input = candidate(); (input.selection as any).asOf = '2026-10-18T11:59:59Z';
     const page = projectMailRetainedSourceV02(input) as any;
     expect(page.queryScope.asOfInclusive).toBe('2026-10-18T11:59:59Z');
+    const offset = candidate(); (offset.selection as any).asOf = '2026-10-18T06:59:59-05:00';
+    expect((projectMailRetainedSourceV02(offset) as any).queryScope.asOfInclusive)
+      .toBe('2026-10-18T06:59:59-05:00');
     const submillisecond = candidate();
     (submillisecond.selection as any).asOf = '2026-10-18T11:59:59.000001Z';
     expect(() => projectMailRetainedSourceV02(submillisecond))

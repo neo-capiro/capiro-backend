@@ -44,7 +44,7 @@ export type MailRetainedProjectionInput = {
 type JsonObject = Record<string, unknown>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
-const UTC_MILLISECOND_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const MILLISECOND_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
 // Exact Meri PR158 @ 052f9865 schema bytes are pinned in mail.spec.ts.
 // Compile the complete output shape, including referenced common, retrieval,
 // and base contracts, before any projected page leaves this module.
@@ -84,7 +84,11 @@ function instant(value: unknown, reason: string): string {
 }
 function utcDateTime(value: unknown, reason: string): string {
   const result = string(value, reason);
-  if (!UTC_MILLISECOND_TIME.test(result) || !Number.isFinite(Date.parse(result))) refuse(reason);
+  // Meri accepts RFC3339 spellings, including offsets and omitted milliseconds.
+  // The owner normalizes the same instant for SQL; keep Meri's input spelling
+  // in its exact query-scope echo. Submillisecond precision is not representable
+  // by the current JavaScript/SQL owner and must fail closed.
+  if (!MILLISECOND_DATE_TIME.test(result) || !Number.isFinite(Date.parse(result))) refuse(reason);
   return result;
 }
 function integer(value: unknown, min: number, max: number, reason: string): number {
