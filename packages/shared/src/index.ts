@@ -13,6 +13,29 @@ export * from './funding-opportunities-v2-detail.js';
 export * from './funding-opportunities-v2-workflow.js';
 export * from './meri-read-outcome.js';
 
+// Memory-review DTOs are type-only here. Import synchronous runtime parsers
+// from @capiro/shared/memory-review to keep the browser barrel lightweight.
+export type {
+  MemoryReviewApproveResponse,
+  MemoryReviewBlockedReason,
+  MemoryReviewCandidateKind,
+  MemoryReviewCapabilities,
+  MemoryReviewDetail,
+  MemoryReviewEligibleRole,
+  MemoryReviewIdentity,
+  MemoryReviewInboxCandidateKind,
+  MemoryReviewInboxItem,
+  MemoryReviewInboxPage,
+  MemoryReviewInboxView,
+  MemoryReviewNextAction,
+  MemoryReviewProposal,
+  MemoryReviewRejectRequest,
+  MemoryReviewRejectResponse,
+  MemoryReviewSection,
+  MemoryReviewStatus,
+  MemoryReviewTimelineItem,
+} from './memory-review.js';
+
 export const TENANT_ROLES = [
   'capiro_admin',
   'user_admin',
