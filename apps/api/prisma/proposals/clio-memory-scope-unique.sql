@@ -1,5 +1,8 @@
--- SOURCE PROPOSAL ONLY. Do not execute directly. Allocate a forward migration
--- id in the central migration register after Core owner review and DB readback.
+-- HISTORICAL SOURCE PROPOSAL ONLY. Do not execute directly. The central owner
+-- allocated and promoted this design to
+-- migrations/20281018080000_clio_memory_scope_unique/migration.sql, with
+-- explicit index, row-shape, and duplicate preflight. Review that migration
+-- and the DB readback before any application.
 -- Depends on 20260713020000_memory_client_scope_ephemeral, which added
 -- clio_memory.client_id and the scope/owner/client shape constraint.
 --
