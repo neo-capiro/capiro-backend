@@ -3,7 +3,7 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import type { CoreEd25519KeyConfig } from '../core-ed25519-key-config.js';
 import type { CoreEd25519Signer } from '../core-ed25519-signer.js';
 import {
-  READ_TOKEN_AUDIENCE, READ_TOKEN_KINDS, READ_TOKEN_SCHEME, READ_TOKEN_TYPE, isSha, isUuid,
+  MERI_RETAINED_SOURCE_TOOLS, READ_TOKEN_AUDIENCE, READ_TOKEN_KINDS, READ_TOKEN_SCHEME, READ_TOKEN_TYPE, isSha, isUuid,
   type OperationRef, type ReadTokenKind,
 } from './read-delegation.contract.js';
 
@@ -36,9 +36,13 @@ export interface ReadTokenClaims {
   clientId: string;
   conversationId: string;
   runId: string;
+  /** Present only for a retained source 0.2 tool token. Bound to a separately
+   * authenticated correlation header at use; old token payloads omit it. */
+  correlationSha256?: string;
 }
 const CLAIM_KEYS = ['iss', 'aud', 'sub', 'jti', 'iat', 'nbf', 'exp', 'kind', 'callKey', 'method', 'path', 'bodySha256', 'operation',
   'toolRequestSha256', 'referenceSha256', 'tenantId', 'actorId', 'clientId', 'conversationId', 'runId'];
+const SOURCE_CLAIM_KEYS = [...CLAIM_KEYS, 'correlationSha256'];
 export const READ_TOKEN_MAX_SECONDS = 60;
 const SKEW_SECONDS = 5;
 const header = (kid: string) => JSON.stringify({ alg: 'EdDSA', typ: READ_TOKEN_TYPE, kid });
@@ -47,6 +51,11 @@ export const readTokenSha256 = (token: string) => createHash('sha256').update(to
 
 export async function signReadToken(signer: CoreEd25519Signer, claims: Omit<ReadTokenClaims, 'iss' | 'aud' | 'jti'>, signal?: AbortSignal):
   Promise<{ token: string; jti: string; tokenSha256: string }> {
+  const source = claims.operation != null && MERI_RETAINED_SOURCE_TOOLS.has(claims.operation.id);
+  if (source ? claims.kind !== 'tool' || claims.operation?.version !== '0.2.0' || !isSha(claims.correlationSha256)
+    : Object.hasOwn(claims, 'correlationSha256')) {
+    throw new Error('Invalid read token correlation');
+  }
   const jti = randomUUID();
   const payload = canonicalizeCoreRetainedJson({ ...claims, iss: signer.issuer, aud: READ_TOKEN_AUDIENCE, jti });
   const input = `${b64(header(signer.kid))}.${b64(payload)}`;
@@ -88,8 +97,13 @@ export function verifyReadToken(token: string, config: CoreEd25519KeyConfig, now
     const text = Buffer.from(parts[1]!, 'base64url').toString('utf8');
     const p = JSON.parse(text) as Record<string, unknown>;
     if (!p || typeof p !== 'object' || Array.isArray(p) || canonicalizeCoreRetainedJson(p) !== text) return null;
+    if (!operation(p.operation)) return null;
+    const source = p.operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(p.operation.id);
+    const expectedKeys = source ? SOURCE_CLAIM_KEYS : CLAIM_KEYS;
     const keys = Object.keys(p);
-    if (keys.length !== CLAIM_KEYS.length || CLAIM_KEYS.some((k) => !Object.hasOwn(p, k))) return null;
+    if (keys.length !== expectedKeys.length || expectedKeys.some((k) => !Object.hasOwn(p, k)) ||
+        (source ? p.kind !== 'tool' || p.operation?.version !== '0.2.0' || !isSha(p.correlationSha256)
+          : Object.hasOwn(p, 'correlationSha256'))) return null;
     const now = Math.floor(nowMs / 1000);
     if (p.iss !== config.issuer || p.aud !== READ_TOKEN_AUDIENCE || !Number.isSafeInteger(p.iat) || p.nbf !== p.iat ||
         !Number.isSafeInteger(p.exp) || (p.iat as number) > now + SKEW_SECONDS || (p.exp as number) <= now ||
