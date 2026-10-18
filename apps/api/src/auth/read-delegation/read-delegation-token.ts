@@ -3,8 +3,8 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import type { CoreEd25519KeyConfig } from '../core-ed25519-key-config.js';
 import type { CoreEd25519Signer } from '../core-ed25519-signer.js';
 import {
-  MERI_RETAINED_SOURCE_TOOLS, READ_TOKEN_AUDIENCE, READ_TOKEN_KINDS, READ_TOKEN_SCHEME, READ_TOKEN_TYPE,
-  isMeriRetainedSourceOperationVersion, isSha, isUuid,
+  MERI_CORRELATED_READ_TOOLS, READ_TOKEN_AUDIENCE, READ_TOKEN_KINDS, READ_TOKEN_SCHEME, READ_TOKEN_TYPE,
+  isMeriCorrelatedReadOperationVersion, isSha, isUuid,
   type OperationRef, type ReadTokenKind,
 } from './read-delegation.contract.js';
 
@@ -37,8 +37,8 @@ export interface ReadTokenClaims {
   clientId: string;
   conversationId: string;
   runId: string;
-  /** Present only for a retained source 0.2 tool token. Bound to a separately
-   * authenticated correlation header at use; old token payloads omit it. */
+  /** Present only for a correlation-bearing tool token. Bound to a separately
+   * authenticated correlation header at use; legacy tokens omit it. */
   correlationSha256?: string;
 }
 const CLAIM_KEYS = ['iss', 'aud', 'sub', 'jti', 'iat', 'nbf', 'exp', 'kind', 'callKey', 'method', 'path', 'bodySha256', 'operation',
@@ -52,8 +52,8 @@ export const readTokenSha256 = (token: string) => createHash('sha256').update(to
 
 export async function signReadToken(signer: CoreEd25519Signer, claims: Omit<ReadTokenClaims, 'iss' | 'aud' | 'jti'>, signal?: AbortSignal):
   Promise<{ token: string; jti: string; tokenSha256: string }> {
-  const source = claims.operation != null && MERI_RETAINED_SOURCE_TOOLS.has(claims.operation.id);
-  if (source ? claims.kind !== 'tool' || !isMeriRetainedSourceOperationVersion(claims.operation) ||
+  const source = claims.operation != null && MERI_CORRELATED_READ_TOOLS.has(claims.operation.id);
+  if (source ? claims.kind !== 'tool' || !isMeriCorrelatedReadOperationVersion(claims.operation) ||
     !isSha(claims.correlationSha256)
     : Object.hasOwn(claims, 'correlationSha256')) {
     throw new Error('Invalid read token correlation');
@@ -100,11 +100,11 @@ export function verifyReadToken(token: string, config: CoreEd25519KeyConfig, now
     const p = JSON.parse(text) as Record<string, unknown>;
     if (!p || typeof p !== 'object' || Array.isArray(p) || canonicalizeCoreRetainedJson(p) !== text) return null;
     if (!operation(p.operation)) return null;
-    const source = p.operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(p.operation.id);
+    const source = p.operation !== null && MERI_CORRELATED_READ_TOOLS.has(p.operation.id);
     const expectedKeys = source ? SOURCE_CLAIM_KEYS : CLAIM_KEYS;
     const keys = Object.keys(p);
     if (keys.length !== expectedKeys.length || expectedKeys.some((k) => !Object.hasOwn(p, k)) ||
-        (source ? p.kind !== 'tool' || !isMeriRetainedSourceOperationVersion(p.operation) ||
+        (source ? p.kind !== 'tool' || !isMeriCorrelatedReadOperationVersion(p.operation) ||
           !isSha(p.correlationSha256)
           : Object.hasOwn(p, 'correlationSha256'))) return null;
     const now = Math.floor(nowMs / 1000);
