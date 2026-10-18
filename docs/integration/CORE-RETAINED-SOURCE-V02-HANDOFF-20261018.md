@@ -2,7 +2,7 @@
 
 Core PR #87 (`codex/core-retained-reads-20261018`) is stacked on PR #86 at
 `b40971b1f8de888687a8fb92fbdf4ff653fe10d3`. The matching Meri source is
-PR #158, latest observed at `11617c26`. This is a local source handoff: **none
+PR #158, latest observed at `cdc1c043`. This is a local source handoff: **none
 of the eleven operations is available in the preview runtime**. The retained
 receiver admits only source families with current owner facts and full pinned
 Meri output validation for all nine wired 0.2 operations. The two disabled
