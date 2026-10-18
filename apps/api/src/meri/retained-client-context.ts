@@ -1,12 +1,15 @@
 /**
- * An inert projection boundary for the proposed get_client_context@0.3.0 read.
+ * A pure projection boundary for the proposed get_client_context@0.3.0 read.
  * The caller captures the window around the existing authorized Core reader.
  * The gateway's asOf remains an independent correlation input; it is never
  * presented as the time at which Core finished collecting this profile.
  *
- * No receiver should use this until Meri's exact 0.3.0 output validator is
- * pinned and supplied. This module neither calls the reader nor grants access.
+ * The complete Meri PR160 0.3.0 JSON schema and Core's ported semantic checks
+ * run before release. Meri has not yet registered this candidate operation;
+ * this module neither calls the reader nor grants access.
  */
+import { prepareRetainedClientContextV03 } from './retained-source-v02/client-context.js';
+
 export const RETAINED_CLIENT_CONTEXT_OPERATION_03 = Object.freeze({
   id: 'get_client_context',
   version: '0.3.0',
@@ -24,8 +27,13 @@ export interface ClientContextProjection03Input {
   gatewayAsOf: string;
   expectedTenantId: string;
   expectedClientId: string;
-  /** Must be Meri's pinned, exact get_client_context@0.3.0 output check. */
-  assertOutput03: (
+  /** The authenticated Meri normalization context, distinct from source time. */
+  clientResolution: { selector: string; clientId: string };
+  normalizedInput: unknown;
+  /** The original request, only when separately available from trusted context. */
+  request?: unknown;
+  /** Optional extra parity assertion; local schema and semantics always run. */
+  assertOutput03?: (
     value: unknown,
     context: Readonly<{
       operation: typeof RETAINED_CLIENT_CONTEXT_OPERATION_03;
@@ -72,10 +80,11 @@ function instant(value: unknown): number {
 
 /**
  * Projects only the known canonical Core profile wrapper. The output is
- * released only after the externally pinned Meri 0.3.0 validator accepts it.
+ * released only after the byte-pinned Meri 0.3.0 schema and the ported
+ * coverage, cursor, and identity assertions accept the canonical JSON page.
  */
 export function projectRetainedClientContext03(input: ClientContextProjection03Input): ProjectedClientContext03 {
-  if (typeof input?.assertOutput03 !== 'function') invalid();
+  if (input?.assertOutput03 !== undefined && typeof input.assertOutput03 !== 'function') invalid();
   const operation = exactData(input.operation, ['id', 'version']);
   if (operation.id !== RETAINED_CLIENT_CONTEXT_OPERATION_03.id ||
       operation.version !== RETAINED_CLIENT_CONTEXT_OPERATION_03.version) invalid();
@@ -89,23 +98,41 @@ export function projectRetainedClientContext03(input: ClientContextProjection03I
   if (client.id !== input.expectedClientId || client.tenantId !== input.expectedTenantId) invalid();
 
   const window = exactData(input.readWindow, ['startedAt', 'completedAt']);
-  // Meri owns the centrally recorded cross-host observation bound. A small
-  // clock skew can put its gateway stamp after Core's startedAt numerically;
-  // only the pinned Meri validator may decide whether that skew is allowed.
-  if (typeof input.gatewayAsOf !== 'string' ||
-      !Number.isFinite(Date.parse(input.gatewayAsOf))) invalid();
+  // Meri's asOf is an immutable gateway observation, not a cross-host clock
+  // bound on the Core source window. The pinned contract requires canonical
+  // spelling but deliberately does not order it against Core timestamps.
+  instant(input.gatewayAsOf);
   const startedAt = instant(window.startedAt);
   const sourceAt = instant(source.generatedAt);
   const completedAt = instant(window.completedAt);
   if (startedAt > sourceAt || sourceAt > completedAt) invalid();
 
-  const projected = Object.freeze({
+  const projected = {
     ...source,
     generatedAt: window.completedAt as string,
-    readWindow: Object.freeze({ startedAt: window.startedAt as string, completedAt: window.completedAt as string }),
+    readWindow: { startedAt: window.startedAt as string, completedAt: window.completedAt as string },
+  };
+  const prepared = prepareRetainedClientContextV03({
+    request: input.request,
+    normalizedInput: input.normalizedInput,
+    trusted: {
+      tenantId: input.expectedTenantId,
+      selectedClientId: input.expectedClientId,
+      asOf: input.gatewayAsOf,
+      clientResolution: input.clientResolution,
+    },
+    canonicalResult: projected,
+  });
+  if (prepared.kind !== 'prepared') invalid();
+  const result = Object.freeze({
+    ...prepared.result,
+    readWindow: Object.freeze(prepared.result.readWindow as ClientContextReadWindow),
   }) as ProjectedClientContext03;
+  if (result.readWindow.startedAt !== window.startedAt ||
+      result.readWindow.completedAt !== window.completedAt ||
+      result.generatedAt !== window.completedAt) invalid();
   try {
-    input.assertOutput03(projected, Object.freeze({
+    input.assertOutput03?.(result, Object.freeze({
       operation: RETAINED_CLIENT_CONTEXT_OPERATION_03,
       gatewayAsOf: input.gatewayAsOf,
       tenantId: input.expectedTenantId,
@@ -114,5 +141,5 @@ export function projectRetainedClientContext03(input: ClientContextProjection03I
   } catch {
     invalid();
   }
-  return projected;
+  return result;
 }

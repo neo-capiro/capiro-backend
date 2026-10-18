@@ -2,16 +2,18 @@
 
 Core PR #87 (`codex/core-retained-reads-20261018`) is stacked on PR #86 at
 `b40971b1f8de888687a8fb92fbdf4ff653fe10d3`. The matching Meri source is
-PR #158, latest observed at `cdc1c043`. This is a local source handoff: **none
-of the eleven operations is available in the preview runtime**. The retained
-receiver admits only source families with current owner facts and full pinned
-Meri output validation for all nine wired 0.2 operations. The two disabled
-families still answer
-`MERI_RETAINED_SOURCE_UNAVAILABLE` after task-bound admission.
+PR #158, latest observed at `cdc1c043`, for the ten 0.2 operations. Meri PR
+#160 pins the revised profile 0.3 contract at
+`0114f1a97ff9ca0f7b90ec281b557d0d24c1d225`. This is a local source
+handoff: **none of the eleven operations is available in the preview runtime**.
+The retained receiver now has ten source-wired operations with current owner
+facts and full pinned Meri output validation. The document operation still
+answers `MERI_RETAINED_SOURCE_UNAVAILABLE` after task-bound admission.
 
 Core commit `5ef9e131d` gates `get_client_context` at **0.3.0 only**. The other
-ten retained operations remain exact **0.2.0**. The profile receiver stays
-closed while Meri's 0.3 `readWindow` schema and byte hash are pending.
+ten retained operations remain exact **0.2.0**. Core mirrors the complete
+Meri PR #160 profile 0.3 schema byte for byte at SHA-256
+`7d422f92a4771b2d7e869e45371396c12b8a69934f9cb8ca50f5821ccab514a2`.
 
 ## Transport and authority
 
@@ -19,20 +21,20 @@ The eleven retained operations use the existing exact `POST /api/clio/tools/<ope
 
 The `x-meri-read-correlation` header is unpadded base64url of canonical JSON UTF-8, at most 8192 decoded bytes, with exactly `{binding,subject,policyRevision,normalizationContext}`. Core verifies its bytes against the token claim before consuming the token. The body is exactly `{input,metadata}`; the token's `bodySha256` hashes the emitted `JSON.stringify` bytes, while `argumentsSha256` is the canonical hash of normalized `input` and `requestSha256` is the canonical hash of `{input,metadata}`. A wrong or missing header refuses before JTI consumption. Release still rechecks the delegation, run, consent, membership and selected-client wall before any bytes could return.
 
-Meri must produce this correlation from its task effect authority and issue the token only after its `UNKNOWN` reservation. The shared dispatch owner must pass the trusted invocation ID and `toolCredential` to each retained adapter. The normalizer's metadata is never trusted as authority. For profile 0.3, the gateway's `asOf` remains gateway provenance. Core must capture bounded owner-read start and completion times and use the completion time as `generatedAt`; the gateway `asOf` cannot be relabeled as Core's observation. The exact `readWindow` schema and hash must come from Meri before Core can mirror and enforce them.
+Meri must produce this correlation from its task effect authority and issue the token only after its `UNKNOWN` reservation. The shared dispatch owner must pass the trusted invocation ID and `toolCredential` to each retained adapter. The normalizer's metadata is never trusted as authority. For profile 0.3, the gateway's `asOf` remains gateway provenance. Core captures bounded owner-read start and completion times and uses the completion time as `generatedAt`; the gateway `asOf` is not relabeled as Core's observation. The exact `readWindow` shape is enforced through the pinned Meri 0.3 schema and semantic checks.
 
 ## Source status
 
 | Operations | Core PR #87 local source status | Remaining dependency |
 | --- | --- | --- |
 | `resolve_entity`, `find_contacts` | Source wired: canonical owner reads, selected-client contacts/history wall checks, and complete byte-pinned Meri 0.2 output schemas with semantic source lineage. | Signed Meri relay and preview activation/readback. |
-| `get_client_context` | Core now accepts only version `0.3.0`; **receiver remains 503**. An inert owner wrapper brackets the canonical profile collector and rechecks the client wall; an inert 0.3 projector requires the exact Meri validator. The earlier six-section 0.2 schema mirror is historical preparation, not a qualified 0.3 result. | Meri publishes its exact 0.3 `readWindow` schema/hash; Core mirrors it, stamps `generatedAt` to the captured completion time, and adds focused receiver/release checks. |
+| `get_client_context` | Source wired at **0.3.0 only**: the canonical owner read brackets start/completion and rechecks the client wall; the receiver translates default and continuation inputs, then enforces the full byte-pinned Meri PR #160 schema and coverage, cursor, scope, source-window and identity semantics. `generatedAt` is the captured completion time. Focused projector, owner and receiver checks passed (3 suites, 33 tests). The earlier 0.2 schema mirror remains historical preparation. | Meri shared catalog, validator and skill receiving slice, then signed relay and preview activation/readback. |
 | `read_monday_client_boards` | Source wired: current managed mapping before and after the canonical owner read; exact row board/request scope, result hash and byte-pinned Meri 0.2 output schema. | Signed Meri relay and preview activation/readback. |
 | `read_client_documents` | Pure selected-client, source hash and pricing/cap checks exist. **Receiver remains 503**; an unmeasured or unenforced tariff cannot be treated as available. | Measured vision and Whisper prices, a reliable pre-call audio-duration cap in the actual extraction owner, and complete pinned output validation before receiver integration or a paid call. |
 | `mail.list_messages`, `mail.search_messages`, `mail.read_thread` | Source wired: verified mailbox IDs constrain owner SQL count, rows, inventory and thread loading; same-read handles, per-row scope and active-state checks, UTF-16 body proof, and complete byte-pinned Meri 0.2 output schemas. Coverage stays conservative. | Signed Meri relay and preview activation/readback. |
 | `meeting.list_upcoming_meetings`, `meeting.query_debriefs`, `meeting.read_client_meetings` | Source wired: current owner result and source inventory, request/trace identity and limitations, and complete byte-pinned Meri 0.2 output schemas. Coverage stays conservative. | Signed Meri relay and preview activation/readback; admission does not yet expose a lower claim-specific output budget. |
 
-The disabled families do not fall through to a broad legacy handler. Wired
+The disabled document family does not fall through to a broad legacy handler. Wired
 families call their canonical owners with same-read checks, and their
 projectors refuse absent evidence.
 Every wired receiver also enforces a 16 MiB serialized output ceiling before
@@ -45,9 +47,10 @@ selected-client delegation alone does not grant personal or Portfolio scope.
 Portfolio entity selection and portfolio-wide `query_tasks` remain separate
 Meri authority work.
 
-The nine source-wired operations are local Core preparations, not preview
+The ten source-wired operations are local Core preparations, not preview
 availability. All eleven require Meri's signed Option B relay and task-bound
-caller composition, the read-delegation signer/key and database facts grants,
+caller composition, including its shared catalog, validator and skill receiving
+slice; the read-delegation signer/key and database facts grants,
 the preview listener change and live readback of the service, keys and route.
 The reserved Core migration `20281018060000_meri_read_delegation` and Meri's
 four facts views have not been applied here. No live AWS mutation, live SQL,

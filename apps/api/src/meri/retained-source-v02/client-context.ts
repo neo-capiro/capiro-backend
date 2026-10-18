@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { CLIENT_PROFILE_SECTIONS, parseClientProfileQuery } from '../meri-client-context.helpers.js';
-import { retainedClientContextShape } from './client-context-contract.js';
+import { retainedClientContextShape, retainedClientContextShape03 } from './client-context-contract.js';
 
 type RecordValue = Record<string, unknown>;
 type ProfileSection = (typeof CLIENT_PROFILE_SECTIONS)[number];
@@ -120,13 +120,36 @@ export function prepareRetainedClientContextV02(args: {
   canonicalResult: unknown;
   ownerReceipt: unknown;
 }): RetainedClientContextPreparation {
+  return prepareRetainedClientContext(args, '0.2.0');
+}
+
+/** Meri PR160 profile output, including the source owner's bounded read window.
+ * This is still only a pure source check; the receiver supplies authenticated
+ * admission and a current canonical owner invocation before calling it. */
+export function prepareRetainedClientContextV03(args: {
+  request?: unknown;
+  normalizedInput: unknown;
+  trusted: unknown;
+  canonicalResult: unknown;
+}): RetainedClientContextPreparation {
+  return prepareRetainedClientContext(args, '0.3.0');
+}
+
+function prepareRetainedClientContext(args: {
+  request?: unknown;
+  normalizedInput: unknown;
+  trusted: unknown;
+  canonicalResult: unknown;
+  ownerReceipt?: unknown;
+}, version: '0.2.0' | '0.3.0'): RetainedClientContextPreparation {
+  const shape = version === '0.3.0' ? retainedClientContextShape03 : retainedClientContextShape;
   const trusted = record(args.trusted);
   const resolution = record(trusted?.clientResolution);
   if (!trusted || !resolution || !exactKeys(trusted, ['tenantId', 'selectedClientId', 'asOf', 'clientResolution']) ||
       !exactKeys(resolution, ['selector', 'clientId']) ||
       typeof trusted.tenantId !== 'string' || !UUID.test(trusted.tenantId) ||
       typeof trusted.selectedClientId !== 'string' || !UUID.test(trusted.selectedClientId) ||
-      !retainedClientContextShape.context({ asOf: trusted.asOf, clientResolution: resolution }) ||
+      !shape.context({ asOf: trusted.asOf, clientResolution: resolution }) ||
       !canonicalInstant(trusted.asOf) || typeof resolution.selector !== 'string' ||
       !resolution.selector || resolution.selector !== resolution.selector.trim() ||
       resolution.selector.length > 80 || typeof resolution.clientId !== 'string' ||
@@ -136,7 +159,7 @@ export function prepareRetainedClientContextV02(args: {
     return refused('selection_mismatch');
 
   const input = record(args.normalizedInput);
-  if (!input || !retainedClientContextShape.input(input) ||
+  if (!input || !shape.input(input) ||
       input.clientId !== trusted.selectedClientId ||
       (input.section === null && input.afterId !== null) || input.afterId === '')
     return refused('selection_mismatch');
@@ -149,7 +172,7 @@ export function prepareRetainedClientContextV02(args: {
   // to recreate its cursor or selector from the normalized body.
   if (args.request !== undefined) {
     const request = record(args.request);
-    if (!request || !retainedClientContextShape.request(request) ||
+    if (!request || !shape.request(request) ||
         typeof request.clientId !== 'string' ||
         request.clientId.trim().slice(0, 80) !== resolution.selector)
       return refused('selection_mismatch');
@@ -168,18 +191,26 @@ export function prepareRetainedClientContextV02(args: {
 
   const serialized = snapshot(args.canonicalResult);
   const result = record(serialized?.value);
-  if (!serialized || !result || !retainedClientContextShape.output(result)) return refused('contract_mismatch');
+  if (!serialized || !result || !shape.output(result)) return refused('contract_mismatch');
   if (result.tool !== 'get_client_context' ||
       result.coverageNote !== RETAINED_CLIENT_CONTEXT_COVERAGE_NOTE) return refused('source_mismatch');
-  const receipt = record(args.ownerReceipt);
-  if (!receipt || !exactKeys(receipt, ['tool', 'tenantId', 'clientId', 'observedAt', 'resultSha256']) ||
-      receipt.tool !== 'get_client_context' || receipt.tenantId !== trusted.tenantId ||
-      receipt.clientId !== trusted.selectedClientId || typeof receipt.resultSha256 !== 'string' ||
-      !SHA.test(receipt.resultSha256) || receipt.resultSha256 !== sha256(serialized.json))
-    return refused('source_mismatch');
-  if (!canonicalInstant(receipt.observedAt) ||
-      receipt.observedAt !== result.generatedAt || result.generatedAt !== trusted.asOf)
-    return refused('observation_mismatch');
+  if (version === '0.3.0') {
+    const window = record(result.readWindow);
+    if (!window || !exactKeys(window, ['startedAt', 'completedAt']) ||
+        !canonicalInstant(window.startedAt) || !canonicalInstant(window.completedAt) ||
+        Date.parse(window.startedAt) > Date.parse(window.completedAt) ||
+        result.generatedAt !== window.completedAt) return refused('observation_mismatch');
+  } else {
+    const receipt = record(args.ownerReceipt);
+    if (!receipt || !exactKeys(receipt, ['tool', 'tenantId', 'clientId', 'observedAt', 'resultSha256']) ||
+        receipt.tool !== 'get_client_context' || receipt.tenantId !== trusted.tenantId ||
+        receipt.clientId !== trusted.selectedClientId || typeof receipt.resultSha256 !== 'string' ||
+        !SHA.test(receipt.resultSha256) || receipt.resultSha256 !== sha256(serialized.json))
+      return refused('source_mismatch');
+    if (!canonicalInstant(receipt.observedAt) ||
+        receipt.observedAt !== result.generatedAt || result.generatedAt !== trusted.asOf)
+      return refused('observation_mismatch');
+  }
 
   const context = record(result.context)!;
   const client = record(context.client)!;
@@ -221,6 +252,8 @@ export function prepareRetainedClientContextV02(args: {
     for (let index = 0; index < rows.length; index += 1) {
       const row = record(rows[index])!;
       const ref = record(refs[index])!;
+      if (version === '0.3.0' && !retainedClientContextShape03.row(name, representation, row))
+        return refused('coverage_mismatch');
       if (typeof row.id !== 'string' || !row.id ||
           (previous !== null && row.id <= previous) || ref.recordId !== row.id ||
           (Object.hasOwn(row, 'updatedAt') &&

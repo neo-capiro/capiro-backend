@@ -544,25 +544,65 @@ export class MeriToolsService {
   async readRetainedClientContextSourceV03(ctx: TenantContext,
     admission: RetainedSourceV02Admission) {
     assertMeriToolRequestActive();
+    // Meri's signed input is a normalized profile query. The canonical Core
+    // reader accepts an optional section and a scoped cursor instead of
+    // normalized section:null/afterId. Translate only after admission, without
+    // altering the bytes committed to the delegation token.
+    const selection = admission.input;
+    const section = selection.section;
+    const afterId = selection.afterId;
+    if (Object.keys(selection).length !== 5 ||
+        !['clientId', 'section', 'afterId', 'limit', 'representation']
+          .every((key) => Object.hasOwn(selection, key)) ||
+        section !== null && !CLIENT_PROFILE_SECTIONS.includes(section as typeof CLIENT_PROFILE_SECTIONS[number]) ||
+        afterId !== null && (typeof afterId !== 'string' || !afterId) ||
+        afterId !== null && section === null ||
+        typeof selection.limit !== 'number' || !Number.isInteger(selection.limit) ||
+        selection.limit < 1 || selection.limit > 50 ||
+        selection.representation !== 'summary' && selection.representation !== 'full')
+      throw new ServiceUnavailableException('Retained client context source unavailable');
     if (admission.operation.id !== 'get_client_context' ||
         admission.operation.version !== '0.3.0' ||
         ctx.tenantId !== admission.binding.tenantId ||
         ctx.userId !== admission.binding.actorId ||
         admission.subject.kind !== 'client' || admission.subject.entityType !== 'client' ||
+        admission.subject.tenantId !== ctx.tenantId ||
+        admission.subject.actorId !== ctx.userId ||
         admission.subject.entityIds.length !== 1 ||
         admission.subject.entityIds[0] !== admission.clientId ||
         admission.input.clientId !== admission.clientId ||
         Date.now() >= admission.hardExpiryMs)
       throw new ServiceUnavailableException('Retained client context source unavailable');
-    await this.ensureClientVisible(ctx, admission.clientId);
+    if (await this.ensureClientVisible(ctx, admission.clientId) !== admission.clientId)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
     assertMeriToolRequestActive();
+    const legacyInput: Record<string, unknown> = {
+      clientId: admission.clientId,
+      limit: selection.limit,
+      representation: selection.representation,
+    };
+    if (section !== null) legacyInput.section = section;
+    if (afterId !== null) {
+      const cursor = Buffer.from(JSON.stringify({
+        v: 1, clientId: admission.clientId, section, afterId,
+      }), 'utf8').toString('base64url');
+      if (cursor.length > 1024)
+        throw new ServiceUnavailableException('Retained client context source unavailable');
+      legacyInput.cursor = cursor;
+    }
     const startedAt = new Date().toISOString();
-    const result = await this.getClientContext(ctx, admission.input);
-    await this.ensureClientVisible(ctx, admission.clientId);
+    const result = await this.getClientContext(ctx, legacyInput);
+    if (await this.ensureClientVisible(ctx, admission.clientId) !== admission.clientId)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
     assertMeriToolRequestActive();
     if (Date.now() >= admission.hardExpiryMs)
       throw new ServiceUnavailableException('Retained client context source unavailable');
     const completedAt = new Date().toISOString();
+    // getClientContext awaits engagement and every section read in its
+    // Promise.all before resolving, so this interval brackets all seven
+    // contributing owner reads. A clock discontinuity fails closed.
+    if (Date.parse(startedAt) > Date.parse(completedAt))
+      throw new ServiceUnavailableException('Retained client context source unavailable');
     const serialized = JSON.stringify(result);
     if (!serialized || Buffer.byteLength(serialized, 'utf8') > 16 * 1024 * 1024)
       throw new ServiceUnavailableException('Retained client context source unavailable');
