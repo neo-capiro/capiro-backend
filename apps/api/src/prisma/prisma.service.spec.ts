@@ -84,3 +84,44 @@ describe('PrismaService.withSystem transaction option boundary', () => {
     expect(transaction).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('PrismaService.withTenant transaction option boundary', () => {
+  function host() {
+    const tx = { $executeRaw: jest.fn(async () => 1) };
+    const transaction = jest.fn(async (fn: (value: typeof tx) => unknown, _options?: unknown) => fn(tx));
+    const scopedClient = jest.fn(() => ({ $transaction: transaction }));
+    const owner = { scopedClient } as unknown as PrismaService;
+    return { tx, transaction, scopedClient, owner };
+  }
+
+  it('preserves the default isolation and tenant-scoped callback', async () => {
+    const { owner, tx, transaction, scopedClient } = host();
+    const callback = jest.fn(async (value) => ({ same: value === tx }));
+    await expect(PrismaService.prototype.withTenant.call(owner, 'tenant-id', callback)).resolves.toEqual({ same: true });
+    expect(transaction.mock.calls[0]?.[1]).toBeUndefined();
+    expect(scopedClient).toHaveBeenCalledWith({ tenantId: 'tenant-id' });
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect((tx.$executeRaw.mock.calls as unknown as unknown[][])[0]?.[0]).toEqual(
+      ["SELECT set_config('app.current_tenant', ", ', true)'],
+    );
+    expect((tx.$executeRaw.mock.calls as unknown as unknown[][])[0]?.[1]).toBe('tenant-id');
+  });
+
+  it('preserves timeout-only options without adding an isolation level', async () => {
+    const { owner, transaction } = host();
+    await PrismaService.prototype.withTenant.call(owner, 'tenant-id', async () => 'ok', { timeoutMs: 1234 });
+    expect(transaction.mock.calls[0]?.[1]).toEqual({ timeout: 1234 });
+  });
+
+  it('passes explicit RepeatableRead to Prisma at transaction creation, with or without timeout', async () => {
+    const { owner, transaction } = host();
+    const isolationLevel = Prisma.TransactionIsolationLevel.RepeatableRead;
+    await PrismaService.prototype.withTenant.call(owner, 'tenant-id', async () => 'ok', { isolationLevel });
+    await PrismaService.prototype.withTenant.call(owner, 'tenant-id', async () => 'ok', {
+      isolationLevel,
+      timeoutMs: 1234,
+    });
+    expect(transaction.mock.calls[0]?.[1]).toEqual({ isolationLevel });
+    expect(transaction.mock.calls[1]?.[1]).toEqual({ isolationLevel, timeout: 1234 });
+  });
+});
