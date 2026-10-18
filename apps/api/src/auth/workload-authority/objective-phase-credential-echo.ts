@@ -51,7 +51,7 @@ function own(raw: unknown, keys: readonly string[]): Record<string, unknown> {
   const value: Record<string, unknown> = Object.create(null);
   for (const key of keys) {
     const descriptor = Object.getOwnPropertyDescriptor(raw, key);
-    if (!descriptor?.enumerable || !('value' in descriptor)) refuse();
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return refuse();
     value[key] = descriptor.value;
   }
   return value;

@@ -153,7 +153,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     await this.governedPrisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(tx, tenantId, candidateId);
       this.requireGovernedIndependentReviewer(candidate, reviewerUserId);
-      this.requireMeriPersonalOwner(candidate, reviewerUserId);
+      this.requireMeriPersonalRejectionOwner(candidate, reviewerUserId);
       await this.authorizeReviewerInTx(tx, tenantId, reviewerUserId, candidateId, actorContext);
       await this.decideTerminalInTx(tx, tenantId, candidateId, 'rejected', reviewerUserId);
     });
@@ -401,7 +401,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
   /** A Meri personal submission belongs to its proposer even while governed
    * enforcement is dark. Keep this in the actual rejection owner, before the
    * enforcement-gated authorization path or any terminal update. */
-  private requireMeriPersonalOwner(
+  private requireMeriPersonalRejectionOwner(
     candidate: Pick<LockedDispositionCandidate, 'proposedBy' | 'scope' | 'sourceType'>,
     reviewerUserId: string,
   ): void {
