@@ -237,6 +237,34 @@ describe('routine consent from the attended Execute (wire A before_claim)', () =
     expect(w.state.revocations).toEqual([expect.objectContaining({ scheduleId, reason: 'paused', revokedByUserId: actorId })]);
   });
 
+  it('dates consent and revocation with the database clock used by unattended grants', async () => {
+    const w = world();
+    w.state.clockShiftMs = 5_000;
+    const beforeConsentMs = Date.now() + w.state.clockShiftMs;
+    await consent(w);
+    const afterConsentMs = Date.now() + w.state.clockShiftMs;
+    const consentIssuedMs = new Date(w.state.consents[0]!.issuedAt).getTime();
+    expect(consentIssuedMs).toBeGreaterThanOrEqual(beforeConsentMs);
+    expect(consentIssuedMs).toBeLessThanOrEqual(afterConsentMs);
+
+    w.state.clockShiftMs = 10_000;
+    const pause = intent('cancel_scheduled_task', { cancel: { mode: 'pause', note: 'n', running: 'request_cancel', runs: [] } });
+    const beforeRevokeMs = Date.now() + w.state.clockShiftMs;
+    await w.service.policyCheck(verifiedRequest(), ctx, body(selection('cancel_scheduled_task', scheduleBinding(pause, Date.now()))));
+    const afterRevokeMs = Date.now() + w.state.clockShiftMs;
+    const revokedMs = w.state.revocations[0]!.revokedAt.getTime();
+    expect(revokedMs).toBeGreaterThanOrEqual(beforeRevokeMs);
+    expect(revokedMs).toBeLessThanOrEqual(afterRevokeMs);
+    expect(revokedMs).toBeGreaterThan(consentIssuedMs);
+  });
+
+  it('refuses to persist attended consent when its binding has expired at the database clock', async () => {
+    const w = world();
+    w.state.clockShiftMs = 31_000;
+    await expect(consent(w)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(w.state.consents).toHaveLength(0);
+  });
+
   it('writes no consent when the selected proposal differs from the approved Execute', async () => {
     const w = world();
     process.env.MERI_ROUTINE_MAX_COST_MICROUSD = '2000000';

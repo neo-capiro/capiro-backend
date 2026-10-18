@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import {
   ConflictException, ForbiddenException, GoneException, HttpException, ServiceUnavailableException,
   UnauthorizedException, UnsupportedMediaTypeException,
@@ -10,11 +11,12 @@ import { readCoreEd25519KeyConfig } from '../core-ed25519-key-config.js';
 import { applicationAuthorityRevision, type ApplicationAuthorityIdentityEvidence, type ApplicationAuthorityIdentityProof } from '../application-authority.js';
 import { fetchAccessibleClientRevisionsForClerkActor } from '../../memory/memory-wall.helpers.js';
 import {
-  READ_DELEGATION_LIMITS, READ_DELEGATION_ROUTES, READ_TOKEN_SCHEME, delegationPath, sha256Hex, toolPath,
+  READ_DELEGATION_LIMITS, READ_DELEGATION_ROUTES, READ_TOKEN_SCHEME, canonicalSha256, delegationPath, sha256Hex, toolPath,
   type OperationRef, type ReadTokenKind,
 } from './read-delegation.contract.js';
 import { assertDelegationFacts, assertToolReservation, readRunFacts, type DelegationFacts } from './read-delegation-facts.js';
 import { readTokenFromAuthorization, readTokenSha256, verifyReadToken, type ReadTokenClaims } from './read-delegation-token.js';
+import type { DocumentTextOnlyAllocation } from './read-delegation-document-pricing.js';
 
 /**
  * Tenant-middleware support for run-bound read delegation (RC1 option B,
@@ -108,6 +110,17 @@ export interface MeriReadDelegationGrant {
   clientId: string;
   conversationId: string;
   runId: string;
+  /** Core-verified Meri run binding, read from the locked delegation row. */
+  binding: { tenantId: string; actorId: string; conversationId: string; runId: string; attemptId: string; writerFence: number };
+  /** Exact seven-field original ADMITTED binding under the snapshot lock. */
+  admittedBinding: { tenantId: string; actorId: string; conversationId: string; runId: string; attemptId: string; workerId: string; writerFence: number };
+  /** Document tariff from the original locked allocation; not a token claim. */
+  documentTextOnlyAllocation?: DocumentTextOnlyAllocation | null;
+  policyRevision: string;
+  /** Digest of a separately authenticated retained-source correlation header. */
+  correlationSha256: string | null;
+  /** Tool reservation argument hash read from the consumed token row. */
+  argumentsSha256: string | null;
   callKey: string;
   kind: ReadTokenKind;
   operation: OperationRef | null;
@@ -118,6 +131,28 @@ export interface MeriReadDelegationGrant {
 }
 const grants = new WeakMap<Request, MeriReadDelegationGrant>();
 export const meriReadDelegationOf = (req: Request): MeriReadDelegationGrant | undefined => grants.get(req);
+const retainedCorrelations = new WeakMap<Request, unknown>();
+export const meriRetainedCorrelationOf = (req: Request): unknown => retainedCorrelations.get(req);
+
+/** The exact canonical JSON header is part of the Core-signed, one-use token.
+ * Decode before consuming its JTI so malformed transport cannot burn a slot. */
+function readRetainedCorrelation(req: Request, digest: string | undefined): unknown {
+  const header = req.headers['x-meri-read-correlation'];
+  if (digest === undefined) {
+    if (header !== undefined) throw denied();
+    return undefined;
+  }
+  if (typeof header !== 'string' || header.length > 11_000 || !/^[A-Za-z0-9_-]+$/.test(header)) throw denied();
+  const bytes = Buffer.from(header, 'base64url');
+  if (bytes.length > 8192 || bytes.toString('base64url') !== header) throw denied();
+  const json = bytes.toString('utf8');
+  if (!Buffer.from(json, 'utf8').equals(bytes)) throw denied();
+  let value: unknown;
+  try { value = JSON.parse(json); } catch { throw denied(); }
+  try { if (canonicalizeCoreRetainedJson(value) !== json) throw denied(); } catch { throw denied(); }
+  if (sha256Hex(bytes) !== digest) throw denied();
+  return value;
+}
 
 const denied = () => new ForbiddenException('Read delegation refused');
 const changed = () => new ConflictException('Read delegation changed');
@@ -207,6 +242,7 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
   const token = readTokenFromAuthorization(req.headers.authorization);
   const claims = token ? verifyReadToken(token, config, deps.nowMs) : null;
   if (!token || !claims) throw credential();
+  const retainedCorrelation = readRetainedCorrelation(req, claims.correlationSha256);
   if (req.header('x-capiro-impersonate-tenant') !== undefined || req.header(TENANT_HEADER) !== undefined) throw denied();
   const path = exactPath(req);
   const target = targetOf(claims);
@@ -237,7 +273,9 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
         }
         const member = await readDelegatedMember(tx, d);
         await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
-        return { d, member, hardExpiryMs };
+        if (!facts.admittedBinding) throw denied();
+        return { d, member, hardExpiryMs, argumentsSha256: u.arguments_sha256, admittedBinding: facts.admittedBinding,
+          documentTextOnlyAllocation: facts.documentTextOnlyAllocation ?? null };
       }, { timeoutMs: 5000 });
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -251,9 +289,17 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
   grants.set(req, Object.freeze({
     delegationId: admitted.d.id, mode: admitted.d.mode as 'attended' | 'unattended', tenantId: ctx.tenantId, actorId: ctx.userId,
     clientId: admitted.d.clientId, conversationId: admitted.d.conversationId, runId: admitted.d.runId, callKey: claims.callKey,
+    binding: Object.freeze({ tenantId: admitted.d.tenantId, actorId: admitted.d.actorId,
+      conversationId: admitted.d.conversationId, runId: admitted.d.runId, attemptId: admitted.d.attemptId,
+      writerFence: admitted.d.writerFence }), policyRevision: admitted.d.policyRevision,
+    admittedBinding: Object.freeze({ ...admitted.admittedBinding }),
+    ...(claims.operation?.id === 'read_client_documents'
+      ? { documentTextOnlyAllocation: admitted.documentTextOnlyAllocation } : {}),
+    correlationSha256: claims.correlationSha256 ?? null, argumentsSha256: admitted.argumentsSha256,
     kind: claims.kind, operation: claims.operation ? Object.freeze({ ...claims.operation }) : null, toolRequestSha256: claims.toolRequestSha256,
     referenceSha256: claims.referenceSha256, jti: claims.jti, hardExpiryMs: admitted.hardExpiryMs,
   }));
+  if (retainedCorrelation !== undefined) retainedCorrelations.set(req, retainedCorrelation);
   return ctx;
 }
 
@@ -271,6 +317,9 @@ export async function assertMeriReadDelegationReleasable(prisma: SystemPrisma, r
       const d = await lockDelegation(tx, grant.tenantId, grant.delegationId, 'share');
       if (!d) throw changed();
       const facts = await readRunFacts(tx, d.tenantId, d.runId);
+      if (grant.operation?.id === 'read_client_documents' &&
+          canonicalSha256(facts.documentTextOnlyAllocation ?? null) !== canonicalSha256(grant.documentTextOnlyAllocation ?? null))
+        throw changed();
       const hard = Math.min(assertDelegationFacts(facts, d, grant.operation ? { operation: grant.operation } : {}), await assertConsentCurrent(tx, d));
       if (facts.dbNowMs >= Math.min(hard, grant.hardExpiryMs)) throw new GoneException('Read delegation expired');
       const member = await readDelegatedMember(tx, d);

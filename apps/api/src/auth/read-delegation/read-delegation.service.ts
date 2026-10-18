@@ -18,7 +18,7 @@ import { readApplicationAuthorityContext } from '../application-authority.js';
 import type { ApplicationMembershipControl } from '../application-membership.js';
 import { ApplicationMembershipService } from '../application-membership.service.js';
 import {
-  MERI_DELEGATED_READ_TOOLS, READ_DELEGATION_LIMITS, READ_TOKEN_CEILINGS, delegationIdempotencyKey, operationsDigest, parseConsentCreate, parseConsentState,
+  MERI_DELEGATED_READ_TOOLS, MERI_RETAINED_SOURCE_TOOLS, READ_DELEGATION_LIMITS, READ_TOKEN_CEILINGS, delegationIdempotencyKey, operationsDigest, parseConsentCreate, parseConsentState,
   parseCurrentBody, parseDelegationCreate, parseRevoke, parseTokenRequest, type DelegationCreateRequest, type ReadTokenKind,
 } from './read-delegation.contract.js';
 import {
@@ -210,7 +210,7 @@ export class ReadDelegationService {
       const { user } = await readDelegatedMember(tx, d);
       await assertDelegatedClientVisible(tx, d.tenantId, user.clerkUserId, d.clientId);
       if (t.kind === 'tool') {
-        if (!MERI_DELEGATED_READ_TOOLS.has(t.operation!.id)) throw denied();
+        if (!MERI_DELEGATED_READ_TOOLS.has(t.operation!.id) && !MERI_RETAINED_SOURCE_TOOLS.has(t.operation!.id)) throw denied();
         await assertToolReservation(tx, d.runId, t.callKey, t.operation!, t.argumentsSha256!);
       }
 
@@ -271,6 +271,7 @@ export class ReadDelegationService {
       const signed = await signReadToken(this.signer!, {
         sub: d.id, iat, nbf: iat, exp, kind: t.kind, callKey: t.callKey, method: 'POST', path: t.path, bodySha256: t.bodySha256,
         operation: t.operation, toolRequestSha256: t.toolRequestSha256, referenceSha256: t.referenceSha256,
+        ...(t.correlationSha256 === null ? {} : { correlationSha256: t.correlationSha256 }),
         tenantId: d.tenantId, actorId: d.userId, clientId: d.clientId, conversationId: d.conversationId, runId: d.runId,
       }, signal);
       await tx.$executeRaw`

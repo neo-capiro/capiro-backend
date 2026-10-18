@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { readMeriAdmittedRun } from '../../meri/execution-capability/meri-admitted-run.reader.js';
 import type { NativeRunBinding } from '../../meri/native-approvals/native-approval.contract.js';
 import { canonicalSha256, isSha, isUuid, operationsDigest, type OperationRef } from './read-delegation.contract.js';
+import { readDocumentTextOnlyAllocation, type DocumentTextOnlyAllocation } from './read-delegation-document-pricing.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -17,6 +18,11 @@ type Tx = Prisma.TransactionClient;
  * grant set. A view row's existence is never authority (dot 6248061000).
  */
 export interface RunFacts {
+  /** Saved seven-field ADMITTED binding, verified under the admission lock.
+   * Distinct from the six-field Option B run projection below. */
+  admittedBinding?: NativeRunBinding;
+  /** Projection of the exact locked original allocation, never caller metadata. */
+  documentTextOnlyAllocation?: DocumentTextOnlyAllocation | null;
   runId: string;
   tenantId: string;
   conversationId: string;
@@ -178,6 +184,8 @@ export async function readRunFacts(tx: Tx, tenantId: string, runId: string): Pro
       !plain(budgets) || facts.maxToolCalls !== budgets.maxToolCalls ||
       facts.reservedCalls > facts.maxToolCalls) throw changed();
   facts.admittedUntilMs = Math.min(facts.admittedUntilMs, admission.deadlineMs);
+  facts.admittedBinding = binding;
+  facts.documentTextOnlyAllocation = readDocumentTextOnlyAllocation(allocation, admission.allocationSha256);
   if (facts.dbNowMs >= facts.admittedUntilMs) throw new GoneException('Read delegation expired');
   return facts;
 }

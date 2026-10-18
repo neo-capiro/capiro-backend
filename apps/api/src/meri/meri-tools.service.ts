@@ -140,6 +140,19 @@ import {
   type ScheduleLocalAnchor,
 } from './meri-schedule.helpers.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
+import { readWithCurrentDocumentFacts } from './retained-source-v02/document-current-source.js';
+import { NO_DOCUMENT_PROVIDER_CALLS } from './retained-source-v02/documents-monday.js';
+import { canonicalSha256 } from '../auth/read-delegation/read-delegation.contract.js';
+import { qualifyDocumentTextOnlyRuntime, RetainedDocumentRuntimeIdentityReader } from './retained-source-v02/document-runtime-qualification.js';
+import type { RetainedSourceV02Admission } from './retained-source-v02/admission.js';
+import { createMailBodySectionV02 } from './retained-source-v02/mail.js';
+import { readWithCurrentMondayMapping } from './retained-source-v02/monday-current-source.js';
+import {
+  captureMeetingV02OwnerRead,
+  prepareMeetingV02OwnerInput,
+  type MeetingV02Operation,
+} from './retained-source-v02/meetings.js';
 import { readTextArtifactCreation, type TextArtifactCreation } from './meri-text-artifact-receipt.js';
 import {
   MAX_DOCUMENT_ARTIFACT_BYTES,
@@ -437,6 +450,7 @@ export class MeriToolsService {
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly federalMarket?: FederalMarketService,
     @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
+    @Optional() private readonly retainedDocumentRuntimeIdentity?: RetainedDocumentRuntimeIdentityReader,
   ) {}
 
   manifest() {
@@ -503,6 +517,151 @@ export class MeriToolsService {
       clientId,
       records: response.records,
       coverage: response.coverage,
+    };
+  }
+
+  /** The exact 0.2 source always forbids provider extraction. Expected tariff
+   * pins come from the locked original allocation; an independent runtime
+   * reader is absent by default, so deployment qualification stays closed. */
+  async readRetainedDocumentSourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
+    const active = () => {
+      assertMeriToolRequestActive();
+      if (!Number.isSafeInteger(admission.hardExpiryMs) || Date.now() >= admission.hardExpiryMs)
+        throw new ServiceUnavailableException('Retained document deadline expired');
+    };
+    active();
+    if (admission.operation.id !== 'read_client_documents' || admission.operation.version !== '0.2.0' ||
+        admission.metadata !== null ||
+        ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId ||
+        !admission.normalizationContext || Object.keys(admission.normalizationContext).length !== 2 ||
+        canonicalSha256(admission.normalizationContext) !==
+          canonicalSha256({ binding: admission.binding, subject: admission.subject }))
+      throw new ServiceUnavailableException('Retained document source unavailable');
+    const runtimeReader = this.retainedDocumentRuntimeIdentity;
+    if (!admission.documentTextOnlyAllocation || !runtimeReader)
+      throw new ServiceUnavailableException('Current retained document runtime qualification unavailable');
+    const qualify = async () => {
+      active();
+      const runtime = await runtimeReader.readCurrent();
+      active();
+      return qualifyDocumentTextOnlyRuntime(admission.documentTextOnlyAllocation, runtime);
+    };
+    const initialQualification = await qualify();
+    const assertWall = async () => {
+      active();
+      await this.ensureClientVisible(ctx, admission.clientId);
+      const denied = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,
+        (tx) => fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
+      if (denied.includes(admission.clientId)) throw new NotFoundException('Client not found');
+      active();
+    };
+    await assertWall();
+    const result = await readWithCurrentDocumentFacts(this.engagement, ctx, {
+      binding: { ...admission.binding }, subject: { ...admission.subject }, selectedClientId: admission.clientId,
+    }, admission.input, NO_DOCUMENT_PROVIDER_CALLS,
+    (legacyInput) => this.readClientDocuments(ctx, legacyInput, { allowPaidExtraction: false }),
+    Date.now, active);
+    await assertWall();
+    if (await qualify() !== initialQualification)
+      throw new ServiceUnavailableException('Current retained document runtime qualification changed');
+    active();
+    return result;
+  }
+
+  /** Current managed board mapping and the canonical Monday owner are read in
+   * one retained invocation. The family validator checks the exact 0.2 DTO. */
+  async readRetainedMondaySourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
+    assertMeriToolRequestActive();
+    if (admission.operation.id !== 'read_monday_client_boards' ||
+        ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId ||
+        admission.subject.kind !== 'client' || admission.subject.entityType !== 'client' ||
+        admission.subject.entityIds.length !== 1 || admission.subject.entityIds[0] !== admission.clientId ||
+        admission.input.clientId !== admission.clientId || Date.now() >= admission.hardExpiryMs)
+      throw new ServiceUnavailableException('Retained Monday source unavailable');
+    return readWithCurrentMondayMapping(
+      this.prisma, ctx,
+      {
+        binding: { ...admission.binding },
+        subject: { ...admission.subject },
+        selectedClientId: admission.clientId,
+      },
+      admission.input,
+      (legacyInput) => this.readMondayClientBoards(ctx, legacyInput),
+    );
+  }
+
+  /** Capture the canonical profile collection window without relabeling
+   * Meri's earlier gateway asOf as a Core observation. This is inert source
+   * preparation until the exact Meri 0.3 schema/validator is pinned and the
+   * receiver mounts the corresponding projector. */
+  async readRetainedClientContextSourceV03(ctx: TenantContext,
+    admission: RetainedSourceV02Admission) {
+    assertMeriToolRequestActive();
+    // Meri's signed input is a normalized profile query. The canonical Core
+    // reader accepts an optional section and a scoped cursor instead of
+    // normalized section:null/afterId. Translate only after admission, without
+    // altering the bytes committed to the delegation token.
+    const selection = admission.input;
+    const section = selection.section;
+    const afterId = selection.afterId;
+    if (Object.keys(selection).length !== 5 ||
+        !['clientId', 'section', 'afterId', 'limit', 'representation']
+          .every((key) => Object.hasOwn(selection, key)) ||
+        section !== null && !CLIENT_PROFILE_SECTIONS.includes(section as typeof CLIENT_PROFILE_SECTIONS[number]) ||
+        afterId !== null && (typeof afterId !== 'string' || !afterId) ||
+        afterId !== null && section === null ||
+        typeof selection.limit !== 'number' || !Number.isInteger(selection.limit) ||
+        selection.limit < 1 || selection.limit > 50 ||
+        selection.representation !== 'summary' && selection.representation !== 'full')
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    if (admission.operation.id !== 'get_client_context' ||
+        admission.operation.version !== '0.3.0' ||
+        ctx.tenantId !== admission.binding.tenantId ||
+        ctx.userId !== admission.binding.actorId ||
+        admission.subject.kind !== 'client' || admission.subject.entityType !== 'client' ||
+        admission.subject.tenantId !== ctx.tenantId ||
+        admission.subject.actorId !== ctx.userId ||
+        admission.subject.entityIds.length !== 1 ||
+        admission.subject.entityIds[0] !== admission.clientId ||
+        admission.input.clientId !== admission.clientId ||
+        Date.now() >= admission.hardExpiryMs)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    if (await this.ensureClientVisible(ctx, admission.clientId) !== admission.clientId)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    assertMeriToolRequestActive();
+    const legacyInput: Record<string, unknown> = {
+      clientId: admission.clientId,
+      limit: selection.limit,
+      representation: selection.representation,
+    };
+    if (section !== null) legacyInput.section = section;
+    if (afterId !== null) {
+      const cursor = Buffer.from(JSON.stringify({
+        v: 1, clientId: admission.clientId, section, afterId,
+      }), 'utf8').toString('base64url');
+      if (cursor.length > 1024)
+        throw new ServiceUnavailableException('Retained client context source unavailable');
+      legacyInput.cursor = cursor;
+    }
+    const startedAt = new Date().toISOString();
+    const result = await this.getClientContext(ctx, legacyInput);
+    if (await this.ensureClientVisible(ctx, admission.clientId) !== admission.clientId)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    assertMeriToolRequestActive();
+    if (Date.now() >= admission.hardExpiryMs)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    const completedAt = new Date().toISOString();
+    // getClientContext awaits engagement and every section read in its
+    // Promise.all before resolving, so this interval brackets all seven
+    // contributing owner reads. A clock discontinuity fails closed.
+    if (Date.parse(startedAt) > Date.parse(completedAt))
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    const serialized = JSON.stringify(result);
+    if (!serialized || Buffer.byteLength(serialized, 'utf8') > 16 * 1024 * 1024)
+      throw new ServiceUnavailableException('Retained client context source unavailable');
+    return {
+      result: JSON.parse(serialized) as Record<string, unknown>,
+      readWindow: { startedAt, completedAt },
     };
   }
 
@@ -4390,9 +4549,31 @@ export class MeriToolsService {
    * designation / name -> canonical registry rows. Zero matches returns an
    * EXPLICIT not-found note — the model must never fabricate an identifier.
    */
-  private async resolveEntity(input: Record<string, unknown>) {
+  async resolveEntityForRetainedSource(
+    input: Record<string, unknown>,
+    context: { defaultCongress: number },
+  ) {
+    // A future task-bound source controller supplies this context after verifying
+    // the run. It is deliberately separate from the model-facing tool input.
+    if (!context || !Number.isSafeInteger(context.defaultCongress) ||
+        context.defaultCongress < 1 || context.defaultCongress > 2147483647 ||
+        !input || typeof input !== 'object' || Array.isArray(input) ||
+        Object.keys(input).some((key) => !['query', 'type', 'limit'].includes(key)) ||
+        (input.query !== undefined && (typeof input.query !== 'string' || input.query.length > 200)) ||
+        (input.type !== undefined &&
+          (typeof input.type !== 'string' || !input.type || input.type.length > 40 ||
+            input.type.trim() !== input.type || input.type.toLowerCase() !== input.type)) ||
+        (input.limit !== undefined &&
+          (typeof input.limit !== 'number' || !Number.isSafeInteger(input.limit) ||
+            input.limit < 1 || input.limit > 10))) {
+      throw new BadRequestException('Invalid retained entity source selection');
+    }
+    return this.resolveEntity(input, context.defaultCongress);
+  }
+
+  private async resolveEntity(input: Record<string, unknown>, trustedDefaultCongress?: number) {
     const query = optionalString(input, 'query', 200)?.trim();
-    const type = optionalString(input, 'type', 20)?.toLowerCase();
+    const type = optionalString(input, 'type', 40)?.toLowerCase();
     const limit = clampInt(input.limit, 1, 10, 5);
     if (!query) {
       return {
@@ -4495,11 +4676,12 @@ export class MeriToolsService {
       }
     }
     if (!type || type === 'bill') {
-      const currentCongress = Math.floor((new Date().getUTCFullYear() - 1789) / 2) + 1;
+      const congressForDesignation = trustedDefaultCongress ??
+        Math.floor((new Date().getUTCFullYear() - 1789) / 2) + 1;
       const norm = normalizeCanonicalId('billId', query);
       let billIdCandidate = isValidCanonicalId('billId', norm) ? norm : null;
       if (!billIdCandidate) {
-        const parsed = parseBillDesignation(query, currentCongress);
+        const parsed = parseBillDesignation(query, congressForDesignation);
         if (parsed) billIdCandidate = formatBillId(parsed.congress, parsed.type, parsed.number);
       }
       if (billIdCandidate) {
@@ -4667,7 +4849,13 @@ export class MeriToolsService {
       }
     }
 
-    const trimmed = matches.slice(0, limit);
+    // The direct, crosswalk and name branches above are mutually exclusive.
+    // Keep their canonical order and remove repeated crosswalk identities from
+    // the retained projection without changing legacy tool output.
+    const selected = trustedDefaultCongress === undefined ? matches : matches.filter((match, index) =>
+      matches.findIndex((candidate) =>
+        candidate.entityType === match.entityType && candidate.canonicalId === match.canonicalId) === index);
+    const trimmed = selected.slice(0, limit);
     return {
       tool: 'resolve_entity',
       generatedAt: new Date().toISOString(),
@@ -7279,7 +7467,8 @@ export class MeriToolsService {
     return this.engagement.searchMailMessages(ctx, input);
   }
 
-  private async getEmailThread(ctx: TenantContext, input: Record<string, unknown>) {
+  private async getEmailThread(ctx: TenantContext, input: Record<string, unknown>,
+    authorizedMailboxIds?: readonly string[]) {
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const threadId = typeof input.threadId === 'string' ? input.threadId.trim() : '';
     const clientId = typeof input.clientId === 'string' ? input.clientId.trim() : '';
@@ -7319,7 +7508,10 @@ export class MeriToolsService {
     }
     // Reuse the endpoint's tenant, owner and active-message authorization. No
     // provider network call, read-receipt mutation, or message send is involved.
-    const thread = await this.engagement.getMailThread(ctx, threadId, clientId || undefined);
+    const thread = authorizedMailboxIds
+      ? await this.engagement.getMailThread(ctx, threadId, clientId || undefined,
+        authorizedMailboxIds)
+      : await this.engagement.getMailThread(ctx, threadId, clientId || undefined);
     if (clientId && thread.clientId !== clientId)
       throw new NotFoundException('Mail thread not found');
     const matching = messageId
@@ -7328,12 +7520,15 @@ export class MeriToolsService {
     if (messageId && !matching.length)
       return { error: 'Message is not active in this authorized thread.' };
     const messages = matching.slice(messageOffset, messageOffset + limit).map((message) => {
+      if (message.connectionId !== thread.connectionId) {
+        throw new ServiceUnavailableException('Mail thread source lineage is inconsistent');
+      }
       const body = message.bodyText ?? '';
       const metadata =
         message.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
           ? message.metadata
           : {};
-      const bodyEnd = Math.min(body.length, bodyOffset + maxCharacters);
+      const section = createMailBodySectionV02(body, bodyOffset, maxCharacters);
       return {
         id: message.id,
         threadId,
@@ -7353,16 +7548,21 @@ export class MeriToolsService {
             : typeof message.receivedAt === 'string'
               ? message.receivedAt
               : null,
-        bodyText: body.slice(bodyOffset, bodyEnd),
-        bodyOffset,
-        bodyLength: body.length,
+        bodyText: section.bodyText,
+        bodyStoredPresent: message.bodyText !== null,
+        removed: message.removedAt === null ? false : true,
+        connectionStatus: thread.connectionStatus,
+        bodyOffset: section.bodyOffset,
+        bodyLength: section.bodyLength,
         bodyCompleteness:
           typeof metadata.bodyCompleteness === 'string' ? metadata.bodyCompleteness : 'unknown',
-        bodyTruncated: bodyOffset > 0 || bodyEnd < body.length,
-        nextBodyOffset: bodyEnd < body.length ? bodyEnd : null,
+        bodyTruncated: section.bodyTruncated,
+        nextBodyOffset: section.nextBodyOffset,
         sourceProof: {
           version: 1,
           mailboxId: message.connectionId,
+          ownerTenantId: thread.connectionOwnerTenantId,
+          ownerActorId: thread.connectionOwnerActorId,
           threadId,
           messageId: message.id,
           messageUpdatedAt:
@@ -7387,10 +7587,21 @@ export class MeriToolsService {
       hasMore,
       nextMessageOffset: hasMore ? messageOffset + messages.length : null,
       messages,
+      mailboxInventory: [{
+        sourceProof: {
+          version: 1,
+          mailboxId: thread.connectionId,
+          ownerTenantId: thread.connectionOwnerTenantId,
+          ownerActorId: thread.connectionOwnerActorId,
+        },
+        status: thread.connectionStatus,
+      }],
       sourceProof: {
         version: 1,
         threadId: thread.id,
         mailboxId: thread.connectionId,
+        ownerTenantId: thread.connectionOwnerTenantId,
+        ownerActorId: thread.connectionOwnerActorId,
         mailboxStatus: thread.connectionStatus,
         clientId: thread.clientId,
         threadUpdatedAt:
@@ -7404,6 +7615,146 @@ export class MeriToolsService {
         'Read remaining message pages and each nextBodyOffset before claiming the full thread was read. Body continuation uses the same threadId, exact messageId, messageOffset=0 and bodyOffset=nextBodyOffset. Provider bodies may themselves be truncated or unavailable; bodyCompleteness reports the stored state.',
       ],
     };
+  }
+
+  /** Invoke the existing owned mailbox readers with exactly the normalized
+   * retained selection. The result and observation travel together to the
+   * family validator; this method grants no new mailbox or client access. */
+  async readRetainedMailSourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
+    assertMeriToolRequestActive();
+    if (ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId)
+      throw new ServiceUnavailableException('Retained mail source unavailable');
+    const mailboxScopes = admission.subject.scopes.filter(scope => scope.kind === 'mailbox');
+    const authorizedMailboxIds = mailboxScopes.map(scope => scope.resourceId);
+    const mailboxUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (admission.subject.rosterVersionId !== null || authorizedMailboxIds.length < 1 ||
+        authorizedMailboxIds.length > 4096 ||
+        mailboxScopes.some(scope => scope.tenantId !== ctx.tenantId ||
+          scope.policyRevision !== admission.subject.policyRevision) ||
+        authorizedMailboxIds.some(id => typeof id !== 'string' || !mailboxUuid.test(id)) ||
+        new Set(authorizedMailboxIds.map(id => (id as string).toLowerCase())).size !==
+          authorizedMailboxIds.length)
+      throw new ServiceUnavailableException('Retained mail source unavailable');
+    const scopedMailboxIds = authorizedMailboxIds as string[];
+    const operation = admission.operation.id;
+    const input = admission.input;
+    const clientId = admission.subject.kind === 'client' ? admission.clientId : undefined;
+    let result: unknown;
+    if (operation === 'mail.list_messages' || operation === 'mail.search_messages') {
+      const legacy = {
+        ...(clientId ? { clientId } : {}),
+        folder: input.folder,
+        withinDays: input.withinDays,
+        limit: input.limit,
+        offset: input.offset,
+        asOf: input.asOf,
+        ...(operation === 'mail.search_messages'
+          ? { query: input.query, from: input.from, participant: input.participant } : {}),
+      };
+      result = await this.engagement.searchMailMessages(ctx, legacy, {
+        allowUnfiltered: operation === 'mail.list_messages',
+        authorizedMailboxIds: scopedMailboxIds,
+      });
+    } else if (operation === 'mail.read_thread') {
+      result = await this.getEmailThread(ctx, {
+        ...(clientId ? { clientId } : {}),
+        threadId: input.threadId,
+        messageId: input.messageId,
+        messageOffset: input.messageOffset,
+        bodyOffset: input.bodyOffset,
+        limit: input.limit,
+        maxCharacters: input.maxCharacters,
+      }, scopedMailboxIds);
+    } else {
+      throw new ServiceUnavailableException('Retained mail source unavailable');
+    }
+    const readAt = new Date().toISOString();
+    const bytes = JSON.stringify(result);
+    if (!bytes || Buffer.byteLength(bytes, 'utf8') > 16 * 1024 * 1024)
+      throw new ServiceUnavailableException('Retained mail source unavailable');
+    return { result: JSON.parse(bytes) as Record<string, unknown>, readAt };
+  }
+
+  /** Read the existing Core meeting owners under the selected-client wall and
+   * return facts captured after that same owner invocation. This method does
+   * not create a snapshot, establish calendar-connection coverage, or release
+   * a Meri 0.2 page; the retained receiver validates the projected page. */
+  async readRetainedMeetingSourceV02(
+    ctx: TenantContext,
+    admission: RetainedSourceV02Admission,
+  ) {
+    assertMeriToolRequestActive();
+    const operation = admission.operation.id;
+    if (
+      ctx.tenantId !== admission.binding.tenantId ||
+      ctx.userId !== admission.binding.actorId ||
+      admission.subject.kind !== 'client' ||
+      admission.subject.entityType !== 'client' ||
+      admission.subject.tenantId !== ctx.tenantId ||
+      admission.subject.actorId !== ctx.userId ||
+      admission.subject.entityIds.length !== 1 ||
+      admission.subject.entityIds[0] !== admission.clientId ||
+      admission.input.clientId !== admission.clientId ||
+      Date.now() >= admission.hardExpiryMs ||
+      ![
+        'meeting.list_upcoming_meetings',
+        'meeting.query_debriefs',
+        'meeting.read_client_meetings',
+      ].includes(operation)
+    ) {
+      // The personal calendar owner has no linked-client visibility policy.
+      throw new ServiceUnavailableException('Retained meeting source unavailable');
+    }
+    const { cursor, legacyInput } = prepareMeetingV02OwnerInput(
+      operation as MeetingV02Operation,
+      admission.input,
+      admission.metadata,
+    );
+    const clientId = admission.clientId;
+    // The legacy upcoming handler has only an owner/tenant filter. Supply the
+    // selected-client wall on both sides of its database read. The other two
+    // private handlers also recheck their own parent/source ownership.
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    let result: unknown;
+    let tool: 'list_upcoming_meetings' | 'query_debriefs' | 'read_client_meetings';
+    let limitations: string[];
+    if (operation === 'meeting.list_upcoming_meetings') {
+      tool = 'list_upcoming_meetings';
+      result = await this.listUpcomingMeetings(ctx, legacyInput);
+      limitations = [
+        'This is a bounded current owner query over synchronized meeting rows. Calendar connection inventory, sync freshness, source snapshot identity, and complete enumeration are unproven; an empty page does not establish absence.',
+      ];
+    } else if (operation === 'meeting.query_debriefs') {
+      tool = 'query_debriefs';
+      result = await this.queryDebriefs(ctx, legacyInput);
+      limitations = [
+        'Only eligible approved debriefs attached to currently authorized client meetings are returned. Other lifecycle states, complete history, and a stable source snapshot are unproven.',
+      ];
+    } else {
+      tool = 'read_client_meetings';
+      result = await this.readClientMeetings(ctx, legacyInput);
+      limitations = [
+        'This bounded owner read covers current meeting/source inventory or one exact body window. A full source snapshot, exhaustive history, and universal transcript availability are unproven.',
+      ];
+    }
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    assertMeriToolRequestActive();
+    const observedAtMs = Date.now();
+    if (observedAtMs >= admission.hardExpiryMs)
+      throw new ServiceUnavailableException('Retained meeting source unavailable');
+    const read = captureMeetingV02OwnerRead({
+      tool,
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      clientId,
+      // A successful invocation of the selected canonical owner is the
+      // current inventory for this single logical Meri meeting source.
+      sourceIds: ['meetings'],
+      limitations,
+      result,
+      observedAtMs,
+    });
+    return { result, read, cursor };
   }
 
   /**
@@ -8817,7 +9168,8 @@ export class MeriToolsService {
   }
 
   /** Canonical, currently authorized section reads with resumable evidence. */
-  private async readClientDocuments(ctx: TenantContext, input: Record<string, unknown>) {
+  private async readClientDocuments(ctx: TenantContext, input: Record<string, unknown>,
+    ownerOptions: { allowPaidExtraction?: boolean } = {}) {
     const clientId = await this.ensureClientVisible(ctx, requiredString(input, 'clientId', 80));
     const deniedClientIds = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId),
@@ -8830,6 +9182,7 @@ export class MeriToolsService {
       const extracted = await this.engagement.extractAttachmentText(ctx, selection.documentId, {
         clientId,
         section: selection.section,
+        ...(ownerOptions.allowPaidExtraction === false ? { allowPaidExtraction: false } : {}),
         ...(meriToolRequestControl()?.signal ? { signal: meriToolRequestControl()!.signal } : {}),
       });
       return buildDocumentReadPage(clientId, selection, extracted);
@@ -9569,6 +9922,209 @@ export class MeriToolsService {
       note: clientId
         ? `${contacts.length} correspondent(s) found; ${missing.length} not yet on the People tab. These come from synced mail and calendar — cite them as such. Propose only the missing ones via update_client_profile people[].`
         : `${contacts.length} correspondent(s) found from synced mail and calendar.`,
+    };
+  }
+
+  /** Selected-client source projection for a future task-bound 0.2 ingress.
+   * The source controller must supply its independently verified client ID;
+   * this method never derives scope from a model selector or an email domain.
+   * Personal and cross-client contact searches remain unavailable on this path.
+   */
+  async findContactsForRetainedClient(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    selectedClientId: string,
+  ) {
+    if (!CLIENT_ID_UUID_RE.test(selectedClientId) || !input || typeof input !== 'object' ||
+        Array.isArray(input) || Object.getPrototypeOf(input) !== Object.prototype ||
+        Object.keys(input).some((key) => !['clientId', 'domain', 'query', 'limit'].includes(key)) ||
+        input.clientId !== selectedClientId ||
+        (input.domain !== null && input.domain !== undefined &&
+          (typeof input.domain !== 'string' || !input.domain.trim() || input.domain.length > 200)) ||
+        (input.query !== null && input.query !== undefined &&
+          (typeof input.query !== 'string' || !input.query.trim() || input.query.length > 200)) ||
+        (input.limit !== undefined &&
+          (typeof input.limit !== 'number' || !Number.isSafeInteger(input.limit) ||
+            input.limit < 1 || input.limit > 100))) {
+      throw new BadRequestException('Invalid selected-client contacts source selection');
+    }
+    const domain = typeof input.domain === 'string' ? input.domain.trim().toLowerCase() : null;
+    const query = typeof input.query === 'string' ? input.query.trim() : null;
+    const limit = typeof input.limit === 'number' ? input.limit : 25;
+    const currentClient = async (includePeople: boolean) => {
+      const client = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        const row = await tx.client.findFirst({
+          where: { id: selectedClientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          select: {
+            id: true, name: true,
+            ...(includePeople ? { people: { select: { email: true, name: true } } } : {}),
+          },
+        });
+        if (!row || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, selectedClientId)))
+          return null;
+        return row;
+      });
+      if (!client) throw new NotFoundException('Client not found');
+      return client;
+    };
+    const client = await currentClient(true);
+    const profilePeople = 'people' in client && Array.isArray(client.people) ? client.people : [];
+    const existingEmails = new Set(profilePeople.map((person) => person.email?.trim().toLowerCase()).filter(Boolean));
+    const existingNames = new Set(profilePeople.map((person) => person.name.trim().toLowerCase()).filter(Boolean));
+    const where: Prisma.EngagementContactWhereInput = {
+      tenantId: ctx.tenantId,
+      clientId: selectedClientId,
+      ...(domain ? { email: { endsWith: `@${domain}` } } : {}),
+      ...(query ? { OR: [
+        { fullName: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ] } : {}),
+    };
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementContact.findMany({
+        where,
+        select: {
+          fullName: true, email: true, phone: true, title: true,
+          organization: true, source: true,
+        },
+        take: limit,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+    const contacts = await Promise.all(rows.map(async (row) => {
+      const email = row.email?.trim().toLowerCase() ?? null;
+      let lastContact: Date | null = null;
+      let messageCount = 0;
+      if (email) {
+        const history = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+          Promise.all([
+            tx.mailMessage.findFirst({
+              where: {
+                tenantId: ctx.tenantId, fromEmail: email,
+                thread: { is: { clientId: selectedClientId } },
+                ...ownMailMessageWhere(ctx.userId),
+              },
+              orderBy: { receivedAt: 'desc' },
+              select: { receivedAt: true },
+            }),
+            tx.mailMessage.count({
+              where: {
+                tenantId: ctx.tenantId, fromEmail: email,
+                thread: { is: { clientId: selectedClientId } },
+                ...ownMailMessageWhere(ctx.userId),
+              },
+            }),
+            tx.meetingAttendee.findFirst({
+              where: {
+                tenantId: ctx.tenantId, email,
+                meeting: { is: {
+                  tenantId: ctx.tenantId, clientId: selectedClientId,
+                  status: { notIn: ['cancelled', 'canceled', 'deleted'] },
+                  ...ownMeetingWhere(ctx.userId),
+                } },
+              },
+              orderBy: { createdAt: 'desc' },
+              select: { meeting: { select: { startsAt: true } } },
+            }),
+          ]),
+        );
+        const [lastFrom, count, lastMeeting] = history;
+        messageCount = count;
+        const mailAt = lastFrom?.receivedAt ?? null;
+        const meetingAt = lastMeeting?.meeting?.startsAt ?? null;
+        lastContact = mailAt && meetingAt ? (mailAt > meetingAt ? mailAt : meetingAt) : (mailAt ?? meetingAt);
+      }
+      const nameKey = row.fullName?.trim().toLowerCase() ?? '';
+      return {
+        name: row.fullName,
+        email: row.email,
+        phone: row.phone,
+        title: row.title,
+        organization: row.organization ?? (email ? email.split('@')[1] ?? null : null),
+        lastContact: lastContact?.toISOString() ?? null,
+        messageCount,
+        source: row.source,
+        onProfile: Boolean((email && existingEmails.has(email)) || (nameKey && existingNames.has(nameKey))),
+      };
+    }));
+    contacts.sort((a, b) => (b.lastContact ?? '').localeCompare(a.lastContact ?? '') ||
+      (a.email ?? '').localeCompare(b.email ?? '') || (a.name ?? '').localeCompare(b.name ?? ''));
+    await currentClient(false);
+    const missing = contacts.filter((contact) => !contact.onProfile);
+    return {
+      tool: 'find_contacts',
+      generatedAt: new Date().toISOString(),
+      clientId: selectedClientId,
+      clientName: client.name,
+      matchedOn: { domain, query, linkedClient: true },
+      contacts,
+      note: `${contacts.length} correspondent(s) found; ${missing.length} not yet on the People tab. These come from synced mail and calendar — cite them as such. Propose only the missing ones via update_client_profile people[].`,
+    };
+  }
+
+  /** Capture the exact authorized owner result and its scope in one invocation.
+   * The retained receiver validates this receipt against Meri's full 0.2 DTO
+   * before any result is released. Domain-only and personal contact queries
+   * have no equivalently scoped current owner and remain unavailable. */
+  async readRetainedIdentityContactsSourceV02(
+    ctx: TenantContext,
+    admission: RetainedSourceV02Admission,
+  ) {
+    assertMeriToolRequestActive();
+    if (ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId)
+      throw new ServiceUnavailableException('Retained identity source unavailable');
+    const input = admission.input;
+    const context = admission.normalizationContext;
+    let result: unknown;
+    let readScope: { kind: 'canonical-registry' | 'no-contact-query' } |
+      { kind: 'selected-client-exact'; clientId: string };
+    if (admission.operation.id === 'resolve_entity') {
+      const defaultCongress = context?.defaultCongress;
+      if (!Number.isSafeInteger(defaultCongress) || (defaultCongress as number) < 1 ||
+          (defaultCongress as number) > 2147483647)
+        throw new ServiceUnavailableException('Retained identity source unavailable');
+      const legacy = {
+        ...(typeof input.query === 'string' ? { query: input.query } : {}),
+        ...(typeof input.type === 'string' ? { type: input.type } : {}),
+        limit: input.limit,
+      };
+      result = await this.resolveEntityForRetainedSource(legacy, {
+        defaultCongress: defaultCongress as number,
+      });
+      readScope = { kind: 'canonical-registry' };
+    } else if (admission.operation.id === 'find_contacts') {
+      if (input.clientId === null && input.domain === null && input.query === null) {
+        result = await this.findContacts(ctx, {});
+        readScope = { kind: 'no-contact-query' };
+      } else {
+        if (admission.subject.kind !== 'client' || input.clientId !== admission.clientId)
+          throw new ServiceUnavailableException('Retained contacts source unavailable');
+        result = await this.findContactsForRetainedClient(ctx, input, admission.clientId);
+        readScope = { kind: 'selected-client-exact', clientId: admission.clientId };
+      }
+    } else {
+      throw new ServiceUnavailableException('Retained identity source unavailable');
+    }
+    // The HTTP-equivalent JSON and owner-generated timestamp are captured
+    // together here; neither the input nor the receiver can mint source facts.
+    const serialized = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
+    const observedAt = serialized.generatedAt;
+    if (typeof observedAt !== 'string' || !Number.isFinite(Date.parse(observedAt)))
+      throw new ServiceUnavailableException('Retained identity source unavailable');
+    const digest = (value: unknown) => createHash('sha256')
+      .update(canonicalizeCoreRetainedJson(value), 'utf8').digest('hex');
+    return {
+      operation: admission.operation.id,
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      subjectKind: admission.subject.kind,
+      subjectEntityId: admission.subject.entityIds[0],
+      inputSha256: digest(input),
+      contextSha256: digest(context),
+      observedAt,
+      resultSha256: digest(serialized),
+      readScope,
+      result: serialized,
     };
   }
 

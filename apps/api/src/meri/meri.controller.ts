@@ -67,8 +67,13 @@ import {
   MERI_DELEGATED_READ_TOOLS, assertDelegatedToolSelectors, schemaClientSelectors, sha256Hex,
 } from '../auth/read-delegation/read-delegation.contract.js';
 import {
-  assertMeriReadDelegationReleasable, meriReadDelegationOf, type MeriReadDelegationGrant,
+  assertMeriReadDelegationReleasable, meriReadDelegationOf, meriRetainedCorrelationOf,
+  type MeriReadDelegationGrant,
 } from '../auth/read-delegation/read-delegation-request.js';
+import {
+  assertRetainedSourceV02Admission, RETAINED_SOURCE_V02_OPERATIONS,
+} from './retained-source-v02/admission.js';
+import { readRetainedSourceV02 } from './retained-source-v02/receiver.js';
 import {
   MeriExecutionReceiverService,
   assertOrdinaryToolPathAllowed,
@@ -562,6 +567,24 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
+    // The retained 0.2 source route has a separate, exact task-bound read
+    // admission. Never pass its names to the model-facing tool dispatcher.
+    if (RETAINED_SOURCE_V02_OPERATIONS.has(name)) {
+      const grant = meriReadDelegationOf(req);
+      if (!grant || grant.operation?.id !== name ||
+          grant.tenantId !== ctx.tenantId || grant.actorId !== ctx.userId ||
+          !hasVerifiedToolServiceIdentity(req)) {
+        throw new ForbiddenException('Retained source read refused');
+      }
+      const admitted = assertRetainedSourceV02Admission(
+        grant, body, meriRetainedCorrelationOf(req), { nowMs: Date.now() },
+      );
+      const result = await withMeriToolRequestControl(
+        req, () => readRetainedSourceV02(admitted, ctx, this.tools),
+      );
+      await this.releaseDelegatedRead(req);
+      return result;
+    }
     assertMeriToolAllowed(name);
     // Meri's approved-execution capability (D016 #9), admitted by the tenant
     // middleware on create_task only: the receiver runs every current check and

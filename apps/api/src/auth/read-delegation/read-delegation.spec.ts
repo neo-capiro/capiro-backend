@@ -9,6 +9,7 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { TenantContextStore } from '../../tenant/tenant-context.store.js';
 import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
 import { ApplicationMembershipService } from '../application-membership.service.js';
+import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { createInProcessEd25519Signer } from '../core-ed25519-signer.js';
 import { ToolServiceSecretGuard } from '../tool-service-secret.guard.js';
 import {
@@ -17,6 +18,7 @@ import {
 } from './read-delegation.contract.js';
 import {
   assertMeriReadDelegationReleasable, isMeriReadDelegationServicePost, isMeriReadTokenRequest, meriReadDelegationOf,
+  meriRetainedCorrelationOf,
   meriReadDelegationRawBody,
 } from './read-delegation-request.js';
 import { verifyReadToken } from './read-delegation-token.js';
@@ -40,7 +42,8 @@ const CLERK = 'user_reader';
 const SECRET = 'svc-secret';
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const P = sha('policy'), BP = sha('budget-policy'), PROJ = sha('projection'), OCC = sha('occurrence');
-const OPS = [{ id: 'search_tracked_bills', version: '0.2.0' }, { id: 'get_bill_status', version: '0.2.0' }];
+const OPS = [{ id: 'search_tracked_bills', version: '0.2.0' }, { id: 'get_bill_status', version: '0.2.0' },
+  { id: 'find_contacts', version: '0.2.0' }];
 const binding = { tenantId: T, actorId: A, conversationId: V, runId: R, attemptId: AT, writerFence: 3 };
 const originalBinding = { ...binding, workerId: WORKER, writerFence: 7 };
 const allocation = {
@@ -62,12 +65,14 @@ const ENV: Record<string, string> = {
 
 type Row = Record<string, any>;
 /** In-memory Core tables and Meri facts views. Each transaction runs on a copy and commits only on success. */
-function fakeDb() {
+function fakeDb(customAllocation: Row = allocation) {
+  const storedAllocation = JSON.parse(JSON.stringify(customAllocation));
+  const storedAllocationSha = canonicalSha256(storedAllocation);
   const state = {
-    now: Date.now(),
+    now: Date.now(), allocation: storedAllocation, allocationSha256: storedAllocationSha,
     delegations: new Map<string, Row>(), slots: new Map<string, Row>(), tokens: new Map<string, Row>(), consents: new Map<string, Row>(),
     facts: {
-      run_id: R, tenant_id: T, conversation_id: V, allocation_sha256: AL, allowed_operations: OPS, max_tool_calls: '1',
+      run_id: R, tenant_id: T, conversation_id: V, allocation_sha256: storedAllocationSha, allowed_operations: storedAllocation.manifest.allowedOperations, max_tool_calls: '1',
       reserved_calls: '0', attempt: '1', fence: '7', policy_revision: BP, admitted: true, run_state: 'running',
       run_binding: binding, run_scopes: [{ kind: 'client', resourceId: C, policyRevision: P }], admitted_until_offset: 20 * 60_000,
     } as Row,
@@ -76,7 +81,7 @@ function fakeDb() {
     originalGrantState: 'ACTIVE', omitOriginalGrant: false,
   };
   const clone = (s: typeof state) => ({
-    ...s, delegations: new Map([...s.delegations].map(([k, v]) => [k, { ...v }])), slots: new Map([...s.slots].map(([k, v]) => [k, { ...v }])),
+    ...s, allocation: JSON.parse(JSON.stringify(s.allocation)), delegations: new Map([...s.delegations].map(([k, v]) => [k, { ...v }])), slots: new Map([...s.slots].map(([k, v]) => [k, { ...v }])),
     tokens: new Map([...s.tokens].map(([k, v]) => [k, { ...v }])), consents: new Map([...s.consents].map(([k, v]) => [k, { ...v }])),
     writes: [...s.writes],
   });
@@ -91,12 +96,12 @@ function fakeDb() {
         db.budgetLocks++;
         const qualification = { runId: R, attempt: 1, workerArn: WORKER_ARN, fence: 7, policyRevision: BP };
         const grantFacts = { grantId: ORIGINAL_GRANT, binding: originalBinding, qualificationBinding: qualification,
-          capabilitySha256: sha('original grant'), allocationSha256: AL };
+          capabilitySha256: sha('original grant'), allocationSha256: db.allocationSha256 };
         return [{ snapshot: {
           contract: 'capiro.meri-core-admission-snapshot.v1', budgetPresent: true, quarantined: false, dbNowMs: db.now,
-          admitted: { state: 'ADMITTED', binding: originalBinding, allocationSha256: AL, grantFactsJsons: [JSON.stringify(grantFacts)] },
+          admitted: { state: 'ADMITTED', binding: originalBinding, allocationSha256: db.allocationSha256, grantFactsJsons: [JSON.stringify(grantFacts)] },
           run: qualification,
-          allocation: { allocation, allocationSha256: AL, startedAtMs: db.now - 60_000 },
+          allocation: { allocation: db.allocation, allocationSha256: db.allocationSha256, startedAtMs: db.now - 60_000 },
           grants: db.omitOriginalGrant ? [] : [{ grantId: ORIGINAL_GRANT, runId: R, attempt: 1, workerArn: WORKER_ARN,
             fence: 7, policyRevision: BP, capabilitySha256: sha('original grant'),
             expiresAtMs: db.now + 40 * 60_000, state: db.originalGrantState,
@@ -272,8 +277,8 @@ const parsed = (req: Request) => new Promise<Request>((resolve, reject) => {
 const control = { deadlineMs: Date.now() + 30_000, assertActive() {} };
 const ctx: TenantContext = { tenantId: T, tenantSlug: 'synthetic', userId: A, clerkUserId: CLERK, role: 'standard_user' };
 
-function harness() {
-  const db = fakeDb();
+function harness(customAllocation?: Row) {
+  const db = fakeDb(customAllocation);
   const live = jest.fn(async () => ({ principal: { tenantId: T, actorId: A }, identityRevision: 'f'.repeat(64), expiresAtMs: Date.now() + 60_000,
     recheckCurrent: async () => ({ principal: { tenantId: T, actorId: A }, identityRevision: 'f'.repeat(64), expiresAtMs: Date.now() + 60_000 }) }));
   const tenant = { readApplicationAuthority: live } as unknown as TenantContextMiddleware;
@@ -284,7 +289,7 @@ function harness() {
   const verify = jest.fn(async () => { throw new Error('Clerk must not be reached for a read token'); });
   const middleware = new TenantContextMiddleware({ verifySessionToken: verify } as unknown as ClerkService, db.prisma, store);
   const createBody = (over: Record<string, unknown> = {}) => ({ schemaVersion: 1, mode: 'attended', binding, clientId: C, policyRevision: P,
-    allocationSha256: AL, operationsDigest: operationsDigest(OPS), supersedes: null, ...over });
+    allocationSha256: db.state.allocationSha256, operationsDigest: operationsDigest(db.state.facts.allowed_operations), supersedes: null, ...over });
   const create = (over: Record<string, unknown> = {}) => service.createAttended(verified(request('/api/clio/application-authority/read-delegations')), ctx, createBody(over));
   const tokenBody = (delegationId: string, over: Record<string, unknown> = {}) => ({ schemaVersion: 1, kind: 'current', callKey: 'call-1', method: 'POST',
     path: delegationPath(delegationId, 'current'), bodySha256: currentBodySha256(false), operation: null, argumentsSha256: null,
@@ -445,6 +450,23 @@ describe('RC1 option B read delegation, Core owner', () => {
     it('refuses a write or unlisted tool name and an operation outside allowed_operations', async () => {
       const h = harness();
       const d = await h.create();
+      const mail = { id: 'mail.list_messages', version: '0.2.0' };
+      expect(parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail.list_messages',
+        operation: mail, argumentsSha256: sha('a'), correlationSha256: sha('correlation') }), d.delegationId).operation).toEqual(mail);
+      const profile = { id: 'get_client_context', version: '0.3.0' };
+      expect(parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/get_client_context',
+        operation: profile, argumentsSha256: sha('a'), correlationSha256: sha('correlation') }),
+      d.delegationId).operation).toEqual(profile);
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/get_client_context',
+        operation: { ...profile, version: '0.2.0' }, argumentsSha256: sha('a'),
+        correlationSha256: sha('correlation') }), d.delegationId)).toThrow();
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail.list_messages',
+        operation: mail, argumentsSha256: sha('a') }), d.delegationId)).toThrow();
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/query_tasks',
+        operation: { id: 'query_tasks', version: '0.2.0' }, argumentsSha256: sha('a'),
+        correlationSha256: sha('correlation') }), d.delegationId)).toThrow();
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail..list_messages',
+        operation: { id: 'mail..list_messages', version: '0.2.0' }, argumentsSha256: sha('a') }), d.delegationId)).toThrow();
       expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/update_task',
         operation: { id: 'update_task', version: '0.2.0' }, argumentsSha256: sha('a') }), d.delegationId)).not.toThrow();
       await expect(h.issue(d.delegationId, { kind: 'tool', path: '/api/clio/tools/update_task', operation: { id: 'update_task', version: '0.2.0' },
@@ -503,10 +525,82 @@ describe('RC1 option B read delegation, Core owner', () => {
       const used = await h.use(path, t.token, body);
       expect(used.next).toHaveBeenCalledTimes(1);
       expect(used.ctx).toEqual(ctx);
-      expect(meriReadDelegationOf(used.req)).toMatchObject({ delegationId: d.delegationId, kind: 'current', clientId: C });
+      expect(meriReadDelegationOf(used.req)).toMatchObject({ delegationId: d.delegationId, kind: 'current', clientId: C,
+        binding, policyRevision: P });
       expect(h.verify).not.toHaveBeenCalled();
       expect(h.db.state.writes.filter((w) => w !== 'delegation')).toEqual(['consume']);
       await expect(h.use(path, t.token, body)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('binds retained source correlation to the one-use token before consuming it', async () => {
+      const h = harness();
+      const d = await h.create();
+      const input = { clientId: C, domain: null, query: null, limit: 10 };
+      const body = { input, metadata: null };
+      const correlation = { binding: originalBinding,
+        subject: { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A,
+          authorizationDecisionId: ORIGINAL_GRANT, policyRevision: P,
+          scopes: [{ kind: 'client', resourceId: C, tenantId: T, policyRevision: P }], rosterVersionId: null },
+        policyRevision: P, normalizationContext: null };
+      const header = Buffer.from(canonicalizeCoreRetainedJson(correlation), 'utf8').toString('base64url');
+      const operation = { id: 'find_contacts', version: '0.2.0' };
+      const args = canonicalSha256(input);
+      h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation,
+        arguments_sha256: args, state: 'UNKNOWN' });
+      const t = await h.issue(d.delegationId, { kind: 'tool', path: '/api/clio/tools/find_contacts', operation,
+        argumentsSha256: args, bodySha256: sha(JSON.stringify(body)), correlationSha256: canonicalSha256(correlation) });
+      await expect(h.use('/api/clio/tools/find_contacts', t.token, body)).rejects.toBeInstanceOf(ForbiddenException);
+      expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+      await expect(h.use('/api/clio/tools/find_contacts', t.token, body,
+        { headers: { 'x-meri-read-correlation': `${header}A` } })).rejects.toBeInstanceOf(ForbiddenException);
+      expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+      const used = await h.use('/api/clio/tools/find_contacts', t.token, body,
+        { headers: { 'x-meri-read-correlation': header } });
+      expect(meriReadDelegationOf(used.req)).toMatchObject({ correlationSha256: canonicalSha256(correlation),
+        argumentsSha256: args, admittedBinding: originalBinding });
+      expect(meriRetainedCorrelationOf(used.req)).toEqual(correlation);
+      await assertMeriReadDelegationReleasable(h.db.prisma, used.req);
+    });
+
+    it('carries only locked original document tariff pins and refuses their drift at release', async () => {
+      const operation = { id: 'read_client_documents', version: '0.2.0' };
+      const configured = JSON.parse(JSON.stringify(allocation)) as Row;
+      const pricing = { mode: 'source_text_only', route: '/api/clio/tools/read_client_documents',
+        coreSourceCommit: 'a'.repeat(40), coreImageDigest: `sha256:${'b'.repeat(64)}`, configurationSha256: 'c'.repeat(64) };
+      configured.manifest = { contractVersion: '0.2.0', profile: 'meri.general_reads', profileVersion: '1.1.0',
+        allowedOperations: [operation], budgets: { ...configured.budgets }, maxAggregateOutputBytes: 2097152,
+        documentPricing: pricing };
+      configured.catalogSha256 = 'f'.repeat(64);
+      configured.manifestSha256 = canonicalSha256(configured.manifest);
+      configured.schedule.operations = [{ operation, chargeMicrousd: 1 }];
+      const h = harness(configured), d = await h.create();
+      const input = { clientId: C }, wire = { input, metadata: null };
+      const subject = { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A,
+        authorizationDecisionId: ORIGINAL_GRANT, policyRevision: P,
+        scopes: [{ kind: 'client', resourceId: C, tenantId: T, policyRevision: P }], rosterVersionId: null };
+      const correlation = { binding: originalBinding, subject, policyRevision: P,
+        normalizationContext: { binding: originalBinding, subject } };
+      const args = canonicalSha256(input);
+      h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation,
+        arguments_sha256: args, state: 'UNKNOWN' });
+      const token = await h.issue(d.delegationId, { kind: 'tool', path: '/api/clio/tools/read_client_documents', operation,
+        argumentsSha256: args, bodySha256: sha(JSON.stringify(wire)), correlationSha256: canonicalSha256(correlation) });
+      const headers = { 'x-meri-read-correlation': Buffer.from(canonicalizeCoreRetainedJson(correlation)).toString('base64url') };
+      h.db.state.omitOriginalGrant = true;
+      await expect(h.use('/api/clio/tools/read_client_documents', token.token, wire, { headers })).rejects.toBeInstanceOf(ConflictException);
+      expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+      h.db.state.omitOriginalGrant = false;
+      const used = await h.use('/api/clio/tools/read_client_documents', token.token, wire, { headers });
+      const held = meriReadDelegationOf(used.req)!.documentTextOnlyAllocation!;
+      expect(held).toEqual({ allocationSha256: h.db.state.allocationSha256, profileVersion: '1.1.0', chargeMicrousd: 1,
+        documentPricing: pricing });
+      expect(Object.isFrozen(held.documentPricing)).toBe(true);
+      await assertMeriReadDelegationReleasable(h.db.prisma, used.req);
+      h.db.state.allocation.manifest.documentPricing.configurationSha256 = 'e'.repeat(64);
+      h.db.state.allocation.manifestSha256 = canonicalSha256(h.db.state.allocation.manifest);
+      h.db.state.allocationSha256 = canonicalSha256(h.db.state.allocation);
+      h.db.state.facts.allocation_sha256 = h.db.state.allocationSha256;
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, used.req)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('withholds token issue, use and release after the original ADMITTED grant is revoked', async () => {

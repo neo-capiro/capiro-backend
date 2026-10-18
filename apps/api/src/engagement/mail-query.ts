@@ -6,12 +6,25 @@ import { getMailSyncCoverage } from './mail-sync-coverage.js';
 import { withMailQueryDeadline } from './mail-query-deadline.js';
 
 const MAIL_PROVIDERS = ['microsoft_365', 'google_workspace'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface MailQueryOptions {
+  allowUnfiltered?: boolean;
+  defaultLimit?: number;
+  /** Supplied only by a caller that has verified the current subject's mailbox
+   * scopes. An empty or invalid list refuses before any owner SQL executes. */
+  authorizedMailboxIds?: readonly string[];
+}
 
 type MailRow = {
   id: string;
   thread_id: string;
   connection_id: string;
   message_updated_at: Date;
+  created_at: Date;
+  owner_tenant_id: string;
+  owner_actor_id: string;
+  connection_status: string;
   subject: string | null;
   from_email: string | null;
   from_name: string | null;
@@ -33,8 +46,19 @@ export async function queryMailMessages(
   prisma: PrismaService,
   ctx: TenantContext,
   input: Record<string, unknown>,
-  options: { allowUnfiltered?: boolean; defaultLimit?: number } = {},
+  options: MailQueryOptions = {},
 ) {
+  const suppliedMailboxIds = options.authorizedMailboxIds;
+  if (suppliedMailboxIds !== undefined &&
+      (!Array.isArray(suppliedMailboxIds) || suppliedMailboxIds.length === 0 ||
+        suppliedMailboxIds.length > 4096 ||
+        suppliedMailboxIds.some((id) => typeof id !== 'string' || !UUID.test(id)) ||
+        new Set(suppliedMailboxIds.map((id) => id.toLowerCase())).size !== suppliedMailboxIds.length)) {
+    return { error: 'Verified mailbox scopes are required for this mail read.' };
+  }
+  const authorizedMailboxIds = suppliedMailboxIds === undefined
+    ? undefined : [...suppliedMailboxIds].sort();
+  const mailboxList = authorizedMailboxIds?.map((id) => Prisma.sql`${id}::uuid`);
   const term = (key: string, max = 200) =>
     typeof input[key] === 'string' ? (input[key] as string).trim().slice(0, max) : '';
   const query = term('query');
@@ -109,6 +133,7 @@ export async function queryMailMessages(
     Prisma.sql`m.created_at <= ${asOf}`,
     Prisma.sql`(COALESCE(m.received_at, m.sent_at) <= ${asOf} OR COALESCE(m.received_at, m.sent_at) IS NULL)`,
   ];
+  if (mailboxList) conds.push(Prisma.sql`m.connection_id IN (${Prisma.join(mailboxList)})`);
   if (query) {
     const p = pattern(query);
     conds.push(
@@ -145,7 +170,10 @@ export async function queryMailMessages(
       SELECT * FROM (
         SELECT DISTINCT ON (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text))
           m.id::text AS id, m.thread_id::text AS thread_id,
-          m.connection_id::text AS connection_id, m.updated_at AS message_updated_at, m.subject,
+          m.connection_id::text AS connection_id, m.updated_at AS message_updated_at,
+          m.created_at, c.tenant_id::text AS owner_tenant_id,
+          c.created_by_user_id::text AS owner_actor_id,
+          c.status::text AS connection_status, m.subject,
           m.from_email::text AS from_email, m.from_name,
           m.to_recipients_jsonb AS to_recipients, m.cc_recipients_jsonb AS cc_recipients,
           m.sent_at, m.received_at, left(m.body_text, 400) AS preview, m.has_attachments,
@@ -167,6 +195,8 @@ export async function queryMailMessages(
       Array<{
         account_email: string | null;
         connection_id: string;
+        owner_tenant_id: string;
+        owner_actor_id: string;
         provider: string;
         status: string;
         last_sync_at: Date | null;
@@ -177,6 +207,8 @@ export async function queryMailMessages(
       }>
     >(Prisma.sql`
       SELECT c.account_email::text AS account_email, c.id::text AS connection_id,
+             c.tenant_id::text AS owner_tenant_id,
+             c.created_by_user_id::text AS owner_actor_id,
              c.provider::text AS provider,
              c.status::text AS status, c.last_sync_at, c.sync_state_jsonb AS sync_state,
              count(m.id)::int AS synced_messages,
@@ -186,6 +218,7 @@ export async function queryMailMessages(
       LEFT JOIN mail_messages m ON m.connection_id = c.id AND m.tenant_id = c.tenant_id AND m.removed_at IS NULL
       WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
             AND c.provider::text IN (${Prisma.join(MAIL_PROVIDERS)})
+            ${mailboxList ? Prisma.sql`AND c.id IN (${Prisma.join(mailboxList)})` : Prisma.empty}
       GROUP BY c.id, c.created_at ORDER BY c.created_at
     `);
     return { total: counted[0]?.n ?? 0, rows, coverage };
@@ -199,7 +232,12 @@ export async function queryMailMessages(
     });
     return {
       accountEmail: c.account_email,
-      sourceProof: { version: 1, mailboxId: c.connection_id },
+      sourceProof: {
+        version: 1,
+        mailboxId: c.connection_id,
+        ownerTenantId: c.owner_tenant_id,
+        ownerActorId: c.owner_actor_id,
+      },
       provider: c.provider,
       status: c.status,
       lastSyncAt: mailCoverage.lastMailSyncAt?.toISOString() ?? null,
@@ -233,16 +271,26 @@ export async function queryMailMessages(
     cc: capRecipients(row.cc_recipients),
     sentAt: row.sent_at?.toISOString() ?? null,
     receivedAt: row.received_at?.toISOString() ?? null,
+    createdAt: row.created_at?.toISOString() ?? null,
     folder: row.folder,
     preview: row.preview,
     hasAttachments: row.has_attachments,
     mailbox: row.account_email,
     client: row.client_id ? { id: row.client_id, name: row.client_name } : null,
+    internetMessageId: row.internet_message_id || null,
+    toTruncated: Array.isArray(row.to_recipients) ? row.to_recipients.length > 8 : null,
+    ccTruncated: Array.isArray(row.cc_recipients) ? row.cc_recipients.length > 8 : null,
+    // These are facts from this authorized SQL read, not a claim that a later
+    // decisive read will still find the message or mailbox in the same state.
+    removed: false,
+    connectionStatus: row.connection_status ?? null,
     sourceProof: {
       version: 1,
       mailboxId: row.connection_id,
       threadId: row.thread_id,
       messageId: row.id,
+      ownerTenantId: row.owner_tenant_id ?? null,
+      ownerActorId: row.owner_actor_id ?? null,
       messageUpdatedAt: row.message_updated_at.toISOString(),
       previewSha256: createHash('sha256').update(row.preview ?? '', 'utf8').digest('hex'),
     },
