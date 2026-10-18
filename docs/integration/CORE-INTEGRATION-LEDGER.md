@@ -269,8 +269,8 @@ Physical rule ownership and the current template must be read back before any ch
 
 dot chose the compact preview-only option (#121 6246021908) over relocating shared rules (6246004526). Rules 1 and 2 keep their logical IDs, and **no shared dev/prod rule, priority, default or fingerprint changes**. The shared registry, snapshot and ALB scripts are unchanged.
 
-**Native-operations rule (dot 6246253130, source layout only, no live rule authorized).** One new exact Core POST rule, `FirstChatNativeOpsPostOnly`, takes priority 3 for the P-INT-10 approval and W8 memory routes. **Only the Core-host guard moves.** Its new slot is not fixed in source: the render binding (schema v3) requires `listener.guardPriority`, read back from the live listener.
-- **Before rendering**, run `corePreviewPacketRules(readback, routes, { guardPriority })` in `infra/routing`. It refuses the slot unless it is unused, after the native-operations rule, and before the first non-Core rule that could match the Core host. So same-host precedence is unchanged.
+**Native-operations rule (dot 6246253130, source layout only, no live rule authorized).** One new exact Core POST rule, `FirstChatNativeOpsPostOnly`, takes priority 3 for the P-INT-10 approval and W8 memory receiving routes. **Only the Core-host guard moves.** Its new slot is not fixed in source: the chat-only binding requires `listener.guardPriority`, read back from the live listener.
+- **Before rendering the chat-only packet**, run `corePreviewPacketRules(readback, routes, { guardPriority })` in `infra/routing`. It refuses the slot unless it is unused, after the native-operations rule, and before the first non-Core rule that could match the Core host. So same-host precedence is unchanged.
 - **On the frozen snapshot plus the registry relocations, only 4 qualifies.** 5 and 6 are taken, and the any-host header rule sits at 7.
 - **If the readback shows Meri's public rule at 4** (earlier live reports), 4 is refused and the slot Meri left (6) qualifies. The simulator covers both cases.
 - **If a readback leaves no qualifying slot**, no packet is valid. The fallback would merge native-ops into rule 2 with methods GET+POST, widening both method sets. That is dot's call, not encoded.
@@ -286,8 +286,11 @@ ALB limits (AWS "Condition types for listener rules"):
 | --- | --- | --- |
 | 1 (`FirstChatPostsOnly`) | POST | `^/api/clio/application-authority/(identity\|context\|membership\|read-mode-observation\|retained-florida-(budget\|principal))$` (121) · `^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?\|florida-(native-)?current)$` (113) · `^/api/clio/(conversations/bootstrap\|clients/check-ref\|retained-reads/research-portfolio(-changes)?\|tools/[a-z][a-z0-9_]{1,63})$` (127, dot's exact pattern) |
 | 2 (`FirstChatMembershipPostOnly`) | GET | `^/api/(me\|clients)$` · `^/api/clients/<uuid v1-5>$` · `^/api/research-portfolios/[0-9a-f-]{36}(/(changes\|reviews\|annual-review\|snapshots/[0-9a-f-]{36}))?$` |
-| 3 (`FirstChatNativeOpsPostOnly`) | POST | `^/api/clio/(approvals/native/(record\|decision\|execution\|revoke)\|memory/(review/(submit\|status)\|read_target\|find_by_key))$` (121; `execution` R21, `revoke` R23) · `^/api/clio/(application-authority/artifact\|routines/(policy/check\|cancellation-proof\|unattended-grant))$` (104; artifact R22, routines R24) |
-| readback `listener.guardPriority` (retained guard stack) | any | host-only 404, moved from 3; nothing else changes |
+| 3 (`FirstChatNativeOpsPostOnly`) | POST | `^/api/clio/(approvals/native/(record\|decision\|execution\|revoke)\|memory/(review/(submit\|status)\|read_target\|find_by_key))$` (121; `execution` R21, `revoke` R23) · `^/api/clio/(application-authority/artifact\|routines/(policy/check\|cancellation-proof\|unattended-grant))$` (104; artifact R22, routines R24) · `^/api/clio/application-authority/read-delegation(s\|-consents)(/[0-9a-f-]{36}/(tokens\|current\|revocations\|state))?$` (114; Option B R29) |
+| numeric v6 `listener.memoryPostPriority` (`FirstChatMemoryPostOnly`) | POST | Three bounded patterns in `memoryPost` for owner decision, version approve/reject and review-only correction; absent for v5 and v6-null |
+| readback `listener.guardPriority` (retained guard stack) | any | host-only 404, moved from 3; after the optional memory POST rule; nothing else changes |
+
+**Native memory review route status (source addendum, 2026-10-18).** The memory owner published Core `96065aea` with the exact new GET routes `/api/memory/candidates/mine`, `/api/memory/candidates/mine/:id/status`, and `/api/memory/owner/items`; and POST routes `/api/memory/candidates/:id/owner-decision`, `/api/memory/version-candidates/:id/approve`, `/api/memory/version-candidates/:id/reject`, and `/api/memory/items/:id/review-correction`. Host + POST + the three P3 path values use all five match evaluations; that rule cannot take another path value. The source keeps the v5 and v6-null chat packet unchanged. Numeric v6 `listener.memoryPostPriority` adds the three GET alternatives to P2 and creates `FirstChatMemoryPostOnly` for the four POSTs at a separate priority before `listener.guardPriority`; no other rule moves. The memory GET controllers use the preview native session/read mode and filter the current client roster before pagination. Run `corePreviewMemoryRules(packetReadback, routes, { memoryPostPriority, guardPriority })` before a memory-enabled render; it requires both slots vacant and ahead of any shared rule that can match the Core host. Neither frozen compact layout has a spare safe priority, so central listener allocation and a fresh readback are required. The memory routes remain held until that packet, image and feature activation are qualified. No live priority or listener change is authorized by this note.
 
 **Perimeter tradeoff (recorded per dot 6246011427).** The listener forwards any *syntactically valid* tool name (`[a-z][a-z0-9_]{1,63}`), not only the 65. That is a wider network perimeter than exact ALB enumeration. Core closes it:
 - **Profile requirement.** The task runs `CORE_DEPLOYMENT_PROFILE=first-chat-preview`. In that profile, startup refuses to run without an exact, non-empty `MERI_TOOL_ALLOWLIST` (config validation), and the route refuses every tool if the list were somehow absent.
@@ -331,6 +334,11 @@ routes (no Core owner yet).
 
 ### 8.3 Task definition (source)
 
+- **Capacity (source only):** the approved preview target is **1 vCPU / 2 GiB per Core task**, encoded as
+  `cpu: 1024` and `memoryLimitMiB: 2048` in the CDK template. The prior source setting is 0.5 vCPU / 1 GiB;
+  read back the currently running task definition and service before the coordinated change, retain its revision
+  for rollback, and verify the new task definition and service after deployment. This is per-task sizing;
+  production replica count and availability remain separate decisions. Measure utilization before further scaling.
 - **Image:** `FIRST_CHAT_CORE_IMAGE_PINS` is `null` and PR48 (`6542f5b0…` / `sha256:722a4832…`) is no longer
   accepted. Rendering refuses until the integrated image is built from #84 (or its successor), scanned,
   and its source SHA + digest are pinned together. `RELEASE_SHA` follows the binding.
@@ -342,10 +350,11 @@ routes (no Core owner yet).
   - `RETAINED_PRINCIPAL_PRIVATE_KEY_PEM` and `RETAINED_PROBE_PRIVATE_KEY_PEM` (Ed25519 PKCS8; distinct secrets), only when trust is bound.
   - The execution role gets `GetSecretValue` on exactly these.
   - No secret or PEM value appears in the environment, the browser or the template.
-- **Binding v5** (R27, R29: `signers.readDelegation`; v4 and older refuse) has these exact keys: `schemaVersion`, `sourceHead`, `imageDigest`, `internalServiceSecretArn`, `retainedTrust|null`, `listener.guardPriority`, `previewTenantId`, `profile`, `signers`. It requires:
+- **Binding v5/v6** (R27, R29: `signers.readDelegation`; v4 and older refuse) has these exact top-level keys: `schemaVersion`, `sourceHead`, `imageDigest`, `internalServiceSecretArn`, `retainedTrust|null`, `listener`, `previewTenantId`, `profile`, `signers`. V5 keeps exact `listener: {guardPriority}` and the chat-only packet. V6 requires exact `listener: {memoryPostPriority: null|number, guardPriority}`; null keeps the chat-only packet, while a numeric value enables the separate native memory rule and P2 GET alternatives only after `corePreviewMemoryRules` preflight. It requires:
   - complete secret ARNs, with the service identity pinned to the `meri/preview/core/internal-service-secret` name;
   - an exact HTTPS Intel origin and visible-ASCII key IDs;
   - an integer guard slot after the native-operations rule (occupancy and precedence checked offline against the readback, §8.1);
+  - numeric v6 `memoryPostPriority` strictly between P3 and `guardPriority`, both proven vacant and before the first shared Core-host match by the new memory preflight;
   - a UUID preview tenant;
   - five positive profile integers;
   - four signers (`execution`, `routineCancel`, `routineFire`, `readDelegation`), each null or `{issuer, kid, keyArn (KMS, this account/region), publicKeyX (GetPublicKey readback)}`, with a distinct key and kid per purpose.
@@ -357,6 +366,9 @@ routes (no Core owner yet).
 
 ### 8.4 Inputs still needed before any change set (no AWS action here)
 
+The successor's existing-preview chat cohort and exact build/action inputs are recorded in
+`CORE-SUCCESSOR-CHAT-COHORT-20261018.md`. Source tests do not establish live readiness.
+
 1. Build and scan the integrated Core image (W6), then pin it in the image-qualification commit.
 2. Create the `meri/preview/core/internal-service-secret` secret (no surrounding whitespace) and pass its exact complete ARN as `internalServiceSecretArn`. Meri's render references the same ARN. The older `capiro/dev/internal-service-secret` reference in `api-strategy-serve-taskdef.json` is not used by the preview task.
 3. For retained reads, the following must be allocated and pinned:
@@ -367,6 +379,7 @@ routes (no Core owner yet).
    If the new secrets use a CMK other than the two already granted, the execution role needs `kms:Decrypt` via Secrets Manager for it.
 4. JCS qualification of the in-repo RFC 8785 serializer (D13) before trust is enabled.
 5. A readback of the current listener. `corePreviewPacketRules` must accept the chosen `listener.guardPriority` against it (§8.1). Then one coordinated change set (dot): the guard stack first, then the service stack with the P3 rule.
+   - To enable native memory owner routes, allocate a separate readback-verified `listener.memoryPostPriority` and later guard slot, then require `corePreviewMemoryRules` on the modeled P3 packet. The frozen listener layouts fail this preflight; a central listener allocation and one coordinated change set are prerequisites. V5 or v6-null retains the chat-only packet.
 6. **Objective reader v2 (D7-2):** three AWS KMS `ECC_NIST_EDWARDS25519` SIGN_VERIFY keys, one per purpose. Their key policies allow only the Core task role `kms:Sign` (`ED25519_SHA_512`), plus `GetPublicKey` for the readback. The issuer and kid labels are chosen here. `createObjectiveReaderV2AsyncSigner(...).publicPins` then gives Meri its v2 reader-gate pins.
 7. **Meri execution capability (R14, after R0/dot agreement):** one KMS Ed25519 key, and its pinned JWK in Meri's `verifyCapability` trust.
 8. **Objective RS256 workload (D7-3):** the issuer's RSA ≥3072 private key (in process, from Secrets Manager); Meri's RSA ≥3072 caller-proof public key pinned in `callerKeys`; the policy revision; and the delegation-fence decision. The decisions route stays hard-closed until all of these exist.

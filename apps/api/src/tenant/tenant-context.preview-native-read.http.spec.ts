@@ -68,6 +68,9 @@ function fixture() {
   app.get('/api/me', reply);
   app.get('/api/clients', reply);
   app.get('/api/clients/:id', reply);
+  app.get('/api/memory/candidates/mine', reply);
+  app.get('/api/memory/candidates/mine/:id/status', reply);
+  app.get('/api/memory/owner/items', reply);
   app.use((error: { getStatus?: () => number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(error.getStatus?.() ?? 500).end();
   });
@@ -103,7 +106,7 @@ describe('preview native reads through real Node HTTP and Express routing', () =
     else process.env.PREVIEW_NATIVE_GETS_ENABLED = priorPreviewSetting;
   });
 
-  it('routes all three GETs and HEAD through online native authority without a local write', async () => {
+  it('routes all six GETs and HEAD through online native authority without a local write', async () => {
     process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
     const h = fixture();
     const server = await start(h.app);
@@ -111,15 +114,18 @@ describe('preview native reads through real Node HTTP and Express routing', () =
       for (const [method, target] of ([
         ['GET', '/api/me'], ['GET', '/api/clients?includeArchived=false'],
         ['GET', '/api/clients/11111111-1111-4111-8111-111111111111'], ['HEAD', '/api/me'],
+        ['GET', '/api/memory/candidates/mine?limit=25'],
+        ['GET', '/api/memory/candidates/mine/11111111-1111-4111-8111-111111111111/status'],
+        ['GET', '/api/memory/owner/items?limit=25'],
         ['HEAD', `http://${previewHost}/api/me`],
       ] as const)) {
         const result = await send(server, method, target);
         expect(result.status).toBe(200);
         expect(result.headers['cache-control']).toBe('no-store');
       }
-      expect(h.reached).toHaveBeenCalledTimes(5);
-      expect(h.verifySessionToken).toHaveBeenCalledTimes(5);
-      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(5);
+      expect(h.reached).toHaveBeenCalledTimes(8);
+      expect(h.verifySessionToken).toHaveBeenCalledTimes(8);
+      expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(8);
       for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
     } finally {
       server.closeAllConnections();
@@ -135,6 +141,7 @@ describe('preview native reads through real Node HTTP and Express routing', () =
       for (const bearer of ['sidless-token', 'marked-control', 'marked-with-sid']) {
         for (const [method, target] of ([
           ['GET', '/api/me'], ['HEAD', '/api/clients'],
+          ['GET', '/api/memory/candidates/mine'], ['HEAD', '/api/memory/owner/items'],
           ['GET', `http://${previewHost}/api/me`], ['HEAD', `http://${previewHost}/api/me`],
         ] as const)) {
           const result = await send(server, method, target, previewHost, bearer);

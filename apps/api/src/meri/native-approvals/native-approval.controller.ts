@@ -12,7 +12,7 @@ import { NativeExecutionService } from './native-execution.service.js';
 import { meriExecutionKeyConfigProvider, meriExecutionSignerProvider } from '../execution-capability/meri-execution-authority.js';
 
 /** Bodies and receipts are the native provider operations `approval/record`
- * and `approval/decision` byte-for-byte, so Meri's provider can forward them.
+ * and `approval/decision` byte-for-byte; revoke also carries Meri's approver.
  * HTTP 200 only: Meri's native client refuses any other status. */
 @Controller('clio/approvals/native')
 @UseGuards(RolesGuard, ToolServiceSecretGuard)

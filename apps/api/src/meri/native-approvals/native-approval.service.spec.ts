@@ -10,7 +10,7 @@ import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
-import { nativeCanonicalSha256 } from './native-approval.contract.js';
+import { nativeCanonicalSha256, parseApprovalDecisionInput, parseApprovalRevokeInput } from './native-approval.contract.js';
 import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 import { NativeApprovalService } from './native-approval.service.js';
 
@@ -54,6 +54,7 @@ function verifiedRequest(verified = true): Request {
 
 function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOnCreate?: boolean } = {}) {
   const rows = new Map<string, any>();
+  const revocations = new Map<string, any>();
   const key = (where: any) => `${where.tenantId_proposalId.tenantId}:${where.tenantId_proposalId.proposalId}`;
   const create = jest.fn(async ({ data }: any) => {
     if (options.raceOnCreate && !rows.has(`${data.tenantId}:${data.proposalId}`)) {
@@ -77,8 +78,17 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOn
       findUnique: jest.fn(async ({ where }: any) => rows.get(key(where)) ?? null),
       create,
     },
-    // No revocation in these cases (revocation is covered by the execution flow spec).
-    clioMeriApprovalRevocation: { findUnique: jest.fn(async () => null) },
+    clioMeriApprovalRevocation: {
+      findUnique: jest.fn(async ({ where }: any) => revocations.get(key(where)) ?? null),
+      createMany: jest.fn(async ({ data, skipDuplicates }: any) => {
+        expect(skipDuplicates).toBe(true);
+        for (const row of data) {
+          const id = `${row.tenantId}:${row.proposalId}`;
+          if (!revocations.has(id)) revocations.set(id, { ...row });
+        }
+        return { count: data.length };
+      }),
+    },
     $queryRaw: jest.fn(async () => {
       if (options.metadata === 'unavailable') throw new Error('relation "meri_commands.approval_metadata" does not exist');
       if (!current) return [];
@@ -90,7 +100,7 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOn
   const prisma = { withTenant: jest.fn(async (_tenant: string, fn: (t: typeof tx) => unknown) => fn(tx)) };
   const service = new NativeApprovalService(prisma as never, new NativeApprovalMetadataVerifier(prisma as never));
   return {
-    service, rows, create, tx,
+    service, rows, revocations, create, tx,
     record: (body: { proposal: ReturnType<typeof proposal>; decision: string; approver?: unknown; binding?: unknown }, req = verifiedRequest()) => {
       current = body.proposal;
       return service.record(req, ctx, { approver: { tenantId, actorId }, binding, ...body });
@@ -220,5 +230,73 @@ describe('P-INT-10 approval/decision', () => {
       .rejects.toBeInstanceOf(ForbiddenException);
     await expect(f.service.decision(verifiedRequest(), ctx, { proposalId: p.proposalId, commandSha256: p.commandSha256, binding: { ...binding, actorId: otherActor } }))
       .rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+describe('P-INT-10 approval/revoke', () => {
+  const body = (p: ReturnType<typeof proposal>) => ({
+    proposalId: p.proposalId, commandSha256: p.commandSha256,
+    approver: { tenantId, actorId }, binding,
+  });
+
+  it('accepts Meri RD\'s exact four-field revoke body while decision remains three-field', () => {
+    const p = proposal();
+    const revoke = body(p);
+    expect(parseApprovalRevokeInput(revoke)).toEqual(revoke);
+    const decision = { proposalId: p.proposalId, commandSha256: p.commandSha256, binding };
+    expect(parseApprovalDecisionInput(decision)).toEqual(decision);
+    expect(() => parseApprovalDecisionInput(revoke)).toThrow(BadRequestException);
+  });
+
+  it('requires the approver and a closed, valid revoke body', () => {
+    const revoke = body(proposal());
+    expect(() => parseApprovalRevokeInput({ proposalId: revoke.proposalId, commandSha256: revoke.commandSha256, binding }))
+      .toThrow(BadRequestException);
+    expect(() => parseApprovalRevokeInput({ ...revoke, extra: true })).toThrow(BadRequestException);
+    expect(() => parseApprovalRevokeInput({ ...revoke, approver: { ...revoke.approver, actorId: `A${otherActor.slice(1)}` } }))
+      .toThrow(BadRequestException);
+    expect(() => parseApprovalRevokeInput({ ...revoke, commandSha256: 'not-a-hash' })).toThrow(BadRequestException);
+  });
+
+  it('records one append-only revocation by the authenticated approver and answers repeat calls', async () => {
+    const f = fixture();
+    const p = proposal();
+    await f.record({ proposal: p, decision: 'approved' });
+    const revoke = body(p);
+    const first = await f.service.revoke(verifiedRequest(), ctx, revoke);
+    expect(first).toMatchObject({ revoked: true, decision: { proposalId: p.proposalId, decision: 'approved' } });
+    expect(await f.service.revoke(verifiedRequest(), ctx, revoke)).toMatchObject({ revoked: true });
+    expect(f.revocations.size).toBe(1);
+    expect([...f.revocations.values()][0]).toMatchObject({
+      tenantId, proposalId: p.proposalId, commandSha256: p.commandSha256,
+      revokedByUserId: actorId, reason: 'approver_revoked',
+    });
+    expect(await f.service.decision(verifiedRequest(), ctx, {
+      proposalId: p.proposalId, commandSha256: p.commandSha256, binding,
+    })).toMatchObject({ revoked: true });
+  });
+
+  it('refuses an unverified service or an approver other than the authenticated actor', async () => {
+    const f = fixture();
+    const p = proposal();
+    await f.record({ proposal: p, decision: 'approved' });
+    const revoke = body(p);
+    await expect(f.service.revoke(verifiedRequest(false), ctx, revoke)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(f.service.revoke(verifiedRequest(), ctx, { ...revoke, approver: { tenantId, actorId: otherActor } }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(f.service.revoke(verifiedRequest(), ctx, { ...revoke, binding: { ...binding, actorId: otherActor } }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(f.service.revoke(verifiedRequest(), { ...ctx, userId: otherActor }, revoke))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(f.tx.clioMeriApprovalRevocation.createMany).not.toHaveBeenCalled();
+  });
+
+  it('requires the stored decision to match before writing a revocation', async () => {
+    const f = fixture();
+    const p = proposal();
+    await f.record({ proposal: p, decision: 'approved' });
+    await expect(f.service.revoke(verifiedRequest(), ctx, { ...body(p), commandSha256: '0'.repeat(64) }))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(f.tx.clioMeriApprovalRevocation.createMany).not.toHaveBeenCalled();
   });
 });

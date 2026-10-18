@@ -11,6 +11,7 @@ import { hasVerifiedToolServiceIdentity } from '../../auth/tool-service-secret.g
 import {
   parseApprovalDecisionInput,
   parseApprovalRecordInput,
+  parseApprovalRevokeInput,
   sameJson,
   type NativeApprovalDecision,
   type NativeApprovalReceipt,
@@ -122,13 +123,15 @@ export class NativeApprovalService {
    * written once under the proposal's execution lock, so it serializes with
    * capability issuance and the `create_task` receiver: an effect either
    * committed before the revocation or is refused after it. Idempotent: a
-   * repeat answers the same revoked receipt. Same body and auth as
-   * `approval/decision`.
+   * repeat answers the same revoked receipt. Meri forwards the decision's
+   * proposal/hash/binding with its approver identity; that identity must be
+   * the authenticated actor. `approval/decision` retains its own body shape.
    */
   async revoke(req: Request, ctx: TenantContext, raw: unknown): Promise<NativeApprovalReceipt> {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
-    const input = parseApprovalDecisionInput(raw);
-    if (input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
+    const input = parseApprovalRevokeInput(raw);
+    if (input.approver.tenantId !== ctx.tenantId || input.approver.actorId !== ctx.userId ||
+        input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await lockMeriExecutionProposal(tx, ctx.tenantId, input.proposalId);
       const decision = await tx.clioMeriApprovalDecision.findUnique({

@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MeriService } from './meri.service.js';
 import type { TenantContext } from '@capiro/shared';
+import { Prisma } from '@prisma/client';
 
 /**
  * Regression coverage for the ChatDrawer "Things Meri learned" panel's
@@ -31,7 +32,15 @@ const ctx: TenantContext = {
   role: 'capiro_admin',
 };
 
-function buildService(opts: { clioMemoryRow: Record<string, unknown> | null; legalHold: boolean }) {
+function buildService(opts: {
+  clioMemoryRow: Record<string, unknown> | null;
+  legalHold: boolean;
+  projectionId?: string | null;
+  projectionStatus?: string;
+  wallAllowed?: boolean;
+  linked?: Array<{ id: string; slug: string | null; type: string | null }>;
+}) {
+  const projectionId = opts.projectionId === undefined ? 'projection-1' : opts.projectionId;
   const tx = {
     clioMemory: {
       findFirst: jest.fn().mockResolvedValue(opts.clioMemoryRow),
@@ -39,7 +48,22 @@ function buildService(opts: { clioMemoryRow: Record<string, unknown> | null; leg
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
-    $queryRaw: jest.fn().mockResolvedValue([{ legal_hold: opts.legalHold }]),
+    $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = Prisma.sql(strings, ...values);
+      if (sql.text.includes('FROM clio_memory') && sql.text.includes('FOR UPDATE')) {
+        return opts.clioMemoryRow ? [opts.clioMemoryRow] : [];
+      }
+      if (sql.text.includes('FROM memory_candidate mc')) return opts.linked ?? [];
+      if (sql.text.includes('FROM memory_items')) {
+        return projectionId ? [{
+          id: projectionId, legal_hold: opts.legalHold,
+          status: opts.projectionStatus ?? 'active',
+        }] : [];
+      }
+      return [];
+    }),
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: opts.wallAllowed ?? true }]),
+    $executeRaw: jest.fn(async () => 1),
   };
   const prisma = {
     withTenant: jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) => fn(tx)),
@@ -70,7 +94,7 @@ function buildService(opts: { clioMemoryRow: Record<string, unknown> | null; leg
 }
 
 describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
-  const row = { id: 'm1', scope: 'firm', ownerUserId: null, key: 'k', value: 'v' };
+  const row = { id: 'm1', scope: 'firm', ownerUserId: null, clientId: null, key: 'k', value: 'v' };
 
   it('refuses when the projected memory_items row is under legal hold', async () => {
     const { service, tx, memoryIngest } = buildService({ clioMemoryRow: row, legalHold: true });
@@ -87,7 +111,7 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
     // scope/ownerUserId are re-asserted in the mutation query itself, not just
     // the earlier read (defense-in-depth against a TOCTOU between the two).
     expect(tx.clioMemory.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'm1', tenantId: 't1', scope: 'firm', ownerUserId: null },
+      where: { id: 'm1', tenantId: 't1', scope: 'firm', ownerUserId: null, clientId: null },
     });
     expect(tx.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -99,13 +123,23 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
         before: { key: 'k', value: 'v', scope: 'firm' },
       }),
     });
-    expect(memoryIngest.removeClioMemory).toHaveBeenCalledWith('t1', 'm1');
+    expect(memoryIngest.removeClioMemory).toHaveBeenCalledWith('t1', 'm1', 'projection-1');
+    const reads = tx.$queryRaw.mock.calls.map(([strings, ...values]) =>
+      Prisma.sql(strings, ...values).text,
+    );
+    expect(reads[0]).toContain('FROM clio_memory');
+    expect(reads[0]).toContain('FOR UPDATE');
+    expect(reads.findIndex((sql) => sql.includes('FROM memory_items'))).toBeGreaterThan(0);
+    const revoked = tx.$executeRaw.mock.calls.map(([strings, ...values]) =>
+      Prisma.sql(strings, ...values).text,
+    );
+    expect(revoked).toEqual(expect.arrayContaining([expect.stringContaining("status = 'revoked'")]));
   });
 
   it('404s when the row does not exist (no legal-hold/audit calls at all)', async () => {
     const { service, tx } = buildService({ clioMemoryRow: null, legalHold: false });
     await expect(service.forgetMemory(ctx, 'missing')).rejects.toThrow(NotFoundException);
-    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
   });
 
@@ -122,16 +156,127 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
     });
     await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow(NotFoundException);
   });
+
+  it('denies a walled client even to an admin before deleting or inspecting projections', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, scope: 'client', clientId: 'c1' },
+      legalHold: false, wallAllowed: false,
+    });
+    await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow(NotFoundException);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('fails the transaction if client scope changes after authorization', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, scope: 'client', clientId: 'c1' }, legalHold: false,
+    });
+    tx.clioMemory.deleteMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow(NotFoundException);
+    expect(tx.clioMemory.deleteMany).toHaveBeenCalledWith({ where: expect.objectContaining({ clientId: 'c1' }) });
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses Settings memory even if a derived shadow exists and candidate history is absent', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, source: 'settings_memory_editor' }, legalHold: false,
+    });
+    await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow('canonical version review');
+    expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses governed metadata with no authoritative committed-item link', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, source: 'conversation',
+        metadata: { governance: { canonicalType: 'note' } } },
+      legalHold: false,
+    });
+    await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow('canonical version review');
+    expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('accepts a governed source only when its committed item is the exact derived projection', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, metadata: { governance: { canonicalType: 'client-compass' } } },
+      legalHold: false,
+      linked: [{ id: 'projection-1', slug: 'clio:m1', type: 'client-compass' }],
+    });
+    await expect(service.forgetMemory(ctx, 'm1')).resolves.toEqual({ ok: true, id: 'm1' });
+    expect(tx.clioMemory.deleteMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a linked custom canonical item outside the derived projection', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: row, legalHold: false,
+      linked: [{ id: 'canonical-1', slug: 'firm-settings', type: 'firm-soul' }],
+    });
+    await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow('canonical version review');
+    expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('revokes the canonical row and keeps cleanup queued when fast removal fails', async () => {
+    const prior = process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+    try {
+      const { service, tx, memoryIngest } = buildService({ clioMemoryRow: row, legalHold: false });
+      const cleanupOutbox = {
+        enqueue: jest.fn(async () => undefined),
+        markIndexedOnFastPath: jest.fn(async () => undefined),
+      };
+      (service as unknown as { cleanupOutbox: typeof cleanupOutbox }).cleanupOutbox = cleanupOutbox;
+      jest.spyOn((service as unknown as { logger: { warn: (message: string) => void } }).logger, 'warn')
+        .mockImplementation(() => undefined);
+      memoryIngest.removeClioMemory.mockRejectedValueOnce(new Error('projection delete failed'));
+
+      await expect(service.forgetMemory(ctx, 'm1')).resolves.toEqual({ ok: true, id: 'm1' });
+      await new Promise<void>((done) => setImmediate(done));
+      const revoked = tx.$executeRaw.mock.calls.map(([strings, ...values]) =>
+        Prisma.sql(strings, ...values).text,
+      );
+      expect(revoked).toEqual(expect.arrayContaining([
+        expect.stringContaining("governed_status = 'revoked'"),
+      ]));
+      expect(cleanupOutbox.enqueue).toHaveBeenCalledWith(
+        tx, ctx.tenantId, expect.objectContaining({
+          memoryItemId: 'projection-1', operation: 'revoke_projections',
+        }),
+      );
+      expect(cleanupOutbox.markIndexedOnFastPath).not.toHaveBeenCalled();
+    } finally {
+      if (prior === undefined) delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+      else process.env.MEMORY_GOVERNANCE_LIFECYCLE = prior;
+    }
+  });
+
+  it('refuses deletion without a projection subject before a backfill can race it', async () => {
+    const { service, tx } = buildService({ clioMemoryRow: row, legalHold: false, projectionId: null });
+    const cleanupOutbox = { enqueue: jest.fn(async () => undefined),
+      markIndexedOnFastPath: jest.fn(async () => undefined) };
+    (service as unknown as { cleanupOutbox: typeof cleanupOutbox }).cleanupOutbox = cleanupOutbox;
+    await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow('not ready for safe deletion');
+    expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
+    expect(cleanupOutbox.enqueue).not.toHaveBeenCalled();
+  });
 });
 
 describe('MeriService.updateMemory — legal hold + audit trail', () => {
-  const row = { id: 'm1', scope: 'firm', ownerUserId: null, key: 'k', value: 'old', metadata: {} };
+  const row = { id: 'm1', scope: 'firm', ownerUserId: null, clientId: null,
+    key: 'k', value: 'old', metadata: {} };
 
   it('refuses an edit when the projected memory_items row is under legal hold', async () => {
     const { service, tx, memoryIngest } = buildService({ clioMemoryRow: row, legalHold: true });
     await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(ForbiddenException);
     expect(tx.clioMemory.updateMany).not.toHaveBeenCalled();
     expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(memoryIngest.projectClioMemory).not.toHaveBeenCalled();
+  });
+
+  it('refuses to edit a terminal canonical projection', async () => {
+    const { service, tx, memoryIngest } = buildService({
+      clioMemoryRow: row, legalHold: false, projectionStatus: 'revoked',
+    });
+    await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(NotFoundException);
+    expect(tx.clioMemory.updateMany).not.toHaveBeenCalled();
     expect(memoryIngest.projectClioMemory).not.toHaveBeenCalled();
   });
 
@@ -150,6 +295,34 @@ describe('MeriService.updateMemory — legal hold + audit trail', () => {
       }),
     });
     expect(memoryIngest.projectClioMemory).toHaveBeenCalledWith('t1', 'm1');
+    const reads = tx.$queryRaw.mock.calls.map(([strings, ...values]) =>
+      Prisma.sql(strings, ...values).text,
+    );
+    expect(reads[0]).toContain('FROM clio_memory');
+    expect(reads[0]).toContain('FOR UPDATE');
+    expect(reads.findIndex((sql) => sql.includes('FROM memory_items'))).toBeGreaterThan(0);
+  });
+
+  it('denies a walled client edit before touching the projection', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, scope: 'client', clientId: 'c1' },
+      legalHold: false, wallAllowed: false,
+    });
+    await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(NotFoundException);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.clioMemory.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('fails an edit if the client changed after the wall check', async () => {
+    const { service, tx } = buildService({
+      clioMemoryRow: { ...row, scope: 'client', clientId: 'c1' }, legalHold: false,
+    });
+    tx.clioMemory.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(NotFoundException);
+    expect(tx.clioMemory.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ clientId: 'c1' }),
+    }));
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
   });
 
   it('rejects an empty/whitespace-only value before ever checking legal hold', async () => {

@@ -1,5 +1,7 @@
 import { ConflictException, ForbiddenException, GoneException, ServiceUnavailableException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { readMeriAdmittedRun } from '../../meri/execution-capability/meri-admitted-run.reader.js';
+import type { NativeRunBinding } from '../../meri/native-approvals/native-approval.contract.js';
 import { canonicalSha256, isSha, isUuid, operationsDigest, type OperationRef } from './read-delegation.contract.js';
 
 type Tx = Prisma.TransactionClient;
@@ -10,8 +12,9 @@ type Tx = Prisma.TransactionClient;
  * read-delegation/migrations/0001_read_delegation_facts.sql). Core never trusts
  * a caller digest for allocation, operations, deadline, allowance or fence:
  * every issuance, token issue, token use and release reads these rows in the
- * same transaction. A row's existence is never authority (dot 6248061000);
- * `admitted` and `admitted_until` are.
+ * same transaction. Meri's view is read only after Core's canonical admission
+ * snapshot takes the budget lock and verifies its exact original ADMITTED
+ * grant set. A view row's existence is never authority (dot 6248061000).
  */
 export interface RunFacts {
   runId: string;
@@ -57,6 +60,7 @@ export interface DelegationFacts {
 const unavailable = () => new ServiceUnavailableException('Read delegation facts unavailable');
 const denied = () => new ForbiddenException('Read delegation refused');
 const changed = () => new ConflictException('Read delegation changed');
+const plain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 export const ACTIVE_RUN_STATES = Object.freeze(['queued', 'starting', 'running']);
 
 const integer = (value: unknown): number => {
@@ -75,8 +79,52 @@ function operations(value: unknown): OperationRef[] {
   });
 }
 
+/** The view supplies the conversation id needed to address Core's snapshot;
+ * this preliminary read grants no authority. It is read again under the
+ * snapshot's budget FOR SHARE lock before any decision or write. */
+async function conversationForSnapshot(tx: Tx, tenantId: string, runId: string): Promise<string> {
+  let rows: Array<{ conversation_id: string }>;
+  try {
+    rows = await tx.$queryRaw<Array<{ conversation_id: string }>>`
+      SELECT conversation_id::text AS conversation_id FROM meri_read_delegation_facts.run_facts_v1
+       WHERE run_id = ${runId}::uuid AND tenant_id = ${tenantId} LIMIT 2`;
+  } catch {
+    throw unavailable();
+  }
+  if (rows.length !== 1 || !isUuid(rows[0]?.conversation_id)) throw changed();
+  return rows[0]!.conversation_id;
+}
+
+/** The saved ADMITTED binding is the execution owner's seven-field binding.
+ * Option B's six-field run projection omits workerId and its writerFence is a
+ * distinct counter from Meri's budget fence. The existing admitted-run reader
+ * validates this saved binding, all original grants and the budget lock. */
+async function admittedBinding(tx: Tx, tenantId: string, conversationId: string, runId: string):
+  Promise<{ binding: NativeRunBinding; policyRevision: string }> {
+  let rows: Array<{ snapshot: unknown }>;
+  try {
+    rows = await tx.$queryRaw<Array<{ snapshot: unknown }>>`
+      SELECT meri_core_authority.current_admission_v1(${tenantId}::uuid, ${conversationId}::uuid, ${runId}::uuid) AS snapshot`;
+  } catch {
+    throw unavailable();
+  }
+  const snapshot = rows[0]?.snapshot;
+  if (rows.length !== 1 || !plain(snapshot)) throw changed();
+  const run = snapshot.run;
+  const admitted = snapshot.admitted;
+  const binding = plain(admitted) ? admitted.binding : null;
+  if (!plain(binding) || Object.keys(binding).length !== 7 ||
+      !['tenantId', 'actorId', 'conversationId', 'runId', 'attemptId', 'workerId', 'writerFence']
+        .every((key) => Object.hasOwn(binding, key)) ||
+      binding.tenantId !== tenantId || binding.conversationId !== conversationId || binding.runId !== runId ||
+      !isUuid(binding.actorId) || !isUuid(binding.attemptId) || !isUuid(binding.workerId) ||
+      !Number.isSafeInteger(binding.writerFence) || (binding.writerFence as number) < 1 ||
+      !plain(run) || !isSha(run.policyRevision)) throw changed();
+  return { binding: binding as unknown as NativeRunBinding, policyRevision: run.policyRevision as string };
+}
+
 /** One run's facts and the database clock, under the caller's transaction. */
-export async function readRunFacts(tx: Tx, tenantId: string, runId: string): Promise<RunFacts> {
+async function readViewRunFacts(tx: Tx, tenantId: string, runId: string): Promise<RunFacts> {
   let rows: Record<string, unknown>[];
   try {
     rows = await tx.$queryRaw<Record<string, unknown>[]>`
@@ -104,6 +152,34 @@ export async function readRunFacts(tx: Tx, tenantId: string, runId: string): Pro
     admittedUntilMs: ms(r.admitted_until_ms), runState: r.run_state, runBinding: r.run_binding, runScopes: r.run_scopes,
     dbNowMs: integer(r.db_now_ms),
   };
+}
+
+/** Every caller shares one fail-closed authority path. The first snapshot call
+ * acquires the budget lock. readMeriAdmittedRun then checks the exact saved
+ * ADMITTED grant set under that same transaction, before the view is reread. */
+export async function readRunFacts(tx: Tx, tenantId: string, runId: string): Promise<RunFacts> {
+  const conversationId = await conversationForSnapshot(tx, tenantId, runId);
+  const { binding, policyRevision } = await admittedBinding(tx, tenantId, conversationId, runId);
+  const admission = await readMeriAdmittedRun(tx, binding, policyRevision, { tenantId });
+  const facts = await readViewRunFacts(tx, tenantId, runId);
+  const projection = facts.runBinding;
+  const allocation = admission.allocation;
+  const manifest = plain(allocation) ? allocation.manifest : null;
+  const budgets = plain(allocation) ? allocation.budgets : null;
+  if (facts.conversationId !== conversationId || !facts.admitted || facts.admittedUntilMs === null ||
+      !plain(projection) || projection.tenantId !== binding.tenantId || projection.actorId !== binding.actorId ||
+      projection.conversationId !== binding.conversationId || projection.runId !== binding.runId ||
+      projection.attemptId !== binding.attemptId ||
+      facts.allocationSha256 !== admission.allocationSha256 ||
+      facts.attempt !== admission.qualification.attempt || facts.fence !== admission.qualification.fence ||
+      facts.policyRevision !== admission.qualification.policyRevision ||
+      !plain(manifest) || !Array.isArray(manifest.allowedOperations) ||
+      canonicalSha256(facts.allowedOperations) !== canonicalSha256(manifest.allowedOperations) ||
+      !plain(budgets) || facts.maxToolCalls !== budgets.maxToolCalls ||
+      facts.reservedCalls > facts.maxToolCalls) throw changed();
+  facts.admittedUntilMs = Math.min(facts.admittedUntilMs, admission.deadlineMs);
+  if (facts.dbNowMs >= facts.admittedUntilMs) throw new GoneException('Read delegation expired');
+  return facts;
 }
 
 export const runBindingOf = (d: Pick<DelegationFacts, 'tenantId' | 'actorId' | 'conversationId' | 'runId' | 'attemptId' | 'writerFence'>) => ({

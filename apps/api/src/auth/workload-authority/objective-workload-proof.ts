@@ -7,6 +7,7 @@ import { types as nodeTypes } from 'node:util';
 export const OBJECTIVE_WORKLOAD_PROOF_TYPE = 'capiro-objective-workload-proof+jwt';
 export const OBJECTIVE_WORKLOAD_PROOF_AUDIENCE = 'capiro:objective-core-issuer:v1';
 export const OBJECTIVE_WORKLOAD_PROOF_PATH = '/api/internal/objective-workload-authority/decisions';
+export const OBJECTIVE_WORKLOAD_CREDENTIAL_PATH = '/api/internal/objective-workload-authority/credentials';
 
 const ALGORITHM = 'RS256';
 const MAX_TOKEN_BYTES = 8_192;
@@ -21,7 +22,7 @@ const BASE64URL = /^[A-Za-z0-9_-]+$/;
 export interface ObjectiveWorkloadProofRequest {
   /** Pass the actual method and original URL, not values copied from claims. */
   readonly method: 'POST';
-  readonly path: typeof OBJECTIVE_WORKLOAD_PROOF_PATH;
+  readonly path: typeof OBJECTIVE_WORKLOAD_PROOF_PATH | typeof OBJECTIVE_WORKLOAD_CREDENTIAL_PATH;
   readonly query: '';
   /** Captured HTTP entity bytes; never JSON re-serialized after parsing. */
   readonly body: Uint8Array;
@@ -133,7 +134,8 @@ export function verifyObjectiveWorkloadCallerProof(
 ): Readonly<ObjectiveWorkloadProofIdentity> {
   try {
     const request = ownData(expected, ['method', 'path', 'query', 'body', 'operationId']) as unknown as ObjectiveWorkloadProofRequest;
-    if (request.method !== 'POST' || request.path !== OBJECTIVE_WORKLOAD_PROOF_PATH ||
+    if (request.method !== 'POST' ||
+        request.path !== OBJECTIVE_WORKLOAD_PROOF_PATH && request.path !== OBJECTIVE_WORKLOAD_CREDENTIAL_PATH ||
         request.query !== '' || !uuid(request.operationId) ||
         !(request.body instanceof Uint8Array) || nodeTypes.isProxy(request.body) ||
         request.body.byteLength === 0 || request.body.byteLength > MAX_BODY_BYTES) denied();

@@ -1,6 +1,8 @@
-# Source-only CodeBuild buildspec for the PR43 first-chat Core image.
-# Define APPROVED_SOURCE_BUCKET and APPROVED_SOURCE_VERSION_ID on a dedicated
-# project after uploading the exact Git archive ZIP. No StartBuild overrides.
+# Source-only CodeBuild recipe for one frozen integrated Core image.
+# The reviewed project configuration pins APPROVED_SOURCE_SHA,
+# APPROVED_ARCHIVE_SHA256, APPROVED_SOURCE_BUCKET and
+# APPROVED_SOURCE_VERSION_ID to an exact versioned Git archive ZIP. Read back
+# that configuration before a build. No StartBuild overrides.
 version: 0.2
 env:
   shell: bash
@@ -13,12 +15,8 @@ phases:
         set -euo pipefail
         stage=initialize
         trap 'printf "BLOCK: Core build stage %s failed\n" "$stage" >&2' ERR
-        SOURCE_SHA=13d12a7d7bdbe0be021cb218dd4cf7690cc4420b
-        SOURCE_KEY=inputs/core-13d12a7d7bdbe0be021cb218dd4cf7690cc4420b.zip
-        ARCHIVE_SHA256=8643d671d641fb6379c442931e2ed953c2654b418580e7274116d2e4c4d68b16
         REPOSITORY=capiro/preview-core
         REGISTRY=967807252336.dkr.ecr.us-east-1.amazonaws.com
-        IMAGE="$REGISTRY/$REPOSITORY:$SOURCE_SHA"
         stage=architecture
         test "$(uname -m)" = x86_64
         stage=region
@@ -28,8 +26,14 @@ phases:
         # CodeBuild's source URL metadata is not used as build input. The
         # versioned S3 download and full archive hash below select the bytes.
         stage=source-pin
+        SOURCE_SHA="${APPROVED_SOURCE_SHA:?}"
+        [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+        SOURCE_KEY="inputs/core-$SOURCE_SHA.zip"
+        ARCHIVE_SHA256="${APPROVED_ARCHIVE_SHA256:?}"
+        [[ "$ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
         test "${APPROVED_SOURCE_BUCKET:?}" = capiro-portfolio-preview-source-967807252336-us-east-1
-        test "${APPROVED_SOURCE_VERSION_ID:?}" = H7novBkHZg.qAof.Kf5GRr_joZfnzOHx
+        [[ "${APPROVED_SOURCE_VERSION_ID:?}" =~ ^[A-Za-z0-9._+/=-]{1,255}$ ]]
+        IMAGE="$REGISTRY/$REPOSITORY:$SOURCE_SHA"
         stage=source-version
         test "${CODEBUILD_SOURCE_VERSION:-}" = "${APPROVED_SOURCE_VERSION_ID:?}"
         stage=resolved-source-version
@@ -53,11 +57,9 @@ phases:
         cd "$CODEBUILD_SRC_DIR/verified"
         stage=receipt-migration-presence
         test -f apps/api/prisma/migrations/20281016020000_clio_conversation_bootstrap_receipts/migration.sql
-        stage=objective-migration-absence
-        if compgen -G 'apps/api/prisma/migrations/20281016010000*' >/dev/null; then
-          echo 'Objective migration is outside this image source' >&2
-          exit 1
-        fi
+        stage=integrated-source-presence
+        test -f apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql
+        test -f apps/api/src/meri/execution-capability/meri-execution-receiver.service.ts
         stage=ecr-login
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
         stage=docker-build

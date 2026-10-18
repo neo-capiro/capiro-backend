@@ -9,6 +9,9 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * across every store that holds it: memory_items (+ their context_embeddings and
  * memory_edges), the clio_memory client-scope rows that project into them,
  * pending memory_candidate proposals, and the client_memory_access wall grants.
+ * The Meri submission receipt has no candidate payload (migration
+ * 20281018020000) and remains as an immutable suppression marker. Its owner
+ * refuses replay with HTTP 410 once the payload-owning candidate is gone.
  *
  * Invariants:
  *  - LEGAL HOLD is absolute: a memory_item with legal_hold=true (and its

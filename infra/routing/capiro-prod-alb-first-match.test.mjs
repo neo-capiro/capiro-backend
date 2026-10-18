@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   compactCorePreviewRules,
   corePreviewPacketRules,
+  corePreviewMemoryRules,
   addMeriRule,
   firstMatch,
   movePriority,
@@ -334,6 +335,77 @@ test('the Core guard slot comes from the listener readback and is never assumed'
   assert.equal(firstMatch(packet, {
     host: coreHost, path: '/api/engagement/x', method: 'GET', headers: { 'X-Capiro-Engagement-Preview': 'v3' },
   }).id, 'core-guard');
+});
+
+test('native memory routes need a second vacant slot before the same retained guard', () => {
+  const routes = readCoreRoutes();
+  let relocated = live;
+  for (const move of registry.relocationOrder) relocated = movePriority(relocated, move.id, move.from, move.to);
+  const compact = compactCorePreviewRules(addMeriRule(relocated));
+  const packet = corePreviewPacketRules(compact, routes, { guardPriority: 4 });
+  for (const [method, path] of [
+    ['GET', '/api/memory/candidates/mine'],
+    ['GET', `/api/memory/candidates/mine/${validClient}/status`],
+    ['GET', '/api/memory/owner/items'],
+    ['POST', `/api/memory/candidates/${validClient}/owner-decision`],
+  ]) assert.equal(firstMatch(packet, { host: coreHost, method, path, headers: {} }).id, 'core-guard', path);
+  assert.throws(() => corePreviewMemoryRules(packet, routes), /Readback-verified/);
+  // P4 is the existing Core guard, P5 callbacks and P6 Meri are occupied;
+  // P7 is the first shared rule that could admit this host. No frozen slot pair.
+  for (const [memoryPostPriority, guardPriority] of [[4, 5], [4, 6], [4, 7], [5, 6], [3, 4], [4, 4]]) {
+    assert.throws(() => corePreviewMemoryRules(packet, routes, { memoryPostPriority, guardPriority }),
+      /Readback-verified/, `${memoryPostPriority}/${guardPriority}`);
+  }
+
+  // A synthetic future readback with a qualified vacancy exercises the source
+  // transform; it is not a plan to remove or move any present shared rule.
+  const synthetic = packet.filter((rule) => coreHost === rule.conditions.hosts?.[0] ||
+    rule.id === 'prod-api' || rule.id === 'default');
+  const driftedReads = structuredClone(synthetic);
+  driftedReads.find((rule) => rule.id === 'core-membership').conditions.pathRegexes = routes.memoryGet;
+  assert.throws(() => corePreviewMemoryRules(driftedReads, routes,
+    { memoryPostPriority: 4, guardPriority: 5 }), /Exact Core packet/);
+  const memory = corePreviewMemoryRules(synthetic, routes, { memoryPostPriority: 4, guardPriority: 5 });
+  assertUniquePriorities(memory);
+  assert.deepEqual(memory.find((rule) => rule.id === 'core-membership').conditions.pathRegexes, routes.memoryGet);
+  assertRoutingEqual(synthetic, memory, hosts.filter((host) => host.toLowerCase() !== coreHost));
+  assert.deepEqual(memory.filter((rule) => rule.id === 'prod-api' || rule.id === 'default'),
+    synthetic.filter((rule) => rule.id === 'prod-api' || rule.id === 'default'));
+  assert.equal(memory.find((rule) => rule.id === 'core-guard').priority, 5);
+  const at = (method, path, host = coreHost) => firstMatch(memory, { host, method, path, headers: {} });
+  for (const path of [
+    '/api/memory/candidates/mine',
+    `/api/memory/candidates/mine/${validClient}/status`,
+    '/api/memory/owner/items',
+  ]) {
+    assert.equal(at('GET', path).id, 'core-membership', path);
+    assert.equal(at('POST', path).id, 'core-guard', `POST ${path}`);
+  }
+  for (const path of [
+    `/api/memory/candidates/${validClient}/owner-decision`,
+    `/api/memory/version-candidates/${validClient}/approve`,
+    `/api/memory/version-candidates/${validClient}/reject`,
+    `/api/memory/items/${validClient}/review-correction`,
+  ]) {
+    assert.equal(at('POST', path).id, 'core-memory-post', path);
+    assert.equal(at('GET', path).id, 'core-guard', `GET ${path}`);
+    assert.equal(at('OPTIONS', path).id, 'core-guard', `OPTIONS ${path}`);
+    assert.equal(at('POST', path, 'other.capiro.ai').id, 'prod-api');
+  }
+  for (const path of [
+    '/api/memory/candidates/not-a-uuid/owner-decision',
+    `/api/memory/version-candidates/${validClient}/approve/extra`,
+    `/api/memory/items/${validClient}/corrections`,
+    `/api/memory/candidates/mine/${validClient}/extra`,
+    '/api/memory/review/inbox',
+  ]) assert.equal(at('POST', path).id, 'core-guard', path);
+  for (const path of [
+    '/api/memory/candidates/mine/not-a-uuid/status',
+    `/api/memory/candidates/mine/${validClient}/status/extra`,
+    '/api/memory/owner/items/extra',
+  ]) assert.equal(at('GET', path).id, 'core-guard', path);
+  assert.throws(() => corePreviewMemoryRules(memory, routes,
+    { memoryPostPriority: 4, guardPriority: 5 }), /Exact Core packet/);
 });
 
 test('one stable Meri rule performs deny, forward, deny without any production fallthrough', () => {

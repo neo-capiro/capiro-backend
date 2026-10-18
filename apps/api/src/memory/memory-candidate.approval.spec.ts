@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryIngestService } from './memory-ingest.service.js';
@@ -90,7 +90,7 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
   it('leaves personal-scope self-approval alone — nobody else can review it', async () => {
     const { service } = makeService({
       id: 'cand-4',
-      payload: PAYLOAD,
+      payload: { ...PAYLOAD, scope: 'user_private', ownerUserId: 'user-1' },
       proposedBy: 'user-1',
       scope: 'personal',
     });
@@ -102,18 +102,40 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
 });
 
 describe('MemoryCandidateService.approve — Meri additions are insert-only', () => {
-  function makeKeyedService(sourceType: string) {
+  function makeKeyedService(
+    sourceType: string,
+    target: { status: string; legalHold: boolean; ownerUserId: string; slug: string; type?: string; governedStatus?: string } | null = {
+      status: 'active', legalHold: false, ownerUserId: 'user-1', slug: 'clio:mem-1',
+    },
+    options: { scope?: 'personal' | 'firm' | 'client'; candidateOwnerUserId?: string; candidateClientId?: string; clientAllowed?: boolean } = {},
+  ) {
     const update = jest.fn(async () => ({ id: 'mem-1' }));
     const create = jest.fn(async () => ({ id: 'mem-2' }));
     const tx = {
-      $queryRaw: jest.fn(async () => [{
-        id: 'cand-9',
-        payload: { ...PAYLOAD, scope: 'user_private', ownerUserId: 'user-1' },
-        proposedBy: 'user-1',
-        scope: 'personal',
-        sourceKind: 'explicit_user',
-        sourceType,
-      }]),
+      $queryRaw: jest.fn(async (strings: TemplateStringsArray) => {
+        const sql = strings.join('?');
+        if (sql.includes('FROM clio_memory')) return [{ id: 'mem-1', source: 'chat' }];
+        if (sql.includes('FROM memory_items')) {
+          return target ? [{ id: 'item-1', type: target.type ?? 'note', slug: target.slug,
+            status: target.status, legalHold: target.legalHold,
+            ownerUserId: target.ownerUserId, clientId: null,
+            governedStatus: target.governedStatus ?? null }] : [];
+        }
+        return [{
+          id: 'cand-9',
+          payload: { ...PAYLOAD,
+            scope: options.scope === 'firm' ? 'firm' : options.scope === 'client' ? 'client' : 'user_private',
+            ownerUserId: options.scope && options.scope !== 'personal' ? null : options.candidateOwnerUserId ?? 'user-1',
+            clientId: options.scope === 'client' ? 'client-1' : null,
+          },
+          proposedBy: 'user-1',
+          scope: options.scope ?? 'personal',
+          clientId: options.scope === 'client' ? options.candidateClientId ?? 'client-1' : null,
+          sourceKind: 'explicit_user',
+          sourceType,
+        }];
+      }),
+      $queryRawUnsafe: jest.fn(async () => [{ allowed: options.clientAllowed ?? true }]),
       clioMemory: { findFirst: jest.fn(async () => ({ id: 'mem-1' })), update, create },
     };
     const withTenantUser = jest.fn(
@@ -121,7 +143,7 @@ describe('MemoryCandidateService.approve — Meri additions are insert-only', ()
     );
     const prisma = { withTenantUser } as unknown as PrismaService;
     const config = { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>;
-    return { service: new MemoryCandidateService(prisma, {} as MemoryIngestService, config), update, create };
+    return { service: new MemoryCandidateService(prisma, {} as MemoryIngestService, config), update, create, tx };
   }
 
   it('refuses a Meri addition whose key is already committed, before any write', async () => {
@@ -135,6 +157,112 @@ describe('MemoryCandidateService.approve — Meri additions are insert-only', ()
     const { service, update } = makeKeyedService('unknown');
     await service.approve('tenant-1', 'cand-9', 'user-1').catch(() => undefined);
     expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['held', { status: 'active', legalHold: true, ownerUserId: 'user-1', slug: 'clio:mem-1' }],
+    ['revoked', { status: 'revoked', legalHold: false, ownerUserId: 'user-1', slug: 'clio:mem-1' }],
+    ['foreign owner', { status: 'active', legalHold: false, ownerUserId: 'user-2', slug: 'clio:mem-1' }],
+    ['wrong target', { status: 'active', legalHold: false, ownerUserId: 'user-1', slug: 'clio:other' }],
+  ] as const)('refuses a stale personal approval targeting a %s item', async (_label, target) => {
+    const { service, update, create, tx } = makeKeyedService('unknown', target);
+    await expect(service.approve('tenant-1', 'cand-9', 'user-1')).rejects.toBeInstanceOf(ConflictException);
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(tx.$queryRaw.mock.calls.some(([sql]) => (sql as TemplateStringsArray).join('?').includes('FROM memory_items'))).toBe(true);
+  });
+
+  it('refuses a missing personal projection rather than overwriting an unguarded source', async () => {
+    const { service, update } = makeKeyedService('unknown', null);
+    await expect(service.approve('tenant-1', 'cand-9', 'user-1')).rejects.toBeInstanceOf(ConflictException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it.each(['firm', 'client'] as const)(
+    'refuses a pending %s addition when the key was committed before approval',
+    async (scope) => {
+      const { service, update } = makeKeyedService('unknown', null, { scope });
+      await expect(service.approve('tenant-1', 'cand-9', 'reviewer-2')).rejects.toBeInstanceOf(ConflictException);
+      expect(update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('refuses an older personal candidate whose payload names another owner', async () => {
+    const { service, update, tx } = makeKeyedService('unknown', null, { candidateOwnerUserId: 'user-2' });
+    await expect(service.approve('tenant-1', 'cand-9', 'user-1')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(update).not.toHaveBeenCalled();
+    expect(tx.$queryRaw.mock.calls.some(([sql]) => (sql as TemplateStringsArray).join('?').includes('FROM clio_memory'))).toBe(false);
+  });
+
+  it('refuses a governed item still pending review before any Clio update', async () => {
+    const prior = process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+    try {
+      const { service, update } = makeKeyedService('unknown', {
+        status: 'active', legalHold: false, ownerUserId: 'user-1', slug: 'clio:mem-1',
+        type: 'user-profile', governedStatus: 'pending_review',
+      });
+      await expect(service.approve('tenant-1', 'cand-9', 'user-1')).rejects.toBeInstanceOf(ConflictException);
+      expect(update).not.toHaveBeenCalled();
+    } finally {
+      if (prior === undefined) delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+      else process.env.MEMORY_GOVERNANCE_LIFECYCLE = prior;
+    }
+  });
+
+  it('rechecks a client wall before deciding a pending addition', async () => {
+    const { service, update, tx } = makeKeyedService('unknown', null, {
+      scope: 'client', clientAllowed: false,
+    });
+    await expect(service.approve('tenant-1', 'cand-9', 'reviewer-2')).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.$queryRawUnsafe).toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a client payload that differs from the locked review subject', async () => {
+    const { service, update, tx } = makeKeyedService('unknown', null, {
+      scope: 'client', candidateClientId: 'client-2',
+    });
+    await expect(service.approve('tenant-1', 'cand-9', 'reviewer-2')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe('MemoryCandidateService.proposeSaveMemory owner binding', () => {
+  it('refuses another owner for a personal auto-commit before inserting a candidate', async () => {
+    const withTenantUser = jest.fn();
+    const service = new MemoryCandidateService(
+      { withTenantUser } as unknown as PrismaService,
+      {} as MemoryIngestService,
+      { get: jest.fn() } as unknown as ConfigService<AppConfig, true>,
+    );
+    await expect(service.proposeSaveMemory('tenant-1', 'user-1', {
+      scope: 'user_private', ownerUserId: 'user-2', key: 'private', value: 'secret', source: 'chat',
+    }, false)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.proposeSaveMemory('tenant-1', 'user-1', {
+      scope: 'client', ownerUserId: 'user-1', clientId: 'client-1', key: 'client', value: 'x', source: 'chat',
+    }, false)).rejects.toBeInstanceOf(BadRequestException);
+    expect(withTenantUser).not.toHaveBeenCalled();
+  });
+
+  it('denies a walled client before candidate insertion', async () => {
+    const tx = {
+      $queryRawUnsafe: jest.fn(async () => [{ allowed: false }]),
+      $queryRaw: jest.fn(),
+    };
+    const withTenantUser = jest.fn(async (_tenant: string, _actor: string, fn: (t: typeof tx) => unknown) => fn(tx));
+    const service = new MemoryCandidateService(
+      { withTenantUser } as unknown as PrismaService,
+      {} as MemoryIngestService,
+      { get: jest.fn() } as unknown as ConfigService<AppConfig, true>,
+    );
+    await expect(service.proposeSaveMemory('tenant-1', 'user-1', {
+      scope: 'client', ownerUserId: null, clientId: 'client-1',
+      key: 'client-memory', value: 'private client fact', source: 'chat',
+    }, false)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.$queryRawUnsafe).toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
 });
 

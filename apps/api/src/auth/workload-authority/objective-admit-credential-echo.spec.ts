@@ -17,13 +17,14 @@ const sha = (text: string) => createHash('sha256').update(text, 'utf8').digest('
 const jcs = (value: unknown) => sha(canonicalizeCoreRetainedJson(value));
 const body = JSON.stringify({ schemaVersion: 1, generationJobId: jobId });
 
-function admitToken(overrides: Record<string, unknown> = {}) {
+function admitToken(overrides: Record<string, unknown> = {}, issuedAtSeconds = now) {
   return issueObjectiveWorkloadJwt({
     subject: OBJECTIVE_GENERATION_WORKER_SUBJECT, audience: OBJECTIVE_STRATEGY_AUDIENCE, method: 'POST',
     path: OBJECTIVE_ADMIT_ROUTE, query: '', body: Buffer.from(body, 'utf8'), operation: 'objective.strategy.draft',
     phase: 'admit', tenantId, generationJobId: jobId, delegationRef: id(4), consentId: id(5),
     attemptId: null, runId: null, acceptedBindingSha256: null, sourceSha256: null, ...overrides,
-  } as never, { issuer: 'capiro-core-objective', kid: 'objective-synthetic-1', privateKey }, { jti: id(6), nowSeconds: now, expiresAtSeconds: now + 60 });
+  } as never, { issuer: 'capiro-core-objective', kid: 'objective-synthetic-1', privateKey },
+  { jti: id(6), nowSeconds: issuedAtSeconds, expiresAtSeconds: issuedAtSeconds + 60 });
 }
 
 /** Exactly the request Meri's transport hands its readCredential port for `admit`. */
@@ -49,15 +50,18 @@ function meriAccepts(a: Record<string, unknown>, request: ReturnType<typeof meri
 }
 
 const checkedAtMs = now * 1000 + 250;
-const echo = (o: { request?: unknown; token?: string; actor?: string; exp?: number } = {}) => objectiveAdmitCredentialEcho({
+const echo = (o: { request?: unknown; token?: string; actor?: string; exp?: number; checkedAtMs?: number } = {}) => objectiveAdmitCredentialEcho({
   issued: { token: o.token ?? admitToken(), expSeconds: o.exp ?? now + 60 },
-  request: (o.request ?? meriRequest()) as never, delegatedActorId: o.actor ?? actorId, checkedAtMs,
+  request: (o.request ?? meriRequest()) as never, delegatedActorId: o.actor ?? actorId,
+  checkedAtMs: o.checkedAtMs ?? checkedAtMs,
 });
 
 describe('Objective admit credential echo (D7-3, admit only)', () => {
   it("passes Meri's own readCredential echo checks for an admit token Core issued", () => {
-    const a = echo();
+    const token = admitToken();
+    const a = echo({ token });
     expect(meriAccepts(a as never, meriRequest(), checkedAtMs - 10, checkedAtMs + 10)).toBe(true);
+    expect(a.credential).toBe(token);
     expect(a.expiresAtMs).toBe((now + 60) * 1000);
   });
 
@@ -67,11 +71,41 @@ describe('Objective admit credential echo (D7-3, admit only)', () => {
     ['a GET', { request: { ...meriRequest(), method: 'GET' } }],
     ['a source hash Meri did not compute from its source', { request: { ...meriRequest(), sourceSha256: 'a'.repeat(64) } }],
     ['a request hash other than Meri identity', { request: { ...meriRequest(), requestSha256: 'b'.repeat(64) } }],
+    ['a body hash other than Core admit identity', { request: { ...meriRequest(), bodySha256: 'c'.repeat(64) } }],
     ['another delegated actor', { actor: id(11) }],
     ['a token for another job', { token: admitToken({ generationJobId: id(12) }) }],
     ['a token for another tenant', { token: admitToken({ tenantId: id(13) }) }],
     ['an expiry other than the token', { exp: now + 30 }],
+    ['a token expired at the check instant', { checkedAtMs: (now + 60) * 1000 }],
   ] as Array<[string, Record<string, unknown>]>)('refuses %s', (_label, o) => {
     expect(() => echo(o as never)).toThrow('OBJECTIVE_ADMIT_CREDENTIAL_REFUSED');
+  });
+
+  it.each([
+    ['empty', ''],
+    ['over 128 characters', 'x'.repeat(129)],
+  ])('refuses an invalid delegated actor echoed by the source (%s)', (_label, invalidActor) => {
+    const request = meriRequest();
+    request.source.binding.actorId = invalidActor;
+    request.sourceSha256 = jcs(request.source);
+    expect(() => echo({ request, actor: invalidActor })).toThrow('OBJECTIVE_ADMIT_CREDENTIAL_REFUSED');
+  });
+
+  it('refuses accessor-backed request fields even when their value is correct', () => {
+    const request = meriRequest();
+    Object.defineProperty(request, 'sourceSha256', { enumerable: true, get: () => jcs(request.source) });
+    expect(() => echo({ request })).toThrow('OBJECTIVE_ADMIT_CREDENTIAL_REFUSED');
+  });
+
+  it('refuses hidden issuer fields instead of treating them as a closed result', () => {
+    const issued = { token: admitToken(), expSeconds: now + 60 };
+    Object.defineProperty(issued, 'token', { enumerable: false });
+    expect(() => objectiveAdmitCredentialEcho({ issued, request: meriRequest(), delegatedActorId: actorId, checkedAtMs }))
+      .toThrow('OBJECTIVE_ADMIT_CREDENTIAL_REFUSED');
+  });
+
+  it('refuses a genuine issued token whose millisecond expiry cannot be represented safely', () => {
+    const farNow = Math.floor(Number.MAX_SAFE_INTEGER / 1000) + 1;
+    expect(() => echo({ token: admitToken({}, farNow), exp: farNow + 60 })).toThrow('OBJECTIVE_ADMIT_CREDENTIAL_REFUSED');
   });
 });

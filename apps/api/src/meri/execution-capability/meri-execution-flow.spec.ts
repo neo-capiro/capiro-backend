@@ -380,11 +380,12 @@ describe('approval revocation (POST /api/clio/approvals/native/revoke)', () => {
     const w = world();
     const { credential } = await issueInstalled(w);
     const body = { proposalId, commandSha256: w.proposal.commandSha256, binding };
-    await expect(w.approvals.revoke(verifiedRequest(), { tenantId, userId: otherActor } as TenantContext, body)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(w.approvals.revoke(verifiedRequest(false), w.ctx, body)).rejects.toBeInstanceOf(ForbiddenException);
-    const revoked = await w.approvals.revoke(verifiedRequest(), w.ctx, body);
+    const revokeBody = { ...body, approver: { tenantId, actorId } };
+    await expect(w.approvals.revoke(verifiedRequest(), { tenantId, userId: otherActor } as TenantContext, revokeBody)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(w.approvals.revoke(verifiedRequest(false), w.ctx, revokeBody)).rejects.toBeInstanceOf(ForbiddenException);
+    const revoked = await w.approvals.revoke(verifiedRequest(), w.ctx, revokeBody);
     expect(revoked).toMatchObject({ revoked: true, decision: { proposalId, decision: 'approved' } });
-    expect(await w.approvals.revoke(verifiedRequest(), w.ctx, body)).toMatchObject({ revoked: true });
+    expect(await w.approvals.revoke(verifiedRequest(), w.ctx, revokeBody)).toMatchObject({ revoked: true });
     expect(w.state.revocation).toMatchObject({ tenantId, proposalId, revokedByUserId: actorId, reason: 'approver_revoked' });
     expect(await w.approvals.decision(verifiedRequest(), w.ctx, body)).toMatchObject({ revoked: true });
     expect(w.state.locks).toBeGreaterThanOrEqual(2);

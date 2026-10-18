@@ -236,6 +236,12 @@ export async function upsertCanonicalMemoryItemInTx(
           origin_prompt_version = EXCLUDED.origin_prompt_version,
           instructions_allowed = EXCLUDED.instructions_allowed,
           updated_at = now()
+        WHERE memory_items.status = 'active'
+          AND memory_items.legal_hold = false
+          AND memory_items.governed_status = 'active'
+          AND memory_items.owner_user_id IS NOT DISTINCT FROM EXCLUDED.owner_user_id
+          AND memory_items.client_id IS NOT DISTINCT FROM EXCLUDED.client_id
+          AND memory_items.memory_scope = EXCLUDED.memory_scope
       `;
 
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
@@ -282,7 +288,11 @@ export async function upsertCanonicalMemoryItemInTx(
       'This shared Settings memory was created while the proposal was pending. No content was replaced; reload and submit the change as an immutable correction.',
     );
   }
-  if (!item) throw new Error('Canonical memory_items activation returned no row.');
+  if (!item) {
+    throw new ConflictException(
+      'Canonical memory is held, terminal, or belongs to another owner; submit an immutable version for review.',
+    );
+  }
   return item.id;
 }
 

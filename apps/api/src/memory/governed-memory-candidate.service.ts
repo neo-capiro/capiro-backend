@@ -43,6 +43,7 @@ interface LockedDispositionCandidate {
   proposedBy: string;
   scope: string;
   sourceKind: string;
+  sourceType: string | null;
   clientId: string | null;
 }
 
@@ -152,6 +153,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     await this.governedPrisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(tx, tenantId, candidateId);
       this.requireGovernedIndependentReviewer(candidate, reviewerUserId);
+      this.requireMeriPersonalRejectionOwner(candidate, reviewerUserId);
       await this.authorizeReviewerInTx(tx, tenantId, reviewerUserId, candidateId, actorContext);
       await this.decideTerminalInTx(tx, tenantId, candidateId, 'rejected', reviewerUserId);
     });
@@ -369,6 +371,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
              proposed_by::text AS "proposedBy",
              scope,
              source_kind AS "sourceKind",
+             source_type AS "sourceType",
              client_id::text AS "clientId"
       FROM memory_candidate
       WHERE id = ${candidateId}::uuid
@@ -392,6 +395,22 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
       throw new ForbiddenException(
         'A proposer must use Withdraw; reviewer rejection requires an independent reviewer.',
       );
+    }
+  }
+
+  /** A Meri personal submission belongs to its proposer even while governed
+   * enforcement is dark. Keep this in the actual rejection owner, before the
+   * enforcement-gated authorization path or any terminal update. */
+  private requireMeriPersonalRejectionOwner(
+    candidate: Pick<LockedDispositionCandidate, 'proposedBy' | 'scope' | 'sourceType'>,
+    reviewerUserId: string,
+  ): void {
+    if (
+      candidate.scope === 'personal' &&
+      candidate.sourceType === 'meri' &&
+      candidate.proposedBy !== reviewerUserId
+    ) {
+      throw new ForbiddenException('Only the owner may decide their personal memory submission.');
     }
   }
 

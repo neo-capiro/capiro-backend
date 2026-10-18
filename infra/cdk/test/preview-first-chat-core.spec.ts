@@ -9,6 +9,8 @@ import {
   FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
+  FIRST_CHAT_CORE_MEMORY_GET_PATHS,
+  FIRST_CHAT_CORE_MEMORY_POST_PATHS,
   FIRST_CHAT_CORE_MERI_TOOLS,
   FIRST_CHAT_CORE_NATIVE_OPS_PATHS,
   FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY,
@@ -27,8 +29,6 @@ const pins = {
   imageDigest: `sha256:${'b'.repeat(64)}`,
 };
 const secretArn = (name: string) => `arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/${name}-AbC123`;
-// Synthetic readback slot; the real one comes from the live listener readback
-// checked by infra/routing corePreviewPacketRules.
 const kmsKey = (n: number) => `arn:aws:kms:us-east-1:967807252336:key/0000000${n}-0000-4000-8000-000000000000`;
 const signer = (n: number) => ({ issuer: `capiro-core:purpose-${n}:v1`, kid: `purpose-${n}-synthetic`, keyArn: kmsKey(n), publicKeyX: 'A'.repeat(43) });
 const binding = {
@@ -44,6 +44,10 @@ const binding = {
     routineMaxCostMicrousd: 2_000_000, routineMaxRuntimeSeconds: 900 },
   signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3), readDelegation: signer(4) },
 };
+// Synthetic paired slots for the optional packet. The frozen listener has no
+// available pair; corePreviewMemoryRules refuses it until a readback qualifies.
+const memoryBinding = { ...binding, schemaVersion: 6, listener: { memoryPostPriority: 4, guardPriority: 5 } };
+const memoryOffBinding = { ...binding, schemaVersion: 6, listener: { memoryPostPriority: null, guardPriority: 4 } };
 const trust = {
   issuer: 'capiro-core-retained',
   intelOrigin: 'https://intel.example.invalid',
@@ -73,6 +77,16 @@ const serveContainer = (service: any) => {
 };
 const envOf = (container: any) => Object.fromEntries(container.Environment.map((entry: any) => [entry.Name, entry.Value]));
 
+test('renders the approved 1 vCPU and 2 GiB Core preview task size', () => {
+  render(binding, ({ service }) => {
+    const resources = Template.fromStack(service).toJSON().Resources;
+    const task = (Object.values(resources) as any[]).find((resource) => resource.Type === 'AWS::ECS::TaskDefinition');
+    assert.ok(task);
+    assert.equal(task.Properties.Cpu, '1024');
+    assert.equal(task.Properties.Memory, '2048');
+  });
+});
+
 test('refuses to render until a qualified integrated image is pinned, and never PR48', () => {
   assert.equal(FIRST_CHAT_CORE_IMAGE_PINS, null);
   assert.throws(() => firstChatCoreImageBinding(binding), /No qualified integrated Core image/);
@@ -82,6 +96,8 @@ test('refuses to render until a qualified integrated image is pinned, and never 
 
 test('requires the exact pinned image, exact secret ARNs and fixed retained trust fields', () => {
   assert.deepEqual(firstChatCoreImageBinding(binding, pins), binding);
+  assert.deepEqual(firstChatCoreImageBinding(memoryOffBinding, pins), memoryOffBinding);
+  assert.deepEqual(firstChatCoreImageBinding(memoryBinding, pins), memoryBinding);
   assert.deepEqual(firstChatCoreImageBinding({ ...binding, retainedTrust: trust }, pins), { ...binding, retainedTrust: trust });
   const { retainedTrust: _omitted, ...withoutTrust } = binding;
   for (const invalid of [
@@ -94,6 +110,7 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     { ...binding, schemaVersion: 2 },
     { ...binding, schemaVersion: 3 },
     { ...binding, schemaVersion: 4 },
+    { ...binding, schemaVersion: 6 },
     { ...binding, internalServiceSecretArn: secretArn('internal-service') },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-jwt-secret-AbC123' },
     { ...binding, previewTenantId: 'tenant' },
@@ -119,9 +136,14 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     (({ listener: _listener, ...rest }) => rest)(binding),
     { ...binding, listener: null },
     { ...binding, listener: {} },
-    { ...binding, listener: { guardPriority: 4, rulePriority: 3 } },
-    ...[undefined, null, '4', 4.5, 0, 2, FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 50001].map((guardPriority) => ({
-      ...binding, listener: { guardPriority },
+    { ...binding, listener: { memoryPostPriority: null, guardPriority: 4 } },
+    { ...binding, listener: { memoryPostPriority: 4 } },
+    { ...memoryBinding, listener: { memoryPostPriority: 4, guardPriority: 5, rulePriority: 3 } },
+    ...[undefined, '4', 4.5, 0, 2, FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 50000].map((memoryPostPriority) => ({
+      ...memoryBinding, listener: { memoryPostPriority, guardPriority: 5 },
+    })),
+    ...[undefined, null, '5', 5.5, 0, 2, 3, 4, 50001].map((guardPriority) => ({
+      ...memoryBinding, listener: { memoryPostPriority: 4, guardPriority },
     })),
   ]) {
     assert.throws(() => firstChatCoreImageBinding(invalid, pins), JSON.stringify(invalid).slice(0, 80));
@@ -132,7 +154,8 @@ test('keeps the exact Meri tool list and every listener pattern within ALB limit
   assert.deepEqual([...FIRST_CHAT_CORE_MERI_TOOLS], meriTools.tools);
   assert.ok(FIRST_CHAT_CORE_MERI_TOOLS.length > 0);
   assert.ok(!FIRST_CHAT_CORE_MERI_TOOLS.includes('get_florida_budget_project'));
-  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS, FIRST_CHAT_CORE_NATIVE_OPS_PATHS]) {
+  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS, FIRST_CHAT_CORE_MEMORY_GET_PATHS,
+    FIRST_CHAT_CORE_NATIVE_OPS_PATHS, FIRST_CHAT_CORE_MEMORY_POST_PATHS]) {
     assert.ok(values.length <= 3);
     for (const value of values) {
       assert.ok(value.length <= 128, value);
@@ -147,7 +170,7 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   assert.deepEqual(routes.priorities, { post: 1, get: 2, guard: 3 });
   // dot #121 6246253130: one exact Core POST rule at P3; only the guard moves,
   // to a slot read back from the listener (never fixed in source).
-  assert.deepEqual(routes.packet, { nativeOps: 3, guard: 'readback' });
+  assert.deepEqual(routes.packet, { nativeOps: 3, memoryPost: 'readback', guard: 'readback' });
   assert.equal(FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 3);
   assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
     '^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$',
@@ -156,6 +179,8 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   ]);
   assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
   assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);
+  assert.deepEqual([...FIRST_CHAT_CORE_MEMORY_GET_PATHS], routes.memoryGet);
+  assert.deepEqual([...FIRST_CHAT_CORE_MEMORY_POST_PATHS], routes.memoryPost);
   assert.equal(routes.post[2],
     '^/api/clio/(conversations/bootstrap|clients/check-ref|retained-reads/research-portfolio(-changes)?|tools/[a-z][a-z0-9_]{1,63})$');
   assert.equal(routes.post[2].length, 127);
@@ -218,8 +243,37 @@ test('renders the retained-trust variant with server-side signing-key secrets on
   });
 });
 
-test('renders the stable P1/P2 rules and the P3 native-operations rule before the readback-slot guard', () => {
-  render(binding, ({ guard, service }) => {
+test('keeps native memory owner listener admission off in v5 and v6-null bindings', () => {
+  for (const disabled of [binding, memoryOffBinding]) render(disabled, ({ guard, service }) => {
+    const guardStack = Template.fromStack(guard).toJSON();
+    const guardRule = Object.values(guardStack.Resources).find((resource: any) =>
+      resource.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule') as any;
+    assert.equal(guardRule.Properties.Priority, 4);
+    const stack = Template.fromStack(service).toJSON();
+    const rules = Object.entries(stack.Resources).filter(([, resource]: [string, any]) =>
+      resource.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule');
+    assert.deepEqual(rules.map(([id]) => id).sort(), [
+      'FirstChatMembershipPostOnly', 'FirstChatNativeOpsPostOnly', 'FirstChatPostsOnly',
+    ]);
+    assert.deepEqual(rules.map(([, resource]: [string, any]) => resource.Properties.Priority).sort(), [1, 2, 3]);
+    const reads = stack.Resources.FirstChatMembershipPostOnly;
+    const readPath = reads.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
+    assert.deepEqual(readPath.PathPatternConfig.RegexValues, [...FIRST_CHAT_CORE_GET_PATHS]);
+    const readPatterns = readPath.PathPatternConfig.RegexValues.map((pattern: string) => new RegExp(pattern));
+    for (const path of ['/api/memory/candidates/mine',
+      '/api/memory/candidates/mine/123e4567-e89b-42d3-a456-426614174000/status',
+      '/api/memory/owner/items']) {
+      assert.ok(readPatterns.every((pattern: RegExp) => !pattern.test(path)), path);
+    }
+    const serviceResource = Object.values(stack.Resources).find((resource: any) =>
+      resource.Type === 'AWS::ECS::Service') as any;
+    assert.ok(serviceResource.Properties.DesiredCount === 0);
+    assert.ok(serviceResource.DependsOn.every((id: string) => !id.startsWith('FirstChatMemoryPostOnly')));
+  });
+});
+
+test('renders stable P1/P2/P3, exact optional memory POST and the later retained host guard', () => {
+  render(memoryBinding, ({ guard, service }) => {
   const guardStack = Template.fromStack(guard).toJSON();
   const guardResources = Object.values(guardStack.Resources) as any[];
   assert.equal(guardResources.length, 1);
@@ -227,7 +281,7 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
   assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
   assert.equal(guardRule.DeletionPolicy, 'Retain');
   assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
-  assert.equal(guardRule.Properties.Priority, binding.listener.guardPriority);
+  assert.equal(guardRule.Properties.Priority, memoryBinding.listener.guardPriority);
   assert.deepEqual(guardRule.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
   ]);
@@ -321,6 +375,7 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
   assert.equal(services[0].Properties.DesiredCount, 0);
   assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatPostsOnly')));
   assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatMembershipPostOnly')));
+  assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatMemoryPostOnly')));
   assert.equal(resources.filter((r) => r.Type === 'AWS::Events::Rule').length, 0);
   assert.equal(resources.filter((r) => r.Type === 'AWS::RDS::DBCluster').length, 0);
   assert.equal(resources.filter((r) => r.Type === 'AWS::SecretsManager::Secret').length, 0);
@@ -354,11 +409,12 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
   );
   assert.deepEqual(ruleEntries.map(([id]) => id).sort(), [
     'FirstChatMembershipPostOnly',
+    'FirstChatMemoryPostOnly',
     'FirstChatNativeOpsPostOnly',
     'FirstChatPostsOnly',
   ]);
   const rules = ruleEntries.map(([, rule]) => rule as any);
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3]);
+  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3, memoryBinding.listener.memoryPostPriority]);
   const nativeOps = stack.Resources.FirstChatNativeOpsPostOnly;
   assert.deepEqual(nativeOps.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
@@ -390,6 +446,25 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
     `/api/clio/application-authority/read-delegations/${delegation}/tokens?x=1`,
   ]) assert.ok(!delegationPattern.test(opPath), opPath);
   assert.ok(FIRST_CHAT_CORE_NATIVE_OPS_PATHS.length <= 3 && FIRST_CHAT_CORE_NATIVE_OPS_PATHS.every((p) => p.length <= 128));
+  const memoryPosts = stack.Resources.FirstChatMemoryPostOnly;
+  assert.deepEqual(memoryPosts.Properties.Conditions, [
+    { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+    { Field: 'path-pattern', PathPatternConfig: { RegexValues: [...FIRST_CHAT_CORE_MEMORY_POST_PATHS] } },
+    { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['POST'] } },
+  ]);
+  const memoryPatterns = FIRST_CHAT_CORE_MEMORY_POST_PATHS.map((pattern) => new RegExp(pattern));
+  for (const memoryPath of [
+    '/api/memory/candidates/123e4567-e89b-42d3-a456-426614174000/owner-decision',
+    '/api/memory/version-candidates/123e4567-e89b-42d3-a456-426614174000/approve',
+    '/api/memory/version-candidates/123e4567-e89b-42d3-a456-426614174000/reject',
+    '/api/memory/items/123e4567-e89b-42d3-a456-426614174000/review-correction',
+  ]) assert.ok(memoryPatterns.some((pattern) => pattern.test(memoryPath)), memoryPath);
+  for (const deniedPath of [
+    '/api/memory/candidates/not-a-uuid/owner-decision',
+    '/api/memory/version-candidates/123e4567-e89b-42d3-a456-426614174000/approve/extra',
+    '/api/memory/items/123e4567-e89b-42d3-a456-426614174000/corrections',
+    '/api/memory/candidates/mine',
+  ]) assert.ok(memoryPatterns.every((pattern) => !pattern.test(deniedPath)), deniedPath);
   const allowed = stack.Resources.FirstChatPostsOnly;
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] });
@@ -445,7 +520,7 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
   const readPath = reads.Properties.Conditions.find(
     (condition: any) => condition.Field === 'path-pattern',
   );
-  assert.deepEqual(readPath.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_GET_PATHS] });
+  assert.deepEqual(readPath.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_MEMORY_GET_PATHS] });
   const readMethod = reads.Properties.Conditions.find(
     (condition: any) => condition.Field === 'http-request-method',
   );
@@ -455,6 +530,9 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
     '/api/me',
     '/api/clients',
     '/api/clients/123e4567-e89b-42d3-a456-426614174000',
+    '/api/memory/candidates/mine',
+    '/api/memory/candidates/mine/123e4567-e89b-42d3-a456-426614174000/status',
+    '/api/memory/owner/items',
     '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000',
     '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/changes',
     '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/reviews',
@@ -469,6 +547,10 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
     '/api/clients/',
     '/api/clients/not-a-uuid',
     '/api/clients/123e4567-e89b-42d3-a456-426614174000/history',
+    '/api/memory/candidates/mine/not-a-uuid/status',
+    '/api/memory/candidates/mine/123e4567-e89b-42d3-a456-426614174000',
+    '/api/memory/owner/items/extra',
+    '/api/memory/review/inbox',
     '/api/clio/application-authority/identity',
     '/api/conversations/history',
     '/api/me/extra',
@@ -483,7 +565,7 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
   assert.ok(rules.every((rule) => rule.Properties.Actions[0].Type === 'forward'));
   assert.deepEqual(
     rules.map((rule) => rule.Properties.Actions[0].TargetGroupArn),
-    [1, 2, 3].map(() => ({ Ref: targetLogicalId })),
+    [1, 2, 3, 4].map(() => ({ Ref: targetLogicalId })),
   );
   for (const rule of rules) {
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');

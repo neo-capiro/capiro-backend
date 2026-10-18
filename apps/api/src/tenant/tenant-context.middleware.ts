@@ -254,7 +254,7 @@ export class TenantContextMiddleware implements NestMiddleware {
       return;
     }
 
-    // The preview's three GETs must not pass through the ordinary provisioning,
+    // The preview's native GETs must not pass through the ordinary provisioning,
     // identity-rebind, membership self-heal or lastSeenAt write path. Resolve an
     // existing native member only; the same request is checked again at release.
     if (isPreviewNativeReadRoute(req)) {

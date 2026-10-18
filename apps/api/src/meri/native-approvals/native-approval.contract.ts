@@ -160,6 +160,20 @@ export function parseApprovalDecisionInput(value: unknown): ApprovalDecisionInpu
   return { proposalId: uuid(v.proposalId, 'proposalId'), commandSha256: v.commandSha256, binding: parseRunBinding(v.binding, 'binding') };
 }
 
+/** Revocation carries the approver identity Meri sends; decision reads keep their
+ * original three-field request. The service compares this identity with the
+ * authenticated Core actor and the stored decision before writing a fact. */
+export interface ApprovalRevokeInput extends ApprovalDecisionInput { approver: NativeIdentity }
+
+export function parseApprovalRevokeInput(value: unknown): ApprovalRevokeInput {
+  const v = record(value, ['proposalId', 'commandSha256', 'approver', 'binding'], 'body');
+  if (typeof v.commandSha256 !== 'string' || !HEX64.test(v.commandSha256)) throw invalid('commandSha256');
+  return {
+    proposalId: uuid(v.proposalId, 'proposalId'), commandSha256: v.commandSha256,
+    approver: parseIdentity(v.approver, 'approver'), binding: parseRunBinding(v.binding, 'binding'),
+  };
+}
+
 export function sameJson(a: unknown, b: unknown): boolean {
   return canonicalizeCoreRetainedJson(a) === canonicalizeCoreRetainedJson(b);
 }

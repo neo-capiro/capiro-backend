@@ -1,8 +1,9 @@
 import { BadRequestException, UnsupportedMediaTypeException } from '@nestjs/common';
 import { raw, type Request, type RequestHandler } from 'express';
 
-/** Fixed signed decision ingress, not a configurable raw-body facility. */
+/** Fixed signed Objective ingress paths, not a configurable raw-body facility. */
 export const OBJECTIVE_DECISION_RAW_BODY_PATH = '/api/internal/objective-workload-authority/decisions';
+export const OBJECTIVE_CREDENTIAL_RAW_BODY_PATH = '/api/internal/objective-workload-authority/credentials';
 /** Matches the closed issuance ingress's maximum entity-byte length. */
 export const OBJECTIVE_DECISION_RAW_BODY_LIMIT = 4096;
 const JSON_UTF8 = /^[ \t]*application\/json[ \t]*(?:;[ \t]*charset[ \t]*=[ \t]*(?:utf-8|utf8|"utf-8"|"utf8")[ \t]*)?$/i;
@@ -39,7 +40,9 @@ export function objectiveAdmissionRawBody(): RequestHandler {
     },
   });
   return (request, response, next) => {
-    if (request.method !== 'POST' || request.originalUrl !== OBJECTIVE_DECISION_RAW_BODY_PATH) {
+    if (request.method !== 'POST' ||
+        request.originalUrl !== OBJECTIVE_DECISION_RAW_BODY_PATH &&
+        request.originalUrl !== OBJECTIVE_CREDENTIAL_RAW_BODY_PATH) {
       next(); return;
     }
     response.setHeader('Cache-Control', 'no-store');

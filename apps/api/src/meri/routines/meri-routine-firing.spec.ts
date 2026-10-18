@@ -54,12 +54,20 @@ function scheduleBinding(i: Record<string, unknown>, now: number, approvalOverri
   return { ...call, bindingSha256: nativeCanonicalSha256(call) };
 }
 function selection(operation: string, sb: unknown, phase = 'before_claim') {
+  const approvedIntent = (sb as { intent?: Record<string, any> } | null)?.intent;
+  const proposal = approvedIntent ? {
+    operation, status: 'approval_required', proposalId: approvedIntent.intentId,
+    intentSha256: nativeCanonicalSha256(approvedIntent),
+    taskInstruction: operation === 'cancel_scheduled_task' ? null : 'Summarize hearings',
+    projection: approvedIntent.projection, policy: operation === 'cancel_scheduled_task' ? null : { paused: false },
+    cancel: approvedIntent.cancel,
+  } : null;
   return {
     phase, operation, request: operation === 'cancel_scheduled_task'
       ? { scheduleId, mode: 'pause', note: 'stop', running: 'request_cancel', runs: [] }
       : { taskInstruction: 'Summarize hearings', policy: { paused: false }, destinationReference: 'meri-inbox',
         requestedLimits: { maxCostMicrousd: 1_000_000, maxRuntimeSeconds: 600, retryLimit: 0 }, ...(operation === 'update_scheduled_task' ? { scheduleId } : {}) },
-    currentSchedule: null, proposal: null, current: { binding, scopes, selectedClientId: clientId }, scheduleBinding: sb,
+    currentSchedule: null, proposal, current: { binding, scopes, selectedClientId: clientId }, scheduleBinding: sb,
   };
 }
 
@@ -185,12 +193,34 @@ describe('routine consent from the attended Execute (wire A before_claim)', () =
     ['a binding digest that is not the call', () => ({ ...scheduleBinding(intent(), now), bindingSha256: 'f'.repeat(64) })],
     ['an approval by another actor', () => scheduleBinding(intent(), now, { approver: { tenantId, actorId: otherActor } })],
     ['an expired approval', () => scheduleBinding(intent(), now, { expiresAt: new Date(now - 1).toISOString() })],
+    ['an approval for another policy revision', () => scheduleBinding(intent(), now, { policyRevision: 'b'.repeat(64) })],
     ['an approval of another intent', () => scheduleBinding(intent(), now, { commandSha256: 'f'.repeat(64) })],
     ['another owner', () => scheduleBinding(intent('schedule_task', { projection: projection({ owner: { tenantId, actorId: otherActor } }) }), now)],
     ['other scopes than the attended context', () => scheduleBinding(intent('schedule_task', { projection: projection({ scopes: [{ ...scopes[0], resourceId: '55555555-5555-4555-8555-555555555555' }] }) }), now)],
     ['limits above the configured maxima', () => scheduleBinding(intent('schedule_task', { projection: projection({ maxCostMicrousd: 2_000_001 }) }), now)],
   ] as Array<[string, () => unknown]>)('refuses %s', (_label, make) => {
     expect(() => event(selection('schedule_task', make()))).toThrow(ForbiddenException);
+  });
+
+  it('refuses consent or revocation when the proposal and Execute binding differ', () => {
+    const i = intent();
+    const selected = selection('schedule_task', scheduleBinding(i, now));
+    expect(() => event({ ...selected, proposal: null })).toThrow(BadRequestException);
+    expect(() => event({ ...selected, proposal: { ...selected.proposal, proposalId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' } }))
+      .toThrow(ForbiddenException);
+    expect(() => event({ ...selected, proposal: { ...selected.proposal, intentSha256: 'f'.repeat(64) } }))
+      .toThrow(ForbiddenException);
+    expect(() => event({ ...selected, proposal: { ...selected.proposal, projection: projection({ scheduleId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }) } }))
+      .toThrow(ForbiddenException);
+    const expired = { ...scheduleBinding(i, now), deadlineMs: now };
+    expired.bindingSha256 = nativeCanonicalSha256({ intent: expired.intent, approval: expired.approval,
+      callerIdentity: expired.callerIdentity, deadlineMs: expired.deadlineMs });
+    expect(() => event(selection('schedule_task', expired))).toThrow(ForbiddenException);
+
+    const pause = intent('cancel_scheduled_task', { cancel: { mode: 'pause', note: 'n', running: 'request_cancel', runs: [] } });
+    const cancellation = selection('cancel_scheduled_task', scheduleBinding(pause, now));
+    expect(() => event({ ...cancellation, proposal: { ...cancellation.proposal, intentSha256: 'f'.repeat(64) } }))
+      .toThrow(ForbiddenException);
   });
 
   it('records the consent once (<= 30 days) and the revocation through the policy check', async () => {
@@ -205,6 +235,16 @@ describe('routine consent from the attended Execute (wire A before_claim)', () =
     const pause = intent('cancel_scheduled_task', { cancel: { mode: 'pause', note: 'n', running: 'request_cancel', runs: [] } });
     await w.service.policyCheck(verifiedRequest(), ctx, body(selection('cancel_scheduled_task', scheduleBinding(pause, Date.now()))));
     expect(w.state.revocations).toEqual([expect.objectContaining({ scheduleId, reason: 'paused', revokedByUserId: actorId })]);
+  });
+
+  it('writes no consent when the selected proposal differs from the approved Execute', async () => {
+    const w = world();
+    process.env.MERI_ROUTINE_MAX_COST_MICROUSD = '2000000';
+    process.env.MERI_ROUTINE_MAX_RUNTIME_SECONDS = '900';
+    const selected = selection('schedule_task', scheduleBinding(intent(), Date.now()));
+    const mismatched = { ...selected, proposal: { ...selected.proposal, intentSha256: 'f'.repeat(64) } };
+    await expect(w.service.policyCheck(verifiedRequest(), ctx, body(mismatched))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(w.state.consents).toHaveLength(0);
   });
 });
 

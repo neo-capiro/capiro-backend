@@ -156,7 +156,7 @@ export function compactCorePreviewRules(rules) {
   return next;
 }
 
-const coreRuleIds = ['core-post', 'core-membership', 'core-guard', 'core-native-ops'];
+const coreRuleIds = ['core-post', 'core-membership', 'core-guard', 'core-native-ops', 'core-memory-post'];
 
 /** True when a rule's host condition could admit `host` (no host condition, or a matching pattern). */
 function admitsHost(rule, host) {
@@ -207,6 +207,69 @@ export function corePreviewPacketRules(rules, routes = readCoreRoutes(), { guard
     id: 'core-native-ops',
     priority: nativeOps,
     conditions: { hosts: [host], methods: ['POST'], pathRegexes: [...routes.nativeOps] },
+    action: structuredClone(post[0].action),
+  });
+  return next;
+}
+
+/**
+ * Add only the seven published native memory owner routes to a Core packet:
+ * three GETs through the existing P2 rule and four POSTs through one new rule.
+ * The POST slot and later retained guard slot must both be proven vacant (apart
+ * from the guard's own old position) and before the first shared rule that can
+ * match the Core host. In particular, the frozen P4 guard / P5 callbacks / P6
+ * Meri layout has no qualifying pair; this transform refuses it.
+ */
+export function corePreviewMemoryRules(
+  rules, routes = readCoreRoutes(), { memoryPostPriority, guardPriority } = {},
+) {
+  const next = cloneRules(rules);
+  const host = routes.host;
+  const one = (id) => next.filter((rule) => rule.id === id);
+  const post = one('core-post');
+  const reads = one('core-membership');
+  const nativeOps = one('core-native-ops');
+  const guard = one('core-guard');
+  const expected = (methods, pathRegexes) => ({ hosts: [host], methods, pathRegexes });
+  if (post.length !== 1 || reads.length !== 1 || nativeOps.length !== 1 || guard.length !== 1 ||
+      one('core-memory-post').length !== 0 ||
+      post[0].priority !== routes.priorities.post || reads[0].priority !== routes.priorities.get ||
+      nativeOps[0].priority !== routes.packet.nativeOps ||
+      !isDeepStrictEqual(post[0].conditions, expected(['POST'], routes.post)) ||
+      !isDeepStrictEqual(reads[0].conditions, expected(['GET'], routes.get)) ||
+      !isDeepStrictEqual(nativeOps[0].conditions, expected(['POST'], routes.nativeOps)) ||
+      !isDeepStrictEqual(post[0].action, { type: 'forward', target: 'core-preview' }) ||
+      !isDeepStrictEqual(reads[0].action, post[0].action) ||
+      !isDeepStrictEqual(nativeOps[0].action, post[0].action) ||
+      !isDeepStrictEqual(guard[0].conditions, { hosts: [host] }) ||
+      !isDeepStrictEqual(guard[0].action, {
+        type: 'fixed-response', statusCode: 404, contentType: 'application/json',
+        body: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
+      })) {
+    throw new Error('Exact Core packet and retained host guard required');
+  }
+  const shared = next.filter((rule) => !coreRuleIds.includes(rule.id) && rule.priority !== 'default');
+  const firstSharedForHost = Math.min(...shared.filter((rule) => admitsHost(rule, host)).map((rule) => rule.priority));
+  const occupied = (priority) => next.some((rule) => rule !== guard[0] && rule.priority === priority);
+  if (!Number.isSafeInteger(memoryPostPriority) || !Number.isSafeInteger(guardPriority) ||
+      memoryPostPriority <= routes.packet.nativeOps || memoryPostPriority >= guardPriority ||
+      guardPriority > 50000 || guardPriority >= firstSharedForHost ||
+      guard[0].priority <= routes.packet.nativeOps || guard[0].priority >= firstSharedForHost ||
+      occupied(memoryPostPriority) || occupied(guardPriority)) {
+    throw new Error('Readback-verified vacant memory POST slot and later retained guard slot required');
+  }
+  if (![routes.memoryGet, routes.memoryPost].every((patterns) => Array.isArray(patterns) &&
+      patterns.length > 0 && patterns.length <= 3 && patterns.every((pattern) =>
+        typeof pattern === 'string' && pattern.length <= 128 &&
+        pattern.startsWith('^') && pattern.endsWith('$') && !pattern.includes('(?')))) {
+    throw new Error('Bounded exact memory GET and POST patterns required');
+  }
+  reads[0].conditions = expected(['GET'], routes.memoryGet);
+  guard[0].priority = guardPriority;
+  next.push({
+    id: 'core-memory-post',
+    priority: memoryPostPriority,
+    conditions: expected(['POST'], routes.memoryPost),
     action: structuredClone(post[0].action),
   });
   return next;

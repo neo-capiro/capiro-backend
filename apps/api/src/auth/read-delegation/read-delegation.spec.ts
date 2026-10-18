@@ -33,12 +33,24 @@ const V = '55555555-5555-4555-8555-555555555555';
 const R = '66666666-6666-4666-8666-666666666666';
 const AT = '77777777-7777-4777-8777-777777777777';
 const SCHED = '88888888-8888-4888-8888-888888888888';
+const WORKER = '99999999-9999-4999-8999-999999999999';
+const ORIGINAL_GRANT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const WORKER_ARN = 'arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0123456789abcdef0123456789abcdef';
 const CLERK = 'user_reader';
 const SECRET = 'svc-secret';
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
-const P = sha('policy'), BP = sha('budget-policy'), AL = sha('allocation'), PROJ = sha('projection'), OCC = sha('occurrence');
+const P = sha('policy'), BP = sha('budget-policy'), PROJ = sha('projection'), OCC = sha('occurrence');
 const OPS = [{ id: 'search_tracked_bills', version: '0.2.0' }, { id: 'get_bill_status', version: '0.2.0' }];
 const binding = { tenantId: T, actorId: A, conversationId: V, runId: R, attemptId: AT, writerFence: 3 };
+const originalBinding = { ...binding, workerId: WORKER, writerFence: 7 };
+const allocation = {
+  run: { tenantId: T, actorId: A, conversationId: V, runId: R },
+  budgets: { maxTurns: 20, maxToolCalls: 1, maxRecoveryAttempts: 0, maxRuntimeSeconds: 3600,
+    maxCostMicroUSD: 2_000_000, maxOutputBytes: 1_048_576 },
+  schedule: { revision: sha('schedule'), expiresAt: new Date(Date.now() + 3 * 3_600_000).toISOString(), operations: [] },
+  manifest: { allowedOperations: OPS },
+};
+const AL = canonicalSha256(allocation);
 const ISSUER = 'capiro-core:meri-read:v1', KID = 'meri-read-synthetic-1';
 const keys = generateKeyPairSync('ed25519');
 const signer = createInProcessEd25519Signer({ issuer: ISSUER, kid: KID, privateKey: keys.privateKey });
@@ -60,7 +72,8 @@ function fakeDb() {
       run_binding: binding, run_scopes: [{ kind: 'client', resourceId: C, policyRevision: P }], admitted_until_offset: 20 * 60_000,
     } as Row,
     reservations: new Map<string, Row>(), occurrences: new Map<string, Row>(), schedules: new Map<string, Row>(),
-    visible: [C], memberActive: true, writes: [] as string[],
+    visible: [C], memberActive: true, writes: [] as string[], budgetLocks: 0,
+    originalGrantState: 'ACTIVE', omitOriginalGrant: false,
   };
   const clone = (s: typeof state) => ({
     ...s, delegations: new Map([...s.delegations].map(([k, v]) => [k, { ...v }])), slots: new Map([...s.slots].map(([k, v]) => [k, { ...v }])),
@@ -73,6 +86,23 @@ function fakeDb() {
   const tx = {
     async $queryRaw(strings: TemplateStringsArray, ...v: any[]) {
       const sql = strings.join('?');
+      if (sql.includes('meri_core_authority.current_admission_v1')) {
+        if (v[0] !== T || v[1] !== V || v[2] !== R) return [{ snapshot: null }];
+        db.budgetLocks++;
+        const qualification = { runId: R, attempt: 1, workerArn: WORKER_ARN, fence: 7, policyRevision: BP };
+        const grantFacts = { grantId: ORIGINAL_GRANT, binding: originalBinding, qualificationBinding: qualification,
+          capabilitySha256: sha('original grant'), allocationSha256: AL };
+        return [{ snapshot: {
+          contract: 'capiro.meri-core-admission-snapshot.v1', budgetPresent: true, quarantined: false, dbNowMs: db.now,
+          admitted: { state: 'ADMITTED', binding: originalBinding, allocationSha256: AL, grantFactsJsons: [JSON.stringify(grantFacts)] },
+          run: qualification,
+          allocation: { allocation, allocationSha256: AL, startedAtMs: db.now - 60_000 },
+          grants: db.omitOriginalGrant ? [] : [{ grantId: ORIGINAL_GRANT, runId: R, attempt: 1, workerArn: WORKER_ARN,
+            fence: 7, policyRevision: BP, capabilitySha256: sha('original grant'),
+            expiresAtMs: db.now + 40 * 60_000, state: db.originalGrantState,
+            boundGrantId: ORIGINAL_GRANT, boundRunId: R, facts: grantFacts }],
+        } }];
+      }
       if (sql.includes('count(*)::text AS n FROM meri_read_delegation_slots')) {
         const n = [...db.slots.values()].filter((s) => s.run_id === v[0] && s.call_key !== v[1] && s.tool_tokens === 0 &&
           !db.reservations.has(s.call_key) && [...db.tokens.values()].some((t) => t.run_id === s.run_id && t.call_key === s.call_key &&
@@ -209,6 +239,7 @@ function fakeDb() {
         id: V, tenantId: T, userId: A, clientId: db.facts.conversation_client ?? C, status: 'active', archivedAt: null, metadata: null,
       } : null),
     },
+    clioMeriExecutionIssuance: { findMany: async () => [] },
   };
   const run = async <X>(fn: (t: any) => Promise<X>): Promise<X> => {
     const saved = db; db = clone(db);
@@ -287,6 +318,15 @@ describe('RC1 option B read delegation, Core owner', () => {
       const again = await h.create();
       expect(again.delegationId).toBe(first.delegationId);
       expect(h.db.state.delegations.size).toBe(1);
+      expect(h.db.state.budgetLocks).toBe(4); // two locked snapshots per currentness check
+    });
+
+    it('refuses a missing original ADMITTED grant even when the Meri view says admitted', async () => {
+      const h = harness();
+      h.db.state.omitOriginalGrant = true;
+      await expect(h.create()).rejects.toBeInstanceOf(ConflictException);
+      expect(h.db.state.facts.admitted).toBe(true);
+      expect(h.db.state.delegations.size).toBe(0);
     });
 
     it('caps the attended expiry at admitted_until', async () => {
@@ -312,11 +352,11 @@ describe('RC1 option B read delegation, Core owner', () => {
     it.each([
       ['a terminal run', (f: Row) => { f.run_state = 'completed'; }, ConflictException],
       ['an unadmitted run (grant revoked or budget quarantined)', (f: Row) => { f.admitted = false; }, ConflictException],
-      ['another allocation', (f: Row) => { f.allocation_sha256 = sha('other'); }, ForbiddenException],
-      ['another operation set', (f: Row) => { f.allowed_operations = [OPS[0]]; }, ForbiddenException],
+      ['another allocation', (f: Row) => { f.allocation_sha256 = sha('other'); }, ConflictException],
+      ['another operation set', (f: Row) => { f.allowed_operations = [OPS[0]]; }, ConflictException],
       ['a wider scope', (f: Row) => { f.run_scopes = [...f.run_scopes, { kind: 'client', resourceId: C2, policyRevision: P }]; }, ForbiddenException],
       ['another writer fence', (f: Row) => { f.run_binding = { ...binding, writerFence: 4 }; }, ForbiddenException],
-      ['another attempt', (f: Row) => { f.run_binding = { ...binding, attemptId: randomUUID() }; }, ForbiddenException],
+      ['another attempt', (f: Row) => { f.run_binding = { ...binding, attemptId: randomUUID() }; }, ConflictException],
       ['another scope policy', (f: Row) => { f.run_scopes = [{ kind: 'client', resourceId: C, policyRevision: sha('x') }]; }, ForbiddenException],
     ])('refuses %s', async (_name, mutate, type) => {
       const h = harness();
@@ -467,6 +507,18 @@ describe('RC1 option B read delegation, Core owner', () => {
       expect(h.verify).not.toHaveBeenCalled();
       expect(h.db.state.writes.filter((w) => w !== 'delegation')).toEqual(['consume']);
       await expect(h.use(path, t.token, body)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('withholds token issue, use and release after the original ADMITTED grant is revoked', async () => {
+      const { h, d, t, path } = await admitted();
+      h.db.state.originalGrantState = 'REVOKED';
+      await expect(h.issue(d.delegationId, { callKey: 'call-2' })).rejects.toBeInstanceOf(ConflictException);
+      await expect(h.use(path, t.token, body)).rejects.toBeInstanceOf(ConflictException);
+      expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
+      h.db.state.originalGrantState = 'ACTIVE';
+      const used = await h.use(path, t.token, body);
+      h.db.state.originalGrantState = 'REVOKED';
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, used.req)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it.each([

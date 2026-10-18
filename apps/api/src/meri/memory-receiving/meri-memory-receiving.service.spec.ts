@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   type ExecutionContext,
 } from '@nestjs/common';
 import { HTTP_CODE_METADATA } from '@nestjs/common/constants.js';
@@ -86,6 +87,7 @@ function fixture(memories: MemoryFixtureRow[] = [], items: ItemFixtureRow[] = []
     },
     memoryCandidate: {
       findMany: jest.fn(async ({ where }: any) => [...candidates.values()].filter((row) => where.id.in.includes(row.id))),
+      findUnique: jest.fn(async ({ where }: any) => candidates.get(where.id) ?? null),
     },
     clioMemory: {
       findFirst: jest.fn(async ({ where }: any) => memories.find((row) => Object.entries(where).every(([k, v]) => (row as any)[k] === v)) ?? null),
@@ -101,7 +103,7 @@ function fixture(memories: MemoryFixtureRow[] = [], items: ItemFixtureRow[] = []
       const text = sql(strings);
       if (text.includes('clio_meri_memory_submissions')) {
         const submission = submissions.get(values[1] as string), committed = candidates.get(values[1] as string);
-        return submission && committed ? [{ logicalNull: submission.candidate.key === null, committedMemoryId: committed.committedMemoryId }] : [];
+        return submission && committed ? [{ committedMemoryId: committed.committedMemoryId }] : [];
       }
       if (text.includes('WITH RECURSIVE ancestry')) {
         let node = items.find((row) => row.id === values[1]);
@@ -159,6 +161,7 @@ describe('MeriMemoryReceivingService.submit (additions)', () => {
     expect(JSON.parse(payload as string)).toMatchObject({ key: 'briefing-time', value: 'Prefers morning briefings', source: 'meri', scope: 'user_private', ownerUserId: actorId });
     expect(JSON.parse(provenance as string)).toMatchObject({ meriCandidateId: candidateId, meriCandidateSha256: body.candidateSha256, idempotencyKey: 'memory-1' });
     expect(f.candidates.get(candidateId)!.status).toBe('pending');
+    expect(f.submissions.get(candidateId)).toEqual(expect.not.objectContaining({ candidate: expect.anything() }));
   });
 
   it('gives an unkeyed addition a stable synthetic key and derives expiry from ttlDays', async () => {
@@ -175,6 +178,16 @@ describe('MeriMemoryReceivingService.submit (additions)', () => {
     await expect(f.service.submit(verifiedRequest(), ctx, submitBody())).resolves.toEqual(first);
     expect(f.inserts).toHaveLength(1);
     await expect(f.service.submit(verifiedRequest(), ctx, submitBody(candidate({ content: 'Changed' })))).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('keeps a content-free receipt after client payload deletion and refuses a stale replay', async () => {
+    const f = fixture();
+    const body = submitBody(candidate({ scope: 'client', clientId: openClient }));
+    await f.service.submit(verifiedRequest(), ctx, body);
+    expect(f.submissions.get(candidateId)).not.toHaveProperty('candidate');
+    f.candidates.delete(candidateId);
+    await expect(f.service.submit(verifiedRequest(), ctx, body)).rejects.toBeInstanceOf(GoneException);
+    expect(f.inserts).toHaveLength(1);
   });
 
   it('refuses a hash that is not the candidate RFC 8785 SHA-256', async () => {

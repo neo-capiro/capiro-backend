@@ -107,7 +107,7 @@ export function routineConsentEvent(input: {
   limits: RoutineLimits | null;
   nowMs: number;
 }): RoutineConsentEvent {
-  const s = input.selection as { phase?: unknown; operation?: unknown; scheduleBinding?: unknown };
+  const s = input.selection as { phase?: unknown; operation?: unknown; proposal?: unknown; scheduleBinding?: unknown };
   if (s.phase !== 'before_claim' || s.scheduleBinding === null || s.scheduleBinding === undefined) return null;
   const operation = s.operation;
   if (operation !== 'schedule_task' && operation !== 'update_scheduled_task' && operation !== 'cancel_scheduled_task') return null;
@@ -120,6 +120,15 @@ export function routineConsentEvent(input: {
     'configuration', 'cancel', 'taskInstructionSha256'], 'intent');
   if (!exact(UUID, intent.intentId) || intent.operation !== operation) throw invalid('intent');
   const intentSha256 = nativeCanonicalSha256(b.intent);
+  // Meri sends the prepared proposal with every Execute authorization. Consent
+  // must bind that proposal as well as the call; otherwise two individually
+  // well-formed objects in one selection could authorize different schedules.
+  const proposal = closed(s.proposal, ['operation', 'status', 'proposalId', 'intentSha256', 'taskInstruction', 'projection', 'policy', 'cancel'], [], 'proposal');
+  if (proposal.status !== 'approval_required' || proposal.operation !== operation || proposal.proposalId !== intent.intentId ||
+      proposal.intentSha256 !== intentSha256 || nativeCanonicalSha256(proposal.projection) !== nativeCanonicalSha256(intent.projection)) {
+    throw refused('proposal');
+  }
+  if (!Number.isSafeInteger(b.deadlineMs) || (b.deadlineMs as number) <= input.nowMs) throw refused('binding deadline');
   const approval = closed(b.approval, ['proposalId', 'commandSha256', 'decision', 'decidedAt', 'expiresAt', 'approver', 'policyRevision'], [], 'approval');
   const approver = closed(approval.approver, ['tenantId', 'actorId'], [], 'approval.approver');
   const decidedAt = typeof approval.decidedAt === 'string' ? Date.parse(approval.decidedAt) : NaN;
@@ -133,6 +142,11 @@ export function routineConsentEvent(input: {
   if (!exact(UUID, projection.scheduleId) || owner.tenantId !== input.principal.tenantId || owner.actorId !== input.principal.actorId) {
     throw refused('owner');
   }
+  if (!Array.isArray(projection.scopes) || projection.scopes.length < 1 || projection.scopes.length > 100) throw invalid('intent.projection.scopes');
+  const scopes = projection.scopes.map((scope, i) => parseScope(scope, `intent.projection.scopes[${i}]`));
+  if (canonicalizeCoreRetainedJson(scopes) !== canonicalizeCoreRetainedJson(input.scopes)) throw refused('scopes');
+  const revisions = new Set(scopes.map((x) => x.policyRevision));
+  if (revisions.size !== 1 || approval.policyRevision !== scopes[0]!.policyRevision) throw refused('policy revision');
   const scheduleId = projection.scheduleId as string;
   if (operation === 'cancel_scheduled_task') {
     const mode = (intent.cancel as { mode?: unknown } | undefined)?.mode;
@@ -140,9 +154,6 @@ export function routineConsentEvent(input: {
     return { kind: 'revoke', scheduleId, intentId: intent.intentId as string, reason: mode === 'pause' ? 'paused' : 'deleted' };
   }
   if (projection.state !== 'active') return { kind: 'revoke', scheduleId, intentId: intent.intentId as string, reason: 'paused' };
-  if (!Array.isArray(projection.scopes) || projection.scopes.length < 1 || projection.scopes.length > 100) throw invalid('intent.projection.scopes');
-  const scopes = projection.scopes.map((scope, i) => parseScope(scope, `intent.projection.scopes[${i}]`));
-  if (canonicalizeCoreRetainedJson(scopes) !== canonicalizeCoreRetainedJson(input.scopes)) throw refused('scopes');
   const generation = intent.generation;
   if (!Number.isSafeInteger(generation) || (generation as number) < 1) throw invalid('intent.generation');
   const limits = { maxCostMicrousd: projection.maxCostMicrousd, maxRuntimeSeconds: projection.maxRuntimeSeconds, retryLimit: projection.retryLimit };
@@ -153,8 +164,6 @@ export function routineConsentEvent(input: {
       (limits.maxRuntimeSeconds as number) > input.limits.maxRuntimeSeconds || (limits.retryLimit as number) > input.limits.retryLimit) {
     throw refused('limits');
   }
-  const revisions = new Set(scopes.map((x) => x.policyRevision));
-  if (revisions.size !== 1) throw refused('policy revision');
   return {
     kind: 'consent',
     consent: {
