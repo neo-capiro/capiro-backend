@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
-import { projectMeetingSourceV02, type MeetingV02ProjectionRequest } from './meetings.js';
+import {
+  captureMeetingV02OwnerRead,
+  projectMeetingSourceV02,
+  type MeetingV02ProjectionRequest,
+} from './meetings.js';
 
 const NOW = Date.parse('2026-10-18T12:00:00.000Z');
 const id = (digit: string) =>
@@ -54,12 +58,23 @@ function base(operation: MeetingV02ProjectionRequest['operation']): MeetingV02Pr
       clientId,
       sourceIds: ['meetings'],
       retrievedAt: new Date(NOW).toISOString(),
+      resultSha256: '0'.repeat(64),
       limitations: [
         'Current meeting owner read has no snapshot identity or proven complete source history.',
       ],
     },
     result: {},
   };
+}
+
+function observe(request: MeetingV02ProjectionRequest): MeetingV02ProjectionRequest {
+  const { retrievedAt: _retrievedAt, resultSha256: _resultSha256, ...facts } = request.read;
+  request.read = captureMeetingV02OwnerRead({
+    ...facts,
+    result: request.result,
+    observedAtMs: NOW,
+  });
+  return request;
 }
 
 function upcoming(): MeetingV02ProjectionRequest {
@@ -88,7 +103,7 @@ function upcoming(): MeetingV02ProjectionRequest {
       },
     ],
   };
-  return request;
+  return observe(request);
 }
 
 function debrief(): MeetingV02ProjectionRequest {
@@ -164,7 +179,7 @@ function debrief(): MeetingV02ProjectionRequest {
       },
     ],
   };
-  return request;
+  return observe(request);
 }
 
 function meetingInventory(): MeetingV02ProjectionRequest {
@@ -214,7 +229,7 @@ function meetingInventory(): MeetingV02ProjectionRequest {
       },
     ],
   };
-  return request;
+  return observe(request);
 }
 
 function meetingSourceBody(): MeetingV02ProjectionRequest {
@@ -307,7 +322,7 @@ function meetingSourceBody(): MeetingV02ProjectionRequest {
       },
     },
   };
-  return request;
+  return observe(request);
 }
 
 describe('Core meeting 0.2 owner projection', () => {
@@ -345,6 +360,7 @@ describe('Core meeting 0.2 owner projection', () => {
     const request = upcoming();
     (request.result as { meetings: Array<{ client: { id: string } }> }).meetings[0]!.client.id =
       id('0');
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('selected client');
   });
 
@@ -358,6 +374,18 @@ describe('Core meeting 0.2 owner projection', () => {
     request.authority.subject.entityIds = [clientId];
     request.read.retrievedAt = new Date(NOW - 120000).toISOString();
     expect(() => projectMeetingSourceV02(request)).toThrow('not current');
+  });
+
+  it('refuses a result changed after the source facts were captured', () => {
+    const request = upcoming();
+    (request.result as { meetings: Array<{ subject: string }> }).meetings[0]!.subject = 'Later';
+    expect(() => projectMeetingSourceV02(request)).toThrow('same-read source facts');
+  });
+
+  it('refuses a source-read timestamp that predates the owner result', () => {
+    const request = debrief();
+    request.read.retrievedAt = new Date(NOW - 5000).toISOString();
+    expect(() => projectMeetingSourceV02(request)).toThrow('later than its same-read observation');
   });
 
   it('projects approved debrief source rows without upgrading page completion to source completeness', () => {
@@ -378,9 +406,11 @@ describe('Core meeting 0.2 owner projection', () => {
     const row = (request.result as { debriefs: Array<{ status: string; body: string }> })
       .debriefs[0]!;
     row.status = 'draft';
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('lifecycle');
     row.status = 'approved';
     row.body = 'changed';
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('provenance');
   });
 
@@ -394,6 +424,7 @@ describe('Core meeting 0.2 owner projection', () => {
       pageCoverage: { sourceBodyCoverageComplete: false },
     });
     (request.result as { meetings: Array<{ clientId: string }> }).meetings[0]!.clientId = id('0');
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('selected client');
   });
 
@@ -411,6 +442,7 @@ describe('Core meeting 0.2 owner projection', () => {
       evidenceReady: false,
     });
     (request.result as { source: { body: string } }).source.body = 'changed';
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('provenance');
   });
 

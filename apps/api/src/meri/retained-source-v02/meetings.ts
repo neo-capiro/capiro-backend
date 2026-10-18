@@ -30,8 +30,31 @@ export interface MeetingV02OwnerRead {
   /** Current source inventory reported by the owner after its read. */
   sourceIds: string[];
   retrievedAt: string;
+  /** Digest captured with this exact owner result after the owner read. */
+  resultSha256: string;
   /** Actual limits of this owner read; an empty list cannot be published. */
   limitations: string[];
+}
+
+/**
+ * Capture owner-observed source facts in the same method that awaits the
+ * canonical Core handler. The caller supplies the current source inventory;
+ * this helper never manufactures it from the request or a static manifest.
+ */
+export function captureMeetingV02OwnerRead(
+  facts: Omit<MeetingV02OwnerRead, 'retrievedAt' | 'resultSha256'> & {
+    result: unknown;
+    observedAtMs: number;
+  },
+): MeetingV02OwnerRead {
+  if (!Number.isSafeInteger(facts.observedAtMs) || facts.observedAtMs < 0)
+    refuse('owner observation time is required');
+  const { result, observedAtMs, ...read } = facts;
+  return {
+    ...read,
+    retrievedAt: new Date(observedAtMs).toISOString(),
+    resultSha256: fingerprintOwnerResult(result),
+  };
 }
 
 export interface MeetingV02ProjectionRequest {
@@ -80,7 +103,8 @@ function integer(value: unknown, name: string, min: number, max: number): number
 }
 
 function instant(value: unknown, name: string): string {
-  const text = value instanceof Date ? value.toISOString() : string(value, name, 80);
+  const text =
+    value instanceof Date ? Date.prototype.toISOString.call(value) : string(value, name, 80);
   if (!Number.isFinite(Date.parse(text)) || new Date(text).toISOString() !== text)
     refuse(`${name} must be a canonical UTC instant`);
   return text;
@@ -100,6 +124,41 @@ function same(left: unknown, right: unknown): boolean {
 
 function digest(value: unknown): string {
   return createHash('sha256').update(canonicalizeCoreRetainedJson(value), 'utf8').digest('hex');
+}
+
+/** The legacy upcoming owner still returns Date instances before HTTP JSON. */
+function fingerprintOwnerResult(value: unknown): string {
+  const seen = new Set<object>();
+  const plain = (item: unknown): unknown => {
+    if (item instanceof Date) return instant(item, 'owner date');
+    if (item === null || typeof item === 'string' || typeof item === 'boolean') return item;
+    if (typeof item === 'number' && Number.isFinite(item)) return item;
+    if (!item || typeof item !== 'object' || seen.has(item))
+      refuse('owner result must be finite, acyclic JSON');
+    seen.add(item);
+    try {
+      const prototype = Object.getPrototypeOf(item);
+      if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype)
+        refuse('owner result must be plain data');
+      if (Array.isArray(item)) return item.map(plain);
+      const output: JsonRecord = {};
+      for (const key of Reflect.ownKeys(item)) {
+        const descriptor = Object.getOwnPropertyDescriptor(item, key);
+        if (
+          typeof key !== 'string' ||
+          !descriptor ||
+          !descriptor.enumerable ||
+          !Object.hasOwn(descriptor, 'value')
+        )
+          refuse('owner result contains an accessor or hidden property');
+        output[key] = plain(descriptor.value);
+      }
+      return output;
+    } finally {
+      seen.delete(item);
+    }
+  };
+  return digest(plain(value));
 }
 
 function exactKeys(value: JsonRecord, keys: readonly string[], name: string): void {
@@ -189,6 +248,11 @@ function assertReadFacts(request: MeetingV02ProjectionRequest): void {
   const retrievedAt = instant(read.retrievedAt, 'retrievedAt');
   if (Date.parse(retrievedAt) > nowMs + 1000 || Date.parse(retrievedAt) < nowMs - 60000)
     refuse('meeting source read is not current');
+  if (
+    !/^[a-f0-9]{64}$/.test(read.resultSha256) ||
+    read.resultSha256 !== fingerprintOwnerResult(request.result)
+  )
+    refuse('meeting owner result differs from its same-read source facts');
   const clientId = selection.clientId as string | null;
   if (read.clientId !== clientId) refuse('meeting owner client differs from selection');
   const subject = authority.subject;
@@ -212,8 +276,12 @@ function assertLegacyBase(request: MeetingV02ProjectionRequest): JsonRecord {
     (request.operation === 'meeting.list_upcoming_meetings' && 'tool' in result)
   )
     refuse('Core meeting result does not match the owner read');
-  if (request.operation !== 'meeting.list_upcoming_meetings')
-    instant(result.generatedAt, 'generatedAt');
+  if (
+    request.operation !== 'meeting.list_upcoming_meetings' &&
+    Date.parse(instant(result.generatedAt, 'generatedAt')) >
+      Date.parse(request.read.retrievedAt) + 1000
+  )
+    refuse('owner generatedAt is later than its same-read observation');
   return result;
 }
 
@@ -233,7 +301,8 @@ function upcomingPage(request: MeetingV02ProjectionRequest, result: JsonRecord):
   if (
     Date.parse(to) - Date.parse(from) !== (selection.withinDays as number) * 86400000 ||
     Date.parse(from) > request.nowMs + 1000 ||
-    Date.parse(from) < request.nowMs - 3600000
+    Date.parse(from) < request.nowMs - 3600000 ||
+    Date.parse(from) > Date.parse(request.read.retrievedAt) + 1000
   )
     refuse('upcoming calendar window differs from the trusted clock');
   const ids = new Set<string>();
@@ -307,6 +376,7 @@ function debriefPage(request: MeetingV02ProjectionRequest, result: JsonRecord): 
   )
     refuse('debrief scope or count differs from selection');
   const requiredReads: string[] = [];
+  let bodyCoverageComplete = true;
   for (const raw of rows) {
     const row = record(raw, 'debrief row');
     const meeting = record(row.meeting, 'debrief meeting');
@@ -326,13 +396,47 @@ function debriefPage(request: MeetingV02ProjectionRequest, result: JsonRecord): 
       provenance.returnedBodySha256 !== digestText(row.body)
     )
       refuse('debrief owner row, lifecycle, or provenance differs from selection');
-    if (bodyCoverage.complete !== true)
-      requiredReads.push(
-        typeof bodyCoverage.nextCursor === 'string' ? bodyCoverage.nextCursor : 'window-resumed',
-      );
+    const start =
+      selection.debriefId === null
+        ? 0
+        : integer(scope.characterOffset, 'debrief characterOffset', 0, Number.MAX_SAFE_INTEGER);
+    const bodyNext = assertBodyWindow(
+      row.body,
+      bodyCoverage,
+      start,
+      selection.characterLimit as number,
+      'debrief',
+    );
+    if (bodyCoverage.complete === true && provenance.bodySha256 !== provenance.returnedBodySha256)
+      refuse('debrief full-body hash differs from its returned body');
+    if (bodyCoverage.complete !== true) {
+      bodyCoverageComplete = false;
+      requiredReads.push(bodyNext ?? 'window-resumed');
+    }
   }
   const nextCursor = coverage.nextCursor;
   if (nextCursor !== null && typeof nextCursor !== 'string') refuse('debrief cursor is invalid');
+  const paginationComplete = selection.debriefId !== null || nextCursor === null;
+  const complete =
+    coverage.sourceStatus === 'healthy' &&
+    request.cursor === null &&
+    paginationComplete &&
+    bodyCoverageComplete;
+  if (
+    coverage.pageComplete !== (coverage.sourceStatus === 'healthy') ||
+    coverage.paginationComplete !== paginationComplete ||
+    coverage.bodyCoverageComplete !== bodyCoverageComplete ||
+    coverage.complete !== complete ||
+    coverage.partial !== !complete ||
+    coverage.truncated !==
+      (nextCursor !== null || !bodyCoverageComplete || coverage.sourceStatus !== 'healthy') ||
+    (selection.debriefId !== null &&
+      nextCursor !==
+        (rows.length
+          ? record(record(rows[0], 'debrief row').bodyCoverage, 'debrief body coverage').nextCursor
+          : null))
+  )
+    refuse('debrief owner page coverage is inconsistent');
   return {
     kind: 'debrief-source-page',
     order: 'createdAt-asc_id-asc_cursor-key-owner-unconfirmed',
@@ -387,7 +491,63 @@ function meetingPage(request: MeetingV02ProjectionRequest, result: JsonRecord): 
         )
           refuse('meeting source inventory parent or availability mismatch');
       }
+      const sources = row.sources.map((rawSource: unknown) => record(rawSource, 'meeting source'));
+      const sourceKeys = sources.map((source) => `${source.sourceKind}:${source.sourceId}`);
+      if (
+        new Set(sourceKeys).size !== sourceKeys.length ||
+        !same(sourceKeys, [...sourceKeys].sort())
+      )
+        refuse('meeting source inventory is duplicate or unordered');
+      const notes = sources.filter((source) => source.sourceKind === 'note');
+      const transcripts = sources.filter((source) => source.sourceKind === 'transcript');
+      const transcriptAvailable = transcripts.some((source) => source.availability === 'available');
+      const availability = record(row.sourceAvailability, 'meeting source availability');
+      if (
+        availability.notes !==
+          (notes.length === 0
+            ? 'empty'
+            : notes.some((source) => source.availability !== 'available')
+              ? 'partial'
+              : 'available') ||
+        availability.transcript !== (transcriptAvailable ? 'available' : 'unavailable') ||
+        availability.transcriptReason !==
+          (transcriptAvailable
+            ? null
+            : transcripts.length
+              ? 'persisted_transcript_unavailable'
+              : 'calendar_event_without_persisted_transcript')
+      )
+        refuse('meeting source inventory availability is inconsistent');
     }
+    const omitted = integer(
+      coverage.omittedMeetings,
+      'omittedMeetings',
+      0,
+      selection.limit as number,
+    );
+    const inventoryComplete =
+      omitted === 0 &&
+      rows.every(
+        (raw) =>
+          record(raw, 'meeting row').sources instanceof Array &&
+          (record(raw, 'meeting row').sources as unknown[]).every(
+            (source) => record(source, 'meeting source').availability !== 'restricted',
+          ),
+      );
+    const paginationComplete = coverage.nextCursor === null;
+    const truncated = !paginationComplete || rows.length > 0 || omitted > 0 || !inventoryComplete;
+    if (
+      coverage.sourceInventoryComplete !== inventoryComplete ||
+      coverage.pageComplete !== inventoryComplete ||
+      coverage.meetingPaginationComplete !== paginationComplete ||
+      coverage.sourceBodyCoverageComplete !== (rows.length === 0 && omitted === 0) ||
+      coverage.complete !==
+        (request.cursor === null && paginationComplete && rows.length === 0 && inventoryComplete) ||
+      coverage.partial !== truncated ||
+      coverage.truncated !== truncated ||
+      coverage.sourceStatus !== (inventoryComplete ? 'healthy' : 'degraded')
+    )
+      refuse('meeting inventory page coverage is inconsistent');
     return {
       kind: 'meeting-inventory-page',
       scope,
@@ -420,6 +580,10 @@ function meetingPage(request: MeetingV02ProjectionRequest, result: JsonRecord): 
     source.sourceKind !== selection.sourceKind ||
     source.sourceId !== selection.sourceId ||
     source.sourceVersion !== provenance.sourceVersion ||
+    source.availability !== 'available' ||
+    provenance.owner !==
+      (selection.sourceKind === 'note' ? 'meeting_notes' : 'engagement_attachment_storage') ||
+    provenance.encoding !== 'utf8' ||
     provenance.currentClientId !== selection.clientId ||
     provenance.meetingId !== meeting.id ||
     provenance.sourceId !== source.sourceId ||
@@ -429,6 +593,33 @@ function meetingPage(request: MeetingV02ProjectionRequest, result: JsonRecord): 
     provenance.returnedByteLength !== Buffer.byteLength(source.body, 'utf8')
   )
     refuse('meeting source parent, identity, or body provenance mismatch');
+  const start = integer(
+    scope.characterOffset,
+    'meeting characterOffset',
+    0,
+    Number.MAX_SAFE_INTEGER,
+  );
+  const bodyNext = assertBodyWindow(
+    source.body,
+    bodyCoverage,
+    start,
+    selection.characterLimit as number,
+    'meeting source',
+  );
+  if (
+    source.contentHash !== provenance.bodySha256 ||
+    (bodyCoverage.complete === true && provenance.bodySha256 !== provenance.returnedBodySha256) ||
+    !Number.isSafeInteger(provenance.sourceByteLength) ||
+    (provenance.sourceByteLength as number) < (provenance.returnedByteLength as number) ||
+    (bodyCoverage.complete === true &&
+      provenance.sourceByteLength !== provenance.returnedByteLength) ||
+    coverage.sourceBodyCoverageComplete !== bodyCoverage.complete ||
+    coverage.complete !== bodyCoverage.complete ||
+    coverage.partial !== !bodyCoverage.complete ||
+    coverage.truncated !== bodyCoverage.truncated ||
+    coverage.nextCursor !== bodyNext
+  )
+    refuse('meeting source body hash or coverage is inconsistent');
   return {
     kind: 'meeting-source-body-page',
     scope,
@@ -438,12 +629,43 @@ function meetingPage(request: MeetingV02ProjectionRequest, result: JsonRecord): 
     source,
     returnedCount: 1,
     truncated: coverage.truncated,
-    requiredReads: bodyCoverage.truncated ? [bodyCoverage.nextCursor] : [],
+    requiredReads: bodyCoverage.truncated ? [bodyNext] : [],
   };
 }
 
 function digestText(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+function assertBodyWindow(
+  body: string,
+  coverage: JsonRecord,
+  start: number,
+  characterLimit: number,
+  name: string,
+): string | null {
+  const end = integer(coverage.characterEnd, `${name} characterEnd`, 0, Number.MAX_SAFE_INTEGER);
+  const total = integer(
+    coverage.totalCharacters,
+    `${name} totalCharacters`,
+    0,
+    Number.MAX_SAFE_INTEGER,
+  );
+  const nextCursor = coverage.nextCursor;
+  const complete = start === 0 && end === total;
+  const truncated = end < total;
+  if (
+    coverage.characterStart !== start ||
+    end < start ||
+    end !== Math.min(total, start + characterLimit) ||
+    end - start !== body.length ||
+    coverage.complete !== complete ||
+    coverage.pageComplete !== true ||
+    coverage.truncated !== truncated ||
+    (truncated ? typeof nextCursor !== 'string' || !nextCursor : nextCursor !== null)
+  )
+    refuse(`${name} body window or cursor is inconsistent`);
+  return nextCursor as string | null;
 }
 
 /** Build the exact 0.2 page envelope while retaining its pending source limits. */
