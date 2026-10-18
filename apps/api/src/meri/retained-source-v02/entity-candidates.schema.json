@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:entity-candidates:0.2.0",
+  "title": "Private entity candidates; identity matches do not grant authority",
+  "$defs": {
+    "EntityCandidatesContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultCongress": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "defaultCongress"
+      ]
+    },
+    "EntityCandidatesRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "EntityCandidatesInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      },
+      "required": [
+        "limit"
+      ]
+    },
+    "EntityCandidatesMissingNote": {
+      "const": "resolve_entity requires a query (an id, bill designation, or name)."
+    },
+    "EntityMemberCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityType": {
+          "const": "member"
+        },
+        "canonicalIdType": {
+          "const": "bioguide"
+        },
+        "canonicalId": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "matchedBy": {
+          "type": "string"
+        },
+        "party": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "district": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "chamber": {
+          "type": "string"
+        },
+        "lisId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isCurrent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entityType",
+        "canonicalIdType",
+        "canonicalId",
+        "display",
+        "matchedBy",
+        "party",
+        "state",
+        "district",
+        "chamber",
+        "lisId",
+        "isCurrent"
+      ]
+    },
+    "EntityCommitteeCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityType": {
+          "const": "committee"
+        },
+        "canonicalIdType": {
+          "const": "committee"
+        },
+        "canonicalId": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "matchedBy": {
+          "type": "string"
+        },
+        "chamber": {
+          "type": "string"
+        },
+        "parentSystemCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isCurrent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entityType",
+        "canonicalIdType",
+        "canonicalId",
+        "display",
+        "matchedBy",
+        "chamber",
+        "parentSystemCode",
+        "isCurrent"
+      ]
+    },
+    "EntityFederalBillCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityType": {
+          "const": "bill"
+        },
+        "canonicalIdType": {
+          "const": "billId"
+        },
+        "canonicalId": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "matchedBy": {
+          "type": "string"
+        },
+        "congress": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "sponsorName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sponsorBioguideId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latestActionText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latestActionDate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "entityType",
+        "canonicalIdType",
+        "canonicalId",
+        "display",
+        "matchedBy",
+        "congress",
+        "sponsorName",
+        "sponsorBioguideId",
+        "latestActionText",
+        "latestActionDate"
+      ]
+    },
+    "EntityStateBillCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityType": {
+          "const": "state_bill"
+        },
+        "canonicalIdType": {
+          "const": "stateBillKey"
+        },
+        "canonicalId": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "matchedBy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "sponsorName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latestActionText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latestActionDate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "entityType",
+        "canonicalIdType",
+        "canonicalId",
+        "display",
+        "matchedBy",
+        "state",
+        "session",
+        "sponsorName",
+        "latestActionText",
+        "latestActionDate"
+      ]
+    },
+    "EntityStateLegislatorCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityType": {
+          "const": "state_legislator"
+        },
+        "canonicalIdType": {
+          "const": "openstatesPersonId"
+        },
+        "canonicalId": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "matchedBy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "chamber": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "district": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "party": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isCurrent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entityType",
+        "canonicalIdType",
+        "canonicalId",
+        "display",
+        "matchedBy",
+        "state",
+        "chamber",
+        "district",
+        "party",
+        "isCurrent"
+      ]
+    },
+    "EntityCandidate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/EntityMemberCandidate"
+        },
+        {
+          "$ref": "#/$defs/EntityCommitteeCandidate"
+        },
+        {
+          "$ref": "#/$defs/EntityFederalBillCandidate"
+        },
+        {
+          "$ref": "#/$defs/EntityStateBillCandidate"
+        },
+        {
+          "$ref": "#/$defs/EntityStateLegislatorCandidate"
+        }
+      ]
+    },
+    "EntityCandidatesOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "const": "resolve_entity"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "matchesFound": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "matches": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/EntityCandidate"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "generatedAt",
+        "matchesFound",
+        "matches"
+      ]
+    }
+  }
+}

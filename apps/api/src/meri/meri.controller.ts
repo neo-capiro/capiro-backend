@@ -579,7 +579,9 @@ export class MeriController {
       const admitted = assertRetainedSourceV02Admission(
         grant, body, meriRetainedCorrelationOf(req), { nowMs: Date.now() },
       );
-      const result = await readRetainedSourceV02(admitted);
+      const result = await withMeriToolRequestControl(
+        req, () => readRetainedSourceV02(admitted, ctx, this.tools),
+      );
       await this.releaseDelegatedRead(req);
       return result;
     }

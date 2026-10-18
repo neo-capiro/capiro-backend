@@ -61,14 +61,21 @@ export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
   'search_state_bills', 'search_state_floor_votes', 'search_tracked_bills',
 ]);
 
-/** Exact retained 0.2 source operation IDs. These require the additional
- * signed correlation digest; no legacy tool receives that claim. */
+/** Exact retained source operation IDs. These require the additional signed
+ * correlation digest; no legacy tool receives that claim. */
 export const MERI_RETAINED_SOURCE_TOOLS: ReadonlySet<string> = new Set([
   'read_monday_client_boards', 'get_client_context', 'resolve_entity',
   'mail.list_messages', 'mail.search_messages', 'mail.read_thread',
   'meeting.list_upcoming_meetings', 'meeting.query_debriefs', 'meeting.read_client_meetings',
   'read_client_documents', 'find_contacts',
 ]);
+
+/** Profile observation changed its output contract: only 0.3.0 may cross
+ * this source route. Other retained source operations remain exact 0.2.0. */
+export function isMeriRetainedSourceOperationVersion(operation: { id: string; version: string } | null): boolean {
+  return operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id) &&
+    operation.version === (operation.id === 'get_client_context' ? '0.3.0' : '0.2.0');
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[a-f0-9]{64}$/;
@@ -178,7 +185,7 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
   const kind = v.kind as ReadTokenKind;
   const operation = v.operation === null ? null : operationRef(v.operation, 'operation');
   const retainedSource = kind === 'tool' && operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id);
-  if (retainedSource && operation.version !== '0.2.0') throw invalid('retained source operation');
+  if (retainedSource && !isMeriRetainedSourceOperationVersion(operation)) throw invalid('retained source operation');
   if (retainedSource ? !isSha(v.correlationSha256) : Object.hasOwn(v, 'correlationSha256')) throw invalid('correlationSha256');
   const nulls = (...keys: string[]) => keys.every((k) => v[k] === null);
   if (kind === 'tool') {

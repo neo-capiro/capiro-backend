@@ -1,0 +1,640 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:common:0.2.0",
+  "title": "Meri R2 common contract foundation 0.2.0",
+  "$defs": {
+    "OperationRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_.-]*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "SubjectRequest": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client"
+            },
+            "entityId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "kind",
+            "entityId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "portfolio"
+            },
+            "selection": {
+              "const": "active-authorized"
+            }
+          },
+          "required": [
+            "kind",
+            "selection"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "personal"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "entity"
+            },
+            "entityType": {
+              "type": "string",
+              "enum": [
+                "client",
+                "person",
+                "organization",
+                "program-element",
+                "bill",
+                "docket",
+                "funding-opportunity",
+                "research-portfolio",
+                "prospect",
+                "user"
+              ]
+            },
+            "entityId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "kind",
+            "entityType",
+            "entityId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ResolvedSubject": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "client",
+            "portfolio",
+            "personal",
+            "entity"
+          ]
+        },
+        "entityType": {
+          "type": "string",
+          "enum": [
+            "client",
+            "person",
+            "organization",
+            "program-element",
+            "bill",
+            "docket",
+            "funding-opportunity",
+            "research-portfolio",
+            "prospect",
+            "user"
+          ]
+        },
+        "entityIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "authorizationDecisionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "policyRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:meri:contracts:0.1.0#/$defs/Scope"
+          },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "rosterVersionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "entityType",
+        "entityIds",
+        "tenantId",
+        "actorId",
+        "authorizationDecisionId",
+        "policyRevision",
+        "scopes",
+        "rosterVersionId"
+      ],
+      "additionalProperties": false
+    },
+    "WindowRequest": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "calendar-week"
+            },
+            "offset": {
+              "type": "integer",
+              "enum": [
+                -1,
+                0
+              ]
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "weekStartsOn": {
+              "type": "string",
+              "enum": [
+                "monday",
+                "sunday"
+              ]
+            }
+          },
+          "required": [
+            "basis",
+            "offset",
+            "timezone",
+            "weekStartsOn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "calendar-month"
+            },
+            "offset": {
+              "type": "integer",
+              "enum": [
+                -1,
+                0
+              ]
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "basis",
+            "offset",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "calendar-year"
+            },
+            "offset": {
+              "type": "integer",
+              "enum": [
+                -1,
+                0
+              ]
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "basis",
+            "offset",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "relative-duration"
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3660
+            },
+            "anchorAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "basis",
+            "days",
+            "anchorAt",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "explicit"
+            },
+            "startInclusive": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "endExclusive": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "basis",
+            "startInclusive",
+            "endExclusive",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "fiscal-year"
+            },
+            "year": {
+              "type": "integer",
+              "minimum": 1900,
+              "maximum": 3000
+            },
+            "calendarId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "requested",
+                "authorized",
+                "appropriated",
+                "obligated",
+                "actual",
+                "outlay"
+              ]
+            },
+            "revisionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "basis",
+            "year",
+            "calendarId",
+            "stage",
+            "revisionId",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "unbounded"
+            }
+          },
+          "required": [
+            "basis"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "NormalizedWindow": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "type": "string",
+              "enum": [
+                "calendar-week",
+                "calendar-month",
+                "calendar-year",
+                "relative-duration",
+                "explicit"
+              ]
+            },
+            "startInclusive": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "endExclusive": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "weekStartsOn": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "monday",
+                    "sunday"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "basis",
+            "startInclusive",
+            "endExclusive",
+            "timezone",
+            "weekStartsOn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "fiscal-year"
+            },
+            "year": {
+              "type": "integer",
+              "minimum": 1900,
+              "maximum": 3000
+            },
+            "calendarId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_.-]*$"
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "requested",
+                "authorized",
+                "appropriated",
+                "obligated",
+                "actual",
+                "outlay"
+              ]
+            },
+            "revisionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "startInclusive": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "endExclusive": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [
+            "basis",
+            "year",
+            "calendarId",
+            "stage",
+            "revisionId",
+            "startInclusive",
+            "endExclusive",
+            "timezone"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "const": "unbounded"
+            }
+          },
+          "required": [
+            "basis"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SourceRequirement": {
+      "type": "object",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_.-]*$"
+        },
+        "authority": {
+          "type": "string",
+          "enum": [
+            "authoritative",
+            "derived",
+            "approved-memory"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "enumeration",
+            "evidence",
+            "decisive-read"
+          ]
+        }
+      },
+      "required": [
+        "sourceId",
+        "authority",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "SchemaRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^urn:meri:"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "id",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "Budgets": {
+      "type": "object",
+      "properties": {
+        "maxTurns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxToolCalls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxRecoveryAttempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxRuntimeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxCostMicroUSD": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "maxTurns",
+        "maxToolCalls",
+        "maxRecoveryAttempts",
+        "maxRuntimeSeconds",
+        "maxCostMicroUSD",
+        "maxOutputBytes"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

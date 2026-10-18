@@ -1,5 +1,12 @@
 import { createHash } from 'node:crypto';
-import { projectMeetingSourceV02, type MeetingV02ProjectionRequest } from './meetings.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  captureMeetingV02OwnerRead,
+  prepareMeetingV02OwnerInput,
+  projectMeetingSourceV02,
+  type MeetingV02ProjectionRequest,
+} from './meetings.js';
 
 const NOW = Date.parse('2026-10-18T12:00:00.000Z');
 const id = (digit: string) =>
@@ -54,12 +61,23 @@ function base(operation: MeetingV02ProjectionRequest['operation']): MeetingV02Pr
       clientId,
       sourceIds: ['meetings'],
       retrievedAt: new Date(NOW).toISOString(),
+      resultSha256: '0'.repeat(64),
       limitations: [
         'Current meeting owner read has no snapshot identity or proven complete source history.',
       ],
     },
     result: {},
   };
+}
+
+function observe(request: MeetingV02ProjectionRequest): MeetingV02ProjectionRequest {
+  const { retrievedAt: _retrievedAt, resultSha256: _resultSha256, ...facts } = request.read;
+  request.read = captureMeetingV02OwnerRead({
+    ...facts,
+    result: request.result,
+    observedAtMs: NOW,
+  });
+  return request;
 }
 
 function upcoming(): MeetingV02ProjectionRequest {
@@ -88,7 +106,7 @@ function upcoming(): MeetingV02ProjectionRequest {
       },
     ],
   };
-  return request;
+  return observe(request);
 }
 
 function debrief(): MeetingV02ProjectionRequest {
@@ -164,7 +182,7 @@ function debrief(): MeetingV02ProjectionRequest {
       },
     ],
   };
-  return request;
+  return observe(request);
 }
 
 function meetingInventory(): MeetingV02ProjectionRequest {
@@ -214,7 +232,7 @@ function meetingInventory(): MeetingV02ProjectionRequest {
       },
     ],
   };
-  return request;
+  return observe(request);
 }
 
 function meetingSourceBody(): MeetingV02ProjectionRequest {
@@ -307,10 +325,62 @@ function meetingSourceBody(): MeetingV02ProjectionRequest {
       },
     },
   };
-  return request;
+  return observe(request);
 }
 
 describe('Core meeting 0.2 owner projection', () => {
+  it('pins the complete Meri PR158 meeting output schema dependency closure', () => {
+    const files = {
+      'mail-base.schema.json': 'e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b',
+      'mail-common.schema.json': '7d7ac22eff809cc31e84d1fc9b2fada1b56c316f73e50115207b579de0d92c4b',
+      'mail-retrieval.schema.json': '6058aa0d735b595a093907eec8bf7e4e8f4eb96952f497caa3c1eb00f3ad1a8c',
+      'meetings.schema.json': 'b7ec6ecbdaab3fcccac3b83b9530828c90bda96685385b6f49f929fbd2776664',
+    };
+    for (const [name, expected] of Object.entries(files))
+      expect(createHash('sha256').update(readFileSync(join(__dirname, name))).digest('hex'))
+        .toBe(expected);
+  });
+
+  it('maps normalized upcoming selection to its private owner without cursor metadata', () => {
+    const selection = upcoming().selection;
+    expect(prepareMeetingV02OwnerInput('meeting.list_upcoming_meetings', selection, null)).toEqual({
+      cursor: null,
+      legacyInput: selection,
+    });
+    expect(() =>
+      prepareMeetingV02OwnerInput('meeting.list_upcoming_meetings', selection, { cursor: null }),
+    ).toThrow('upcoming metadata');
+  });
+
+  it('moves opaque debrief and meeting cursors into the private owner input', () => {
+    const debriefSelection = {
+      clientId, debriefId: noteId, from: null, to: null,
+      limit: 25, characterOffset: 0, characterLimit: 5000,
+    };
+    const meetingSelection = meetingSourceBody().selection;
+    for (const [operation, selection] of [
+      ['meeting.query_debriefs', debriefSelection],
+      ['meeting.read_client_meetings', meetingSelection],
+    ] as const) {
+      const original = { ...selection };
+      const { characterOffset: _offset, ...continuationInput } = selection;
+      expect(prepareMeetingV02OwnerInput(operation, selection, { cursor: 'opaque-cursor' }))
+        .toStrictEqual({
+          cursor: 'opaque-cursor',
+          legacyInput: { ...continuationInput, cursor: 'opaque-cursor' },
+        });
+      expect(selection).toEqual(original);
+    }
+  });
+
+  it('refuses missing or extra 0.2 cursor metadata before calling an owner', () => {
+    const selection = debrief().selection;
+    expect(() => prepareMeetingV02OwnerInput('meeting.query_debriefs', selection, null))
+      .toThrow('meeting metadata');
+    expect(() => prepareMeetingV02OwnerInput('meeting.query_debriefs', selection,
+      { cursor: null, other: 'not canonical' })).toThrow('meeting metadata fields');
+  });
+
   it('retains client-bound upcoming rows and discloses unknown source coverage', () => {
     const page = projectMeetingSourceV02(upcoming());
     expect(page).toMatchObject({
@@ -345,7 +415,40 @@ describe('Core meeting 0.2 owner projection', () => {
     const request = upcoming();
     (request.result as { meetings: Array<{ client: { id: string } }> }).meetings[0]!.client.id =
       id('0');
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('selected client');
+  });
+
+  it('refuses a projected page that violates a nested Meri output schema', () => {
+    const request = upcoming();
+    (request.result as { meetings: Array<{ attendees: unknown[] }> }).meetings[0]!.attendees = [
+      { name: 'Missing required attendee fields' },
+    ];
+    observe(request);
+    expect(() => projectMeetingSourceV02(request)).toThrow('output schema mismatch');
+  });
+
+  it('enforces Meri output maxLength and maxItems limits', () => {
+    const request = upcoming();
+    const row = (request.result as { meetings: Array<{ subject: string; attendees: unknown[] }> })
+      .meetings[0]!;
+    row.subject = 'x'.repeat(4097);
+    observe(request);
+    expect(() => projectMeetingSourceV02(request)).toThrow('output schema mismatch');
+    row.subject = 'Review';
+    row.attendees = Array.from({ length: 4097 }, () => ({
+      name: null, email: null, role: null, responseStatus: null,
+    }));
+    observe(request);
+    expect(() => projectMeetingSourceV02(request)).toThrow('output schema mismatch');
+  });
+
+  it('enforces the response byte ceiling and a smaller supplied claims budget', () => {
+    const request = upcoming();
+    request.maxOutputBytes = 256;
+    expect(() => projectMeetingSourceV02(request)).toThrow('output exceeds byte cap');
+    request.maxOutputBytes = 16 * 1024 * 1024 + 1;
+    expect(() => projectMeetingSourceV02(request)).toThrow('maxOutputBytes');
   });
 
   it('requires matching owner inventory, subject, and current read time', () => {
@@ -358,6 +461,18 @@ describe('Core meeting 0.2 owner projection', () => {
     request.authority.subject.entityIds = [clientId];
     request.read.retrievedAt = new Date(NOW - 120000).toISOString();
     expect(() => projectMeetingSourceV02(request)).toThrow('not current');
+  });
+
+  it('refuses a result changed after the source facts were captured', () => {
+    const request = upcoming();
+    (request.result as { meetings: Array<{ subject: string }> }).meetings[0]!.subject = 'Later';
+    expect(() => projectMeetingSourceV02(request)).toThrow('same-read source facts');
+  });
+
+  it('refuses a source-read timestamp that predates the owner result', () => {
+    const request = debrief();
+    request.read.retrievedAt = new Date(NOW - 5000).toISOString();
+    expect(() => projectMeetingSourceV02(request)).toThrow('later than its same-read observation');
   });
 
   it('projects approved debrief source rows without upgrading page completion to source completeness', () => {
@@ -378,9 +493,11 @@ describe('Core meeting 0.2 owner projection', () => {
     const row = (request.result as { debriefs: Array<{ status: string; body: string }> })
       .debriefs[0]!;
     row.status = 'draft';
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('lifecycle');
     row.status = 'approved';
     row.body = 'changed';
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('provenance');
   });
 
@@ -394,6 +511,7 @@ describe('Core meeting 0.2 owner projection', () => {
       pageCoverage: { sourceBodyCoverageComplete: false },
     });
     (request.result as { meetings: Array<{ clientId: string }> }).meetings[0]!.clientId = id('0');
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('selected client');
   });
 
@@ -411,6 +529,7 @@ describe('Core meeting 0.2 owner projection', () => {
       evidenceReady: false,
     });
     (request.result as { source: { body: string } }).source.body = 'changed';
+    observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('provenance');
   });
 

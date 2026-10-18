@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:client-knowledge-monday:0.2.0",
+  "$defs": {
+    "ClientKnowledgeMondayContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "required": []
+    },
+    "ClientKnowledgeMondayRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "type": "string"
+        },
+        "boardContext": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pageSize": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId"
+      ]
+    },
+    "ClientKnowledgeMondayInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "boardContext": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pageSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 100
+        },
+        "requireComplete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clientId",
+        "boardContext",
+        "cursor",
+        "pageSize",
+        "requireComplete"
+      ]
+    },
+    "ClientKnowledgeMondayRecord": {
+      "allOf": [
+        {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/RetrievalRecord"
+        },
+        {
+          "properties": {
+            "domain": {
+              "const": "monday"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "clientId": {
+                  "type": "string"
+                },
+                "sourceActorUserId": {
+                  "type": "string"
+                },
+                "title": {
+                  "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                },
+                "status": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "owners": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                  }
+                },
+                "dueDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "updatedAt": {
+                  "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                },
+                "description": {
+                  "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                },
+                "origin": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "provider": {
+                      "const": "monday"
+                    },
+                    "boardId": {
+                      "type": "string",
+                      "pattern": "^[0-9]+$"
+                    },
+                    "itemId": {
+                      "type": "string",
+                      "pattern": "^[0-9]+$"
+                    },
+                    "parentItemId": {
+                      "type": "string"
+                    },
+                    "itemType": {
+                      "enum": [
+                        "item",
+                        "subitem"
+                      ]
+                    },
+                    "scope": {
+                      "enum": [
+                        "request",
+                        "saved_mapping"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "boardId",
+                    "itemId",
+                    "itemType",
+                    "scope"
+                  ]
+                },
+                "updates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                      },
+                      "body": {
+                        "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                      },
+                      "createdAt": {
+                        "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                      },
+                      "creator": {
+                        "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                      }
+                    },
+                    "required": []
+                  }
+                },
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/KnowledgeJsonValue"
+                  }
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "clientId",
+                "sourceActorUserId",
+                "status",
+                "owners",
+                "dueDate",
+                "origin",
+                "updates",
+                "columns",
+                "url"
+              ]
+            },
+            "provenance": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "source": {
+                  "const": "managed_monday_mcp"
+                },
+                "boardId": {
+                  "type": "string"
+                },
+                "itemId": {
+                  "type": "string"
+                },
+                "parentItemId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "boardId",
+                "itemId"
+              ]
+            }
+          },
+          "required": [
+            "provenance"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ClientKnowledgeMondayOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "const": "read_monday_client_boards"
+        },
+        "authoritativeOwner": {
+          "const": "managed_monday_mcp"
+        },
+        "currentStatus": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/RetrievalSourceStatus"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "records": {
+          "type": "array",
+          "maxItems": 3000,
+          "items": {
+            "$ref": "#/$defs/ClientKnowledgeMondayRecord"
+          }
+        },
+        "coverage": {
+          "$ref": "urn:meri:retrieval:data-search:0.2.0#/$defs/CoverageManifest"
+        }
+      },
+      "required": [
+        "tool",
+        "authoritativeOwner",
+        "currentStatus",
+        "clientId",
+        "records",
+        "coverage"
+      ]
+    }
+  }
+}
