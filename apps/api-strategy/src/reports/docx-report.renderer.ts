@@ -34,17 +34,15 @@ import {
   focusAreas,
   formatDate,
   isAmendmentStrategy,
-  kindLabel,
   leadershipAgenda,
   nodeDetail,
   roadmap,
   routeAndVehicleItems,
-  statusLabel,
-  strategyTypeLabel,
   targetBudgetLineItems,
   validationSummary,
   vendorReferenceItems,
 } from "./report-content.js";
+import { kindLabel, statusLabel, strategyTypeLabel } from "./report-labels.js";
 import { containSize, readRasterSize } from "./report-image.js";
 import {
   narrativeSection,
