@@ -11,6 +11,9 @@ import { ConfigService } from '@nestjs/config';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import { DirectoryContactMapper, type MemberBioOverlay } from './directory-contact-mapper.js';
+import { DirectoryBrowse } from './directory-browse.js';
+import { uniqueSorted } from './directory-collection.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { matchFacilityDistrictCode, UNRESOLVABLE_HOUSE_SENTINELS } from '../common/district-code.util.js';
 import { US_HOUSE_SEATS } from '../common/us-congressional-districts.js';
@@ -43,12 +46,67 @@ import type {
   DirectoryStaffDetail,
 } from './directory-detail.types.js';
 
-type Chamber = 'House' | 'Senate' | 'Governor';
-type Party = 'D' | 'R' | 'I';
-type Region = 'Northeast' | 'South' | 'Midwest' | 'West';
+import type {
+  Chamber,
+  CommitteeChamber,
+  CommitteeKind,
+  DirectoryContact,
+  MemberPressOverlay,
+  MemberNewsItem,
+  MemberNewsPayload,
+  DirectoryQuery,
+  DirectoryTotals,
+  DirectoryStaffer,
+  DirectoryStaffersPayload,
+  StaffersQuery,
+  CommitteeMemberRef,
+  DirectoryCommittee,
+  DirectoryCommitteeStaffer,
+  CommitteesQuery,
+  DirectoryCommitteesPayload,
+  CommitteeStaffQuery,
+  DirectoryCommitteeStaffPayload,
+  DirectoryAvailableFilters,
+  DirectoryPayload,
+  DirectoryEmailMatch,
+  DirectoryMemberContext,
+  DirectoryStafferContext,
+  DirectoryCommitteeStaffEmailMatch,
+  DirectoryBrowsePayload,
+  CreateDirectoryContactNoteInput,
+} from './directory.types.js';
 
-export type CommitteeChamber = 'House' | 'Senate' | 'Joint';
-export type CommitteeKind = 'committee' | 'subcommittee';
+export type {
+  CommitteeChamber,
+  CommitteeKind,
+  DirectoryAddress,
+  DirectoryLink,
+  DirectoryStaffMember,
+  DirectoryContact,
+  MemberNewsItem,
+  MemberNewsPayload,
+  DirectoryQuery,
+  DirectoryTotals,
+  DirectoryStaffer,
+  DirectoryStaffersPayload,
+  StaffersQuery,
+  CommitteeMemberRef,
+  DirectoryCommittee,
+  DirectoryCommitteeStaffer,
+  CommitteesQuery,
+  DirectoryCommitteesPayload,
+  CommitteeStaffQuery,
+  DirectoryCommitteeStaffPayload,
+  DirectoryAvailableFilters,
+  DirectoryPayload,
+  DirectoryEmailMatch,
+  DirectoryMemberContext,
+  DirectoryStafferContext,
+  DirectoryCommitteeStaffEmailMatch,
+  DirectoryBrowseContact,
+  DirectoryBrowsePayload,
+  CreateDirectoryContactNoteInput,
+} from './directory.types.js';
 
 // Federal congressional committee offices in the LegiStorm office-list, keyed by
 // their `office_type`. The snapshot is dominated by ~2,300 STATE-legislature
@@ -66,449 +124,6 @@ const FED_COMMITTEE_OFFICE_TYPES: Record<
   'Senate Subcommittee': { chamber: 'Senate', kind: 'subcommittee' },
 };
 
-export interface DirectoryAddress {
-  id: string;
-  title: string;
-  address1: string;
-  address2: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string;
-  fax: string;
-  isMain: boolean;
-}
-
-export interface DirectoryLink {
-  label: string;
-  url: string;
-  type: string;
-}
-
-export interface DirectoryStaffMember {
-  id: string;
-  fullName: string;
-  title: string;
-  roles: string[];
-  issueAreas: string[];
-  email: string;
-  phone: string;
-  officeLocation: string;
-  /** Whether this staffer holds a CURRENT position at this specific office —
-   * not whether they're current anywhere on the Hill (see buildMemberStaff). */
-  isCurrent: boolean;
-}
-
-export interface DirectoryContact {
-  id: string;
-  memberId: number;
-  bioguideId: string;
-  fullName: string;
-  memberName: string;
-  honorific: string;
-  photoUrl: string;
-  title: string;
-  office: string;
-  chamber: Chamber;
-  state: string;
-  district: string;
-  party: Party;
-  partyName: string;
-  gender: 'F' | 'M' | 'Unknown';
-  region: Region;
-  isFreshman: boolean;
-  servingSince: string;
-  focusAreas: string[];
-  committees: string[];
-  committeeLeadership: string[];
-  topIssues: Array<{ issue: string; stafferCount: number }>;
-  leadershipPositions: string[];
-  caucuses: string[];
-  educationInstitutions: string[];
-  senateClass: number | null;
-  outgoingStatus: string | null;
-  officeLocation: string;
-  phone: string;
-  fax: string;
-  email: string;
-  contactFormUrl: string;
-  // Press/RSS overlay (member-press-v1.json, keyed by bioguide_id). Out-of-band
-  // overlay merged at read-time — empty string when the member has no entry.
-  newsPressUrl: string;
-  rssFeedUrl: string;
-  rssSource: string;
-  officialLinks: DirectoryLink[];
-  addresses: DirectoryAddress[];
-  staff: DirectoryStaffMember[];
-  /**
-   * Populated ONLY by contacts search (`GET /contacts?q=…`) when the query
-   * matched this office via one or more STAFFERS rather than the member's own
-   * name/office — so the UI can explain why an office with a non-matching member
-   * name was returned ("matched via staffer X"). Omitted on every other read.
-   */
-  matchedStaff?: Array<{ fullName: string; title: string }>;
-  bio: {
-    dob: string;
-    hometown: string;
-    birthplace: string;
-    occupation: string;
-    race: string;
-    religion: string;
-    pronunciation: string;
-    narrative: string;
-    education: string;
-    military: string;
-    relatives: string;
-  };
-  lastTouchpoint: string;
-  owner: string;
-  relationshipTier: 'Core' | 'Active' | 'Watch';
-  notes: string;
-  recentInteractions: Array<{
-    date: string;
-    channel: 'Call' | 'Email' | 'Meeting' | 'Dinner' | 'Briefing';
-    summary: string;
-  }>;
-}
-
-// Press/RSS overlay entry (member-press-v1.json), keyed by bioguide_id.
-interface MemberPressOverlay {
-  newsPressUrl?: string;
-  rssFeedUrl?: string;
-  rssSource?: string;
-}
-
-// One press item served from member_press_item (ingested by sync-member-press).
-export interface MemberNewsItem {
-  id: string;
-  title: string;
-  link: string;
-  publishedAt: string | null; // ISO 8601, or null when the feed gave no date
-  summary: string; // plain-text excerpt from the feed (NOT the full article)
-}
-
-// Payload for GET /directory/contacts/:id/news — the member's stored press items
-// (latest first) + their press/RSS URLs. Pre-ingested; no live fetch on read.
-export interface MemberNewsPayload {
-  contactId: string;
-  memberName: string;
-  newsPressUrl: string | null;
-  rssFeedUrl: string | null;
-  rssSource: string | null;
-  items: MemberNewsItem[];
-  lastSyncedAt: string | null;
-  feedError: 'no_feed' | null;
-}
-
-type DirectorySort = 'recent' | 'name-asc' | 'name-desc' | 'state-asc' | 'chamber' | 'party';
-
-export interface DirectoryQuery {
-  q?: string;
-  freshman?: string;
-  chamber?: string;
-  party?: string | string[];
-  gender?: string;
-  leadership?: string | string[];
-  caucus?: string | string[];
-  committee?: string | string[];
-  state?: string | string[];
-  district?: string | string[];
-  education?: string | string[];
-  region?: string;
-  /**
-   * Staff-derived office filters. A member has no role or issue of their own —
-   * an office matches when *any* staffer on its roster does, which is the same
-   * predicate `getStaffers` applies to a single staffer row. They exist so a
-   * member-first list (Directory vNext Congressional Staff) can carry the Role
-   * and Issue Area pills without narrowing to a staffer-first list, and they
-   * close the DIR-8 filter gap #918 logged.
-   */
-  issue?: string | string[];
-  role?: string | string[];
-  sort?: string;
-  page?: string | number;
-  pageSize?: string | number;
-}
-
-export interface DirectoryTotals {
-  all: number;
-  house: number;
-  senate: number;
-  governors: number;
-  staff: number;
-}
-
-export interface DirectoryStaffer {
-  id: string;
-  fullName: string;
-  title: string;
-  roles: string[];
-  issueAreas: string[];
-  email: string;
-  phone: string;
-  officeLocation: string;
-  member: {
-    id: string;
-    fullName: string;
-    memberName: string;
-    chamber: Chamber;
-    state: string;
-    district: string;
-    party: Party;
-    partyName: string;
-    photoUrl: string;
-    title: string;
-  };
-}
-
-export interface DirectoryStaffersPayload {
-  staffers: DirectoryStaffer[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface StaffersQuery {
-  q?: string;
-  chamber?: string;
-  state?: string | string[];
-  issue?: string | string[];
-  page?: string | number;
-  pageSize?: string | number;
-}
-
-export interface CommitteeMemberRef {
-  id: string; // `member-${memberId}`
-  name: string;
-}
-
-export interface DirectoryCommittee {
-  id: string; // `committee-${officeId}`
-  officeId: number;
-  name: string;
-  chamber: CommitteeChamber;
-  kind: CommitteeKind;
-  committeeCode: string | null;
-  parentOfficeId: number | null; // subcommittee -> parent full committee
-  staffCount: number; // distinct current staffers
-  chair: CommitteeMemberRef | null;
-  rankingMember: CommitteeMemberRef | null;
-  viceChairs: string[];
-  phone: string;
-  officeLocation: string;
-}
-
-export interface DirectoryCommitteeStaffer {
-  id: string; // `staff-${staffId}`
-  fullName: string;
-  title: string; // the committee position title
-  email: string;
-  phone: string;
-  officeLocation: string;
-  isCurrent: boolean;
-  committee: {
-    id: string;
-    name: string;
-    chamber: CommitteeChamber;
-    kind: CommitteeKind;
-  };
-}
-
-export interface CommitteesQuery {
-  q?: string;
-  chamber?: string;
-  kind?: string;
-  page?: string | number;
-  pageSize?: string | number;
-}
-
-export interface DirectoryCommitteesPayload {
-  committees: DirectoryCommittee[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface CommitteeStaffQuery {
-  q?: string;
-  page?: string | number;
-  pageSize?: string | number;
-}
-
-export interface DirectoryCommitteeStaffPayload {
-  committee: DirectoryCommittee | null;
-  staff: DirectoryCommitteeStaffer[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface DirectoryAvailableFilters {
-  chambers: Chamber[];
-  parties: Array<{ value: Party; label: string }>;
-  genders: Array<{ value: 'F' | 'M'; label: string }>;
-  leadership: string[];
-  committees: string[];
-  issues: string[];
-  /**
-   * Functional staffer roles across every office — the value source for the
-   * Role filter. Derived the same way `issues` is: a member has no role of
-   * their own, so the vocabulary comes from the rosters.
-   */
-  roles: string[];
-  caucuses: string[];
-  states: string[];
-  districts: string[];
-  educationInstitutions: string[];
-}
-
-export interface DirectoryPayload {
-  sourceId: string;
-  contacts: DirectoryContact[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totals: DirectoryTotals;
-  availableStates: string[];
-  availableFilters: DirectoryAvailableFilters;
-}
-
-export interface DirectoryEmailMatch {
-  attendeeEmail: string;
-  matchKind: 'member' | 'staff';
-  directoryContactId: string;
-  directoryContactName: string;
-  member: {
-    id: string;
-    bioguideId: string;
-    fullName: string;
-    memberName: string;
-    title: string;
-    chamber: Chamber;
-    state: string;
-    district: string;
-    partyName: string;
-    officeLocation: string;
-    phone: string;
-    email: string;
-    bio: DirectoryContact['bio'];
-    committees: string[];
-    leadershipPositions: string[];
-    focusAreas: string[];
-    addresses: DirectoryAddress[];
-  };
-  staff?: {
-    id: string;
-    fullName: string;
-    title: string;
-    email: string;
-    phone: string;
-    officeLocation: string;
-    issueAreas: string[];
-    roles: string[];
-  };
-}
-
-/** Internal-bridge shapes (apps/workspace Hill Day); mirrored in that service. */
-export interface DirectoryMemberContext {
-  id: string;
-  bioguideId: string;
-  fullName: string;
-  memberName: string;
-  honorific: string;
-  title: string;
-  chamber: Chamber;
-  state: string;
-  district: string;
-  party: Party;
-  partyName: string;
-  officeLocation: string;
-  phone: string;
-  email: string;
-  bioNarrative: string;
-  committees: string[];
-  committeesWithRole: Array<{ name: string; role: string | null }>;
-  committeeLeadership: string[];
-  leadershipPositions: string[];
-  focusAreas: string[];
-  topIssues: Array<{ issue: string; stafferCount: number }>;
-  staff: Array<{
-    id: string;
-    fullName: string;
-    title: string;
-    roles: string[];
-    issueAreas: string[];
-    email: string;
-    isCurrent: boolean;
-  }>;
-}
-
-export interface DirectoryStafferContext {
-  id: string;
-  fullName: string;
-  title: string;
-  roles: string[];
-  issueAreas: string[];
-  email: string;
-  officeLocation: string;
-  member: DirectoryMemberContext | null;
-}
-
-export interface DirectoryCommitteeStaffEmailMatch {
-  attendeeEmail: string;
-  staff: { id: string; fullName: string; title: string; email: string; isCurrent: boolean };
-  committee: { id: string; name: string; chamber: CommitteeChamber; kind: CommitteeKind };
-}
-
-/**
- * Trimmed contact row for the internal-bridge Directory browse route (Hill
- * Day's "select a member directly" flow, mirroring Outreach's Directory tab).
- * Drops the CRM/relationship fields (`bio`, `lastTouchpoint`, `owner`,
- * `relationshipTier`, `notes`, `recentInteractions`, `matchedStaff`) that a
- * browse row never shows.
- */
-export interface DirectoryBrowseContact {
-  id: string;
-  fullName: string;
-  honorific: string;
-  title: string;
-  office: string;
-  chamber: Chamber;
-  state: string;
-  district: string;
-  party: Party;
-  partyName: string;
-  email: string;
-  phone: string;
-  committees: string[];
-  leadershipPositions: string[];
-  staff: Array<{
-    id: string;
-    fullName: string;
-    title: string;
-    roles: string[];
-    issueAreas: string[];
-    email: string;
-    phone: string;
-    officeLocation: string;
-    isCurrent: boolean;
-  }>;
-}
-
-export interface DirectoryBrowsePayload {
-  contacts: DirectoryBrowseContact[];
-  total: number;
-  page: number;
-  pageSize: number;
-  availableStates: string[];
-  availableChambers: Chamber[];
-}
-
-export interface CreateDirectoryContactNoteInput {
-  body: string;
-  directoryContactName?: string;
-}
-
 interface CachedContacts {
   expiresAt: number;
   data: {
@@ -523,160 +138,6 @@ interface CachedContacts {
     availableStates: string[];
     availableFilters: DirectoryAvailableFilters;
   };
-}
-
-interface StaffDetail {
-  id: string;
-  fullName: string;
-  title: string;
-  email: string;
-  phone: string;
-  officeLocation: string;
-}
-
-const TEST_DIRECTORY_CONTACT: DirectoryContact = {
-  id: 'test-member-capiro-profile',
-  memberId: -1001,
-  bioguideId: 'TEST001',
-  fullName: 'Rep. Avery Testwell',
-  memberName: 'Avery Testwell',
-  honorific: 'Rep.',
-  photoUrl: '',
-  title: 'Member of Congress - Test Profile',
-  office: 'Avery Testwell office (TS-1)',
-  chamber: 'House',
-  state: 'TS',
-  district: 'TS-1',
-  party: 'I',
-  partyName: 'Independent',
-  gender: 'Unknown',
-  region: 'South',
-  isFreshman: false,
-  servingSince: '2021-01-03',
-  focusAreas: ['Defense Innovation', 'Federal Procurement', 'Small Business'],
-  committees: ['House Committee on Armed Services', 'House Committee on Small Business'],
-  committeeLeadership: ['Chair — House Committee on Small Business'],
-  topIssues: [
-    { issue: 'Defense Innovation', stafferCount: 2 },
-    { issue: 'Federal Procurement', stafferCount: 1 },
-  ],
-  leadershipPositions: ['Testing Caucus Co-Chair'],
-  caucuses: ['Congressional Test Data Caucus', 'Defense Innovation Caucus'],
-  educationInstitutions: ['Example State University', 'National Policy Institute'],
-  senateClass: null,
-  outgoingStatus: null,
-  officeLocation: '123 Test House Office Building, Washington, DC 20515',
-  phone: '202-555-0147',
-  fax: '202-555-0199',
-  email: 'avery.testwell@example.invalid',
-  contactFormUrl: 'https://example.invalid/contact/avery-testwell',
-  newsPressUrl: 'https://example.invalid/avery-testwell/press-releases',
-  rssFeedUrl: '',
-  rssSource: '',
-  officialLinks: [
-    {
-      label: 'Website, official',
-      url: 'https://example.invalid/avery-testwell',
-      type: 'Website',
-    },
-    {
-      label: 'Contact form',
-      url: 'https://example.invalid/contact/avery-testwell',
-      type: 'Email Form',
-    },
-    {
-      label: 'Email, test',
-      url: 'mailto:avery.testwell@example.invalid',
-      type: 'Email',
-    },
-  ],
-  addresses: [
-    {
-      id: 'test-main-office',
-      title: 'Main Office',
-      address1: '123 Test House Office Building',
-      address2: '',
-      city: 'Washington',
-      state: 'DC',
-      zip: '20515',
-      phone: '202-555-0147',
-      fax: '202-555-0199',
-      isMain: true,
-    },
-    {
-      id: 'test-district-office',
-      title: 'District Office',
-      address1: '456 Constituent Avenue',
-      address2: 'Suite 200',
-      city: 'Testville',
-      state: 'TS',
-      zip: '00001',
-      phone: '202-555-0188',
-      fax: '',
-      isMain: false,
-    },
-  ],
-  staff: [
-    {
-      id: 'test-staff-chief',
-      fullName: 'Jordan Sample',
-      title: 'Chief of Staff',
-      roles: ['Chief of Staff', 'Leadership'],
-      issueAreas: ['Defense Innovation', 'Appropriations'],
-      email: 'jordan.sample@example.invalid',
-      phone: '202-555-0151',
-      officeLocation: '123 Test House Office Building',
-      isCurrent: true,
-    },
-    {
-      id: 'test-staff-leg',
-      fullName: 'Morgan Example',
-      title: 'Legislative Assistant',
-      roles: ['Legislative Assistant'],
-      issueAreas: ['Federal Procurement', 'Small Business', 'Technology'],
-      email: 'morgan.example@example.invalid',
-      phone: '202-555-0152',
-      officeLocation: '123 Test House Office Building',
-      isCurrent: true,
-    },
-  ],
-  bio: {
-    dob: '1979-05-15',
-    hometown: 'Testville, TS',
-    birthplace: 'Example City, TS',
-    occupation: 'Attorney; former technology policy advisor',
-    race: 'Not specified',
-    religion: 'Not specified',
-    pronunciation: 'AY-vuh-ree TEST-well',
-    narrative:
-      'Avery Testwell — Independent Representative, TS-1. Synthetic QA profile used to validate the directory member detail view.',
-    education: 'Example State University (BA); Test School of Law (JD)',
-    military: '',
-    relatives: '',
-  },
-  lastTouchpoint: '2026-05-04',
-  owner: 'Capiro Test Data',
-  relationshipTier: 'Watch',
-  notes: 'Synthetic directory profile for QA only.',
-  recentInteractions: [
-    {
-      date: '2026-04-29',
-      channel: 'Email',
-      summary: 'Synthetic outreach record for interface testing.',
-    },
-  ],
-};
-
-interface MemberBioOverlay {
-  narrative?: string;
-  education?: string;
-  military?: string;
-  relatives?: string;
-  first_elected?: string | number;
-  years_in_congress?: string | number;
-  total_terms?: string | number;
-  party_leadership?: string[];
-  wikipedia?: string;
 }
 
 /** Minimal read-side view of LATEST.json (the publisher writes the full 2.0.0 schema). */
@@ -706,6 +167,8 @@ export class DirectoryService implements OnModuleInit {
   private static readonly DEFAULT_PAGE_SIZE = 24;
   private static readonly MAX_PAGE_SIZE = 20_000;
   private readonly logger = new Logger(DirectoryService.name);
+  private readonly contactMapper = new DirectoryContactMapper();
+  private readonly browse = new DirectoryBrowse();
   private readonly s3: S3Client;
   private readonly bucket: string;
   /** Emergency pin (DIRECTORY_S3_PREFIX); when null the prefix is resolved from LATEST.json. */
@@ -755,14 +218,14 @@ export class DirectoryService implements OnModuleInit {
   }
 
   async getContacts(query: DirectoryQuery = {}): Promise<DirectoryPayload> {
-    const page = this.toPositiveInt(query.page, 1);
-    const pageSize = this.toPositiveInt(
+    const page = this.browse.toPositiveInt(query.page, 1);
+    const pageSize = this.browse.toPositiveInt(
       query.pageSize,
       DirectoryService.DEFAULT_PAGE_SIZE,
       DirectoryService.MAX_PAGE_SIZE,
     );
     const base = await this.getDirectoryData();
-    return this.toPagedPayload(base, query, page, pageSize);
+    return this.browse.toPagedPayload(base, query, page, pageSize);
   }
 
   /**
@@ -850,80 +313,27 @@ export class DirectoryService implements OnModuleInit {
   // Search across the flattened staffer index (built once at cache time).
   // In-memory filter over the cached dataset — fast even at ~20k staffers.
   async getStaffers(query: StaffersQuery = {}): Promise<DirectoryStaffersPayload> {
-    const page = this.toPositiveInt(query.page, 1);
-    const pageSize = this.toPositiveInt(
+    const page = this.browse.toPositiveInt(query.page, 1);
+    const pageSize = this.browse.toPositiveInt(
       query.pageSize,
       DirectoryService.DEFAULT_PAGE_SIZE,
       DirectoryService.MAX_PAGE_SIZE,
     );
     const base = await this.getDirectoryData();
-    const q = String(query.q ?? '')
-      .trim()
-      .toLowerCase();
-    const chamber = this.normalizeFilter(query.chamber);
-    const states = this.normalizeMultiFilter(query.state);
-    const issues = this.normalizeMultiFilter(query.issue);
-
-    const filtered = base.staffers.filter((staffer) => {
-      const blob = [
-        staffer.fullName,
-        staffer.title,
-        staffer.email,
-        staffer.phone,
-        staffer.roles.join(' '),
-        staffer.issueAreas.join(' '),
-        staffer.member.memberName,
-        staffer.member.fullName,
-        staffer.member.state,
-      ]
-        .join(' ')
-        .toLowerCase();
-      const matchesQuery = q.length === 0 || blob.includes(q);
-      const matchesChamber = chamber === null || staffer.member.chamber === chamber;
-      const matchesState = states.length === 0 || states.includes(staffer.member.state);
-      const matchesIssue =
-        issues.length === 0 || staffer.issueAreas.some((area) => issues.includes(area));
-      return matchesQuery && matchesChamber && matchesState && matchesIssue;
-    });
-
-    const total = filtered.length;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
-    const safePage = Math.min(page, pageCount);
-    const start = (safePage - 1) * pageSize;
-    return { staffers: filtered.slice(start, start + pageSize), total, page: safePage, pageSize };
+    return this.browse.toStaffersPayload(base.staffers, query, page, pageSize);
   }
 
   // Committee directory: federal House/Senate/Joint committees and subcommittees,
   // sorted by current staff headcount (then name). Filterable by chamber/kind/text.
   async getCommittees(query: CommitteesQuery = {}): Promise<DirectoryCommitteesPayload> {
-    const page = this.toPositiveInt(query.page, 1);
-    const pageSize = this.toPositiveInt(
+    const page = this.browse.toPositiveInt(query.page, 1);
+    const pageSize = this.browse.toPositiveInt(
       query.pageSize,
       DirectoryService.DEFAULT_PAGE_SIZE,
       DirectoryService.MAX_PAGE_SIZE,
     );
     const base = await this.getDirectoryData();
-    const q = String(query.q ?? '')
-      .trim()
-      .toLowerCase();
-    const chamber = this.normalizeFilter(query.chamber);
-    const kind = this.normalizeFilter(query.kind);
-
-    const filtered = base.committees.filter((committee) => {
-      const matchesQuery =
-        q.length === 0 ||
-        committee.name.toLowerCase().includes(q) ||
-        (committee.committeeCode ?? '').toLowerCase().includes(q);
-      const matchesChamber = chamber === null || committee.chamber === chamber;
-      const matchesKind = kind === null || committee.kind === kind;
-      return matchesQuery && matchesChamber && matchesKind;
-    });
-
-    const total = filtered.length;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
-    const safePage = Math.min(page, pageCount);
-    const start = (safePage - 1) * pageSize;
-    return { committees: filtered.slice(start, start + pageSize), total, page: safePage, pageSize };
+    return this.browse.toCommitteesPayload(base.committees, query, page, pageSize);
   }
 
   // Roster for a single committee. Current staffers first, then alphabetical.
@@ -931,38 +341,21 @@ export class DirectoryService implements OnModuleInit {
     committeeId: string,
     query: CommitteeStaffQuery = {},
   ): Promise<DirectoryCommitteeStaffPayload> {
-    const page = this.toPositiveInt(query.page, 1);
-    const pageSize = this.toPositiveInt(
+    const page = this.browse.toPositiveInt(query.page, 1);
+    const pageSize = this.browse.toPositiveInt(
       query.pageSize,
       DirectoryService.DEFAULT_PAGE_SIZE,
       DirectoryService.MAX_PAGE_SIZE,
     );
     const base = await this.getDirectoryData();
-    const committee = base.committees.find((entry) => entry.id === committeeId) ?? null;
-    if (!committee) {
-      return { committee: null, staff: [], total: 0, page: 1, pageSize };
-    }
-
-    const q = String(query.q ?? '')
-      .trim()
-      .toLowerCase();
-    const roster = base.committeeStaff.get(committeeId) ?? [];
-    const filtered = roster.filter((staffer) => {
-      if (q.length === 0) return true;
-      return staffer.fullName.toLowerCase().includes(q) || staffer.title.toLowerCase().includes(q);
-    });
-
-    const total = filtered.length;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
-    const safePage = Math.min(page, pageCount);
-    const start = (safePage - 1) * pageSize;
-    return {
-      committee,
-      staff: filtered.slice(start, start + pageSize),
-      total,
-      page: safePage,
+    return this.browse.toCommitteeStaffPayload(
+      committeeId,
+      base.committees,
+      base.committeeStaff,
+      query,
+      page,
       pageSize,
-    };
+    );
   }
 
   /**
@@ -1001,8 +394,8 @@ export class DirectoryService implements OnModuleInit {
     const normalizedQ = normalizePersonName(q);
     const personType = this.normalizePersonTypeFilter(query.personType);
     const currentOnly = query.current === 'true';
-    const page = this.toPositiveInt(query.page, 1);
-    const pageSize = this.toPositiveInt(query.pageSize, DirectoryService.DEFAULT_PAGE_SIZE, 200);
+    const page = this.browse.toPositiveInt(query.page, 1);
+    const pageSize = this.browse.toPositiveInt(query.pageSize, DirectoryService.DEFAULT_PAGE_SIZE, 200);
 
     // Candidate person ids: committee roster (if committeeId) intersected with name match.
     let candidateIds: string[];
@@ -1327,8 +720,8 @@ export class DirectoryService implements OnModuleInit {
       .filter((m) => !currentOnly || m.person.isCurrent)
       .filter((m) => !role || (m.position ?? '').toLowerCase().includes(role))
       .filter((m) => !q || normalizePersonName(m.person.fullName).includes(q));
-    const page = this.toPositiveInt(query.page, 1);
-    const pageSize = this.toPositiveInt(query.pageSize, DirectoryService.DEFAULT_PAGE_SIZE, 500);
+    const page = this.browse.toPositiveInt(query.page, 1);
+    const pageSize = this.browse.toPositiveInt(query.pageSize, DirectoryService.DEFAULT_PAGE_SIZE, 500);
     const total = filtered.length;
     const start = (Math.min(page, Math.max(1, Math.ceil(total / pageSize))) - 1) * pageSize;
     return { committee, contacts: filtered.slice(start, start + pageSize), total, page, pageSize };
@@ -1523,7 +916,7 @@ export class DirectoryService implements OnModuleInit {
     // last term), NOT the first array element: member_offices is stored
     // oldest-first, so .find(first) would surface a stale/former term's
     // party/state/district for any multi-term member.
-    const office = this.currentMemberOffice(row?.member_offices);
+    const office = selectCurrentMemberOffice(row?.member_offices);
     return {
       fullName,
       party: typeof office?.party === 'string' ? office.party : null,
@@ -1948,14 +1341,14 @@ export class DirectoryService implements OnModuleInit {
       this.loadPressOverlay(),
     ]);
     const photoOverlay = parsePhotoOverlay(await this.fetchJsonSafe<unknown>(this.photoOverlayKey));
-    const contacts = this.buildContacts(members, staff, bioOverlay, pressOverlay);
+    const contacts = this.contactMapper.buildContacts(members, staff, bioOverlay, pressOverlay);
     const staffers = this.buildStafferIndex(contacts);
     const { committees, committeeStaff } = this.buildCommitteeIndex(offices, staff, members);
     // Full person/committee indexes (raw rows + every membership + reverse lookups)
     // layered on the identified committees — powers the detail/dictionary endpoints.
     const indexes = buildDirectoryIndexes({ members, staff, committees });
     const availableStates = uniqueSorted(contacts.map((contact) => contact.state));
-    const availableFilters = this.buildAvailableFilters(contacts);
+    const availableFilters = this.browse.buildAvailableFilters(contacts);
     const totals: DirectoryTotals = {
       all: contacts.length,
       house: contacts.filter((contact) => contact.chamber === 'House').length,
@@ -2822,919 +2215,6 @@ export class DirectoryService implements OnModuleInit {
     return { contactId: normalizedContactId, trips };
   }
 
-  private toPagedPayload(
-    base: CachedContacts['data'],
-    query: DirectoryQuery,
-    page: number,
-    pageSize: number,
-  ): DirectoryPayload {
-    const chamber = this.normalizeFilter(query.chamber);
-    const freshman = this.normalizeFilter(query.freshman);
-    const gender = this.normalizeFilter(query.gender);
-    const region = this.normalizeFilter(query.region);
-    const parties = this.normalizeMultiFilter(query.party);
-    const leadership = this.normalizeMultiFilter(query.leadership);
-    const committees = this.normalizeMultiFilter(query.committee);
-    const caucuses = this.normalizeMultiFilter(query.caucus);
-    const states = this.normalizeMultiFilter(query.state);
-    const districts = this.normalizeMultiFilter(query.district);
-    const education = this.normalizeMultiFilter(query.education);
-    const issues = this.normalizeMultiFilter(query.issue);
-    const roles = this.normalizeMultiFilter(query.role);
-    const normalizedQuery = String(query.q ?? '')
-      .trim()
-      .toLowerCase();
-    // Tokenize so multi-word queries match in any order ("cruz ted" == "ted cruz")
-    // and tolerate extra whitespace. A single token behaves exactly as before.
-    const queryTokens = normalizedQuery.split(/\s+/).filter((t) => t.length > 0);
-    const sort = this.normalizeSort(query.sort);
-
-    // A blob matches if it contains the full query as a contiguous substring
-    // (back-compat) OR — for multi-word queries — contains every token. Single-
-    // token queries reduce to the old `includes` behavior.
-    const blobMatches = (blob: string): boolean => {
-      if (queryTokens.length === 0) return true;
-      if (blob.includes(normalizedQuery)) return true;
-      return queryTokens.length > 1 && queryTokens.every((token) => blob.includes(token));
-    };
-
-    // Why a contact matched the query: by the member's own fields, and/or via
-    // specific staffers. `matchedStaff` lets the UI explain a result whose member
-    // name doesn't contain the query (e.g. searching a staffer's first name).
-    const matchInfo = new Map<
-      string,
-      { memberMatched: boolean; matchedStaff: Array<{ fullName: string; title: string }> }
-    >();
-
-    const filtered = base.contacts.filter((contact) => {
-      const matchesFreshman =
-        freshman === null ||
-        (freshman === 'Freshman' && contact.isFreshman) ||
-        (freshman === 'Non-Freshman' && !contact.isFreshman);
-      const matchesChamber = chamber === null || contact.chamber === chamber;
-      const matchesRegion = region === null || contact.region === region;
-      const matchesGender = gender === null || contact.gender === gender;
-      const matchesParty = parties.length === 0 || parties.includes(contact.party);
-      const matchesState = states.length === 0 || states.includes(contact.state);
-      const matchesDistrict = districts.length === 0 || districts.includes(contact.district);
-      const matchesLeadership =
-        leadership.length === 0 ||
-        contact.leadershipPositions.some((position) => leadership.includes(position));
-      const matchesCommittee =
-        committees.length === 0 ||
-        contact.committees.some((committee) => committees.includes(committee));
-      const matchesCaucus =
-        caucuses.length === 0 || contact.caucuses.some((caucus) => caucuses.includes(caucus));
-      const matchesEducation =
-        education.length === 0 ||
-        contact.educationInstitutions.some((institution) => education.includes(institution));
-      // Role and issue live on the roster, never on the member, so the office
-      // qualifies on the strength of a single matching staffer. The same
-      // staffer set is what the client then shows nested under the office —
-      // matching here and narrowing there must use the same predicate. Both
-      // short-circuit when unset, so an unfiltered read never walks a roster.
-      const matchesIssue =
-        issues.length === 0 ||
-        contact.staff.some((staff) => staff.issueAreas.some((area) => issues.includes(area)));
-      const matchesRole =
-        roles.length === 0 ||
-        contact.staff.some((staff) => staff.roles.some((role) => roles.includes(role)));
-
-      // Cheap structured filters first; only build search blobs if those pass.
-      if (
-        !(
-          matchesFreshman &&
-          matchesChamber &&
-          matchesRegion &&
-          matchesGender &&
-          matchesParty &&
-          matchesState &&
-          matchesDistrict &&
-          matchesLeadership &&
-          matchesCommittee &&
-          matchesCaucus &&
-          matchesEducation &&
-          matchesIssue &&
-          matchesRole
-        )
-      ) {
-        return false;
-      }
-
-      // No free-text query → structured filters alone decide; no match metadata.
-      if (queryTokens.length === 0) return true;
-
-      const memberBlob = [
-        contact.fullName,
-        contact.memberName,
-        contact.title,
-        contact.office,
-        contact.state,
-        contact.district,
-        contact.partyName,
-        contact.phone,
-        contact.email,
-        contact.contactFormUrl,
-        contact.focusAreas.join(' '),
-        contact.committees.join(' '),
-        contact.leadershipPositions.join(' '),
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      const staffBlobs = contact.staff.map((staff) => ({
-        staff,
-        blob: (
-          `${staff.fullName} ${staff.title} ${staff.email} ${staff.phone} ` +
-          `${staff.roles.join(' ')} ${staff.issueAreas.join(' ')}`
-        ).toLowerCase(),
-      }));
-
-      // Reproduces the legacy combined-blob `includes` match for member fields and
-      // within a single staffer's fields, and adds order-independent tokens plus
-      // staffer roles/issue-areas to the searchable text. (The one legacy match it
-      // does not reproduce is a contiguous substring that spanned two adjacent
-      // staffers — not a realistic free-text query.)
-      const combinedBlob = `${memberBlob} ${staffBlobs.map((s) => s.blob).join(' ')}`;
-      if (!blobMatches(combinedBlob)) return false;
-
-      const memberMatched = blobMatches(memberBlob);
-      const matchedStaff = staffBlobs
-        .filter((s) => blobMatches(s.blob))
-        .slice(0, 5)
-        .map((s) => ({ fullName: s.staff.fullName, title: s.staff.title }));
-      matchInfo.set(contact.id, { memberMatched, matchedStaff });
-      return true;
-    });
-
-    let sorted = this.sortContacts(filtered, sort);
-    // When searching, hoist offices whose own name/fields matched above offices
-    // that matched only via a staffer — the member you typed should come first.
-    // Array.prototype.sort is stable in V8, so the requested sort is preserved
-    // within each group.
-    if (queryTokens.length > 0) {
-      sorted = sorted
-        .slice()
-        .sort(
-          (a, b) =>
-            Number(matchInfo.get(b.id)?.memberMatched ?? false) -
-            Number(matchInfo.get(a.id)?.memberMatched ?? false),
-        );
-    }
-    const total = sorted.length;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
-    const safePage = Math.min(page, pageCount);
-    const start = (safePage - 1) * pageSize;
-    // Attach the staffer match reason to the page slice only (shallow copy — the
-    // cached contact objects are shared and must not be mutated).
-    const contacts = sorted.slice(start, start + pageSize).map((contact) => {
-      const info = matchInfo.get(contact.id);
-      if (info && !info.memberMatched && info.matchedStaff.length > 0) {
-        return { ...contact, matchedStaff: info.matchedStaff };
-      }
-      return contact;
-    });
-
-    return {
-      sourceId: base.sourceId,
-      contacts,
-      total,
-      page: safePage,
-      pageSize,
-      totals: base.totals,
-      availableStates: base.availableStates,
-      availableFilters: base.availableFilters,
-    };
-  }
-
-  private sortContacts(entries: DirectoryContact[], sort: DirectorySort): DirectoryContact[] {
-    const next = [...entries];
-
-    if (sort === 'name-asc') {
-      return next.sort((left, right) => this.compareLastName(left, right));
-    }
-
-    if (sort === 'name-desc') {
-      return next.sort((left, right) => this.compareLastName(right, left));
-    }
-
-    if (sort === 'state-asc') {
-      return next.sort((left, right) => {
-        const stateCompare = left.state.localeCompare(right.state);
-        return stateCompare !== 0 ? stateCompare : this.compareLastName(left, right);
-      });
-    }
-
-    if (sort === 'chamber') {
-      return next.sort((left, right) => {
-        const chamberCompare = left.chamber.localeCompare(right.chamber);
-        return chamberCompare !== 0 ? chamberCompare : this.compareLastName(left, right);
-      });
-    }
-
-    if (sort === 'party') {
-      return next.sort((left, right) => {
-        const partyCompare = left.partyName.localeCompare(right.partyName);
-        return partyCompare !== 0 ? partyCompare : this.compareLastName(left, right);
-      });
-    }
-
-    return next.sort((left, right) => right.lastTouchpoint.localeCompare(left.lastTouchpoint));
-  }
-
-  private compareLastName(left: DirectoryContact, right: DirectoryContact): number {
-    return this.lastNameSortKey(left.memberName).localeCompare(
-      this.lastNameSortKey(right.memberName),
-    );
-  }
-
-  private lastNameSortKey(name: string): string {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    const last = parts.at(-1) ?? name;
-    const first = parts.slice(0, -1).join(' ');
-    return `${last} ${first}`.toLowerCase();
-  }
-
-  private buildAvailableFilters(contacts: DirectoryContact[]): DirectoryAvailableFilters {
-    return {
-      chambers: uniqueSorted(contacts.map((contact) => contact.chamber)) as Chamber[],
-      parties: (
-        [
-          { value: 'D', label: 'Democrat' },
-          { value: 'R', label: 'Republican' },
-          { value: 'I', label: 'Independent' },
-        ] satisfies Array<{ value: Party; label: string }>
-      ).filter((party) => contacts.some((contact) => contact.party === party.value)),
-      genders: [
-        { value: 'F' as const, label: 'Female' },
-        { value: 'M' as const, label: 'Male' },
-      ].filter((gender) => contacts.some((contact) => contact.gender === gender.value)),
-      leadership: uniqueSorted(contacts.flatMap((contact) => contact.leadershipPositions)),
-      committees: uniqueSorted(contacts.flatMap((contact) => contact.committees)),
-      // CRS issue taxonomy, derived from staffer issue tags across all members.
-      issues: uniqueSorted(
-        contacts.flatMap((contact) => contact.staff.flatMap((staffer) => staffer.issueAreas)),
-      ),
-      // Same derivation for roles, so the Role filter offers exactly the values
-      // the `role` query parameter can actually match.
-      roles: uniqueSorted(
-        contacts.flatMap((contact) => contact.staff.flatMap((staffer) => staffer.roles)),
-      ),
-      // Caucus & Education have no backing data in the current snapshot (the
-      // LegiStorm pull omits those endpoints). Emit empty arrays so the response
-      // shape stays stable for consumers; the UI no longer renders these filters.
-      caucuses: [],
-      states: uniqueSorted(contacts.map((contact) => contact.state)),
-      districts: uniqueSorted(
-        contacts.map((contact) => contact.district),
-        compareDistricts,
-      ),
-      educationInstitutions: [],
-    };
-  }
-
-  private normalizeSort(raw: unknown): DirectorySort {
-    const value = String(raw ?? 'recent');
-    if (
-      value === 'name-asc' ||
-      value === 'name-desc' ||
-      value === 'state-asc' ||
-      value === 'chamber' ||
-      value === 'party'
-    )
-      return value;
-    return 'recent';
-  }
-
-  private normalizeFilter(raw: unknown): string | null {
-    const value = String(raw ?? '').trim();
-    if (!value || value.toLowerCase() === 'all') return null;
-    return value;
-  }
-
-  private normalizeMultiFilter(raw: unknown): string[] {
-    const values = Array.isArray(raw) ? raw : String(raw ?? '').split(',');
-    return uniqueSorted(
-      values
-        .map((value) => String(value).trim())
-        .filter((value) => value.length > 0 && value.toLowerCase() !== 'all'),
-    );
-  }
-
-  private toPositiveInt(raw: unknown, fallback: number, max?: number): number {
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-    const intValue = Math.floor(parsed);
-    if (max && intValue > max) return max;
-    return intValue;
-  }
-
-  private buildContacts(
-    membersRaw: unknown[],
-    staffRaw: unknown[],
-    bioOverlay: Map<string, MemberBioOverlay> = new Map(),
-    pressOverlay: Map<string, MemberPressOverlay> = new Map(),
-  ): DirectoryContact[] {
-    const members = Array.isArray(membersRaw) ? membersRaw : [];
-    const staffById = this.buildStaffDetailsById(staffRaw);
-    const staffIdsByMember = this.buildStaffIdsByMember(staffRaw);
-    const contacts: DirectoryContact[] = [];
-
-    for (const row of members as any[]) {
-      const member = row?.member;
-      const memberId = Number(member?.member_id);
-      if (!Number.isFinite(memberId)) continue;
-
-      const profile = member?.profile;
-      const memberName = [
-        profile?.preferred_first_name ?? profile?.first_name,
-        profile?.preferred_last_name ?? profile?.last_name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      if (!memberName) continue;
-
-      const currentOffice = this.currentMemberOffice(row?.member_offices);
-      if (!currentOffice) continue;
-
-      const state = String(currentOffice.state_id ?? '').toUpperCase();
-      const chamber = this.mapChamber(String(currentOffice.office_type_id ?? '').toUpperCase());
-      const district = this.formatDistrict(chamber, state, currentOffice.district_no);
-      const partyName = String(currentOffice.party ?? profile?.bio_details?.party_name ?? '');
-      const party = this.mapParty(partyName);
-      const honorific = this.honorific(chamber);
-      const fullName = `${honorific} ${memberName}`;
-      const title = this.primaryTitle(chamber, row?.leaderships);
-
-      const addresses = this.buildAddresses(row?.office_member_addresses);
-      const mainAddress = addresses.find((address) => address.isMain) ?? addresses[0];
-      const officialLinks = this.buildLinks(row?.social_media);
-      const email =
-        officialLinks.find(
-          (link) => link.type.toLowerCase().includes('email') && link.url.includes('@'),
-        )?.url ?? '';
-      const contactFormUrl =
-        officialLinks.find(
-          (link) =>
-            link.type.toLowerCase().includes('email') &&
-            !link.url.includes('@') &&
-            link.url.startsWith('http'),
-        )?.url ?? '';
-      const committees = this.buildCommittees(row?.committees);
-      const committeeLeadership = this.buildCommitteeLeadershipLabels(row?.committees);
-      const leadershipPositions = this.buildLeadership(row?.leaderships);
-      const staff = this.buildMemberStaff(row, staffById, staffIdsByMember.get(memberId) ?? []);
-      const focusAreas = uniqueSorted(staff.flatMap((staffer) => staffer.issueAreas)).slice(0, 12);
-      const topIssues = this.buildTopIssues(staff);
-      const servingSince = this.servingSince(row?.member_offices);
-      const photoUrl = this.primaryPhoto(row?.photos);
-      const senateClass = this.parseSenateClass(currentOffice.senate_class);
-      const outgoingStatus = currentOffice.outgoing_status
-        ? String(currentOffice.outgoing_status)
-        : null;
-      const press = pressOverlay.get(String(member?.bioguide_id ?? ''));
-
-      contacts.push({
-        id: `member-${memberId}`,
-        memberId,
-        bioguideId: String(member?.bioguide_id ?? ''),
-        fullName,
-        memberName,
-        honorific,
-        photoUrl,
-        title,
-        office: this.formatOfficeLabel(chamber, memberName, state, currentOffice.district_no),
-        chamber,
-        state: state || 'DC',
-        district,
-        party,
-        partyName: partyName || this.partyLabel(party),
-        gender: this.mapGender(profile?.gender),
-        region: this.mapRegion(state),
-        isFreshman: this.isFreshman(servingSince),
-        servingSince,
-        focusAreas,
-        committees,
-        committeeLeadership,
-        topIssues,
-        leadershipPositions,
-        caucuses: this.buildNamedList(row?.caucuses),
-        educationInstitutions: this.buildEducation(row),
-        senateClass,
-        outgoingStatus,
-        officeLocation: mainAddress ? this.formatAddress(mainAddress) : '',
-        phone: mainAddress?.phone ?? '',
-        fax: mainAddress?.fax ?? '',
-        email,
-        contactFormUrl,
-        newsPressUrl: press?.newsPressUrl ?? '',
-        rssFeedUrl: press?.rssFeedUrl ?? '',
-        rssSource: press?.rssSource ?? '',
-        officialLinks,
-        addresses,
-        staff,
-        bio: {
-          dob: String(profile?.bio_details?.dob ?? ''),
-          hometown: String(profile?.bio_details?.hometown ?? ''),
-          birthplace: String(profile?.bio_details?.pob ?? ''),
-          occupation: String(profile?.bio_details?.occupation ?? ''),
-          race: String(profile?.bio_details?.race_name ?? ''),
-          religion: String(profile?.bio_details?.religion_name ?? ''),
-          pronunciation: String(profile?.bio_details?.pronunciation ?? ''),
-          narrative: String(bioOverlay.get(String(member?.bioguide_id ?? ''))?.narrative ?? ''),
-          education: String(bioOverlay.get(String(member?.bioguide_id ?? ''))?.education ?? ''),
-          military: String(bioOverlay.get(String(member?.bioguide_id ?? ''))?.military ?? ''),
-          relatives: String(bioOverlay.get(String(member?.bioguide_id ?? ''))?.relatives ?? ''),
-        },
-        lastTouchpoint: this.latestDate([
-          currentOffice.updated_at,
-          mainAddress?.id
-            ? row?.office_member_addresses?.find?.((a: any) => String(a?.id) === mainAddress.id)
-                ?.updated_at
-            : undefined,
-          ...(Array.isArray(row?.social_media)
-            ? row.social_media.map((link: any) => link?.updated_at)
-            : []),
-          ...(Array.isArray(row?.committees)
-            ? row.committees.map((committee: any) => committee?.updated_at)
-            : []),
-          ...(Array.isArray(row?.leaderships)
-            ? row.leaderships.map((leadership: any) => leadership?.updated_at)
-            : []),
-        ]),
-        owner: 'Unassigned',
-        relationshipTier:
-          leadershipPositions.length > 0 ? 'Core' : committees.length > 0 ? 'Active' : 'Watch',
-        notes: '',
-        recentInteractions: [],
-      });
-    }
-
-    contacts.push(TEST_DIRECTORY_CONTACT);
-
-    return contacts.sort((a, b) => a.memberName.localeCompare(b.memberName));
-  }
-
-  private buildStaffDetailsById(staffRaw: unknown[]): Map<number, StaffDetail> {
-    const staffById = new Map<number, StaffDetail>();
-    const staffList = Array.isArray(staffRaw) ? staffRaw : [];
-
-    for (const row of staffList as any[]) {
-      const staff = row?.staff;
-      const staffId = Number(staff?.id);
-      if (!Number.isFinite(staffId)) continue;
-
-      const fullName = [
-        staff?.preferred_first_name ?? staff?.first_name,
-        staff?.preferred_last_name ?? staff?.last_name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      if (!fullName) continue;
-
-      const positions = Array.isArray(row?.positions) ? row.positions : [];
-      const currentPosition =
-        positions.find((position: any) => position?.is_current && position?.position_title) ??
-        positions.find((position: any) => position?.position_title) ??
-        positions[0];
-      const emails = Array.isArray(row?.staff_emails) ? row.staff_emails : [];
-      const emailRecord = emails.find(
-        (email: any) =>
-          typeof email?.contact_string === 'string' && email.contact_string.includes('@'),
-      );
-      const addresses = Array.isArray(row?.office_member_addresses)
-        ? row.office_member_addresses
-        : [];
-      const address = addresses.find((entry: any) => entry?.is_main) ?? addresses[0];
-
-      staffById.set(staffId, {
-        id: `staff-${staffId}`,
-        fullName,
-        title: String(currentPosition?.position_title ?? currentPosition?.position_type ?? 'Staff'),
-        email: String(emailRecord?.contact_string ?? ''),
-        phone: String(address?.phone ?? ''),
-        officeLocation: [address?.address1, address?.city, address?.state_id]
-          .filter(Boolean)
-          .join(', '),
-      });
-    }
-
-    return staffById;
-  }
-
-  // member_id -> staffIds with a CURRENT position in that member's office, from
-  // staff-list `positions[].member`. Committee positions have member=null, so
-  // they're naturally excluded. Powers the staffer-coverage merge.
-  private buildStaffIdsByMember(staffRaw: unknown[]): Map<number, number[]> {
-    const byMember = new Map<number, Set<number>>();
-    const staffList = Array.isArray(staffRaw) ? staffRaw : [];
-    for (const row of staffList as any[]) {
-      const staffId = Number(row?.staff?.id);
-      if (!Number.isFinite(staffId)) continue;
-      const positions = Array.isArray(row?.positions) ? row.positions : [];
-      for (const position of positions) {
-        if (!position?.is_current) continue;
-        const memberId = Number(position?.member?.member_id);
-        if (!Number.isFinite(memberId)) continue;
-        const set = byMember.get(memberId) ?? new Set<number>();
-        set.add(staffId);
-        byMember.set(memberId, set);
-      }
-    }
-    const out = new Map<number, number[]>();
-    for (const [memberId, set] of byMember) out.set(memberId, [...set]);
-    return out;
-  }
-
-  private buildMemberStaff(
-    row: any,
-    staffById: Map<number, StaffDetail>,
-    extraStaffIds: number[] = [],
-  ): DirectoryStaffMember[] {
-    const byStaffId = new Map<number, DirectoryStaffMember>();
-    const roles = Array.isArray(row?.staffer_roles) ? row.staffer_roles : [];
-    const issues = Array.isArray(row?.staffer_issues) ? row.staffer_issues : [];
-    // extraStaffIds is already "staff with a CURRENT position at THIS member's
-    // office" (buildStaffIdsByMember) — reused here as the ground truth for
-    // every staffer's isCurrent, not just the coverage-merge ones below, since
-    // staffer_roles/staffer_issues carry no position/current data of their own.
-    const currentAtThisOffice = new Set(extraStaffIds);
-
-    const ensureStaffer = (staffer: any): DirectoryStaffMember | null => {
-      const staffId = Number(staffer?.id);
-      if (!Number.isFinite(staffId)) return null;
-      const detail = staffById.get(staffId);
-      const fullName =
-        detail?.fullName ??
-        [
-          staffer?.preferred_first_name ?? staffer?.first_name,
-          staffer?.preferred_last_name ?? staffer?.last_name,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .trim();
-      if (!fullName) return null;
-      const existing = byStaffId.get(staffId);
-      if (existing) return existing;
-      const created: DirectoryStaffMember = {
-        id: `staff-${staffId}`,
-        fullName,
-        title: detail?.title ?? 'Staff',
-        roles: [],
-        issueAreas: [],
-        email: detail?.email ?? '',
-        phone: detail?.phone ?? '',
-        officeLocation: detail?.officeLocation ?? '',
-        isCurrent: currentAtThisOffice.has(staffId),
-      };
-      byStaffId.set(staffId, created);
-      return created;
-    };
-
-    for (const role of roles) {
-      const staffer = ensureStaffer(role?.staffer);
-      if (!staffer || !role?.role_name) continue;
-      staffer.roles.push(String(role.role_name));
-      if (staffer.title === 'Staff') staffer.title = String(role.role_name);
-    }
-
-    for (const issue of issues) {
-      const staffer = ensureStaffer(issue?.staffer);
-      if (!staffer || !issue?.issue_name) continue;
-      staffer.issueAreas.push(String(issue.issue_name));
-    }
-
-    // Coverage merge: staffers linked to this member via staff-list
-    // `positions[].member` but absent from staffer_roles/issues. They get their
-    // title/contact from staffById; roles/issueAreas stay empty (not tagged).
-    for (const staffId of extraStaffIds) {
-      if (byStaffId.has(staffId)) continue;
-      const detail = staffById.get(staffId);
-      if (!detail?.fullName) continue;
-      byStaffId.set(staffId, {
-        id: `staff-${staffId}`,
-        fullName: detail.fullName,
-        title: detail.title || 'Staff',
-        roles: [],
-        issueAreas: [],
-        email: detail.email ?? '',
-        phone: detail.phone ?? '',
-        officeLocation: detail.officeLocation ?? '',
-        // extraStaffIds is itself the current-at-this-office set, so anyone
-        // added from it is current by construction.
-        isCurrent: true,
-      });
-    }
-
-    return [...byStaffId.values()]
-      .map((staffer) => ({
-        ...staffer,
-        roles: uniqueSorted(staffer.roles),
-        issueAreas: uniqueSorted(staffer.issueAreas),
-      }))
-      .sort((left, right) => left.fullName.localeCompare(right.fullName));
-  }
-
-  private currentMemberOffice(rawOffices: unknown): any | null {
-    // Single source of truth (see selectCurrentMemberOffice): in-office > newest
-    // non-expired > last term. Never the first (oldest) array element.
-    return selectCurrentMemberOffice(rawOffices);
-  }
-
-  private buildAddresses(rawAddresses: unknown): DirectoryAddress[] {
-    const addresses = Array.isArray(rawAddresses) ? rawAddresses : [];
-    return addresses.map((address: any) => ({
-      id: String(address?.id ?? ''),
-      title: String(address?.title ?? ''),
-      address1: String(address?.address1 ?? ''),
-      address2: String(address?.address2 ?? ''),
-      city: String(address?.city ?? ''),
-      state: String(address?.state_id ?? ''),
-      zip: [address?.zip, address?.zip_ext].filter(Boolean).join('-'),
-      phone: String(address?.phone ?? ''),
-      fax: String(address?.fax ?? ''),
-      isMain: Boolean(address?.is_main),
-    }));
-  }
-
-  private buildLinks(rawLinks: unknown): DirectoryLink[] {
-    const links = Array.isArray(rawLinks) ? rawLinks : [];
-    return links
-      .map((link: any) => ({
-        label: this.linkLabel(String(link?.contact_type ?? 'Link')),
-        type: String(link?.contact_type ?? ''),
-        url: String(link?.contact_string ?? ''),
-      }))
-      .filter((link) => link.url);
-  }
-
-  private linkLabel(type: string): string {
-    const lower = type.toLowerCase();
-    if (lower.includes('website'))
-      return type.includes('campaign') ? 'Website, campaign' : 'Website, official';
-    if (lower.includes('twitter') || lower.includes('x ('))
-      return type.includes('campaign') ? 'X, campaign' : 'X, official';
-    if (lower.includes('facebook'))
-      return type.includes('campaign') ? 'Facebook, campaign' : 'Facebook, official';
-    if (lower.includes('instagram'))
-      return type.includes('campaign') ? 'Instagram, campaign' : 'Instagram, official';
-    if (lower.includes('youtube'))
-      return type.includes('campaign') ? 'YouTube, campaign' : 'YouTube, official';
-    if (lower.includes('email')) return type.includes('form') ? 'Contact form' : type;
-    return type || 'Link';
-  }
-
-  private buildCommittees(rawCommittees: unknown): string[] {
-    const committees = Array.isArray(rawCommittees) ? rawCommittees : [];
-    return uniqueSorted(
-      committees
-        .map((committee: any) => committee?.committee_office?.name)
-        .filter(Boolean)
-        .map(String),
-    );
-  }
-
-  // Leadership roles this member holds on committees, e.g. "Chair — House Armed
-  // Services Committee". Only the ranking roles (not plain membership).
-  private buildCommitteeLeadershipLabels(rawCommittees: unknown): string[] {
-    const committees = Array.isArray(rawCommittees) ? rawCommittees : [];
-    const ranked = new Set([
-      'Chair',
-      'Ranking Member',
-      'Vice Chair',
-      'Vice Ranking Member',
-      'Co-Chair',
-      'Chair Emeritus',
-    ]);
-    return uniqueSorted(
-      committees
-        .filter((committee: any) => ranked.has(String(committee?.position ?? '').trim()))
-        .map((committee: any) => {
-          const name = committee?.committee_office?.name;
-          const position = String(committee?.position ?? '').trim();
-          return name ? `${position} — ${name}` : '';
-        })
-        .filter(Boolean),
-    );
-  }
-
-  // Per-member issue intensity: distinct staffers tagged with each issue, ranked
-  // by headcount. This is the honest signal (issue *presence* is near-universal).
-  private buildTopIssues(
-    staff: DirectoryStaffMember[],
-  ): Array<{ issue: string; stafferCount: number }> {
-    const counts = new Map<string, number>();
-    for (const staffer of staff) {
-      for (const issue of new Set(staffer.issueAreas)) {
-        counts.set(issue, (counts.get(issue) ?? 0) + 1);
-      }
-    }
-    return [...counts.entries()]
-      .map(([issue, stafferCount]) => ({ issue, stafferCount }))
-      .sort((left, right) => {
-        if (right.stafferCount !== left.stafferCount) return right.stafferCount - left.stafferCount;
-        return left.issue.localeCompare(right.issue);
-      })
-      .slice(0, 12);
-  }
-
-  private parseSenateClass(raw: unknown): number | null {
-    const value = Number(raw);
-    return value === 1 || value === 2 || value === 3 ? value : null;
-  }
-
-  private buildLeadership(rawLeaderships: unknown): string[] {
-    const leaderships = Array.isArray(rawLeaderships) ? rawLeaderships : [];
-    return uniqueSorted(
-      leaderships
-        .filter(
-          (leadership: any) => !leadership?.end_date || String(leadership.end_date) >= '2026-01-01',
-        )
-        .map((leadership: any) => leadership?.position)
-        .filter(Boolean)
-        .map(String),
-    );
-  }
-
-  private buildNamedList(rawList: unknown): string[] {
-    const list = Array.isArray(rawList) ? rawList : [];
-    return uniqueSorted(
-      list
-        .map((entry: any) => entry?.name ?? entry?.caucus_name ?? entry?.title)
-        .filter(Boolean)
-        .map(String),
-    );
-  }
-
-  private buildEducation(row: any): string[] {
-    const list = Array.isArray(row?.education)
-      ? row.education
-      : Array.isArray(row?.educations)
-        ? row.educations
-        : [];
-    return uniqueSorted(
-      list
-        .map((entry: any) => entry?.school ?? entry?.institution ?? entry?.name)
-        .filter(Boolean)
-        .map(String),
-    );
-  }
-
-  private servingSince(rawOffices: unknown): string {
-    const offices = Array.isArray(rawOffices) ? rawOffices : [];
-    const starts = offices
-      .map((office: any) => String(office?.start_date ?? ''))
-      .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
-      .sort();
-    return starts[0] ?? '';
-  }
-
-  private isFreshman(servingSince: string): boolean {
-    return Boolean(servingSince) && servingSince >= '2025-01-03';
-  }
-
-  private primaryPhoto(rawPhotos: unknown): string {
-    const photos = Array.isArray(rawPhotos) ? rawPhotos : [];
-    return String(
-      photos.find((photo: any) => photo?.status === 'public' && photo?.is_directory)?.url ??
-        photos.find((photo: any) => photo?.status === 'public' && photo?.is_primary)?.url ??
-        photos.find((photo: any) => photo?.status === 'public')?.url ??
-        '',
-    );
-  }
-
-  private primaryTitle(chamber: Chamber, rawLeaderships: unknown): string {
-    const leadership = this.buildLeadership(rawLeaderships)[0];
-    if (leadership) return leadership;
-    if (chamber === 'Senate') return 'United States Senator';
-    if (chamber === 'Governor') return 'Governor';
-    return 'Member of Congress';
-  }
-
-  private mapChamber(officeType: string): Chamber {
-    if (officeType === 'SM') return 'Senate';
-    if (officeType === 'GV') return 'Governor';
-    return 'House';
-  }
-
-  private mapParty(rawParty: unknown): Party {
-    const value = String(rawParty ?? '').toLowerCase();
-    if (value.startsWith('r')) return 'R';
-    if (value.startsWith('i')) return 'I';
-    return 'D';
-  }
-
-  private partyLabel(party: Party): string {
-    if (party === 'R') return 'Republican';
-    if (party === 'I') return 'Independent';
-    return 'Democrat';
-  }
-
-  private mapGender(rawGender: unknown): DirectoryContact['gender'] {
-    const value = String(rawGender ?? '').toUpperCase();
-    if (value === 'F' || value === 'M') return value;
-    return 'Unknown';
-  }
-
-  private mapRegion(stateCode: string): Region {
-    const state = stateCode.toUpperCase();
-    const northeast = new Set(['ME', 'NH', 'VT', 'MA', 'RI', 'CT', 'NY', 'NJ', 'PA']);
-    const south = new Set([
-      'DE',
-      'MD',
-      'DC',
-      'VA',
-      'WV',
-      'NC',
-      'SC',
-      'GA',
-      'FL',
-      'KY',
-      'TN',
-      'MS',
-      'AL',
-      'OK',
-      'TX',
-      'AR',
-      'LA',
-    ]);
-    const midwest = new Set([
-      'OH',
-      'MI',
-      'IN',
-      'IL',
-      'WI',
-      'MN',
-      'IA',
-      'MO',
-      'ND',
-      'SD',
-      'NE',
-      'KS',
-    ]);
-    if (northeast.has(state)) return 'Northeast';
-    if (south.has(state)) return 'South';
-    if (midwest.has(state)) return 'Midwest';
-    return 'West';
-  }
-
-  private honorific(chamber: Chamber): string {
-    if (chamber === 'Senate') return 'Sen.';
-    if (chamber === 'Governor') return 'Gov.';
-    return 'Rep.';
-  }
-
-  private formatOfficeLabel(
-    chamber: Chamber,
-    memberName: string,
-    state: string,
-    district: unknown,
-  ): string {
-    if (chamber === 'Senate') return `Senate office, ${state}`;
-    if (chamber === 'Governor') return `Governor office, ${state}`;
-    const districtNo = Number(district);
-    if (Number.isFinite(districtNo) && districtNo > 0) {
-      return `${memberName} office (${state}-${districtNo})`;
-    }
-    return `${memberName} office (${state})`;
-  }
-
-  private formatDistrict(chamber: Chamber, state: string, district: unknown): string {
-    if (chamber !== 'House') return state;
-    const districtNo = Number(district);
-    return Number.isFinite(districtNo) && districtNo > 0 ? `${state}-${districtNo}` : state;
-  }
-
-  private formatAddress(address: DirectoryAddress): string {
-    return [address.address1, address.address2, address.city, address.state, address.zip]
-      .filter(Boolean)
-      .join(', ');
-  }
-
-  private latestDate(values: unknown[]): string {
-    const dates = values
-      .map((value) => this.toIsoDate(value))
-      .filter((value) => value !== '1970-01-01');
-    return dates.sort().at(-1) ?? '1970-01-01';
-  }
-
-  private toIsoDate(raw: unknown): string {
-    if (!raw) return '1970-01-01';
-    const parsed = new Date(String(raw).replace(' ', 'T'));
-    if (Number.isNaN(parsed.getTime())) return '1970-01-01';
-    return parsed.toISOString().slice(0, 10);
-  }
-}
-
-function uniqueSorted<T extends string>(
-  values: T[],
-  compareFn?: (left: T, right: T) => number,
-): T[] {
-  return Array.from(new Set(values.filter(Boolean))).sort(
-    compareFn ?? ((left, right) => left.localeCompare(right)),
-  );
 }
 
 function normalizeContactId(contactId: string): string {
@@ -3752,14 +2232,6 @@ function normalizeEmailAddress(value: string | null | undefined): string | null 
   if (!normalized) return null;
   const match = normalized.match(/[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/);
   return match?.[0] ?? null;
-}
-
-function compareDistricts(left: string, right: string): number {
-  const [leftState = '', leftDistrictRaw = '0'] = left.split('-');
-  const [rightState = '', rightDistrictRaw = '0'] = right.split('-');
-  const stateCompare = leftState.localeCompare(rightState);
-  if (stateCompare !== 0) return stateCompare;
-  return Number(leftDistrictRaw) - Number(rightDistrictRaw);
 }
 
 /**

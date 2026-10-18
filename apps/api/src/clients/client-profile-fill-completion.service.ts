@@ -110,7 +110,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.owners.runReadModel.getSetup(ctx, clientId);
   }
 
-  async startRun(ctx: TenantContext, clientId: string, input: StartClientProfileFillWorkflowInput) {
+  async startRun(
+    ctx: TenantContext,
+    clientId: string,
+    input: StartClientProfileFillWorkflowInput,
+  ): Promise<Record<string, unknown>> {
     const activeCompletionRun = await this.owners.runReadModel.latestActiveCompletionRun(
       ctx.tenantId,
       clientId,
@@ -143,7 +147,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.owners.runReadModel.getLatest(ctx, clientId);
   }
 
-  async getRun(ctx: TenantContext, clientId: string, runId: string) {
+  async getRun(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+  ): Promise<Record<string, unknown>> {
     return this.owners.runReadModel.getRun(ctx, clientId, runId);
   }
 

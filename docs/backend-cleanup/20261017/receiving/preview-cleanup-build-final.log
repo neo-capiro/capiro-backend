@@ -1,0 +1,106 @@
+
+> capiro@0.0.0 build:backend C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration
+> turbo run build --concurrency=1 --filter=!@capiro/web --filter=!@capiro/onboard-web --filter=!@capiro/e2e "--env-mode=loose"
+
+
+   ΓÇó turbo 2.11.4
+   ΓÇó Packages in scope: @capiro/api, @capiro/api-strategy, @capiro/auth, @capiro/clio-sandbox, @capiro/defense-api, @capiro/defense-client, @capiro/defense-contracts, @capiro/defense-domain, @capiro/infra-cdk, @capiro/intel-api, @capiro/meriv2-core, @capiro/meriv2-orchestrator, @capiro/onboard-api, @capiro/shared, @capiro/strategy-verifier, @capiro/workspace
+   ΓÇó Running build in 16 packages
+   ΓÇó Remote caching disabled, using shared worktree cache
+
+@capiro/strategy-verifier:build: cache miss, executing 4ba86c1e356e2aa9
+@capiro/strategy-verifier:build:
+@capiro/strategy-verifier:build: > @capiro/strategy-verifier@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\strategy-verifier
+@capiro/strategy-verifier:build: > tsc -p tsconfig.json
+@capiro/strategy-verifier:build:
+@capiro/infra-cdk:build: cache miss, executing 8e63274f068af4b2
+@capiro/infra-cdk:build:
+@capiro/infra-cdk:build: > @capiro/infra-cdk@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\infra\cdk
+@capiro/infra-cdk:build: > tsc
+@capiro/infra-cdk:build:
+@capiro/clio-sandbox:build: cache miss, executing feb9a91c6f5971ce
+@capiro/clio-sandbox:build:
+@capiro/clio-sandbox:build: > @capiro/clio-sandbox@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\clio-sandbox
+@capiro/clio-sandbox:build: > tsc -p tsconfig.json
+@capiro/clio-sandbox:build:
+@capiro/defense-contracts:build: cache miss, executing 5875261c3266013e
+@capiro/defense-contracts:build:
+@capiro/defense-contracts:build: > @capiro/defense-contracts@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-contracts
+@capiro/defense-contracts:build: > tsc -p tsconfig.json
+@capiro/defense-contracts:build:
+@capiro/shared:build: cache miss, executing 7570cd3b826de937
+@capiro/shared:build:
+@capiro/shared:build: > @capiro/shared@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\shared
+@capiro/shared:build: > tsc -p tsconfig.json
+@capiro/shared:build:
+@capiro/auth:build: cache miss, executing 72b94b03073d8e74
+@capiro/auth:build:
+@capiro/auth:build: > @capiro/auth@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\auth
+@capiro/auth:build: > tsc -p tsconfig.json
+@capiro/auth:build:
+@capiro/defense-client:build: cache miss, executing f3be6f48b2d47d3e
+@capiro/defense-client:build:
+@capiro/defense-client:build: > @capiro/defense-client@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-client
+@capiro/defense-client:build: > tsc -p tsconfig.json
+@capiro/defense-client:build:
+@capiro/defense-domain:build: cache miss, executing 8a2cc7087658e1ae
+@capiro/defense-domain:build:
+@capiro/defense-domain:build: > @capiro/defense-domain@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\defense-domain
+@capiro/defense-domain:build: > tsc -p tsconfig.json
+@capiro/defense-domain:build:
+@capiro/meriv2-core:build: cache miss, executing 9b32092451eec5a5
+@capiro/meriv2-core:build:
+@capiro/meriv2-core:build: > @capiro/meriv2-core@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\packages\meriv2-core
+@capiro/meriv2-core:build: > tsc -p tsconfig.json
+@capiro/meriv2-core:build:
+@capiro/api-strategy:build: cache miss, executing 1e5f16f271eea541
+@capiro/api-strategy:build:
+@capiro/api-strategy:build: > @capiro/api-strategy@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\api-strategy
+@capiro/api-strategy:build: > nest build
+@capiro/api-strategy:build:
+@capiro/onboard-api:build: cache miss, executing bb18840a34ed446f
+@capiro/onboard-api:build:
+@capiro/onboard-api:build: > @capiro/onboard-api@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\onboard-api
+@capiro/onboard-api:build: > nest build
+@capiro/onboard-api:build:
+@capiro/defense-api:build: cache miss, executing e46835438cc242dd
+@capiro/defense-api:build:
+@capiro/defense-api:build: > @capiro/defense-api@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\defense-api
+@capiro/defense-api:build: > pnpm prisma:generate && node -e "try{require('fs').unlinkSync('tsconfig.tsbuildinfo')}catch{}" && nest build
+@capiro/defense-api:build:
+@capiro/defense-api:build:
+@capiro/defense-api:build: > @capiro/defense-api@0.0.0 prisma:generate C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\defense-api
+@capiro/defense-api:build: > prisma generate --schema prisma/schema.prisma
+@capiro/defense-api:build:
+@capiro/defense-api:build: Prisma schema loaded from prisma\schema.prisma
+@capiro/defense-api:build:
+@capiro/defense-api:build: Γ£ö Generated Prisma Client (v5.22.0) to .\generated\prisma-client in 251ms
+@capiro/defense-api:build:
+@capiro/defense-api:build: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+@capiro/defense-api:build:
+@capiro/defense-api:build: Tip: Easily identify and fix slow SQL queries in your app. Optimize helps you enhance your visibility: https://pris.ly/--optimize
+@capiro/defense-api:build:
+@capiro/meriv2-orchestrator:build: cache miss, executing d81eddcca2ec7099
+@capiro/meriv2-orchestrator:build:
+@capiro/meriv2-orchestrator:build: > @capiro/meriv2-orchestrator@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\meriv2-orchestrator
+@capiro/meriv2-orchestrator:build: > nest build
+@capiro/meriv2-orchestrator:build:
+@capiro/workspace:build: cache miss, executing 20a1256da8170d96
+@capiro/workspace:build:
+@capiro/workspace:build: > @capiro/workspace@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\workspace
+@capiro/workspace:build: > nest build
+@capiro/workspace:build:
+@capiro/intel-api:build: cache miss, executing 8eed65769d2f49da
+@capiro/intel-api:build:
+@capiro/intel-api:build: > @capiro/intel-api@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\intel-api
+@capiro/intel-api:build: > nest build
+@capiro/intel-api:build:
+@capiro/api:build: cache miss, executing 402485c17582cfcd
+@capiro/api:build:
+@capiro/api:build: > @capiro/api@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-16\task-3\capiro-backend-preview-cleanup-integration\apps\api
+@capiro/api:build: > nest build
+@capiro/api:build:
+
+ Tasks:    16 successful, 16 total
+Cached:    0 cached, 16 total
+  Time:    2m25.925s
