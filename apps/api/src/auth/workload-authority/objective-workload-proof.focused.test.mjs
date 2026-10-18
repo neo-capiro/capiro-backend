@@ -8,7 +8,7 @@ const source = await readFile(new URL('./objective-workload-proof.ts', import.me
 const url = `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`;
 const { verifyObjectiveWorkloadCallerProof, ObjectiveWorkloadProofError,
   OBJECTIVE_WORKLOAD_PROOF_TYPE, OBJECTIVE_WORKLOAD_PROOF_AUDIENCE,
-  OBJECTIVE_WORKLOAD_PROOF_PATH } = await import(url);
+  OBJECTIVE_WORKLOAD_PROOF_PATH, OBJECTIVE_WORKLOAD_CREDENTIAL_PATH } = await import(url);
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 3072 });
 const other = generateKeyPairSync('rsa', { modulusLength: 3072 });
@@ -47,6 +47,16 @@ test('pinned caller proof binds one exact Core issuer request for at most thirty
   assert.equal(Object.isFrozen(identity), true);
   // Cryptography alone does not consume a proof jti; the issuer transaction does.
   assert.deepEqual(verify(), identity);
+});
+
+test('credential relay proof is bound to its separate exact path', () => {
+  const relayRequest = { ...request, path: OBJECTIVE_WORKLOAD_CREDENTIAL_PATH };
+  const relayClaims = { ...claims, path: OBJECTIVE_WORKLOAD_CREDENTIAL_PATH };
+  assert.equal(verify(signed(header, relayClaims), relayRequest).operationId, id(1));
+  assert.throws(() => verify(signed(header, relayClaims), request), denied);
+  assert.throws(() => verify(signed(), relayRequest), denied);
+  assert.throws(() => verify(signed(header, relayClaims),
+    { ...relayRequest, path: `${OBJECTIVE_WORKLOAD_CREDENTIAL_PATH}/` }), denied);
 });
 
 test('actual route, empty query, raw entity bytes and parsed operation ID must all match', () => {

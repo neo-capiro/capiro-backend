@@ -8,9 +8,11 @@ import type { Request, Response, NextFunction } from 'express';
 import { ObjectiveWorkloadAdmissionController, OBJECTIVE_ADMISSION_RUNTIME } from '../auth/workload-authority/objective-workload-admission.controller.js';
 import type { ObjectiveAdmissionHttpRequest } from '../auth/workload-authority/objective-workload-admission-ingress.js';
 import { ObjectiveWorkloadAdmissionModule } from '../auth/workload-authority/objective-workload-admission.module.js';
-import { OBJECTIVE_WORKLOAD_PROOF_PATH } from '../auth/workload-authority/objective-workload-proof.js';
+import { OBJECTIVE_WORKLOAD_PROOF_PATH, OBJECTIVE_WORKLOAD_CREDENTIAL_PATH } from '../auth/workload-authority/objective-workload-proof.js';
+import { OBJECTIVE_CREDENTIAL_RELAY_PATH } from '../auth/workload-authority/objective-credential-relay-request.js';
 import { configureApiHttpApp, type ConfigureApiHttpAppOptions } from './configure-api-http-app.js';
-import { OBJECTIVE_DECISION_RAW_BODY_LIMIT, OBJECTIVE_DECISION_RAW_BODY_PATH } from './objective-admission-raw-body.js';
+import { OBJECTIVE_CREDENTIAL_RAW_BODY_PATH, OBJECTIVE_DECISION_RAW_BODY_LIMIT,
+  OBJECTIVE_DECISION_RAW_BODY_PATH } from './objective-admission-raw-body.js';
 
 /** Parser qualification only: the capture runtime below is explicitly SYNTHETIC
  * and returns no authority, credential, decision or issuance. The actual Nest
@@ -46,6 +48,7 @@ class ParserProbeController {
   @Post('webhooks/clerk') clerk(@Req() request: Request) { return summary(request); }
   @Post('webhooks/recall') recall(@Req() request: Request) { return summary(request); }
   @Post('webhooks/tango') tango(@Req() request: Request) { return summary(request); }
+  @Post('internal/objective-workload-authority/credentials') credential(@Req() request: Request) { return summary(request); }
 }
 
 type ObservedRequest = { originalUrl: string; rawHeaders: string[]; descriptor?: PropertyDescriptor; body: unknown; request: Request };
@@ -123,7 +126,20 @@ describe('Objective decision raw bytes in actual Nest bootstrap parser ordering'
 
   test('fixed parser path and binary limit agree with the actual admission proof contract', () => {
     expect(OBJECTIVE_DECISION_RAW_BODY_PATH).toBe(PATH); expect(OBJECTIVE_WORKLOAD_PROOF_PATH).toBe(PATH);
+    expect(OBJECTIVE_CREDENTIAL_RAW_BODY_PATH).toBe(OBJECTIVE_WORKLOAD_CREDENTIAL_PATH);
+    expect(OBJECTIVE_CREDENTIAL_RAW_BODY_PATH).toBe(OBJECTIVE_CREDENTIAL_RELAY_PATH);
     expect(OBJECTIVE_DECISION_RAW_BODY_LIMIT).toBe(4096);
+  });
+
+  test('the distinct credential path captures signed bytes; a query alias does not', async () => {
+    const body = Buffer.from('{"schemaVersion":1,"untrusted":"parser-probe"}', 'utf8');
+    const captured = await send(f, body, { path: OBJECTIVE_CREDENTIAL_RAW_BODY_PATH });
+    expect(captured.status).toBe(201);
+    expect(captured.json).toMatchObject({ buffer: true, rawBodyPresent: true, bytes: body.length });
+    const observed = f.observed.find(value => value.originalUrl === OBJECTIVE_CREDENTIAL_RAW_BODY_PATH)!;
+    expect(observed.descriptor?.value).toEqual(body);
+    const alias = await send(f, body, { path: OBJECTIVE_CREDENTIAL_RAW_BODY_PATH + '?x=1' });
+    expect(alias.json).toMatchObject({ buffer: false, rawBodyPresent: false });
   });
 
   test.each([

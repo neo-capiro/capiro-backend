@@ -55,3 +55,13 @@ at `meri-greenfield` `8e7bf0e8` (also present at the earlier `09781127` owner pi
 No route, key, security grant, migration or live service changed in this D7-3
 source follow-up. D29 is a cross-repository integration and activation blocker,
 not a test-only gap.
+
+## Subsequent D29 source slice
+
+`OBJECTIVE-D29-SEVEN-PHASE-RELAY-CONTRACT-20261018.md` now specifies the
+seven Meri callback phases, a distinct bounded Core issue request, stable
+effect operation IDs, a separate post-effect release proof and the required
+original Meri run readback. Core source has the seven-phase echo correlation,
+ten-field issue-request decoder, raw-body capture and named caller-proof
+boundary. These are parsers and checks; no `/credentials` controller, later-
+phase issuer, release authority or Meri owner composition is mounted.
