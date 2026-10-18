@@ -192,15 +192,17 @@ pricing or runtime identity. The paid manifest cannot qualify this source path.
 
 The receiver separately calls `RetainedDocumentRuntimeIdentityReader.readCurrent()`
 before and after the source read; independently current `sourceHead`,
-`imageDigest` and `configurationSha256` must match the allocation. **No runtime
-reader implementation/provider is registered**, so the default 503 occurs
+`imageDigest` and `configurationSha256` must match the allocation. A fail-closed
+ECS selector adapter exists, but its independent trusted readback port and Nest
+provider remain unimplemented and unregistered, so the default 503 occurs
 before attachment metadata/bytes. Missing, malformed, unavailable or changed
 evidence withholds results. RELEASE_SHA/GIT_SHA, environment digest equality,
 release headers and OCI labels alone do not open it.
 
 Shipping/render must qualify the exact integrated source and digest-addressed
 ECR image, read back the current ECS task/container, define and measure the
-effective-configuration hash, and implement/register the independent reader.
+effective-configuration hash, and implement/register the independent
+control-plane readback provider.
 Meri's shipping owner must compare those same **current** Core pins before
 issuing a 1.1.0 allocation; Meri-source measurement or pin syntax is insufficient.
 The extraction owner unconditionally enforces `allowPaidExtraction:false`
