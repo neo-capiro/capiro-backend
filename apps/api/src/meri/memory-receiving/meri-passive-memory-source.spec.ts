@@ -81,6 +81,17 @@ describe('passive memory source contract', () => {
       .toThrow(BadRequestException);
   });
 
+  it('holds personal passive recall before the canonical reader or eligibility transaction', async () => {
+    const read = jest.fn(async () => ({ records: [] }));
+    await expect(readPassiveMemorySource(ctx, wire(null), { executeFromAuthenticatedUser: read } as never))
+      .rejects.toThrow(ForbiddenException);
+    expect(read).not.toHaveBeenCalled();
+    const { prisma } = db();
+    await expect(checkPassiveMemoryEligibility(prisma as never, ctx, callback(null), () => nowMs))
+      .rejects.toThrow(ForbiddenException);
+    expect(prisma.withTenantUser).not.toHaveBeenCalled();
+  });
+
   it('binds page, actor, selection and hashes before any eligibility read', () => {
     expect(parsePassiveMemoryEligibilityRequest(callback(), ctx, nowMs).sourceIds)
       .toEqual(['client_knowledge_memory']);
@@ -119,14 +130,23 @@ describe('passive memory source contract', () => {
     expect(receipt).not.toHaveProperty('input');
   });
 
-  it('refuses a row changed after the page read and keeps personal scope client-free', async () => {
+  it('refuses a row changed after the page read', async () => {
     const absent = db();
     await expect(checkPassiveMemoryEligibility(absent.prisma as never, ctx,
       callback(clientId, [{ memoryItemId: itemId, recordSha256: hash }]), () => nowMs))
       .rejects.toThrow(ForbiddenException);
-    const foreign = db([{ id: itemId, clientId }]);
-    await expect(checkPassiveMemoryEligibility(foreign.prisma as never, ctx,
-      callback(null, [{ memoryItemId: itemId, recordSha256: hash }]), () => nowMs))
+  });
+
+  it('refuses a row excluded by the canonical post-filter and an expired empty-page check', async () => {
+    const excluded = db([{ id: itemId, clientId }]);
+    jest.mocked(includeCanonicalGovernedMemoryRow).mockReturnValueOnce(false);
+    await expect(checkPassiveMemoryEligibility(excluded.prisma as never, ctx,
+      callback(clientId, [{ memoryItemId: itemId, recordSha256: hash }]), () => nowMs))
+      .rejects.toThrow(ForbiddenException);
+
+    const empty = db();
+    const clock = jest.fn().mockReturnValueOnce(nowMs).mockReturnValueOnce(nowMs + 10_000);
+    await expect(checkPassiveMemoryEligibility(empty.prisma as never, ctx, callback(), clock as () => number))
       .rejects.toThrow(ForbiddenException);
   });
 });

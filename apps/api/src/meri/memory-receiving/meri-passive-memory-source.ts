@@ -97,6 +97,10 @@ export async function readPassiveMemorySource(
   tools: MemoryReader,
 ): Promise<unknown> {
   const { input } = parsePassiveMemoryWire(raw);
+  // The delegated read grant currently selects one client. The canonical
+  // search without clientId can include other authorized clients, so do not
+  // serve a personal passive page until it has its own scoped authority.
+  if (input.clientId === null) throw denied();
   return tools.executeFromAuthenticatedUser(ctx, 'search_memory', input as unknown as Record<string, unknown>);
 }
 
@@ -197,6 +201,7 @@ export async function checkPassiveMemoryEligibility(
 ) {
   const request = parsePassiveMemoryEligibilityRequest(raw, ctx, now());
   const { clientId } = request.input;
+  if (clientId === null) throw denied();
   await prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
     // Recheck the selected client even for an empty result. The user bearer
     // establishes the actor, while this transaction observes the current wall.
