@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -22,6 +23,11 @@ interface VersionContentBody {
   newContent?: string;
   /** Governance Center compatibility field. */
   content?: string;
+}
+
+interface OwnerReviewCorrectionBody {
+  newContent?: unknown;
+  expectedUpdatedAt?: unknown;
 }
 
 /**
@@ -43,6 +49,27 @@ export class MemoryVersionController {
   ) {
     const content = versionContent(body);
     return this.present(await this.versions.proposeCorrection(ctx, id, content));
+  }
+
+  /** Native personal owner flow: a correction is always pending review. */
+  @Post('items/:id/review-correction')
+  async proposeOwnerReviewCorrection(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: OwnerReviewCorrectionBody,
+  ) {
+    if (typeof body?.newContent !== 'string' || !body.newContent.trim()) {
+      throw new BadRequestException('newContent is required.');
+    }
+    if (body.expectedUpdatedAt !== undefined && typeof body.expectedUpdatedAt !== 'string') {
+      throw new BadRequestException('expectedUpdatedAt must be a string.');
+    }
+    return this.versions.proposeOwnerReviewCorrection(
+      ctx,
+      id,
+      body.newContent,
+      body.expectedUpdatedAt as string | undefined,
+    );
   }
 
   @Post('items/:id/restores')

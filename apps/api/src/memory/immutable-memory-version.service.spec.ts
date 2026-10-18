@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -16,6 +21,7 @@ const REVIEWER = '33333333-3333-4333-8333-333333333333';
 const SOURCE = '44444444-4444-4444-8444-444444444444';
 const CANDIDATE = '55555555-5555-4555-8555-555555555555';
 const CREATED = '66666666-6666-4666-8666-666666666666';
+const CLIENT = '77777777-7777-4777-8777-777777777777';
 
 const proposerContext = {
   tenantId: TENANT,
@@ -44,6 +50,8 @@ interface ItemFixture {
   memory_scope: string;
   legal_hold: boolean;
   conflict_group_id: string | null;
+  updatedAt?: string;
+  ownerReviewEligible?: boolean;
 }
 
 function item(overrides: Partial<ItemFixture> = {}): ItemFixture {
@@ -63,6 +71,7 @@ function item(overrides: Partial<ItemFixture> = {}): ItemFixture {
     memory_scope: 'firm',
     legal_hold: false,
     conflict_group_id: null,
+    ownerReviewEligible: true,
     ...overrides,
   };
 }
@@ -101,6 +110,9 @@ function makeHarness(
     descendant?: ItemFixture | null;
     candidateKind?: 'correction' | 'restore' | 'contradiction';
     candidateBody?: string;
+    clientStatus?: string;
+    clientWall?: boolean;
+    wallAllowed?: boolean;
   } = {},
 ) {
   const source = options.source ?? item();
@@ -140,9 +152,19 @@ function makeHarness(
         return options.descendant ? [options.descendant] : [];
       }
       if (/INSERT INTO memory_items/i.test(sql)) return [created];
+      if (/FROM clients/i.test(sql))
+        return [
+          {
+            status: options.clientStatus ?? 'active',
+            memory_wall: options.clientWall ?? false,
+          },
+        ];
+      if (/FROM client_memory_access/i.test(sql))
+        return options.wallAllowed === false ? [] : [{ id: 'grant' }];
       if (/FROM memory_items/i.test(sql)) return [source];
       return [];
     },
+    $queryRawUnsafe: async () => [{ allowed: options.wallAllowed ?? true }],
     $executeRaw: async (strings: unknown, ...values: unknown[]) => {
       executeSql.push(sqlText(strings));
       executeValues.push(values);
@@ -162,10 +184,16 @@ function makeHarness(
       ) => fn(tx),
     ),
     withSystem: jest.fn(async (fn: (value: unknown) => unknown) =>
-      fn({ $queryRawUnsafe: async () => [{ version: '1' }] })),
+      fn({ $queryRawUnsafe: async () => [{ version: '1' }] }),
+    ),
     // embedAndUpsert sees the exact hash and returns before any Bedrock call.
-    $queryRawUnsafe: jest.fn(async () => [{ content_hash: expectedEmbedHash,
-      client_id: created.client_id, owner_user_id: created.owner_user_id }]),
+    $queryRawUnsafe: jest.fn(async () => [
+      {
+        content_hash: expectedEmbedHash,
+        client_id: created.client_id,
+        owner_user_id: created.owner_user_id,
+      },
+    ]),
   } as unknown as PrismaService;
   const tenantCtx = { require: jest.fn(() => proposerContext) } as unknown as TenantContextStore;
   const authorization = {
@@ -207,7 +235,7 @@ function makeHarness(
     audit,
     outbox,
   );
-  return { service, executeSql, executeValues, querySql, audit, outbox };
+  return { service, executeSql, executeValues, querySql, audit, outbox, authorization };
 }
 
 async function governed<T>(fn: () => Promise<T>): Promise<T> {
@@ -323,20 +351,36 @@ describe('ImmutableMemoryVersionService', () => {
 
 describe('ImmutableMemoryVersionService.proposeReviewOnlyCorrection (W8 Meri)', () => {
   const W8_ID = '77777777-7777-4777-8777-777777777777';
-  const input = { candidateId: W8_ID, sourceItemId: SOURCE, newContent: 'New truth.', provenance: { meriCandidateId: W8_ID } };
+  const input = {
+    candidateId: W8_ID,
+    sourceItemId: SOURCE,
+    newContent: 'New truth.',
+    provenance: { meriCandidateId: W8_ID },
+  };
 
   test('keeps the caller id and stays pending even for private memory, verifying before and recording after the insert', async () => {
     await governed(async () => {
-      const h = makeHarness({ source: item({ memory_scope: 'user_private', owner_user_id: PROPOSER, visibility: 'user' }) });
+      const h = makeHarness({
+        source: item({ memory_scope: 'user_private', owner_user_id: PROPOSER, visibility: 'user' }),
+      });
       const order: string[] = [];
-      const verify = jest.fn(async () => { order.push(`verify:${h.executeSql.length}`); });
-      const record = jest.fn(async () => { order.push(`record:${h.executeSql.length}`); });
-      await expect(h.service.proposeReviewOnlyCorrection(proposerContext, input, { verify, record })).resolves.toEqual({ candidateId: W8_ID });
+      const verify = jest.fn(async () => {
+        order.push(`verify:${h.executeSql.length}`);
+      });
+      const record = jest.fn(async () => {
+        order.push(`record:${h.executeSql.length}`);
+      });
+      await expect(
+        h.service.proposeReviewOnlyCorrection(proposerContext, input, { verify, record }),
+      ).resolves.toEqual({ candidateId: W8_ID });
       expect(order).toEqual(['verify:0', 'record:1']);
       expect(h.executeSql).toHaveLength(1);
       expect(h.executeSql[0]).toMatch(/INSERT INTO memory_candidate/);
       expect(h.executeValues[0]![0]).toBe(W8_ID);
-      expect(JSON.parse(h.executeValues[0]![7] as string)).toMatchObject({ kind: 'correction', meri: { meriCandidateId: W8_ID } });
+      expect(JSON.parse(h.executeValues[0]![7] as string)).toMatchObject({
+        kind: 'correction',
+        meri: { meriCandidateId: W8_ID },
+      });
       expect(h.querySql.some((sql) => /INSERT INTO memory_items/i.test(sql))).toBe(false);
     });
   });
@@ -345,9 +389,14 @@ describe('ImmutableMemoryVersionService.proposeReviewOnlyCorrection (W8 Meri)', 
     await governed(async () => {
       const h = makeHarness();
       const record = jest.fn(async () => undefined);
-      await expect(h.service.proposeReviewOnlyCorrection(proposerContext, input, {
-        verify: async () => { throw new ConflictException('stale'); }, record,
-      })).rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        h.service.proposeReviewOnlyCorrection(proposerContext, input, {
+          verify: async () => {
+            throw new ConflictException('stale');
+          },
+          record,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
       expect(h.executeSql).toHaveLength(0);
       expect(record).not.toHaveBeenCalled();
     });
@@ -355,10 +404,210 @@ describe('ImmutableMemoryVersionService.proposeReviewOnlyCorrection (W8 Meri)', 
 
   test('refuses legal-held and non-controlling sources', async () => {
     await governed(async () => {
-      await expect(makeHarness({ source: item({ legal_hold: true }) }).service.proposeReviewOnlyCorrection(proposerContext, input))
-        .rejects.toBeInstanceOf(ConflictException);
-      await expect(makeHarness({ source: item({ governed_status: 'superseded' }) }).service.proposeReviewOnlyCorrection(proposerContext, input))
-        .rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        makeHarness({ source: item({ legal_hold: true }) }).service.proposeReviewOnlyCorrection(
+          proposerContext,
+          input,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      await expect(
+        makeHarness({
+          source: item({ governed_status: 'superseded' }),
+        }).service.proposeReviewOnlyCorrection(proposerContext, input),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
+  });
+});
+
+describe('ImmutableMemoryVersionService.proposeOwnerReviewCorrection', () => {
+  const updatedAt = '2026-10-18T12:34:56.123456Z';
+  const privateSource = () =>
+    item({
+      memory_scope: 'user_private',
+      owner_user_id: PROPOSER,
+      visibility: 'user',
+      updatedAt,
+    });
+
+  test('mints its own UUID and keeps the private active item unchanged', async () => {
+    await governed(async () => {
+      const h = makeHarness({ source: privateSource() });
+      const result = await h.service.proposeOwnerReviewCorrection(
+        proposerContext,
+        SOURCE,
+        '  New private truth.  ',
+        updatedAt,
+      );
+      expect(result).toEqual({
+        status: 'pending_review',
+        candidateId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        activeItemUnchanged: true,
+      });
+      expect(h.executeSql).toHaveLength(1);
+      expect(h.executeSql[0]).toMatch(/INSERT INTO memory_candidate/);
+      expect(h.executeValues[0]![0]).toBe(result.candidateId);
+      expect(JSON.parse(h.executeValues[0]![6] as string)).toMatchObject({
+        value: 'New private truth.',
+        scope: 'user_private',
+        ownerUserId: PROPOSER,
+      });
+      expect(h.querySql.some((sql) => /INSERT INTO memory_items/i.test(sql))).toBe(false);
+      expect(h.executeSql.some((sql) => /UPDATE memory_items/i.test(sql))).toBe(false);
+    });
+  });
+
+  test('a stale picker token and a changed controlling version write nothing', async () => {
+    await governed(async () => {
+      const stale = makeHarness({ source: privateSource() });
+      await expect(
+        stale.service.proposeOwnerReviewCorrection(
+          proposerContext,
+          SOURCE,
+          'New truth.',
+          '2026-10-18T12:34:56.123455Z',
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(stale.executeSql).toHaveLength(0);
+
+      const retired = makeHarness({
+        source: item({
+          ...privateSource(),
+          governed_status: 'superseded',
+        }),
+      });
+      await expect(
+        retired.service.proposeOwnerReviewCorrection(
+          proposerContext,
+          SOURCE,
+          'New truth.',
+          updatedAt,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(retired.executeSql).toHaveLength(0);
+
+      const expired = makeHarness({
+        source: item({
+          ...privateSource(),
+          ownerReviewEligible: false,
+        }),
+      });
+      await expect(
+        expired.service.proposeOwnerReviewCorrection(
+          proposerContext,
+          SOURCE,
+          'New truth.',
+          updatedAt,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(expired.executeSql).toHaveLength(0);
+    });
+  });
+
+  test('a client-linked private item retains its wall and cannot be proposed when read is denied', async () => {
+    await governed(async () => {
+      const source = item({ ...privateSource(), client_id: CLIENT });
+      const allowed = makeHarness({ source });
+      await allowed.service.proposeOwnerReviewCorrection(
+        proposerContext,
+        SOURCE,
+        'New client-linked private truth.',
+        updatedAt,
+      );
+      expect(JSON.parse(allowed.executeValues[0]![6] as string)).toMatchObject({
+        scope: 'user_private',
+        ownerUserId: PROPOSER,
+        clientId: CLIENT,
+      });
+      expect(allowed.executeValues[0]![5]).toBe(CLIENT);
+
+      const denied = makeHarness({ source, clientWall: true, wallAllowed: false });
+      await expect(
+        denied.service.proposeOwnerReviewCorrection(
+          proposerContext,
+          SOURCE,
+          'New client-linked private truth.',
+          updatedAt,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(denied.executeSql).toHaveLength(0);
+
+      const archived = makeHarness({ source, clientStatus: 'archived' });
+      await expect(
+        archived.service.proposeOwnerReviewCorrection(
+          proposerContext,
+          SOURCE,
+          'New client-linked private truth.',
+          updatedAt,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(archived.executeSql).toHaveLength(0);
+    });
+  });
+
+  test('a revoked client wall also blocks the pending version decision', async () => {
+    await governed(async () => {
+      const h = makeHarness({
+        source: item({ ...privateSource(), client_id: CLIENT }),
+        clientWall: true,
+        wallAllowed: false,
+      });
+      jest.mocked(h.authorization.loadCandidateInTx).mockResolvedValueOnce({
+        id: CANDIDATE,
+        tenantId: TENANT,
+        clientId: CLIENT,
+        ownerUserId: PROPOSER,
+        proposedByUserId: PROPOSER,
+        clientStatus: 'active',
+        memoryClass: 'user_preference',
+        scope: 'user_private',
+        status: 'pending_review',
+        legalHold: false,
+      });
+      await expect(
+        h.service.rejectCandidate(proposerContext, CANDIDATE, 'No longer accurate.'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(h.executeSql).toHaveLength(0);
+    });
+  });
+
+  test('rejects foreign or shared sources, held rows, and malformed pins', async () => {
+    await governed(async () => {
+      for (const source of [item({ ...privateSource(), owner_user_id: REVIEWER }), item()]) {
+        const h = makeHarness({ source });
+        await expect(
+          h.service.proposeOwnerReviewCorrection(proposerContext, SOURCE, 'New truth.', updatedAt),
+        ).rejects.toBeInstanceOf(NotFoundException);
+        expect(h.executeSql).toHaveLength(0);
+      }
+      const held = makeHarness({ source: item({ ...privateSource(), legal_hold: true }) });
+      await expect(
+        held.service.proposeOwnerReviewCorrection(proposerContext, SOURCE, 'New truth.', updatedAt),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(held.executeSql).toHaveLength(0);
+      await expect(
+        held.service.proposeOwnerReviewCorrection(
+          proposerContext,
+          SOURCE,
+          'New truth.',
+          '2026-10-18',
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+  });
+
+  test('stays unavailable when the governed lifecycle is disabled', async () => {
+    const old = process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+    delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+    try {
+      const h = makeHarness({ source: privateSource() });
+      await expect(
+        h.service.proposeOwnerReviewCorrection(proposerContext, SOURCE, 'New truth.', updatedAt),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(h.querySql).toHaveLength(0);
+      expect(h.executeSql).toHaveLength(0);
+    } finally {
+      if (old === undefined) delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+      else process.env.MEMORY_GOVERNANCE_LIFECYCLE = old;
+    }
   });
 });
