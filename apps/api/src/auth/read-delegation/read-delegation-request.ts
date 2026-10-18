@@ -11,12 +11,13 @@ import { readCoreEd25519KeyConfig } from '../core-ed25519-key-config.js';
 import { applicationAuthorityRevision, type ApplicationAuthorityIdentityEvidence, type ApplicationAuthorityIdentityProof } from '../application-authority.js';
 import { fetchAccessibleClientRevisionsForClerkActor } from '../../memory/memory-wall.helpers.js';
 import {
-  READ_DELEGATION_LIMITS, READ_DELEGATION_ROUTES, READ_TOKEN_SCHEME, canonicalSha256, delegationPath, sha256Hex, toolPath,
+  READ_DELEGATION_LIMITS, READ_DELEGATION_ROUTES, READ_TOKEN_SCHEME, canonicalSha256, delegationPath, isSha, sha256Hex, toolPath,
   type OperationRef, type ReadTokenKind,
 } from './read-delegation.contract.js';
 import { assertDelegationFacts, assertToolReservation, readRunFacts, type DelegationFacts } from './read-delegation-facts.js';
 import { readTokenFromAuthorization, readTokenSha256, verifyReadToken, type ReadTokenClaims } from './read-delegation-token.js';
 import type { DocumentTextOnlyAllocation } from './read-delegation-document-pricing.js';
+import { isSignedMemoryPageOperation, isSignedMemoryProposalOperation } from './signed-memory-http-gate.js';
 
 /**
  * Tenant-middleware support for run-bound read delegation (RC1 option B,
@@ -313,6 +314,19 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
  * is current (unattended), the member is active and the client is visible.
  * Any change refuses (409/410) and the result is withheld.
  */
+/** The memory page and proposal alias depend on the same original UNKNOWN
+ * reservation at release. Keep this in the current facts transaction, not a
+ * body-supplied receipt or a second unlocked check. Other read operations keep
+ * their existing release behavior. */
+export async function assertSignedMemoryReservationAtRelease(
+  tx: Tx,
+  grant: Pick<MeriReadDelegationGrant, 'kind' | 'operation' | 'runId' | 'callKey' | 'argumentsSha256'>,
+): Promise<void> {
+  if (!isSignedMemoryPageOperation(grant.operation) && !isSignedMemoryProposalOperation(grant.operation)) return;
+  if (grant.kind !== 'tool' || !isSha(grant.argumentsSha256)) throw changed();
+  await assertToolReservation(tx, grant.runId, grant.callKey, grant.operation!, grant.argumentsSha256);
+}
+
 export async function assertMeriReadDelegationReleasable(prisma: SystemPrisma, req: Request): Promise<void> {
   const grant = grants.get(req);
   if (!grant) return;
@@ -326,6 +340,7 @@ export async function assertMeriReadDelegationReleasable(prisma: SystemPrisma, r
         throw changed();
       const hard = Math.min(assertDelegationFacts(facts, d, grant.operation ? { operation: grant.operation } : {}), await assertConsentCurrent(tx, d));
       if (facts.dbNowMs >= Math.min(hard, grant.hardExpiryMs)) throw new GoneException('Read delegation expired');
+      await assertSignedMemoryReservationAtRelease(tx, grant);
       const member = await readDelegatedMember(tx, d);
       if (member.user.id !== grant.actorId) throw changed();
       await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);

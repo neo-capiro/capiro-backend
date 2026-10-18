@@ -63,6 +63,9 @@ export const MERI_DELEGATED_READ_TOOLS: ReadonlySet<string> = new Set([
   'search_funding_opportunities', 'search_gao_reports', 'search_intel_articles', 'search_lda_filings', 'search_legislative_research',
   'search_legiwatch_news', 'search_procurement_forecasts', 'search_program_elements', 'search_public_web', 'search_sec_filings',
   'search_state_bills', 'search_state_floor_votes', 'search_tracked_bills',
+  // These exact source names remain unavailable at issuance and admission
+  // until their separate hard-off HTTP gates are qualified and changed.
+  'search_memory', 'memory.list_own_proposals',
 ]);
 
 /** Exact retained source operation IDs. These require the additional signed
@@ -77,12 +80,14 @@ export const MERI_RETAINED_SOURCE_TOOLS: ReadonlySet<string> = new Set([
 /** Correlation-bearing token operations. Keep the eleven retained receiver
  * names separate: actions.query has its own exact controller branch. */
 export const MERI_CORRELATED_READ_TOOLS: ReadonlySet<string> = new Set([
-  ...MERI_RETAINED_SOURCE_TOOLS, 'actions.query',
+  ...MERI_RETAINED_SOURCE_TOOLS, 'actions.query', 'search_memory', 'memory.list_own_proposals',
 ]);
 
 export function isMeriCorrelatedReadOperationVersion(operation: { id: string; version: string } | null): boolean {
   return operation !== null && (operation.id === 'actions.query'
     ? operation.version === '0.2.0'
+    : operation.id === 'search_memory' || operation.id === 'memory.list_own_proposals'
+      ? operation.version === '0.2.0'
     : isMeriRetainedSourceOperationVersion(operation));
 }
 

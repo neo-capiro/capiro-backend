@@ -50,6 +50,10 @@ import {
   isMeriReadTokenRequest,
 } from '../auth/read-delegation/read-delegation-request.js';
 import {
+  isSignedMemoryHelperPost, isSignedMemoryPagePost, isSignedMemoryProposalPost,
+  signedMemoryPageEnabled, signedMemoryProposalEnabled,
+} from '../auth/read-delegation/signed-memory-http-gate.js';
+import {
   captureRetainedNativeAuthority,
   requiresVerifiedRetainedNativeAuthority,
   type RetainedNativeAuthorityCapture,
@@ -201,6 +205,19 @@ export class TenantContextMiddleware implements NestMiddleware {
     // verified service identity. Exact paths and method only.
     if (isMeriReadTokenRequest(req)) {
       res.setHeader('Cache-Control', 'no-store');
+      // One-use source tokens must refuse before ordinary admission consumes
+      // their JTI while the corresponding fixed receiver is held. The helper
+      // has a distinct signed type and is verified/consumed only by its fixed
+      // controller, never by admitMeriReadToken or Clerk provisioning.
+      if (isSignedMemoryHelperPost(req)) {
+        if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory helper unavailable');
+        next();
+        return;
+      }
+      if (isSignedMemoryPagePost(req) && !signedMemoryPageEnabled())
+        throw new ServiceUnavailableException('Passive memory page unavailable');
+      if (isSignedMemoryProposalPost(req) && !signedMemoryProposalEnabled())
+        throw new ServiceUnavailableException('Memory proposal page unavailable');
       await this.useMeriReadDelegation(req, next);
       return;
     }

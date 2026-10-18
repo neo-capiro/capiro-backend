@@ -71,9 +71,14 @@ import {
   MERI_DELEGATED_READ_TOOLS, assertDelegatedToolSelectors, schemaClientSelectors, sha256Hex,
 } from '../auth/read-delegation/read-delegation.contract.js';
 import {
-  assertMeriReadDelegationReleasable, meriReadDelegationOf, meriRetainedCorrelationOf,
+  assertMeriReadDelegationReleasable, isMeriReadTokenRequest, meriReadDelegationOf, meriRetainedCorrelationOf,
   type MeriReadDelegationGrant,
 } from '../auth/read-delegation/read-delegation-request.js';
+import { signedMemoryPageEnabled } from '../auth/read-delegation/signed-memory-http-gate.js';
+import { createCoreKmsSigner, readCoreEd25519KeyConfig } from '../auth/core-ed25519-kms-config.js';
+import { readTaskBoundPassiveMemoryPage } from './memory-receiving/meri-memory-signed-page-source.js';
+import { issueMemoryPageProof } from './memory-receiving/meri-memory-proof-issuer.js';
+import { MEMORY_PAGE_PROOF_HEADER } from './memory-receiving/meri-memory-page-proof.js';
 import {
   assertRetainedSourceV02Admission, RETAINED_SOURCE_V02_OPERATIONS,
 } from './retained-source-v02/admission.js';
@@ -570,7 +575,33 @@ export class MeriController {
     @Param('name') name: string,
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
+    @Res({ passthrough: true }) res?: Response,
   ) {
+    // PR172 keeps the 0.2 JSON page unchanged and carries its opaque signed
+    // proof in a separate response header. This source route stays unavailable
+    // until the Meri wire, helper table and runtime role/readback are qualified.
+    if (name === 'search_memory' && isMeriReadTokenRequest(req)) {
+      if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory page unavailable');
+      const grant = meriReadDelegationOf(req);
+      if (!grant || grant.kind !== 'tool' || grant.operation?.id !== 'search_memory' ||
+          grant.operation.version !== '0.2.0' || !hasVerifiedToolServiceIdentity(req) ||
+          !this.readDelegationPrisma || !res) throw new ForbiddenException('Passive memory page refused');
+      let config: ReturnType<typeof readCoreEd25519KeyConfig>;
+      try { config = readCoreEd25519KeyConfig(process.env, 'MERI_READ_DELEGATION_SIGNER'); }
+      catch { config = null; }
+      if (!config) throw new ServiceUnavailableException('Passive memory page unavailable');
+      const page = await withMeriToolRequestControl(req, () => readTaskBoundPassiveMemoryPage(
+        ctx, body, grant, meriRetainedCorrelationOf(req), this.tools, () => this.releaseDelegatedRead(req),
+      ));
+      const signed = await issueMemoryPageProof(this.readDelegationPrisma, createCoreKmsSigner(config),
+        req, page, grant, { enabled: true });
+      res.setHeader(MEMORY_PAGE_PROOF_HEADER, signed.pageProof);
+      return signed.result;
+    }
+    // A dynamic tool route must never turn the fixed child callback into an
+    // ordinary model-facing tool if module registration order changes.
+    if (name === 'search_memory_eligibility')
+      throw new ServiceUnavailableException('Passive memory helper unavailable');
     // The retained 0.2 source route has a separate, exact task-bound read
     // admission. Never pass its names to the model-facing tool dispatcher.
     if (RETAINED_SOURCE_V02_OPERATIONS.has(name)) {

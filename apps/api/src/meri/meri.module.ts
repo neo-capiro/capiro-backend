@@ -39,6 +39,7 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
+import { MeriMemoryHelperController } from './memory-receiving/meri-memory-helper.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
 import { MeriSourceService } from './meri-source.service.js';
 import { MeriSkillsController } from './meri-skills.controller.js';
@@ -119,6 +120,8 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     DistrictNexusModule,
   ],
   controllers: [
+    // Register the fixed signed callback before tools/:name in this module.
+    MeriMemoryHelperController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,

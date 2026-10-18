@@ -31,6 +31,7 @@ import {
 } from './read-delegation-request.js';
 import { canonicalSha256 } from './read-delegation.contract.js';
 import { READ_TOKEN_MAX_SECONDS, signReadToken } from './read-delegation-token.js';
+import { assertSignedMemorySourceEnabled } from './signed-memory-http-gate.js';
 
 type Tx = Prisma.TransactionClient;
 export const MERI_READ_DELEGATION_SIGNER = Symbol('MERI_READ_DELEGATION_SIGNER');
@@ -200,6 +201,7 @@ export class ReadDelegationService {
   async issueToken(req: Request, delegationId: string, raw: unknown) {
     this.service(req);
     const t = parseTokenRequest(raw, delegationId);
+    if (t.kind === 'tool') assertSignedMemorySourceEnabled(t.operation);
     // A closed source receiver must not mint a one-use token that middleware
     // would consume before the controller can return its 503.
     if (t.kind === 'tool' && t.operation?.id === 'actions.query' &&
