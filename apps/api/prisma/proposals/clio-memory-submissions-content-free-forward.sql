@@ -1,5 +1,6 @@
--- SOURCE PROPOSAL ONLY; unallocated. Do not execute directly.
--- A new migration ID after 20281018080000 is required. The source at
+-- ARCHIVED SOURCE PROPOSAL ONLY; superseded by the centrally allocated, held
+-- 20281018090000_clio_meri_memory_submissions_content_free/migration.sql.
+-- Do not execute this proposal. The source at
 -- 5c105cf created clio_meri_memory_submissions.candidate JSONB NOT NULL plus
 -- clio_meri_memory_submissions_candidate_check. Memory branch 96065ae and Core
 -- PR86 b40971b edited that same historical migration to omit both. No applied
