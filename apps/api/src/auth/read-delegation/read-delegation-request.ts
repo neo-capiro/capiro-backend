@@ -121,6 +121,9 @@ export interface MeriReadDelegationGrant {
   correlationSha256: string | null;
   /** Tool reservation argument hash read from the consumed token row. */
   argumentsSha256: string | null;
+  /** Exact emitted HTTP body bytes, checked against the signed token and
+   * consumed row before this request-local grant is created. */
+  bodySha256?: string;
   callKey: string;
   kind: ReadTokenKind;
   operation: OperationRef | null;
@@ -296,6 +299,7 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
     ...(claims.operation?.id === 'read_client_documents'
       ? { documentTextOnlyAllocation: admitted.documentTextOnlyAllocation } : {}),
     correlationSha256: claims.correlationSha256 ?? null, argumentsSha256: admitted.argumentsSha256,
+    bodySha256: claims.bodySha256,
     kind: claims.kind, operation: claims.operation ? Object.freeze({ ...claims.operation }) : null, toolRequestSha256: claims.toolRequestSha256,
     referenceSha256: claims.referenceSha256, jti: claims.jti, hardExpiryMs: admitted.hardExpiryMs,
   }));
