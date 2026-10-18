@@ -4,6 +4,7 @@ import addFormats from 'ajv-formats';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import dataSearchSchema from './monday-data-search.schema.json';
 import mondaySchema from './monday.schema.json';
+import { documentContractV02 } from './documents-contract.js';
 
 /**
  * Source-specific checks for the two retained 0.2 reads. These functions do not
@@ -71,7 +72,15 @@ export interface DocumentPricingEvidence {
   runtimeCapEnforced: true;
 }
 
-const fail = (reason: string): never => { throw new RetainedDocumentsMondayRefusal(reason); };
+/** Owner-enforced provider exclusion, not pricing evidence for Meri allocation. */
+export type DocumentExecutionPolicy = DocumentPricingEvidence | { providerCalls: 'forbidden' };
+export const NO_DOCUMENT_PROVIDER_CALLS = Object.freeze({ providerCalls: 'forbidden' } as const);
+function providerCallsForbidden(policy: DocumentExecutionPolicy | undefined): boolean {
+  return !!policy && 'providerCalls' in policy && policy.providerCalls === 'forbidden' &&
+    Object.keys(policy).length === 1;
+}
+
+function fail(reason: string): never { throw new RetainedDocumentsMondayRefusal(reason); }
 const object = (value: unknown): JsonObject =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : fail('Expected object');
 const nonempty = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.trim() === value;
@@ -190,12 +199,13 @@ export function assertDocumentPricing(evidence: DocumentPricingEvidence | undefi
     !integer(evidence.transcription?.maxAudioSeconds, 1) ||
     evidence.runtimeMaxAudioSeconds !== evidence.transcription.maxAudioSeconds ||
     evidence.transcription.model !== 'whisper-1' ||
-    !Number.isFinite(evidence.transcription.microusdPerMinute) || evidence.transcription.microusdPerMinute <= 0 ||
-    !nonempty(evidence.vision?.model) || !integer(evidence.vision.maxInputTokens, 1) ||
-    !Number.isFinite(evidence.vision.inputMicrousdPerMillionTokens) ||
-    !Number.isFinite(evidence.vision.outputMicrousdPerMillionTokens) ||
-    evidence.vision.inputMicrousdPerMillionTokens <= 0 || evidence.vision.outputMicrousdPerMillionTokens <= 0 ||
-    !hash(evidence.vision.coreSourceCommit) || !hash(evidence.transcription.coreSourceCommit) ||
+    !integer(evidence.transcription.microusdPerMinute, 0) ||
+    !integer(evidence.transcription.maxAudioSeconds, 1, 86400) ||
+    !nonempty(evidence.vision?.model) || !integer(evidence.vision.maxInputTokens, 1, 2000000) ||
+    !integer(evidence.vision.inputMicrousdPerMillionTokens, 0) ||
+    !integer(evidence.vision.outputMicrousdPerMillionTokens, 0) ||
+    !/^[a-f0-9]{40}$/.test(evidence.vision.coreSourceCommit) ||
+    !/^[a-f0-9]{40}$/.test(evidence.transcription.coreSourceCommit) ||
     evidence.vision.coreSourceCommit !== evidence.transcription.coreSourceCommit ||
     !/^sha256:[a-f0-9]{64}$/.test(evidence.vision.coreImageDigest) ||
     evidence.vision.coreImageDigest !== evidence.transcription.coreImageDigest ||
@@ -206,9 +216,9 @@ export function assertDocumentPricing(evidence: DocumentPricingEvidence | undefi
 
 /** Keep the public Meri selector unchanged for the canonical Core document handler. */
 export function prepareDocumentRead(input: JsonObject, current: TrustedClientReadContext,
-  evidence: DocumentPricingEvidence | undefined): JsonObject {
+  evidence: DocumentExecutionPolicy | undefined): JsonObject {
   const clientId = assertCurrentClient(input, current);
-  assertDocumentPricing(evidence);
+  if (!providerCallsForbidden(evidence)) assertDocumentPricing(evidence as DocumentPricingEvidence | undefined);
   const allowed = ['mode', 'clientId', 'documentId', 'query', 'section', 'characterOffset', 'limit', 'cursor', 'cursorBinding', 'listAfter'];
   if (Object.keys(input).some((key) => !allowed.includes(key)) ||
     (input.mode !== 'list' && input.mode !== 'read') ||
@@ -238,7 +248,7 @@ export function prepareDocumentRead(input: JsonObject, current: TrustedClientRea
         fail('Document continuation changed client, document, or source hash');
     }
   }
-  return {
+  const legacyInput = {
     clientId,
     ...(documentId ? { documentId } : {}),
     ...(input.query ? { query: input.query } : {}),
@@ -246,12 +256,16 @@ export function prepareDocumentRead(input: JsonObject, current: TrustedClientRea
     ...(input.cursor ? { cursor: input.cursor } :
       input.mode === 'read' ? { section: input.section, characterOffset: input.characterOffset } : {}),
   };
+  const normalized = documentContractV02.normalizeClientDocumentsInput(legacyInput,
+    { binding: current.binding, subject: current.subject });
+  if (sha256(normalized) !== sha256(input)) fail('Document selection differs from pinned normalizer');
+  return legacyInput;
 }
 
 /** Meri 0.2 expects binding/subject alongside the canonical Core data page. */
 export function projectDocumentRead(body: unknown, input: JsonObject, current: TrustedClientReadContext,
-  evidence: DocumentPricingEvidence | undefined, receipt: CurrentSourceReceipt): JsonObject {
-  prepareDocumentRead(input, current, evidence);
+  evidence: DocumentExecutionPolicy | undefined, receipt: CurrentSourceReceipt): JsonObject {
+  const legacyInput = prepareDocumentRead(input, current, evidence);
   assertSourceReceipt(body, receipt);
   const data = object(body), coverage = object(data.coverage);
   if (data.tool !== 'read_client_documents' || data.clientId !== current.selectedClientId ||
@@ -275,10 +289,19 @@ export function projectDocumentRead(body: unknown, input: JsonObject, current: T
           createHash('sha256').update(payload.text).digest('hex') !== provenance.sectionHash))
         fail('Document result lacks source content and section hash lineage');
     }
-    // The legacy owner currently lacks an enforced audio-duration cap. A
-    // transcription can only be projected once a trusted cap receipt exists.
-    if (data.records.some((candidate: unknown) => object(object(candidate).payload).source === 'transcription') &&
-      evidence?.runtimeCapEnforced !== true) fail('Unbounded transcription is unavailable');
+    const metadata = coverage.extractionMetadata;
+    const extraction = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+      ? metadata as JsonObject : null;
+    const extractionReadability = extraction?.readability;
+    if (providerCallsForbidden(evidence) && (data.records.some((candidate: unknown) =>
+        object(object(candidate).payload).source === 'transcription') ||
+        coverage.readability !== null && object(coverage.readability).method === 'openai_pdf' ||
+        extraction?.source === 'transcription' ||
+        extractionReadability && typeof extractionReadability === 'object' &&
+          !Array.isArray(extractionReadability) && object(extractionReadability).method === 'openai_pdf'))
+      fail('Provider extraction is forbidden for this source read');
   }
-  return { binding: current.binding, subject: current.subject, data };
+  return documentContractV02.assertClientDocumentsResult(
+    { binding: current.binding, subject: current.subject, data }, legacyInput,
+    { binding: current.binding, subject: current.subject });
 }

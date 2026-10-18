@@ -141,6 +141,9 @@ import {
 } from './meri-schedule.helpers.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
+import { readWithCurrentDocumentFacts } from './retained-source-v02/document-current-source.js';
+import { NO_DOCUMENT_PROVIDER_CALLS } from './retained-source-v02/documents-monday.js';
+import { canonicalSha256 } from '../auth/read-delegation/read-delegation.contract.js';
 import type { RetainedSourceV02Admission } from './retained-source-v02/admission.js';
 import { createMailBodySectionV02 } from './retained-source-v02/mail.js';
 import { readWithCurrentMondayMapping } from './retained-source-v02/monday-current-source.js';
@@ -513,6 +516,41 @@ export class MeriToolsService {
       records: response.records,
       coverage: response.coverage,
     };
+  }
+
+  /** Source preparation only: the receiver remains closed until Meri admits a
+   * matching tariff. This path forbids provider extraction in the real owner,
+   * rechecks current inventory and validates the complete pinned document DTO. */
+  async readRetainedDocumentSourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
+    const active = () => {
+      assertMeriToolRequestActive();
+      if (!Number.isSafeInteger(admission.hardExpiryMs) || Date.now() >= admission.hardExpiryMs)
+        throw new ServiceUnavailableException('Retained document deadline expired');
+    };
+    active();
+    if (admission.operation.id !== 'read_client_documents' || admission.operation.version !== '0.2.0' ||
+        admission.metadata !== null ||
+        ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId ||
+        !admission.normalizationContext || Object.keys(admission.normalizationContext).length !== 2 ||
+        canonicalSha256(admission.normalizationContext) !==
+          canonicalSha256({ binding: admission.binding, subject: admission.subject }))
+      throw new ServiceUnavailableException('Retained document source unavailable');
+    const assertWall = async () => {
+      active();
+      await this.ensureClientVisible(ctx, admission.clientId);
+      const denied = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,
+        (tx) => fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
+      if (denied.includes(admission.clientId)) throw new NotFoundException('Client not found');
+      active();
+    };
+    await assertWall();
+    const result = await readWithCurrentDocumentFacts(this.engagement, ctx, {
+      binding: { ...admission.binding }, subject: { ...admission.subject }, selectedClientId: admission.clientId,
+    }, admission.input, NO_DOCUMENT_PROVIDER_CALLS,
+    (legacyInput) => this.readClientDocuments(ctx, legacyInput, { allowPaidExtraction: false }),
+    Date.now, active);
+    await assertWall();
+    return result;
   }
 
   /** Current managed board mapping and the canonical Monday owner are read in
@@ -9115,7 +9153,8 @@ export class MeriToolsService {
   }
 
   /** Canonical, currently authorized section reads with resumable evidence. */
-  private async readClientDocuments(ctx: TenantContext, input: Record<string, unknown>) {
+  private async readClientDocuments(ctx: TenantContext, input: Record<string, unknown>,
+    ownerOptions: { allowPaidExtraction?: boolean } = {}) {
     const clientId = await this.ensureClientVisible(ctx, requiredString(input, 'clientId', 80));
     const deniedClientIds = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId),
@@ -9128,6 +9167,7 @@ export class MeriToolsService {
       const extracted = await this.engagement.extractAttachmentText(ctx, selection.documentId, {
         clientId,
         section: selection.section,
+        ...(ownerOptions.allowPaidExtraction === false ? { allowPaidExtraction: false } : {}),
         ...(meriToolRequestControl()?.signal ? { signal: meriToolRequestControl()!.signal } : {}),
       });
       return buildDocumentReadPage(clientId, selection, extracted);

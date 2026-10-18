@@ -6,7 +6,7 @@ import {
   prepareDocumentRead,
   projectDocumentRead,
   RetainedDocumentsMondayRefusal,
-  type DocumentPricingEvidence,
+  type DocumentExecutionPolicy,
   type TrustedClientReadContext,
 } from './documents-monday.js';
 
@@ -51,20 +51,24 @@ export async function readWithCurrentDocumentFacts(
   ctx: TenantContext,
   current: TrustedClientReadContext,
   normalizedInput: Record<string, unknown>,
-  pricing: DocumentPricingEvidence | undefined,
+  pricing: DocumentExecutionPolicy | undefined,
   readCanonical: (legacyInput: Record<string, unknown>) => Promise<unknown>,
   now: () => number = Date.now,
+  assertActive: () => void = () => {},
 ): Promise<Record<string, unknown>> {
   if (ctx.tenantId !== current.binding.tenantId || ctx.userId !== current.binding.actorId)
     fail('Document caller differs from delegated task');
-  // Require the actual measured runtime cap and prices before even a metadata
-  // list, because Meri reserves the operation's worst-case tariff up front.
+  assertActive();
+  // The provider-free policy is enforced by the actual extraction owner. It
+  // does not supply the missing paid tariff required by Meri allocation.
   const legacyInput = prepareDocumentRead(normalizedInput, current, pricing);
   const documentId = normalizedInput.mode === 'read' ? normalizedInput.documentId as string : null;
   const before = facts(await engagement.listAttachments(ctx, { clientId: current.selectedClientId }), current.selectedClientId);
+  assertActive();
   if (documentId !== null && (!before.some((row) => row.id === documentId && row.usable)))
     fail('Document is not currently readable');
   const raw = await readCanonical(legacyInput);
+  assertActive();
   let body: Record<string, unknown>;
   try {
     const bytes = JSON.stringify(raw);
@@ -72,6 +76,7 @@ export async function readWithCurrentDocumentFacts(
     body = JSON.parse(bytes) as Record<string, unknown>;
   } catch { fail('Document result is not JSON'); }
   const after = facts(await engagement.listAttachments(ctx, { clientId: current.selectedClientId }), current.selectedClientId);
+  assertActive();
   sameSelectedFacts(before, after, documentId);
   if (documentId === null) {
     const names = before.filter((row) => !normalizedInput.query ||
@@ -82,6 +87,19 @@ export async function readWithCurrentDocumentFacts(
     const data = body as { documents?: Array<{ id?: unknown }> };
     if (!Array.isArray(data.documents) || sha256(data.documents.map((row) => row.id)) !== sha256(expected.map((row) => row.id)))
       fail('Canonical document list differs from the same-read visible inventory');
+    if (!body.coverage || typeof body.coverage !== 'object' || Array.isArray(body.coverage))
+      fail('Canonical document coverage is malformed');
+    const coverage = body.coverage as Record<string, unknown>;
+    if (coverage.total !== names.length || coverage.truncated !== (eligible.length > expected.length))
+      fail('Canonical document coverage differs from current inventory');
+    for (const [index, returned] of data.documents.entries()) {
+      const source = expected[index]!;
+      const row = returned as Record<string, unknown>;
+      if (row.fileName !== source.fileName || row.contentType !== source.contentType ||
+          row.byteSize !== source.byteSize || row.usable !== source.usable ||
+          row.blockedReason !== source.blockedReason)
+        fail('Canonical document metadata differs from current inventory');
+    }
   } else {
     const row = after.find((candidate) => candidate.id === documentId)!;
     const data = body as { document?: { contentHash?: unknown } };

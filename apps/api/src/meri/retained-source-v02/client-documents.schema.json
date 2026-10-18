@@ -1,0 +1,947 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:client-documents:0.2.0",
+  "$comment": "Private pure list/read contract. Meri lineage wrapper is new; shape/cursor/hash correlations do not prove current access, scan/extraction truth or source authenticity.",
+  "$defs": {
+    "ClientDocumentsJson": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "maxLength": 1048576
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClientDocumentsJson"
+          },
+          "maxItems": 10000
+        },
+        {
+          "type": "object",
+          "maxProperties": 10000,
+          "additionalProperties": {
+            "$ref": "#/$defs/ClientDocumentsJson"
+          }
+        }
+      ]
+    },
+    "ClientDocumentsContext": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding"
+        },
+        "subject": {
+          "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject"
+        }
+      },
+      "required": [
+        "binding",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsInput": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "characterOffset": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cursor": {
+          "type": "string",
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "clientId"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentCursor": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sectionHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "documentId",
+        "clientId",
+        "contentHash",
+        "query",
+        "section",
+        "offset"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsSelection": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "list",
+            "read"
+          ]
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "documentId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "characterOffset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6000
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cursorBinding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClientDocumentCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "listAfter": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "clientId",
+        "documentId",
+        "query",
+        "section",
+        "characterOffset",
+        "limit",
+        "cursor",
+        "cursorBinding",
+        "listAfter"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentReadability": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "text_readable",
+            "ocr_readable",
+            "ocr_partial",
+            "ocr_unavailable",
+            "no_readable_text"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "text",
+            "openai_pdf"
+          ]
+        },
+        "scope": {
+          "const": "section"
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "sectionCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "chars": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "status",
+        "method",
+        "scope",
+        "section",
+        "sectionCount",
+        "chars",
+        "note"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentListItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "fileName": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "contentType": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "byteSize": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "indexedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extractionStatus": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extractionMetadata": {
+          "$ref": "#/$defs/ClientDocumentsJson"
+        },
+        "usable": {
+          "type": "boolean"
+        },
+        "blockedReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "ATTACHMENT_QUARANTINED",
+                "ATTACHMENT_BLOCKED",
+                "ATTACHMENT_DELETE_PENDING",
+                "ATTACHMENT_SCAN_PENDING",
+                "ATTACHMENT_SCAN_THREAT",
+                "ATTACHMENT_SCAN_UNSUPPORTED",
+                "ATTACHMENT_SCAN_ACCESS_DENIED",
+                "ATTACHMENT_SCAN_FAILED",
+                "ATTACHMENT_NEVER_SCANNED"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disclosure": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "fileName",
+        "contentType",
+        "byteSize",
+        "createdAt",
+        "indexedAt",
+        "extractionStatus",
+        "extractionMetadata",
+        "usable",
+        "blockedReason",
+        "disclosure"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsListCoverage": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "paginationComplete": {
+          "type": "boolean"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 240
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "queryAppliesTo": {
+          "const": "fileName"
+        }
+      },
+      "required": [
+        "total",
+        "returned",
+        "truncated",
+        "nextCursor",
+        "complete",
+        "paginationComplete",
+        "query",
+        "queryAppliesTo"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsListData": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "const": "read_client_documents"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "coverage": {
+          "$ref": "#/$defs/ClientDocumentsListCoverage"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClientDocumentListItem"
+          },
+          "maxItems": 50
+        }
+      },
+      "required": [
+        "tool",
+        "generatedAt",
+        "clientId",
+        "coverage",
+        "note",
+        "documents"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsReadCoverage": {
+      "type": "object",
+      "properties": {
+        "contentScope": {
+          "type": "string",
+          "enum": [
+            "provider_transcribed_page_text",
+            "extractable_text_only"
+          ]
+        },
+        "extractedSectionEmpty": {
+          "type": "boolean"
+        },
+        "readability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClientDocumentReadability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "continuationBlocked": {
+          "type": "boolean"
+        },
+        "missingContent": {
+          "const": true
+        },
+        "nextAction": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "explicitNextSection": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "sectionCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "sectionCharacters": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "characterStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "characterEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sectionComplete": {
+          "type": "boolean"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 240
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matched": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extractionTruncated": {
+          "type": "boolean"
+        },
+        "extractionMetadata": {
+          "$ref": "#/$defs/ClientDocumentsJson"
+        },
+        "disclosure": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "contentScope",
+        "extractedSectionEmpty",
+        "readability",
+        "continuationBlocked",
+        "nextCursor",
+        "truncated",
+        "complete",
+        "section",
+        "sectionCount",
+        "sectionCharacters",
+        "characterStart",
+        "characterEnd",
+        "sectionComplete",
+        "query",
+        "matched",
+        "extractionTruncated",
+        "extractionMetadata",
+        "disclosure",
+        "note"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentPayload": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "fileName": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "contentType": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "text",
+            "docx",
+            "pdf",
+            "spreadsheet",
+            "pptx",
+            "transcription"
+          ]
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "sectionKind": {
+          "type": "string",
+          "enum": [
+            "document",
+            "page",
+            "slide",
+            "sheet_rows"
+          ]
+        },
+        "sectionLabel": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "rowStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rowEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "characterStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "characterEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 6000
+        }
+      },
+      "required": [
+        "id",
+        "documentId",
+        "title",
+        "fileName",
+        "contentType",
+        "source",
+        "section",
+        "sectionKind",
+        "sectionLabel",
+        "characterStart",
+        "characterEnd",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentProvenance": {
+      "type": "object",
+      "properties": {
+        "sourceTable": {
+          "const": "engagement_attachment"
+        },
+        "sourceRecordId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "sectionHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "characterStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "characterEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "trust": {
+          "const": "external_untrusted"
+        }
+      },
+      "required": [
+        "sourceTable",
+        "sourceRecordId",
+        "clientId",
+        "contentHash",
+        "sectionHash",
+        "section",
+        "characterStart",
+        "characterEnd",
+        "trust"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentReadRecord": {
+      "type": "object",
+      "properties": {
+        "recordId": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "payload": {
+          "$ref": "#/$defs/ClientDocumentPayload"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ClientDocumentProvenance"
+        }
+      },
+      "required": [
+        "recordId",
+        "payload",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsReadData": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "const": "read_client_documents"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "document": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "fileName": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "contentType": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "contentHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "id",
+            "fileName",
+            "contentType",
+            "contentHash"
+          ],
+          "additionalProperties": false
+        },
+        "coverage": {
+          "$ref": "#/$defs/ClientDocumentsReadCoverage"
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClientDocumentReadRecord"
+          },
+          "maxItems": 1
+        }
+      },
+      "required": [
+        "tool",
+        "generatedAt",
+        "clientId",
+        "document",
+        "coverage",
+        "records"
+      ],
+      "additionalProperties": false
+    },
+    "ClientDocumentsResult": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding"
+        },
+        "subject": {
+          "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ClientDocumentsListData"
+            },
+            {
+              "$ref": "#/$defs/ClientDocumentsReadData"
+            }
+          ]
+        }
+      },
+      "required": [
+        "binding",
+        "subject",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

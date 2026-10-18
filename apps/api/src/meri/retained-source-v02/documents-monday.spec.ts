@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildDocumentReadPage, parseDocumentReadInput } from '../meri-document-read.helpers.js';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import {
   assertDocumentPricing,
+  NO_DOCUMENT_PROVIDER_CALLS,
   prepareDocumentRead,
   prepareMondayRead,
   projectDocumentRead,
@@ -17,8 +19,9 @@ const id = (digit: string) => `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.re
 const clientId = id('a');
 const current: TrustedClientReadContext = {
   selectedClientId: clientId,
-  binding: { tenantId: id('1'), actorId: id('2'), conversationId: id('3'), runId: id('4') },
-  subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId: id('1'), actorId: id('2') },
+  binding: { tenantId: id('1'), actorId: id('2'), conversationId: id('3'), runId: id('4'), attemptId: id('5'), workerId: id('6'), writerFence: 1 },
+  subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId: id('1'), actorId: id('2'), authorizationDecisionId: id('7'), policyRevision: 'policy-1', rosterVersionId: null,
+    scopes: [{ tenantId: id('1'), kind: 'client', resourceId: clientId, policyRevision: 'policy-1' }] },
 };
 const mapping: CurrentManagedBoardMapping = {
   tenantId: id('1'), userId: id('2'), clientId, mappingVersionId: 'mapping-revision-1', boardIds: ['101'],
@@ -51,9 +54,9 @@ const mondayBody = () => ({
 const pin = 'a'.repeat(64);
 const pricing: DocumentPricingEvidence = {
   vision: { model: 'gpt-6-astra', inputMicrousdPerMillionTokens: 1000, outputMicrousdPerMillionTokens: 1000,
-    maxInputTokens: 1000, coreSourceCommit: pin, coreImageDigest: `sha256:${pin}`, configurationSha256: pin },
+    maxInputTokens: 1000, coreSourceCommit: pin.slice(0, 40), coreImageDigest: `sha256:${pin}`, configurationSha256: pin },
   transcription: { model: 'whisper-1', microusdPerMinute: 6000, maxAudioSeconds: 600,
-    coreSourceCommit: pin, coreImageDigest: `sha256:${pin}`, configurationSha256: pin },
+    coreSourceCommit: pin.slice(0, 40), coreImageDigest: `sha256:${pin}`, configurationSha256: pin },
   runtimeMaxAudioSeconds: 600, runtimeCapEnforced: true,
 };
 
@@ -119,6 +122,16 @@ describe('retained 0.2 Monday and document source projections', () => {
     expect(() => prepareDocumentRead({ ...documentInput(), clientId: id('b') }, current, pricing)).toThrow();
   });
 
+  it('uses a Git SHA40 source pin and exact bounded integer tariff inputs', () => {
+    expect(() => assertDocumentPricing(pricing)).not.toThrow();
+    expect(() => assertDocumentPricing({ ...pricing, vision: { ...pricing.vision, coreSourceCommit: pin } })).toThrow();
+    expect(() => assertDocumentPricing({ ...pricing, vision: { ...pricing.vision, maxInputTokens: 2000001 } })).toThrow();
+    expect(() => assertDocumentPricing({ ...pricing, transcription: { ...pricing.transcription, microusdPerMinute: 0.5 } })).toThrow();
+    expect(prepareDocumentRead(documentInput(), current, NO_DOCUMENT_PROVIDER_CALLS)).toEqual({ clientId, limit: 25 });
+    expect(() => prepareDocumentRead({ ...documentInput(), allowPaidExtraction: true }, current,
+      NO_DOCUMENT_PROVIDER_CALLS)).toThrow();
+  });
+
   it('translates a source-bound document cursor without repeating explicit section fields', () => {
     const cursorBinding = { version: 1, documentId: 'doc-1', clientId, contentHash: 'c'.repeat(64),
       query: '', section: 2, offset: 500 };
@@ -131,7 +144,11 @@ describe('retained 0.2 Monday and document source projections', () => {
 
   it('wraps a canonical inventory only with source hash and selected-client lineage', () => {
     const body = { tool: 'read_client_documents', clientId, generatedAt: '2026-10-18T09:59:00.000Z',
-      coverage: { returned: 1 }, documents: [{ id: 'doc-1' }] };
+      coverage: { total: 1, returned: 1, truncated: false, nextCursor: null, complete: true,
+        paginationComplete: true, query: null, queryAppliesTo: 'fileName' }, note: 'Inventory only',
+      documents: [{ id: 'doc-1', fileName: 'Evidence.txt', contentType: 'text/plain', byteSize: 10,
+        createdAt: '2026-10-18T09:00:00Z', indexedAt: null, extractionStatus: null, extractionMetadata: null,
+        usable: true, blockedReason: null, disclosure: null }] };
     expect(projectDocumentRead(body, documentInput(), current, pricing, receipt(body))).toEqual({
       binding: current.binding, subject: current.subject, data: body,
     });
@@ -143,11 +160,10 @@ describe('retained 0.2 Monday and document source projections', () => {
     const text = 'Bound, stored section text';
     const sectionHash = createHash('sha256').update(text).digest('hex');
     const contentHash = 'c'.repeat(64);
-    const body = { tool: 'read_client_documents', clientId, generatedAt: '2026-10-18T09:59:00.000Z',
-      document: { id: 'doc-1', contentHash }, coverage: { sectionComplete: true },
-      records: [{ payload: { documentId: 'doc-1', text }, provenance: {
-        sourceRecordId: 'doc-1', clientId, contentHash, sectionHash,
-      } }] };
+    const body = JSON.parse(JSON.stringify(buildDocumentReadPage(clientId,
+      parseDocumentReadInput({ documentId: 'doc-1' }, clientId), { attachmentId: 'doc-1',
+        fileName: 'Evidence.txt', contentType: 'text/plain', contentHash, text, source: 'text' })));
+    body.generatedAt = '2026-10-18T09:59:00.000Z';
     expect(projectDocumentRead(body, documentInput('doc-1'), current, pricing, receipt(body))).toMatchObject({ data: body });
     const altered = structuredClone(body);
     altered.records[0]!.provenance.sectionHash = 'd'.repeat(64);

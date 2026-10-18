@@ -7863,9 +7863,14 @@ export class EngagementService {
       contextImport?: boolean;
       contextSourceOnly?: boolean;
       signal?: AbortSignal;
+      /** Trusted source-owner option. Never populated from tool arguments. */
+      allowPaidExtraction?: boolean;
     } = {},
   ) {
     options.signal?.throwIfAborted();
+    if (options.allowPaidExtraction === false && options.contextImport) {
+      throw new ServiceUnavailableException('Provider extraction is disabled for this document read');
+    }
     if ((options.contextImport || options.contextSourceOnly) && !options.clientId) {
       throw new BadRequestException('Select the client before reading a strategy document');
     }
@@ -7952,6 +7957,11 @@ export class EngagementService {
     // Audio/video transcription stays here: it needs the OpenAI key this service
     // holds, and it is not a document-extraction path.
     if (isTranscribableAttachment(fileName, contentType)) {
+      // A byte ceiling does not bound duration. Retained source reads cannot
+      // reach Whisper until a qualified duration/cost boundary is adopted.
+      if (options.allowPaidExtraction === false) {
+        throw new ServiceUnavailableException('Provider transcription is disabled for this document read');
+      }
       if (options.section !== undefined && options.section !== 1) {
         throw new BadRequestException('Transcriptions have one text section');
       }
@@ -8007,7 +8017,7 @@ export class EngagementService {
         chars: text.length,
         note: 'Only this section has been read. Text extraction does not cover diagrams or images.',
       };
-      if (extracted.source === 'pdf' && !text.trim()) {
+      if (extracted.source === 'pdf' && !text.trim() && options.allowPaidExtraction !== false) {
         const visual = await this.attachmentPdfVision.read({
           bytes,
           section: extracted.section,
@@ -8019,6 +8029,8 @@ export class EngagementService {
         });
         text = visual.text;
         readability = visual.readability;
+      } else if (extracted.source === 'pdf' && !text.trim()) {
+        readability.note = 'Provider extraction is disabled for this document read. The text layer contains no readable text in this section.';
       }
       const truncated = readability.status === 'ocr_partial';
       const extractionMetadata = {
