@@ -1009,10 +1009,8 @@ export class MeriController {
   }
 
   /**
-   * Propose a correction to a memory the caller is not authorized to edit
-   * (Phase 2 Step 9). Deliberately NOT role-gated: the whole point is that a
-   * standard user can raise a correction on firm/client memory. It only ever
-   * creates a PENDING candidate for admin review — never a direct write.
+   * Legacy key-only correction route. The service checks source visibility and
+   * returns a canonical version-review conflict without writing a candidate.
    */
   @Post('memory/:id/suggest-correction')
   async suggestMemoryCorrection(

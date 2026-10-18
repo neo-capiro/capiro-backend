@@ -49,6 +49,9 @@ function buildService(opts: {
     auditLog: { create: jest.fn().mockResolvedValue({}) },
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = Prisma.sql(strings, ...values);
+      if (sql.text.includes('FROM clio_memory') && sql.text.includes('FOR UPDATE')) {
+        return opts.clioMemoryRow ? [opts.clioMemoryRow] : [];
+      }
       if (sql.text.includes('FROM memory_candidate mc')) return opts.linked ?? [];
       if (sql.text.includes('FROM memory_items')) {
         return projectionId ? [{ id: projectionId, legal_hold: opts.legalHold }] : [];
@@ -117,6 +120,12 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
       }),
     });
     expect(memoryIngest.removeClioMemory).toHaveBeenCalledWith('t1', 'm1', 'projection-1');
+    const reads = tx.$queryRaw.mock.calls.map(([strings, ...values]) =>
+      Prisma.sql(strings, ...values).text,
+    );
+    expect(reads[0]).toContain('FROM clio_memory');
+    expect(reads[0]).toContain('FOR UPDATE');
+    expect(reads.findIndex((sql) => sql.includes('FROM memory_items'))).toBeGreaterThan(0);
     const revoked = tx.$executeRaw.mock.calls.map(([strings, ...values]) =>
       Prisma.sql(strings, ...values).text,
     );
@@ -126,7 +135,7 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
   it('404s when the row does not exist (no legal-hold/audit calls at all)', async () => {
     const { service, tx } = buildService({ clioMemoryRow: null, legalHold: false });
     await expect(service.forgetMemory(ctx, 'missing')).rejects.toThrow(NotFoundException);
-    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
   });
 
@@ -150,7 +159,7 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
       legalHold: false, wallAllowed: false,
     });
     await expect(service.forgetMemory(ctx, 'm1')).rejects.toThrow(NotFoundException);
-    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.clioMemory.deleteMany).not.toHaveBeenCalled();
   });
 
@@ -273,6 +282,12 @@ describe('MeriService.updateMemory — legal hold + audit trail', () => {
       }),
     });
     expect(memoryIngest.projectClioMemory).toHaveBeenCalledWith('t1', 'm1');
+    const reads = tx.$queryRaw.mock.calls.map(([strings, ...values]) =>
+      Prisma.sql(strings, ...values).text,
+    );
+    expect(reads[0]).toContain('FROM clio_memory');
+    expect(reads[0]).toContain('FOR UPDATE');
+    expect(reads.findIndex((sql) => sql.includes('FROM memory_items'))).toBeGreaterThan(0);
   });
 
   it('denies a walled client edit before touching the projection', async () => {
@@ -281,7 +296,7 @@ describe('MeriService.updateMemory — legal hold + audit trail', () => {
       legalHold: false, wallAllowed: false,
     });
     await expect(service.updateMemory(ctx, 'm1', 'new value')).rejects.toThrow(NotFoundException);
-    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.clioMemory.updateMany).not.toHaveBeenCalled();
   });
 
