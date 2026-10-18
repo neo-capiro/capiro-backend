@@ -74,6 +74,18 @@ export const MERI_RETAINED_SOURCE_TOOLS: ReadonlySet<string> = new Set([
   'read_client_documents', 'find_contacts',
 ]);
 
+/** Correlation-bearing token operations. Keep the eleven retained receiver
+ * names separate: actions.query has its own exact controller branch. */
+export const MERI_CORRELATED_READ_TOOLS: ReadonlySet<string> = new Set([
+  ...MERI_RETAINED_SOURCE_TOOLS, 'actions.query',
+]);
+
+export function isMeriCorrelatedReadOperationVersion(operation: { id: string; version: string } | null): boolean {
+  return operation !== null && (operation.id === 'actions.query'
+    ? operation.version === '0.2.0'
+    : isMeriRetainedSourceOperationVersion(operation));
+}
+
 /** Profile observation changed its output contract: only 0.3.0 may cross
  * this source route. Other retained source operations remain exact 0.2.0. */
 export function isMeriRetainedSourceOperationVersion(operation: { id: string; version: string } | null): boolean {
@@ -188,12 +200,9 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
       v.method !== 'POST' || typeof v.path !== 'string' || !isSha(v.bodySha256) || !(v.retryOf === null || isSha(v.retryOf))) throw invalid('token');
   const kind = v.kind as ReadTokenKind;
   const operation = v.operation === null ? null : operationRef(v.operation, 'operation');
-  if (kind === 'tool' && operation?.id === 'actions.query' && operation.version !== '0.2.0') {
-    throw invalid('actions.query operation');
-  }
-  const retainedSource = kind === 'tool' && operation !== null && MERI_RETAINED_SOURCE_TOOLS.has(operation.id);
-  if (retainedSource && !isMeriRetainedSourceOperationVersion(operation)) throw invalid('retained source operation');
-  if (retainedSource ? !isSha(v.correlationSha256) : Object.hasOwn(v, 'correlationSha256')) throw invalid('correlationSha256');
+  const correlated = kind === 'tool' && operation !== null && MERI_CORRELATED_READ_TOOLS.has(operation.id);
+  if (correlated && !isMeriCorrelatedReadOperationVersion(operation)) throw invalid('correlated read operation');
+  if (correlated ? !isSha(v.correlationSha256) : Object.hasOwn(v, 'correlationSha256')) throw invalid('correlationSha256');
   const nulls = (...keys: string[]) => keys.every((k) => v[k] === null);
   if (kind === 'tool') {
     if (!operation || v.path !== toolPath(operation.id) || !isSha(v.argumentsSha256) || !nulls('toolRequestSha256', 'referenceSha256')) throw invalid('tool');
@@ -211,12 +220,12 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
   const request = {
     schemaVersion: 1, kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256, operation,
     argumentsSha256: v.argumentsSha256, toolRequestSha256: v.toolRequestSha256, referenceSha256: v.referenceSha256,
-    ...(retainedSource ? { correlationSha256: v.correlationSha256 } : {}), retryOf: null,
+    ...(correlated ? { correlationSha256: v.correlationSha256 } : {}), retryOf: null,
   };
   return {
     kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256 as string, operation,
     argumentsSha256: v.argumentsSha256 as string | null, toolRequestSha256: v.toolRequestSha256 as string | null,
-    referenceSha256: v.referenceSha256 as string | null, correlationSha256: retainedSource ? v.correlationSha256 as string : null,
+    referenceSha256: v.referenceSha256 as string | null, correlationSha256: correlated ? v.correlationSha256 as string : null,
     retryOf: v.retryOf as string | null, requestDigest: canonicalSha256(request),
   };
 }
