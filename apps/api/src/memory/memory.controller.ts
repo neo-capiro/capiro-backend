@@ -327,14 +327,20 @@ export class MemoryController {
     return { ok: true };
   }
 
-  /**
-   * The caller's own pending personal-scope candidates. W8 Meri submissions
-   * stay pending (no inline commit), and personal candidates have no shared
-   * review request, so this is where their owner sees them.
-   */
+  /** The caller's paged, owner-only pending personal candidates. */
   @Get('candidates/mine')
-  async listOwnCandidates(@CurrentTenant() ctx: TenantContext) {
-    return { candidates: await this.candidates.listOwnPersonalPending(ctx) };
+  async listOwnCandidates(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.candidates.pageOwnPersonalPending(ctx, { limit, cursor });
+  }
+
+  /** Exact owner-only status lets a client reconcile an uncertain decision response. */
+  @Get('candidates/mine/:id/status')
+  async ownCandidateStatus(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.candidates.ownPersonalCandidateStatus(ctx, id);
   }
 
   /** Owner decision on the caller's own personal-scope candidate only. */

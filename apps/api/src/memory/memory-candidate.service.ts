@@ -154,6 +154,94 @@ export interface OwnPersonalCandidate {
   createdAt: string;
 }
 
+export interface OwnPersonalCandidatePage {
+  version: 1;
+  candidates: OwnPersonalCandidate[];
+  nextCursor: string | null;
+}
+
+export interface OwnPersonalCandidateStatus {
+  version: 1;
+  id: string;
+  /** Exact candidate state. A conflicted or duplicate version can still be approved. */
+  status: string;
+  /** Only a decided candidate can resolve an uncertain owner decision. */
+  terminal: boolean;
+  decidedAt: string | null;
+  committedMemoryId: string | null;
+  committedMemoryItemId: string | null;
+}
+
+interface OwnPersonalCursor {
+  createdAt: string;
+  id: string;
+  tenantId: string;
+  userId: string;
+}
+
+interface OwnPersonalCandidateRow {
+  id: string;
+  key: string;
+  value: string;
+  sourceType: string;
+  sourceKind: string;
+  createdAt: Date;
+  cursorCreatedAt: string;
+}
+
+const OWN_PERSONAL_CURSOR_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+const OWN_PERSONAL_TERMINAL_STATUSES = new Set([
+  'approved',
+  'rejected',
+  'auto_committed',
+  'withdrawn',
+  'superseded',
+]);
+
+function ownPersonalPageSize(value: unknown): number {
+  if (value === undefined || value === null || value === '') return 50;
+  if (
+    (typeof value !== 'number' && (typeof value !== 'string' || !/^[1-9]\d{0,2}$/.test(value))) ||
+    !Number.isInteger(Number(value)) ||
+    Number(value) < 1 ||
+    Number(value) > 100
+  ) {
+    throw new BadRequestException('Personal memory page size must be an integer from 1 to 100.');
+  }
+  return Number(value);
+}
+
+function ownPersonalCursor(value: unknown, ctx: CandidateActorContext): OwnPersonalCursor | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 1024) {
+    throw new BadRequestException('Personal memory cursor is invalid.');
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    const createdAt = parsed.createdAt;
+    const id = parsed.id;
+    if (
+      parsed.v !== 1 ||
+      parsed.tenantId !== ctx.tenantId ||
+      parsed.userId !== ctx.userId ||
+      typeof createdAt !== 'string' ||
+      !OWN_PERSONAL_CURSOR_TIME.test(createdAt) ||
+      Number.isNaN(Date.parse(createdAt)) ||
+      new Date(createdAt).toISOString().slice(0, 19) !== createdAt.slice(0, 19) ||
+      typeof id !== 'string' ||
+      !CANDIDATE_UUID.test(id)
+    ) {
+      throw new Error('Invalid cursor fields');
+    }
+    return { createdAt, id, tenantId: ctx.tenantId, userId: ctx.userId };
+  } catch {
+    throw new BadRequestException('Personal memory cursor is invalid.');
+  }
+}
+
 export interface SettingsMemoryCandidateInput {
   type: MemoryItemType;
   slug: string;
@@ -682,24 +770,129 @@ export class MemoryCandidateService {
     }
   }
 
-  /** The caller's own pending personal candidates, newest first. */
+  /** The caller's own pending personal candidates, newest first. Legacy callers get the first 100. */
   async listOwnPersonalPending(ctx: TenantContext): Promise<OwnPersonalCandidate[]> {
+    return (await this.pageOwnPersonalPending(ctx, { limit: 100 })).candidates;
+  }
+
+  /**
+   * Versioned owner inbox. Eligibility lives in SQL before LIMIT: a malformed
+   * payload or walled client must not consume a slot and hide a later candidate.
+   * The cursor preserves all six Postgres timestamp fractional digits; converting
+   * the key to a JS Date first would skip tied millisecond rows across pages.
+   */
+  async pageOwnPersonalPending(
+    ctx: TenantContext,
+    input: { limit?: unknown; cursor?: unknown } = {},
+  ): Promise<OwnPersonalCandidatePage> {
+    const limit = ownPersonalPageSize(input.limit);
+    const after = ownPersonalCursor(input.cursor, ctx);
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      tx.memoryCandidate.findMany({
-        where: { tenantId: ctx.tenantId, proposedBy: ctx.userId, scope: 'personal', status: 'pending' },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-        select: { id: true, payload: true, sourceType: true, sourceKind: true, createdAt: true },
-      }),
+      tx.$queryRaw<OwnPersonalCandidateRow[]>`
+        SELECT mc.id::text AS id,
+               mc.payload_jsonb->>'key' AS key,
+               mc.payload_jsonb->>'value' AS value,
+               mc.source_type AS "sourceType",
+               mc.source_kind AS "sourceKind",
+               mc.created_at AS "createdAt",
+               to_char(mc.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "cursorCreatedAt"
+        FROM memory_candidate mc
+        WHERE mc.tenant_id = ${ctx.tenantId}::uuid
+          AND mc.proposed_by = ${ctx.userId}::uuid
+          AND mc.scope = 'personal' AND mc.status = 'pending'
+          AND mc.payload_jsonb->>'ownerUserId' = ${ctx.userId}
+          AND mc.payload_jsonb->>'scope' = 'user_private'
+          AND jsonb_typeof(mc.payload_jsonb->'key') = 'string'
+          AND jsonb_typeof(mc.payload_jsonb->'value') = 'string'
+          AND (mc.payload_jsonb->>'clientId') IS NOT DISTINCT FROM mc.client_id::text
+          AND (mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM clients c
+            WHERE c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+              AND (NOT c.memory_wall OR EXISTS (
+                SELECT 1 FROM client_memory_access a
+                WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
+                  AND a.user_id = ${ctx.userId}::uuid
+              ))
+          ))
+          AND (${after?.createdAt ?? null}::timestamptz IS NULL
+               OR (mc.created_at, mc.id) < (${after?.createdAt ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+        ORDER BY mc.created_at DESC, mc.id DESC
+        LIMIT ${limit + 1}
+      `,
     );
-    return rows.flatMap((row) => {
-      const p = row.payload as { key?: unknown; value?: unknown; ownerUserId?: unknown } | null;
-      if (!p || p.ownerUserId !== ctx.userId || typeof p.key !== 'string' || typeof p.value !== 'string') return [];
-      const kind = row.sourceKind === 'memory_correction' ? 'correction' as const
-        : row.sourceKind === 'memory_restore' ? 'restore' as const
-        : row.sourceKind === 'memory_contradiction' ? 'contradiction' as const : 'addition' as const;
-      return [{ id: row.id, kind, key: p.key, value: p.value, sourceType: row.sourceType, createdAt: row.createdAt.toISOString() }];
-    });
+    const selected = rows.slice(0, limit);
+    const last = selected.at(-1);
+    return {
+      version: 1,
+      candidates: selected.map((row) => ({
+        id: row.id,
+        kind: row.sourceKind === 'memory_correction' ? 'correction'
+          : row.sourceKind === 'memory_restore' ? 'restore'
+          : row.sourceKind === 'memory_contradiction' ? 'contradiction' : 'addition',
+        key: row.key,
+        value: row.value,
+        sourceType: row.sourceType,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      nextCursor: rows.length > limit && last
+        ? Buffer.from(JSON.stringify({
+            v: 1, createdAt: last.cursorCreatedAt, id: last.id,
+            tenantId: ctx.tenantId, userId: ctx.userId,
+          }), 'utf8').toString('base64url')
+        : null,
+    };
+  }
+
+  /** Status for exactly one eligible personal candidate of this owner, including terminal history. */
+  async ownPersonalCandidateStatus(
+    ctx: TenantContext,
+    candidateId: string,
+  ): Promise<OwnPersonalCandidateStatus> {
+    const missing = () => new NotFoundException('No personal memory candidate of yours with that id.');
+    if (!CANDIDATE_UUID.test(candidateId)) throw missing();
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.$queryRaw<Array<{
+        id: string;
+        status: string;
+        decidedAt: Date | null;
+        committedMemoryId: string | null;
+        committedMemoryItemId: string | null;
+      }>>`
+        SELECT mc.id::text AS id, mc.status,
+               mc.decided_at AS "decidedAt",
+               mc.committed_memory_id::text AS "committedMemoryId",
+               mc.committed_memory_item_id::text AS "committedMemoryItemId"
+        FROM memory_candidate mc
+        WHERE mc.id = ${candidateId}::uuid AND mc.tenant_id = ${ctx.tenantId}::uuid
+          AND mc.proposed_by = ${ctx.userId}::uuid AND mc.scope = 'personal'
+          AND mc.payload_jsonb->>'ownerUserId' = ${ctx.userId}
+          AND mc.payload_jsonb->>'scope' = 'user_private'
+          AND jsonb_typeof(mc.payload_jsonb->'key') = 'string'
+          AND jsonb_typeof(mc.payload_jsonb->'value') = 'string'
+          AND (mc.payload_jsonb->>'clientId') IS NOT DISTINCT FROM mc.client_id::text
+          AND (mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM clients c
+            WHERE c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+              AND (NOT c.memory_wall OR EXISTS (
+                SELECT 1 FROM client_memory_access a
+                WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
+                  AND a.user_id = ${ctx.userId}::uuid
+              ))
+          ))
+        LIMIT 1
+      `,
+    );
+    const row = rows[0];
+    if (!row) throw missing();
+    return {
+      version: 1,
+      id: row.id,
+      status: row.status,
+      terminal: OWN_PERSONAL_TERMINAL_STATUSES.has(row.status),
+      decidedAt: row.decidedAt?.toISOString() ?? null,
+      committedMemoryId: row.committedMemoryId,
+      committedMemoryItemId: row.committedMemoryItemId,
+    };
   }
 
   /**
