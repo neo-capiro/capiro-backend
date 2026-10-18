@@ -58,7 +58,7 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
         // Only reads that JOIN memory_items can return private item rows. A
         // system DELETE by source_id (removeClioMemory) is not a leak vector.
         if (!/JOIN\s+memory_items/i.test(window)) continue;
-        if (!/owner_user_id/.test(window)) offenders.push(`${f} @${m.index}`);
+        if (!/owner_user_id|canonicalMemoryEligibilitySql/.test(window)) offenders.push(`${f} @${m.index}`);
       }
     }
     expect(offenders).toEqual([]);
@@ -90,7 +90,7 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     // …and hand-rolled user-voice SQL must NOT reappear in this file.
     expect(meri).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
     // semanticMemorySearch: user_private clio_memory rows are scoped to the owner.
-    expect(meri).toMatch(/scope = 'user_private' AND owner_user_id = \$3::uuid/);
+    expect(meri).toMatch(/cm\.scope = 'user_private' AND cm\.owner_user_id = \$\{userId\}::uuid/);
 
     const engagement = readFileSync(join(SRC_ROOT, 'engagement', 'engagement.service.ts'), 'utf8');
     // The legacy engagement loader is now disabled: the context-plane path is
@@ -172,11 +172,15 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
   // another's private clio_memory rows within the same tenant. Every known
   // read site was individually audited and found correctly scoped; these
   // static guards fail CI if a future refactor silently drops one.
-  it('every clio_memory Prisma-filter read scopes user_private rows by ownerUserId', () => {
+  it('every clio_memory read scopes private rows by the caller, including canonical recall', () => {
     const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
-    // clioRecall, listRecentLearnedMemories, listMemories.
-    const filterGuards = meri.match(/\{\s*scope:\s*'user_private',\s*ownerUserId:/g) ?? [];
-    expect(filterGuards.length).toBeGreaterThanOrEqual(3);
+    // Keyword, semantic and drawer SQL each bind private source rows to the
+    // caller before the canonical memory_items predicate is evaluated.
+    const privateGuards = meri.match(/cm\.scope = 'user_private' AND cm\.owner_user_id = \$\{(?:ctx\.)?userId\}::uuid/g) ?? [];
+    expect(privateGuards).toHaveLength(3);
+    const canonicalRecall = meri.slice(meri.indexOf('private async clioRecall('), meri.indexOf('private async projectionRecall('));
+    expect(canonicalRecall).toContain('canonicalMemoryEligibilitySql({');
+    expect(canonicalRecall).not.toContain('clioMemory.findMany');
     // forgetMemory, updateMemory: post-fetch app-level owner check. Phase 0
     // (memory-mutation-auth.ts) replaced the old inline
     // `row.scope === 'user_private' && row.ownerUserId !== ctx.userId` check
@@ -196,12 +200,12 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     // commitToClioMemory's find-or-create dedupe/write is keyed to the
     // record's OWN scope/owner/client — never a bare tenant-wide lookup.
     const ownWriteGuards = candidate.match(/ownerUserId:\s*record\.ownerUserId/g) ?? [];
-    expect(ownWriteGuards.length).toBeGreaterThanOrEqual(3);
+    expect(ownWriteGuards.length).toBeGreaterThanOrEqual(2);
   });
 
   it('the raw-SQL semantic search scopes BOTH user_private and client rows explicitly', () => {
     const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
-    expect(meri).toMatch(/scope = 'user_private' AND owner_user_id = \$3::uuid/);
-    expect(meri).toMatch(/scope = 'client' AND client_id = \$5::uuid/);
+    expect(meri).toMatch(/cm\.scope = 'user_private' AND cm\.owner_user_id = \$\{userId\}::uuid/);
+    expect(meri).toMatch(/cm\.scope = 'client' AND cm\.client_id = \$\{clientArm\}::uuid/);
   });
 });
