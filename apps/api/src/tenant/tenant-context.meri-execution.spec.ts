@@ -129,7 +129,9 @@ describe('Meri execution capability admission in the tenant middleware (create_t
     const middleware = read('tenant/tenant-context.middleware.ts');
     expect(middleware).toContain("from '../auth/core-ed25519-key-config.js'");
     expect(middleware).not.toContain('core-ed25519-kms-config');
-    for (const path of ['auth/core-ed25519-key-config.ts', 'auth/meri-execution-request.ts', 'auth/core-ed25519-signer.ts']) {
+    for (const path of ['auth/core-ed25519-key-config.ts', 'auth/meri-execution-request.ts', 'auth/core-ed25519-signer.ts',
+      'auth/read-delegation/read-delegation-request.ts', 'auth/read-delegation/read-delegation-token.ts',
+      'auth/read-delegation/read-delegation-facts.ts', 'auth/read-delegation/read-delegation.contract.ts']) {
       const source = read(path);
       const imports = [...source.matchAll(/^(?:import|export)[^;]*?from '([^']+)'/gm)].map((m) => m[1]!);
       expect({ path, imports: imports.filter((id) => id.startsWith('@aws-sdk/') || id.includes('/meri/') || id.startsWith('@capiro/meriv2')) })

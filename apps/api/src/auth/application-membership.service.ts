@@ -5,7 +5,10 @@ import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
 import { fetchAccessibleClientRevisionsForClerkActor } from '../memory/memory-wall.helpers.js';
-import { applicationAuthorityIdentityReceipt, type ApplicationAuthorityIdentityEvidence } from './application-authority.js';
+import {
+  applicationAuthorityIdentityReceipt, type ApplicationAuthorityIdentityEvidence, type ApplicationAuthorityIdentityProof,
+} from './application-authority.js';
+import { readDelegatedIdentity } from './read-delegation/read-delegation-request.js';
 import {
   APPLICATION_MEMBERSHIP_MAX_CLIENTS, applicationMembershipPermissions, applicationMembershipRevision,
   type ApplicationMembershipControl, type ApplicationMembershipReceipt, type ApplicationMembershipSnapshot,
@@ -22,14 +25,31 @@ export class ApplicationMembershipService {
   constructor(private readonly prisma: PrismaService, private readonly tenant: TenantContextMiddleware) {}
 
   async read(req: Request, ctx: TenantContext, control: ApplicationMembershipControl): Promise<ApplicationMembershipReceipt> {
+    return this.readWith(ctx, control, () => this.tenant.readApplicationAuthority(req, ctx));
+  }
+
+  /**
+   * Run-bound read delegation (RC1 option B, contract §3): the same three
+   * snapshots, `assertSame` comparisons and receipt as `read`, with identity
+   * evidence from the delegation (user, delegation and Meri run facts in one
+   * transaction) instead of the live session. Only a request the tenant
+   * middleware admitted with a `CapiroMeriRead` token carries that evidence.
+   */
+  async readDelegated(req: Request, ctx: TenantContext, control: ApplicationMembershipControl): Promise<ApplicationMembershipReceipt> {
+    return this.readWith(ctx, control, () => readDelegatedIdentity(this.prisma, req, ctx));
+  }
+
+  private async readWith(
+    ctx: TenantContext, control: ApplicationMembershipControl, identitySource: () => Promise<ApplicationAuthorityIdentityProof>,
+  ): Promise<ApplicationMembershipReceipt> {
     control.assertActive();
     if (!UUID.test(ctx.tenantId) || !UUID.test(ctx.userId) || !ctx.clerkUserId) throw denied();
-    const initial = await this.tenant.readApplicationAuthority(req, ctx);
+    const initial = await identitySource();
     control.assertActive();
     this.assertIdentity(initial, ctx);
     const first = await this.snapshot(ctx, control);
     control.assertActive();
-    const current = await this.tenant.readApplicationAuthority(req, ctx);
+    const current = await identitySource();
     control.assertActive();
     this.assertIdentity(current, ctx);
     if (initial.identityRevision !== current.identityRevision) throw changed();

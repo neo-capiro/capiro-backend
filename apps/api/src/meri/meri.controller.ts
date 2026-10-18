@@ -11,6 +11,7 @@ import {
   Post,
   NotFoundException,
   Optional,
+  ForbiddenException,
   ServiceUnavailableException,
   UnprocessableEntityException,
   Query,
@@ -42,7 +43,7 @@ import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
-import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { ToolServiceSecretGuard, hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
 import { assertMeriToolAllowed } from './meri-tool-allowlist.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
@@ -61,6 +62,13 @@ import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-resear
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { meriExecutionRequestOf } from '../auth/meri-execution-request.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  MERI_DELEGATED_READ_TOOLS, assertDelegatedToolSelectors, schemaClientSelectors, sha256Hex,
+} from '../auth/read-delegation/read-delegation.contract.js';
+import {
+  assertMeriReadDelegationReleasable, meriReadDelegationOf, type MeriReadDelegationGrant,
+} from '../auth/read-delegation/read-delegation-request.js';
 import {
   MeriExecutionReceiverService,
   assertOrdinaryToolPathAllowed,
@@ -349,6 +357,7 @@ export class MeriController {
     private readonly complianceAudit: MeriComplianceAuditService,
     private readonly claimWriter: MeriClaimWriterService,
     @Optional() private readonly executionReceiver?: MeriExecutionReceiverService,
+    @Optional() private readonly readDelegationPrisma?: PrismaService,
   ) {}
 
   @Get('status')
@@ -564,6 +573,11 @@ export class MeriController {
       return this.executionReceiver.receive(req, ctx, name, body, approvedExecution);
     }
     assertOrdinaryToolPathAllowed(name);
+    // RC1 option B: a `CapiroMeriRead` tool token the tenant middleware admitted
+    // on exactly this path and body. Read names only; every selector names the
+    // delegated client/conversation; checked again before the result is released.
+    const delegatedRead = meriReadDelegationOf(req);
+    if (delegatedRead) this.admitDelegatedReadTool(ctx, name, body, req, delegatedRead);
     const admittedRead = admitMeriReadObservation(name, body, req);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
@@ -603,6 +617,7 @@ export class MeriController {
                 : executeObservedRead();
             },
           );
+          if (delegatedRead) await this.releaseDelegatedRead(req);
           emitMeriApiTelemetry({
             name: 'meri.api.tool.finalized',
             boundary: 'api_tool',
@@ -650,8 +665,36 @@ export class MeriController {
   // so without this a doomed update_client_profile still renders as a clean
   // "pending approval" card and only fails after the user clicks it.
   @Post('clients/check-ref')
-  checkClientRef(@CurrentTenant() ctx: TenantContext, @Body() body: { ref?: string }) {
-    return this.tools.checkClientRef(ctx, typeof body?.ref === 'string' ? body.ref : '');
+  async checkClientRef(@CurrentTenant() ctx: TenantContext, @Body() body: { ref?: string }, @Req() req: Request) {
+    const delegated = meriReadDelegationOf(req);
+    if (!delegated) return this.tools.checkClientRef(ctx, typeof body?.ref === 'string' ? body.ref : '');
+    // RC1 option B `reference` token: the ref's hash is bound, and a result
+    // naming any client but the delegated one is refused and never released.
+    if (delegated.kind !== 'reference' || !body || typeof body !== 'object' || Object.keys(body).length !== 1 ||
+        typeof body.ref !== 'string' || sha256Hex(Buffer.from(body.ref, 'utf8')) !== delegated.referenceSha256) {
+      throw new ForbiddenException('Read delegation refused');
+    }
+    const result = await this.tools.checkClientRef(ctx, body.ref);
+    if (result.ok && result.clientId !== delegated.clientId) throw new ForbiddenException('Read delegation refused');
+    await this.releaseDelegatedRead(req);
+    return result.ok ? { ok: true as const, clientId: result.clientId } : result;
+  }
+
+  /** Contract §3 `tool` target checks, before dispatch. */
+  private admitDelegatedReadTool(
+    ctx: TenantContext, name: string, body: Record<string, unknown>, req: Request, grant: MeriReadDelegationGrant,
+  ): void {
+    if (grant.kind !== 'tool' || grant.operation?.id !== name || !MERI_DELEGATED_READ_TOOLS.has(name) ||
+        this.tools.isSideEffecting(name) || !hasVerifiedToolServiceIdentity(req)) {
+      throw new ForbiddenException('Read delegation refused');
+    }
+    const schema = this.tools.anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' }).find((tool) => tool.name === name);
+    assertDelegatedToolSelectors(body, grant, schemaClientSelectors(schema?.input_schema));
+  }
+
+  private async releaseDelegatedRead(req: Request): Promise<void> {
+    if (!this.readDelegationPrisma) throw new ServiceUnavailableException('Read delegation unavailable');
+    await assertMeriReadDelegationReleasable(this.readDelegationPrisma, req);
   }
 
   @Post('approvals/check')

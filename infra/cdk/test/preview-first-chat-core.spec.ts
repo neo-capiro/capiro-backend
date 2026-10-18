@@ -32,7 +32,7 @@ const secretArn = (name: string) => `arn:aws:secretsmanager:us-east-1:9678072523
 const kmsKey = (n: number) => `arn:aws:kms:us-east-1:967807252336:key/0000000${n}-0000-4000-8000-000000000000`;
 const signer = (n: number) => ({ issuer: `capiro-core:purpose-${n}:v1`, kid: `purpose-${n}-synthetic`, keyArn: kmsKey(n), publicKeyX: 'A'.repeat(43) });
 const binding = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   sourceHead: pins.sourceHead,
   imageDigest: pins.imageDigest,
   internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:meri/preview/core/internal-service-secret-AbC123',
@@ -42,7 +42,7 @@ const binding = {
   // The D016 default integration profile, as the packet supplies it.
   profile: { executionMaxTurns: 20, executionMaxRuntimeSeconds: 900, executionMaxCostMicrousd: 2_000_000,
     routineMaxCostMicrousd: 2_000_000, routineMaxRuntimeSeconds: 900 },
-  signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3) },
+  signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3), readDelegation: signer(4) },
 };
 const trust = {
   issuer: 'capiro-core-retained',
@@ -93,6 +93,7 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     { ...binding, schemaVersion: 1 },
     { ...binding, schemaVersion: 2 },
     { ...binding, schemaVersion: 3 },
+    { ...binding, schemaVersion: 4 },
     { ...binding, internalServiceSecretArn: secretArn('internal-service') },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-jwt-secret-AbC123' },
     { ...binding, previewTenantId: 'tenant' },
@@ -102,6 +103,9 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     { ...binding, signers: { ...binding.signers, execution: { ...signer(1), keyArn: 'arn:aws:kms:us-east-1:111111111111:key/00000001-0000-4000-8000-000000000000' } } },
     { ...binding, signers: { ...binding.signers, execution: { ...signer(1), publicKeyX: 'short' } } },
     { ...binding, signers: { execution: null, routineCancel: null } },
+    // v4 shape (no read delegation signer) and a read token key reused from another purpose.
+    { ...binding, signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3) } },
+    { ...binding, signers: { ...binding.signers, readDelegation: signer(2) } },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:111111111111:secret:other-AbC123' },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-west-2:967807252336:secret:other-AbC123' },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:partial' },
@@ -148,6 +152,7 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
     '^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$',
     '^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$',
+    '^/api/clio/application-authority/read-delegation(s|-consents)(/[0-9a-f-]{36}/(tokens|current|revocations|state))?$',
   ]);
   assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
   assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);
@@ -172,18 +177,19 @@ test('renders D016 memory governance, the packet profile and the signers with a 
     assert.equal(env.MEMORY_GOVERNANCE_TENANTS, binding.previewTenantId);
     assert.deepEqual([env.MERI_EXECUTION_MAX_TURNS, env.MERI_EXECUTION_MAX_RUNTIME_SECONDS, env.MERI_EXECUTION_MAX_COST_MICROUSD,
       env.MERI_ROUTINE_MAX_COST_MICROUSD, env.MERI_ROUTINE_MAX_RUNTIME_SECONDS], ['20', '900', '2000000', '2000000', '900']);
-    for (const [prefix, n] of [['MERI_EXECUTION_SIGNER', 1], ['MERI_ROUTINE_CANCEL_SIGNER', 2], ['MERI_ROUTINE_FIRE_SIGNER', 3]] as const) {
+    for (const [prefix, n] of [['MERI_EXECUTION_SIGNER', 1], ['MERI_ROUTINE_CANCEL_SIGNER', 2], ['MERI_ROUTINE_FIRE_SIGNER', 3],
+      ['MERI_READ_DELEGATION_SIGNER', 4]] as const) {
       assert.deepEqual([env[`${prefix}_ISSUER`], env[`${prefix}_KID`], env[`${prefix}_KMS_KEY_ARN`], env[`${prefix}_PUBLIC_KEY_X`]],
         [signer(n).issuer, signer(n).kid, signer(n).keyArn, signer(n).publicKeyX]);
     }
     const sign = policies(service).filter((st: any) => [st.Action].flat().includes('kms:Sign'));
     assert.equal(sign.length, 1);
-    assert.deepEqual([sign[0].Resource].flat().sort(), [kmsKey(1), kmsKey(2), kmsKey(3)]);
+    assert.deepEqual([sign[0].Resource].flat().sort(), [kmsKey(1), kmsKey(2), kmsKey(3), kmsKey(4)]);
     assert.deepEqual(sign[0].Condition, { StringEquals: { 'kms:SigningAlgorithm': 'ED25519_SHA_512', 'kms:MessageType': 'RAW' } });
     const byName = Object.fromEntries(serve.Secrets.map((secret: any) => [secret.Name, secret.ValueFrom]));
     assert.equal(byName.INTERNAL_SERVICE_SECRET, binding.internalServiceSecretArn);
   });
-  render({ ...binding, signers: { execution: null, routineCancel: null, routineFire: null } }, ({ service }) => {
+  render({ ...binding, signers: { execution: null, routineCancel: null, routineFire: null, readDelegation: null } }, ({ service }) => {
     const env = envOf(serveContainer(service));
     assert.ok(Object.keys(env).every((name) => !name.includes('_SIGNER_')));
     assert.equal(policies(service).filter((st: any) => [st.Action].flat().includes('kms:Sign')).length, 0);
@@ -369,6 +375,21 @@ test('renders the stable P1/P2 rules and the P3 native-operations rule before th
     '/api/clio/approvals/native/read', '/api/clio/memory/recent', '/api/clio/memory/review/submit/x',
     '/api/clio/memory/read_target/', '/api/clio/approvals/native/record?x=1',
   ]) assert.ok(!nativePattern.test(opPath), opPath);
+  // RC1 option B read delegation (D016-A item 4): create, tokens, current, revocations, consent and consent state.
+  const delegationPattern = new RegExp(FIRST_CHAT_CORE_NATIVE_OPS_PATHS[2]!);
+  const delegation = '0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f';
+  for (const opPath of [
+    '/api/clio/application-authority/read-delegations', '/api/clio/application-authority/read-delegation-consents',
+    `/api/clio/application-authority/read-delegations/${delegation}/tokens`, `/api/clio/application-authority/read-delegations/${delegation}/current`,
+    `/api/clio/application-authority/read-delegations/${delegation}/revocations`,
+    `/api/clio/application-authority/read-delegation-consents/${delegation}/state`,
+  ]) assert.ok(delegationPattern.test(opPath), opPath);
+  for (const opPath of [
+    '/api/clio/application-authority/read-delegations/', `/api/clio/application-authority/read-delegations/${delegation}`,
+    `/api/clio/application-authority/read-delegations/${delegation}/tokens/x`, '/api/clio/application-authority/read-delegationz',
+    `/api/clio/application-authority/read-delegations/${delegation}/tokens?x=1`,
+  ]) assert.ok(!delegationPattern.test(opPath), opPath);
+  assert.ok(FIRST_CHAT_CORE_NATIVE_OPS_PATHS.length <= 3 && FIRST_CHAT_CORE_NATIVE_OPS_PATHS.every((p) => p.length <= 128));
   const allowed = stack.Resources.FirstChatPostsOnly;
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] });

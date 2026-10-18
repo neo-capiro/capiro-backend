@@ -27,6 +27,7 @@ async function bootstrap() {
     includeRecallRawBody: true,
     includeTangoRawBody: true,
     includeObjectiveDecisionRawBody: true,
+    includeMeriReadDelegationRawBody: true,
     includeEmailSignatureLargeBody: true,
     defaultJsonLimit: '1mb',
   });

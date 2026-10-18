@@ -45,6 +45,11 @@ import {
 } from '../auth/application-authority.js';
 import { isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
 import {
+  admitMeriReadToken,
+  isMeriReadDelegationServicePost,
+  isMeriReadTokenRequest,
+} from '../auth/read-delegation/read-delegation-request.js';
+import {
   captureRetainedNativeAuthority,
   requiresVerifiedRetainedNativeAuthority,
   type RetainedNativeAuthorityCapture,
@@ -183,6 +188,23 @@ export class TenantContextMiddleware implements NestMiddleware {
     // requires the verified service identity and answers only from the
     // owner's stored consent. Exact path and method only.
     if (isMeriRoutineUnattendedGrantPost(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
+      return;
+    }
+    // Run-bound read delegation (RC1 option B, D016-A item 4). A
+    // `CapiroMeriRead` token is admitted ONLY on its own target (signature,
+    // exact path and body bytes, single-use jti, Meri run facts, member); it
+    // never falls through to Clerk verification or to another route. The
+    // bearer-less service POSTs (unattended create, tokens, revocations,
+    // consent narrowing) get no tenant context; their controller requires the
+    // verified service identity. Exact paths and method only.
+    if (isMeriReadTokenRequest(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      await this.useMeriReadDelegation(req, next);
+      return;
+    }
+    if (isMeriReadDelegationServicePost(req)) {
       res.setHeader('Cache-Control', 'no-store');
       next();
       return;
@@ -569,6 +591,16 @@ export class TenantContextMiddleware implements NestMiddleware {
     };
     (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
     markMeriExecutionRequest(req, { token, ...identity });
+    this.store.run(ctx, () => next());
+  }
+
+  /** A delegated read: the context comes from the delegation row and its
+   * existing active member. Nothing is provisioned, rebound or written besides
+   * the token's single-use consumption; impersonation and tenant-selection
+   * headers refuse. Every current check runs in one transaction. */
+  private async useMeriReadDelegation(req: Request, next: NextFunction): Promise<void> {
+    const ctx = await admitMeriReadToken(req, { prisma: this.prisma, env: process.env, nowMs: Date.now() });
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
     this.store.run(ctx, () => next());
   }
 

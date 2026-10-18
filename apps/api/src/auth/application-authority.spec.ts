@@ -10,6 +10,7 @@ import type { ApplicationAuthorityIdentityProof } from './application-authority.
 // Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
 import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
+import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
 
 // Actual owner closures only: no application/bootstrap, Prisma client or SDK.
 const root = resolve(__dirname, '../../../..');
@@ -103,6 +104,7 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
     '../auth/retained-native-authority.js': retainedNativeAuthority,
     '../auth/core-ed25519-key-config.js': executionKeyConfig,
     '../auth/meri-execution-request.js': executionRequest,
+    '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
   }).TenantContextMiddleware;
   let activeContext: any;
   const clerkPort = { verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {

@@ -2432,6 +2432,116 @@ model ClioMeriRoutineFireGrant {
   @@map("clio_meri_routine_fire_grants")
 }
 
+/// Run-bound read delegation, RC1 option B (migration 20281018060000, reserved).
+/// The SQL migration owns RLS, the column-level grants, the mode/expiry CHECKs
+/// (attended <= 30 min, unattended <= 15 min, consent <= 30 days, token <= 60 s),
+/// the per-slot ceilings and the partial unique indexes noted below.
+model MeriReadDelegationConsent {
+  id                       String   @id(map: "meri_read_delegation_consents_pkey") @db.Uuid
+  tenantId                 String   @map("tenant_id") @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  clientId                 String   @map("client_id") @db.Uuid
+  scheduleId               String   @map("schedule_id") @db.Uuid
+  scheduleProjectionSha256 String   @map("schedule_projection_sha256") @db.Char(64)
+  operationsDigest         String   @map("operations_digest") @db.Char(64)
+  policyRevision           String   @map("policy_revision") @db.Char(64)
+  state                    String
+  supersedes               String?  @db.Uuid
+  createdAt                DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  expiresAt                DateTime @map("expires_at") @db.Timestamptz(6)
+
+  superseded   MeriReadDelegationConsent?  @relation("MeriReadConsentSupersedes", fields: [supersedes], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegation_consents_supersedes_fkey")
+  supersededBy MeriReadDelegationConsent[] @relation("MeriReadConsentSupersedes")
+  delegations  MeriReadDelegation[]
+
+  // SQL-owned partial unique index meri_read_consent_active: (tenant_id, schedule_id) WHERE state = 'active'.
+  @@map("meri_read_delegation_consents")
+}
+
+model MeriReadDelegation {
+  id               String   @id(map: "meri_read_delegations_pkey") @db.Uuid
+  idempotencyKey   String   @map("idempotency_key") @db.Char(64)
+  mode             String
+  tenantId         String   @map("tenant_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  membershipId     String   @map("membership_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  runId            String   @map("run_id") @db.Uuid
+  attemptId        String   @map("attempt_id") @db.Uuid
+  writerFence      Int      @map("writer_fence")
+  budgetAttempt    Int      @map("budget_attempt")
+  budgetFence      Int      @map("budget_fence")
+  budgetPolicyRev  String   @map("budget_policy_revision") @db.Char(64)
+  allocationSha256 String   @map("allocation_sha256") @db.Char(64)
+  operationsDigest String   @map("operations_digest") @db.Char(64)
+  policyRevision   String   @map("policy_revision") @db.Char(64)
+  consentId        String?  @map("consent_id") @db.Uuid
+  occurrenceKey    String?  @map("occurrence_key") @db.Char(64)
+  revision         Int      @default(1)
+  state            String
+  supersedes       String?  @db.Uuid
+  revokedReason    String?  @map("revoked_reason")
+  issuedAt         DateTime @default(dbgenerated("clock_timestamp()")) @map("issued_at") @db.Timestamptz(6)
+  expiresAt        DateTime @map("expires_at") @db.Timestamptz(6)
+
+  consent      MeriReadDelegationConsent? @relation(fields: [consentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegations_consent_fkey")
+  superseded   MeriReadDelegation?        @relation("MeriReadDelegationSupersedes", fields: [supersedes], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegations_supersedes_fkey")
+  supersededBy MeriReadDelegation[]       @relation("MeriReadDelegationSupersedes")
+  slots        MeriReadDelegationSlot[]
+  tokens       MeriReadToken[]
+
+  @@index([tenantId, runId], map: "meri_read_delegations_run_idx")
+  // SQL-owned partial unique index meri_read_delegation_idem: (idempotency_key) WHERE state = 'active'.
+  // SQL-owned partial unique index meri_read_delegation_occurrence: (tenant_id, occurrence_key) WHERE occurrence_key IS NOT NULL.
+  @@map("meri_read_delegations")
+}
+
+model MeriReadDelegationSlot {
+  runId           String   @map("run_id") @db.Uuid
+  callKey         String   @map("call_key") @db.VarChar(128)
+  tenantId        String   @map("tenant_id") @db.Uuid
+  delegationId    String   @map("delegation_id") @db.Uuid
+  toolTokens      Int      @default(0) @map("tool_tokens") @db.SmallInt
+  modeTokens      Int      @default(0) @map("mode_tokens") @db.SmallInt
+  referenceTokens Int      @default(0) @map("reference_tokens") @db.SmallInt
+  currentTokens   Int      @default(0) @map("current_tokens") @db.SmallInt
+  reissues        Int      @default(0) @db.SmallInt
+  openedAt        DateTime @default(dbgenerated("clock_timestamp()")) @map("opened_at") @db.Timestamptz(6)
+
+  delegation MeriReadDelegation @relation(fields: [delegationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegation_slots_delegation_fkey")
+  tokens     MeriReadToken[]
+
+  @@id([runId, callKey], map: "meri_read_delegation_slots_pkey")
+  @@map("meri_read_delegation_slots")
+}
+
+model MeriReadToken {
+  jti           String    @id(map: "meri_read_tokens_pkey") @db.Uuid
+  tokenSha256   String    @unique(map: "meri_read_tokens_token_sha256_key") @map("token_sha256") @db.Char(64)
+  tenantId      String    @map("tenant_id") @db.Uuid
+  delegationId  String    @map("delegation_id") @db.Uuid
+  runId         String    @map("run_id") @db.Uuid
+  callKey       String    @map("call_key") @db.VarChar(128)
+  kind          String
+  targetMethod  String    @map("target_method")
+  targetPath    String    @map("target_path")
+  bodySha256    String    @map("body_sha256") @db.Char(64)
+  argumentsSha  String?   @map("arguments_sha256") @db.Char(64)
+  requestDigest String    @map("request_digest") @db.Char(64)
+  issuedAt      DateTime  @default(dbgenerated("clock_timestamp()")) @map("issued_at") @db.Timestamptz(6)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
+  supersededAt  DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  delegation MeriReadDelegation     @relation(fields: [delegationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_tokens_delegation_fkey")
+  slot       MeriReadDelegationSlot @relation(fields: [runId, callKey], references: [runId, callKey], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_tokens_slot_fkey")
+
+  @@index([runId, callKey, kind, requestDigest], map: "meri_read_tokens_retry_idx")
+  // SQL-owned partial index meri_read_tokens_expiry: (expires_at) WHERE consumed_at IS NULL AND superseded_at IS NULL.
+  @@map("meri_read_tokens")
+}
+
 /// DRAFT item 5: issuance ledger of routine cancellation proofs (claims and
 /// digests only, never the token). Immutable; never released for reuse.
 model ClioMeriRoutineCancelProof {

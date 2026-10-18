@@ -23,6 +23,7 @@
   ],
   "nativeOps": [
     "^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$",
-    "^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$"
+    "^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$",
+    "^/api/clio/application-authority/read-delegation(s|-consents)(/[0-9a-f-]{36}/(tokens|current|revocations|state))?$"
   ]
 }

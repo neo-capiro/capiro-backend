@@ -135,7 +135,7 @@ export interface FirstChatCoreProfileBinding {
 }
 
 export interface FirstChatCoreImageBinding {
-  schemaVersion: 4;
+  schemaVersion: 5;
   sourceHead: string;
   imageDigest: string;
   /** Server-side service identity: exactly the `meri/preview/core/internal-service-secret` secret. */
@@ -146,11 +146,13 @@ export interface FirstChatCoreImageBinding {
   /** The preview tenant: governed memory lifecycle enforced for it only (D016). */
   previewTenantId: string;
   profile: FirstChatCoreProfileBinding;
-  /** Each null keeps its routes at 503 (execution issuance/receipt, routine cancel proof, routine firing grant). */
+  /** Each null keeps its routes at 503 (execution issuance/receipt, routine cancel proof, routine firing grant,
+   * v5: option B read delegation tokens). */
   signers: {
     execution: FirstChatCoreSignerBinding | null;
     routineCancel: FirstChatCoreSignerBinding | null;
     routineFire: FirstChatCoreSignerBinding | null;
+    readDelegation: FirstChatCoreSignerBinding | null;
   };
 }
 
@@ -204,7 +206,7 @@ export function firstChatCoreImageBinding(
     'First-chat image binding');
   if (!pins) throw new Error('No qualified integrated Core image is pinned yet');
   if (
-    record.schemaVersion !== 4 ||
+    record.schemaVersion !== 5 ||
     !/^[0-9a-f]{40}$/.test(pins.sourceHead) || !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
     record.sourceHead !== pins.sourceHead ||
     record.imageDigest !== pins.imageDigest
@@ -219,9 +221,10 @@ export function firstChatCoreImageBinding(
   const profile = exactKeys(record.profile, ['executionMaxTurns', 'executionMaxRuntimeSeconds', 'executionMaxCostMicrousd',
     'routineMaxCostMicrousd', 'routineMaxRuntimeSeconds'], 'Profile');
   if (Object.values(profile).some((v) => typeof v !== 'number' || !Number.isSafeInteger(v) || v < 1)) throw new Error('Profile values must be positive integers');
-  const signers = exactKeys(record.signers, ['execution', 'routineCancel', 'routineFire'], 'Signers');
+  const signers = exactKeys(record.signers, ['execution', 'routineCancel', 'routineFire', 'readDelegation'], 'Signers');
   const pinned = [signerPin(signers.execution, 'Execution signer'), signerPin(signers.routineCancel, 'Routine cancel signer'),
-    signerPin(signers.routineFire, 'Routine fire signer')].filter((s): s is FirstChatCoreSignerBinding => s !== null);
+    signerPin(signers.routineFire, 'Routine fire signer'), signerPin(signers.readDelegation, 'Read delegation signer')]
+    .filter((s): s is FirstChatCoreSignerBinding => s !== null);
   // One key per purpose: Meri pins the purposes apart.
   if (new Set(pinned.map((s) => s.keyArn)).size !== pinned.length || new Set(pinned.map((s) => s.kid)).size !== pinned.length) {
     throw new Error('Each signing purpose needs its own KMS key and kid');
@@ -344,6 +347,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ['MERI_EXECUTION_SIGNER', binding.signers.execution],
       ['MERI_ROUTINE_CANCEL_SIGNER', binding.signers.routineCancel],
       ['MERI_ROUTINE_FIRE_SIGNER', binding.signers.routineFire],
+      ['MERI_READ_DELEGATION_SIGNER', binding.signers.readDelegation],
     ];
     const signerKeyArns = signerEntries.flatMap(([, s]) => (s ? [s.keyArn] : []));
     if (signerKeyArns.length) {

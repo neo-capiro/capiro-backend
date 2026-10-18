@@ -8,6 +8,7 @@ import ts from 'typescript';
 // Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
 import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
+import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
 
 // Exercise actual owner sources. Only Nest/Clerk/Prisma/request I/O is synthetic.
 // Authenticate through the real middleware so request-local provenance is real;
@@ -78,6 +79,7 @@ const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '../auth/retained-native-authority.js': retainedNativeAuthority,
   '../auth/core-ed25519-key-config.js': executionKeyConfig,
   '../auth/meri-execution-request.js': executionRequest,
+  '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
 });
 // The actual canonical governed-memory policy (type-only imports), not a stub.
 const memoryAdminPolicy = load(source('memory/memory-review-admin-policy.ts'), {});
@@ -96,6 +98,7 @@ const serviceOwner = load(source('auth/application-membership.service.ts'), {
   '../prisma/prisma.service.js': {}, '../tenant/tenant-context.middleware.js': tenantOwner,
   '../memory/memory-wall.helpers.js': wall, './application-authority.js': authority,
   './application-membership.js': membershipContract,
+  './read-delegation/read-delegation-request.js': readDelegationRequest,
 });
 
 const tenantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';

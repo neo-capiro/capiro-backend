@@ -808,6 +808,11 @@ export const configSchema = z.object({
   MERI_ROUTINE_FIRE_SIGNER_KID: z.string().optional(),
   MERI_ROUTINE_FIRE_SIGNER_KMS_KEY_ARN: z.string().optional(),
   MERI_ROUTINE_FIRE_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  // RC1 option B read token signer (D016-A item 4), same four-key shape; absent = read delegation 503.
+  MERI_READ_DELEGATION_SIGNER_ISSUER: z.string().optional(),
+  MERI_READ_DELEGATION_SIGNER_KID: z.string().optional(),
+  MERI_READ_DELEGATION_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_READ_DELEGATION_SIGNER_PUBLIC_KEY_X: z.string().optional(),
   // D016-A 3 configured routine maxima (wire A ceilings; create/update answers 503 without them).
   MERI_ROUTINE_MAX_COST_MICROUSD: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
   MERI_ROUTINE_MAX_RUNTIME_SECONDS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),

@@ -232,6 +232,28 @@
       "excluded": [
         "live migration execution"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql",
+      "owner": "Core run-bound read delegation (RC1 option B, D016-A item 4): consents, delegations, call slots and single-use read tokens",
+      "workstream": "fable/core-integration-20261018",
+      "base": "3ea1c077",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018050000_clio_meri_routine_unattended)",
+      "allocatedAt": "2026-10-18T14:00:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018050000_clio_meri_routine_unattended",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "consents <= 30 days, attended delegations <= 30 min, occurrence delegations <= 15 min, tokens <= 60 s (CHECKs)",
+        "per-slot ceilings tool 1 / mode 7 / reference 7 / current 35 and reissues <= 8",
+        "RLS on all four tables; SELECT/INSERT plus column-level UPDATE for capiro_app; no DELETE"
+      ],
+      "excluded": [
+        "live migration execution",
+        "Meri's facts views (meri-greenfield read-delegation 0001) and their grants to capiro_app",
+        "expiry sweeping"
+      ]
     }
   ]
 }
