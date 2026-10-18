@@ -173,6 +173,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     }
     // Also cover authentication/authorization denials before the controller.
     const authorityPaths = [
+      '/api/clio/application-authority/history-release', '/clio/application-authority/history-release',
       '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
       '/clio/application-authority/identity', '/clio/application-authority/context',
       '/api/clio/application-authority/membership', '/clio/application-authority/membership',
@@ -720,6 +721,66 @@ export class TenantContextMiddleware implements NestMiddleware {
     return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
   }
 
+  /** Unmounted history-release identity leaf. The request must already carry
+   * this middleware's exact native provenance; selectors never choose a user,
+   * membership, tenant or a different session. Impersonation is unsupported by
+   * the first history batch slice only; ordinary authentication is unchanged. */
+  private historyReleaseProvenance(req: Request, ctx: TenantContext): ApplicationAuthorityRequestProvenance {
+    const provenance = applicationAuthorityRequests.get(req);
+    const path = req.path;
+    const target = req.originalUrl ?? req.url ?? '';
+    const authorization = req.headers.authorization;
+    if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub ||
+        provenance.claims.meri_control_credential === true || provenance.impersonationId !== null ||
+        provenance.membershipTenantId !== ctx.tenantId ||
+        req.header('x-capiro-impersonate-tenant') !== undefined || req.method !== 'POST' ||
+        typeof path !== 'string' || target !== path ||
+        (path.startsWith('/api/') ? path.slice(4) : path) !== '/clio/application-authority/history-release' ||
+        typeof authorization !== 'string' || !/^Bearer \S+$/.test(authorization) ||
+        typeof provenance.claims.sid !== 'string' || provenance.claims.sid.length === 0) {
+      throw new ForbiddenException('Application authority unavailable');
+    }
+    return provenance;
+  }
+
+  /** Caller owns the one REPEATABLE READ transaction. These locks remain held
+   * through the batch owner's final online observation and transaction commit.
+   * Bare SQL does not inherit Prisma's tenant predicate: pin every local fact. */
+  async lockOriginalApplicationAuthorityInTransaction(
+    req: Request, ctx: TenantContext, tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    const provenance = this.historyReleaseProvenance(req, ctx);
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    const users = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id::text AS "id" FROM users
+       WHERE id = ${ctx.userId}::uuid AND clerk_user_id = ${provenance.claims.sub}
+       FOR SHARE
+    `;
+    if (users.length !== 1 || users[0]?.id !== ctx.userId) throw denied();
+    const tenants = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id::text AS "id" FROM tenants WHERE id = ${ctx.tenantId}::uuid FOR SHARE
+    `;
+    if (tenants.length !== 1 || tenants[0]?.id !== ctx.tenantId) throw denied();
+    const memberships = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id::text AS "id" FROM tenant_memberships
+       WHERE id = ${provenance.membershipId}::uuid
+         AND tenant_id = ${provenance.membershipTenantId}::uuid
+         AND user_id = ${ctx.userId}::uuid
+       FOR SHARE
+    `;
+    if (memberships.length !== 1 || memberships[0]?.id !== provenance.membershipId) throw denied();
+  }
+
+  /** A NEW same-session Clerk observation under the caller's held local locks.
+   * Read local identity on that same transaction; no nested withSystem lease. */
+  async readFreshApplicationAuthorityInTransaction(
+    req: Request, ctx: TenantContext, tx: Prisma.TransactionClient,
+  ): Promise<ApplicationAuthorityIdentityEvidence> {
+    const provenance = this.historyReleaseProvenance(req, ctx);
+    const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    return this.readCurrentApplicationAuthority(provenance, ctx, session, tx);
+  }
+
   /** Core-only capture from an actual natively authenticated request/context pair. */
   async captureRetainedNativeAuthority(req: Request, ctx: TenantContext): Promise<RetainedNativeAuthorityCapture> {
     const provenance = applicationAuthorityRequests.get(req);
@@ -746,11 +807,12 @@ export class TenantContextMiddleware implements NestMiddleware {
     provenance: ApplicationAuthorityRequestProvenance,
     ctx: TenantContext,
     session: ActiveApplicationAuthoritySession,
+    transaction?: Prisma.TransactionClient,
   ): Promise<ApplicationAuthorityIdentityEvidence> {
     const denied = () => new ForbiddenException('Application authority unavailable');
     if (provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
     try {
-      return await this.prisma.withSystem(async (tx) => {
+      const read = async (tx: Prisma.TransactionClient) => {
         const user = await tx.user.findFirst({
           where: { id: ctx.userId, clerkUserId: provenance.claims.sub }, select: { id: true, clerkUserId: true },
         });
@@ -797,7 +859,8 @@ export class TenantContextMiddleware implements NestMiddleware {
           ]),
           expiresAtMs,
         };
-      });
+      };
+      return transaction ? await read(transaction) : await this.prisma.withSystem(read);
     } catch {
       throw denied();
     }
