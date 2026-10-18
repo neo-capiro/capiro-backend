@@ -219,6 +219,36 @@ function assertSelection(operation: MeetingV02Operation, selection: JsonRecord):
   }
 }
 
+/** Move the 0.2 cursor metadata into the canonical private Core owner input.
+ * Core's existing parsers forbid an explicit characterOffset alongside a
+ * continuation cursor, although the 0.2 normalized selection retains its
+ * original offset for the request digest. Do not mutate that selection. */
+export function prepareMeetingV02OwnerInput(
+  operation: MeetingV02Operation,
+  selection: JsonRecord,
+  metadata: unknown,
+): { cursor: string | null; legacyInput: JsonRecord } {
+  if (![
+    'meeting.list_upcoming_meetings',
+    'meeting.query_debriefs',
+    'meeting.read_client_meetings',
+  ].includes(operation)) refuse('unsupported meeting operation');
+  assertSelection(operation, record(selection, 'meeting selection'));
+  if (operation === 'meeting.list_upcoming_meetings') {
+    if (metadata !== null) refuse('upcoming metadata must be null');
+    return { cursor: null, legacyInput: { ...selection } };
+  }
+  const fields = record(metadata, 'meeting metadata');
+  exactKeys(fields, ['cursor'], 'meeting metadata');
+  const cursor = fields.cursor === null ? null : string(fields.cursor, 'cursor', 8192);
+  const legacyInput = { ...selection };
+  if (cursor !== null) {
+    delete legacyInput.characterOffset;
+    legacyInput.cursor = cursor;
+  }
+  return { cursor, legacyInput };
+}
+
 function assertReadFacts(request: MeetingV02ProjectionRequest): void {
   const { operation, selection, authority, read, nowMs } = request;
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

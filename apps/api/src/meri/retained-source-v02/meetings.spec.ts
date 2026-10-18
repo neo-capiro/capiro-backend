@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   captureMeetingV02OwnerRead,
+  prepareMeetingV02OwnerInput,
   projectMeetingSourceV02,
   type MeetingV02ProjectionRequest,
 } from './meetings.js';
@@ -326,6 +327,46 @@ function meetingSourceBody(): MeetingV02ProjectionRequest {
 }
 
 describe('Core meeting 0.2 owner projection', () => {
+  it('maps normalized upcoming selection to its private owner without cursor metadata', () => {
+    const selection = upcoming().selection;
+    expect(prepareMeetingV02OwnerInput('meeting.list_upcoming_meetings', selection, null)).toEqual({
+      cursor: null,
+      legacyInput: selection,
+    });
+    expect(() =>
+      prepareMeetingV02OwnerInput('meeting.list_upcoming_meetings', selection, { cursor: null }),
+    ).toThrow('upcoming metadata');
+  });
+
+  it('moves opaque debrief and meeting cursors into the private owner input', () => {
+    const debriefSelection = {
+      clientId, debriefId: noteId, from: null, to: null,
+      limit: 25, characterOffset: 0, characterLimit: 5000,
+    };
+    const meetingSelection = meetingSourceBody().selection;
+    for (const [operation, selection] of [
+      ['meeting.query_debriefs', debriefSelection],
+      ['meeting.read_client_meetings', meetingSelection],
+    ] as const) {
+      const original = { ...selection };
+      const { characterOffset: _offset, ...continuationInput } = selection;
+      expect(prepareMeetingV02OwnerInput(operation, selection, { cursor: 'opaque-cursor' }))
+        .toStrictEqual({
+          cursor: 'opaque-cursor',
+          legacyInput: { ...continuationInput, cursor: 'opaque-cursor' },
+        });
+      expect(selection).toEqual(original);
+    }
+  });
+
+  it('refuses missing or extra 0.2 cursor metadata before calling an owner', () => {
+    const selection = debrief().selection;
+    expect(() => prepareMeetingV02OwnerInput('meeting.query_debriefs', selection, null))
+      .toThrow('meeting metadata');
+    expect(() => prepareMeetingV02OwnerInput('meeting.query_debriefs', selection,
+      { cursor: null, other: 'not canonical' })).toThrow('meeting metadata fields');
+  });
+
   it('retains client-bound upcoming rows and discloses unknown source coverage', () => {
     const page = projectMeetingSourceV02(upcoming());
     expect(page).toMatchObject({
