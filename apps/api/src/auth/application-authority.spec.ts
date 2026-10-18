@@ -5,6 +5,7 @@ import { createContext, Script } from 'node:vm';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import ts from 'typescript';
+import { ROLE_RANK } from '@capiro/shared';
 import type { ApplicationAuthorityIdentityProof } from './application-authority.js';
 
 // Actual owner closures only: no application/bootstrap, Prisma client or SDK.
@@ -37,6 +38,9 @@ const contract = load(sources('auth/application-authority.ts'), {
   '@nestjs/common': nest, 'node:crypto': { createHash }, 'node:util': { types: nodeTypes },
 });
 const previewNativeReadMode = load(sources('auth/preview-native-read-mode.ts'), {});
+const retainedNativeAuthority = load(sources('auth/retained-native-authority.ts'), {
+  '@nestjs/common': nest, '@capiro/shared': { ROLE_RANK }, 'node:util': { types: nodeTypes },
+});
 const tenantId = '00000000-0000-7000-8000-000000000001';
 const actorId = '00000000-0000-0000-0000-000000000002';
 const clientId = '00000000-0000-8000-8000-000000000003';
@@ -93,6 +97,7 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
     '../auth/clerk.service.js': {}, '../prisma/prisma.service.js': {}, '../auth/clerk-role.util.js': {},
     './tenant-context.store.js': {}, '../auth/application-authority.js': contract,
     '../auth/preview-native-read-mode.js': previewNativeReadMode,
+    '../auth/retained-native-authority.js': retainedNativeAuthority,
   }).TenantContextMiddleware;
   let activeContext: any;
   const clerkPort = { verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {

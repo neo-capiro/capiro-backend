@@ -40,6 +40,7 @@ function owners() {
   const middleware = load(source('tenant/tenant-context.middleware.ts'), {
     '@nestjs/common': nest, '@capiro/shared': shared, '../auth/application-authority.js': authority,
     '../auth/retained-native-authority.js': native,
+    '../auth/clerk.service.js': {}, '../auth/preview-native-read-mode.js': load(source('auth/preview-native-read-mode.ts'), {}),
     '../auth/clerk-role.util.js': { mapClerkRoleToCapiro() { throw new Error('No self-heal in this fixture'); } },
   }).TenantContextMiddleware;
   const json = <T>(value: T): T => new Script(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`).runInContext(vm);
