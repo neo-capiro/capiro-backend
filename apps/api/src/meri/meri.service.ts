@@ -6627,8 +6627,8 @@ export class MeriService implements MeriTurnMaintenance {
         throw new NotFoundException('Memory not found');
       }
       const projectionType = clioProjectionType(row.metadata);
-      const held = await tx.$queryRaw<Array<{ id: string; legal_hold: boolean }>>`
-        SELECT id::text AS id, legal_hold FROM memory_items
+      const held = await tx.$queryRaw<Array<{ id: string; legal_hold: boolean; status: string }>>`
+        SELECT id::text AS id, legal_hold, status FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${projectionType} AND slug = ${slug}
         FOR UPDATE
       `;
@@ -6797,8 +6797,8 @@ export class MeriService implements MeriTurnMaintenance {
         throw new NotFoundException('Memory not found');
       }
       const projectionType = clioProjectionType(row.metadata);
-      const held = await tx.$queryRaw<Array<{ id: string; legal_hold: boolean }>>`
-        SELECT id::text AS id, legal_hold FROM memory_items
+      const held = await tx.$queryRaw<Array<{ id: string; legal_hold: boolean; status: string }>>`
+        SELECT id::text AS id, legal_hold, status FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${projectionType} AND slug = ${slug}
         FOR UPDATE
       `;
@@ -6806,6 +6806,9 @@ export class MeriService implements MeriTurnMaintenance {
         tx, ctx.tenantId, memoryId, slug, projectionType, held[0]?.id ?? null,
         row.metadata, row.source,
       );
+      if (held[0] && held[0].status !== 'active') {
+        throw new NotFoundException('Memory not found');
+      }
       const decision = evaluateMemoryMutation(
         ctx,
         {
