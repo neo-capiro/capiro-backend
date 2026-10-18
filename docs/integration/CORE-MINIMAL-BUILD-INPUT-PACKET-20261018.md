@@ -2,8 +2,10 @@
 
 **Status: provisional source preparation.** This packet is based on Core
 `869ee0eb461d15af75ccf83186e6b897d7529bc1` and must be regenerated after
-the independent document runtime identity reader, Core memory continuation,
-PR166/PR167 receiving work, and all other accepted Core source slices are merged.
+the document identity adapter at `93ac25e0ef3a59ec10adf269bc8455bdd856b308`,
+Core memory continuation, PR166/PR167 receiving work, and all other accepted
+Core source slices are merged. The adapter is source-only: its trusted
+control-plane identity port/provider remains unimplemented and unregistered.
 No ZIP has been sealed or uploaded. No paid build, image, AWS mutation, live SQL,
 grant, listener change, or deployment is evidenced here.
 
@@ -80,8 +82,9 @@ earlier PR86, PR90 or PR43 pin. Build/readback details remain in
 
 1. Freeze the final integrated Core commit and ancestor/source diff. At the
    provisional baseline, PR86's approved task template is 1 vCPU / 2 GiB;
-   Core image pins are `null` and `desiredCount` remains zero. The identity
-   adapter is not a runtime identity qualification: retain document 503 until
+   Core image pins are `null` and `desiredCount` remains zero. The source-only
+   identity adapter is not a runtime identity qualification: its trusted
+   control-plane port/provider is still missing. Retain document 503 until
    independently current source, image and effective configuration readback is
    proven before and after its owner read. The other retained reads are likewise
    source-wired, not preview-available.
