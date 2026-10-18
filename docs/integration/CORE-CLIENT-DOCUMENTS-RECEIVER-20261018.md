@@ -57,7 +57,8 @@ no paid/legacy fallback, request mode or unsigned switch.
 
 ## Runtime remains unavailable
 
-**No runtime identity reader implementation or provider is registered.**
+**A fail-closed runtime identity adapter exists, but its independent trusted
+readback port and Nest provider are not implemented or registered.**
 The default source path therefore still returns
 `MERI_RETAINED_SOURCE_UNAVAILABLE` (503) before reading attachment metadata or
 bytes. Environment digest equality, RELEASE_SHA/GIT_SHA, release headers or
@@ -68,7 +69,9 @@ measurement is asserted here.
 The deployment/render owner must qualify an integrated Core source commit,
 digest-addressed ECR image and current ECS task/container readback, define the
 effective-configuration hashing procedure, and implement/register the trusted
-current reader. Meri's shipping owner must compare those same measured pins
+control-plane readback provider for the
+[source adapter](CORE-DOCUMENT-RUNTIME-IDENTITY-READER-20261018.md). Meri's
+shipping owner must compare those same measured pins
 before issuing its 1.1.0 allocation. The real signed task credential relay,
 keys/facts setup, listener/deployment and live readback remain separate gates.
 
