@@ -445,6 +445,16 @@ describe('RC1 option B read delegation, Core owner', () => {
     it('refuses a write or unlisted tool name and an operation outside allowed_operations', async () => {
       const h = harness();
       const d = await h.create();
+      const mail = { id: 'mail.list_messages', version: '0.2.0' };
+      expect(parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail.list_messages',
+        operation: mail, argumentsSha256: sha('a'), correlationSha256: sha('correlation') }), d.delegationId).operation).toEqual(mail);
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail.list_messages',
+        operation: mail, argumentsSha256: sha('a') }), d.delegationId)).toThrow();
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/query_tasks',
+        operation: { id: 'query_tasks', version: '0.2.0' }, argumentsSha256: sha('a'),
+        correlationSha256: sha('correlation') }), d.delegationId)).toThrow();
+      expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/mail..list_messages',
+        operation: { id: 'mail..list_messages', version: '0.2.0' }, argumentsSha256: sha('a') }), d.delegationId)).toThrow();
       expect(() => parseTokenRequest(h.tokenBody(d.delegationId, { kind: 'tool', path: '/api/clio/tools/update_task',
         operation: { id: 'update_task', version: '0.2.0' }, argumentsSha256: sha('a') }), d.delegationId)).not.toThrow();
       await expect(h.issue(d.delegationId, { kind: 'tool', path: '/api/clio/tools/update_task', operation: { id: 'update_task', version: '0.2.0' },
@@ -503,7 +513,8 @@ describe('RC1 option B read delegation, Core owner', () => {
       const used = await h.use(path, t.token, body);
       expect(used.next).toHaveBeenCalledTimes(1);
       expect(used.ctx).toEqual(ctx);
-      expect(meriReadDelegationOf(used.req)).toMatchObject({ delegationId: d.delegationId, kind: 'current', clientId: C });
+      expect(meriReadDelegationOf(used.req)).toMatchObject({ delegationId: d.delegationId, kind: 'current', clientId: C,
+        binding, policyRevision: P });
       expect(h.verify).not.toHaveBeenCalled();
       expect(h.db.state.writes.filter((w) => w !== 'delegation')).toEqual(['consume']);
       await expect(h.use(path, t.token, body)).rejects.toBeInstanceOf(UnauthorizedException);

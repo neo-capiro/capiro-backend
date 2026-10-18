@@ -17,6 +17,9 @@ type Tx = Prisma.TransactionClient;
  * grant set. A view row's existence is never authority (dot 6248061000).
  */
 export interface RunFacts {
+  /** Saved seven-field ADMITTED binding, verified under the admission lock.
+   * Distinct from the six-field Option B run projection below. */
+  admittedBinding?: NativeRunBinding;
   runId: string;
   tenantId: string;
   conversationId: string;
@@ -178,6 +181,7 @@ export async function readRunFacts(tx: Tx, tenantId: string, runId: string): Pro
       !plain(budgets) || facts.maxToolCalls !== budgets.maxToolCalls ||
       facts.reservedCalls > facts.maxToolCalls) throw changed();
   facts.admittedUntilMs = Math.min(facts.admittedUntilMs, admission.deadlineMs);
+  facts.admittedBinding = binding;
   if (facts.dbNowMs >= facts.admittedUntilMs) throw new GoneException('Read delegation expired');
   return facts;
 }
