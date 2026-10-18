@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "Node16", "moduleResolution": "Node16",
+    "strict": true, "noUncheckedIndexedAccess": true, "skipLibCheck": true,
+    "noEmit": true, "esModuleInterop": true, "experimentalDecorators": true,
+    "emitDecoratorMetadata": true, "useDefineForClassFields": false,
+    "types": ["node", "jest"],
+    "typeRoots": ["../../../apps/api/node_modules/@types", "../../../node_modules/@types"]
+  },
+  "files": [
+    "../../../apps/api/src/users/portfolio-layout.controller.ts",
+    "../../../apps/api/src/users/portfolio-layout.controller.spec.ts",
+    "../../../apps/api/src/users/portfolio-layout.module.spec.ts",
+    "../../../apps/api/src/users/portfolio-layout.transaction.ts",
+    "../../../apps/api/src/users/portfolio-layout.helpers.ts",
+    "../../../apps/api/src/users/portfolio-layout.helpers.spec.ts",
+    "../../../apps/api/src/prisma/prisma.service.ts",
+    "../../../apps/api/src/prisma/prisma.service.spec.ts",
+    "../../../apps/api/src/prisma/prisma-tenant-scope.spec.ts"
+  ]
+}

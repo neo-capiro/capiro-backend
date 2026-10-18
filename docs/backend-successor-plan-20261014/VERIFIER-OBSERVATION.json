@@ -1,0 +1,12 @@
+{
+  "schema": "source-command-observation/v1",
+  "command": [
+    "node",
+    "docs/backend-successor-plan-20261014/verify-plan.mjs"
+  ],
+  "exitCode": 0,
+  "stdout": "{\n  \"schema\": \"private-backend-successor-plan-verification/v1\",\n  \"result\": \"pass\",\n  \"observedHead\": \"4e2c4be826205dde8101e854ba079d46a6dd10ca\",\n  \"observedTree\": \"063214b484bf9955581d3d595bf60c6b4ae6e87c\",\n  \"checkedPins\": 12,\n  \"unavailableOptionalPins\": [],\n  \"selectedSourceBlobs\": 17,\n  \"exactLosslessReports\": 2,\n  \"auditDocs\": 4,\n  \"auditIndexedFiles\": 3,\n  \"disabledAutomationArchive\": 74,\n  \"scope\": \"offline Git/source/custody checks; no application, tests, native DB/RLS, network, provider or deployment acceptance\"\n}\n",
+  "stderr": "",
+  "scriptSha256": "83c8750fe3049250c24749157b395975276966dc475118f2b4502cbadb4148b8",
+  "qualification": "Working packet check at audit parent; committed packet will be checked again before publication. Not application/native acceptance."
+}

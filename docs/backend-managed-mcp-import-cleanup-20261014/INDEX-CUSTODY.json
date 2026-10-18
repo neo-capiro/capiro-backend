@@ -1,0 +1,10 @@
+{
+  "action": "Reconstruct only this new clone mutable index from committed tree to avoid duplicate 2.5MB lock allocation",
+  "indexBytes": 2538154,
+  "indexSha256": "d5482ab67d2833a049e26ccfb82bb7a1ab8671532745ae42a6735133c3dd124c",
+  "base": "a6d4ee9d5029994925d20815b3dae0f1e7b410e3",
+  "source": "35ab679e64c19921e09251ba6913d4122d8d85ac",
+  "sourceTree": "63d9d1713b2f2282ae0a401c772fd9850a559508",
+  "sourceBlob": "a17e94efba349979236ed1dbada4be4c17cf8f02",
+  "allSourceEvidenceAndGitObjectsRetained": true
+}

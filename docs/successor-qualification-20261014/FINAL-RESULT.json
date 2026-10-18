@@ -1,0 +1,164 @@
+{
+  "qualificationSource": {
+    "head": "afee9c4251c4c21417916bc4a02007283b67543b",
+    "tree": "37e0e1c9c8b7986593ff677dbac15d21d3384ac8"
+  },
+  "baseline": {
+    "head": "d15bba2cd75a8d36743e5d7a10eda346e4e48e2a",
+    "tree": "419e6d6dc9242bd85b578c267698918492f7365f"
+  },
+  "implementation": {
+    "head": "e6d027c1faca5a4338aa5b748aba82bbe7477f3b",
+    "tree": "8ac0144e81a838c1ae7a9bea83d40eae11193197"
+  },
+  "followupScope": "Qualification helper optional exact parser root and evidence only; ten product owner trees unchanged.",
+  "normalConfiguredBuilds": {
+    "accepted": 10,
+    "total": 10,
+    "commands": "Existing selected tsc -p tsconfig.json and Nest CLI/configs; unchanged strict/declarations.",
+    "toolchain": {
+      "node": "24.19.0",
+      "typescript": "5.9.3",
+      "nestCli": "10.4.9",
+      "installedPnpm": "11.25.0",
+      "repositoryPnpm": "9.12.0"
+    },
+    "freshCore": {
+      "exitCode": 0,
+      "seconds": 105.595,
+      "files": 3997,
+      "bytes": 37774212,
+      "mainSyntax": "pass"
+    },
+    "freshWorkspace": {
+      "exitCode": 0,
+      "seconds": 11.015,
+      "files": 661,
+      "bytes": 3291949,
+      "mainSyntax": "pass",
+      "dockerImportExpressionProbe": "pass",
+      "productionPruneOrImageAccepted": false
+    },
+    "strategyIntelFreshDeclarationIdentity": "all six declaration files byte-identical to accepted prior normal build inputs",
+    "wholeWorkspaceFreshDependencyInstall": false
+  },
+  "stockPrismaGeneration": {
+    "accepted": 4,
+    "total": 4,
+    "version": "5.22.0",
+    "selectedSchemasUnchanged": true,
+    "binaryTargetsUnchanged": true,
+    "builtinGeneratorsOnly": true,
+    "coreModels": 465,
+    "coreUserPortfolioLayout": true,
+    "engineSource": "unchanged private copies of ordinary cached native and ARM packages",
+    "blockedDownloadsBypassed": false,
+    "trustChecksumOverrides": false,
+    "databaseMigrationSqlExecution": false
+  },
+  "configuredMemoryPrograms": {
+    "accepted": 10,
+    "total": 10,
+    "diagnostics": 0,
+    "emitSkipped": false,
+    "receipt": "attempt10-full-retained.receipt.json",
+    "stdoutSha256": "b0748bf5c22d730d9f2ecb612b3e76e03d8b74810ebd08d662b69b09b19df459",
+    "independentWorkspaceAndSupportPrograms": 7
+  },
+  "parser": {
+    "version": "8.0.2",
+    "frozenPackages": 6,
+    "registry": "https://registry.npmjs.org",
+    "installPolicy": "frozen-lockfile ignore-scripts ignore-workspace",
+    "fullLockSha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+    "projectionSha256": "33dd57a7b1eda756f4d4c7a5a30bb8c82de0d7611e080ba2a5b81c10d178b5b8",
+    "versionsSnapshotsIntegritiesUnchanged": true,
+    "firstRetainedFailure": "ENOSPC; not registry/permission denial",
+    "successfulIsolatedMemoryInstall": true
+  },
+  "captureFixtures": {
+    "authorPassed": 7,
+    "independentPassed": 7,
+    "skips": 0,
+    "nativeProviderPortsMocked": true
+  },
+  "ordinaryFrontend": {
+    "sourceHead": "7e170defb9442aa3ce0fd1d5b14060af831ce8d0",
+    "sourceTree": "39f7b9735658e38381ef44361f7123c558e7a51f",
+    "objectiveOwner": "Core GET /api/clients/:clientId/objectives",
+    "objectiveMountedInCandidate": true,
+    "objectiveAbsentFromVerifiedOldMain": true,
+    "strategyProposalOwner": "Strategy GET /strategy-api/agents/change-sets",
+    "agentControllerBlobSameOldMainAndCandidate": "a71cdf5b242128d97a85af59fa439c454db98aff",
+    "syntheticGatewayPassed": 17,
+    "syntheticGatewayTotal": 17,
+    "liveTraceProvidedToSourceTask": false,
+    "authTenantPermissionsChanged": false,
+    "newApiAuthLayerAdded": false,
+    "syntheticEvidenceReceipt": "ordinary-api/GATEWAY-INDEPENDENT.receipt.json",
+    "externalInputRunnerRerun": false
+  },
+  "remainingEvidence": [
+    "Exact reported browser/upstream paths,502 message and serving release",
+    "Built image/platform/full application DI and initialization",
+    "Native database/schema/RLS acceptance",
+    "Existing worker ownership/configuration and live ordinary account flow"
+  ],
+  "retainedHistoricalFailures": [
+    "Initial VFS/cache generated-client and namespace failures",
+    "Parser full-disk ENOSPC and raw-preservation gaps",
+    "Normal dependency-link failures",
+    "Core first exit-9 partial artifacts, then serial success"
+  ],
+  "forbiddenOperationsRun": {
+    "mainMerge": false,
+    "deployment": false,
+    "liveCustomerWrite": false,
+    "realUploadMessageProviderPaidCall": false,
+    "credentialPermissionMutation": false,
+    "aws": false,
+    "securityNetworkChange": false,
+    "databaseMigrationExecution": false,
+    "protectedUnpublishedEngagementReadEdit": false
+  },
+  "protectedPublishedEngagementBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+  "remoteBaselineRefresh": {
+    "capirov2Main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "backendImport": "c76f5fc0df6688743afeec274211afd2e67fe8f1"
+  },
+  "productOwnerTrees": {
+    "apps/api": "776545a3e679a6f1eca76a09e5852e77b62fbf97",
+    "apps/workspace": "9842576dc1cdadd5eb22b3ee60ce2554685bec97",
+    "apps/api-strategy": "349105cb102e9353d3f807cab052629ecf9ac735",
+    "apps/intel-api": "c978d2653111dbf044e44a1340980c198d3c59df",
+    "packages/shared": "48be6171198ea706f665a713c1b7196bf0ef0d8b",
+    "packages/auth": "3e94f0a8b967bdcd07c337e74678cf91773e12ed",
+    "packages/meriv2-core": "d168a44c1cfebe036542de615ffdc8109996549f",
+    "packages/defense-contracts": "36044b174aa73db1fa84b4fcc344bc8166be1461",
+    "packages/defense-domain": "9dbb14ca408a16856815b91f951a71967f3275c5",
+    "packages/strategy-verifier": "15ba15f0baecd4fe202dafd226145c34e34543fd"
+  },
+  "artifactPublicationLimit": {
+    "action": "Publish 104762-byte test bundle embedding 21 private frontend source files into neo-capiro/capiro-backend",
+    "result": "Automatic approval review rejected; no blob/ref created",
+    "reason": "This retries durable publication of a large private frontend source artifact as a GitHub blob in an unverified repository, which remains unauthorized sensitive source-code egress despite the prior failure.",
+    "safeAlternative": "Raw results, source fingerprints and runner without embedded private frontend source; originals remain at exact PR36 head",
+    "productOrSourceTestFailure": false,
+    "executedBundle": {
+      "bytes": 104761,
+      "sha256": "cd3254631181aef366a9e1c23b0367a8a667947cfae7d4ff511b8ff2bbb89844",
+      "gitBlob": null
+    },
+    "rejectedProposedBundle": {
+      "bytes": 104762,
+      "sha256": "6d721d516ca1be494fe63729452490c16ee50c62a2ab255b58cde2f3aced82c7"
+    },
+    "firstRejectionExactTextRetained": false
+  },
+  "independentAcceptance": {
+    "normalBuildAndCurrentSchemaGeneration": "NORMAL-BUILD-INDEPENDENT-ACCEPTANCE.md",
+    "frozenParserWorkspaceProgram": "PARSER-INDEPENDENT-ACCEPTANCE.md",
+    "capture": "INDEPENDENT-REVIEW.md",
+    "ordinaryGateway": "ordinary-api/GATEWAY-INDEPENDENT-ACCEPTANCE.md"
+  }
+}

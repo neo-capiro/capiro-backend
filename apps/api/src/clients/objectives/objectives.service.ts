@@ -27,6 +27,8 @@ import {
   type ObjectiveDestinationQueryDto,
   type ObjectiveRevisionBinding,
 } from './objective-destination.js';
+import { appendObjectiveReadyIntent } from './objective-work-intent.js';
+import { reserveCanonicalObjectivePlan } from './objective-canonical-plan.js';
 
 function presentObjective(record: ClientObjective) {
   return {
@@ -198,7 +200,22 @@ export class ClientObjectivesService {
         readyAt: status === 'ready' ? now : null,
         reviewRequestedAt: status === 'in_review' ? now : null,
       });
-      await this.recordRevision(tx, ctx, record, action);
+      const revision = await this.recordRevision(tx, ctx, record, action);
+      if (action === 'confirm_ready') {
+        // The Objective UPDATE is already held. Lock current authority before
+        // touching intent/reservation; do not upgrade an earlier Objective SHARE
+        // lock during simultaneous confirmations.
+        const source = await this.requireDestinationRevisionWithinTx(tx, ctx, {
+          clientId: record.clientId,
+          objectiveId: record.id,
+          objectiveVersion: record.version,
+        });
+        if (source.objectiveRevisionId !== revision.id)
+          throw new Error('Objective confirmation revision mismatch');
+        const intent = await appendObjectiveReadyIntent(tx, revision);
+        await reserveCanonicalObjectivePlan(tx, revision, intent);
+        await this.assertClient(tx, ctx, record.clientId);
+      }
       return presentObjective(record);
     });
   }
@@ -296,7 +313,7 @@ export class ClientObjectivesService {
     operation: string,
   ) {
     await this.assertClient(tx, ctx, record.clientId);
-    await tx.clientObjectiveRevision.create({
+    const revision = await tx.clientObjectiveRevision.create({
       data: {
         tenantId: ctx.tenantId,
         clientId: record.clientId,
@@ -311,5 +328,6 @@ export class ClientObjectivesService {
       },
     });
     await this.assertClient(tx, ctx, record.clientId);
+    return revision;
   }
 }

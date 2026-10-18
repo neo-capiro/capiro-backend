@@ -1,0 +1,16 @@
+{
+  "source": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+  "failedWholeRun": "attempt1-jest-receipt.json",
+  "classification": "65 collection failures due omitted exact canonical test fixtures; one case ENOENT reading unchanged baseline document;34suites219cases passed. No changed facade business assertion failure inferred.",
+  "recovery": "Restore exact Git apps/api/test/fixtures and one literal baseline owner document; no product/test body changed.",
+  "fixtures": [
+    {
+      "path": "apps/api/test/fixtures/intelligence-facade-compatibility.ts",
+      "bytes": 4778,
+      "sha256": "1ce9fef7e2001096907cdc122765e9017f3a28010a13889b88f63072eb57196f"
+    }
+  ],
+  "restoredDoc": "docs/backend-cleanup/20261013/INTELLIGENCE-REMAINING-4970927F.json",
+  "cacheRetiredFiles": 480,
+  "borrowedModified": false
+}

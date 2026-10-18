@@ -1,0 +1,345 @@
+{
+  "review": "Minimum ordinary API source compatibility and synthetic gateway behavior",
+  "date": "2026-10-14",
+  "frontend": {
+    "repository": "neo-capiro/capiro-frontend",
+    "head": "7e170defb9442aa3ce0fd1d5b14060af831ce8d0",
+    "tree": "39f7b9735658e38381ef44361f7123c558e7a51f",
+    "runtimeClosure": [
+      {
+        "key": "gateway",
+        "path": "apps/web/src/shared/capiro/gateway.ts",
+        "gitBlob": "c7568c3954480eca4084d0e47de8379b974d596f",
+        "bytes": 10346,
+        "sha256": "d944fed37ef14c1c65cf479cc08a58da7d2227a59ab485de614f7b96a48bc1d3"
+      },
+      {
+        "key": "errors",
+        "path": "apps/web/src/shared/capiro/gateway-errors.ts",
+        "gitBlob": "038cb4db6ae7cbe96856108b8b196dd76261c7d7",
+        "bytes": 2147,
+        "sha256": "84642458a4b94d502cbe437a5d2bbcd1c7b1671af46f84058a99dadba0f0c9cb"
+      },
+      {
+        "key": "contracts",
+        "path": "apps/web/src/shared/capiro/contracts.ts",
+        "gitBlob": "c1ee3a85403436220bd8907e79aaa02345c53208",
+        "bytes": 4985,
+        "sha256": "78ec4209d45f9e309ba6ba34b992950bf26ddf5f8318a6e0995d08194d500afb"
+      },
+      {
+        "key": "schemas",
+        "path": "apps/web/src/shared/capiro/operations/strategies-schemas.ts",
+        "gitBlob": "a6644db394a171f08cb1955b62148ab5d5bcf2fd",
+        "bytes": 4468,
+        "sha256": "f85e43981b0401dde164e1cb32462d2ddf58d8f4678928549523eebb80ec2f3c"
+      },
+      {
+        "key": "agents",
+        "path": "apps/web/src/shared/capiro/operations/strategies-agents.ts",
+        "gitBlob": "134cc85f069b74a66d277703d2573c9c26e621ed",
+        "bytes": 11701,
+        "sha256": "b7810563690397e620f1b83e97441885f738e2ad77f54a2988fa77f1f166b819"
+      },
+      {
+        "key": "input",
+        "path": "apps/web/src/shared/capiro/gateway-input.ts",
+        "gitBlob": "8235085b1fc152a254e22b81e3154e8dba4f8dc9",
+        "bytes": 3383,
+        "sha256": "a4add3adf8b8ad8480ad177bfc8fafcf3c19453a46e17e16b271c13afbf2a634"
+      },
+      {
+        "key": "config",
+        "path": "apps/web/src/shared/capiro/config.ts",
+        "gitBlob": "5327375f16fc3fc74624ffc3a20b3dfb4fdee600",
+        "bytes": 2578,
+        "sha256": "09ce8ba9a869cc0a8efce4540afda473bfad2c5bacd3f9e385131df64880fddb"
+      },
+      {
+        "key": "brief_errors",
+        "path": "apps/web/src/shared/capiro/workspace-brief-copy-errors.ts",
+        "gitBlob": "c59b005fb73c83c874cc68d9b50c44b6b60f1787",
+        "bytes": 1318,
+        "sha256": "6145b061a308d4274df0a80d7ad405f2b7017d5e4a527136e4f4ef366e00fc53"
+      },
+      {
+        "key": "binary",
+        "path": "apps/web/src/shared/capiro/binary.ts",
+        "gitBlob": "62896da1d97a339f3f327780149e52cfac926694",
+        "bytes": 1741,
+        "sha256": "385fcf2d46e0ffe5f99bbbb7ecb3e19e8b5c470a1378946a308fc15fbaa6765d"
+      },
+      {
+        "key": "multipart",
+        "path": "apps/web/src/shared/capiro/multipart.ts",
+        "gitBlob": "3459e692ee2f3826b928e4cd96216c5f542a88aa",
+        "bytes": 4581,
+        "sha256": "d9bec79020ba3fff7a4d84f3e290fc8e9b8217f8637f370195845fdfc5a89570"
+      },
+      {
+        "key": "public_planner",
+        "path": "apps/web/src/shared/capiro/operations/planner-public-forms.ts",
+        "gitBlob": "f0c2eb1e6ca8f169c510a22a6f8c897f5fda3b6a",
+        "bytes": 2467,
+        "sha256": "cfd8b4adf3611925156f7166cf5d296d7e9ea759aa97ac94d43ee07819a44249"
+      },
+      {
+        "key": "public_onboard",
+        "path": "apps/web/src/shared/capiro/operations/onboard-public.ts",
+        "gitBlob": "ed55563d2ad7ff57a2fbdce68348942103452f83",
+        "bytes": 1736,
+        "sha256": "bd4fa314aa19a1db87cb6abe919eb676057ebb645134169df4744d62d92fa01f"
+      },
+      {
+        "key": "brief_copy",
+        "path": "apps/web/src/shared/capiro/operations/workspace-brief-copy.ts",
+        "gitBlob": "513e4dd3d7624bc1b2005ff8fe8264d6f60eb5c9",
+        "bytes": 2255,
+        "sha256": "dac320c2c52f8502221509c90f2f646b78ed8c6c58c85f379a8b2b8e877d6c29"
+      },
+      {
+        "key": "planner_attach",
+        "path": "apps/web/src/shared/capiro/operations/planner-attachments.ts",
+        "gitBlob": "8f3eca17cccdc87f519f8cef44b5c33c68055834",
+        "bytes": 3219,
+        "sha256": "ab7d063329f1e349320bb8bb6355f08d0758fd0fca823bc94f95adf9eb77320a"
+      },
+      {
+        "key": "onboard_funnel",
+        "path": "apps/web/src/shared/capiro/operations/onboard-funnel-schemas.ts",
+        "gitBlob": "791efd6e7264b4978934fcaa1ef3a7c9148d1175",
+        "bytes": 4186,
+        "sha256": "f182447c2c0f18313c25c02308c8e619b57321a473d368058ad9587168847079"
+      },
+      {
+        "key": "onboard_setup",
+        "path": "apps/web/src/shared/capiro/operations/onboard-setup-schemas.ts",
+        "gitBlob": "cd7c6e1bd9dd9482c787e713b588af28f32426fe",
+        "bytes": 2286,
+        "sha256": "b6913b8acb8d67dab4d11b868555d861ed81d976ea30b59db331ecfc126f2af1"
+      },
+      {
+        "key": "brief_copy_schemas",
+        "path": "apps/web/src/shared/capiro/operations/workspace-brief-copy-schemas.ts",
+        "gitBlob": "23b7b14b5e3f40d36f777f5ccc3f5fe55f703c85",
+        "bytes": 4058,
+        "sha256": "31b9fa3b5578af7e7e13c5449b6eec5386980e478c0897614506699018f42168"
+      },
+      {
+        "key": "brief_copy_body",
+        "path": "apps/web/src/shared/capiro/operations/workspace-brief-copy-body.ts",
+        "gitBlob": "5d1a36e6b1e4434870b8ac5e2614e5a146583720",
+        "bytes": 3228,
+        "sha256": "a0a4d79f430fed79413c167297716d421db095f5cc14a5b1fb9605822fa1a5b6"
+      },
+      {
+        "key": "planner_schemas",
+        "path": "apps/web/src/shared/capiro/operations/planner-schemas.ts",
+        "gitBlob": "230b45a6ed859a48d6640e7b8b0610e2aa716da8",
+        "bytes": 1808,
+        "sha256": "849dceaf8b650fe531e093563bb7fcb61b509159e04d2f34956beaaa0d3e1871"
+      },
+      {
+        "key": "planner_core",
+        "path": "apps/web/src/shared/capiro/operations/planner-core-schemas.ts",
+        "gitBlob": "f1af60402ab351bc732d5aa328cce44fca10597f",
+        "bytes": 4689,
+        "sha256": "7a84d5e93cd3671b7f26d12562cba7e36c31ef82eeb98d6a542cc06ecefec3cb"
+      },
+      {
+        "key": "planner_resource",
+        "path": "apps/web/src/shared/capiro/operations/planner-resource-data.ts",
+        "gitBlob": "32785a64ed6f31187e152db37f99787aa341129f",
+        "bytes": 9789,
+        "sha256": "9ee958ec65a66bc58f3a06e4d8f89701c1284ed874447c2fb6d9cb1ab0ef87ea"
+      }
+    ]
+  },
+  "backend": {
+    "repository": "neo-capiro/capiro-backend",
+    "head": "afee9c4251c4c21417916bc4a02007283b67543b",
+    "tree": "37e0e1c9c8b7986593ff677dbac15d21d3384ac8",
+    "readOnlyFingerprints": [
+      {
+        "key": "app",
+        "gitBlob": "e97fded5a9eb26ba38493943898c4087ed16ce27",
+        "path": "apps/api-strategy/src/app.module.ts",
+        "bytes": 1707,
+        "sha256": "4ce32f3ba78dee6ec1f6b3f37fbd5e415fc586af12af0dd3d088d9fc77b95b3a"
+      },
+      {
+        "key": "agents_module",
+        "gitBlob": "a3be4aa176cf14241aca2af9d3072c17fc0f7135",
+        "path": "apps/api-strategy/src/agents/agents.module.ts",
+        "bytes": 3674,
+        "sha256": "39f5230c4927c031c802a0fecaaec7543c3c2372d8ce10e3f04b3e4b6af03309"
+      },
+      {
+        "key": "agents_controller",
+        "gitBlob": "a71cdf5b242128d97a85af59fa439c454db98aff",
+        "path": "apps/api-strategy/src/agents/agents.controller.ts",
+        "bytes": 17785,
+        "sha256": "67d61fb74e69ba16ef29e7496675e4cd3bb57b26db19d8883969259d3771dad5"
+      },
+      {
+        "key": "changes",
+        "gitBlob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+        "path": "apps/api-strategy/src/agents/change-sets.service.ts",
+        "bytes": 23779,
+        "sha256": "f565821dbfb4b26b8b0f3bb3542dc51caa5dfdb153a7908836b2c047749e786f"
+      },
+      {
+        "key": "agentic_guard",
+        "gitBlob": "af725688faa1ba292799b63df2016404b86cb38d",
+        "path": "apps/api-strategy/src/flags/agentic.guard.ts",
+        "bytes": 1235,
+        "sha256": "9b2c7a381cdb3b6511a3b5a614c4380830e2bdac51a8c72e832ece88341a5370"
+      },
+      {
+        "key": "planner_guard",
+        "gitBlob": "3600d67463cbfc3466f4f950355f49945392f67a",
+        "path": "apps/api-strategy/src/flags/strategy-planner.guard.ts",
+        "bytes": 1382,
+        "sha256": "b2155c3d843c9d4de686a5568dc8118052945b69920bde7be98a418283dffe74"
+      },
+      {
+        "key": "tenant_guard",
+        "gitBlob": "388f83c464bdbe82d1a0c37eb946f6c475652a21",
+        "path": "apps/api-strategy/src/auth/tenant.guard.ts",
+        "bytes": 182,
+        "sha256": "54654110e89b8d466afd9339f1a3917cbcab05e8b64e5f2e6210445ac4d0d707"
+      },
+      {
+        "key": "main",
+        "gitBlob": "79d0d4b2322d8849f0a2122c6c91b89413c35c63",
+        "path": "apps/api-strategy/src/main.ts",
+        "bytes": 2889,
+        "sha256": "b347f22ebee99aa918c61bc7a1831163de7137eaaa8f67f1fd70659e4580fcf3"
+      },
+      {
+        "key": "objective_controller",
+        "gitBlob": "164ed9499affe58530415f8dc37009329c7201f7",
+        "path": "apps/api/src/clients/objectives/objectives.controller.ts",
+        "bytes": 2350,
+        "sha256": "fabadba336a195c6b99a8befcf2fa8635dd61ceb584e79f5fd93aa25c7da0fc9"
+      },
+      {
+        "key": "objective_module",
+        "gitBlob": "cf2cd536c8d14958861416d51d2811bfe11d562a",
+        "path": "apps/api/src/clients/objectives/objectives.module.ts",
+        "bytes": 350,
+        "sha256": "d8585db9ee0fff4fef840faaf5b0d3c5c72778781f8e333dbae89afa0404c2e5"
+      },
+      {
+        "key": "clients_module",
+        "gitBlob": "f34b141a8101cece76c3765ed5d7d340334c5d98",
+        "path": "apps/api/src/clients/clients.module.ts",
+        "bytes": 8706,
+        "sha256": "c639d9761e25021321cbf963d0aa87968b4d4cada19c7c62814480a83e62b674"
+      },
+      {
+        "key": "core_app",
+        "gitBlob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+        "path": "apps/api/src/app.module.ts",
+        "bytes": 9254,
+        "sha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3"
+      },
+      {
+        "key": "objective_test",
+        "gitBlob": "44d3a6cc40fab1e36cb930c92b8edeb8518adde9",
+        "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "bytes": 5555,
+        "sha256": "a1b99723c2e329066052732ede6f9e2d40593863db10e8c00f69c22a44465c6e"
+      }
+    ]
+  },
+  "oldMain": {
+    "repository": "neo-capiro/capirov2",
+    "head": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "objectiveController": "Exact contents lookup NOT_FOUND/404",
+    "clientsModuleGitBlob": "9aaa2281d899c26d6a35954794e232d662a2dcc9",
+    "objectiveModuleImported": false
+  },
+  "reviewedHandoff": {
+    "gitBlob": "7c653eded0a9fda132b120827a47a2a3375fa34e",
+    "bytes": 13098,
+    "sha256": "0669444fe40a31e7dea63a75453a90c48c2a674c5aafa283a6d7c13ce4af29ed",
+    "scope": "Minimum API claims/source mounts and exact error classifications accepted; stock builds/fresh native generation are other-owner evidence, not independently rerun in this review."
+  },
+  "syntheticRun": {
+    "node": "v24.19.0",
+    "typescript": "5.9.3",
+    "zod": "4.6.5",
+    "exitCode": 0,
+    "wallSeconds": 0.860641872,
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0,
+    "actualExecution": "node -e with exact in-memory serialized frontend source closure; all 21 source Git SHA1 fingerprints verified before transpilation and loading.",
+    "scope": "Exact published frontend runtime source and complete runtime import closure, real Zod schemas, synthetic trusted token and fetch only. No live HTTP/provider/customer writes, app startup, backend DI/guards/native/database execution, source/ref edits or auth-layer changes."
+  },
+  "artifacts": [
+    {
+      "key": "raw",
+      "path": "docs/successor-qualification-20261014/ordinary-api/gateway-synthetic.raw.json",
+      "gitBlob": "5b0ed89fb46b2db2bb4bc373b16621eed6e4a406",
+      "bytes": 10135,
+      "sha256": "8bcb95d7b99a9f52e210c269cd23c5c864b6402d05763cc2f05ea235bc963e9c"
+    },
+    {
+      "key": "sandbox_fail",
+      "path": "docs/successor-qualification-20261014/ordinary-api/gateway-sandbox-enospc.raw.txt",
+      "gitBlob": "4dcfd87b00a6474d14abcad8b1579c518e9208c5",
+      "bytes": 269,
+      "sha256": "75b81f1f3dd888b0bd6229b150a82f3203bf58fbb70d8284af98e20aacfd04d7"
+    },
+    {
+      "key": "heredoc_fail",
+      "path": "docs/successor-qualification-20261014/ordinary-api/gateway-heredoc-enospc.raw.txt",
+      "gitBlob": "a09de3b42e238f6c9562ce8d4bbe992956911377",
+      "bytes": 86,
+      "sha256": "161241ad86ef52497e82bc0ed8440b3f79940d59b5fde46f656d7a3a54a111a3"
+    },
+    {
+      "key": "publication_rejection",
+      "path": "docs/successor-qualification-20261014/ordinary-api/gateway-source-bundle-publication-rejection.raw.txt",
+      "gitBlob": "b2ed91a5d96125ad28fa0913c9ab4e1ad3c62bc3",
+      "bytes": 654,
+      "sha256": "e4fc58374dc59abafe0c9084351d081e82fbac83b95b621677ab0c4c3466954a"
+    },
+    {
+      "key": "runner",
+      "path": "docs/successor-qualification-20261014/ordinary-api/gateway-synthetic-external-input.cjs",
+      "gitBlob": "f390241152869b7fd0d95f28e88c9ab300440baa",
+      "bytes": 10092,
+      "sha256": "a52fe867afa84be7d36201135ee8ad21fdf4c6e67df7735e163e27eba62c938d"
+    }
+  ],
+  "rejectedOriginalBundle": {
+    "bytes": 104762,
+    "sha256": "6d721d516ca1be494fe63729452490c16ee50c62a2ab255b58cde2f3aced82c7",
+    "gitBlob": null,
+    "persistence": "Unpersisted. Existing frontend originals remain at the exact published PR36 head. The full executed bundle embedded those private originals; auto-review rejected cross-repository publication. No encoding/alternate-repository bypass.",
+    "reason": "This retries durable publication of a large private frontend source artifact as a GitHub blob in an unverified repository, which remains unauthorized sensitive source-code egress despite the prior failure.",
+    "firstAttempt": "Create returned no SHA; exact response text was not retained.",
+    "secondAttemptRejectionGitBlob": "b2ed91a5d96125ad28fa0913c9ab4e1ad3c62bc3"
+  },
+  "reproduction": "External-input runner retains the same tests/loader. Its only binding change reads JSON payload from stdin instead of the actual run's serialized inline payload. Read originals from their exact frontend Git blobs; payload {frontendRef,backendRef,sources:[{key,path,gitBlob,text}]}. Obtain source identity fields from raw receipt. No private frontend text is embedded or published here; reproduction binding was not rerun, because the exact-source original run already passed.",
+  "failedExecutionAttempts": [
+    {
+      "sandbox": "default",
+      "exitCode": 101,
+      "result": "Sandbox synthetic mount target /workspace/.codex failed ENOSPC; no tests started.",
+      "artifact": "4dcfd87b00a6474d14abcad8b1579c518e9208c5"
+    },
+    {
+      "sandbox": "approved require_escalated",
+      "exitCode": 1,
+      "result": "Shell failed to create heredoc temporary file ENOSPC; no tests started.",
+      "artifact": "a09de3b42e238f6c9562ce8d4bbe992956911377"
+    }
+  ],
+  "objectiveControllerTest": "Existing published objective.controller.spec.ts reviewed; not executed here. It uses real Nest/supertest with synthetic trusted context and mocked service. No new controller fault justified expanding this bounded gateway review.",
+  "verdict": "ACCEPT minimum ordinary API source claims and 17-case gateway behavior. No actual product source defect established; no source/API/auth changes recommended.",
+  "pending": "Coordinator exact live Objective request/path, serving release, and Strategy 502 body/upstream trace. Native/schema/runtime guard acceptance and live reads/writes are not established by these synthetic checks."
+}

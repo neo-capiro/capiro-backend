@@ -1,0 +1,36 @@
+{
+  "scope": "Borrowed cached workspace runtime package resolution/top-level hashes only; not a complete loaded-module manifest or exact frozen transitive runtime source qualification. Tests passed against these cached dependencies, with 11 exact overlay inputs. No package execution by this inspector.",
+  "qualifiedWholeRuntimeClosure": false,
+  "packages": [
+    {
+      "name": "@capiro/shared",
+      "resolved": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/dist/index.js",
+      "sourceSha256": "77be215d385277589bfc8a386b43eb78ca50b004f91cba47ecf9fae30b704b95",
+      "bytes": 253955,
+      "package": {
+        "path": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/package.json",
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf"
+      },
+      "frozenPath": null,
+      "topLevelSourceMatchesFrozenGit": false,
+      "transitiveRuntimeClosureQualified": false
+    },
+    {
+      "name": "@capiro/meriv2-core",
+      "resolved": "/workspace/capirov2/packages/meriv2-core/dist/index.js",
+      "sourceSha256": "0e76cd022c0926ee1a7762fd4af4d94d2647559b2e9e33cdd97ac9fb59fb7066",
+      "bytes": 7032,
+      "package": {
+        "path": "/workspace/capirov2/packages/meriv2-core/package.json",
+        "name": "@capiro/meriv2-core",
+        "version": "0.0.0",
+        "sha256": "f0a5a46d51feb96fa87cff1987d1da50f7303edac912ffb6d9b07f9d75f048af"
+      },
+      "frozenPath": "packages/meriv2-core/dist/index.js",
+      "topLevelSourceMatchesFrozenGit": false,
+      "transitiveRuntimeClosureQualified": false
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "source": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+  "sourceTree": "4d33f74730f47bbae00f84d513b62a9ecfff25b1",
+  "independentReview": "13a1007ff6cdddc4ac01b0294fbcf099161d88fc",
+  "publicationCheckout": "/tmp/capirov2-intelligence-facade-publication-20261013",
+  "sharedReadOnlyObjectSource": "/workspace/capirov2/.git/objects",
+  "reason": "Workspace filesystem reached0free; own local single-branch shared-object checkout writes only task-owned temporaryGit/index/objects, not borrowedsource/history. No lost history or rewritten commit.",
+  "existingPrivateDestination": "neo-capiro/capirov2",
+  "newDestinationCreation": "Denied403, no retry/alternatecredentials",
+  "nativeOrProviderOperations": false
+}

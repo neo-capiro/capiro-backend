@@ -1,0 +1,151 @@
+{
+  "observedSourceAssets": [
+    {
+      "path": "package.json",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102",
+      "sha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824",
+      "bytes": 14506
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "2890d40278d4987b8cced7333397d435a3902da4",
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128",
+      "bytes": 17465
+    },
+    {
+      "path": ".github/workflows/defense-budget-parser-ci.yml",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "152f0076e1051a7196f5115378e4bf128edec317",
+      "sha256": "44a217e3403a191b57dd3a054cc20618654776b797e35cbe4089bad9978b665f",
+      "bytes": 2193
+    },
+    {
+      "path": "scripts/cleanup-gates/gate-config.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "2a25c7847aebf1fbb928510edc9967be90dd34e8",
+      "sha256": "b2f9d7766b4b4ed87825b624ff7fcf384121afdd310c133b393df3609e6b783c",
+      "bytes": 17633
+    },
+    {
+      "path": "scripts/cleanup-gates/coverage.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "f7c4edbd706a3b55f26bf53a5ac53cf6a2b37671",
+      "sha256": "7452bab25155855bbf84269669d5f4d699f60339bbcc5dd4990258f1acfc3a1e",
+      "bytes": 10028
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "24ffb4c6e0a58fe3cc0f118eb600613ae2f91872",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6",
+      "bytes": 3322
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "41c3a36027814df988fc208e79beecd351b59b07",
+      "sha256": "c48c499d6dbb79d67e20bdd57526cfe4900ef09a4321fbc5004cff79581a637f",
+      "bytes": 23600
+    },
+    {
+      "path": "scripts/dump-test-names.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "ae02b23548b917420949d2ed01cb7554ed4cbcfb",
+      "sha256": "45b4ab32024439c78f83e222f7fa72daeb8da0fec81ae59db8ffd3f2cc9a7a0f",
+      "bytes": 9644
+    },
+    {
+      "path": "scripts/diff-test-names.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "e6e43fdf77e315094b90092a68f53c7d41781e68",
+      "sha256": "c7b9130d49a949cb85a0b29603b0479273b1dee487c4c0153466d7317f32aeb8",
+      "bytes": 6678
+    },
+    {
+      "path": "apps/e2e/baselines/manifest.json",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "2a6138ac5a4ce05ab9da67fac8228c91e9cd6c99",
+      "sha256": "c3484aa64fe4374d7cb3954265b82b9f6ba9cc1c53130e32465b202faface5fd",
+      "bytes": 159204
+    },
+    {
+      "path": "apps/e2e/baselines/source-manifest.json",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "bb6b5f62b6d70693f657f1d26bef478617860abb",
+      "sha256": "5d60e4d8528b56ab90020aea4c8abc496ff90dfa1aa81ba7a2952cdb977779f4",
+      "bytes": 479033
+    },
+    {
+      "path": "apps/e2e/lib/source-identity.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "59abe882dd5c40a28fba8a75dd915c688b1e2b25",
+      "sha256": "fae91297ad1ade631b5d77deaac8aa6f723605b6070cab62cf404898b72efeb1",
+      "bytes": 25246
+    },
+    {
+      "path": "apps/e2e/scripts/guard-route-coverage.mjs",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "3f4ead6c99baee77057679ac99ce52ed5503cd2a",
+      "sha256": "29133e8f3a0038edc23f6bdd4c52b87927db379e42d01254665a34ab4a7fba2f",
+      "bytes": 12340
+    },
+    {
+      "path": "docs/plans/cleanup2-dup-inventory.json",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "f57636235820a97a966c892334e3d0be3a0d0137",
+      "sha256": "4b0c5b1ccaa11587c081ae593816500b4d3f60349c3a9d92b17d924daaa98a75",
+      "bytes": 1086130
+    },
+    {
+      "path": "docs/plans/cleanup2-dup-status.md",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "a151597545816431908872861f26cc4c09acc028",
+      "sha256": "3bb079b32f412e595851cc0bfa8ac58b84da60f37a5b7cc6605c5874fb0bcaf8",
+      "bytes": 93694
+    },
+    {
+      "path": "docs/plans/cleanup4-progress.md",
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "blob": "b0c974b90e3b23ec1c506b86cedea67a4630faf2",
+      "sha256": "395e24541b1451aae8d403efdb87111aab1e6e8304e752965612391a1fbcac66",
+      "bytes": 4218
+    }
+  ],
+  "namedAssetsAbsentAtBothHeads": [
+    "docs/plans/cleanup1-coverage-baseline.json",
+    "docs/plans/cleanup1-baseline.md",
+    "docs/plans/cleanup1-quarantine.md",
+    "docs/plans/cleanup3-test-name-ledger.md",
+    "scripts/check-http-client-bypasses.mjs",
+    "scripts/check-config-env-bypasses.mjs",
+    "scripts/check-flag-registry-bypasses.mjs",
+    "scripts/check-tenant-scope-bypasses.mjs"
+  ],
+  "rootCleanupScriptAliases": {
+    "gate:cleanup1": "node scripts/cleanup-gates/gate.mjs --phase all",
+    "gate:cleanup1:core": "node scripts/cleanup-gates/gate.mjs --phase core",
+    "gate:cleanup1:guards": "node scripts/cleanup-gates/gate.mjs --phase guards",
+    "gate:cleanup1:python": "node scripts/cleanup-gates/gate.mjs --phase python",
+    "gate:cleanup1:e2e": "node scripts/cleanup-gates/gate.mjs --phase e2e",
+    "gate:cleanup1:test": "node --test scripts/cleanup-gates/guard-config.test.mjs",
+    "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure",
+    "gate:cleanup4:strategy-time": "node scripts/check-strategy-time-bypasses.mjs && node --test scripts/check-strategy-time-bypasses.test.mjs",
+    "gate:cleanup4:registry-ownership": "node scripts/check-registry-ownership.mjs && node --test scripts/check-registry-ownership.test.mjs",
+    "gate:cleanup4:duplicate-helpers": "node scripts/check-duplicate-helpers.mjs && node --test scripts/check-duplicate-helpers.test.mjs",
+    "gate:cleanup4:tango-page-leaves": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/external/tango/tango-rest-page.spec.ts src/external/tango/tango-sbir.client.spec.ts src/external/tango/tango-subaward.client.spec.ts",
+    "gate:cleanup4:strategy-template-metadata": "pnpm --filter @capiro/api-strategy exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/context/template-registry.spec.ts src/context/frontmatter.spec.ts src/reports/report-context.spec.ts",
+    "gate:cleanup4:workspace-product-metadata": "pnpm --filter @capiro/workspace exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath test/product-registry-characterization.spec.ts",
+    "gate:cleanup4:meri-local-dispatch": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/meri/meri-local-dispatch.equivalence.spec.ts",
+    "gate:cleanup4:verification-scopes": "node --test scripts/ci/rebuild-verification-scopes.spec.mjs"
+  },
+  "ciMainOnlyTriggerPresent": true,
+  "sourceCiStepNamesPresent": true,
+  "ciExecutionClaimed": false,
+  "historicalLedgerGeneratedFrom": "a533ad1d3911f28151a4c4f5868878681acd72d7",
+  "historicalGeneratedGroups": 1684,
+  "historicalHumanOpenRows": 1559,
+  "historicalCountsAreNotCurrentDebtCounts": true,
+  "actualNativeRunsPerformed": false
+}

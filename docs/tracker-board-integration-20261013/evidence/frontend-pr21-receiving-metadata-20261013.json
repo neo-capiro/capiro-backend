@@ -1,0 +1,14 @@
+{
+  "atUTC": "2026-10-13T22:12:36.574410+00:00",
+  "repository": "neo-capiro/capiro-frontend",
+  "pr": 21,
+  "url": "https://github.com/neo-capiro/capiro-frontend/pull/21",
+  "state": "open",
+  "draft": true,
+  "head": "c045668da6fc3b630e6d83432e608c9d20c86afe",
+  "tree": "5aad8a345d7aee82d2af9b5dbd5338936efa9551",
+  "parentReportedCode": "e63de78f394209de3fbd045a13cc06e1f8c5a8c3",
+  "parentReportedEvidence": "c045668da6fc3b630e6d83432e608c9d20c86afe",
+  "qualification": "Remote head/tree metadata verified only; independent frontend owner retains code/receipt acceptance",
+  "parentReportedConfig": "Requires explicit Test Clerk metadata; unavailable Strategy/Onboard/Meri disabled"
+}

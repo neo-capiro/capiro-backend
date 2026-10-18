@@ -1,0 +1,138 @@
+{
+  "verdict": "ACCEPT_SOURCE",
+  "base": "a6d4ee9d5029994925d20815b3dae0f1e7b410e3",
+  "sourceHead": "35ab679e64c19921e09251ba6913d4122d8d85ac",
+  "sourceTree": "63d9d1713b2f2282ae0a401c772fd9850a559508",
+  "changedProductionPaths": [
+    "apps/api/src/meri/meri.module.ts"
+  ],
+  "findings": [],
+  "reviewedBehavior": "Remove exactly three unused imports; existing ManagedMcpModule remains imported and continues owning and exporting all three services; OAuth controller remains registered.",
+  "independentObservations": [
+    "Exact commit/tree and sole production-path diff verified.",
+    "Baseline mentions of the three names occur only in the deleted import declarations.",
+    "Worktree source equals committed source and both source SHA256 values match the equivalence receipt.",
+    "Compiler config Git blobs and all named service/authority/tenant/Engagement Git blobs are unchanged.",
+    "Both root and API package.json omit type, matching the recorded single-file CommonJS compiler context.",
+    "Final script uses absolute fileName and parsed API Node16/ES2022/decorator compiler options; only non-JavaScript declaration/incremental options are overridden.",
+    "Earlier relative-fileName/rootDir diagnostics and scripts are retained."
+  ],
+  "recordedChecks": {
+    "typescriptVersion": "5.9.3",
+    "javascriptBytes": 17749,
+    "baselineAndSourceJavascriptSha256": "d29113f97152acc52891327599ece189ef1eab04188a977a160554d34017ad9f",
+    "nodeSyntax": "pass",
+    "transpileDiagnostics": 0
+  },
+  "checksRerun": false,
+  "protectedUnpublishedEngagementRead": false,
+  "unchangedGitMetadata": [
+    {
+      "path": "apps/api/src/meri/managed-mcp.module.ts",
+      "baseBlob": "fa7dde3d07b34b6fb686e9f420870888174db659",
+      "sourceBlob": "fa7dde3d07b34b6fb686e9f420870888174db659",
+      "evidenceBlob": "fa7dde3d07b34b6fb686e9f420870888174db659"
+    },
+    {
+      "path": "apps/api/src/meri/meri-mcp.service.ts",
+      "baseBlob": "07bdc76428bd7c535e1647f67fc5f022eb9c8092",
+      "sourceBlob": "07bdc76428bd7c535e1647f67fc5f022eb9c8092",
+      "evidenceBlob": "07bdc76428bd7c535e1647f67fc5f022eb9c8092"
+    },
+    {
+      "path": "apps/api/src/meri/meri-mcp-oauth.service.ts",
+      "baseBlob": "1fefb84ae394127601a12160e9427b347b2c8489",
+      "sourceBlob": "1fefb84ae394127601a12160e9427b347b2c8489",
+      "evidenceBlob": "1fefb84ae394127601a12160e9427b347b2c8489"
+    },
+    {
+      "path": "apps/api/src/meri/meri-managed-mcp.service.ts",
+      "baseBlob": "b98960bed39d48b537b7102c75b8d80afd845716",
+      "sourceBlob": "b98960bed39d48b537b7102c75b8d80afd845716",
+      "evidenceBlob": "b98960bed39d48b537b7102c75b8d80afd845716"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "baseBlob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f",
+      "sourceBlob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f",
+      "evidenceBlob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "baseBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sourceBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "evidenceBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "baseBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "sourceBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "evidenceBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "baseBlob": "6c60698125878c4497d68ea8d6d7f32496dd8cae",
+      "sourceBlob": "6c60698125878c4497d68ea8d6d7f32496dd8cae",
+      "evidenceBlob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "baseBlob": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "sourceBlob": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "evidenceBlob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+    }
+  ],
+  "reviewedEvidenceInputs": [
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/EQUIVALENCE.json",
+      "bytes": 2482,
+      "sha256": "53e114ae24b3604e98d6dc50916631731c4361c1954fa9583092ea814fcf5608"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/check-equivalence.cjs",
+      "bytes": 4716,
+      "sha256": "e787b7a870500bcd052ec8aaed3d1cea5161c337936478f739dd9125a3b6541e"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/attempt01-check-equivalence.cjs",
+      "bytes": 4504,
+      "sha256": "bbf7c12c340eb43d90aa0f4550940486cb562c60ee0003265614fa2f6121d3ab"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/attempt01-empty.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/attempt02-check-equivalence.cjs",
+      "bytes": 4699,
+      "sha256": "f63da063ab68073a81693a68275420da159167141b47507e2d493b1caea29815"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/attempt02.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/attempt02.stderr",
+      "bytes": 1258,
+      "sha256": "9df7e124bbeb1d9b635b2519aaaa10352c222ef11b64c1e68cc22145d7a55930"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/attempt03.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-managed-mcp-import-cleanup-20261014/INDEX-CUSTODY.json",
+      "bytes": 515,
+      "sha256": "1f8a0328e0f2d33d68df5c45c9d294f34d48868a029dd27015d5d6f73383b2aa"
+    }
+  ],
+  "limits": [
+    "Read-only source and recorded-evidence review; no compiler/test/runtime check rerun.",
+    "Single-file transpile equivalence is not full semantic typechecking, Core boot, DI/service construction, native Prisma/Postgres/RLS, database, HTTP, provider or deployment acceptance.",
+    "This removes dead import declarations, not shared MCP runtime or a service."
+  ],
+  "nativeAndFilesCalendarPlan": "PENDING_ROOT_DOCUMENT"
+}

@@ -1,0 +1,146 @@
+{
+  "head": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "rows": [
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "blob": "7722c72b9c43b300af4105c81b8d27c9f6790f27",
+      "workingSha256": "13d353f967bd709909a6d679f8101efd46527ae6323f19fe02bd024e3af6a5fc",
+      "committedExact": true,
+      "bytes": 12657
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "blob": "deb7617b866343c70a0349f681e032f27d1f2acf",
+      "workingSha256": "bd0ca8e16a8cdb0f4165e5a0cc896cb039c64a28308793cfa3be52c2af437936",
+      "committedExact": true,
+      "bytes": 34719
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-job-runtime.ts",
+      "blob": "8fb9843b7c2a259b42ecdc512c41400cbf43044e",
+      "workingSha256": "bbc47da24f0a9a08a93fd653f0cf263396330f04e95930674b1f491ae0520b24",
+      "committedExact": true,
+      "bytes": 1261
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-runtime.ts",
+      "blob": "b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "workingSha256": "ae6903f125af905dddee99c805c2e92656ef6242810ce1bd1e15d703a31cced5",
+      "committedExact": true,
+      "bytes": 1867
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "blob": "5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "workingSha256": "4c886e6c9ac051c1c0458c9b3b1e0ab621833cf7cc692e38e885f6c3b081f817",
+      "committedExact": true,
+      "bytes": 92904
+    },
+    {
+      "path": "apps/api/src/lobby-intel/lobby-intel.service.ts",
+      "blob": "ce4a20108c050db19c64d39df55b4ba9def0d3dc",
+      "workingSha256": "edfb5602f3209631b9605e657a1e9dfef89622f3ce934942dbc4186743b83e4b",
+      "committedExact": true,
+      "bytes": 17375
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "blob": "d071939ac0f18deccab65794b9be20222c5887e8",
+      "workingSha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283",
+      "committedExact": true,
+      "bytes": 12683
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-spending.service.ts",
+      "blob": "a432d29147985ffa965eed67c6fbdd2970f5fb03",
+      "workingSha256": "58c1457d235a0207705d5de674fd030f44755c2720a156c8dc1c9b4aadb12776",
+      "committedExact": true,
+      "bytes": 12376
+    },
+    {
+      "path": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "blob": "58a4d3f9aece3bdfb974c0c4fdd4516dee85c5da",
+      "workingSha256": "9054ccd4860c39089afe0734f097df35dada3add50042c12aa543f973e0db152",
+      "committedExact": true,
+      "bytes": 153
+    },
+    {
+      "path": "apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
+      "blob": "6860b45680419c26a2287fef2ba415c04886d946",
+      "workingSha256": "cebdbc57107909d42997add8216c57970bec161ad4d3b788bd875c922a09ca9f",
+      "committedExact": true,
+      "bytes": 9338
+    },
+    {
+      "path": "apps/api/src/common/secret-crypto.ts",
+      "blob": "9837d44ab17ab5e3b7192d3f52797d5d89f11216",
+      "workingSha256": "6d351c2d7765294081a4d2b917d252fb9f8ba03f2c73a83bd9c982acfde4531d",
+      "committedExact": true,
+      "bytes": 1730
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "blob": "c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "workingSha256": "89874c258aa2680637262d649ebc26b03d047fb0bce9cc67fa29bb9bef5e2036",
+      "committedExact": true,
+      "bytes": 7459
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.ts",
+      "blob": "3929816f803801098da80c31ea58827fcdf904b9",
+      "workingSha256": "01009c5f6a7c4bc9365c91d17419d9d1e406b570b86097af4e0144342b3d1eaf",
+      "committedExact": true,
+      "bytes": 27971
+    },
+    {
+      "path": "apps/api/src/engagement/llm-completion.service.ts",
+      "blob": "dbe7343eda3fb5dae848bf20b06b9b5342932cd4",
+      "workingSha256": "78ce34b4b5271fd6a7dbd19300470fa5403eaf5c6ef542d24d97ff33c5b1adaf",
+      "committedExact": true,
+      "bytes": 29959
+    },
+    {
+      "path": "apps/api/src/engagement/generation/reasoning-effort.ts",
+      "blob": "88f21284cbf2b21af0838c96e0a1ba5b48fe9d6a",
+      "workingSha256": "856c70924aedefa1cdc4f3e961525e6c21bcfe8fef0b9c5508943e2ab0519f54",
+      "committedExact": true,
+      "bytes": 4785
+    },
+    {
+      "path": "apps/api/src/context/context-stage-timer.service.ts",
+      "blob": "2fe9b20b9a88aa4d7e5f1b4c56102b126131c4fd",
+      "workingSha256": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714",
+      "committedExact": true,
+      "bytes": 5820
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-policy.ts",
+      "blob": "3b4ca28656bde24010c0b3e2b69f89cfb29b131a",
+      "workingSha256": "ffaca859ce7a8b767fbd9147676c675e4cb70d1e51fa16114f9cfef13cdb2054",
+      "committedExact": true,
+      "bytes": 1848
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-comprehensive.ts",
+      "blob": "30519b8feb6305d8bb8c208ed3db5ed5e7f2a53c",
+      "workingSha256": "9559563e18ba101a9cd8ca2ad272befcf076b8e3c937322b508a4126919d5b12",
+      "committedExact": true,
+      "bytes": 32154
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-grounding.ts",
+      "blob": "9525e781f9f7840b304654fa54a57e4ced10bc08",
+      "workingSha256": "aaa0d17e67b67d03320b536ea1fb96b4c82b24fe0d77a7f22e61f786d83a88d0",
+      "committedExact": true,
+      "bytes": 7607
+    },
+    {
+      "path": "apps/api/src/engagement/mail-rewrite-verifier.ts",
+      "blob": "6b4c99f6886161e1f2161e8ab03211febb4ec8c5",
+      "workingSha256": "a7e1f86f28ff585d7f311a381cff010e9116922c0815cffaf39cd91e3a374085",
+      "committedExact": true,
+      "bytes": 5901
+    }
+  ],
+  "qualification": "Exact original source runtime imports hydrated; two allocated working source paths explicitly labelled, no execution/native/provider/DB."
+}

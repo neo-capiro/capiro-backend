@@ -1,0 +1,564 @@
+{
+  "head": "53dc10fad8eb9f2bfc77b0ddc28a7c6f29a06fc0",
+  "tree": "cd5ad937d360412952687e39da686528129d5bbe",
+  "baselineTests": 26,
+  "currentTests": 84,
+  "currentPassed": 84,
+  "currentSuites": 4,
+  "retainedAllOriginal": true,
+  "missing": [],
+  "original": [
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment resolves federal facilities from the CURRENT directory contact, not the stale row.state text",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a House member with district \"0\" (or non-numeric) is treated as at-large — district: null",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment resolves state-legislator facilities from the CURRENT state_legislator row, including a named district",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment staff targets are \"not applicable\" — null, never an empty array",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a congress target whose member is no longer in the current directory resolves to null, not []",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a Governor-chamber contact resolves to null — not a legislative district at all",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a state target with an unrecognized chamber value resolves to null rather than defaulting to \"upper\"",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment batches: exactly ONE getAllContacts() call and ONE stateLegislator.findMany() call regardless of target count",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a per-target facilitiesForMember failure resolves to null for that target, never throws the whole list",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment getAllContacts() is never called when there are no congress targets",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) a personal-office staffer — current position carries a Member — classifies as personal_office",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) real committee staff — current position has no Member, and committeeAssociations is populated — classifies as committee",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) no current position, only a FORMER personal-office position — falls back to it (mirrors resolveStaffSnapshot)",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) neither signal present — unknown, never a guess",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment the reported case: a staff target whose CURRENT directory record shows a personal-office role gets staffKind personal_office, not hardcoded as committee",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment a genuine committee-staff target resolves to committee",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment directory unavailable for this staffer: falls back to the row's own stored staffKind rather than clearing it",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment non-staff targets never call getStaffDetail, and their staffKind is null",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) resolves current Clerk subject to Core UUID, then locks the actual grant/revision",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) Core retains its additional exact UUID/Clerk membership pin",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"scope\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"grants\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"objectives\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"revisions\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) keeps stale-version conflict distinct without reading an old revision",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) normalizes UUID identity and bounds versions without accepting coercions",
+      "status": "passed"
+    }
+  ],
+  "now": [
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment resolves federal facilities from the CURRENT directory contact, not the stale row.state text",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a House member with district \"0\" (or non-numeric) is treated as at-large — district: null",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment resolves state-legislator facilities from the CURRENT state_legislator row, including a named district",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment staff targets are \"not applicable\" — null, never an empty array",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a congress target whose member is no longer in the current directory resolves to null, not []",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a Governor-chamber contact resolves to null — not a legislative district at all",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a state target with an unrecognized chamber value resolves to null rather than defaulting to \"upper\"",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment batches: exactly ONE getAllContacts() call and ONE stateLegislator.findMany() call regardless of target count",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment a per-target facilitiesForMember failure resolves to null for that target, never throws the whole list",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — WS-E district-nexus enrichment getAllContacts() is never called when there are no congress targets",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) a personal-office staffer — current position carries a Member — classifies as personal_office",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) real committee staff — current position has no Member, and committeeAssociations is populated — classifies as committee",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) no current position, only a FORMER personal-office position — falls back to it (mirrors resolveStaffSnapshot)",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "classifyStaffKind (Q09) neither signal present — unknown, never a guess",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment the reported case: a staff target whose CURRENT directory record shows a personal-office role gets staffKind personal_office, not hardcoded as committee",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment a genuine committee-staff target resolves to committee",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment directory unavailable for this staffer: falls back to the row's own stored staffKind rather than clearing it",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.service.spec.ts",
+      "name": "ClientTargetsService.listTargets — Q09 staffKind enrichment non-staff targets never call getStaffDetail, and their staffKind is null",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) observes an existing congress target without cached entity lookup or metadata leakage",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) observes an existing state target without cached entity lookup or metadata leakage",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) observes an existing staff target without cached entity lookup or metadata leakage",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing tenantActive before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing membershipActive before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing internalRole before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing clientAvailable before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing grant before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing objectiveAvailable before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses current revoked or missing revisionAvailable before any target read",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) pins the actual current native userId without casting a Clerk subject to UUID",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) pins the actual current native clerkUserId without casting a Clerk subject to UUID",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) pins the actual current native tenantId without casting a Clerk subject to UUID",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) does not grant an administrator a wall bypass",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) does not require an invented grant on an unwalled client",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) rechecks current scope on every replay instead of treating a receipt as a capability",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses missing, foreign or moved targets and suppresses stale Objective disclosure: null",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses missing, foreign or moved targets and suppresses stale Objective disclosure: {\"clientId\": \"abcdefab-1234-4567-89ab-abcdefabcdef\", \"id\": \"77777777-7777-4777-8777-777777777777\", \"memberId\": \"member-12\", \"sourceDirectory\": \"congress\"}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses missing, foreign or moved targets and suppresses stale Objective disclosure: {\"clientId\": \"77777777-7777-4777-8777-777777777777\", \"id\": \"abcdefab-5678-4567-89ab-abcdefabcdef\", \"memberId\": \"member-12\", \"sourceDirectory\": \"congress\"}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses unsupported persisted target identity {\"sourceDirectory\": \"committee\"} before exposing a stale version",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses unsupported persisted target identity {\"sourceDirectory\": \"personnel\"} before exposing a stale version",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses unsupported persisted target identity {\"memberId\": \"\"} before exposing a stale version",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses unsupported persisted target identity {\"memberId\": \"   \"} before exposing a stale version",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses unsupported persisted target identity {\"memberId\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"} before exposing a stale version",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses unsupported persisted target identity {\"memberId\": null} before exposing a stale version",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) returns only the established conflict for an otherwise authorized current target",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) checks deleted target state at its actual read after current authority, including stale conflict suppression",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) checks moved target state at its actual read after current authority, including stale conflict suppression",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) checks source-changed target state at its actual read after current authority, including stale conflict suppression",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version 0 before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version -1 before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version 1.5 before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version 2147483648 before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version \"3\" before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version [3] before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses invalid Objective version null before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses malformed or mismatched path identity {\"clientId\": \"77777777-7777-4777-8777-777777777777\"} before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses malformed or mismatched path identity {\"targetId\": \"member-12\"} before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses malformed or mismatched path identity {\"clientId\": \"not-uuid\"} before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) refuses malformed or mismatched path identity {\"targetId\": [Array]} before database access",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) preserves infrastructure error identity without retry, cached receipt, or unavailable coercion",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) does not replace a late target-read infrastructure failure with a deferred stale conflict",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) accepts the published read-version and saved member-ID upper bounds without inventing entity grammar",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) rejects a malformed Objective ID before opening any transaction",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "name": "Saved Directory target Objective destination (source/synthetic database ports) retains the existing target DTO Unicode character budget instead of imposing a UTF16 unit limit",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP retains actual Core/ClientsModule registration of this existing controller and provider",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP registers the real owner route with ordinary login/context/guard, strict query and no-store receipt",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rejects unsupported, repeated or missing query fields {\"actor\": \"22222222-2222-4222-8222-222222222222\", \"clientId\": \"33333333-3333-4333-8333-333333333333\", \"objectiveId\": \"55555555-5555-4555-8555-555555555555\", \"objectiveVersion\": \"3\"} before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rejects unsupported, repeated or missing query fields {\"clientId\": \"33333333-3333-4333-8333-333333333333\", \"objectiveId\": \"55555555-5555-4555-8555-555555555555\", \"objectiveRevisionId\": \"66666666-6666-4666-8666-666666666666\", \"objectiveVersion\": \"3\"} before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rejects unsupported, repeated or missing query fields {\"clientId\": [Array], \"objectiveId\": \"55555555-5555-4555-8555-555555555555\", \"objectiveVersion\": \"3\"} before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rejects unsupported, repeated or missing query fields {\"clientId\": \"33333333-3333-4333-8333-333333333333\", \"objectiveId\": \"55555555-5555-4555-8555-555555555555\", \"objectiveVersion\": [Array]} before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rejects unsupported, repeated or missing query fields {\"clientId\": \"33333333-3333-4333-8333-333333333333\", \"objectiveId\": \"55555555-5555-4555-8555-555555555555\", \"objectiveVersion\": \"0\"} before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rejects unsupported, repeated or missing query fields {\"clientId\": \"33333333-3333-4333-8333-333333333333\", \"objectiveId\": \"55555555-5555-4555-8555-555555555555\"} before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP refuses malformed/mismatched path not-uuid/44444444-4444-4444-8444-444444444444 before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP refuses malformed/mismatched path 33333333-3333-4333-8333-333333333333/member-123 before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP refuses malformed/mismatched path 77777777-7777-4777-8777-777777777777/44444444-4444-4444-8444-444444444444 before business SQL",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP preserves ordinary bearer and role refusals without new reader/login rules",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "name": "Directory Objective existing owner registration and native synthetic HTTP rechecks actual current membership after native login before issuing a bound receipt",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) resolves current Clerk subject to Core UUID, then locks the actual grant/revision",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) Core retains its additional exact UUID/Clerk membership pin",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"scope\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"grants\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"objectives\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) fails closed for missing current canonical rows {\"revisions\": [Array]}",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) keeps stale-version conflict distinct without reading an old revision",
+      "status": "passed"
+    },
+    {
+      "suite": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "name": "Shared canonical Objective authority seam (synthetic tagged SQL only) normalizes UUID identity and bounds versions without accepting coercions",
+      "status": "passed"
+    }
+  ]
+}

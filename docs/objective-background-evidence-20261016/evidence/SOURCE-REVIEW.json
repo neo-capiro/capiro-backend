@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUTC": "2026-10-16T02:56:25.3922085+00:00",
+  "reviewer": "/root/operational_proposal_review",
+  "verdict": "ACCEPT_SOURCE_ONLY",
+  "concreteBlockers": [],
+  "scope": "Independent source, exact-seal and retained focused-evidence review; no reviewer execution or source edits.",
+  "source": {
+    "commit": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+    "tree": "005806a89c89d039aacd32a6bcbd54ba20c2ca6c",
+    "directParent": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+    "branch": "feat/objective-background-evidence",
+    "cleanAtReview": true,
+    "changedFiles": 9,
+    "insertions": 941,
+    "deletions": 98,
+    "manifestMatchesAllNineFiles": true,
+    "workingBytesAndGitBlobsMatch": true
+  },
+  "implementationFindings": {
+    "authority": "Current Objective/client authority and exact saved-ready revision validation precede the single tenant/client-scoped Fill SELECT in the same tenant transaction. Existing local witnesses, final authority and source lock inventory are unchanged.",
+    "retention": "All retained runs/findings and core+extension tasks are enumerated; no latest-only shortcut, mutable Fill getter, refresh, dispatch, mailbox/source join or new database write.",
+    "truth": "Accepted means historical reviewed/applied artifact, not current canonical truth. Pending remains unverified; factKind independently preserves recommendations. Rejected/informational payloads and identifying target/source fields are withheld; corpus completeness is enumeration, not verification/readiness.",
+    "projection": "Task identity uses lane+id. Core-only state preserves recorded status/stage/completion, with an explicit stored_core label; completion merge is used only when extension tasks exist. Run/source/task projection selects safe metadata, not errors/inputs/output summaries/reviewer/worker/setup fields. Accepted/pending evidence requires an array.",
+    "digest": "Stable deterministic background digest is supplied to historyDigest at compile and fresh post-model recheck. No fresh observation clock enters it; localDigest and non-Objective history behavior are unchanged.",
+    "budget": "Typed structural composition replaces marker parsing. Per-record1600, retrieval24000 and steering12000 bounds include labels, joining separators and shared empty-steering fallback, without slicing or lossy selection. Compose callback remains local and is not returned or serialized.",
+    "schema": "Static migration/source inspection found the selected tables, columns, enums, timestamps and tenant/client composite run associations compatible. No SQL execution or native grant qualification is implied.",
+    "helper": "The existing Fill completion state/progress algorithm was moved into a pure helper with unchanged owner merge predicates and owner no-extension branch."
+  },
+  "focusedEvidence": {
+    "verdict": "RETAINED_FOCUSED_RESULT_ACCEPTED_WITH_SCOPE_LIMITS",
+    "reportedNode": "24.19",
+    "mode": "Native Node source stripping; actual pure source and tagged-SQL construction with synthetic rows.",
+    "tests": 68,
+    "passed": 68,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "nodeTestSuitesReported": 0,
+    "exitCode": 0,
+    "pid": 13240,
+    "ownedProcessExited": true,
+    "timedOut": false,
+    "elapsedSeconds": 0.1871813,
+    "nodeTestReportedDurationMs": 113.7014,
+    "heapMiB": 128,
+    "externalTimeoutSeconds": 120,
+    "environment": "Launcher clears application environment and supplies a small system/test allowlist. Preload refuses exposed socket/listener/DNS/fetch/child/worker APIs; imported closure is pure source.",
+    "output": "Observed6322B stdout and586B stderr; output was within4MiB. Stderr contains only the expected MODULE_TYPELESS_PACKAGE_JSON warning.",
+    "sourceBinding": "Launch record identifies base622 and a separately pinned working diff. This review binds the final clean commit's9 files and retained logs; the three production context-file hashes also match the pre-run source review.",
+    "firstAttempt": "Separate preserved launcher failure occurred before a child PID existed because Get-Command produced multiple paths; it earned no tests.",
+    "limits": "V8 heap cap is not a measured total-RSS guarantee. Admission evidence is explicitly an already-approved Shipping-relayed sample, not a peak or fresh pre-launch memory guarantee. No further execution is authorized here."
+  },
+  "qualificationLimits": [
+    "No TypeScript semantic compilation result yet; source stripping is not semantic typechecking.",
+    "Focused Nest context integration tests were updated but not run in this fixture.",
+    "The SELECT was inspected and its tagged-SQL construction exercised, not executed against PostgreSQL.",
+    "No database/RLS/grants/native-concurrency/full-application/real-auth/provider qualification is earned.",
+    "No model, application publication, Planner materialization, readiness deferral or automatic completion loop is qualified by this slice.",
+    "Existing native ACL STOP and other separately recorded release/admission gates remain intact.",
+    "Previous331 and264 test counts are separate overlapping evidence and are not added to these68 focused tests."
+  ],
+  "reviewerActions": {
+    "sourceReads": true,
+    "hashesAndGitMetadata": true,
+    "newEvidenceReceiptOnly": true,
+    "testReruns": 0,
+    "compilations": 0,
+    "databaseConnections": 0,
+    "applicationOrPostgresqlProcessesLaunched": 0,
+    "aclOrSecurityChanges": 0,
+    "applicationFilesEdited": 0
+  },
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion-projection.ts",
+      "bytes": 5210,
+      "sha256": "7e877ddf14aca433e4390e23dec7c8af45f36fc49b31e92437b8e8d0ab088986",
+      "gitBlob": "1db06a5dafd9cfec8e84464fbbbbeae7bcdaae50"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-read-model.ts",
+      "bytes": 7209,
+      "sha256": "2f2303335cd5c683369c9df7ce1584cdbbe17d1faff1a4ba28cfda2ad3d21cb0",
+      "gitBlob": "88a1bd113fcd7fe7ba4e35188192499c8e7d7673"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-background.ts",
+      "bytes": 13767,
+      "sha256": "f05b8f3122b24a0f49e69b2596ca9a2ab4513ef4da7d3f68e1d304664b389978",
+      "gitBlob": "93965a024aed4e6bec78841aafe353bc297fee90"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-context.service.spec.ts",
+      "bytes": 7429,
+      "sha256": "0a0ae3affae6bbd215a14f194013913c35e1e1587bc9d282df81826ee240be15",
+      "gitBlob": "0da492a7b40426f6e8b8b26d8b9fe6a81f654e49"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-context.service.ts",
+      "bytes": 17055,
+      "sha256": "adc4a1f7a6ab7fefafeb041cf1461c57e2afee854678aa076d338f0518dbfc83",
+      "gitBlob": "ba89e24d145a20fe280d8c7a75982432d9c9a1ff"
+    },
+    {
+      "path": "apps/api/src/context/strategy-context-plane.service.spec.ts",
+      "bytes": 26210,
+      "sha256": "8a116fcd76252c9d0080c43c146453e0e8539df729a4c8406a7ef799024dabe7",
+      "gitBlob": "89abc54733e6539d0bff700d137ee294d974a715"
+    },
+    {
+      "path": "apps/api/src/context/strategy-context-plane.service.ts",
+      "bytes": 37626,
+      "sha256": "263106f62d379664dbd9bdd558ea1935d397bef46e65024f0cde344b4ecc7ffd",
+      "gitBlob": "ed081585e5aa27a9d3b90f2e69d8febd5f2fa74e"
+    },
+    {
+      "path": "apps/api/test/objective-generation-background.focused.test.mjs",
+      "bytes": 28273,
+      "sha256": "e9236c3f7ea61333c5aec5b3c5289f844e031b78243ae9fd3a3c59bb2b89438d",
+      "gitBlob": "0030ff6e684d89c78e75ceb1cb2c93253e454f7e"
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/IMPLEMENTATION.md",
+      "bytes": 4534,
+      "sha256": "905b8f5fc27fef981270748b21366c48ae3dddc5acdb0c071e9802a67f8a0296",
+      "gitBlob": "218fed62944c80d2e5ecf7c99919a58c5956b495"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "SOURCE-FILES.json",
+      "bytes": 2629,
+      "sha256": "66eee9336f2417f0d2b9174d1066191604518a594a359626adeb6552b0f976b9"
+    },
+    {
+      "path": "APPLICATION.patch",
+      "bytes": 69846,
+      "sha256": "b498bf366de0090243d574c39627415a23ecf63b48e63fb2f4c85c92df99cf00"
+    },
+    {
+      "path": "FOCUSED-RESULT.json",
+      "bytes": 1356,
+      "sha256": "f7f44e2befd473196f4aa5a426095cde053a21ae8de96ae75ed0dfb6fc62b8a1"
+    },
+    {
+      "path": "focused.stdout.log",
+      "bytes": 6322,
+      "sha256": "4a354149b960a1844b123d0da09ed15700c513c9c82cfa54af4e5524788489d5"
+    },
+    {
+      "path": "focused.stderr.log",
+      "bytes": 586,
+      "sha256": "fd674d8d7831d39cf35ce78c5c71ba5f79adf914750a5d0e5e35059f311c2237"
+    },
+    {
+      "path": "LAUNCHER-PRESTART-FAILURE.json",
+      "bytes": 423,
+      "sha256": "0677c11fca752be0058b81be022d56ec73ce16a91782036701ad48c0e70a7388"
+    },
+    {
+      "path": "offline-source-guard.cjs",
+      "bytes": 777,
+      "sha256": "c72dd631bfa43116f077c9770f61afa6d5d0da58b6368993f175065223256282"
+    },
+    {
+      "path": "run-focused.ps1",
+      "bytes": 3288,
+      "sha256": "dc5aad1df82091b77bec82fbdcab0a1c364bac4d7b3f38b258771cef4589c5e3"
+    }
+  ]
+}

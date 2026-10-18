@@ -1,0 +1,18 @@
+{
+  "ownedBuild": "/tmp/intelligence-facade-api-build-20261013",
+  "retired": true,
+  "typeInfos": [
+    {
+      "path": "/tmp/intelligence-facade-api-build-20261013.tsbuildinfo",
+      "bytes": 1319046,
+      "sha256": "ea9daf767058d891e0a40f9b38aede1e88f205f32026fb98c157103e023ba188"
+    },
+    {
+      "path": "/tmp/intelligence-facade-api-type-20261013.tsbuildinfo",
+      "bytes": 1821740,
+      "sha256": "1254e6ab6a5664a25084071367569173ff3ccfe02133b51bd84b45abc3ff8a9e"
+    }
+  ],
+  "temporaryOwnedConfigFilesRemoved": true,
+  "borrowedModified": false
+}

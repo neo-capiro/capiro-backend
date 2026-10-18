@@ -21,7 +21,7 @@ import {
 import { BizDevWatchService } from '../business-development/bizdev-watch.service.js';
 import { BusinessDevelopmentWatchFlagGuard } from '../business-development/bizdev-watch.flag.guard.js';
 import type { BizDevMaterialFieldChange } from '../business-development/bizdev-watch.types.js';
-import { authorizeMeriProspectScope } from './meri-prospect-scope.helpers.js';
+import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 
 /**

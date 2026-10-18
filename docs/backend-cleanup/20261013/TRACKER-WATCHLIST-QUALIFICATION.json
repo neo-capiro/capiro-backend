@@ -1,0 +1,912 @@
+{
+  "schema": "tracker-watchlist-ownership-qualification/v1",
+  "sourceOnly": true,
+  "base": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+  "baseTree": "046ef2faa7ef042c9b9155df65ec04f7484ebcc8",
+  "branch": "codex/backend-tracker-watchlist-20261013",
+  "receivingDependency": {
+    "sourcePR": "https://github.com/neo-capiro/capirov2/pull/2490",
+    "sourceHead": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+    "parentConfirmsReceived": true,
+    "receiverEditedByThisTask": false,
+    "composedReceiverHead": "OWNED_AND_PINNED_BY_PARENT_NOT_SUPPLIED_TO_SOURCE_OWNER",
+    "requirements": "Receive on the separately pinned composed backend tree containing PR2490 Shared canonical algorithms and Tracker guard dispositions. Apply this guard migration to that lineage; do not overwrite it with the pre-PR2490 guard.",
+    "sourceSiblingNotInAncestry": {
+      "PR": 2480,
+      "head": "64a79469e5864b5e1b069a6ea7050cf7efb849bd"
+    }
+  },
+  "productionBaseline": {
+    "admittedCoreSource": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "declaredIntelSource": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "originalWatchlistSHA256": "349f849d9bb5f967df1477a7143d9637e32ac907e79cbf96442982f5c1a82277",
+    "originalWatchlistByteExactToBothDeclaredSources": true,
+    "actualLiveImageBuildUsedTree": "UNESTABLISHED",
+    "mainAssumedProduction": false,
+    "consumerManifest": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-action-20261013/consumers/MANIFEST.json",
+      "sha256": "08a563947f3bf16c649f0c20e6a9531da750eb895cb28e25e59ce566c9f8a348"
+    },
+    "consumerClosure": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-action-20261013/consumers/WATCHLIST-CONSUMER-CLOSURE.json",
+      "sha256": "09ea9267a6b35f2d4c34e58e67c19d1c2b45960b6dcaa21ac09681e7c4b74c60"
+    },
+    "relatedNativeScope": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-action-20261013/consumers/WATCHLIST-RELATED-NATIVE-SOURCE-SCOPE.json",
+      "sha256": "f6e9ba7822b2bcb95fdfb64a9396919aed5c5a613a30b0cb830adf288c10d40f"
+    },
+    "finiteInstanceAdmission": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-action-20261013/closure/WATCHLIST-IMPLEMENTATION-CLOSURE-ADMISSION.json",
+      "sha256": "8151dd9cb3dcd5fc674601086d20995781a75d14e1cba00333ff901173b57cc1"
+    },
+    "ranking": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-action-20261013/ranking/NEXT-FINITE-IMPLEMENTATION.json",
+      "sha256": "56c1e74d7cd065cf5b870ea0c03bb1819d60e4d1e374503453fdf069f36f14b2"
+    }
+  },
+  "ownership": {
+    "completeCurrentServiceInstances": 1,
+    "completeProductionResponsibilities": 5,
+    "originalMethods": 15,
+    "delegatedOperations": 10,
+    "originalAccessProofDeclarationsAndJSDocByteExactAtFacade": 5,
+    "allOriginalMethodHeadersDefaultsArityAndVisibilityPreserved": true,
+    "constructorPrismaDependencyCount": 1,
+    "originalPerInstanceLoggerAndOnlyOriginalInstanceFieldsPreserved": true,
+    "originalRuntimeExports": [
+      "HEARING_TERMS_TOPIC_LABEL",
+      "isReservedTopicLabel",
+      "DEFAULT_TRIGGERS",
+      "TrackerWatchlistService"
+    ],
+    "originalTypeExports": [
+      "TrackerTermInput",
+      "TrackerTopicInput",
+      "PutWatchlistInput",
+      "WatchlistView",
+      "WatchlistRevisionView",
+      "PutAlertPrefsInput"
+    ],
+    "publicInterfaceBodiesCanonicalAndByteExact": 6,
+    "originalGlobalDeclarationsAndRelativeOrderByteExact": 4,
+    "defaultTriggerLiteralRetainedForApiSourceConsumer": true,
+    "actualInvocationReceiverAndLatePrismaLoggerPrivateOverridesPreserved": true,
+    "rootOwnedLazyPublicConstantBindingsAndLexicalPrivatePolicyReferencesPreserved": true,
+    "typeOnlyFacadeImportsAvoidRuntimeCycles": true,
+    "originalRootNonblankLines": 1036,
+    "originalRootPhysicalLines": 1070,
+    "facadeNonblankLines": 357,
+    "facadePhysicalLines": 380,
+    "productionFileCount": 10,
+    "productionFilesBelow400Nonblank": true,
+    "maxCompleteFunctionConstructorOrCallbackPhysicalLines": 73,
+    "originalOversizedFunctionsRemoved": 3,
+    "unmodifiedCompilerFunctionPhysicalLines": 158,
+    "wholeCompilerDecompositionClaimed": false,
+    "writeConcurrencyPolicy": "Original optimistic version read/check followed by upsert within the existing transaction. No new row lock or database conditional compare-and-swap.",
+    "preferencesConcurrencyPolicy": "Original explicit FOR UPDATE row lock remains.",
+    "observableOrder": "Client then admin proof; normalized payload; transaction head/version/upsert, persisted indexes, protected rename dispositions, per-topic writes, removed topics, flat clear last, revision inside transaction; attribution after commit.",
+    "buildAndDeploymentDisposition": "Existing recursive Intel build discovery emits all nine new modules. Providers, controllers, schemas, migrations, package/lock, CI, Docker and deployment inputs remain unchanged.",
+    "sourceReconstruction": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/source-drafts/SOURCE-EQUIVALENCE-PROOF.json",
+      "sha256": "f743c8d28b7b145faf75d8d9610aafbb889a3f8575b5493c39ecedeefce1a4f3"
+    },
+    "sourceFreeze": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/source-drafts/SOURCE-FREEZE.json",
+      "sha256": "644001c0d778a0aff0ca2869a71be1a52d3d19f0fd377fc6cfed554892f76e7d"
+    }
+  },
+  "productionAssets": [
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-compiled.ts",
+      "sha256": "34b2f4ab99d810dbfb3a2c75306931c10cda8533b73653307d357ae772a11973",
+      "nonblankLines": 54,
+      "physicalLines": 54,
+      "maxCompleteFunctionLines": 49
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-input.ts",
+      "sha256": "b5c8a582fee0cd7a589ca6a1fdfd25ae19decf2135ad6001daa32c56a577ebe0",
+      "nonblankLines": 106,
+      "physicalLines": 106,
+      "maxCompleteFunctionLines": 58
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-preferences.ts",
+      "sha256": "6cd85e5ea6a8bf7d83f1c2fd3f0f4fa272d10207e971e234b6b5d24a53f2c294",
+      "nonblankLines": 125,
+      "physicalLines": 125,
+      "maxCompleteFunctionLines": 54
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-read.ts",
+      "sha256": "6d7ae145a45bf94f3ff1adc0bb0521a600eb3df9687034dfcabf320e0fc8eb27",
+      "nonblankLines": 264,
+      "physicalLines": 264,
+      "maxCompleteFunctionLines": 73
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-reconcile-finish.ts",
+      "sha256": "349aff38d28dc9d6331ba4f6f9ddb9468b9cfb198864f16868df6f937281f16c",
+      "nonblankLines": 66,
+      "physicalLines": 66,
+      "maxCompleteFunctionLines": 61
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-reconcile-head.ts",
+      "sha256": "bfa69210e8c256de0e446bef19c056318ecbe65c865bcd215d930e5cdced6d5f",
+      "nonblankLines": 98,
+      "physicalLines": 98,
+      "maxCompleteFunctionLines": 35
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-reconcile-topics.ts",
+      "sha256": "6a9b14adea2abf8e9719b1066f1bf5a667260d9979cdfdfe07fdbffed13d7a6c",
+      "nonblankLines": 128,
+      "physicalLines": 128,
+      "maxCompleteFunctionLines": 55
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-write.ts",
+      "sha256": "f728e0245103fb2170fb019823d4a8d8a595bd4eef016bb99f5d8393ca65014f",
+      "nonblankLines": 103,
+      "physicalLines": 103,
+      "maxCompleteFunctionLines": 61
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist.contracts.ts",
+      "sha256": "45d895fa88894f4cac34251ef8b65b7ead51875e780f8eddd2089bb914fa3e74",
+      "nonblankLines": 171,
+      "physicalLines": 177,
+      "maxCompleteFunctionLines": 0
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist.service.ts",
+      "sha256": "ccb7904264ebf3fd5661246c19e263f016464835c31bb35e018126abb51b845b",
+      "nonblankLines": 357,
+      "physicalLines": 380,
+      "maxCompleteFunctionLines": 41
+    }
+  ],
+  "testAndConfigAssets": [
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-read.spec.ts",
+      "sha256": "42d8f654ca349e1df404dd4e9ccec12470c62bb92b9a3eb609b27b172e6a37e8"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-write.spec.ts",
+      "sha256": "77db5e92b4fec9d1881edb382eb6e5ece00da0cfe9812e336c0e465463e7c1c1"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-failures.spec.ts",
+      "sha256": "eb9580e307341cab1c913cd1aea53b2959413de12952fef9b1b81048ec720966"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-prefs.spec.ts",
+      "sha256": "746b160be7a2d5964ea09f4bfebf4a3287d5656868a83454e22aa0e3848a8d07"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-compile.spec.ts",
+      "sha256": "6cdd7be9d66c8e1cb11f415fda1ef97c68581379decea614405670f50bc236af"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-receivers.spec.ts",
+      "sha256": "72c320b35183cdd41e74d6304750dcdea735bc1f37414dbfa6a5a8b28957a1fd"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/io.ts",
+      "sha256": "e1124257a4479663d818ef617151adfe79d020882704599458cfda98ab730ef0"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/literals.ts",
+      "sha256": "4bc1a6b25d1dc20189744164b43e3e307e7cf9aab5fcd289977a26af54d8e756"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/prefs-io.ts",
+      "sha256": "e3a37c6d753c325aaca6f9205f453f522809797b2549867c8a7eb2968bd6bfe3"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/read-io.ts",
+      "sha256": "889141308fa40933f0c516279c88e6c559c09b24f291afbca643fdff65a24a3f"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/write-case.ts",
+      "sha256": "b17b1b3d01f052d4089f44afc09983cf715abec521bf04d3281f07ec2cef4956"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/write-io.ts",
+      "sha256": "62da745960524bfe67122a51a2cb759245a8b37d1a9e924e23814e326b5b37fe"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership.contract.spec.ts",
+      "sha256": "09b56771fd195fab9e049123071c5cbb084ed7b013eb393bbb89d6a58e446f07"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership-guard/semantic.ts",
+      "sha256": "dcfe2e78d6286b7dd4934f1f54ae85e3aa7b0065bbe8e5dd212978ebb8ad4501"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership-guard/decomposition.ts",
+      "sha256": "9d48902c4f7aa67535e301e349cafa282189fb41f655a4b7faa58011b906c661"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership-guard/pins.ts",
+      "sha256": "4223876840a9a3e80187945ef0c5eec6b800549606aa473bf538080cb983e7d7"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership.contract.spec.ts",
+      "sha256": "59bb5cad235863762965c003a3f49c4e507575230aacdfba5c02ae43a4ae96cb"
+    },
+    {
+      "path": "apps/intel-api/tsconfig.tracker-watchlist-ownership.json",
+      "sha256": "158caa5efa67cfb1ec5569ea2b6c051af7ecbcbb6b7fab0bc58f1f0b357d9601"
+    }
+  ],
+  "retainedTestAssets": [
+    {
+      "path": "apps/api/src/tracker/tracker.types.spec.ts",
+      "sha256": "f41b1094f4a3c3602bb667dd839f6fcd77ec39fdd689dde4c98b626080d79c11"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist.spec.ts",
+      "sha256": "3f5018eb625af917a3a63e43c37eb720bda25ba6b5770d2326bb410425b7c9e5"
+    },
+    {
+      "path": "apps/intel-api/test/watchlist-weighting.spec.ts",
+      "sha256": "f91cac0892906b4069922a889cb655aaabe370b3b094786e80a5239dbbf2e046"
+    },
+    {
+      "path": "apps/intel-api/test/watchlist-compiler.spec.ts",
+      "sha256": "10ecd0be67b6f4ac3a76e2d3b979830a73d66c8c916f4c6b99aee05f17204c87"
+    },
+    {
+      "path": "apps/intel-api/test/term-validation.spec.ts",
+      "sha256": "01948a6ec5d3ef785b3cdcf4b3ef8c617538dafb67372f56ec7f742b1a470722"
+    },
+    {
+      "path": "apps/intel-api/test/term-routing.spec.ts",
+      "sha256": "26fa81fbf5bd9e89f59598e5f699acb7c8ca6c189419f2af23e926840b9c3a3b"
+    },
+    {
+      "path": "apps/intel-api/test/watchlist-mapping.spec.ts",
+      "sha256": "ebec488b119ede48c8af3fe571a15937b7e966ef598a62a23b22ac499b6bdf61"
+    },
+    {
+      "path": "apps/intel-api/test/sms-verification.spec.ts",
+      "sha256": "a360c29686743f59671775adf30171b76f7ccd378c58f869a5f3c75a809a2f43"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-alert-prefs-verification.spec.ts",
+      "sha256": "2c9c47e581fe47998144159bbe77cee094cc3594985318ae1d2409e43d59c7a8"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-tenant-scoping.spec.ts",
+      "sha256": "aef9dbf04fc1dc28abd83096ca914a94e63d3e004f832b84174cd034773cd348"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-guards.spec.ts",
+      "sha256": "107fb1dd317a2b68551bee08d8219d7fbf11157b499ba5ec868fa24d8595accd"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-dto-validation.spec.ts",
+      "sha256": "1ca6cd78c598db8fe8ea17ec57c2029078f5f0693bdd53c4757a696a4f463fad"
+    },
+    {
+      "path": "apps/intel-api/test/task-runner.spec.ts",
+      "sha256": "5f7b2aa853b93dc5d7decc4bfb60a22904faddde7172f5dea0c01ad86d71c35b"
+    },
+    {
+      "path": "apps/intel-api/test/new-match-detector.spec.ts",
+      "sha256": "711846970909a129e2b362c3559503511165d7a01ae31e3d1506ef76f1d0f8a8"
+    },
+    {
+      "path": "apps/intel-api/test/action-item.spec.ts",
+      "sha256": "50a32c5e4872ef3e83333a03acd0fbadef2f17798c9d24d6be9cf630bfb0eb3e"
+    },
+    {
+      "path": "apps/intel-api/test/alert-work-state.spec.ts",
+      "sha256": "653b3692133cf397eb290b6020b026d4624eec3cec68cf4fdd1bea505e67f7ee"
+    },
+    {
+      "path": "apps/intel-api/test/memo-link-idempotency.spec.ts",
+      "sha256": "6f9c15275d115fdec16b54f36512bce0ba475183025ff9e2b9224c86e6f58299"
+    },
+    {
+      "path": "apps/intel-api/test/action-item-dto-validation.spec.ts",
+      "sha256": "41214017d364d3eb2941e038a04d8bec4374e2a9877015632df482e6b16c265f"
+    },
+    {
+      "path": "apps/intel-api/test/action-item-all-scope-routing.spec.ts",
+      "sha256": "c6a8fd88feb77a24be41cd12375a2c7d18a536c0ad62b08df84038616c9a5291"
+    },
+    {
+      "path": "apps/intel-api/test/alert-packet.spec.ts",
+      "sha256": "86ac27e1e1630941778011f9d6d5ab0b6a7b6de24adb23e9816f431313ce6a42"
+    },
+    {
+      "path": "apps/intel-api/src/feed/alert-packet.service.spec.ts",
+      "sha256": "0401132704558714f9ed4ad7be17875030d37c3dfe8118b431a1b9055e94f65d"
+    },
+    {
+      "path": "apps/intel-api/src/feed/alert-packet.spec.ts",
+      "sha256": "d018337f853e5c0ec25e0065c32119a11b0c99a0f154aeb506a3be173598bf65"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-compilation.spec.ts",
+      "sha256": "562037d0a001e4af4943569ced9899f22cd5cc8011be0f08d460ea0416595304"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-recommendations.spec.ts",
+      "sha256": "85f81dead9c47e930e66f525712eee08891c51fd46a7c2e018f88195459b4ffd"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-reads.spec.ts",
+      "sha256": "6aadbb9765bac42d561612e70f0fc32f8d806aed91334b0c18f46da6ff65ce8f"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-lookups.spec.ts",
+      "sha256": "b8522c6738f0921d97f7e75a5f2825cd2df3b58f717f14911ce9838be00ba823"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-curation.spec.ts",
+      "sha256": "06248c8ecf832f5b1f12a9a60bc49422657e469c601b70eb8159125c93bce9bc"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-worker-receivers.spec.ts",
+      "sha256": "8dee718cf74dc8da27fa87650cc3b0babb8b5ba1edc3b14da68204c8f81a67ed"
+    }
+  ],
+  "qualification": {
+    "retainedByteExactCases": 387,
+    "retainedSuites": 28,
+    "newIndependentBehaviorCases": 69,
+    "newIndependentBehaviorSuites": 6,
+    "identicalBeforeAfterBehaviorCases": 456,
+    "identicalBeforeAfterBehaviorSuites": 34,
+    "afterOnlySourceGuardCases": 25,
+    "afterOnlySourceGuardSuites": 3,
+    "totalFiniteAfterCases": 481,
+    "totalFiniteAfterSuites": 37,
+    "skippedCases": 0,
+    "fullIntelTypecheckAndNestBuildPassed": true,
+    "strictWatchlistAndRetainedTrackerFixtureConfigsPassed": true,
+    "nativeReceipts": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-api-retained.json",
+        "sha256": "47aae01ba0f55af831791b3af7e3ce381dfbb7927a88a8e9b3f67ed5b93f4ffd",
+        "exitCode": 0,
+        "durationSeconds": 3.127,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker.types.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-api-retained-results.json"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-intel-api-retained.json",
+        "sha256": "5a6f62ee9b506748b5172a4d60801b0345c6fe485136b2854b2c5f8df7c9830e",
+        "exitCode": 0,
+        "durationSeconds": 7.655,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/tracker-watchlist.spec.ts",
+          "test/watchlist-weighting.spec.ts",
+          "test/watchlist-compiler.spec.ts",
+          "test/term-validation.spec.ts",
+          "test/term-routing.spec.ts",
+          "test/watchlist-mapping.spec.ts",
+          "test/sms-verification.spec.ts",
+          "src/tracker/tracker-alert-prefs-verification.spec.ts",
+          "src/tracker/tracker-tenant-scoping.spec.ts",
+          "test/tracker-board-guards.spec.ts",
+          "test/tracker-dto-validation.spec.ts",
+          "test/task-runner.spec.ts",
+          "test/new-match-detector.spec.ts",
+          "test/action-item.spec.ts",
+          "test/alert-work-state.spec.ts",
+          "test/memo-link-idempotency.spec.ts",
+          "test/action-item-dto-validation.spec.ts",
+          "test/action-item-all-scope-routing.spec.ts",
+          "test/alert-packet.spec.ts",
+          "src/feed/alert-packet.service.spec.ts",
+          "src/feed/alert-packet.spec.ts",
+          "test/tracker-board-ownership-compilation.spec.ts",
+          "test/tracker-board-ownership-recommendations.spec.ts",
+          "test/tracker-board-ownership-reads.spec.ts",
+          "test/tracker-board-ownership-lookups.spec.ts",
+          "test/tracker-board-ownership-curation.spec.ts",
+          "test/tracker-board-ownership-worker-receivers.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-intel-api-retained-results.json",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist.service.ts",
+          "--coverageReporters=json",
+          "--coverageReporters=text-summary",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/coverage-before-retained"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-intel-api-new-characterization.json",
+        "sha256": "c0bad739101cf9001c99be173fa7f2272d0eeca6ed2316d97a7d2b8b43395bc3",
+        "exitCode": 0,
+        "durationSeconds": 2.777,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/tracker-watchlist-ownership-read.spec.ts",
+          "test/tracker-watchlist-ownership-write.spec.ts",
+          "test/tracker-watchlist-ownership-failures.spec.ts",
+          "test/tracker-watchlist-ownership-prefs.spec.ts",
+          "test/tracker-watchlist-ownership-compile.spec.ts",
+          "test/tracker-watchlist-ownership-receivers.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-intel-api-new-results.json",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist.service.ts",
+          "--coverageReporters=json",
+          "--coverageReporters=text-summary",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/coverage-before-new"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-api-retained.json",
+        "sha256": "21a680de7644d52329a6ea3b0c1b89ddfc1c0bed4e1377548dc575fae0409adf",
+        "exitCode": 0,
+        "durationSeconds": 1.721,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker.types.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-api-retained-results.json"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-api-retained.json",
+        "sha256": "c965a7d6c565aaa84c6650e68bedb2e7678970b317f65a391c519cb06a4032d8",
+        "exitCode": 0,
+        "durationSeconds": 7.865,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/tracker-watchlist.spec.ts",
+          "test/watchlist-weighting.spec.ts",
+          "test/watchlist-compiler.spec.ts",
+          "test/term-validation.spec.ts",
+          "test/term-routing.spec.ts",
+          "test/watchlist-mapping.spec.ts",
+          "test/sms-verification.spec.ts",
+          "src/tracker/tracker-alert-prefs-verification.spec.ts",
+          "src/tracker/tracker-tenant-scoping.spec.ts",
+          "test/tracker-board-guards.spec.ts",
+          "test/tracker-dto-validation.spec.ts",
+          "test/task-runner.spec.ts",
+          "test/new-match-detector.spec.ts",
+          "test/action-item.spec.ts",
+          "test/alert-work-state.spec.ts",
+          "test/memo-link-idempotency.spec.ts",
+          "test/action-item-dto-validation.spec.ts",
+          "test/action-item-all-scope-routing.spec.ts",
+          "test/alert-packet.spec.ts",
+          "src/feed/alert-packet.service.spec.ts",
+          "src/feed/alert-packet.spec.ts",
+          "test/tracker-board-ownership-compilation.spec.ts",
+          "test/tracker-board-ownership-recommendations.spec.ts",
+          "test/tracker-board-ownership-reads.spec.ts",
+          "test/tracker-board-ownership-lookups.spec.ts",
+          "test/tracker-board-ownership-curation.spec.ts",
+          "test/tracker-board-ownership-worker-receivers.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-api-retained-results.json",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-compiled.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-input.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-preferences.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-read.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-reconcile-finish.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-reconcile-head.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-reconcile-topics.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-write.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist.contracts.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist.service.ts",
+          "--coverageReporters=json",
+          "--coverageReporters=text-summary",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/coverage-after-retained"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-api-new-characterization.json",
+        "sha256": "031036fea634df151232f2950440e448a1c75a0474b435dcdd0d1ec180ce4bbe",
+        "exitCode": 0,
+        "durationSeconds": 2.824,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/tracker-watchlist-ownership-read.spec.ts",
+          "test/tracker-watchlist-ownership-write.spec.ts",
+          "test/tracker-watchlist-ownership-failures.spec.ts",
+          "test/tracker-watchlist-ownership-prefs.spec.ts",
+          "test/tracker-watchlist-ownership-compile.spec.ts",
+          "test/tracker-watchlist-ownership-receivers.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-api-new-results.json",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-compiled.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-input.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-preferences.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-read.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-reconcile-finish.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-reconcile-head.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-reconcile-topics.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist-write.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist.contracts.ts",
+          "--collectCoverageFrom=src/tracker/tracker-watchlist.service.ts",
+          "--coverageReporters=json",
+          "--coverageReporters=text-summary",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/coverage-after-new"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/before-char-fixture-semantic.json",
+        "sha256": "30e2cb085db3bf7e058a7eca33601f6b23a126d207ecd539a56fb593a9534c23",
+        "exitCode": 0,
+        "durationSeconds": 2.672,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "tsc",
+          "-p",
+          "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/BEFORE-CHAR-SEMANTIC.tsconfig.json",
+          "--noEmit"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/intel-typecheck-full-final.json",
+        "sha256": "ff40ac96b3d6cacc5387a610b9358146fceb436791fbe546345ce321f1123057",
+        "exitCode": 0,
+        "durationSeconds": 9.148,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "typecheck"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/intel-build-final.json",
+        "sha256": "bea75409b73daa37ad23c1b7fe48f30fe7701617a04bbeeb6091542cd2ffd5f2",
+        "exitCode": 0,
+        "durationSeconds": 11.078,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "build"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/watchlist-fixture-semantic-repaired.json",
+        "sha256": "73020cac3a4db47b94ed190290a8a5ccc67570738100168d2af7b87cbbccd689",
+        "exitCode": 0,
+        "durationSeconds": 2.998,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "tsc",
+          "-p",
+          "tsconfig.tracker-watchlist-ownership.json",
+          "--noEmit"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/retained-tracker-fixture-semantic-repaired.json",
+        "sha256": "ded5d536fdeda23f985cc887b628c79ae73928b014678b2c3e4b367d947d7454",
+        "exitCode": 0,
+        "durationSeconds": 3.134,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "tsc",
+          "-p",
+          "tsconfig.tracker-board-ownership.json",
+          "--noEmit"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-ownership-guards-repaired.json",
+        "sha256": "1a8db6a5fc8c5ab841d70fc2e6abf5647373333c82ffea98ef0fc36e07e8bd26",
+        "exitCode": 0,
+        "durationSeconds": 2.431,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/tracker-watchlist-ownership.contract.spec.ts",
+          "test/tracker-board-ownership.contract.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-guard-results-v2.json"
+        ]
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-api-canonical-ownership-guard-corrected.json",
+        "sha256": "de94c1262c3e92e1bf1cd3acd7f39240e008ef656ae801595ce6030eda60d34f",
+        "exitCode": 0,
+        "durationSeconds": 2.98,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "exec",
+          "jest",
+          "--config",
+          "jest.config.cjs",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker-action-ownership.contract.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-api-guard-results-v2.json"
+        ]
+      }
+    ],
+    "coverage": {
+      "transfer": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/coverage-review/COVERAGE-FINAL-MANIFEST-v2.json",
+        "sha256": "d610450cc028e6363f3f3ca7143aca2e1e458579fee35ca709b64e3ec56d16e8"
+      },
+      "eachRetainedAndNewLaneOriginalDecisions": 87,
+      "eachLaneOriginalArms": 141,
+      "originalRuntimeDecisions": 85,
+      "originalRuntimeArms": 137,
+      "originalConstructorMetadataDecisions": 2,
+      "originalConstructorMetadataArms": 4,
+      "eachLaneOriginalFunctionCallbackCounters": 63,
+      "eachLaneOriginalStatementCounters": 254,
+      "originalRuntimeStatementProbes": 237,
+      "originalImportPublicationAndConstructorFieldFrames": 17,
+      "afterProbesRepresentingThoseStatements": 256,
+      "splitImports": 2,
+      "addedCompositionOwnerPublicationStatements": 70,
+      "addedCompositionFunctions": 28,
+      "addedDecisions": 0,
+      "rawPercentageImprovementClaimed": false,
+      "globalHistoricalCoverageFloorSatisfied": false
+    },
+    "guards": {
+      "finalFreeze": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/guard-drafts/GUARD-FINAL-FREEZE-v2.json",
+        "sha256": "7fa398a17b17646cdf7d776f857b3c316e7e1d61ab509f0b52cd8813ef86ee7b"
+      },
+      "originalDerivedDecisionBodyPins": 16,
+      "originalTransactionStatements": 25,
+      "mutationsRejected": 28,
+      "retainedTrackerCaseIdentities": 8,
+      "firstSevenTrackerCaseBodiesByteExact": true,
+      "sameOriginalDependencyPaths": 40,
+      "retainedExactByteAssets": 38,
+      "retained38AggregateSHA256": "b94ff8225cb4c05402d0f83f7571d332afdd124c173ea5aaa2a5d8c619f3a2a7",
+      "otherDispositions": [
+        "Existing Intel action utility canonical semantic preservation",
+        "Watchlist original decisions/public shape plus explicit added composition"
+      ],
+      "protectedApiSemanticFixtureUnchanged": true,
+      "sourceBoundAstRepair": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/guard-drafts/SOURCE-BOUND-AST-PIN-REPAIR.json",
+        "sha256": "6d7c7bba038d789fc5ffbca74d7eacd0475a29509732847f42b437dd1a2031aa"
+      },
+      "mutationReceipt": {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/guard-drafts/GUARD-STATIC-VALIDATION-v2.json",
+        "sha256": "13183bfc2ff0326967d48c2aec9bb586dd1eb1b8ce3cb95a7411049b1b36b614"
+      }
+    },
+    "emittedStatic": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/static-final/EMITTED-STATIC-QUALIFICATION-v2.json",
+      "sha256": "eb4c087e138f78f6dc914af173aea79fccb9449e525f4bfb796a7a5f23249de3"
+    },
+    "finalGuardConfigStatic": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/static-final/FINAL-STATIC-SOURCE-QUALIFICATION.json",
+      "sha256": "bc3013836ea229d80e6f7ca5db000589b0df367ffeb6175c5df647d607833350"
+    },
+    "emittedSyntaxChecks": 10,
+    "emittedJsDeclarationAndMapAssets": 40,
+    "originalDeclarationClassMembersPreserved": 18,
+    "formattingScope": "Nine new production modules, all new fixtures/guards/config/docs and new facade fragments pass. Original raw getCompiled header formatting debt remains byte exact; whole-facade formatting is not claimed.",
+    "independentReviews": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/ORIGINAL-SOURCE-REVIEW.json",
+        "sha256": "074af4f3e9b4320b8e534a690def16488f567841ed758e4b608df1d5e1b1e691"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/PRIVATE-SOURCE-INDEPENDENT-REVIEW.json",
+        "sha256": "9dfe155e35aba81db7a1937057e9da96624043c3fbf006aab9ae9065fc823263"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/INTEGRATED-INDEPENDENT-REVIEW.json",
+        "sha256": "7244d2de0a95922d2421dbd5e7638a96947227d09ef7897ccb526c0f73a9b1e2"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/BUSINESS-NATIVE-INDEPENDENT-REVIEW.json",
+        "sha256": "6d67d644e2972dfe3867a049ddc366a49a1c28347e03262793384feb572bc937"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/TYPE-BUILD-INDEPENDENT-REVIEW.json",
+        "sha256": "b68bc340bb4208b472db4f75cd7cbd79c5772b106e1bc28447db1aff68589cf4"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/RESUMED-ACCEPTED-BINDINGS.json",
+        "sha256": "34f2580ff8808ac732a16175193e024ab727df5a0b68dbe0dc0c4b76320d8a64"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/GUARD-LINEAGE-INDEPENDENT-REVIEW.json",
+        "sha256": "1fff4ef9fedd06dbf7b97a9e64f8def669202e8a14f8de970245c7038973c16e"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/EMITTED-STATIC-INDEPENDENT-REVIEW.json",
+        "sha256": "074107f07695f78617f55de2448b31d183aa461b00a377bbc7a2a867298c8137"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/GUARD-NATIVE-INDEPENDENT-REVIEW.json",
+        "sha256": "4fe38c5488d35d4c450561ecc8b50bd7b68f3b96ca2f97925fd9b90638d3fb79"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/FINAL-STATIC-SOURCE-INDEPENDENT-REVIEW.json",
+        "sha256": "1cced34a3a5894859262be0cbe80e706f9ade25c340fa8a5a1c113e72aa93d37"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/review/COVERAGE-INDEPENDENT-REVIEW.json",
+        "sha256": "267ef67c71ea5229ab05d0627cae3eda112557f8a5493f94ac91598d145f5b68"
+      }
+    ],
+    "rawResultsAndCoverageFreeze": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/RAW-NATIVE-RESULTS-AND-COVERAGE-FREEZE.json",
+      "sha256": "f4f0e8e8e8a4991155af3ce6b75a02cec9ec9ede345fe764a9c59c0dce1961e5"
+    },
+    "ioPolicy": "Fake database/provider I/O only. Credential-free minimal native environment, dummy offline DB URL, Node-level network fence; no OS sandbox claim.",
+    "priorAcceptedApiAndSharedRuntimeRequalificationRepeated": false,
+    "blockedLiveImageOrUnavailableEnvironmentAcceptanceRepeated": false
+  },
+  "implementationClosure": {
+    "serviceInstanceClosed": 1,
+    "existingProductionResponsibilitiesClosed": 5,
+    "additionalOriginalRequirementGroupsClosed": 0,
+    "originalPrimaryRequirementGroup": "C4-17",
+    "workstreams": ["A1", "A5"],
+    "reason": "One current-first-hand remaining-gods instance is complete; broader C4-17 includes other unowned/protected services and is not closed by this instance or native passes.",
+    "unchangedCloseoutMap": {
+      "path": "docs/backend-cleanup/20261013/CLEANUP-CLOSEOUT-MAP.json",
+      "sha256": "e908817dd3e37459cc272bbc7209764ef0046bcf46b2f8d2b6c2f44425e89339"
+    },
+    "originalGroups": 84,
+    "finiteQualified": 6,
+    "bindingPreservation": 15,
+    "implementationPrimaryRemaining": 18,
+    "blockedOrAcceptancePrimaryRemaining": 45,
+    "totalRemaining": 63,
+    "remainingStreams": 15
+  },
+  "recovery": {
+    "beforeTag": "backend-cleanup-tracker-watchlist-before-20261013",
+    "beforeBundleSHA256": "9afcb918917ac501cb3a34f5ae5f7981f507e066c01bf13eac47dd0649d559a5",
+    "beforeBundlePrerequisite": "1ecd4b71b3243a38585a11cba6535bd7384d668b",
+    "reviewedTag": "backend-cleanup-tracker-watchlist-reviewed-20261013",
+    "finalBundlePrerequisite": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+    "finalCommitTreeAndBundleStoredInPrivatePublicationReceipt": true,
+    "dependencyProvenance": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/DEPENDENCY-PROVENANCE-v2.json",
+      "sha256": "34e0100a43395179e5dc0d42733a712eae60a298b8aff3618c003ad1d048eb52"
+    },
+    "temporaryLinks": 3,
+    "originalSchemaClientArtifacts": 20,
+    "matchedManifestLockSchemaInputs": 11,
+    "newInstallOrGeneration": false,
+    "failedHistoricalPrivateDraftsPreserved": true,
+    "preservedFailedReceipts": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/before-fixture-semantic.json",
+        "sha256": "987d489d0b73ad4d33db7b0cbf5d7508798a663873e95c9a894ab995bb75b471"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-intel-ownership-guards.json",
+        "sha256": "74992fe1b365e2b9dc787367e2ccb23ec70e70fb68c28b38a976efdb2218d892"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/AFTER-api-canonical-ownership-guard.json",
+        "sha256": "7c52fc412f3ec4a8249c3be46cbcce223b5528a93516fc6cd571a9c74c80969f"
+      }
+    ],
+    "failureDispositions": [
+      "Original characterization assets passed; first broad fixture gate observed unfinished guard symbols.",
+      "Mixed-source AST printer read wrong literal offsets; repaired with source-bound original-derived AST serialization, no production change.",
+      "API guard first invocation used nonexistent jest.config.ts; corrected to unchanged jest.config.cjs before any cases executed."
+    ],
+    "oldFailedGuardAssets": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-watchlist-c625fcc4-20261013/guard-drafts/before-source-bound-ast-repair/MANIFEST.json",
+      "sha256": "38bc6bdbb39ea8a9b262c76baa0bf5fa036b3d629091517d7d5d9099f67ffa01"
+    },
+    "protectedScopePreserved": [
+      "Original and rebuild source/histories",
+      "Frontend/Meri/legacy retirement boundaries",
+      "Schemas/migrations and incident records",
+      "Unpublished Engagement report",
+      "Private receiving repository and remotes"
+    ],
+    "mainMergeDeploymentDatabaseProviderAwsCredentialSecurityOrHistoryRewrite": false
+  },
+  "remainingAcceptance": [
+    "Verified actual live-image build-used source trees",
+    "Original global Cleanup aggregate and historical coverage gates",
+    "Other remaining oversized backend owners",
+    "Protected retirement, replacement and domain/security ownership"
+  ]
+}

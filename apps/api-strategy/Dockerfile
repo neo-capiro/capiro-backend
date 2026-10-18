@@ -13,7 +13,7 @@
 # still outside this service. openssl is installed so Prisma's binary engine
 # resolves on bookworm's OpenSSL 3.
 
-ARG NODE_VERSION=20.16.0
+ARG NODE_VERSION=22.23.3
 
 # -------- base ----------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS base

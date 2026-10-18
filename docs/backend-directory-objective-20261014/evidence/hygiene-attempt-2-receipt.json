@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "scripts/lib/reviewed-source-hygiene.mjs",
+    "--run",
+    "--base",
+    "be12f4a2a2ecec43b5d02ea279d9448763415e24"
+  ],
+  "exitCode": 0,
+  "sourceHead": "36ba0b9e236c2fa3162d01803289f52ca375b3ae",
+  "sourceUnchanged": true
+}

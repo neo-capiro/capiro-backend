@@ -25,7 +25,7 @@ function makePrisma() {
   updateMany.mockResolvedValue({ count: 1 });
   const queryRawUnsafe = asyncMock<[string, ...unknown[]], unknown[]>();
   queryRawUnsafe.mockResolvedValue([]);
-  const tx = { spDraftJob: { updateMany }, $queryRawUnsafe: queryRawUnsafe };
+  const tx = { spDraftJob: { updateMany }, $queryRawUnsafe: queryRawUnsafe, $executeRaw: jest.fn(async () => 0) };
   const prisma = {
     withSystem: jest.fn((fn: (tx: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaService;
@@ -33,6 +33,8 @@ function makePrisma() {
 }
 
 interface ClaimedJobLike {
+  claimToken: string;
+  attempt: number;
   id: string;
   tenantId: string;
   ownerUserId: string;
@@ -62,7 +64,7 @@ function makeWorker(opts?: { orchestratorConfigured?: boolean }) {
   const orchestrator = {
     configured: opts?.orchestratorConfigured ?? true,
   } as unknown as StrategyOrchestratorClient;
-  const worker = new DraftJobWorkerService(prisma, meriService, orchestrator, config());
+  const worker = new DraftJobWorkerService(prisma, meriService, orchestrator, config(), {} as any);
   return {
     worker,
     internals: worker as unknown as WorkerInternals,
@@ -78,6 +80,8 @@ function makeWorker(opts?: { orchestratorConfigured?: boolean }) {
 function claimedJob(overrides: Partial<ClaimedJobLike> = {}): ClaimedJobLike {
   return {
     id: 'job-1',
+    claimToken: 'claim-1',
+    attempt: 2,
     tenantId: 'tenant-1',
     ownerUserId: 'user-1',
     input: { dto: { clientId: CLIENT, type: 'appropriations' }, bearer: 'token' },
@@ -94,6 +98,8 @@ describe('DraftJobWorkerService claim query', () => {
     queryRawUnsafe.mockResolvedValueOnce([
       {
         id: 'job-9',
+        claimed_by: 'claim-9',
+        attempt: 9,
         tenant_id: 'tenant-9',
         owner_user_id: 'user-9',
         input: { dto: { clientId: CLIENT }, bearer: null },
@@ -112,6 +118,8 @@ describe('DraftJobWorkerService claim query', () => {
     expect(sql).toMatch(/LIMIT 1/);
     expect(claimed).toEqual({
       id: 'job-9',
+      claimToken: 'claim-9',
+      attempt: 9,
       tenantId: 'tenant-9',
       ownerUserId: 'user-9',
       input: { dto: { clientId: CLIENT }, bearer: null },
@@ -128,15 +136,70 @@ describe('DraftJobWorkerService claim query', () => {
 });
 
 describe('DraftJobWorkerService sweeps', () => {
-  it('failExpired flips queued/running past-deadline jobs to failed with a clear message', async () => {
-    const { internals, updateMany } = makeWorker();
+  it('failExpired uses DB time and keeps Objective receipt writes separate from legacy expiry', async () => {
+    const { internals, tx, updateMany } = makeWorker();
     await internals.failExpired();
-    expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { status: { in: ['queued', 'running'] }, deadlineAt: { lte: expect.any(Date) } },
-        data: expect.objectContaining({ status: 'failed', stage: 'failed' }),
-      }),
-    );
+    const calls = tx.$executeRaw.mock.calls as unknown as Array<[TemplateStringsArray, ...unknown[]]>;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]![0].join('?')).toContain("WHERE input ? 'objectiveGeneration'");
+    expect(calls[1]![0].join('?')).toContain("WHERE NOT (input ? 'objectiveGeneration')");
+    expect(calls.every(call => call[0].join('?').includes('deadline_at <= clock_timestamp()'))).toBe(true);
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'deadline crosses between sweep statements', firstClock: 99, secondClock: 101, hostClock: 101 },
+    { name: 'host clock is ahead of the database', firstClock: 99, secondClock: 99, hostClock: 10_000 },
+  ])('$name: Objective expiry keeps its receipt on the next sweep', async ({ firstClock, secondClock, hostClock }) => {
+    const { internals, tx, updateMany } = makeWorker();
+    const rows = [
+      { objective: true, deadline: 100, status: 'running', failure: null as unknown },
+      { objective: false, deadline: 90, status: 'queued', failure: null as unknown },
+    ];
+    let statements = 0;
+    let nextSweep = false;
+    // This small database double models statement-time clock reads and JSON
+    // membership. It is a sweep regression, not native PostgreSQL qualification.
+    (tx.$executeRaw as any).mockImplementation(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = parts.join('?');
+      const clock = nextSweep ? 101 : statements++ === 0 ? firstClock : secondClock;
+      const excludesObjective = sql.includes("NOT (input ? 'objectiveGeneration')");
+      const objectiveOnly = !excludesObjective && sql.includes("input ? 'objectiveGeneration'");
+      let changed = 0;
+      for (const row of rows) {
+        if (!['queued', 'running'].includes(row.status) || row.deadline > clock) continue;
+        if ((excludesObjective && row.objective) || (objectiveOnly && !row.objective)) continue;
+        row.status = 'failed';
+        if (sql.includes('jsonb_set')) row.failure = JSON.parse(String(values[1]));
+        changed++;
+      }
+      return changed;
+    });
+    // Retain the old fallback's behavior in the double: restoring that broad
+    // host-time update would fail the receipt assertions below.
+    updateMany.mockImplementation(async (args: any) => {
+      let count = 0;
+      for (const row of rows) {
+        if (['queued', 'running'].includes(row.status) && row.deadline <= args.where.deadlineAt.lte.getTime()) {
+          row.status = args.data.status;
+          count++;
+        }
+      }
+      return { count };
+    });
+    jest.useFakeTimers({ now: hostClock });
+    try {
+      await internals.failExpired();
+      expect(rows[0]).toMatchObject({ status: 'running', failure: null });
+      expect(rows[1]).toMatchObject({ status: 'failed', failure: null });
+      nextSweep = true;
+      // The next sweep observes the Objective deadline on its first statement.
+      await internals.failExpired();
+      expect(rows[0]).toMatchObject({ status: 'failed', failure: { code: 'OBJECTIVE_GENERATION_FAILED' } });
+      expect(updateMany).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('reclaimStale returns a running-but-quiet job to queued (no-progress reclaim, not just claim age)', async () => {

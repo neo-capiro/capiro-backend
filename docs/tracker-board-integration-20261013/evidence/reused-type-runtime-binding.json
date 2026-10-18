@@ -1,0 +1,116 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "canonicalIntelSchemaSHA256": "751cdd4b7cc4f6b59598452327917b6f48639ec104473366b104ef0c2a1c0b74",
+  "derivedSchema": "generatoroutput-onlyadapter, allremainingcanonicalbytes exact",
+  "ownedGeneratedClient": "/tmp/bill-dossier-prisma-types-20261013",
+  "generatorVersion": "5.22.0",
+  "supportedNoEngine": true,
+  "engineFilesAbsent": true,
+  "generatedFiles": [
+    {
+      "path": "default.d.ts",
+      "bytes": 23,
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "default.js",
+      "bytes": 36,
+      "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+    },
+    {
+      "path": "edge.d.ts",
+      "bytes": 25,
+      "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+    },
+    {
+      "path": "edge.js",
+      "bytes": 298324,
+      "sha256": "6780c9669672cf6e4fbc1a16ed595750ed2034543a93e1833112085c0d6ee50d"
+    },
+    {
+      "path": "index-browser.js",
+      "bytes": 30007,
+      "sha256": "7011acd2180e57d4430a1f44880de25b60bf33acc2c903fe80b36d7859fa2cd0"
+    },
+    {
+      "path": "index.d.ts",
+      "bytes": 3086243,
+      "sha256": "7011e9c999f109b4cbc018ad964a1e475e443323bec15d28ed7ea935098e959b"
+    },
+    {
+      "path": "index.js",
+      "bytes": 298654,
+      "sha256": "a115acbf0cdae636138e17f591879a678fcedd871beef2692331f6f137bfc0f6"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2601,
+      "sha256": "336aa9206a32833830fb7cd4dc0ac39d23982a39cf05fa3ec4e64fd33ccab1f7"
+    },
+    {
+      "path": "runtime/edge-esm.js",
+      "bytes": 166095,
+      "sha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8"
+    },
+    {
+      "path": "runtime/edge.js",
+      "bytes": 166370,
+      "sha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2"
+    },
+    {
+      "path": "runtime/index-browser.d.ts",
+      "bytes": 11850,
+      "sha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+    },
+    {
+      "path": "runtime/index-browser.js",
+      "bytes": 34709,
+      "sha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120"
+    },
+    {
+      "path": "runtime/library.d.ts",
+      "bytes": 117585,
+      "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+    },
+    {
+      "path": "runtime/library.js",
+      "bytes": 191178,
+      "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+    },
+    {
+      "path": "runtime/react-native.js",
+      "bytes": 174707,
+      "sha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611"
+    },
+    {
+      "path": "runtime/wasm.js",
+      "bytes": 124187,
+      "sha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab"
+    },
+    {
+      "path": "schema.prisma",
+      "bytes": 62352,
+      "sha256": "0846edb2bffe02382b921ce7b7526a715a82232bc0a6472ec1792e5608ba215b"
+    },
+    {
+      "path": "wasm.d.ts",
+      "bytes": 23,
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "wasm.js",
+      "bytes": 30007,
+      "sha256": "7011acd2180e57d4430a1f44880de25b60bf33acc2c903fe80b36d7859fa2cd0"
+    }
+  ],
+  "generatedSourceLink": "/tmp/capirov2-bill-dossier-integration-20261013/apps/intel-api/generated/prisma-client",
+  "borrowedCoreClient": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+  "coreSchemaByteExact": true,
+  "replacedOwnedCoreOverlayLinkPreviousTarget": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client",
+  "borrowedTargetsModified": false,
+  "nativePostgresRLSQualification": false,
+  "receivingSource": "1e00e41a36b3450d77148b6f55a7ca90c83a194f",
+  "receivingTree": "df67628c3f22d5558af80a33dc2d047b51ff7b16",
+  "reusedUnmodifiedFromQualifiedDossier": true,
+  "generationRepeated": false
+}

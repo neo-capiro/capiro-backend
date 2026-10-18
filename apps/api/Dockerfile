@@ -79,10 +79,20 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
+# Upgrade only Perl packages already in the slim runtime image. Bookworm's
+# 5.36.0-7+deb12u4 security release fixes ten scanned Perl CVEs; --only-upgrade
+# does not introduce Perl packages that were absent from the base image.
 RUN groupadd --system --gid 1001 capiro \
  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
  && apt-get update \
  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
+ && apt-get install -y --no-install-recommends --no-remove --only-upgrade perl-base perl perl-modules-5.36 libperl5.36 \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' perl-base)" ge 5.36.0-7+deb12u4 \
+ && for package in perl perl-modules-5.36 libperl5.36; do \
+      if [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" = 'install ok installed' ]; then \
+        dpkg --compare-versions "$(dpkg-query -W -f='${Version}' "$package")" ge 5.36.0-7+deb12u4 || exit 1; \
+      fi; \
+    done \
  && rm -rf /var/lib/apt/lists/*
 # tsx (used by entrypoint.sh to run scripts/sync-*.ts as ECS one-off tasks)
 # needs writable scratch space for its IPC server. Keep image-local fallbacks for

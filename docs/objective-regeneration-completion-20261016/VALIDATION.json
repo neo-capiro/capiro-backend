@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "sourceBase": "9bf88e83a7783764cdcad923b9df38af3ec11238",
+  "qualification": "SOURCE_FIXTURES_ONLY",
+  "tests": 106,
+  "pass": 106,
+  "fail": 0,
+  "cancelled": 0,
+  "skipped": 0,
+  "todo": 0,
+  "files": [
+    "apps/api-strategy/test/objective-canonical-regeneration-completion-receipt.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-regeneration-completion-service.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-completion-service.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-saved-plan.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-completion-persistence.focused.test.mjs"
+  ],
+  "execution": {
+    "pid": 33196,
+    "exitCode": 0,
+    "elapsedMs": 6453.0,
+    "heapMiB": 128,
+    "maxRSSReportedKiB": 311504,
+    "estimatedAggregateMiB": 640,
+    "cleanupComplete": true,
+    "inputDrift": [],
+    "outputCapped": false,
+    "wallSeconds": 110,
+    "overallSeconds": 120
+  },
+  "capacity": {
+    "reader": "reviewed native GlobalMemoryStatusEx metadata only",
+    "preflightAvailableCommitBytes": 4692877312,
+    "minimumAvailableCommitBytes": 4285763584,
+    "postflightAvailableCommitBytes": 4655988736
+  },
+  "externalTaskEvidence": "objective-regeneration-completion-evidence",
+  "profileSha256": "218f9bb5fa0a2e5fed06e92112e4d6a5c902c67db882a3b06279117b17840fe0",
+  "resultSha256": "d214ccf0dfac15575c47df99b70154a2536be64d9075ba00a69619861ab93aa2",
+  "stdoutSha256": "fbbcea10705403703ced817cc1942b7717605938206263809af535d7593a2669",
+  "stderrSha256": "900de9d0c0cf5ee25bd6b01e9319cc3564ffccf1d081074bcec853987212b729",
+  "notQualified": [
+    "semantic TypeScript compiler and normal workspace dependency resolution",
+    "Nest HTTP/DI",
+    "native PostgreSQL/RLS/grants/concurrency/rollback",
+    "actual Meri private33 SDK/issuance/capture/result reader",
+    "live Core workload authority and mounted genuine reader",
+    "regeneration non-success or generic failed/cancelled custody"
+  ],
+  "published": false
+}

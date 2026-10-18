@@ -1,0 +1,8 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": false,
+    "tsConfigPath": ".tracker-board-receiving-build.tsconfig.json"
+  }
+}

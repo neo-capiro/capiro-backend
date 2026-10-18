@@ -1,0 +1,106 @@
+{
+  "base": {
+    "head": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+    "tree": "657902eb63067e1d44e02c908552dd7d93c85170"
+  },
+  "source": {
+    "head": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+    "tree": "6f5086f584c9915f4fd417b09c7545eb6e0f70a7",
+    "paths": [
+      {
+        "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+        "blob": "75153e8a683780fa21515ce4c748dc72d8186576",
+        "mode": "100644",
+        "bytes": 29979,
+        "sha256": "80950bc1c216da2c785366a0f260cc7fb13612c7deb25286fada28a2b85848b4"
+      },
+      {
+        "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+        "blob": "7593c2b82dc4b4645d8287fbf80399c5e28f7258",
+        "mode": "100644",
+        "bytes": 34785,
+        "sha256": "2f2552ad4720a1a92c3cdc7f3531b214da580b6fe85b4f92f49908662e8139c6"
+      }
+    ]
+  },
+  "preservation": [
+    {
+      "path": "apps/api/src/engagement/governed-engagement.factory.ts",
+      "baseBlob": "0552b3412e91b5849b5811403e0d4d52b010a3c0",
+      "sourceBlob": "0552b3412e91b5849b5811403e0d4d52b010a3c0",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/governed-meeting-ai.factory.ts",
+      "baseBlob": "13b5e51af0b4702e957ec2309200606fbbf53bf7",
+      "sourceBlob": "13b5e51af0b4702e957ec2309200606fbbf53bf7",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-plane.service.ts",
+      "baseBlob": "5436c5f9b42d0b173cb047da7b6243e153757f51",
+      "sourceBlob": "5436c5f9b42d0b173cb047da7b6243e153757f51",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-runtime.ts",
+      "baseBlob": "b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "sourceBlob": "b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts",
+      "baseBlob": "78abe25f9c339de5720b738b2d8b790a6607d935",
+      "sourceBlob": "78abe25f9c339de5720b738b2d8b790a6607d935",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "baseBlob": "c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "sourceBlob": "c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "baseBlob": "5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "sourceBlob": "5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "baseBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "sourceBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "baseBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sourceBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "exact": true
+    }
+  ],
+  "qualification": {
+    "jest": {
+      "attempt": "08",
+      "passed": 28,
+      "failed": 0,
+      "pending": 0,
+      "all7OriginalRetained": true
+    },
+    "types": {
+      "attempt": "10",
+      "sourceFiles": 2082,
+      "gitBoundSources": 342,
+      "cachedDeclarations": 1740,
+      "diagnostics": 0,
+      "noEmit": true,
+      "noUnchecked": true
+    },
+    "scope": "Real canonical factories, guard/runtime policy and MeetingContextPlaneService; inert transport/raw-provider fixture. Actual strict source closure, no native/DB/provider/generator/wholeCore rerun."
+  },
+  "unstarted": {
+    "attempt": "09",
+    "reason": "Sandbox mount ENOSPC before Node execution; old owned layout cache custody restored normal capacity, no escalation/bypass"
+  },
+  "state": "INDEPENDENT_SOURCE_ACCEPTED_READY_FOR_PR11_ORDINARY_RECEIVING_AND_FINAL_PACKET_REVIEW"
+}

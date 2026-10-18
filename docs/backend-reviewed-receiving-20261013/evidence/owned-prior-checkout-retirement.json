@@ -1,0 +1,16 @@
+[
+  {
+    "ownedCheckout": "/tmp/capirov2-bill-dossier-integration-20261013",
+    "headUnchanged": "f59a30300341ac1469e34f4c6672227f1c1eaf4a",
+    "cleanAfterSparseRetirement": true,
+    "appsPackagesMaterializationRetired": true,
+    "allGitObjectsAndAncestryPreserved": true
+  },
+  {
+    "ownedCheckout": "/tmp/capirov2-tracker-board-integration-20261013",
+    "headUnchanged": "699ce98faf4411896ab1340fe27a9d125c2f0e0c",
+    "cleanAfterSparseRetirement": true,
+    "appsPackagesMaterializationRetired": true,
+    "allGitObjectsAndAncestryPreserved": true
+  }
+]

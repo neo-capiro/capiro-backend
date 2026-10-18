@@ -1,0 +1,8 @@
+{
+  "suites": 13,
+  "cases": 201,
+  "failed": 0,
+  "skipped": 0,
+  "singleCompleteRun": true,
+  "receipt": "jest-receipt.json"
+}

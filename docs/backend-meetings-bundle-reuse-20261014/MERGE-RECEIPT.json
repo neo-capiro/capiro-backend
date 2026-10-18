@@ -1,0 +1,2103 @@
+{
+  "base": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "acceptedMeetingsSource": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+  "fixedPacket": "02776c5d1eb4b55fe5a49d78c2c522b02f53e277",
+  "publishingBase": {
+    "pr": 11,
+    "head": "cc0cfaafe6f83c544b47c6e01559f29dc0953b84",
+    "tree": "bc8c013a36aee1ba0b3974f63ea9b5a15570fc39",
+    "branch": "codex/backend-prune-script-syntax-20261014"
+  },
+  "merged": {
+    "head": "f5a3e50721660edef92d89a3f23ec3e6a5b7381b",
+    "tree": "fc761b61b5bfc6ace3ad7e4fb4147ac14a3e4474",
+    "parents": [
+      "02776c5d1eb4b55fe5a49d78c2c522b02f53e277",
+      "cc0cfaafe6f83c544b47c6e01559f29dc0953b84"
+    ]
+  },
+  "union": {
+    "fixedDelta": 56,
+    "legacyDelta": 26,
+    "paths": 82,
+    "overlap": 0,
+    "mismatches": [],
+    "allMergedModesTypesObjectsExact": true,
+    "allOutsideUnionModeObjectExact": 27667
+  },
+  "checkedRepoSourceCount": 342,
+  "all342CheckedRepoSourceModesBlobsExact": true,
+  "checkedSources": [
+    {
+      "path": "apps/api/src/engagement/meeting-prep-policy.ts",
+      "tuple": "100644 blob 3b4ca28656bde24010c0b3e2b69f89cfb29b131a",
+      "blob": "3b4ca28656bde24010c0b3e2b69f89cfb29b131a",
+      "sha256": "ffaca859ce7a8b767fbd9147676c675e4cb70d1e51fa16114f9cfef13cdb2054"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-job-runtime.ts",
+      "tuple": "100644 blob 8fb9843b7c2a259b42ecdc512c41400cbf43044e",
+      "blob": "8fb9843b7c2a259b42ecdc512c41400cbf43044e",
+      "sha256": "bbc47da24f0a9a08a93fd653f0cf263396330f04e95930674b1f491ae0520b24"
+    },
+    {
+      "path": "packages/shared/src/ai-model-policy.ts",
+      "tuple": "100644 blob cec5c7487c87c67b5c330ae867587ccabc146680",
+      "blob": "cec5c7487c87c67b5c330ae867587ccabc146680",
+      "sha256": "d2470de73f4b049329e9aaf59e75f0280f998766b6b769dacbbcb2fbdb9e66b5"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2-workflow.ts",
+      "tuple": "100644 blob afe21a295344cc4859fc7a790752eec3e746c2c7",
+      "blob": "afe21a295344cc4859fc7a790752eec3e746c2c7",
+      "sha256": "34bb6c27b11dfb483f7894b4286fec6de46ac91df0b50bc6e69bef070340e823"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2.ts",
+      "tuple": "100644 blob 5bb5d2a100fe0e312092e0b69c65314abfe8ffa4",
+      "blob": "5bb5d2a100fe0e312092e0b69c65314abfe8ffa4",
+      "sha256": "37fe8499b219d9eb29e288744ca840149fe35f5f7ac5e328a58a03add2257893"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2-detail.ts",
+      "tuple": "100644 blob 0d2d19bf9696eddb7f9cf612d9c08e20ae51d43c",
+      "blob": "0d2d19bf9696eddb7f9cf612d9c08e20ae51d43c",
+      "sha256": "dd7783ced2d5ca22c98db2c35b456b686516edb75245d1daaf906ff55497114b"
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "tuple": "100644 blob e676a6389711555100e9a458bf0c95a61113f257",
+      "blob": "e676a6389711555100e9a458bf0c95a61113f257",
+      "sha256": "66f1cc4fb2bd6226ea56774e70dd981e3f80e12f61ab915d63d10c3646c4731f"
+    },
+    {
+      "path": "packages/shared/src/defense-budget-line.ts",
+      "tuple": "100644 blob a88968b2f2891af495b2248a074990cb64d4728b",
+      "blob": "a88968b2f2891af495b2248a074990cb64d4728b",
+      "sha256": "8e31070879a32f1b46792630c6f5689483109c98f93521fbb531a32ea0bd51e9"
+    },
+    {
+      "path": "packages/shared/src/pe-source-coverage.ts",
+      "tuple": "100644 blob 53dfa8b790afbeef53a6b40f833d373cd50c8133",
+      "blob": "53dfa8b790afbeef53a6b40f833d373cd50c8133",
+      "sha256": "c4d60bc72ab8ae42e6f69998651eb997cbb38b16039d1799b647cde605e2c42d"
+    },
+    {
+      "path": "packages/shared/src/funding-priorities.ts",
+      "tuple": "100644 blob 6882fc4897fe805c2040a245c1022e3a78de9866",
+      "blob": "6882fc4897fe805c2040a245c1022e3a78de9866",
+      "sha256": "82e59918864b70f8ad2dfc0f9d341c651a952e6a24a3b811c5b82a6ffbe041f3"
+    },
+    {
+      "path": "packages/shared/src/legislative-research.ts",
+      "tuple": "100644 blob ce3c93ae310885884a20f0a169062a9378dcdfb0",
+      "blob": "ce3c93ae310885884a20f0a169062a9378dcdfb0",
+      "sha256": "1ca1772ecb3ac924660f41eb181bf252c4d7989747287af7e238402491295826"
+    },
+    {
+      "path": "packages/shared/src/research-portfolios.ts",
+      "tuple": "100644 blob ed70483bea476eaced8b1ae4e45ccc1f373a1341",
+      "blob": "ed70483bea476eaced8b1ae4e45ccc1f373a1341",
+      "sha256": "8cd82fdc0ac7d6fcb3d61be1b84f6537c50e1bf0d0872043c9e62b46fbb23c90"
+    },
+    {
+      "path": "packages/shared/src/defense-research.ts",
+      "tuple": "100644 blob 5e87e803d3231d0fb93b507439b1bc95cff94873",
+      "blob": "5e87e803d3231d0fb93b507439b1bc95cff94873",
+      "sha256": "27f03c3a19f5d3426e85d374143b8c89ca10937419126ffd868e61b7130e724d"
+    },
+    {
+      "path": "packages/shared/src/legiwatch-query.ts",
+      "tuple": "100644 blob 9eb7ee5feefa95c514d46c87f291c9b2c36190ba",
+      "blob": "9eb7ee5feefa95c514d46c87f291c9b2c36190ba",
+      "sha256": "94a5cfcdbbff33132a9a8b0766e6a1f2856e2d395bdba180af5da20fe41a045c"
+    },
+    {
+      "path": "packages/shared/src/legiwatch-phase8.ts",
+      "tuple": "100644 blob fac862c0a96fdc47d92800629b566c0caef78981",
+      "blob": "fac862c0a96fdc47d92800629b566c0caef78981",
+      "sha256": "11ea686e845a02f022f2bd2fc0687b08a2a0be464ada912e0ae40e94f616f6f0"
+    },
+    {
+      "path": "packages/shared/src/us-states.ts",
+      "tuple": "100644 blob 26911d2f758f7ea56347b12efcf596b7119ac574",
+      "blob": "26911d2f758f7ea56347b12efcf596b7119ac574",
+      "sha256": "ad65aa6cd523c745c5fa835abe30b0d4e6bb060bc5c1765af4c707ad1f8e0e8b"
+    },
+    {
+      "path": "packages/shared/src/meri-document-request.ts",
+      "tuple": "100644 blob c3dc6871832ddf2c06dffe14fdb0eff4be034a82",
+      "blob": "c3dc6871832ddf2c06dffe14fdb0eff4be034a82",
+      "sha256": "809add572f5162bfab985b5e6ed5dd24aa58f2b291cab69c64fbed383d06d1d1"
+    },
+    {
+      "path": "packages/shared/src/schedule/time-zone.ts",
+      "tuple": "100644 blob eba9e249d3c92d897c062f725f1c137fcc0fe132",
+      "blob": "eba9e249d3c92d897c062f725f1c137fcc0fe132",
+      "sha256": "4f76a48e72d911780ec149223d49ee3ab1126238132a4dd53d400935e947a378"
+    },
+    {
+      "path": "packages/shared/src/schedule/deadline.ts",
+      "tuple": "100644 blob f16e2aee4f71a5b0bd2b57b881a189e6e64a496f",
+      "blob": "f16e2aee4f71a5b0bd2b57b881a189e6e64a496f",
+      "sha256": "69aab17c2a329fcfded00e7f3e8ebf3ebffebb1800b37e555efacb6901f08c9e"
+    },
+    {
+      "path": "packages/shared/src/schedule/validate.ts",
+      "tuple": "100644 blob b7e7cdacfb7f3063871a13e7a517f4d5dddfbc94",
+      "blob": "b7e7cdacfb7f3063871a13e7a517f4d5dddfbc94",
+      "sha256": "ff321d0b38f9034ac1c1b30c3511742be75024d6eb6a750926c0da50efa3bae7"
+    },
+    {
+      "path": "packages/shared/src/schedule/synthesis.ts",
+      "tuple": "100644 blob a84ae175d3b4ce5cceca8608a89de3a14b299f4f",
+      "blob": "a84ae175d3b4ce5cceca8608a89de3a14b299f4f",
+      "sha256": "515f2d07b367a4fe9190d6468a1c2a6d23ca093a608bbf48656958ab7f1ec9f0"
+    },
+    {
+      "path": "packages/shared/src/tenant-feature.ts",
+      "tuple": "100644 blob 5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "blob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "sha256": "0256d761d048fc28ad6f0c0753e99ed4a6559b4a001a0688f24e21f1d350fbb6"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "tuple": "100644 blob 42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "blob": "42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "path": "packages/shared/src/prospect-resource-scope.ts",
+      "tuple": "100644 blob 08a2f40ccb97780dac520d0789b113bc316f8886",
+      "blob": "08a2f40ccb97780dac520d0789b113bc316f8886",
+      "sha256": "0982e0a984cfded64c05cf726eb3d95a67d8700d4671ee651378646cb9d5d2f7"
+    },
+    {
+      "path": "packages/shared/src/prospect-brief-source.ts",
+      "tuple": "100644 blob af21291b58f89da7b8d8472ef6b29fded5f9eeb3",
+      "blob": "af21291b58f89da7b8d8472ef6b29fded5f9eeb3",
+      "sha256": "dd80ce7e2a6068bddbd4e203a91487db1b63338deff50d1b645c22749ec916a7"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "tuple": "100644 blob cd780f1d3505ce402004befd4266b0608f95a33a",
+      "blob": "cd780f1d3505ce402004befd4266b0608f95a33a",
+      "sha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "tuple": "100644 blob 767a11ddff2ff43a39cdf572029b40a4976facac",
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/time.ts",
+      "tuple": "100644 blob 9224a10408f143c5192b34332f5de70b492af9c8",
+      "blob": "9224a10408f143c5192b34332f5de70b492af9c8",
+      "sha256": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854"
+    },
+    {
+      "path": "packages/shared/src/tracker-action-change.ts",
+      "tuple": "100644 blob 496f4c061cf812d18977352744c859b24a617cd2",
+      "blob": "496f4c061cf812d18977352744c859b24a617cd2",
+      "sha256": "046744bd7341883b20c677f65d87c45756f5bfc3ef878dc489496674ac319e34"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "tuple": "100644 blob 76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "blob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "sha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime.types.ts",
+      "tuple": "100644 blob b4f01ca403c9800189209a7a942ee2d2053a82ea",
+      "blob": "b4f01ca403c9800189209a7a942ee2d2053a82ea",
+      "sha256": "12b5c5f8bbf2dfa66dff70b7eb6ab479995bfecaedba14bd349f622459495ff5"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-env.ts",
+      "tuple": "100644 blob 6dd0715a5a8ee3ae292bcf54711bccde3e057f8f",
+      "blob": "6dd0715a5a8ee3ae292bcf54711bccde3e057f8f",
+      "sha256": "fde61a0d07b72c9679ec68cadf5922a089fca0cb0997c84a489a644ed42d51f3"
+    },
+    {
+      "path": "apps/api/src/config/config.schema.ts",
+      "tuple": "100644 blob 847185f17957952dc5c20f54bca64e9038d32de1",
+      "blob": "847185f17957952dc5c20f54bca64e9038d32de1",
+      "sha256": "b4f96e0700a883e5d98cab2307fe1c1081d1afec4dff1b823040f53b336cb039"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "tuple": "100644 blob d071939ac0f18deccab65794b9be20222c5887e8",
+      "blob": "d071939ac0f18deccab65794b9be20222c5887e8",
+      "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+    },
+    {
+      "path": "apps/api/src/lobby-intel/lobby-intel.service.ts",
+      "tuple": "100644 blob ce4a20108c050db19c64d39df55b4ba9def0d3dc",
+      "blob": "ce4a20108c050db19c64d39df55b4ba9def0d3dc",
+      "sha256": "edfb5602f3209631b9605e657a1e9dfef89622f3ce934942dbc4186743b83e4b"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-spending.service.ts",
+      "tuple": "100644 blob a432d29147985ffa965eed67c6fbdd2970f5fb03",
+      "blob": "a432d29147985ffa965eed67c6fbdd2970f5fb03",
+      "sha256": "58c1457d235a0207705d5de674fd030f44755c2720a156c8dc1c9b4aadb12776"
+    },
+    {
+      "path": "apps/api/src/common/secret-crypto.ts",
+      "tuple": "100644 blob 9837d44ab17ab5e3b7192d3f52797d5d89f11216",
+      "blob": "9837d44ab17ab5e3b7192d3f52797d5d89f11216",
+      "sha256": "6d351c2d7765294081a4d2b917d252fb9f8ba03f2c73a83bd9c982acfde4531d"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "tuple": "100644 blob c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "blob": "c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "sha256": "89874c258aa2680637262d649ebc26b03d047fb0bce9cc67fa29bb9bef5e2036"
+    },
+    {
+      "path": "apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
+      "tuple": "100644 blob 6860b45680419c26a2287fef2ba415c04886d946",
+      "blob": "6860b45680419c26a2287fef2ba415c04886d946",
+      "sha256": "cebdbc57107909d42997add8216c57970bec161ad4d3b788bd875c922a09ca9f"
+    },
+    {
+      "path": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "tuple": "100644 blob 58a4d3f9aece3bdfb974c0c4fdd4516dee85c5da",
+      "blob": "58a4d3f9aece3bdfb974c0c4fdd4516dee85c5da",
+      "sha256": "9054ccd4860c39089afe0734f097df35dada3add50042c12aa543f973e0db152"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.ts",
+      "tuple": "100644 blob 3929816f803801098da80c31ea58827fcdf904b9",
+      "blob": "3929816f803801098da80c31ea58827fcdf904b9",
+      "sha256": "01009c5f6a7c4bc9365c91d17419d9d1e406b570b86097af4e0144342b3d1eaf"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/reasoning-effort.ts",
+      "tuple": "100644 blob 88f21284cbf2b21af0838c96e0a1ba5b48fe9d6a",
+      "blob": "88f21284cbf2b21af0838c96e0a1ba5b48fe9d6a",
+      "sha256": "856c70924aedefa1cdc4f3e961525e6c21bcfe8fef0b9c5508943e2ab0519f54"
+    },
+    {
+      "path": "apps/api/src/context/context-stage-timer.service.ts",
+      "tuple": "100644 blob 2fe9b20b9a88aa4d7e5f1b4c56102b126131c4fd",
+      "blob": "2fe9b20b9a88aa4d7e5f1b4c56102b126131c4fd",
+      "sha256": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714"
+    },
+    {
+      "path": "apps/api/src/engagement/llm-completion.service.ts",
+      "tuple": "100644 blob dbe7343eda3fb5dae848bf20b06b9b5342932cd4",
+      "blob": "dbe7343eda3fb5dae848bf20b06b9b5342932cd4",
+      "sha256": "78ce34b4b5271fd6a7dbd19300470fa5403eaf5c6ef542d24d97ff33c5b1adaf"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-comprehensive.ts",
+      "tuple": "100644 blob 30519b8feb6305d8bb8c208ed3db5ed5e7f2a53c",
+      "blob": "30519b8feb6305d8bb8c208ed3db5ed5e7f2a53c",
+      "sha256": "9559563e18ba101a9cd8ca2ad272befcf076b8e3c937322b508a4126919d5b12"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-rewrite-verifier.ts",
+      "tuple": "100644 blob 6b4c99f6886161e1f2161e8ab03211febb4ec8c5",
+      "blob": "6b4c99f6886161e1f2161e8ab03211febb4ec8c5",
+      "sha256": "a7e1f86f28ff585d7f311a381cff010e9116922c0815cffaf39cd91e3a374085"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "tuple": "100644 blob 5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "blob": "5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "sha256": "4c886e6c9ac051c1c0458c9b3b1e0ab621833cf7cc692e38e885f6c3b081f817"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-grounding.ts",
+      "tuple": "100644 blob 9525e781f9f7840b304654fa54a57e4ced10bc08",
+      "blob": "9525e781f9f7840b304654fa54a57e4ced10bc08",
+      "sha256": "aaa0d17e67b67d03320b536ea1fb96b4c82b24fe0d77a7f22e61f786d83a88d0"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-runtime.ts",
+      "tuple": "100644 blob b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "blob": "b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "sha256": "ae6903f125af905dddee99c805c2e92656ef6242810ce1bd1e15d703a31cced5"
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-joined-telemetry.ts",
+      "tuple": "100644 blob 0771e1fd3acca377d0b32d1fb94e094494df4dfd",
+      "blob": "0771e1fd3acca377d0b32d1fb94e094494df4dfd",
+      "sha256": "06846baa0ec1f4742317e57be11590402f39e0820751cc17f9ff21616ad569a8"
+    },
+    {
+      "path": "packages/meriv2-core/src/memory/governance.ts",
+      "tuple": "100644 blob 4173d82146a4aa29e61ac04d3409a9200a1512ca",
+      "blob": "4173d82146a4aa29e61ac04d3409a9200a1512ca",
+      "sha256": "bc6ac38540d147dfd4dee1d3665c0f4396be3c5722f173c816546549d175aba3"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-metadata.ts",
+      "tuple": "100644 blob aefa65c8059a16e585ba5a48ea86f7d1e5fcb641",
+      "blob": "aefa65c8059a16e585ba5a48ea86f7d1e5fcb641",
+      "sha256": "8ee671e59dcaaac0fcdcb793fcd573163b3a1f95e2bb0350cbb764c6bfa7a971"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.ts",
+      "tuple": "100644 blob 44b4e3af75af37d288d792dc004f289ac7800b00",
+      "blob": "44b4e3af75af37d288d792dc004f289ac7800b00",
+      "sha256": "eee8b93cf567e8deb38183622c70167a1ba607be05847a78ec71cbca70967a28"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/synthetic-read-budget.ts",
+      "tuple": "100644 blob 578548721e23d56929657f53bc82beed30527cb4",
+      "blob": "578548721e23d56929657f53bc82beed30527cb4",
+      "sha256": "48bfff8983f63af8966c5f33d1b82b85414aa813eaedbc3b7315e3f92f52ec0f"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "tuple": "100644 blob 9a74a6f07f559050ddbdb3a69c19fe415c729432",
+      "blob": "9a74a6f07f559050ddbdb3a69c19fe415c729432",
+      "sha256": "1ea3eeb5625d82cf080e2ff01c8f63ccb9ac306842636a478cdd983006bad289"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "tuple": "100644 blob f93409cf33b0a6fb8bb787ad60d16b9aba8c7484",
+      "blob": "f93409cf33b0a6fb8bb787ad60d16b9aba8c7484",
+      "sha256": "076aa18d07d1169c6690d60e8e5ec90fe0accc73b4154c2abb4b8c0884a847e8"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/contract.ts",
+      "tuple": "100644 blob ea9d046b78d3d4ba08b1b1660a778dbc55dd1a1c",
+      "blob": "ea9d046b78d3d4ba08b1b1660a778dbc55dd1a1c",
+      "sha256": "ef7eb2a5addc16157c664c5be651ec9c7b3c3ed2b0cde9014036a0dd18909557"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "tuple": "100644 blob b828fd982686cb66bd6e98239066ddc40af3a0cf",
+      "blob": "b828fd982686cb66bd6e98239066ddc40af3a0cf",
+      "sha256": "0e413376f4a50f07cbe8b7bd8e5b47fc6117be162e78389e2061a32da24f71e0"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/types.ts",
+      "tuple": "100644 blob e5844472b190847c6cd0e16d0a7990242a6ea1bf",
+      "blob": "e5844472b190847c6cd0e16d0a7990242a6ea1bf",
+      "sha256": "a8061c3b5a1c941b2c95fd2e1b740e7ae1cc7f5b4a72253252e4cb5059928895"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/research-plan-execution.ts",
+      "tuple": "100644 blob 72959c71ba7a22227b52566cc751844c038ccc10",
+      "blob": "72959c71ba7a22227b52566cc751844c038ccc10",
+      "sha256": "4d701b7fac29d025b71de01772188abb29014cfa5c0e600fd8ed96d85fad58a4"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/operating-frame.ts",
+      "tuple": "100644 blob cd2371ea53efb62d8a3248ccb30d5f823b868954",
+      "blob": "cd2371ea53efb62d8a3248ccb30d5f823b868954",
+      "sha256": "99b833c7c58924ae12f08659da3d04a8baa9cb75e5edb305dc914bfd74ff3e65"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "tuple": "100644 blob b5e2ba695a231fd736a38468e52ab46dbd7e03e5",
+      "blob": "b5e2ba695a231fd736a38468e52ab46dbd7e03e5",
+      "sha256": "6909d21004f27bed96f4f94155bb9d1f98e135fc2870045ce17a81cd3114ca92"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/claim-ledger.ts",
+      "tuple": "100644 blob e7c5eb75953449fd2d3883bb3391a046a8e6c17e",
+      "blob": "e7c5eb75953449fd2d3883bb3391a046a8e6c17e",
+      "sha256": "4373a3a10352cacd2aa45c78bddccd45c2a81bc049c3e64d2790bba9edb4f69b"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/evidence.ts",
+      "tuple": "100644 blob d450581d70a5d4b80c6cee448c5734ac365754e1",
+      "blob": "d450581d70a5d4b80c6cee448c5734ac365754e1",
+      "sha256": "26dfccd1fa2ff3d5cfe6ce870b37b29dd4137d4e164fef6edae934744c8d69de"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/auditor.ts",
+      "tuple": "100644 blob 8996e452ad09fbca08b418305f1882363031ed00",
+      "blob": "8996e452ad09fbca08b418305f1882363031ed00",
+      "sha256": "d17e622ba56cf0500e8feea654c4301fdadf88b2039ca08be95a63cb4b2e1398"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/control-metrics.ts",
+      "tuple": "100644 blob 742bfe63ab2c949247e0d2ac167abccfc072d69b",
+      "blob": "742bfe63ab2c949247e0d2ac167abccfc072d69b",
+      "sha256": "f5471fe0cbbe0c5f5a7cc5c761775a6a2e96d3de98bd6f22a826f551f2851e71"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/envelope.ts",
+      "tuple": "100644 blob 1f5134911753d377e5b92426b4c39b7d41e23a8c",
+      "blob": "1f5134911753d377e5b92426b4c39b7d41e23a8c",
+      "sha256": "db94b0be2c54bca436751bb399f94e7c28d4783f54abfb8f1e8417e12e9cdffe"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/request-scope.ts",
+      "tuple": "100644 blob df00efc35998c6a3856c3899b4dc96e2c906ac6e",
+      "blob": "df00efc35998c6a3856c3899b4dc96e2c906ac6e",
+      "sha256": "5ae49191b5d5ba045d58c7f8d17c8e66ca0e65fc87e0f912ff301b3f50d7bf61"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/risk-gate.ts",
+      "tuple": "100644 blob b9ef67aeb246b95580ed43223b8af512b286b75d",
+      "blob": "b9ef67aeb246b95580ed43223b8af512b286b75d",
+      "sha256": "9377bf0ed3fdcaf327109dab921c2b704e156d254733b34959a162e681cfc24d"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/decision-contract.ts",
+      "tuple": "100644 blob 822f88a0b6916fd20f0742eab21c2250e174e6ce",
+      "blob": "822f88a0b6916fd20f0742eab21c2250e174e6ce",
+      "sha256": "5e942b66536dccf351af338ce1a8a42b69ab8829176bcaafdd2c26aaade90b41"
+    },
+    {
+      "path": "packages/shared/src/funding-claim.ts",
+      "tuple": "100644 blob 834cfdc097ac170d4f96b79edc88fa669bb56039",
+      "blob": "834cfdc097ac170d4f96b79edc88fa669bb56039",
+      "sha256": "2f820f5891ff140038224b4a8114c4ec83f3353c4083ec362e0730f2a14a77ab"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evidence-envelope.ts",
+      "tuple": "100644 blob 744bc17494432d25571cb163cd0cafe7d2021993",
+      "blob": "744bc17494432d25571cb163cd0cafe7d2021993",
+      "sha256": "e1fccdb37e287ced0d5e6b6480fed5c9fcfecf18be39ea9834eb8120110510ef"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/exact-comparison.ts",
+      "tuple": "100644 blob 690b8d990e85e76b10d2ed23c61917edc91cacf9",
+      "blob": "690b8d990e85e76b10d2ed23c61917edc91cacf9",
+      "sha256": "2a2228314cb1b940fbae7e16227cb77458cf4460e33c4dd0299268a3210c3398"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/freshness.ts",
+      "tuple": "100644 blob 5d684dd31646cd62a01d1523744b499a35726f50",
+      "blob": "5d684dd31646cd62a01d1523744b499a35726f50",
+      "sha256": "5116efbd1e5841def8dbbe399df13c6af5ddb6d6ac5c30dd5f4070d93fdd265f"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/deterministic-evaluation.ts",
+      "tuple": "100644 blob b88f087956606d36ebd300483c463a1fae08e1bf",
+      "blob": "b88f087956606d36ebd300483c463a1fae08e1bf",
+      "sha256": "f41fbb7779bd00c1d83a5f7925dd438225b134511386a6d5aab144127db54d96"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/tool-executor.ts",
+      "tuple": "100644 blob 77f58c46b3c641fe9e9cdbb4b8ef1c75c70374b8",
+      "blob": "77f58c46b3c641fe9e9cdbb4b8ef1c75c70374b8",
+      "sha256": "e1ea7327f35043b4014a1ad5a4a085573521c9769c19004a5982dd7318f053b5"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/revise.ts",
+      "tuple": "100644 blob 656963270c3c2b4ab6f8801ffdc7ba975015b075",
+      "blob": "656963270c3c2b4ab6f8801ffdc7ba975015b075",
+      "sha256": "94bee18723e66c049e28e118dcee11a26d3bea64bbcff62b5aad3aabe407514c"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/types.ts",
+      "tuple": "100644 blob 68737f10a7f2c47796f182236986bee00a94234f",
+      "blob": "68737f10a7f2c47796f182236986bee00a94234f",
+      "sha256": "bf6587bbca26c5622fc068f6206c725c7f8daafb9d42d54e88354a8f018b2df1"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/plan-remedy.ts",
+      "tuple": "100644 blob 093adf3558ffb0057c052d38f77d5b1b00b7d1e1",
+      "blob": "093adf3558ffb0057c052d38f77d5b1b00b7d1e1",
+      "sha256": "9074ddea2af085adb9210cd20c03bb78d098f8297ba0a31481ee20954fbed96e"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "tuple": "100644 blob bf2cde4b4ee136f029ea718811686d0448031c36",
+      "blob": "bf2cde4b4ee136f029ea718811686d0448031c36",
+      "sha256": "980689f917cc2c54fe293aee1b89d6d2706c1d51c3c4025efe8edff6fee1457f"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "tuple": "100644 blob 511d8a56d03a3fe7d5a457177b5ba87f062bc671",
+      "blob": "511d8a56d03a3fe7d5a457177b5ba87f062bc671",
+      "sha256": "aa2d2419017afe3b775fe0114000f2efae9fafa38c9931b6d57f21cb9a3ec02a"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "tuple": "100644 blob 6036b36b2b5efa26dea14b942c7de2098c48cac6",
+      "blob": "6036b36b2b5efa26dea14b942c7de2098c48cac6",
+      "sha256": "7db6b13760e9cdb216cc25d16e995e808810d672b239a847e4ce74fe1eb97208"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/meri-explicit-subject.ts",
+      "tuple": "100644 blob eac47e640650f3be72c88c87d7fca4b3f322fee2",
+      "blob": "eac47e640650f3be72c88c87d7fca4b3f322fee2",
+      "sha256": "376874fee4854984850c36e69f016747a0f91176c57beea185960002d1860abf"
+    },
+    {
+      "path": "packages/meriv2-core/src/scoping/scoping-wrapper.ts",
+      "tuple": "100644 blob bb79184aa26e63ed84433f896e537923dd5d477c",
+      "blob": "bb79184aa26e63ed84433f896e537923dd5d477c",
+      "sha256": "bb256fe0187274e83d799ec1eb6caf96ed3e6c8f47c77c1196eb919aa3b0a3de"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-registry.ts",
+      "tuple": "100644 blob ee439ed61eb9d0aef467bce291a7b15604b6939a",
+      "blob": "ee439ed61eb9d0aef467bce291a7b15604b6939a",
+      "sha256": "13e1ecdc30b0f1849934076c675b4fa8d14c799b37b72a5c0a900350588a74de"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/in-editor-tools.ts",
+      "tuple": "100644 blob 4d08a725b386383dd9769cc21b87064c99ec1ae7",
+      "blob": "4d08a725b386383dd9769cc21b87064c99ec1ae7",
+      "sha256": "dcb28d6fdb43797c45b1c5f31df5ba7a601276c32fac3f9ba9e76fc5e3da1681"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/approval-gate.ts",
+      "tuple": "100644 blob feb865c0e6219efd455d4952bd193cba24fc61c9",
+      "blob": "feb865c0e6219efd455d4952bd193cba24fc61c9",
+      "sha256": "acbb4ad5e88a2efb6b029102e461f6b991cf384f777e59050c74f4c4dec8bc58"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/compliance-rules.ts",
+      "tuple": "100644 blob 2159b57753f63795b7c175cc8480038a67026033",
+      "blob": "2159b57753f63795b7c175cc8480038a67026033",
+      "sha256": "2dc60619dcac61ecbf6afce69e6caa05270429a01a37f7587e4c29c14cab1e03"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/action-approval.ts",
+      "tuple": "100644 blob a62c5da083738e9f1a4645a01a00f1787213e01b",
+      "blob": "a62c5da083738e9f1a4645a01a00f1787213e01b",
+      "sha256": "9f65507e9cf745ffbeb8ca4f2de110d6b432f09dcde08f34169d1d65c316670f"
+    },
+    {
+      "path": "packages/meriv2-core/src/alerts/alert.ts",
+      "tuple": "100644 blob 683740735ac80472117b0c01a308fbffa59e6427",
+      "blob": "683740735ac80472117b0c01a308fbffa59e6427",
+      "sha256": "afe2d5677fe8a38e5fe5e8de4439baf86949c85af44b435a8bf1ce78dfce3bb5"
+    },
+    {
+      "path": "packages/meriv2-core/src/ids/canonical-ids.ts",
+      "tuple": "100644 blob 902c5828f79fc490ab9c9f43caa1873334bfe9aa",
+      "blob": "902c5828f79fc490ab9c9f43caa1873334bfe9aa",
+      "sha256": "e16c879b081fba1eb04882162fb152d5fd1dc0f8040bc33d7981f9c7a0199ef1"
+    },
+    {
+      "path": "packages/meriv2-core/src/intent/intent-router.ts",
+      "tuple": "100644 blob 8904d4ee6003def41ed82da2d864f2352781582e",
+      "blob": "8904d4ee6003def41ed82da2d864f2352781582e",
+      "sha256": "1cedfebdc5016c2aaa9c26d2692579d755a8e4bdfbe58dee1508a0321b714a15"
+    },
+    {
+      "path": "packages/meriv2-core/src/intent/action-intent.ts",
+      "tuple": "100644 blob 20ccbeb9ae05734a1650a45b9fdf92d26a6347d1",
+      "blob": "20ccbeb9ae05734a1650a45b9fdf92d26a6347d1",
+      "sha256": "6fd83d89211a19fdb7cf732bb4b6de7d3a3ad623e0486b5f03732e60c0f83a1d"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-map.ts",
+      "tuple": "100644 blob dcb1976f5b39bbc8091d99e3746b0fa5de7490b3",
+      "blob": "dcb1976f5b39bbc8091d99e3746b0fa5de7490b3",
+      "sha256": "457a39b9afd841225720bbe70c3d389d17a3888816903835fab91d79e3505a07"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/openai-responses-adapter.ts",
+      "tuple": "100644 blob 349f2e8b8c76e453113c6a37d9d2420e5cd4b87d",
+      "blob": "349f2e8b8c76e453113c6a37d9d2420e5cd4b87d",
+      "sha256": "3cf9f128e65a5abfb9841b497029bb4059aae1e32fb709a0f52a5324b5ea3803"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/llm-client.ts",
+      "tuple": "100644 blob 2b3ba13bcce0d0df346ef22413447878c92bfea1",
+      "blob": "2b3ba13bcce0d0df346ef22413447878c92bfea1",
+      "sha256": "0b9f73467b685c8dc9b60469f2d94fdb475b16fdf768675ce658528a0da94b54"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/grounded-json.ts",
+      "tuple": "100644 blob a069d5e34350f4904e4178f9361045a133206bce",
+      "blob": "a069d5e34350f4904e4178f9361045a133206bce",
+      "sha256": "9a13700236acec2f7a200d7bca64c0afbe46967200d26381c4e01167adac41a6"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-gate.ts",
+      "tuple": "100644 blob f150024be18da5f88da6b997a3ca9d45b8ba397a",
+      "blob": "f150024be18da5f88da6b997a3ca9d45b8ba397a",
+      "sha256": "ec3a4ddd5545b4f759edd2862cbceda126ecf1ea5f3702c12290d7bc61148195"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-dates.ts",
+      "tuple": "100644 blob fcf5e5a7a6ba17d5dc0bd378374478e106a4cf20",
+      "blob": "fcf5e5a7a6ba17d5dc0bd378374478e106a4cf20",
+      "sha256": "a12e581b66513e3ce226b22faf0dafca5090a402ce486a233ebefac8cc19445b"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.ts",
+      "tuple": "100644 blob c39a0753a1519562844cc716c1ba4474f9c64b27",
+      "blob": "c39a0753a1519562844cc716c1ba4474f9c64b27",
+      "sha256": "27f0a6e5bf1fb03c80d7b97bb833481756fc728b8f1a02ab9cf1209bd3971f3f"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-inventory.ts",
+      "tuple": "100644 blob 038bebf1391a665316a80a5fb0e2560a5ffdc4dc",
+      "blob": "038bebf1391a665316a80a5fb0e2560a5ffdc4dc",
+      "sha256": "28a57545e7cf5ca81f3db2d116920ece87467f091f8aa2cecd65180fc66fe9e3"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/exact-source.ts",
+      "tuple": "100644 blob 1062727a108a2d80d9ed284b0273a3b73ed80b68",
+      "blob": "1062727a108a2d80d9ed284b0273a3b73ed80b68",
+      "sha256": "e0d4efd56359ee48fe713e084915f040c9d018ab2615002c48c86caec40ae533"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label.ts",
+      "tuple": "100644 blob 8f29d39b8d560da04dd81d6aefee49a07be0d4a5",
+      "blob": "8f29d39b8d560da04dd81d6aefee49a07be0d4a5",
+      "sha256": "53dcf514ceabdd038f46397127ab91e0c641fdcafc858414aae349873865143b"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label-extractor.ts",
+      "tuple": "100644 blob b3a7ba6c884bfcdb8b99a251b865fb14d03de958",
+      "blob": "b3a7ba6c884bfcdb8b99a251b865fb14d03de958",
+      "sha256": "9f474372413ce6297e40595fa141a027ebd51e5e5e877bcec205f34b46a03c25"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/status-provenance.ts",
+      "tuple": "100644 blob 2ba4385f88b894c2fc529ca27e1048c5a0c92ab5",
+      "blob": "2ba4385f88b894c2fc529ca27e1048c5a0c92ab5",
+      "sha256": "a3caeeb4026024b3bbc5dcfd73c4fa19ac4b4e9f50955cf35bf4beca9c232aad"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/skeptic.ts",
+      "tuple": "100644 blob 89b833b57a140e8064fc7edf391a95c1e942ae1d",
+      "blob": "89b833b57a140e8064fc7edf391a95c1e942ae1d",
+      "sha256": "6a3da74bf9c88b1b42650ccaab0443d2e2c5a55b859858dfee2f7b9f0c60f1bd"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/skeptic-audit.ts",
+      "tuple": "100644 blob 38de0682aafc4f422d6fd4077e5c9e0b54109d3c",
+      "blob": "38de0682aafc4f422d6fd4077e5c9e0b54109d3c",
+      "sha256": "cba982168bc4d995fc2e36ee02ca0c2ea34c14317aaf1ed257992bc7dbfa64f2"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/layers.ts",
+      "tuple": "100644 blob d205c0e0a5e0a20bf6982704610c0d00c3656814",
+      "blob": "d205c0e0a5e0a20bf6982704610c0d00c3656814",
+      "sha256": "0d4a17d969ec1f0fb663c6a3b86148736d5a7d4b0fb732ffd0c58236e2a60cd0"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/coverage-aware-packet.ts",
+      "tuple": "100644 blob 8f58cab23c633e150a7ea364eb764511fbf84931",
+      "blob": "8f58cab23c633e150a7ea364eb764511fbf84931",
+      "sha256": "5bca3dd2a21a24229a9415a02a7b416a27186a2c4cec2507764470fd543af744"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/token-budget.ts",
+      "tuple": "100644 blob c70114825bb035c8e6901a1b5b07606d78e5558d",
+      "blob": "c70114825bb035c8e6901a1b5b07606d78e5558d",
+      "sha256": "2f5c22d8e83bc9d8db7f79c88e0a64bec6b780d11764932c860c754063a9e9ca"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.ts",
+      "tuple": "100644 blob 9a75aa58e14d573530886480e85f4490a3e98532",
+      "blob": "9a75aa58e14d573530886480e85f4490a3e98532",
+      "sha256": "0037886d9dbac7d1f0d66dd7b3d9a47f2c78cb0adcbb92068221143157bb1c92"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/surface-policy.ts",
+      "tuple": "100644 blob 5430e1f1408a0a66471893867e67afc6b52b9a17",
+      "blob": "5430e1f1408a0a66471893867e67afc6b52b9a17",
+      "sha256": "785f66a319b43d2a9a866e33e73e5daf1faaff06556b2a821a9029a77516edcd"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/context-release-switch.ts",
+      "tuple": "100644 blob d734f446340cfeebd3d38d17bab292b2c1696922",
+      "blob": "d734f446340cfeebd3d38d17bab292b2c1696922",
+      "sha256": "0cc94d1059cbf026e5642c00f85f59bb6b25c3b76398a3eca91b1a48ba89f524"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/operation-enforcement.ts",
+      "tuple": "100644 blob 895b6f4fe90032da46eff4b453bd91cb1d3f73b2",
+      "blob": "895b6f4fe90032da46eff4b453bd91cb1d3f73b2",
+      "sha256": "55de98e61630a7c26759e2d8049356fdf20c9ae860ecc16ef1f3b56f5b690d36"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/truthful-compiler.ts",
+      "tuple": "100644 blob 3ad6dbddc3b48212f3fe23c226c2a79ed11d68d5",
+      "blob": "3ad6dbddc3b48212f3fe23c226c2a79ed11d68d5",
+      "sha256": "3d6194bc524d5b62696741a1bfc7cb1a1b33aa7483b9f3385a8245a6234192b6"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/context-rollout.ts",
+      "tuple": "100644 blob cd037472e4770794e6213942a4af53fa349c9d9d",
+      "blob": "cd037472e4770794e6213942a4af53fa349c9d9d",
+      "sha256": "10373da75323d0453675683d459ef666e40b9c466f2a02105e6bd7bdf3894f7f"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-columns.ts",
+      "tuple": "100644 blob 454dcd3bc79a91f4ba88bfeb9d772ad0d2649fc7",
+      "blob": "454dcd3bc79a91f4ba88bfeb9d772ad0d2649fc7",
+      "sha256": "ad59da190670eee78b4b3db9190f9f4cb05e064cd4c706a167e5c3b15d1d42c8"
+    },
+    {
+      "path": "packages/meriv2-core/src/memory/governance-rollout.ts",
+      "tuple": "100644 blob 3eceecb92d0333085ad4c3ac1e930bd0cf687710",
+      "blob": "3eceecb92d0333085ad4c3ac1e930bd0cf687710",
+      "sha256": "7e634441b678cb4a7f80a99d1f2d7d094376a190bd6619ba149558d7e50cfa78"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/contract.ts",
+      "tuple": "100644 blob c98ff167fa8f16f05fa907415d7d4355fab8a8b4",
+      "blob": "c98ff167fa8f16f05fa907415d7d4355fab8a8b4",
+      "sha256": "9ed37f64d111249aaba7a02ab521dc182b2bb1ddaa6bea5b8da8c1df28a4b2cd"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/rollout.ts",
+      "tuple": "100644 blob 9e191424b9c050a0f8386fe8163bbc2cc64e350b",
+      "blob": "9e191424b9c050a0f8386fe8163bbc2cc64e350b",
+      "sha256": "6234a78c8965ed29091a2df7ee7f89ae9da61f240794ecba3a1d0a0546c8f8b2"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/candidate-contract.ts",
+      "tuple": "100644 blob b2a6ff6a9f7cee8517e4cd1ad99af64cbd75dc02",
+      "blob": "b2a6ff6a9f7cee8517e4cd1ad99af64cbd75dc02",
+      "sha256": "529f46207518f3544e8f6ac951626adec0b996ad4c94fbeedf2578d932a5900d"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/conflict-contract.ts",
+      "tuple": "100644 blob f4e1af8c76b237f59f190d4d8931356ddbd6c0bf",
+      "blob": "f4e1af8c76b237f59f190d4d8931356ddbd6c0bf",
+      "sha256": "e3ad7f3fc100983be672d0f0a08e03715d5c76dea12fe48acfe4366fd12acea7"
+    },
+    {
+      "path": "packages/meriv2-core/src/quality-telemetry/contract.ts",
+      "tuple": "100644 blob edf928f6e77f0e1cddebbf2047afb59b652923e6",
+      "blob": "edf928f6e77f0e1cddebbf2047afb59b652923e6",
+      "sha256": "c54477bfef8a465b09f62b77ed725c59205ce5920d71840903da4b38c0d29647"
+    },
+    {
+      "path": "packages/meriv2-core/src/evaluation/contract.ts",
+      "tuple": "100644 blob 7d9aa9e0e16ca99e571b968c50bb8b5e019f1dc2",
+      "blob": "7d9aa9e0e16ca99e571b968c50bb8b5e019f1dc2",
+      "sha256": "d2cacd201bbd734464786e636a7c1f6b1fb6788620a46990d9cf1eb9c02af71e"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/tokens.ts",
+      "tuple": "100644 blob 7dcba1405857b40757a0786ac159058ac6cdf42c",
+      "blob": "7dcba1405857b40757a0786ac159058ac6cdf42c",
+      "sha256": "ed66e97c88448f11c789598f3408c0a12e0be9a005027b162f131c94da2bc330"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/capability-rollout.ts",
+      "tuple": "100644 blob 8836646b4501fe0ee04e7f60f9b2c032cfc72c90",
+      "blob": "8836646b4501fe0ee04e7f60f9b2c032cfc72c90",
+      "sha256": "e364d327b66fa8830622173f0ade3adf60655acb8a27d8025696aade8cbc007d"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/evidence-profiles.ts",
+      "tuple": "100644 blob 61a2679ac969476aad55b586401d46e5c281644f",
+      "blob": "61a2679ac969476aad55b586401d46e5c281644f",
+      "sha256": "235ccec5772477a0db6e6b2f8ec3ce7efb65c312012313790d2821333e6c3f03"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-profile-control.ts",
+      "tuple": "100644 blob 1a8941cba5a041ca6b96327eb63a0c060a1500cc",
+      "blob": "1a8941cba5a041ca6b96327eb63a0c060a1500cc",
+      "sha256": "ec58a68312d9eff450e27d12d8d7901e16ac79901775669eb9ae58d9521ddcf1"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/checks.ts",
+      "tuple": "100644 blob 44003621a62e1bfa13bef7375836055624b28a59",
+      "blob": "44003621a62e1bfa13bef7375836055624b28a59",
+      "sha256": "38030467ac507a3e5d93bd78dc9460b89d1b91b0a180e29c35053fd5d1e0f11d"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/rollout.ts",
+      "tuple": "100644 blob 377f83b1b571c90b79015082f10c9be50f7cfa0f",
+      "blob": "377f83b1b571c90b79015082f10c9be50f7cfa0f",
+      "sha256": "e2dddbf01319791b2e8888c872ac2e53d6f3e3552c5574e5826bb80494da2922"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/recommendation.ts",
+      "tuple": "100644 blob 9f479cade957a9019f8b02fbb41b83c7ad8e3d31",
+      "blob": "9f479cade957a9019f8b02fbb41b83c7ad8e3d31",
+      "sha256": "559f0a04d88a5e10a61ef0809ac483a9e8d7511a2962305fc0581a6551784676"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/policy-pack.ts",
+      "tuple": "100644 blob 8bd9ce4fcafc9e7b2acc4cdb1ec2c10a25024de3",
+      "blob": "8bd9ce4fcafc9e7b2acc4cdb1ec2c10a25024de3",
+      "sha256": "ae5f127cd25957111219208d86dec2562e2f5bd395fb5848b929caab12542ac5"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/eval-gate.ts",
+      "tuple": "100644 blob cde86d663fcbd2042bb5522256d3fc7b982af665",
+      "blob": "cde86d663fcbd2042bb5522256d3fc7b982af665",
+      "sha256": "b75ec156b52b4c67796abf5be8b4c58112167dc7ebb3b2f9b361c88b026f7515"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/feedback-fixtures.ts",
+      "tuple": "100644 blob a4384c9aa8bb5eb80794cdfc59a631be768b39e4",
+      "blob": "a4384c9aa8bb5eb80794cdfc59a631be768b39e4",
+      "sha256": "59d5bc7df3e85a4186ff7b2a0434e475bd719d2606a45e52ac1cd4649e9d0d7f"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/prompt-block.ts",
+      "tuple": "100644 blob dcbe671972f2869382bf3cd979d186792203ba0e",
+      "blob": "dcbe671972f2869382bf3cd979d186792203ba0e",
+      "sha256": "56b08ac7decb8760678cd3072737fd15039f9b526840d87b7bd3ab5007065339"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/observability.ts",
+      "tuple": "100644 blob 9dd48c75b4ec33f09ede2b4be50b76c6debf32cd",
+      "blob": "9dd48c75b4ec33f09ede2b4be50b76c6debf32cd",
+      "sha256": "dde6e90abe9f163a65e2eb3f2a5d4a30eaaa448c2cbb048f39f0d496a3b687a4"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/index.ts",
+      "tuple": "100644 blob bd1696511ab1cb8c3aac30471375cd46c1c10458",
+      "blob": "bd1696511ab1cb8c3aac30471375cd46c1c10458",
+      "sha256": "e71b7211bdfc7195d696d81fe24559028df8cf9cdd5060ccb37feead14c6dbc8"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/evidence-accuracy.ts",
+      "tuple": "100644 blob af2aa6b6ceafb25fd928819aac0c824d185f5fbb",
+      "blob": "af2aa6b6ceafb25fd928819aac0c824d185f5fbb",
+      "sha256": "f9c2cf97d04bb2ea01e1eabd9ae11ab629c2778f31d4a57f7d81df8304e9d39d"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/claim-assessment.ts",
+      "tuple": "100644 blob cbfdd2ea615b6188f3c612802705826e862062fb",
+      "blob": "cbfdd2ea615b6188f3c612802705826e862062fb",
+      "sha256": "bbb37028936307bbf6f86a391f9dbf5a9f4e706bb154c04214ac666fb8679848"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/auto-correction.ts",
+      "tuple": "100644 blob fe08eb3aa34b879312c2dbb988c6a5a754151ee0",
+      "blob": "fe08eb3aa34b879312c2dbb988c6a5a754151ee0",
+      "sha256": "c09d05e6d240825144259540a6db11c8817504d95246491c2aca090388e47f3c"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/coverage-retrieval.ts",
+      "tuple": "100644 blob b8c9538a2dfa09d2b376d591b66c6f7d40cff627",
+      "blob": "b8c9538a2dfa09d2b376d591b66c6f7d40cff627",
+      "sha256": "204ff5f48351bd05d135fd308d834593cd714a66725488b9712569684a291c63"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/passage-selection.ts",
+      "tuple": "100644 blob 0ad9f2f43f7d52a363f8a9015d07a42288f17043",
+      "blob": "0ad9f2f43f7d52a363f8a9015d07a42288f17043",
+      "sha256": "979dc730321aa3b2d9e87b260884b8ccf87f76ccf0bd0e3bcd7b071da004c31f"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/match-label.ts",
+      "tuple": "100644 blob 3cd55cfdc5a841d5f50c4a82082471462731569a",
+      "blob": "3cd55cfdc5a841d5f50c4a82082471462731569a",
+      "sha256": "068ab6de52136071f3d81eb91dff99dfb7469521df6bc9a9bd760c5930ac0c7a"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/status-provenance.ts",
+      "tuple": "100644 blob 9e6e7c5b7de03794f001d7b6b38e88c017aa3b49",
+      "blob": "9e6e7c5b7de03794f001d7b6b38e88c017aa3b49",
+      "sha256": "7afa95d6986c85097c96713c192626404c8fecc94a920b9a0074c8c11645bd4c"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/jev-cache.ts",
+      "tuple": "100644 blob 9da1d46f3f2dfadc63c747fc0eb2780e0963c6c4",
+      "blob": "9da1d46f3f2dfadc63c747fc0eb2780e0963c6c4",
+      "sha256": "2a3ec0c810d5fc974e7bea077c91e2f806a4418219217644637acd22df9a8115"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-config.ts",
+      "tuple": "100644 blob d428c08fc7d199a1c8d83287c6f39ebc8be12dbb",
+      "blob": "d428c08fc7d199a1c8d83287c6f39ebc8be12dbb",
+      "sha256": "102162866160468d56170871833630620b7f66b75ee829e1462c6c42b33f2f85"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-registry.ts",
+      "tuple": "100644 blob 1ff53e48749ba4ef9b93a55780ff2b4b0013ade5",
+      "blob": "1ff53e48749ba4ef9b93a55780ff2b4b0013ade5",
+      "sha256": "69e657fe2b4db1a8cda7d1c69fb1b289e2e24842852e99456f4c74f4c01baa2a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/decision-cache.ts",
+      "tuple": "100644 blob f52e1364557b82b354b7f283e3e30740bec4529a",
+      "blob": "f52e1364557b82b354b7f283e3e30740bec4529a",
+      "sha256": "d0aaaa52e442d2f34115bce164da277abbb1151f2f041ce8b748431707b61c42"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/calibrated-cascade.ts",
+      "tuple": "100644 blob 5c64769ae27142bce8bc08803142c04afff3a5da",
+      "blob": "5c64769ae27142bce8bc08803142c04afff3a5da",
+      "sha256": "a78b4d055ea76892d4f34181161c5d0ae3a3579db73e5c5f12aae18f830ddc02"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-client.ts",
+      "tuple": "100644 blob 0d26a92d827ef3ecaa71abe81f37f643106adc1e",
+      "blob": "0d26a92d827ef3ecaa71abe81f37f643106adc1e",
+      "sha256": "f238dc078789f4a72eda6561d84794858a86ab4a36a45cad1394675c29351d3f"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/claim-support-question.ts",
+      "tuple": "100644 blob 362639f3decf93f9ac30b52277483ff02427d096",
+      "blob": "362639f3decf93f9ac30b52277483ff02427d096",
+      "sha256": "d0873dcdeb2d930a444316593d04208c4d91a9ec745749461153a6e3d1748349"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/client-fit-question.ts",
+      "tuple": "100644 blob 5d6041fd1e80c6cd90772fcaab9ab2e493e15489",
+      "blob": "5d6041fd1e80c6cd90772fcaab9ab2e493e15489",
+      "sha256": "4b18f5c5e8c65a9eb11a837f1dee8e79847494a6331624cba1a7aec087add097"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/client-fit-provider.ts",
+      "tuple": "100644 blob b52558d3601842c119eafdf0abe7a1b3f62a5018",
+      "blob": "b52558d3601842c119eafdf0abe7a1b3f62a5018",
+      "sha256": "ce9b07897b0a8af27cfa83c54dd15f17b7ef8c2285e9406d0420559cec50e51a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/status-selection-question.ts",
+      "tuple": "100644 blob e166a5d55bc5c7c10fb399aac1ae38c57047bc03",
+      "blob": "e166a5d55bc5c7c10fb399aac1ae38c57047bc03",
+      "sha256": "e18757867f8c7e54e9f5ffb92a7e67c3561965426aff64c91a816a3f672b42b4"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/program-identity-question.ts",
+      "tuple": "100644 blob b0f934547f8ead98181d94d5fb82c37e7f7fa265",
+      "blob": "b0f934547f8ead98181d94d5fb82c37e7f7fa265",
+      "sha256": "2cb90bcc81fd0fb08084a8b3a7a940dcee46673a61a4a20aa3d6ce9eb9b6e982"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/mention-scope-question.ts",
+      "tuple": "100644 blob e402f4925d98a68b2195f7418a2de12e68973289",
+      "blob": "e402f4925d98a68b2195f7418a2de12e68973289",
+      "sha256": "7a01c64bba6cd4966586f5a02fa0ddea21f0687456e9c2f402e04bb470ed18b0"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evidence-selection-question.ts",
+      "tuple": "100644 blob cdf865af00d449d9233632ab9efbfc3afad7221f",
+      "blob": "cdf865af00d449d9233632ab9efbfc3afad7221f",
+      "sha256": "d70db11976d5c66d2df70185a3be4a6a218956262298a90b5a5d5a912eace47e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-entity-question.ts",
+      "tuple": "100644 blob aa1d339740dca798cf558048b7f2048d27b9d067",
+      "blob": "aa1d339740dca798cf558048b7f2048d27b9d067",
+      "sha256": "d5ef7ba04ac17df74865a611265174311ec2af9c241b7184da2d1307a67d432e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-signal-question.ts",
+      "tuple": "100644 blob 82a8fbfa72277b67619684d99b69c9b47523a984",
+      "blob": "82a8fbfa72277b67619684d99b69c9b47523a984",
+      "sha256": "1ff809a25f67c067132c10a8cb6c58181759758085a435f0169101c32d8cee3f"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-claim-question.ts",
+      "tuple": "100644 blob e8555e21b773f68b4306de3ed71ab63362acef1f",
+      "blob": "e8555e21b773f68b4306de3ed71ab63362acef1f",
+      "sha256": "0d6e4b4e7f18da37d91b170e1054380791107121c2e1a4d09a07cdae49448904"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-fixture-schema.ts",
+      "tuple": "100644 blob e938bcca1d7ca97ade28a2d9c69d1e8f19759cfb",
+      "blob": "e938bcca1d7ca97ade28a2d9c69d1e8f19759cfb",
+      "sha256": "4f50e188cf72937537ee672e8862aabd741c00ac277d57e6f38463124e6de776"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-choice-provider.ts",
+      "tuple": "100644 blob 1e04cfabffa53184b64a74cd220794c4252f9621",
+      "blob": "1e04cfabffa53184b64a74cd220794c4252f9621",
+      "sha256": "6bd6b3ff39ae5b592794571c4aa16d5031f72966a8131447008f542984c991ca"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-decision-provider.ts",
+      "tuple": "100644 blob 0b4301332b2f0a09c7de42a6eaaa8c8a710c69ac",
+      "blob": "0b4301332b2f0a09c7de42a6eaaa8c8a710c69ac",
+      "sha256": "6239a7b08c7b6154967e696b7494dc6b9f375268e1f6c926a6ab269078b585b8"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/skeptic-adapter.ts",
+      "tuple": "100644 blob 95eeb3dda065cd8febdd834771d4501f4b3a0e14",
+      "blob": "95eeb3dda065cd8febdd834771d4501f4b3a0e14",
+      "sha256": "08e47c8eff4126f09dd5ce230e9f0a5e6718e46f24e92d42c1ebb1f762f96c86"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/fixture-schema.ts",
+      "tuple": "100644 blob 1f202939adb204dc8ee4c1369581f78d9c5d0911",
+      "blob": "1f202939adb204dc8ee4c1369581f78d9c5d0911",
+      "sha256": "edcfa84d851ad67a9e765b30db21b081de8b0983f8997900410aaef9f0fe7417"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-evaluation-fixture.ts",
+      "tuple": "100644 blob d2aefa4b906abe7474b10760f8b5ef44ee3cd3af",
+      "blob": "d2aefa4b906abe7474b10760f8b5ef44ee3cd3af",
+      "sha256": "598a1768a52f8720465afa9264023db859652df73a51786011106afb771034fa"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/recorded-decision-store.ts",
+      "tuple": "100644 blob fdfca6bfba0852315e200b1844f90adce705c4e8",
+      "blob": "fdfca6bfba0852315e200b1844f90adce705c4e8",
+      "sha256": "fcb07d26f481b347de660a4201084916b2e092790bda0894254f248e0db8e11c"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/replay-decision-provider.ts",
+      "tuple": "100644 blob 454863ce4668ee36711b26a9e471991b12fae1a8",
+      "blob": "454863ce4668ee36711b26a9e471991b12fae1a8",
+      "sha256": "c84463f47ec8cbd78018399a19d3541a30bb39bb89dc066e44705345fc3f47c8"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/recording-decision-provider.ts",
+      "tuple": "100644 blob 65b34700c1e720e87cf3598586be2790fa395cee",
+      "blob": "65b34700c1e720e87cf3598586be2790fa395cee",
+      "sha256": "abb1f41e5c0a5cb84ac3b0fe70ae0fe8a46cbb1f37174935283940ebfad8e096"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/paired-evaluation.ts",
+      "tuple": "100644 blob 45b62f520a48eeef401976b6456f406e6b6f8975",
+      "blob": "45b62f520a48eeef401976b6456f406e6b6f8975",
+      "sha256": "4dfac71019d38c6883645ca3df549de7f2595e644bcbdffb34152cff210ca055"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/shadow-events.ts",
+      "tuple": "100644 blob 2db62f8bb6017f6536073c9a5e4612cea2714344",
+      "blob": "2db62f8bb6017f6536073c9a5e4612cea2714344",
+      "sha256": "0fa3359cac3e5c47ee517560df8953e7e299d677588c9c017e71424d71008d4e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/shadow-report.ts",
+      "tuple": "100644 blob 30701fec4b47d560a5be13bf9c3d7ce090f960a2",
+      "blob": "30701fec4b47d560a5be13bf9c3d7ce090f960a2",
+      "sha256": "8a38f1f2f29794c4b0fe6b87fa185064fbd79969ddf1c5cb6d5a023ad47fcba7"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/calibration.ts",
+      "tuple": "100644 blob 289f584e805907e64dbb140f96b470413eb83c97",
+      "blob": "289f584e805907e64dbb140f96b470413eb83c97",
+      "sha256": "8a3b0456fbf1c2692942652b861746ddda171ed6a9cadcccafa6c6defd4917e9"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/task-paired-evaluation.ts",
+      "tuple": "100644 blob f6ac32a5a709dc5603390fcc6393a8365eaccd8b",
+      "blob": "f6ac32a5a709dc5603390fcc6393a8365eaccd8b",
+      "sha256": "35cf4a4fc2dbbe780051e5b94dde49c87035974e2cc2cdeeb4cef962d286236d"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/package9-economics.ts",
+      "tuple": "100644 blob a6c5cc87790c0a909103e5490564ca9c063b359a",
+      "blob": "a6c5cc87790c0a909103e5490564ca9c063b359a",
+      "sha256": "d9370b7a04c7db1c353a775685a6d33d60e88528cc85822fc04b47546e7f61b1"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts",
+      "tuple": "100644 blob 6c5df58cf04f89e4f79f114cce29317b4ee0e9ce",
+      "blob": "6c5df58cf04f89e4f79f114cce29317b4ee0e9ce",
+      "sha256": "c1198d81319cf62f7a173d9e776f73d991994d0f2d4f0e97431560866f20dc73"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/index.ts",
+      "tuple": "100644 blob f1ab7d421877ad4a9c0550c06ec812f169b2b148",
+      "blob": "f1ab7d421877ad4a9c0550c06ec812f169b2b148",
+      "sha256": "e513820fedd58d7b031760acf97ab10cbe090199dfe81bc59c56334e2cc1314f"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/assemble.ts",
+      "tuple": "100644 blob bafd472a6f4829920cc4b1c884cf5ac38f97c6b7",
+      "blob": "bafd472a6f4829920cc4b1c884cf5ac38f97c6b7",
+      "sha256": "462c59e95b836c759cbbef4eac6ec95744f18ab4f86e84c5dc94cf08ad756134"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/recheck.ts",
+      "tuple": "100644 blob 063b93113ac22aba6299b3873dd31c7d7c9b33eb",
+      "blob": "063b93113ac22aba6299b3873dd31c7d7c9b33eb",
+      "sha256": "73cc202aa4ba1e5eaf0e2dae8af9d5fbc30b1f77ba6b97bd1badc685f09f2ae7"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/run-repair.ts",
+      "tuple": "100644 blob f9b29aafc90d928bc39584cb077c5a1382a639f2",
+      "blob": "f9b29aafc90d928bc39584cb077c5a1382a639f2",
+      "sha256": "31a3dbdde1e941ee3fdec0771aa24b43fa05d5efb2dcc7c022bb51c90bdcc165"
+    },
+    {
+      "path": "packages/meriv2-core/src/canary/limits.ts",
+      "tuple": "100644 blob ba0aa2ac01223ab7994e474bd44b955432826214",
+      "blob": "ba0aa2ac01223ab7994e474bd44b955432826214",
+      "sha256": "840702d07098e4db8031b2c03771b842a2e8316b393ac150b383f35b89d6fa66"
+    },
+    {
+      "path": "packages/meriv2-core/src/canary/canary-report.ts",
+      "tuple": "100644 blob ae1066527e898901a6ee213352a365174c935e43",
+      "blob": "ae1066527e898901a6ee213352a365174c935e43",
+      "sha256": "2bf40bf4fd5c9f666be9a84e066728647323aeb2a8b26eb2d7effde9a78ad924"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/client/get-client-context.ts",
+      "tuple": "100644 blob 59c0f8d7ef0e38799bab766e4e62fd259104949f",
+      "blob": "59c0f8d7ef0e38799bab766e4e62fd259104949f",
+      "sha256": "b78182a95fa720b0e75b84213f5623697564d598627f8d3407113d4cf6aaf41a"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/delegated/delegated-tool.ts",
+      "tuple": "100644 blob a423a5d49f7c57110f0c3a8e28d01dfd639a83dd",
+      "blob": "a423a5d49f7c57110f0c3a8e28d01dfd639a83dd",
+      "sha256": "02a6142484132df0b85fbc0de157ed0d31ff4edfd86604d86455a2409a020506"
+    },
+    {
+      "path": "packages/meriv2-core/src/domain/domain-primer.ts",
+      "tuple": "100644 blob bdb0fb09ab0a1176246f7ee820fc70cf1657d7fa",
+      "blob": "bdb0fb09ab0a1176246f7ee820fc70cf1657d7fa",
+      "sha256": "2e000fa568e11c5dba771730e5db825aeaa0dd6031a2bb048eba2e539adeecec"
+    },
+    {
+      "path": "packages/meriv2-core/src/domain/government-affairs-output.ts",
+      "tuple": "100644 blob 63e5c7a16215bf90be48c00f4bccda6dd25dddb4",
+      "blob": "63e5c7a16215bf90be48c00f4bccda6dd25dddb4",
+      "sha256": "83696c9b607934f99de76ba42b452b8f9f1216e9ea9a39b46e83ac51a42de2cd"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/tag-live-policy-mentions.ts",
+      "tuple": "100644 blob cd9dd2c8ee5b5c2d7c0f6b6c3b3a60e3765d4510",
+      "blob": "cd9dd2c8ee5b5c2d7c0f6b6c3b3a60e3765d4510",
+      "sha256": "469e7d17a443f454343932f272c9087f9fade38e0f38111875856d0402bb7b43"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts",
+      "tuple": "100644 blob 1f40ec16714e8e9402da3c852adda2969c38aab3",
+      "blob": "1f40ec16714e8e9402da3c852adda2969c38aab3",
+      "sha256": "0eacc0ca7652260c987ebe345e03ed401014641f536f15a402f3c22b187eede8"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts",
+      "tuple": "100644 blob 4cec87992e23735ec0e18113f1010c798758d263",
+      "blob": "4cec87992e23735ec0e18113f1010c798758d263",
+      "sha256": "18431c6f44a2d74f9dc00eb97195d242ae1700ca9909142989459e6f17b45482"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/confidence.ts",
+      "tuple": "100644 blob 44987f52511118958669afe3b70a14e56df5f35b",
+      "blob": "44987f52511118958669afe3b70a14e56df5f35b",
+      "sha256": "aacb601dd8e27e8bcf61cb45b76420350741c2d5b666eb219c401a9f741fbfe3"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/verifier-claims.ts",
+      "tuple": "100644 blob 06dc2e5304b7ec150aa7d0fc0bd0bb3e3ccdbba3",
+      "blob": "06dc2e5304b7ec150aa7d0fc0bd0bb3e3ccdbba3",
+      "sha256": "494f0e8842079f856389996d6b14bfe6d68ab44404bb6d3a81a83ee9457fdab3"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/pe-structural.ts",
+      "tuple": "100644 blob 8c94995b23c3f395f3d289214e928f0c67d853c2",
+      "blob": "8c94995b23c3f395f3d289214e928f0c67d853c2",
+      "sha256": "e4a99bf40c1350e0e1c6390047e53019962d736da4761e45db746cca622fad0f"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/grounding-sources.ts",
+      "tuple": "100644 blob cb93709b57626244d5af3aa2b7c321b342a9250d",
+      "blob": "cb93709b57626244d5af3aa2b7c321b342a9250d",
+      "sha256": "12da1708c6060146129a2d97e5ec765fe777cc1bb0543c05d0c313e7a0d7c2cc"
+    },
+    {
+      "path": "packages/meriv2-core/src/security/tool-result-wrap.ts",
+      "tuple": "100644 blob fce6f70b3b39cccf1be949b58911a9c45cc293bb",
+      "blob": "fce6f70b3b39cccf1be949b58911a9c45cc293bb",
+      "sha256": "f27e58e681a0e6b7b66c659203f267b2b8dc4144e158c20a1e181c1ed86b66de"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts",
+      "tuple": "100644 blob f8dcf33c1bfb886813fc455df8197c5e54362c47",
+      "blob": "f8dcf33c1bfb886813fc455df8197c5e54362c47",
+      "sha256": "a1803a49facd5a0c8cd13fc9320f7249f439b3b431c1501a965e52fb41404887"
+    },
+    {
+      "path": "packages/meriv2-core/src/index.ts",
+      "tuple": "100644 blob 1a61bff5df2880e728559b42045c01b49b683e8a",
+      "blob": "1a61bff5df2880e728559b42045c01b49b683e8a",
+      "sha256": "4aada17320ad93c5e75849ac23dd1a6ac41f43f251304ac1a416fbd804c7b41e"
+    },
+    {
+      "path": "apps/api/src/knowledge/knowledge.types.ts",
+      "tuple": "100644 blob de4957b091de86a4f45ba585692f119b76bf167b",
+      "blob": "de4957b091de86a4f45ba585692f119b76bf167b",
+      "sha256": "af823f3ba72d84db1bd199896e8b9360f61b5489c79e31335d518d4802e498df"
+    },
+    {
+      "path": "apps/api/src/knowledge/graph/temporal-knowledge-graph.types.ts",
+      "tuple": "100644 blob 63a926c421197596e625d15f036d1fb74750ff4e",
+      "blob": "63a926c421197596e625d15f036d1fb74750ff4e",
+      "sha256": "6ee2696be42227bd4fdc345312c44b043701a389e724bc9a3fb98cd90c3fc005"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-v2.types.ts",
+      "tuple": "100644 blob 71f80b0d94d78537ab6c5f150ab7960417d319d0",
+      "blob": "71f80b0d94d78537ab6c5f150ab7960417d319d0",
+      "sha256": "95f388145594c5a9052318e4fa0f215de0b10fb92757bbcca8adb17120890fb8"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "tuple": "100644 blob ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "blob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e"
+    },
+    {
+      "path": "apps/api/src/memory/memory-governance-tenant-scope.ts",
+      "tuple": "100644 blob cdddb27ae490848d99bd3ecb55932f2ab859e225",
+      "blob": "cdddb27ae490848d99bd3ecb55932f2ab859e225",
+      "sha256": "2c56f023b7e5f7b26e71b6473d26b850cfa27a8a8566e9c9412396a662202f84"
+    },
+    {
+      "path": "apps/api/src/memory/memory-review-admin-policy.ts",
+      "tuple": "100644 blob 1f214b076d172b13648f1bf842d7c83363b944d3",
+      "blob": "1f214b076d172b13648f1bf842d7c83363b944d3",
+      "sha256": "ce7d9b36b52b7b63d1a8bdcaf0bab2acf3c57187dedc5752a80f8e95f733adc3"
+    },
+    {
+      "path": "apps/api/src/memory/memory-authorization.helpers.ts",
+      "tuple": "100644 blob 542f8362f834126b5dad16bef72ffa6998d0cf27",
+      "blob": "542f8362f834126b5dad16bef72ffa6998d0cf27",
+      "sha256": "a0c2ece14a7d8164d3a7c7a2f028ffe75a486c91f6fdda8b11fa48cab66c60e7"
+    },
+    {
+      "path": "apps/api/src/memory/memory-governance-lifecycle.helpers.ts",
+      "tuple": "100644 blob 21255b310d57ec0258aadfd5aa313792bd182703",
+      "blob": "21255b310d57ec0258aadfd5aa313792bd182703",
+      "sha256": "6f983d9f0bc388464dc0be27e9edba1aeb9bfdaec9c7ab16830882db286770b7"
+    },
+    {
+      "path": "apps/api/src/memory/memory-recall-suppression.helpers.ts",
+      "tuple": "100644 blob d147034eaf5141e997a3b6011bc92df01e9dd84f",
+      "blob": "d147034eaf5141e997a3b6011bc92df01e9dd84f",
+      "sha256": "f1a049bf5362c540098adea8ba885b25b579ab70f2a51b322abb3060eab647f2"
+    },
+    {
+      "path": "apps/api/src/context/context-persistence-boundary.service.ts",
+      "tuple": "100644 blob 79a4df92a5e533fe255a082a3fc2b83ca825877e",
+      "blob": "79a4df92a5e533fe255a082a3fc2b83ca825877e",
+      "sha256": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221"
+    },
+    {
+      "path": "apps/api/src/context/context-compiler.service.ts",
+      "tuple": "100644 blob ed071e75eb6cef66e28a2e57e69ae95b364089df",
+      "blob": "ed071e75eb6cef66e28a2e57e69ae95b364089df",
+      "sha256": "82eaa0e1b012602217ba2c054a63b949cd9c016e6549d675b8cdad3c4a8ba7c2"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-audit.service.ts",
+      "tuple": "100644 blob 19b767ba2de679208d3e3b30bb2be3f9ce8f1029",
+      "blob": "19b767ba2de679208d3e3b30bb2be3f9ce8f1029",
+      "sha256": "bfdbd1a361d6a3b73b5fe184bef671b18b7096ae2a10b629dc10459224d85d84"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/entity-resolution.types.ts",
+      "tuple": "100644 blob 0151aebfc2d5f05ae818c0c53c1dc70773ac2413",
+      "blob": "0151aebfc2d5f05ae818c0c53c1dc70773ac2413",
+      "sha256": "b814eaaa1f63bf5f438d0f5a139c886bbb1ea620f181a059aea4392d9ba16d28"
+    },
+    {
+      "path": "apps/api/src/context/context-resolver.types.ts",
+      "tuple": "100644 blob d0cbd2713786b8d5129692eae680ef366ea7ef9e",
+      "blob": "d0cbd2713786b8d5129692eae680ef366ea7ef9e",
+      "sha256": "da2362e716c813a5bf41a3d6b3944ae35908789acfa93bcbf693175bf7aeaf4f"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-operation-registry.ts",
+      "tuple": "100644 blob a12c63c50cc9715eac6f105c545995b2b3f140da",
+      "blob": "a12c63c50cc9715eac6f105c545995b2b3f140da",
+      "sha256": "f87964159043e7c0886ff2a48ce20e609e99e136a5595760746ef434aabad3f3"
+    },
+    {
+      "path": "apps/api/src/context/context-layer.service.ts",
+      "tuple": "100644 blob 20c1aea711da796249fc3a4e73d55ca729834548",
+      "blob": "20c1aea711da796249fc3a4e73d55ca729834548",
+      "sha256": "35723bd1fcc5199d2c9d829ce18c0b9169cab14664d0b0a2422e2fe49e79ea6f"
+    },
+    {
+      "path": "apps/api/src/context/context-packet-v2.service.ts",
+      "tuple": "100644 blob 4ee656a71ba9f1b949c22c0f36b5377a16b94df9",
+      "blob": "4ee656a71ba9f1b949c22c0f36b5377a16b94df9",
+      "sha256": "34eb9db4812145a87423755f99315e7f414f9f4223324bd26f95d0e99a554ae6"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/entity-normalization.ts",
+      "tuple": "100644 blob 0be4680c394f2d9003c24cf8b9f88019c70f84d2",
+      "blob": "0be4680c394f2d9003c24cf8b9f88019c70f84d2",
+      "sha256": "922388f9da5cfab8d7719d312ad4945dd6ef66109f879a74ee178ed58731c408"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity-registration.types.ts",
+      "tuple": "100644 blob cc6926fb2872b4d9464c8f1cdb3cc598bb5c22d9",
+      "blob": "cc6926fb2872b4d9464c8f1cdb3cc598bb5c22d9",
+      "sha256": "6e3237820fd6dbdcf8e3690d8d4c67aec380e3d351ce25f15fd992a71fb237a5"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity-registration.repository.ts",
+      "tuple": "100644 blob 9de82e60a1fbd9f21b62f413630aa35dbbccb1c3",
+      "blob": "9de82e60a1fbd9f21b62f413630aa35dbbccb1c3",
+      "sha256": "0e52289d50dd9a68b8176c6f2b9ca5308ef22b3c8619e39756d3279fbead530f"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity-registration.service.ts",
+      "tuple": "100644 blob 9f67b6953693e14bb64d1cbb4769652d808f04f1",
+      "blob": "9f67b6953693e14bb64d1cbb4769652d808f04f1",
+      "sha256": "2f3abe9d9ffc834157f2b3ecf1a123517521070a276d39ec6069130473870d46"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/entity-resolution-stage-policy.ts",
+      "tuple": "100644 blob cc8d8de221fdd17a94b3686ee795a8cbd8176698",
+      "blob": "cc8d8de221fdd17a94b3686ee795a8cbd8176698",
+      "sha256": "b2704e526341ae836d5d293d6f3c6e1d976758d77cae7f6c098b78cfb1fa4f8c"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/universal-entity-resolution-orchestrator.types.ts",
+      "tuple": "100644 blob a0949bddab09f134693e2582b45306d4d6a298d9",
+      "blob": "a0949bddab09f134693e2582b45306d4d6a298d9",
+      "sha256": "08ba0664b60873cb3eb597a35e9a0314b5f5c998232f6bcb387cf9a754ea7d58"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/canonical-entity.repository.ts",
+      "tuple": "100644 blob b7a6048c534f25d39e7bd3f95420dadbfc709689",
+      "blob": "b7a6048c534f25d39e7bd3f95420dadbfc709689",
+      "sha256": "5d1cca71e1744fcac0aa3ce7aec93aaf7f7d39a94eab1e981a268a048f6e292c"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/universal-entity-resolution.service.ts",
+      "tuple": "100644 blob 2da91d6ef4af71bf93ff7ada48cd6b71379a6e35",
+      "blob": "2da91d6ef4af71bf93ff7ada48cd6b71379a6e35",
+      "sha256": "45732f4b28c81d53e090617eee5b101bfa2f816abfdcd49c37026779f17254f2"
+    },
+    {
+      "path": "apps/api/src/knowledge/entities/universal-entity-resolution-orchestrator.service.ts",
+      "tuple": "100644 blob 9a4a3ce6c70155195b02fc2b5964624ec0f093f6",
+      "blob": "9a4a3ce6c70155195b02fc2b5964624ec0f093f6",
+      "sha256": "5a643dfb07709981c1437b347492c9e9771718df5d6f80ed55401b394a3d788b"
+    },
+    {
+      "path": "apps/api/src/retrieval/coverage-manifest.ts",
+      "tuple": "100644 blob 1d71d0f42347f39bb3db287d1b1f08fead04201a",
+      "blob": "1d71d0f42347f39bb3db287d1b1f08fead04201a",
+      "sha256": "71912119efaf73bd6d375e8b8252ec7063fd2dca89081b8c7fe061156d9f4698"
+    },
+    {
+      "path": "apps/api/src/retrieval/exact-lexical-retrieval.service.ts",
+      "tuple": "100644 blob 8f2a1e1ac8a05c1099305a99a61d68e6bdbd30ca",
+      "blob": "8f2a1e1ac8a05c1099305a99a61d68e6bdbd30ca",
+      "sha256": "669c7ed8aad7fabbba71ca4cb619b186a1ae7d8732d6cbc4b58383267e3fdf85"
+    },
+    {
+      "path": "apps/api/src/retrieval/data-catalog/semantic-data-catalog.service.ts",
+      "tuple": "100644 blob 1e88234eafb549f8bc33bbbad9c4bc0ab3ae271c",
+      "blob": "1e88234eafb549f8bc33bbbad9c4bc0ab3ae271c",
+      "sha256": "7bc2926e0343ff215b14c527de82ed56e774fb08f7b1f6ac0493439ff6b01fba"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-planner-v2.service.ts",
+      "tuple": "100644 blob 7df66351690ae3eee5c77a3c10f2522c6f3219b6",
+      "blob": "7df66351690ae3eee5c77a3c10f2522c6f3219b6",
+      "sha256": "90a1f86ed5920567449f5453715d1b96bff1129cecc479f398ffeb7a153d034e"
+    },
+    {
+      "path": "apps/api/src/reranking/reranking-provider.ts",
+      "tuple": "100644 blob bb94237338acfbf5675667a2e8dff5605e24cf37",
+      "blob": "bb94237338acfbf5675667a2e8dff5605e24cf37",
+      "sha256": "4e38acad29686de0a147089b1da24d3a4e5fe6ed174c377d4c72a89ef7ad7cbe"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-reranker.service.ts",
+      "tuple": "100644 blob 22e6dc71e3844826760d7ea91c5081bd7107e06c",
+      "blob": "22e6dc71e3844826760d7ea91c5081bd7107e06c",
+      "sha256": "2d70d950c4336c44e360daa0aa064cad0ca4ff799aff390298977990cf51bfe3"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-scoring.service.ts",
+      "tuple": "100644 blob f75929c8c16d0ef814186fc1cb5649af81e75247",
+      "blob": "f75929c8c16d0ef814186fc1cb5649af81e75247",
+      "sha256": "bbc433f993b2be415212c7c06a717931bc3eb3f18cdd840351ccf7bd3e5c0b02"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-source.adapter.ts",
+      "tuple": "100644 blob 1a71c42a3f6a34b03aceb3566b881739dec134af",
+      "blob": "1a71c42a3f6a34b03aceb3566b881739dec134af",
+      "sha256": "661983a016798b12a4aca9438153f193fdd20f90fcd9407d9367c5316d1d5780"
+    },
+    {
+      "path": "apps/api/src/retrieval/retrieval-v2.service.ts",
+      "tuple": "100644 blob 2bf79bd83f34db06426bd55bab68b8e960f13fa2",
+      "blob": "2bf79bd83f34db06426bd55bab68b8e960f13fa2",
+      "sha256": "bf347134c6a88ea73b404c0a975f366372309319ec113ba9b349b97efafbc5ed"
+    },
+    {
+      "path": "apps/api/src/context/context-resolver.service.ts",
+      "tuple": "100644 blob 0ded19dd9c189327adca6364fa15fd6800e26418",
+      "blob": "0ded19dd9c189327adca6364fa15fd6800e26418",
+      "sha256": "ed7791b71c52332dddca9114fd8ea18029e6f05d3c0f7887699ec6a2ddbfe47a"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-gateway.service.ts",
+      "tuple": "100644 blob def956800d182f41ec8e8fb5f03e14a173693188",
+      "blob": "def956800d182f41ec8e8fb5f03e14a173693188",
+      "sha256": "22eb06fd50f0461c4853c276640d1756d5fbc5dd0cae300838620910137e773e"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "tuple": "100644 blob 7593c2b82dc4b4645d8287fbf80399c5e28f7258",
+      "blob": "7593c2b82dc4b4645d8287fbf80399c5e28f7258",
+      "sha256": "2f2552ad4720a1a92c3cdc7f3531b214da580b6fe85b4f92f49908662e8139c6"
+    },
+    {
+      "path": "apps/api/src/engagement/governed-meeting-ai.factory.ts",
+      "tuple": "100644 blob 13b5e51af0b4702e957ec2309200606fbbf53bf7",
+      "blob": "13b5e51af0b4702e957ec2309200606fbbf53bf7",
+      "sha256": "5224e4a43c66b2771c17c4b95601020b30e74acf49f2a57289208b892e1e6148"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+      "tuple": "100644 blob c54239b2816926b9ba50a059330867e1a044c246",
+      "blob": "c54239b2816926b9ba50a059330867e1a044c246",
+      "sha256": "9d7a45ad7ac5a1060c239459ae9a89e38fea0bca05b1143f8df267226b9fae15"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+      "tuple": "100644 blob 3b6794388e94d165d685b8670514e20a18603c50",
+      "blob": "3b6794388e94d165d685b8670514e20a18603c50",
+      "sha256": "1df9f4cdfdff45742a758f087c73f191b3ac7c687d15576e978d7c811c5f12ab"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-message-state.ts",
+      "tuple": "100644 blob 326a8c84b4385ab89db9332d09e6a5e3ef3a9ad4",
+      "blob": "326a8c84b4385ab89db9332d09e6a5e3ef3a9ad4",
+      "sha256": "121422b52fedf561c6c385081282e05a5cb70390d738b4d0e0c06c2ce0a64970"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-access.helpers.ts",
+      "tuple": "100644 blob c0a8cbd27b8a87ff02f8dd36577dcce2d6537992",
+      "blob": "c0a8cbd27b8a87ff02f8dd36577dcce2d6537992",
+      "sha256": "a7d28dcb3db441049d7f93a89b54cc21b097af3757a66f2934b0e5a2a560d0bf"
+    },
+    {
+      "path": "apps/api/src/engagement/synthetic-document-deletion.helpers.ts",
+      "tuple": "100644 blob 09e800abb91a0834dd31632e08f3443c8221e983",
+      "blob": "09e800abb91a0834dd31632e08f3443c8221e983",
+      "sha256": "917346f6ef74cad4610b27c4e66e0b092cd0be9140d039aa423edd242504b2fb"
+    },
+    {
+      "path": "apps/api/src/engagement/attachment-pdf-vision.ts",
+      "tuple": "100644 blob 9dee18a757074cdf44b40463600e0daa1067de0b",
+      "blob": "9dee18a757074cdf44b40463600e0daa1067de0b",
+      "sha256": "ac5a8a5406ab7e0a82a35e9f1ee05ff98cf14e7a62db8e944761cb7a08c7e944"
+    },
+    {
+      "path": "apps/api/src/common/sanitize-signature.ts",
+      "tuple": "100644 blob 3f9701eb7eda1d06ea0fd91daff02e5a949e4190",
+      "blob": "3f9701eb7eda1d06ea0fd91daff02e5a949e4190",
+      "sha256": "dc6bc9d6847df8a125dfa422835544d03f2cdbb9e96b88f94fb1a07bd61cafaa"
+    },
+    {
+      "path": "apps/api/src/common/tenant-flags.ts",
+      "tuple": "100644 blob e94ebfb84f942d6b31118ce575d3a7ee89b44a1d",
+      "blob": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d",
+      "sha256": "9a78b70d147496aadd94dfd7e11eb87f4e9300553670297987bead550de337a9"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-audience-types.ts",
+      "tuple": "100644 blob b576daf739d56aba1a1e29ba52d9916e300646ac",
+      "blob": "b576daf739d56aba1a1e29ba52d9916e300646ac",
+      "sha256": "76e22d237f5685e82756ed717a83ef1dad3a7de9240d2269bc96eeedd5a07a46"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-sync-coverage.ts",
+      "tuple": "100644 blob 7aeeb8da66311839e3e8e31a4901f660717564c4",
+      "blob": "7aeeb8da66311839e3e8e31a4901f660717564c4",
+      "sha256": "fdad6a158c7fc61b9c8a15cf06ba57b73d829bc219b369c6593e6e31b1e310e1"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-query-deadline.ts",
+      "tuple": "100644 blob 4648f15e41e894f84c4501587d39b4545cc1aa59",
+      "blob": "4648f15e41e894f84c4501587d39b4545cc1aa59",
+      "sha256": "cb90d145a96d006785ad4c0a5a768ddeddf843b351638db199aad360850c138b"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-query.ts",
+      "tuple": "100644 blob 6e2a3bdf21655a786a072ad933bb323abcb355d7",
+      "blob": "6e2a3bdf21655a786a072ad933bb323abcb355d7",
+      "sha256": "b32e25f106e3a2d9e69ac50e37b6fde8b26cea51a08be24adcdf5cfc69ad34c8"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "tuple": "100644 blob 897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "blob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "tuple": "100644 blob 98286f542da05527fb124a16dd1e831ae40cf558",
+      "blob": "98286f542da05527fb124a16dd1e831ae40cf558",
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "tuple": "100644 blob 1a8a2228b4c79c7ec24af77289e308748c18baef",
+      "blob": "1a8a2228b4c79c7ec24af77289e308748c18baef",
+      "sha256": "816bf07aa7baa26d97581ee4dede9c792dbd60803011cb1db3ae82f523aa63d6"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "tuple": "100644 blob d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "blob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7"
+    },
+    {
+      "path": "apps/api/src/common/auditor-mode.ts",
+      "tuple": "100644 blob d6353eabe974ad7801d77cefc65b70717ad5670e",
+      "blob": "d6353eabe974ad7801d77cefc65b70717ad5670e",
+      "sha256": "e750156dbd588013325d18a7ec890fc93c47c8e50d066061687e8c3cc7fe7b6f"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.types.ts",
+      "tuple": "100644 blob aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "blob": "aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "sha256": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft-audit.service.ts",
+      "tuple": "100644 blob 0052c404e3e399303e04723c3b95b86e7fcd95e6",
+      "blob": "0052c404e3e399303e04723c3b95b86e7fcd95e6",
+      "sha256": "ef8c3eac35fd760dabdc4698903dc19fb6603a1228ae0121e9796c29a3529724"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/quality-telemetry-capture.service.ts",
+      "tuple": "100644 blob 499edd50b15965d852dd742e5e6a3cbc60f238b3",
+      "blob": "499edd50b15965d852dd742e5e6a3cbc60f238b3",
+      "sha256": "e67fd26890f2db6dc87cffc159e53db4614d24d191bf391a5e4b2a4bc07afbe7"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/adapters/outreach.telemetry-adapter.ts",
+      "tuple": "100644 blob 0bd2177e9b5891430e7683d1289a53110dbe2637",
+      "blob": "0bd2177e9b5891430e7683d1289a53110dbe2637",
+      "sha256": "ab909123f2065a45314f47f3cdedcb46e7996954f648e6d6eb5fb0ab135f06d4"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/edit-metrics.helpers.ts",
+      "tuple": "100644 blob e15fc1bb5830f93c3d08e462741c612803add106",
+      "blob": "e15fc1bb5830f93c3d08e462741c612803add106",
+      "sha256": "aeeeaae551a7ede175fd2069099445bc8a9ce7dfd5a77ac9f762775d414c3506"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "tuple": "100644 blob 1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "blob": "1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701"
+    },
+    {
+      "path": "apps/api/src/engagement/attachment-scanner.service.ts",
+      "tuple": "100644 blob c28dca4d6898a1c36548483556a44c9eb7df4a06",
+      "blob": "c28dca4d6898a1c36548483556a44c9eb7df4a06",
+      "sha256": "4bd88fdfe136799e4eaf833986744f655ed2c06d101cc62cbc17a0dcf6aa86ef"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/outreach-v3-live-preview.service.ts",
+      "tuple": "100644 blob dbe9694f1439d4432f3db9a79324af3e08f7d97b",
+      "blob": "dbe9694f1439d4432f3db9a79324af3e08f7d97b",
+      "sha256": "4264c68169b47a0921a6e17ec8beb02c735302bf07fd6c7b82e4d24c4e53e8da"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/streaming-json-field.ts",
+      "tuple": "100644 blob c5ea5c2424a5d485a44532dbd556fe5dbd8081d2",
+      "blob": "c5ea5c2424a5d485a44532dbd556fe5dbd8081d2",
+      "sha256": "bd8911bee7147cee300c981e62db8f11ff2ff659e75a9c2c8d6e3769db57b63b"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-notes-crypto.service.ts",
+      "tuple": "100644 blob 877b5efd6424fbf68e4354b50a144ce0c326b19c",
+      "blob": "877b5efd6424fbf68e4354b50a144ce0c326b19c",
+      "sha256": "72b9506b806353cadcc9929b631e4a68be445a5408a2758535d00d4842b6303e"
+    },
+    {
+      "path": "apps/api/src/types/word-extractor.d.ts",
+      "tuple": "100644 blob 36743e30c5a10840ad6406d75a20a1ce32ef6812",
+      "blob": "36743e30c5a10840ad6406d75a20a1ce32ef6812",
+      "sha256": "495f76f5c6b7b8f8bcf0dc9daf951dc57e989da9b0b5c592d6345910542beaf0"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-packet.types.ts",
+      "tuple": "100644 blob 3017ba39bb62c0bc96c4c895429ccc5d749e8c74",
+      "blob": "3017ba39bb62c0bc96c4c895429ccc5d749e8c74",
+      "sha256": "cff9dc6f348b0919df2ec43557c37c391a34719fabc303d319cde65cb092e245"
+    },
+    {
+      "path": "apps/api/src/engagement/xlsx-extract.ts",
+      "tuple": "100644 blob 6e118aba4bb7d3d200e7c0fc77b9129c8048a71f",
+      "blob": "6e118aba4bb7d3d200e7c0fc77b9129c8048a71f",
+      "sha256": "841811f8f6d94ce348bcdd845754dec6b663a8db02e3abcccbfed40dd00f9789"
+    },
+    {
+      "path": "apps/api/src/engagement/pptx-extract.ts",
+      "tuple": "100644 blob b09d7734cd8520ada4e660eb60f45554122bec53",
+      "blob": "b09d7734cd8520ada4e660eb60f45554122bec53",
+      "sha256": "0452c2f3ca127ab86fc82fcd9dfe73f94ad6c76cd4f739413a52384d5af41bb0"
+    },
+    {
+      "path": "apps/api/src/engagement/attachment-section-extract.ts",
+      "tuple": "100644 blob 1497bcd0536eab009abe0a8d3d9cd363c3b386d7",
+      "blob": "1497bcd0536eab009abe0a8d3d9cd363c3b386d7",
+      "sha256": "c451d27f1d746a94e0b2ca23b0d10841b05747a2925a410cfb8729eb2eeafb77"
+    },
+    {
+      "path": "apps/api/src/engagement/attachment-content.service.ts",
+      "tuple": "100644 blob c7824bdac3141077dba7938182f6323d673ce52e",
+      "blob": "c7824bdac3141077dba7938182f6323d673ce52e",
+      "sha256": "f3dccadfa28e651ebcc01503bd8d71722aa2fc7c0c96ea519605c7d38988bd6c"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-context-enrichment.ts",
+      "tuple": "100644 blob d71ca064a7c95e20cf1a5e31db2d4b3065b02784",
+      "blob": "d71ca064a7c95e20cf1a5e31db2d4b3065b02784",
+      "sha256": "43998c69005b79df2112e093f62412238860c445b7a35c97c994e556f1ef9f5b"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/outreach-truth.service.ts",
+      "tuple": "100644 blob 34ae7319426db63739c6b326566d36e785ecc39c",
+      "blob": "34ae7319426db63739c6b326566d36e785ecc39c",
+      "sha256": "db54b9bd0d299e2fe0a85cda4f257a7b2eeca0ed073296901ae87967b8c1c125"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+      "tuple": "100644 blob 4f70f51c7243792522c9266730e570bc3fcb3249",
+      "blob": "4f70f51c7243792522c9266730e570bc3fcb3249",
+      "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/relevant-email-ranker.ts",
+      "tuple": "100644 blob a2dd2b7c9329941fea1df17acbdde81e62d065ee",
+      "blob": "a2dd2b7c9329941fea1df17acbdde81e62d065ee",
+      "sha256": "9d32a5ee6582b949eed1d0e2649537c83e903ea2ded36737cde5b8640a789d12"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-freshness.ts",
+      "tuple": "100644 blob 01af4bec15adc3c83e85586a6012d09b37fb46b3",
+      "blob": "01af4bec15adc3c83e85586a6012d09b37fb46b3",
+      "sha256": "16d6b0651b445c1b370a4f564eec2f67689c5bf76b1e68d01d6470bb61e0484e"
+    },
+    {
+      "path": "apps/api/src/common/meri-evidence-accuracy-flags.ts",
+      "tuple": "100644 blob 85da1c54f1ea81e505bed6e97ca9ac697234b8cb",
+      "blob": "85da1c54f1ea81e505bed6e97ca9ac697234b8cb",
+      "sha256": "8ad0a799f03ebdc11301969123c48b817d0669efc8240d7be154ff3745ade161"
+    },
+    {
+      "path": "apps/api/src/engagement/hearing-record-document-access.ts",
+      "tuple": "100644 blob 276c095abaeacc38d0fb032cb12b49936e159026",
+      "blob": "276c095abaeacc38d0fb032cb12b49936e159026",
+      "sha256": "f51b042f4b73f9607efa2bea947118fdac0ab0c8cd4244f1817cab836d0105a4"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "tuple": "100644 blob 02f909fbb7dfa399ba681292793ebfbc58b23bff",
+      "blob": "02f909fbb7dfa399ba681292793ebfbc58b23bff",
+      "sha256": "780469219325881b8d112afedade22b1b09ba544c7e516f48a1d4a52d36c4c2c"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/outreach-context-plane.service.ts",
+      "tuple": "100644 blob 45b397d15e9baa3a1c605a5ca7f9f055fab9a628",
+      "blob": "45b397d15e9baa3a1c605a5ca7f9f055fab9a628",
+      "sha256": "bc745e4f1b087e83cc60c74955c1e7ca31d49236f89e08da192705dd460a153f"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-packet.service.ts",
+      "tuple": "100644 blob 2a78f2ed2f0353ba1a69aa66c5945bf41756988f",
+      "blob": "2a78f2ed2f0353ba1a69aa66c5945bf41756988f",
+      "sha256": "21ba916bafd1b7a9984c0da79eb23452089c341981f582c204d2af559afb984e"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/message-plan.schema.ts",
+      "tuple": "100644 blob 64f564e999251d78111329084a58d4ae90b45a51",
+      "blob": "64f564e999251d78111329084a58d4ae90b45a51",
+      "sha256": "74230f025f286b7deef4babe81b3b4a4847d997dbd6881e9ef0a61465282204f"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/json-extract.ts",
+      "tuple": "100644 blob 77edfa4ac1dcd6032b496bc3f882e0de81a198c0",
+      "blob": "77edfa4ac1dcd6032b496bc3f882e0de81a198c0",
+      "sha256": "782c57cab26989a586f55ca41e89256c579b86c8781a3be2e3f582dda0b73f8f"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/message-plan.service.ts",
+      "tuple": "100644 blob 21ee0da75cab9500a327d87607987e61c64d7df3",
+      "blob": "21ee0da75cab9500a327d87607987e61c64d7df3",
+      "sha256": "aa0466a4f4b6095bceec16525b7d7b2b794d82cccf290916e11c1aad13419de8"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/generation-verifier.service.ts",
+      "tuple": "100644 blob c14e785b57ba588bebcd69c2fa073a269ff0b434",
+      "blob": "c14e785b57ba588bebcd69c2fa073a269ff0b434",
+      "sha256": "8025b2e16d165bcf50492c94756e7811d9669124000754375c2b914ec88df6f4"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/content-skeleton.ts",
+      "tuple": "100644 blob a4f8e20f9f13fa33df573f97d38ea05c56ea275b",
+      "blob": "a4f8e20f9f13fa33df573f97d38ea05c56ea275b",
+      "sha256": "ec7771b53d9d7a6213b446edaca4b0a16691f2f3cad5d5f75826d68d742ed319"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/author-style-profile.service.ts",
+      "tuple": "100644 blob 093cb9eb1773ee7f55ac467dc8f488c15ce9239b",
+      "blob": "093cb9eb1773ee7f55ac467dc8f488c15ce9239b",
+      "sha256": "1437c868261e097c8bae4e3da02c3663c7ff3605f0490dfe6c4f98fe7a3bc410"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/draft-revision.ts",
+      "tuple": "100644 blob 28fb115cba05cee7d99342c59c949645562fad80",
+      "blob": "28fb115cba05cee7d99342c59c949645562fad80",
+      "sha256": "77e37db2913691d5d90ad10adc8ead42f54a777d36d43d659e9a1dd379f263e1"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/generation-gateway.types.ts",
+      "tuple": "100644 blob 1a13cc9bbca5e1984ec2667a145906a1d4a2be4d",
+      "blob": "1a13cc9bbca5e1984ec2667a145906a1d4a2be4d",
+      "sha256": "cfc0366affa59fb0ad8ec99b7e764683cff40b886d2802bf5eb017a5fbad1e07"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/gateway-prompt.ts",
+      "tuple": "100644 blob 8243486fb76934f11892ea898906b6f283ddfaed",
+      "blob": "8243486fb76934f11892ea898906b6f283ddfaed",
+      "sha256": "95f7287e9d821d4a6cee7f988513ba046fbcd6315e0b4cc12ead2a045816c49f"
+    },
+    {
+      "path": "apps/api/src/evaluation/evaluation-capture.service.ts",
+      "tuple": "100644 blob fa3da526ed6ffe99b4f197e17c7d74f982694501",
+      "blob": "fa3da526ed6ffe99b4f197e17c7d74f982694501",
+      "sha256": "7dc6b57e75a79fae2b1ba2700c1cfd87ef9e0ed6152925c44cd978cd9fcffe76"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/outreach-evaluation.runner.ts",
+      "tuple": "100644 blob 3b535fa6c237647df0cb19187053a7f992dbf181",
+      "blob": "3b535fa6c237647df0cb19187053a7f992dbf181",
+      "sha256": "dc67c735fdb8c52ab900f58d249dcc6aa004033be6710f64a469ca33da935c53"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+      "tuple": "100644 blob 5b6d6933eed1656ec7ac3c2c022a18314214d316",
+      "blob": "5b6d6933eed1656ec7ac3c2c022a18314214d316",
+      "sha256": "1503b57105009e4ec1f26f17b0c3849f713465b4118e430d3a8a631e5bc8da7b"
+    },
+    {
+      "path": "apps/api/src/engagement/attachment-context-extract.ts",
+      "tuple": "100644 blob da4ba00bc6c5c2f8ed745390ab52f2e4d45d7e09",
+      "blob": "da4ba00bc6c5c2f8ed745390ab52f2e4d45d7e09",
+      "sha256": "8b767bde38dae78fd44ce998a88eac97306920669e10c8b0cb91c03d7d82310b"
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-access.ts",
+      "tuple": "100644 blob 6f110e358145ff50e424e2f6805669c0081998fa",
+      "blob": "6f110e358145ff50e424e2f6805669c0081998fa",
+      "sha256": "927d3292d437c944d80ccb9be6f9e7f77a15906eb9408eb9b3aa1ca259fb7e08"
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-meri-scope.service.ts",
+      "tuple": "100644 blob 1a1132aacc19d8565778ecf83614b2cff658cd3e",
+      "blob": "1a1132aacc19d8565778ecf83614b2cff658cd3e",
+      "sha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9"
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "tuple": "100644 blob b09e0ed7d15c3d6c3834f4c878ee409bcff86460",
+      "blob": "b09e0ed7d15c3d6c3834f4c878ee409bcff86460",
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924"
+    },
+    {
+      "path": "apps/api/src/meri/meri-managed-mcp.helpers.ts",
+      "tuple": "100644 blob ea9fdaa402cb03b33c34348e58f5a818c87e5c8b",
+      "blob": "ea9fdaa402cb03b33c34348e58f5a818c87e5c8b",
+      "sha256": "66d9aba61f92f83f79c76ef92c84cd3150b52b972741a348511d3b11fd5abe55"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-source-access.ts",
+      "tuple": "100644 blob 0b23d13386015efa850d45f3184059dcdc3c00f6",
+      "blob": "0b23d13386015efa850d45f3184059dcdc3c00f6",
+      "sha256": "7ec2dc05680454538432f58edd7a4c10d95c273049caf3085857c2eab661cdc8"
+    },
+    {
+      "path": "apps/api/src/engagement/research-portfolio-task-access.ts",
+      "tuple": "100644 blob ee57144c931a1abe741fb721c3c2c1abe43a6a42",
+      "blob": "ee57144c931a1abe741fb721c3c2c1abe43a6a42",
+      "sha256": "3d4db8050ca7b8581c65acfc5255d140f3d4a7c8cdb4d4937443842cba69daa5"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-pdf.ts",
+      "tuple": "100644 blob cd1977775b3bdec1df752b1c261f9591bee1c101",
+      "blob": "cd1977775b3bdec1df752b1c261f9591bee1c101",
+      "sha256": "80863c87589426425458c0eda08e8dc851a6c6f8eb01efc6e0b75eff30835a17"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+      "tuple": "100644 blob 2a0f173fe510f3273fffb5f0de133f3a984e65c8",
+      "blob": "2a0f173fe510f3273fffb5f0de133f3a984e65c8",
+      "sha256": "806f61aca4e7e42d3f5579700493ba423df027e457ff9dfd5f49017530c67cd0"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.ts",
+      "tuple": "100644 blob d7973f991a95fc8acdb0563e2a9aaf011e671de4",
+      "blob": "d7973f991a95fc8acdb0563e2a9aaf011e671de4",
+      "sha256": "632108ad973ed811f0ff5bce59a71bd5fa26f7ffe90441cd635b42828d8534ca"
+    },
+    {
+      "path": "apps/api/src/engagement/microsoft/microsoft-oauth-constants.ts",
+      "tuple": "100644 blob 3faff8b970ca1d9ce840ed2b61019192c5bca0d6",
+      "blob": "3faff8b970ca1d9ce840ed2b61019192c5bca0d6",
+      "sha256": "e360e348dd5fe744e051e23061dcbdd6052ec973cc70c92dbb20df927cadbb72"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-hold.ts",
+      "tuple": "100644 blob 6f550981ecef05a3eb81e93d62d08973b3f5a997",
+      "blob": "6f550981ecef05a3eb81e93d62d08973b3f5a997",
+      "sha256": "f8fc9f090914bd710e060f9f5b42570b47178761cff1247c03c9db332a7a9f0c"
+    },
+    {
+      "path": "apps/api/src/quality-telemetry/adapters/meeting-prep.telemetry-adapter.ts",
+      "tuple": "100644 blob d198867460eea7ad94db162da3bacf129f9e25a1",
+      "blob": "d198867460eea7ad94db162da3bacf129f9e25a1",
+      "sha256": "6edbef6bed83d25735a3088bab665620cdc9116d664ce14ce982c92f4d78e514"
+    },
+    {
+      "path": "apps/api/src/common/us-congressional-districts.ts",
+      "tuple": "100644 blob ba7c3ab33a169418f897fa41fdd5b9f839efe550",
+      "blob": "ba7c3ab33a169418f897fa41fdd5b9f839efe550",
+      "sha256": "b189bbc458ab3b65de1a5da02c59d0744211bb3177c61950e649c7f3376486bf"
+    },
+    {
+      "path": "apps/api/src/common/district-code.util.ts",
+      "tuple": "100644 blob 3edb55635b39600f315b04f05f981cea96dbbb37",
+      "blob": "3edb55635b39600f315b04f05f981cea96dbbb37",
+      "sha256": "9b6099aecebf20f393ac021420e2d30af55cc3d03a6b035a0c4775d1189e8ce9"
+    },
+    {
+      "path": "apps/api/src/directory/boundary-artifact.util.ts",
+      "tuple": "100644 blob 3ba9fbf31d37b632b36551224d42eeb0d3649f30",
+      "blob": "3ba9fbf31d37b632b36551224d42eeb0d3649f30",
+      "sha256": "bc655cc89949ad14504223d894705db3666460607d62070bbd24afece3132046"
+    },
+    {
+      "path": "apps/api/src/intelligence/fec-disclaimer.ts",
+      "tuple": "100644 blob 97455b8de2803be05f3b66406de192f5cbca94e3",
+      "blob": "97455b8de2803be05f3b66406de192f5cbca94e3",
+      "sha256": "7ac393b89d56d89852b373ff35da6b4ee27a0ed4b45fe74336d3f17b55659c9d"
+    },
+    {
+      "path": "apps/api/src/clients/district-code.util.ts",
+      "tuple": "100644 blob d5b6bbc99a2816bfbbc1c9d1ca04e953bd71571f",
+      "blob": "d5b6bbc99a2816bfbbc1c9d1ca04e953bd71571f",
+      "sha256": "e508fe4641164dceb77ebdc137b62a677d39eef1ae47e87a8c28a5221a943172"
+    },
+    {
+      "path": "apps/api/src/common/us-states.ts",
+      "tuple": "100644 blob 03f8a81e77ebf3969dcff8853bbf4cab9887a5fc",
+      "blob": "03f8a81e77ebf3969dcff8853bbf4cab9887a5fc",
+      "sha256": "f080718a458d1ac24e75b1b99315b30faea6ee0ab2234ce2c1a49dbd6026ae74"
+    },
+    {
+      "path": "apps/api/src/clients/representation-resolver.service.ts",
+      "tuple": "100644 blob 5c01171389851c3b94172e4509c8896c52189d8c",
+      "blob": "5c01171389851c3b94172e4509c8896c52189d8c",
+      "sha256": "79777d7fca14ff4ebb591f1dd0f54a288a81ddb7f2ef2f8e98dce66048eeeafd"
+    },
+    {
+      "path": "apps/api/src/directory/directory-indexes.ts",
+      "tuple": "100644 blob 637ac9065ce2a50b6001832ead166706da47a1d6",
+      "blob": "637ac9065ce2a50b6001832ead166706da47a1d6",
+      "sha256": "758687f1e3b901ea74ff55573bb8accfba0668b7ce3d0b6113c06b2e38c621ed"
+    },
+    {
+      "path": "apps/api/src/directory/directory-photo.ts",
+      "tuple": "100644 blob e13629017fa7a4b981ba106d2807d0a2a55effa4",
+      "blob": "e13629017fa7a4b981ba106d2807d0a2a55effa4",
+      "sha256": "6f3c12f8cbc281cb41472ea8d6091d22152f109b0ac28c091c5fca50db8ea68e"
+    },
+    {
+      "path": "apps/api/src/directory/directory-detail.types.ts",
+      "tuple": "100644 blob 2976ee7bc87225daeda29640605ebae9136ab8cf",
+      "blob": "2976ee7bc87225daeda29640605ebae9136ab8cf",
+      "sha256": "cb971b9b4c4a4c92915a03e4177e23503e1d06ab2cd6c762a7657688ffccdd72"
+    },
+    {
+      "path": "apps/api/src/directory/directory.service.ts",
+      "tuple": "100644 blob 4bce0f9ccfe1fe5dbd383ca18b8fd5a602839754",
+      "blob": "4bce0f9ccfe1fe5dbd383ca18b8fd5a602839754",
+      "sha256": "eeb60d50ffa8492330055bb085a10763363a7959185c6f7ae996b6ac134a1b47"
+    },
+    {
+      "path": "apps/api/src/engagement/report-targets.ts",
+      "tuple": "100644 blob d2d60a9c070a4986ed74ab114208d5c8d7aa6f6a",
+      "blob": "d2d60a9c070a4986ed74ab114208d5c8d7aa6f6a",
+      "sha256": "cc833db5267c9f178e4e74edb0250490725ad09f466478eb66f061b8ebd493bf"
+    },
+    {
+      "path": "apps/api/src/intelligence/office-recommender.service.ts",
+      "tuple": "100644 blob 34a5090ee2cee65adf82f131b7f38e11ac049426",
+      "blob": "34a5090ee2cee65adf82f131b7f38e11ac049426",
+      "sha256": "3fbb158bc395d6946e5071d7fe31d34b8facdcf82fce4e0576f5ded475c035f8"
+    },
+    {
+      "path": "apps/api/src/engagement/client-association.service.ts",
+      "tuple": "100644 blob ad024e8f439acbb8ecb460e74f916b81538897d2",
+      "blob": "ad024e8f439acbb8ecb460e74f916b81538897d2",
+      "sha256": "2b9e27e5d43cd3dbfa3ce21f070c77ef2833bcfeeb6896eb43dee4e899f7cff3"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-email-renderer.ts",
+      "tuple": "100644 blob 2913a6563868f9b9e399ab53058fe074a8d4b625",
+      "blob": "2913a6563868f9b9e399ab53058fe074a8d4b625",
+      "sha256": "3f705161eafdefd4797e2de298be1a25d7cf08650410bf411bcb0d6adb9940da"
+    },
+    {
+      "path": "apps/api/src/engagement/contact-harvest.ts",
+      "tuple": "100644 blob 501c42b58c91a7f4cac3b1a825142cb3bafc85c3",
+      "blob": "501c42b58c91a7f4cac3b1a825142cb3bafc85c3",
+      "sha256": "f0f40c745f6412bd75b48709b7afd3839804a2737e06a8d93cde27eb5edc2c92"
+    },
+    {
+      "path": "apps/api/src/engagement/microsoft/microsoft-mail-folders.util.ts",
+      "tuple": "100644 blob 7b877a054485597d66a8585188b02d5e714ac1e7",
+      "blob": "7b877a054485597d66a8585188b02d5e714ac1e7",
+      "sha256": "ecc4b0de96aa99508880a95a05eb1361389a4965e1617fd0f63edc56374668d9"
+    },
+    {
+      "path": "apps/api/src/engagement/microsoft/token-crypto.service.ts",
+      "tuple": "100644 blob 30b15493fbd151af227e02163da8a56f9902478b",
+      "blob": "30b15493fbd151af227e02163da8a56f9902478b",
+      "sha256": "c0ed2b5177f2497d9b9ca6c748d0ba00127ea2fe08d5e0af6b258decb3d25380"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-send-result.ts",
+      "tuple": "100644 blob 9fe9a252bc7cf1c2ed4dbd106bfe96c8f058dbd3",
+      "blob": "9fe9a252bc7cf1c2ed4dbd106bfe96c8f058dbd3",
+      "sha256": "e0afb9adb336dff7657995d3fbd4181e664ebe81fced44f11bfb1c0d03ae4791"
+    },
+    {
+      "path": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "tuple": "100644 blob ed82816711eb81522c6753b642adc5cb441d7e04",
+      "blob": "ed82816711eb81522c6753b642adc5cb441d7e04",
+      "sha256": "75718ab26ec54e191be8a6e12880aa7897aedef96c935e729e1277e8b4191316"
+    },
+    {
+      "path": "apps/api/src/engagement/google/google-oauth.service.ts",
+      "tuple": "100644 blob 890b2821a88308cae9876ac43c64b7353fb60bfd",
+      "blob": "890b2821a88308cae9876ac43c64b7353fb60bfd",
+      "sha256": "b11e277707e40beaf0e0ee4235e9d00afc46681b7c8b5fda00a3f04017c2af64"
+    },
+    {
+      "path": "apps/api/src/engagement/google/google-token.service.ts",
+      "tuple": "100644 blob ab3e4783b239bffdfc184543684e848325955cc4",
+      "blob": "ab3e4783b239bffdfc184543684e848325955cc4",
+      "sha256": "69b5fe7077490aa5fbfec754c266ac7af75858030cf2d11b5b7506463f4a314b"
+    },
+    {
+      "path": "apps/api/src/engagement/google/gmail-send.service.ts",
+      "tuple": "100644 blob 8756b4a8d9f06282bade3ebbc66d8472098499de",
+      "blob": "8756b4a8d9f06282bade3ebbc66d8472098499de",
+      "sha256": "f82f8675e9f3b0a719cefaa17f262f25c86ebc027e99b1a13257a8ad7850164a"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-sender.service.ts",
+      "tuple": "100644 blob 826e446b4658a5d52095af64daf0e68e16a072d0",
+      "blob": "826e446b4658a5d52095af64daf0e68e16a072d0",
+      "sha256": "b37db847ef3182c7315eeb8a86b2098b119fbc96840478eff77b8cc16f30e603"
+    },
+    {
+      "path": "apps/api/src/meri/meri-attachment.helpers.ts",
+      "tuple": "100644 blob 44466a1fae30c1117ee3986afd1fa0534a90a072",
+      "blob": "44466a1fae30c1117ee3986afd1fa0534a90a072",
+      "sha256": "f5f65b2e39931e25767da9fc64b9ab473308ca58e0398ef21b13fe0dd27c8fed"
+    },
+    {
+      "path": "apps/api/src/meri/meri-attachment-extract.ts",
+      "tuple": "100644 blob a0e3582c31dd5cbff5bd65c87e83e360b17f0234",
+      "blob": "a0e3582c31dd5cbff5bd65c87e83e360b17f0234",
+      "sha256": "370dbade7c8e62b52c1a0fcd8953bbd6563c9c5df49bbdc61636bee4948d4892"
+    },
+    {
+      "path": "apps/api/src/embeddings/embedding-provider.ts",
+      "tuple": "100644 blob ff6ed204dd87e1c9808bc573b559d5e74d9e464a",
+      "blob": "ff6ed204dd87e1c9808bc573b559d5e74d9e464a",
+      "sha256": "07b80b7ad2d24873da8b4d5336bf3d59c439cdaa2d744e828006f0ef625dcb79"
+    },
+    {
+      "path": "apps/api/src/embeddings/titan-embedding.provider.ts",
+      "tuple": "100644 blob d3fa03d6bdd2f2bfdb87cb213f31c71c860b0df6",
+      "blob": "d3fa03d6bdd2f2bfdb87cb213f31c71c860b0df6",
+      "sha256": "bf5e85c848f296cf67631928ba0b0fba067199eafad449330623f8e99bb09a22"
+    },
+    {
+      "path": "apps/api/src/embeddings/embedding-provider.factory.ts",
+      "tuple": "100644 blob 1c06bd3242ec6b858301892c3ca04eb76fa2ca5f",
+      "blob": "1c06bd3242ec6b858301892c3ca04eb76fa2ca5f",
+      "sha256": "ce8639af21b4ae40c634f410873e573a75e01bb39dfd4b829b06132e430647cf"
+    },
+    {
+      "path": "apps/api/src/embeddings/embedder.ts",
+      "tuple": "100644 blob 60afa28cac18430185371b981a69b97294397db8",
+      "blob": "60afa28cac18430185371b981a69b97294397db8",
+      "sha256": "78a8354cf07166e5c60ad657bf5126888f62114a33fa46eb8cc7abd529909150"
+    },
+    {
+      "path": "apps/api/src/embeddings/client-kb.helpers.ts",
+      "tuple": "100644 blob 6e80a3946dec4f09b4b06b7cf1ef9a22f986426e",
+      "blob": "6e80a3946dec4f09b4b06b7cf1ef9a22f986426e",
+      "sha256": "cb5b40f787b50e0c457cf5512f3a1d4a4e1b6820185a28cb7be0ff0998db9fa4"
+    },
+    {
+      "path": "apps/api/src/embeddings/client-kb.service.ts",
+      "tuple": "100644 blob 50e96f82b3f7d57e120ad8c6b1b149c076be94f0",
+      "blob": "50e96f82b3f7d57e120ad8c6b1b149c076be94f0",
+      "sha256": "a8db0033b3087ecdc1d7f232aaf58f8f2273b32890fac20c1ec4d2407c0308f2"
+    },
+    {
+      "path": "apps/api/src/common/text-distance.ts",
+      "tuple": "100644 blob b66ea68a31f73009ae16c87c54156155c197abed",
+      "blob": "b66ea68a31f73009ae16c87c54156155c197abed",
+      "sha256": "391fbae5ace42f3d16a6f7d11fca888bb7f01042760c82b7c3dbcac2f6ce87dc"
+    },
+    {
+      "path": "apps/api/src/intelligence/time-bounds.ts",
+      "tuple": "100644 blob 7a0fffa2d4602b5db40ce5a65e4bfbb282c0a2aa",
+      "blob": "7a0fffa2d4602b5db40ce5a65e4bfbb282c0a2aa",
+      "sha256": "514b87ab881cd6472bf841237f9ab29d1599676428968540b91eaa6fcc14e6c1"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "tuple": "100644 blob 6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "blob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "sha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-plane.service.ts",
+      "tuple": "100644 blob 5436c5f9b42d0b173cb047da7b6243e153757f51",
+      "blob": "5436c5f9b42d0b173cb047da7b6243e153757f51",
+      "sha256": "ffdcfa889a3915e659bc8e9be9f4d0296438561ca7722458c1fa308e245b2c98"
+    },
+    {
+      "path": "apps/api/src/engagement/governed-engagement.factory.ts",
+      "tuple": "100644 blob 0552b3412e91b5849b5811403e0d4d52b010a3c0",
+      "blob": "0552b3412e91b5849b5811403e0d4d52b010a3c0",
+      "sha256": "2b59771748c4602b83c9eb6dd17f556b4564124d0d78ee676fd57286d0c666d1"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts",
+      "tuple": "100644 blob 78abe25f9c339de5720b738b2d8b790a6607d935",
+      "blob": "78abe25f9c339de5720b738b2d8b790a6607d935",
+      "sha256": "b89cb56b0e8882c5ca19f02bce78916a925a8187e773f9a0c661436d88efc31d"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "tuple": "100644 blob 75153e8a683780fa21515ce4c748dc72d8186576",
+      "blob": "75153e8a683780fa21515ce4c748dc72d8186576",
+      "sha256": "80950bc1c216da2c785366a0f260cc7fb13612c7deb25286fada28a2b85848b4"
+    }
+  ],
+  "configs": [
+    {
+      "path": "apps/api/tsconfig.json",
+      "tuple": "100644 blob 6c60698125878c4497d68ea8d6d7f32496dd8cae"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "tuple": "100644 blob c88275ccf4b1b0c62627076781ce0022af22f259"
+    },
+    {
+      "path": "packages/shared/package.json",
+      "tuple": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "tuple": "100644 blob b8469e8303f277ccf029180d011174e0a5e63e44"
+    }
+  ],
+  "qualification": "Ordinary exact parent union and supplied08/10 source-input preservation only; no new test/runtime/Core/native/provider execution."
+}

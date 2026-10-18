@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"c76f5fc0df6688743afeec274211afd2e67fe8f1\",\n  \"checkedPaths\": 302,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"docs/backend-reviewed-receiving-20261013/evidence/api-action-jest.log:1: trailing whitespace.\\n+ts-jest[config] (WARN) \\ndocs/backend-reviewed-receiving-20261013/evidence/api-action-jest.log:3: trailing whitespace.\\n+  \\ndocs/backend-reviewed-receiving-20261013/evidence/attempt0-api-action-jest.log:1: trailing whitespace.\\n+ts-jest[config] (WARN) \\ndocs/backend-reviewed-receiving-20261013/evidence/attempt0-api-action-jest.log:3: trailing whitespace.\\n+  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+  "stderr": "",
+  "rawCheckpoint": "750085005efbbab918734bbf54fce4ebf6531d02"
+}

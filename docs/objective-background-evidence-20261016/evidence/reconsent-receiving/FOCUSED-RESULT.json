@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "source": "new-consent-and-canonical-receiving-candidate-pinned-separately",
+  "admission": {
+    "availableVirtualBytes": 3319373824,
+    "observedNotPeakGuarantee": true,
+    "source": "Shipping relay of existing approved normal sample; no new security probe",
+    "observedAt": "2026-10-16T02:44:21Z",
+    "stage": "one128MiB120s-source-stripped-process"
+  },
+  "node": "C:\\Program Files\\nodejs\\node.exe",
+  "arguments": [
+    "--max-old-space-size=128",
+    "--require",
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-14\\task-6\\objective-canonical-reconsent-evidence\\offline-source-guard.cjs",
+    "--require",
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-14\\task-6\\objective-canonical-reconsent-evidence\\physical-admission.cjs",
+    "--experimental-strip-types",
+    "--test",
+    "--test-isolation=none",
+    "--test-concurrency=1",
+    "apps/api/test/objective-consent-policy.focused.test.mjs",
+    "apps/api/test/objective-work-command.focused.test.mjs",
+    "apps/api/test/objective-work-reconsent-migration.focused.test.mjs",
+    "apps/api-strategy/test/objective-canonical-application.focused.test.mjs"
+  ],
+  "environmentNames": [
+    "SystemRoot",
+    "WINDIR",
+    "PATH",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "NO_COLOR",
+    "NODE_ENV"
+  ],
+  "pid": 21204,
+  "startedAt": "2026-10-16T03:42:49.5665650Z",
+  "completedAt": "2026-10-16T03:42:49.8061556Z",
+  "elapsedSeconds": 0.2298269,
+  "exitCode": 0,
+  "timedOut": false,
+  "ownedProcessExited": true,
+  "peakWorkingSetBytes": null,
+  "outputWithin4MiB": true,
+  "compiler": false,
+  "database": false,
+  "provider": false,
+  "childrenAllowed": false
+}

@@ -1,0 +1,21 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "tree": "b50b85e34c5e12e371125f50a479f182c4fdec16",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-bill-dossier-integration-20261013/docs/bill-dossier-integration-20261013/network-fence.cjs",
+    "/workspace/capirov2/apps/intel-api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    ".bill-dossier-receiving-build.tsconfig.json",
+    "--config",
+    ".bill-dossier-receiving-nest-cli.json"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 18.448,
+  "logBytes": 0,
+  "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "actualfreshNestbuild; ownedoutput/no derivedmaps; source-onlyengine-freetypes; no native/provider/App execution or productconfigchanges",
+  "productionMapsAndNativeABIQualified": false
+}

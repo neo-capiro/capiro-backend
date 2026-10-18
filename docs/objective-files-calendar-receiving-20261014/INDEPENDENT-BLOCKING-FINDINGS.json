@@ -1,0 +1,41 @@
+{
+  "verdict": "CHANGES_REQUIRED",
+  "reviewedHead": "4fe4b7f723fc88a6e0acaf6fbc02f7d955f8ae32",
+  "reviewedTree": "f98788e0ed875a9300292df9a75ae0a6386d1a0e",
+  "basePR15": "65c4918042df0930d4ff46abd6994fbdd27538c5",
+  "receiverSha256": "82cc491bffa0092adcfcbc1f7664df694c8a132503dae29e7263e192b29195bc",
+  "findings": [
+    {
+      "id": "R1",
+      "path": "docs/objective-files-calendar-receiving-20261014/receiver.mjs",
+      "lines": [
+        65,
+        91,
+        105
+      ],
+      "problem": "Saved selected hash and Planner occurrence are read again after await. In-place mutation changes or removes an already-started selection constraint.",
+      "reproduced": "Original start selection opens planner_due; original hash a\u2026 removed during request admits response hash b\u2026.",
+      "correction": "Capture every selected scalar before the first await and use only those captured values."
+    },
+    {
+      "id": "R2",
+      "path": "docs/objective-files-calendar-receiving-20261014/receiver.mjs",
+      "lines": [
+        37,
+        51,
+        62,
+        93
+      ],
+      "problem": "Nested admit promise checks active before the outer continuation resumes. Supersession in that intervening microtask leaves parsing and return unguarded.",
+      "reproduced": "Planner returns a nonnull result with current=false; malformed stale response throws INVALID_RECEIPT into the replacement selection.",
+      "correction": "Recheck active in the outer continuation immediately after every await before reading/parsing/throwing/returning; retain late error suppression."
+    }
+  ],
+  "otherEvidence": "Initial closed manifest 16 payloads/127106 bytes plus index matched Git/worktree/hashes. Canonical harness consumed 9 exact pinned base sources; original 36 and 37 passing receipts and initial failure bytes verified. Docs-only diff and unchanged published Engagement metadata verified. Source/guard/native/DI/HTTP limits are truthful.",
+  "reproduction": {
+    "path": "ADMISSION-REPRO.json",
+    "sha256": "750cf7032514c7b57d32f872b71066432cc4f2293505cc44b6c050ce281277db",
+    "scope": "Single allowed inert receiver-only command. No canonical owner/HTTP/provider/native/database/AWS call."
+  },
+  "remaining": "Await corrected frozen source and focused qualification; no production/ref edits by reviewer."
+}

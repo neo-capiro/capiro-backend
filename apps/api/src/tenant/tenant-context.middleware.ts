@@ -15,6 +15,7 @@ import {
   Injectable,
   Logger,
   NestMiddleware,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
@@ -26,7 +27,7 @@ import {
   type TenantContext,
   type TenantRole,
 } from '@capiro/shared';
-import { ClerkService, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
+import { ClerkService, isWellFormedMeriControlCredentialClaims, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
 import { TenantContextStore } from './tenant-context.store.js';
@@ -35,6 +36,7 @@ import {
   type ApplicationAuthorityIdentityEvidence,
   type ApplicationAuthorityIdentityProof,
 } from '../auth/application-authority.js';
+import { isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
 
 type SystemTx = Prisma.TransactionClient;
 type MembershipWithTenant = Prisma.TenantMembershipGetPayload<{ include: { tenant: true } }>;
@@ -52,6 +54,22 @@ interface ApplicationAuthorityRequestProvenance {
 // The existing owner shares only private, ephemeral provenance keyed by the
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
+const MERI_CONTROL_POST_PATHS = new Set([
+  '/clio/application-authority/identity',
+  '/clio/application-authority/context',
+  '/clio/application-authority/membership',
+]);
+
+/** A marked, sidless Meri control token has exactly three authority POST uses.
+ * Check both Express' parsed path and the original target: a rewritten or
+ * absolute-form target must never widen the credential's route authority. */
+function isMeriControlAuthorityPost(req: Request): boolean {
+  if (req.method !== 'POST') return false;
+  const parsed = req.path;
+  const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
+  const normalized = (path: string) => path.startsWith('/api/') ? path.slice(4) : path;
+  return parsed === original && MERI_CONTROL_POST_PATHS.has(normalized(parsed));
+}
 
 /**
  * Resolves the tenant context for an authenticated request.
@@ -87,11 +105,11 @@ export class TenantContextMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     // Also cover authentication/authorization denials before the controller.
     const authorityPaths = [
-      '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
-      '/clio/application-authority/identity', '/clio/application-authority/context',
+      '/api/clio/application-authority/identity', '/api/clio/application-authority/context', '/api/clio/application-authority/membership',
+      '/clio/application-authority/identity', '/clio/application-authority/context', '/clio/application-authority/membership',
     ];
     if ([req.path, (req.originalUrl ?? req.url ?? '').split('?')[0]].some(
-      (path) => path !== undefined && authorityPaths.includes(path),
+      (path) => path !== undefined && authorityPaths.includes(path.replace(/\/$/, '').toLowerCase()),
     )) res.setHeader('Cache-Control', 'no-store');
     // Belt-and-suspenders bypass for paths that authenticate via a different
     // channel than the Clerk session. The OAuth callback is reached via a
@@ -138,6 +156,19 @@ export class TenantContextMiddleware implements NestMiddleware {
       return;
     }
 
+    // The preview's three GETs must not pass through the ordinary provisioning,
+    // identity-rebind, membership self-heal or lastSeenAt write path. Resolve an
+    // existing native member only; the same request is checked again at release.
+    if (isPreviewNativeReadRoute(req)) {
+      const mode = previewNativeReadMode(process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true', req.headers.host);
+      if (mode !== 'ordinary') {
+        res.setHeader('Cache-Control', 'no-store');
+        if (mode === 'unavailable') throw new ServiceUnavailableException('Preview reads unavailable');
+        await this.usePreviewNativeRead(req, next);
+        return;
+      }
+    }
+
     // Step 1, verify Clerk JWT.
     const auth = req.headers.authorization;
     if (!auth || !auth.toLowerCase().startsWith('bearer ')) {
@@ -150,6 +181,18 @@ export class TenantContextMiddleware implements NestMiddleware {
       claims = await this.clerk.verifySessionToken(token);
     } catch {
       throw new UnauthorizedException('Invalid session token');
+    }
+    // A valid dedicated control template is not a general browser credential.
+    // Refuse it before ordinary tenant lookup, self-heal or lastSeenAt writes.
+    if (claims.meri_control_credential === true) {
+      if (!isMeriControlAuthorityPost(req) || !isWellFormedMeriControlCredentialClaims(claims)) {
+        throw new UnauthorizedException('Application authority unavailable');
+      }
+      // The ordinary context resolver can write during membership self-heal.
+      // Refuse a revoked control credential before that first local DB action.
+      // The authority owner checks online again after resolution, and on each
+      // later currentness read; this early proof is never cached for release.
+      await this.clerk.assertActiveMeriControlCredentialSession(claims);
     }
 
     // Step 2, gather every hint we have about which tenant is being requested.
@@ -410,6 +453,69 @@ export class TenantContextMiddleware implements NestMiddleware {
     this.store.run(ctx, () => next());
   }
 
+  /** Read-only preview context. A missing local user/member is a denial, never a repair. */
+  private async usePreviewNativeRead(req: Request, next: NextFunction): Promise<void> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    const auth = req.headers.authorization;
+    if (!auth || !auth.toLowerCase().startsWith('bearer ')) throw new UnauthorizedException('Missing bearer token');
+    let claims: ClerkSessionClaims;
+    try {
+      claims = await this.clerk.verifySessionToken(auth.slice('bearer '.length).trim());
+    } catch {
+      throw new UnauthorizedException('Invalid session token');
+    }
+    if (claims.meri_control_credential === true ||
+        typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
+        typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
+        !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
+        (claims.exp ?? 0) * 1000 <= Date.now()) {
+      throw new UnauthorizedException('Application authority unavailable');
+    }
+    // This online sid/sub/exp check runs BEFORE even the first local DB read.
+    await this.clerk.assertActiveApplicationAuthoritySession(claims);
+    if (req.header('x-capiro-impersonate-tenant')) throw denied();
+    const requestedSlug = this.resolveRequestedTenantSlug(req);
+    const claimedTenantId = nonEmpty(claims.capiro_tenant_id);
+    const claimedTenantSlug = nonEmpty(claims.capiro_tenant_slug);
+    const claimedOrgId = nonEmpty(claims.org_id);
+    const selected = await this.prisma.withSystem(async (tx) => {
+      const user = await tx.user.findUnique({ where: { clerkUserId: claims.sub } });
+      if (!user || user.clerkUserId !== claims.sub) throw denied();
+      const memberships = await tx.tenantMembership.findMany({
+        where: { userId: user.id, status: 'active' }, include: { tenant: true },
+      });
+      const chosen = memberships.find((m) => claimedTenantId && m.tenantId === claimedTenantId) ??
+        memberships.find((m) => claimedOrgId && m.tenant.clerkOrgId === claimedOrgId) ??
+        memberships.find((m) => claimedTenantSlug && m.tenant.slug.toLowerCase() === claimedTenantSlug.toLowerCase()) ??
+        memberships.find((m) => requestedSlug && m.tenant.slug === requestedSlug) ??
+        (memberships.length === 1 && !claimedTenantId && !claimedOrgId && !claimedTenantSlug && !requestedSlug
+          ? memberships[0] : undefined);
+      if (!chosen || chosen.status !== 'active' || chosen.tenant.status !== 'active' ||
+          (claimedTenantId && chosen.tenantId !== claimedTenantId) ||
+          (claimedTenantSlug && chosen.tenant.slug.toLowerCase() !== claimedTenantSlug.toLowerCase()) ||
+          (claimedOrgId && chosen.tenant.clerkOrgId !== claimedOrgId) ||
+          (requestedSlug && chosen.tenant.slug !== requestedSlug)) throw denied();
+      return { user, chosen };
+    });
+    const ctx: TenantContext = {
+      tenantId: selected.chosen.tenantId,
+      tenantSlug: selected.chosen.tenant.slug,
+      userId: selected.user.id,
+      clerkUserId: selected.user.clerkUserId,
+      role: selected.chosen.role as TenantRole,
+    };
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    applicationAuthorityRequests.set(req, {
+      context: ctx,
+      claims: { ...claims },
+      membershipId: selected.chosen.id,
+      membershipTenantId: selected.chosen.tenantId,
+      requestedSlug,
+      impersonationId: null,
+    });
+    this.store.run(ctx, () => next());
+  }
+
   /** A fresh online session read followed by read-only current local checks.
    * The original authentication pipeline can provision/update/audit; this
    * method cannot repair missing authority or choose a different membership. */
@@ -417,7 +523,12 @@ export class TenantContextMiddleware implements NestMiddleware {
     const denied = () => new ForbiddenException('Application authority unavailable');
     const provenance = applicationAuthorityRequests.get(req);
     if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
-    const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    const session = provenance.claims.meri_control_credential === true
+      ? (isMeriControlAuthorityPost(req)
+          ? await this.clerk.assertActiveMeriControlCredentialSession(provenance.claims)
+          : null)
+      : await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    if (!session) throw denied();
     const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
     return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
   }

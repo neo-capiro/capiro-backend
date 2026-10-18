@@ -5,7 +5,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Header,
   Logger,
   Param,
   Patch,
@@ -96,6 +95,17 @@ class CreateMeriConversationDto {
   @IsString()
   @Length(1, 160)
   title?: string;
+}
+
+class BootstrapMeriConversationDto {
+  @IsIn([1])
+  schemaVersion!: 1;
+
+  @IsUUID()
+  requestId!: string;
+
+  @IsUUID()
+  clientId!: string;
 }
 
 class SendMeriMessageDto {
@@ -333,22 +343,6 @@ export class MeriController {
     return this.service.status(ctx);
   }
 
-  @Post('application-authority/identity')
-  @HttpCode(200)
-  @Header('Cache-Control', 'no-store')
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  applicationAuthorityIdentity(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.service.applicationAuthorityIdentity(ctx, req, body);
-  }
-
-  @Post('application-authority/context')
-  @HttpCode(200)
-  @Header('Cache-Control', 'no-store')
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  applicationAuthorityContext(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.service.applicationAuthorityContext(ctx, req, body);
-  }
-
   @Get('conversations')
   conversations(@CurrentTenant() ctx: TenantContext) {
     return this.service.listConversations(ctx);
@@ -357,6 +351,17 @@ export class MeriController {
   @Post('conversations')
   createConversation(@CurrentTenant() ctx: TenantContext, @Body() body: CreateMeriConversationDto) {
     return this.service.createConversation(ctx, body);
+  }
+
+  // One Core-owned conversation per authenticated New Chat intent. Keep this
+  // literal route ahead of the parameterized conversation routes.
+  @Post('conversations/bootstrap')
+  @HttpCode(200)
+  bootstrapConversation(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: BootstrapMeriConversationDto,
+  ) {
+    return this.service.bootstrapConversation(ctx, body);
   }
 
   // History search (F2). Declared before `conversations/:id` so the literal

@@ -1,0 +1,54 @@
+{
+  "schema": "finite-docs-packet-index/v1",
+  "entries": [
+    {
+      "path": "API-ROUTING-FINDINGS.md",
+      "bytes": 4031,
+      "sha256": "48e348a8853b1a45d5ecdfdf5314c5109a21a27f37cf689459836e6192579a1d"
+    },
+    {
+      "path": "CLEANUP-AUDIT.lossless.json",
+      "bytes": 24401,
+      "sha256": "ebee1ec2b47e297cff297c29a0b0f59487f91ef4509700d61d83fe3f4762190c"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "bytes": 5079,
+      "sha256": "873d30888777f8dd5564a6ad59d557f336fd518b27053913e8dd58a2f3ffa19c"
+    },
+    {
+      "path": "INSTRUCTIONS.md",
+      "bytes": 48878,
+      "sha256": "f0675020b276c192b06b0d756c378606a1ecd15ae637a8d41f408cd9323d8c1b"
+    },
+    {
+      "path": "LOOKUP-OBSERVATIONS.json",
+      "bytes": 1721,
+      "sha256": "184bf06be79a6a7e1dcb33b761cb21c46d2a04df1bc948c4d3d2e62362237838"
+    },
+    {
+      "path": "MERI-BOUNDARY.lossless.json",
+      "bytes": 12250,
+      "sha256": "9698ebd49b2eb9ea2e05c966a155f79a35b25b17efd9c55da49645cd0a8a3796"
+    },
+    {
+      "path": "PIN-MATRIX.json",
+      "bytes": 11694,
+      "sha256": "9df54e80a55a8a1de49949e80d4feda7c128f47bd2ed1978270b988bd5216a1f"
+    },
+    {
+      "path": "VERIFIER-OBSERVATION.json",
+      "bytes": 1006,
+      "sha256": "24a26d0d72c761672294098b37a8de70bd82ae8a5bac8096f26196323199f0be"
+    },
+    {
+      "path": "verify-plan.mjs",
+      "bytes": 4976,
+      "sha256": "83c8750fe3049250c24749157b395975276966dc475118f2b4502cbadb4148b8"
+    }
+  ],
+  "derivedExclusions": [
+    "SHA256-INDEX.json"
+  ],
+  "scope": "Exact finite docs packet; source checks and independent review do not imply runtime/native acceptance."
+}

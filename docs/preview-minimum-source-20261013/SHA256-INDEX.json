@@ -6,13 +6,13 @@
   "files": [
     {
       "path": "APPROVAL-PROPOSAL.md",
-      "bytes": 16901,
-      "sha256": "f3077fd898c37f935ed83d7d2739abd25858845ef905f8ea18958daa4057f089"
+      "bytes": 18451,
+      "sha256": "e3a6170cbf8389932b73c20c9bdd8465b10a7622ec015073f88030fb0db8ddb5"
     },
     {
       "path": "HANDOFF.md",
-      "bytes": 2304,
-      "sha256": "605621bfe82341db715231790ac08511226e4f542785b3b28e82b2d13b835292"
+      "bytes": 2455,
+      "sha256": "10433f4bb38c903d90c68cd1c32ab4ef6322f8399892fdff1805b4509a6d48d4"
     },
     {
       "path": "INDEPENDENT-REVIEW.md",
@@ -63,6 +63,11 @@
       "path": "evidence/attempt0-type.log",
       "bytes": 330,
       "sha256": "81c45745283f1a2fc227eea937de2d76e156e559c11e99736eb687e794bdf07f"
+    },
+    {
+      "path": "evidence/current-authority-native-pair-binding.json",
+      "bytes": 16262,
+      "sha256": "c206443b4402f97dc2af7a5172dca2e5723859f07d076b32f3dc7d262e48dfc7"
     },
     {
       "path": "evidence/f07545ec-render-inventory-retirement.json",

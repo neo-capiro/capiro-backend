@@ -1,0 +1,11 @@
+{
+  "base": "078c55f805de8599cc413917ef90b7e20f040942",
+  "baseTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "operatorPath": "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+  "beforeBlob": "134974e9b9a00863bedda7de18e793c69033f193",
+  "afterBlob": "ae45411410c7927a173bf622734091944f190be7",
+  "exactCommentReplacementCount": 2,
+  "otherBytesUnchanged": true,
+  "donorDiffProductionPathCount": 1,
+  "receivedRegressionPath": "scripts/cleanup-script-smoke/assistance-recipient-prune-syntax.test.mjs"
+}

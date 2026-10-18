@@ -10,16 +10,25 @@
  * Run: node scripts/engagement-api-alb-rules.spec.mjs
  */
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'engagement-api-alb-rules.sh');
 const FIXTURES = path.join(ROOT, 'scripts', 'fixtures', 'engagement-api-alb');
+// Git Bash cannot traverse the sandbox's Windows 8.3 %TEMP% alias. Keep the
+// fake AWS state inside this checkout, then remove only this test-owned root.
+const SCRATCH = mkdtempSync(path.join(ROOT, '.eng-alb-spec-'));
+after(() => {
+  assert.equal(path.dirname(SCRATCH), ROOT);
+  rmSync(SCRATCH, { recursive: true, force: true });
+});
+const bashPath = (value) => process.platform === 'win32'
+  ? value.replace(/^([A-Za-z]):[\\/]/, (_, drive) => `/${drive.toLowerCase()}/`).replace(/\\/g, '/')
+  : value;
 
 const ACCOUNT = '967807252336';
 const REGION = 'us-east-1';
@@ -33,7 +42,7 @@ const targetGroupFixture = () => JSON.parse(readFileSync(path.join(FIXTURES, 'ta
 
 /** A stateful fake `aws` covering sts, describe-rules/target-groups, create-rule, delete-rule. */
 function sandbox({ rules = baselineRules(), targetGroups = targetGroupFixture(), account = ACCOUNT } = {}) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'eng-alb-'));
+  const dir = mkdtempSync(path.join(SCRATCH, 'eng-alb-'));
   mkdirSync(path.join(dir, 'out'), { recursive: true });
   writeFileSync(path.join(dir, 'calls.log'), '');
   writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ rules, targetGroups, account, nextId: 100 }));
@@ -134,14 +143,14 @@ function run(command, box, env = {}) {
       timeout: 120_000,
       env: {
         ...process.env,
-        AWS_BIN: box.shim,
+        AWS_BIN: bashPath(path.relative(ROOT, box.shim)),
         AWS_REGION: REGION,
         EXPECTED_AWS_ACCOUNT_ID: ACCOUNT,
         HTTPS_LISTENER_ARN: LISTENER_ARN,
         ENGAGEMENT_TARGET_GROUP_ARN: ENGAGEMENT_TG,
         MAIN_API_TARGET_GROUP_ARN: MAIN_TG,
         GENERIC_API_RULE_PRIORITY: GENERIC_PRIORITY,
-        ENGAGEMENT_ALB_OUT_DIR: box.outDir,
+        ENGAGEMENT_ALB_OUT_DIR: bashPath(path.relative(ROOT, box.outDir)),
         ...env,
       },
     });
@@ -154,7 +163,17 @@ function run(command, box, env = {}) {
   return { status, out, calls, state, outDir: box.outDir };
 }
 
-const CREATE_TOKEN = `${ACCOUNT}:${REGION}:6`;
+const CREATE_TOKEN = `${ACCOUNT}:${REGION}:7`;
+
+test('mutating commands refuse the old live priority even with an override', () => {
+  const box = sandbox();
+  for (const command of ['create-preview', 'delete-preview']) {
+    const result = run(command, box, { PREVIEW_RULE_PRIORITY: '6' });
+    assert.equal(result.status, 2, result.out);
+    assert.match(result.out, /refusing priority override/);
+  }
+  assert.deepEqual(box_calls(box), []);
+});
 
 // ─────────────────────────────────────────────────────────────────── list
 
@@ -192,13 +211,13 @@ test('NC required: occupied priority refusal', () => {
   const rules = baselineRules();
   rules.push({
     RuleArn: 'arn:x/occupied',
-    Priority: '6',
+    Priority: '7',
     Conditions: [{ Field: 'path-pattern', Values: ['/something/*'] }],
     Actions: [{ Type: 'forward', TargetGroupArn: 'arn:x/other' }],
   });
   const result = run('verify-baseline', sandbox({ rules }));
   assert.equal(result.status, 2);
-  assert.match(result.out, /priority 6 is unoccupied/);
+  assert.match(result.out, /priority 7 is unoccupied/);
 });
 
 test('NC required: wrong account refusal', () => {
@@ -279,7 +298,7 @@ test('NC required: exact create payload — path AND header, single target group
   assert.equal(result.status, 0, result.out);
   assert.match(result.out, /ENGAGEMENT_PREVIEW_RULE_CREATED/);
 
-  const created = result.state.rules.find((r) => r.Priority === '6');
+  const created = result.state.rules.find((r) => r.Priority === '7');
   assert.ok(created);
   assert.deepEqual(created.Conditions, [
     { Field: 'path-pattern', PathPatternConfig: { Values: ['/api/engagement/*'] } },
@@ -337,7 +356,7 @@ test('NC required: header omitted is not the exact match', () => {
   const rules = baselineRules();
   rules.push({
     RuleArn: 'arn:x/no-header',
-    Priority: '6',
+    Priority: '7',
     Conditions: [{ Field: 'path-pattern', Values: ['/api/engagement/*'] }],
     Actions: [{ Type: 'forward', TargetGroupArn: ENGAGEMENT_TG }],
   });
@@ -350,7 +369,7 @@ test('NC required: header VALUE case change is not the exact match', () => {
   const rules = baselineRules();
   rules.push({
     RuleArn: 'arn:x/wrong-case',
-    Priority: '6',
+    Priority: '7',
     Conditions: [
       { Field: 'path-pattern', Values: ['/api/engagement/*'] },
       { Field: 'http-header', HttpHeaderConfig: { HttpHeaderName: 'X-Capiro-Engagement-Preview', Values: ['V3'] } },
@@ -366,7 +385,7 @@ test('a rewritten or weighted rule is not the exact match', () => {
   const rewritten = baselineRules();
   rewritten.push({
     RuleArn: 'arn:x/rewrite',
-    Priority: '6',
+    Priority: '7',
     Conditions: [
       { Field: 'path-pattern', Values: ['/api/engagement/*'] },
       { Field: 'http-header', HttpHeaderConfig: { HttpHeaderName: 'X-Capiro-Engagement-Preview', Values: ['v3'] } },
@@ -378,7 +397,7 @@ test('a rewritten or weighted rule is not the exact match', () => {
   const weighted = baselineRules();
   weighted.push({
     RuleArn: 'arn:x/weighted',
-    Priority: '6',
+    Priority: '7',
     Conditions: [
       { Field: 'path-pattern', Values: ['/api/engagement/*'] },
       { Field: 'http-header', HttpHeaderConfig: { HttpHeaderName: 'X-Capiro-Engagement-Preview', Values: ['v3'] } },
@@ -419,7 +438,7 @@ test('delete-preview refuses without the confirmation token', () => {
 test('NC required: exact delete behavior — deletes only the confirmed ARN', () => {
   const box = sandbox();
   run('create-preview', box, { CONFIRM_ENGAGEMENT_PREVIEW_RULE_CREATE: CREATE_TOKEN });
-  const created = run('list', box).state.rules.find((r) => r.Priority === '6');
+  const created = run('list', box).state.rules.find((r) => r.Priority === '7');
 
   const result = run('delete-preview', box, {
     CONFIRM_ENGAGEMENT_PREVIEW_RULE_DELETE: created.RuleArn,
@@ -448,7 +467,7 @@ test('NC required: no delete of an unknown/unconfirmed rule', () => {
 test('NC required: a drifted existing rule refuses deletion', () => {
   const box = sandbox();
   run('create-preview', box, { CONFIRM_ENGAGEMENT_PREVIEW_RULE_CREATE: CREATE_TOKEN });
-  const created = run('list', box).state.rules.find((r) => r.Priority === '6');
+  const created = run('list', box).state.rules.find((r) => r.Priority === '7');
 
   // Drift the rule in place (e.g. someone hand-edited it in the console) —
   // same ARN, different shape. Deletion by that exact ARN must still refuse.
@@ -466,7 +485,7 @@ test('NC required: a drifted existing rule refuses deletion', () => {
 test('a healthy generic rule survives delete-preview', () => {
   const box = sandbox();
   run('create-preview', box, { CONFIRM_ENGAGEMENT_PREVIEW_RULE_CREATE: CREATE_TOKEN });
-  const created = run('list', box).state.rules.find((r) => r.Priority === '6');
+  const created = run('list', box).state.rules.find((r) => r.Priority === '7');
   const result = run('delete-preview', box, { CONFIRM_ENGAGEMENT_PREVIEW_RULE_DELETE: created.RuleArn });
   assert.equal(result.status, 0);
   const generic = result.state.rules.find((r) => r.Priority === GENERIC_PRIORITY);
@@ -482,7 +501,7 @@ test('NC required: no command ever issues a modify-rule call', () => {
   run('verify-baseline', box);
   run('create-preview', box, { CONFIRM_ENGAGEMENT_PREVIEW_RULE_CREATE: CREATE_TOKEN });
   run('verify-preview', box);
-  const created = run('list', box).state.rules.find((r) => r.Priority === '6');
+  const created = run('list', box).state.rules.find((r) => r.Priority === '7');
   run('delete-preview', box, { CONFIRM_ENGAGEMENT_PREVIEW_RULE_DELETE: created.RuleArn });
 
   assert.ok(!box_calls(box).some((c) => c.includes('modify-rule')));

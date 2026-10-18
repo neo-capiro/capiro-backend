@@ -1,0 +1,160 @@
+{
+  "review": "Independent pinned-parser install and Workspace/support TypeScript qualification",
+  "date": "2026-10-14",
+  "repository": "neo-capiro/capiro-backend",
+  "source": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "tree": "37e0e1c9c8b7986593ff677dbac15d21d3384ac8",
+  "checker": {
+    "gitBlob": "6e5eea164fa1fb986513734ae216ec95383b6746",
+    "bytes": 12786,
+    "sha256": "31adc221093cc803bece3ca68e87fb2a708de04e640664f1a9e2f41a8311b89a",
+    "review": "Optional exact installed parser binding is the only 782-byte addition; removing it reproduces published afee checker byte-for-byte. Compiler options and source boundaries unchanged."
+  },
+  "lock": {
+    "originalSha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+    "projectedSha256": "33dd57a7b1eda756f4d4c7a5a30bb8c82de0d7611e080ba2a5b81c10d178b5b8",
+    "derivedFromSource": true,
+    "unchangedAfterInstall": true,
+    "installedExactGraph": [
+      "dom-serializer@2.0.0",
+      "domelementtype@2.3.0",
+      "domhandler@5.0.3",
+      "domutils@3.2.2",
+      "entities@4.5.0",
+      "htmlparser2@8.0.2"
+    ]
+  },
+  "installer": {
+    "version": "11.25.0",
+    "exitCode": 0,
+    "seconds": 1.594,
+    "command": [
+      "pnpm",
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--ignore-workspace",
+      "--registry=https://registry.npmjs.org",
+      "--store-dir=/dev/shm/capiro-pinned-parser-install-20261014/independent/source-afee-check01/store",
+      "--reporter=append-only",
+      "--network-concurrency=1",
+      "--fetch-retries=0",
+      "--fetch-timeout=30000"
+    ],
+    "stdout": {
+      "gitBlob": "36b8d267b3e4f3c1dcf3343ee321458342c642d6",
+      "bytes": 1418,
+      "sha256": "b432a2475193908a04de6fd9d4b08533eb9597b61a232a64448088a422056186"
+    },
+    "stderr": {
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "environment": "Existing environment inherited unchanged; no credential or trust values inspected or collected. Frozen official registry; lifecycle scripts ignored. Isolated tool version 11.25.0; repository/Docker pnpm9.12 pin unchanged."
+  },
+  "compiler": {
+    "exitCode": 0,
+    "seconds": 32.274,
+    "command": [
+      "node",
+      "--max-old-space-size=4096",
+      "/dev/shm/capiro-pinned-parser-install-20261014/independent/source-afee-check01/checker.cjs"
+    ],
+    "stdout": {
+      "gitBlob": "0f8fb4c7c9f637fbdbdd36b385ae84d5da16f39b",
+      "bytes": 3212,
+      "sha256": "65bc04030ffb6d924ab589945a1e63f8c9347a95f1ae30139499c32cc74b72c0"
+    },
+    "stderr": {
+      "gitBlob": "cbdea8bf6b299fbce26dddcbfcb270df2517eae3",
+      "bytes": 769,
+      "sha256": "d25fa230aa8c29a08383957d0ff81b67aeb341c11807153a8b9eb93f36157aad"
+    },
+    "environmentNames": [
+      "PATH",
+      "CAPIRO_SUCCESSOR_REF",
+      "CAPIRO_SUCCESSOR_OWNER",
+      "CAPIRO_SUCCESSOR_PARSER_ROOT"
+    ],
+    "typescript": "5.9.3",
+    "node": "v24.19.0",
+    "programs": [
+      {
+        "owner": "packages/shared",
+        "configuredRoots": 39,
+        "programFiles": 102,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 157,
+        "outputManifestSha256": "6830ebbbe584940f59f6d8eeb140a1cb039c08ee83337d839b0d03fc69f3dcd1"
+      },
+      {
+        "owner": "packages/auth",
+        "configuredRoots": 7,
+        "programFiles": 653,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 29,
+        "outputManifestSha256": "d60d10ce27ef2d391e626806784d6ee4e29c1a1f4502728ba32f4953536ef4d5"
+      },
+      {
+        "owner": "packages/meriv2-core",
+        "configuredRoots": 149,
+        "programFiles": 572,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 597,
+        "outputManifestSha256": "c19830432e3c3b46c8b5739844803d73f4378031719b2fe9abab7c5e702dfc4e"
+      },
+      {
+        "owner": "packages/defense-contracts",
+        "configuredRoots": 13,
+        "programFiles": 76,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 53,
+        "outputManifestSha256": "d0a47ca1cfbf9947db8b6ccf6d42de37eab4c0070b8972db9e4e42fc9286baf3"
+      },
+      {
+        "owner": "packages/defense-domain",
+        "configuredRoots": 65,
+        "programFiles": 257,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 261,
+        "outputManifestSha256": "00d397f0f6442eb1d641019a439705a3af8a76bc021b24789a799fb1d8776006"
+      },
+      {
+        "owner": "packages/strategy-verifier",
+        "configuredRoots": 17,
+        "programFiles": 79,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 69,
+        "outputManifestSha256": "16644e405fef6ace5c0eca374fc2b5ae31ecebd897fc395e090afce0af5af86e"
+      },
+      {
+        "owner": "apps/workspace",
+        "configuredRoots": 165,
+        "programFiles": 1330,
+        "diagnostics": 0,
+        "emitSkipped": false,
+        "outputs": 661,
+        "outputManifestSha256": "e40bc0694d53a5190816a41cc69c70df7c9c5d7e2bc3d9358c8a6f9fd2ccb40d"
+      }
+    ],
+    "sourceFilesConsumed": 471,
+    "sourceManifestSha256": "b1f48994b500490094cc4dd90533b1615ff934e180c89c2410b81802e57ba028",
+    "cachedFilesConsumed": 1534,
+    "cachedManifestSha256": "63198bbda12f107fb9131d58a5feac9951f3f3f39a18990fc277724cac33200c",
+    "completeConfiguredProgramsClean": true
+  },
+  "persistence": {
+    "rawOutputs": "Four raw Git blobs fetched back and matched UTF-8 content exactly; byte counts/hashes originate from actual captured bytes. Initial Latin-1 comparison helper was corrected to UTF-8; raw blobs were unchanged.",
+    "refsChanged": false,
+    "localPersistence": "Dedicated approved memoryFS was used in one invocation; durable outputs are blobs, not local disk copies."
+  },
+  "verdict": "ACCEPT for unchanged-source parser input and complete Workspace/support TypeScript qualification",
+  "limits": "No stock Nest CLI/container/image/app startup/native/DI/database/RLS/provider/HTTP/AWS/deployment acceptance. No product/source/ref changes; no credential/trust/checksum/network relaxation. Existing failed ENOSPC/lifetime receipts remain retained."
+}

@@ -12,7 +12,12 @@ import { PublicCaptureWorkerHandler } from './public-capture-jobs.js';
 import {
   PublicCaptureOrchestrator,
   PublicCaptureWorkerCoordinator,
+  type PublicCaptureRuntimePort,
 } from './public-capture.orchestrator.js';
+import {
+  assertPublicCaptureCredential,
+  type PublicCaptureCredentialResolverPort,
+} from './public-capture-credentials.js';
 import { PublicCapturePersistentQueueAdapter } from './public-capture-persistent-queue.adapter.js';
 import { PublicHearingCaptureAttemptStore } from './public-hearing-capture-attempt.store.js';
 import { PublicHearingCaptureStore } from './public-hearing-capture.store.js';
@@ -50,19 +55,29 @@ import { HearingSubscriptionRepository } from './hearing-subscription.repository
     },
     {
       provide: FfmpegDeepgramCaptureRuntime,
-      useFactory: async (
-        credentials: PublicCaptureCredentialsAdapter,
+      useFactory: (
+        credentials: PublicCaptureCredentialResolverPort,
         sink: PublicHearingTranscriptStore,
         prisma: PrismaService,
-      ) => {
-        const credential = await credentials.resolve();
-        return new FfmpegDeepgramCaptureRuntime(credential.apiKey, sink, {
-          audioSink: new PublicHearingAudioStore(
-            prisma,
-            new RecordingStorageService(new ConfigService()),
-          ),
-        });
-      },
+      ): PublicCaptureRuntimePort => ({
+        async run(input) {
+          input.signal.throwIfAborted();
+          // Optional capture must not resolve a platform key during API boot.
+          // Every leased run resolves independently; failed keys are not cached.
+          const credential = assertPublicCaptureCredential(await credentials.resolve({
+            captureId: input.captureId,
+            hearingId: input.hearingId,
+          }));
+          input.signal.throwIfAborted();
+          const runtime = new FfmpegDeepgramCaptureRuntime(credential.apiKey, sink, {
+            audioSink: new PublicHearingAudioStore(
+              prisma,
+              new RecordingStorageService(new ConfigService()),
+            ),
+          });
+          return runtime.run(input);
+        },
+      }),
       inject: [PublicCaptureCredentialsAdapter, PublicHearingTranscriptStore, PrismaService],
     },
     {
@@ -70,7 +85,7 @@ import { HearingSubscriptionRepository } from './hearing-subscription.repository
       useFactory: (
         store: PublicHearingCaptureStore,
         resolver: PublicCaptureAutomaticResolverAdapter,
-        runtime: FfmpegDeepgramCaptureRuntime,
+        runtime: PublicCaptureRuntimePort,
         attempts: PublicHearingCaptureAttemptStore,
         queue: PublicCapturePersistentQueueAdapter,
       ) =>

@@ -1,0 +1,7 @@
+{
+  "format": "lossless-source-check-observation/v1",
+  "encoding": "base64",
+  "bytes": 315,
+  "sha256": "6a6c34a9a075cc0de169064668c6d1125920d10a0326557c3dced9dd8454a5d9",
+  "data": "4pePIFZhbGlkYXRpb24gRXJyb3I6CgogIFRlc3QgZW52aXJvbm1lbnQgL3dvcmtzcGFjZS9jYXBpcm8tYmFja2VuZC1jbGVhbnVwLXJlY2VpdmluZy0yMDI2MTAxNC9hcHBzL2FwaS9qZXN0Lm5hdGl2ZS1ydW50aW1lLWVudmlyb25tZW50LmNqcyBjYW5ub3QgYmUgZm91bmQuIE1ha2Ugc3VyZSB0aGUgdGVzdEVudmlyb25tZW50IGNvbmZpZ3VyYXRpb24gb3B0aW9uIHBvaW50cyB0byBhbiBleGlzdGluZyBub2RlIG1vZHVsZS4KCiAgQ29uZmlndXJhdGlvbiBEb2N1bWVudGF0aW9uOgogIGh0dHBzOi8vamVzdGpzLmlvL2RvY3MvY29uZmlndXJhdGlvbgoK"
+}

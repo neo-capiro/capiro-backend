@@ -1,0 +1,22 @@
+{
+  "command": [
+    "gh",
+    "pr",
+    "view",
+    "2495",
+    "--repo",
+    "neo-capiro/capirov2",
+    "--json",
+    "number,title,headRefOid,baseRefOid,headRefName,files,url,body"
+  ],
+  "exitCode": 1,
+  "diagnostic": "Unknown JSON field: baseRefOid. The installed gh CLI rejected that requested field before the read action. Corrected discovery omitted it and returned exact donor head33ea55e50e46dfe75e0aa79b6208f7392acfba39.",
+  "sourceQualification": false,
+  "observedToolOutput": {
+    "encoding": "base64",
+    "bytes": 616,
+    "sha256": "47a1b416b7d74c6fdb02cdd4423218c0feee58e4fade8e3088f94e9ebd1d282d",
+    "data": "VW5rbm93biBKU09OIGZpZWxkOiAiYmFzZVJlZk9pZCIKQXZhaWxhYmxlIGZpZWxkczoKICBhZGRpdGlvbnMKICBhc3NpZ25lZXMKICBhdXRob3IKICBhdXRvTWVyZ2VSZXF1ZXN0CiAgYmFzZVJlZk5hbWUKICBib2R5CiAgY2hhbmdlZEZpbGVzCiAgY2xvc2VkCiAgY2xvc2VkQXQKICBjb21tZW50cwogIGNvbW1pdHMKICBjcmVhdGVkQXQKICBkZWxldGlvbnMKICBmaWxlcwogIGhlYWRSZWZOYW1lCiAgaGVhZFJlZk9pZAogIGhlYWRSZXBvc2l0b3J5CiAgaGVhZFJlcG9zaXRvcnlPd25lcgogIGlkCiAgaXNDcm9zc1JlcG9zaXRvcnkKICBpc0RyYWZ0CiAgbGFiZWxzCiAgbGF0ZXN0UmV2aWV3cwogIG1haW50YWluZXJDYW5Nb2RpZnkKICBtZXJnZUNvbW1pdAogIG1lcmdlU3RhdGVTdGF0dXMKICBtZXJnZWFibGUKICBtZXJnZWRBdAogIG1lcmdlZEJ5CiAgbWlsZXN0b25lCiAgbnVtYmVyCiAgcG90ZW50aWFsTWVyZ2VDb21taXQKICBwcm9qZWN0Q2FyZHMKICBwcm9qZWN0SXRlbXMKICByZWFjdGlvbkdyb3VwcwogIHJldmlld0RlY2lzaW9uCiAgcmV2aWV3UmVxdWVzdHMKICByZXZpZXdzCiAgc3RhdGUKICBzdGF0dXNDaGVja1JvbGx1cAogIHRpdGxlCiAgdXBkYXRlZEF0CiAgdXJsCg==",
+    "provenance": "Lossless transcription of the original tool-returned CLI failure; no failed command replay."
+  }
+}

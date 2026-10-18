@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "node",
+    "docs/backend-core-source-startup-20261014/check-core-startup.cjs",
+    "--source-head=de6d6e1abeb1c8e4c4ed3bcb30bde3a8ac48975d",
+    "--source-tree=8c4df3de086f834a6bfe2113f9eab189b2b89570"
+  ],
+  "exitCode": 0,
+  "sourceHead": "de6d6e1abeb1c8e4c4ed3bcb30bde3a8ac48975d",
+  "sourceTree": "8c4df3de086f834a6bfe2113f9eab189b2b89570"
+}

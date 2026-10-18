@@ -1,0 +1,252 @@
+{
+  "qualification": "Unchanged stock source timestamp CLI against two isolated Git metadata fixtures; no SQL, Prisma, database, app or provider execution",
+  "source_ref": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "old_main_ref": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "successor_import_ref": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "old_main_source_count": 458,
+  "old_main_frontier": "20281008040000_federal_evidence_passage_search",
+  "source_inputs": [
+    {
+      "path": "scripts/check-migration-timestamps.mjs",
+      "bytes": 7161,
+      "git_blob": "e1d14d893c384fc1882b920d8a2a2cabed12cdcd",
+      "sha256": "fa75ba582314d5c2ef2d11bcf531cd72533156184e80d6f331af03c0b88bab95"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/cli.mjs",
+      "bytes": 5248,
+      "git_blob": "1a8b032dd615628c695d5d6b4af9ad5905313cec",
+      "sha256": "e348d54e831ca9c0644f23b0eedad573027dbfc1b45948ad611b80d5686de830"
+    },
+    {
+      "path": "scripts/migration-timestamp-offsets.json",
+      "bytes": 1421,
+      "git_blob": "f6586720188fed067136fea8c2e8a7febed660fc",
+      "sha256": "44c3ad8e9ebf1f608f8ba5a7cd4c7aad5a0136d5da1e008411619eb259ef392e"
+    }
+  ],
+  "core_policy": {
+    "yearOffset": 2,
+    "toleranceDays": 7
+  },
+  "name_results": [
+    {
+      "name": "20261007010000_newsletter_outreach_format",
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.7925810185185,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261007020000_newsletter_review_email_delivery",
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.7509143518519,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261007030000_newsletter_invitation_email_delivery",
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.7092476851852,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261007040000_newsletter_account_invitations",
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.6675810185185,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261014050000_user_portfolio_layout",
+      "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+      "backend_source_introduction": "47213eb8924016f444c73c53cfbee47c0349a282|2026-10-14T03:47:19Z",
+      "introduction_commit": "47213eb8924016f444c73c53cfbee47c0349a282",
+      "introduction_author_date": "2026-10-14T03:47:19Z",
+      "offset_drift_days": -730.9495254629629,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281011010000_client_objectives",
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "backend_source_introduction": "a9c6bdc35af70270d774ed9aeec542840f97af4c|2026-10-11T00:13:54Z",
+      "introduction_commit": "a9c6bdc35af70270d774ed9aeec542840f97af4c",
+      "introduction_author_date": "2026-10-11T00:13:54Z",
+      "offset_drift_days": 0.03201388888888889,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281011020000_portfolio_prospect_stages",
+      "path": "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+      "backend_source_introduction": "fd6ed6c017ae91ab774fd34f74475a746de13b68|2026-10-11T02:02:05Z",
+      "introduction_commit": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+      "introduction_author_date": "2026-10-11T02:02:05Z",
+      "offset_drift_days": -0.0014467592592592592,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281011030000_prospect_contacts",
+      "path": "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+      "backend_source_introduction": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb|2026-10-12T10:05:07Z",
+      "introduction_commit": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+      "introduction_author_date": "2026-10-12T10:05:07Z",
+      "offset_drift_days": -1.2952199074074073,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281012010000_client_activity_commands",
+      "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+      "backend_source_introduction": "027b5681349029086d4d9d836c5566130002b122|2026-10-12T03:05:58Z",
+      "introduction_commit": "027b5681349029086d4d9d836c5566130002b122",
+      "introduction_author_date": "2026-10-12T03:05:58Z",
+      "offset_drift_days": -0.08747685185185185,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281012020000_client_ordered_owners",
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "backend_source_introduction": "f551c376d89c87afdfd2e40bfe41dac25248b4d5|2026-10-12T03:52:15Z",
+      "introduction_commit": "f551c376d89c87afdfd2e40bfe41dac25248b4d5",
+      "introduction_author_date": "2026-10-12T03:52:15Z",
+      "offset_drift_days": -0.07795138888888889,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281012030000_prospect_resource_origin",
+      "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "backend_source_introduction": "056bae1a00004f1ad7b0001ed89c48e704f84a7f|2026-10-12T04:48:25Z",
+      "introduction_commit": "056bae1a00004f1ad7b0001ed89c48e704f84a7f",
+      "introduction_author_date": "2026-10-12T04:48:25Z",
+      "offset_drift_days": -0.07528935185185186,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20281012060000_federal_register_effective_evidence",
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "backend_source_introduction": "e2f0fe48449aeb287c5343da0a3b65042e6f8ce6|2026-10-12T06:50:39Z",
+      "introduction_commit": "e2f0fe48449aeb287c5343da0a3b65042e6f8ce6",
+      "introduction_author_date": "2026-10-12T06:50:39Z",
+      "offset_drift_days": -0.035173611111111114,
+      "offset_valid": true,
+      "after_old_main_frontier": true,
+      "ledger_application_state": "UNKNOWN"
+    }
+  ],
+  "fixtures": [
+    {
+      "label": "core12-vs-old-main",
+      "command": [
+        "node",
+        "scripts/check-migration-timestamps.mjs",
+        "--base",
+        "712df88082900587d40c2970a11c8d7dd8a02e7a"
+      ],
+      "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/core12-vs-old-main-x4z8pmzq",
+      "fixture_base": "712df88082900587d40c2970a11c8d7dd8a02e7a",
+      "source_baseline_description": "Exact old-main maximum and relevant grandfathered names only; inert marker files, not actual SQL bodies or database state",
+      "new_names": [
+        "20261007010000_newsletter_outreach_format",
+        "20261007020000_newsletter_review_email_delivery",
+        "20261007030000_newsletter_invitation_email_delivery",
+        "20261007040000_newsletter_account_invitations",
+        "20261014050000_user_portfolio_layout",
+        "20281011010000_client_objectives",
+        "20281011020000_portfolio_prospect_stages",
+        "20281011030000_prospect_contacts",
+        "20281012010000_client_activity_commands",
+        "20281012020000_client_ordered_owners",
+        "20281012030000_prospect_resource_origin",
+        "20281012060000_federal_register_effective_evidence"
+      ],
+      "grandfathered_names": [],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Migration timestamp guard FAILED:\n\n  apps/api/prisma/migrations/20261007010000_newsletter_outreach_format\n    dirname timestamp is -736.8 days from the expected\n    value (commit date 2026-10-12 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281012010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\n  apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery\n    dirname timestamp is -736.8 days from the expected\n    value (commit date 2026-10-12 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281012010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\n  apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery\n    dirname timestamp is -736.7 days from the expected\n    value (commit date 2026-10-12 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281012010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\n  apps/api/prisma/migrations/20261007040000_newsletter_account_invitations\n    dirname timestamp is -736.7 days from the expected\n    value (commit date 2026-10-12 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281012010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\n  apps/api/prisma/migrations/20261014050000_user_portfolio_layout\n    dirname timestamp is -730.9 days from the expected\n    value (commit date 2026-10-14 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281014010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\nExisting migrations are grandfathered — never rename a directory that has been applied.\nThis check only applies to migrations added by this PR.\n",
+      "failed_names": [
+        "20261007010000_newsletter_outreach_format",
+        "20261007020000_newsletter_review_email_delivery",
+        "20261007030000_newsletter_invitation_email_delivery",
+        "20261007040000_newsletter_account_invitations",
+        "20261014050000_user_portfolio_layout"
+      ]
+    },
+    {
+      "label": "core12-vs-successor-import",
+      "command": [
+        "node",
+        "scripts/check-migration-timestamps.mjs",
+        "--base",
+        "21a8633ebf605ece3224297e2008c5dd66a4c5fc"
+      ],
+      "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/core12-vs-successor-import-ld6qbjj7",
+      "fixture_base": "21a8633ebf605ece3224297e2008c5dd66a4c5fc",
+      "source_baseline_description": "Exact old-main maximum and relevant grandfathered names only; inert marker files, not actual SQL bodies or database state",
+      "new_names": [
+        "20261014050000_user_portfolio_layout"
+      ],
+      "grandfathered_names": [
+        "20261007010000_newsletter_outreach_format",
+        "20261007020000_newsletter_review_email_delivery",
+        "20261007030000_newsletter_invitation_email_delivery",
+        "20261007040000_newsletter_account_invitations",
+        "20281011010000_client_objectives",
+        "20281011020000_portfolio_prospect_stages",
+        "20281011030000_prospect_contacts",
+        "20281012010000_client_activity_commands",
+        "20281012020000_client_ordered_owners",
+        "20281012030000_prospect_resource_origin",
+        "20281012060000_federal_register_effective_evidence"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Migration timestamp guard FAILED:\n\n  apps/api/prisma/migrations/20261014050000_user_portfolio_layout\n    dirname timestamp is -730.9 days from the expected\n    value (commit date 2026-10-14 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281014010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\nExisting migrations are grandfathered — never rename a directory that has been applied.\nThis check only applies to migrations added by this PR.\n",
+      "failed_names": [
+        "20261014050000_user_portfolio_layout"
+      ]
+    }
+  ],
+  "findings": [
+    "All four 202610070[1-4]0000 newsletter names and the 20261014050000 layout name fail Core yearOffset=2/tolerance=7 when classified new against old-main source.",
+    "The same five names also sort before the exact old-main maximum. Stock guard reports offset failures first and continues, so it does not additionally print ordering failures for those names.",
+    "The seven 20281011/20281012 names satisfy both date offset and old-main ordering in this source metadata check.",
+    "Against successor import c76, eleven paths are already present and grandfathered; only layout is added and fails. That narrower append-policy result is not old-main migration-plan acceptance.",
+    "Application/ledger state is UNKNOWN for all twelve allocations, including the seven passing names. Source absence and source policy results do not determine pending/applied state."
+  ],
+  "limitations": [
+    "Exact published helper/config and successor first-add author dates were used; fixtures construct a relative source baseline and are not an actual cross-repository merge-base test.",
+    "No migration name or SQL was changed in any product source/ref. Prior policy receipts and candidate heads remain preserved.",
+    "No rename, history resolve, timestamp guard bypass, database or migration execution is authorized by this check."
+  ],
+  "exit": 0
+}

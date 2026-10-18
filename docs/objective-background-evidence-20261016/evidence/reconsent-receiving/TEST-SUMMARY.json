@@ -1,0 +1,21 @@
+{
+  "NestRuntime": false,
+  "peakWorkingSet": "unavailable; null in process receipt, no peak claim",
+  "tests": 136,
+  "sourceFiles": 20,
+  "ownedProcessExited": true,
+  "passed": 136,
+  "result": "PASS_SOURCE_FIXTURES_ONLY",
+  "currentPhysicalBytes": 11870965760,
+  "failed": 0,
+  "fullSemanticTyping": false,
+  "schemaVersion": 1,
+  "primaryExit": 0,
+  "heapMiB": 128,
+  "actualSeconds": 0.2298269,
+  "physicalObservedAt": "2026-10-16T03:42:49.656Z",
+  "commitSample": "historical 02:44:21Z only; no denied probe repeated",
+  "wallLimitSeconds": 120,
+  "nativeSQL": false,
+  "network": false
+}

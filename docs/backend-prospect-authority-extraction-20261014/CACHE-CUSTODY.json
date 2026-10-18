@@ -1,0 +1,21 @@
+{
+  "paths": [
+    {
+      "path": "/workspace/capiro-backend-prospect-authority-20261014/.qualification-cache/prospect-authority",
+      "bytes": 11716029,
+      "reproducible": true,
+      "producer": "owned finite Jest transforms or narrow compiler emit",
+      "retention": "raw results/receipts preserved; all136 emitted artifact bytes retained in indexed archive"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-authority-20261014/.qualification-cache/prospect-authority-emit",
+      "bytes": 573913,
+      "reproducible": true,
+      "producer": "owned finite Jest transforms or narrow compiler emit",
+      "retention": "raw results/receipts preserved; all136 emitted artifact bytes retained in indexed archive"
+    }
+  ],
+  "archiveSha256": "b04b6e1552cfe63bdc864f0436d6b53bebf2c85702469f80cf9dde5bcee6cfeb",
+  "onlyOwnedReproducibleOutputsMayBeRemovedAfterCommittedSealPass": true,
+  "sourceEvidenceGitStoresAndBorrowedDependenciesPreserved": true
+}

@@ -1,0 +1,18 @@
+{
+  "sourceExactlyMatchesReviewedReceivingPR2489": true,
+  "checkedSourceFamilies": [
+    "apps",
+    "packages",
+    "infra",
+    "scripts",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.base.json"
+  ],
+  "sourceDifferences": [],
+  "workflowQuarantineModeBlobExact": 74,
+  "activeAutomation": 0,
+  "allThreeReviewedReceivingHeadsAreDonorAncestors": true,
+  "privateImportedTipUnchanged": true
+}

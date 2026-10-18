@@ -90,12 +90,23 @@ it('routes all thirty client facade methods through concrete owners and bounds a
   );
   if (!facade) throw new Error('Actual Intelligence facade is required');
   const ctor = facade.members.find(ts.isConstructorDeclaration);
-  const factory = facade.members.find(
-    (node): node is ts.MethodDeclaration =>
-      ts.isMethodDeclaration(node) && node.name.getText(ast) === 'createClientSources',
+  const composition = source('intelligence-facade-client-composition.ts');
+  const factory = composition.ast.statements.find(
+    (node): node is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(node) && node.name?.text === 'createClientSources',
   );
+  expect(factory?.body?.statements).toHaveLength(1);
+  expect(ctor?.body?.getText(ast)).toContain('this.clientSources = createClientSources(this');
+  expect(
+    ast.statements
+      .filter(ts.isImportDeclaration)
+      .some(
+        (node) =>
+          node.moduleSpecifier.getText(ast) === "'./intelligence-facade-client-composition.js'",
+      ),
+  ).toBe(true);
   expect(ctor?.getText(ast).split('\n').length).toBeLessThanOrEqual(80);
-  expect(factory?.getText(ast).split('\n').length).toBeLessThanOrEqual(80);
+  expect(factory?.getText(composition.ast).split('\n').length).toBeLessThanOrEqual(80);
   let delegates = 0;
   for (const [owner, names] of Object.entries(ownership)) {
     for (const name of names) {

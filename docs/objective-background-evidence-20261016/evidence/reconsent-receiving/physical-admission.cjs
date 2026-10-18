@@ -1,0 +1,1 @@
+const os=require('node:os'); const free=os.freemem(); process.stderr.write(JSON.stringify({physicalFreeBytes:free,observedAt:new Date().toISOString(),commitObservation:'unavailable; no denied probe retried',heapCapMiB:128})+'\n'); if(free<536870912) throw new Error('Physical pressure; stage not admitted');

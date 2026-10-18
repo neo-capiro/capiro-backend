@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { withContextRetry } from './context-load.js';
 import { STRATEGY_CONTEXT_RETRY, type ContextRetryRuntime } from './strategy-time.providers.js';
 import type { DraftStrategyDto } from './dto/meri.dto.js';
+import { admitObjective } from './objective-generation-admission.js';
+import { digest, parseObjectiveDraft, pendingReceipt, requestConflict, requestKey } from './objective-generation.types.js';
 import {
   computeDraftRequestKey,
   toPublicDraftJob,
@@ -40,6 +42,35 @@ export class DraftJobService {
     private readonly prisma: PrismaService,
     @Inject(STRATEGY_CONTEXT_RETRY) private readonly retryRuntime: ContextRetryRuntime,
   ) {}
+
+  /** Explicit actor+request identity, distinct from the generic content key. */
+  async submitObjective(ctx: AuthTenantContext, body: unknown) {
+    const request = parseObjectiveDraft(body);
+    const key = requestKey(ctx.tenantId, ctx.clerkUserId, request.requestId);
+    const fingerprint = digest(request);
+    const create = () => this.prisma.withTenant(ctx.tenantId, async tx => {
+      const admitted = await admitObjective(tx, ctx, request);
+      const existing = await tx.spDraftJob.findUnique({ where: { tenantId_requestKey: { tenantId: ctx.tenantId, requestKey: key } } });
+      if (existing) {
+        const old = (existing.input as unknown as DraftJobInput).objectiveGeneration;
+        if (!old || existing.ownerUserId !== ctx.clerkUserId || old.fingerprint !== fingerprint ||
+            digest(old.receipt.source) !== digest(admitted.source)) requestConflict();
+        return existing;
+      }
+      const input: DraftJobInput = { bearer: null,
+        dto: { clientId: request.clientId, type: request.type, goal: admitted.intent.outcome },
+        objectiveGeneration: { request, fingerprint, receipt: pendingReceipt(request, admitted.source) } };
+      return tx.spDraftJob.create({ data: { tenantId: ctx.tenantId, clientId: request.clientId, ownerUserId: ctx.clerkUserId,
+        requestKey: key, input: json(input), status: 'queued', deadlineAt: new Date(Date.now() + DEFAULT_DEADLINE_MS) } });
+    });
+    let job;
+    try { job = await create(); } catch (error) {
+      if ((error as { code?: string }).code !== 'P2002') throw error;
+      job = await create();
+    }
+    const view = toPublicDraftJob(job);
+    return { jobId: view.jobId, status: view.status, objectiveGeneration: view.objectiveGeneration! };
+  }
 
   /**
    * Enqueues a draft job (or returns the existing one for the same input).
@@ -113,9 +144,16 @@ export class DraftJobService {
    * lookup in this service.
    */
   async get(ctx: AuthTenantContext, jobId: string): Promise<PublicDraftJob> {
-    const job = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.spDraftJob.findFirst({ where: { id: jobId, tenantId: ctx.tenantId } }),
-    );
+    const job = await this.prisma.withTenant(ctx.tenantId, async tx => {
+      const row = await tx.spDraftJob.findFirst({ where: { id: jobId, tenantId: ctx.tenantId } });
+      const objective = (row?.input as unknown as DraftJobInput | undefined)?.objectiveGeneration;
+      if (row && objective) {
+        if (row.ownerUserId !== ctx.clerkUserId || row.clientId !== objective.receipt.source.clientId) throw new NotFoundException('Draft job not found');
+        const admitted = await admitObjective(tx, ctx, objective.request);
+        if (digest(admitted.source) !== digest(objective.receipt.source)) throw new NotFoundException('Draft job not found');
+      }
+      return row;
+    });
     if (!job) throw new NotFoundException('Draft job not found');
     return toPublicDraftJob(job);
   }

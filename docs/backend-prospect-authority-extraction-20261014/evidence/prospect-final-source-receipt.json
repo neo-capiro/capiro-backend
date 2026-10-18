@@ -1,0 +1,39 @@
+{
+  "label": "prospect-final-source",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "../../docs/backend-prospect-authority-extraction-20261014/source-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/auth/application-authority.spec.ts",
+    "src/auth/application-authority.module.spec.ts",
+    "src/auth/application-authority-boundary.spec.ts",
+    "src/context/application-authority-resource.helpers.spec.ts",
+    "src/business-development/bizdev-meri-scope.service.spec.ts",
+    "src/meri/meri-prospect-scope.helpers.spec.ts",
+    "src/business-development/bizdev-meri-scope.authorization.spec.ts",
+    "--json",
+    "--outputFile",
+    "../../docs/backend-prospect-authority-extraction-20261014/evidence/prospect-final-source-results.json"
+  ],
+  "head": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+  "tree": "baf1fc9349a0823add4873bc1840b745bf62e920",
+  "exitCode": 0,
+  "seconds": 7.873,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-prospect-authority-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-prospect-authority-20261014/.qualification-cache/prospect-authority-tmp"
+  },
+  "outputSha256": "ca49be5915b7c9fa50702dc2ec53d493ddf0e35a7d7aa3a9ac06c96ed1bd6506",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": "",
+  "sourceStatusAfter": "",
+  "exactCommittedSource": true
+}

@@ -1,6 +1,8 @@
 import type { ConfigService } from '@nestjs/config';
 import { StrategyContextPlaneClient, operationFor } from './strategy-context-plane.client.js';
 import type { StrategyGovernedTurnContext } from './strategy-governed-context.types.js';
+import { objectiveFixture } from './objective-generation.fixture.js';
+import { digest } from './objective-generation.types.js';
 
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 
@@ -188,5 +190,54 @@ describe('StrategyContextPlaneClient', () => {
     expect(() => operationFor('document', null)).toThrow(
       'Strategy document context requires an artifact kind',
     );
+  });
+});
+
+describe('Objective Context Plane receiving validation', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => { global.fetch = originalFetch; });
+  function fixture() {
+    const f = objectiveFixture();
+    const g = governed(); g.contextPacket.packetId = f.admission.context.packetId;
+    g.contextPacket.clientId = f.request.clientId; g.contextPacket.compiledAt = f.admission.context.compiledAt;
+    f.admission.context.coverageDigest = digest({ manifest: f.admission.coverage, history: g.retrieval.coverage, policy: 'objective-v1-required-lossless' });
+    f.admission.context.inputDigest = digest({ sourceDigest: f.admission.context.sourceDigest, coverageDigest: f.admission.context.coverageDigest,
+      packetId: f.admission.context.packetId, requestId: f.admission.requestId, type: f.admission.type,
+      localDigest: f.admission.localDigest, externalDigest: f.admission.externalDigest, historyDigest: f.admission.historyDigest,
+      promptDigest: digest(g.prompt) });
+    const client = new StrategyContextPlaneClient(config({ API_BASE_URL: 'https://fixture.invalid', INTERNAL_SERVICE_SECRET: 'fixture-secret' }));
+    const request: any = { tenantId: f.actor.tenantId, clerkUserId: f.actor.clerkUserId, clientId: f.request.clientId, mode: 'draft',
+      objective: f.request.objective, generationRequestId: f.request.requestId, generationType: f.request.type };
+    return { ...f, g, client, request };
+  }
+  test('validates exact actor/source/packet/digests before exposing governed context', async () => {
+    const f = fixture(); const onAdmission = jest.fn(async () => undefined);
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'governed_packet', governedContext: f.g, objectiveAdmission: f.admission }) }) as any;
+    await expect(f.client.compile(f.request,onAdmission)).resolves.toBe(f.g);
+    expect(onAdmission).toHaveBeenCalledWith(f.admission);
+  });
+  test.each(['actor','source','coverage','input','packet','prompt','time'])('rejects mismatched %s', async which => {
+    const f = fixture();
+    if (which === 'actor') f.admission.clerkUserId = 'foreign';
+    if (which === 'source') f.admission.source.objectiveVersion++;
+    if (which === 'coverage') f.admission.coverage.push({ fabricated: true });
+    if (which === 'input') f.admission.context.inputDigest = 'f'.repeat(64);
+    if (which === 'packet') f.g.contextPacket.packetId = 'wrong-packet';
+    if (which === 'prompt') f.g.prompt += ' substituted source text';
+    if (which === 'time') f.admission.historyObservedAt = '';
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ kind: 'governed_packet', governedContext: f.g, objectiveAdmission: f.admission }) }) as any;
+    const consume = jest.fn(async () => undefined);
+    await expect(f.client.compile(f.request,consume)).rejects.toMatchObject({ status: 503 });
+    expect(consume).not.toHaveBeenCalled();
+  });
+  test.each(['history','mailbox-scope','local','external'])('rejects changed %s at final observation', async which => {
+    const f = fixture(); const body: any = { tenantId: f.request.tenantId, clerkUserId: f.request.clerkUserId, requestId: f.admission.requestId,
+      source: f.admission.source, sourceDigest: f.admission.context.sourceDigest, localDigest: f.admission.localDigest,
+      externalDigest: f.admission.externalDigest, historyDigest: f.admission.historyDigest, complete: true, checkedAt: new Date().toISOString() };
+    if (which === 'history' || which === 'mailbox-scope') body.historyDigest = 'f'.repeat(64);
+    if (which === 'local') body.localDigest = 'f'.repeat(64);
+    if (which === 'external') body.externalDigest = 'f'.repeat(64);
+    global.fetch = jest.fn().mockResolvedValue({ ok:true,json:async()=>body }) as any;
+    await expect(f.client.recheckObjective(f.request,f.admission)).rejects.toMatchObject({ response: { code: 'OBJECTIVE_CONTEXT_INCOMPLETE' } });
   });
 });

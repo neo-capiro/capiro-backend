@@ -1,0 +1,33 @@
+{
+  "id": "06",
+  "sourceHead": "043e8f19d0af4e96cb755345586eeba3a244ce46",
+  "sourceTree": "dc7002e348b6fd6e82fe631a8503842c77f3c64a",
+  "bindings": [
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "sha256": "2f2552ad4720a1a92c3cdc7f3531b214da580b6fe85b4f92f49908662e8139c6",
+      "blob": "7593c2b82dc4b4645d8287fbf80399c5e28f7258"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "sha256": "cec51c9c8e27c5da946b89a4a1e96a200bb7596af17588d3bade5aa0c691c728",
+      "blob": "2a7e61bb8cd4a277185980d5f66dd36fab774307"
+    }
+  ],
+  "boundSourcesUnchanged": true,
+  "exitCode": 0,
+  "signal": null,
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-meetings-bundle-20261014/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/workspace/capiro-backend-meetings-bundle-20261014/docs/backend-meetings-bundle-reuse-20261014/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/workspace/capiro-backend-meetings-bundle-20261014/docs/backend-meetings-bundle-reuse-20261014/evidence/06-jest-result.json"
+  ],
+  "tmpdir": "/workspace/capiro-backend-meetings-bundle-20261014/.qualification-cache/tmp",
+  "ownedCacheDirectory": "/workspace/capiro-backend-meetings-bundle-20261014/.qualification-cache/meetings-unit",
+  "qualification": "Actual canonical factories/runtime/service source with inert ports and synthetic provider capture; no native DB/provider/paid/network/model calls."
+}

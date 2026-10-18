@@ -1,0 +1,56 @@
+{
+  "approvedInitialImport": {
+    "head": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "tree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+    "unchanged": true,
+    "execution": "Published exact immutable tip privately after manual Neo creation and explicit add-only connector approval; normal single non-force branch push and remote privacy/ref/tree/74-quarantine/zero-workflow verification"
+  },
+  "source": "1e00e41a36b3450d77148b6f55a7ca90c83a194f",
+  "acceptedFacadePR2486": {
+    "head": "10ce63e7b3d4350070e311f1304297c46986bd87",
+    "tree": "5c9179b7655b5a18358a0982287159b65b6419cf"
+  },
+  "acceptedDossierDonorPR2481": {
+    "head": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+    "tree": "19a32179300851342902cab3afdaf3f50992975f"
+  },
+  "protectedReporting": "Unpublished owner and all original/new heads preserved; metadata comparison only",
+  "tree": "df67628c3f22d5558af80a33dc2d047b51ff7b16",
+  "acceptedDossierPR2488": {
+    "head": "f59a30300341ac1469e34f4c6672227f1c1eaf4a",
+    "tree": "7a43d91adfc7eb2e3c620b1281a1172d22eaa4c5"
+  },
+  "acceptedTrackerDonorPR2485": {
+    "head": "1ecd4b71b3243a38585a11cba6535bd7384d668b",
+    "tree": "0bc843bbf8667fe7a5914c058d1f64daf1eff775",
+    "parent": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+    "preservedRef": "refs/codex-preserved/pr2485-1ecd4b7-20261013 in ownedfacadepublicationclone",
+    "semanticAdoption": true
+  },
+  "independentReview": {
+    "head": "7bb50e9bdd0ffa9f89fe26e8b1bc307e626ac564",
+    "tree": "b02b08f6329d54b09515ade55fbfe89159e6a57f",
+    "singleReviewFileOnly": true
+  },
+  "verifiedSecurityScopePR2487": {
+    "head": "2e1b80d25b9d7e6f3c2807fef5c655d90e00e9ff",
+    "tree": "c9f48cfdb5dc0f9491a621659df58763b247f637",
+    "actionsHeld": true
+  },
+  "frontendPR21": {
+    "atUTC": "2026-10-13T22:12:36.574410+00:00",
+    "repository": "neo-capiro/capiro-frontend",
+    "pr": 21,
+    "url": "https://github.com/neo-capiro/capiro-frontend/pull/21",
+    "state": "open",
+    "draft": true,
+    "head": "c045668da6fc3b630e6d83432e608c9d20c86afe",
+    "tree": "5aad8a345d7aee82d2af9b5dbd5338936efa9551",
+    "parentReportedCode": "e63de78f394209de3fbd045a13cc06e1f8c5a8c3",
+    "parentReportedEvidence": "c045668da6fc3b630e6d83432e608c9d20c86afe",
+    "qualification": "Remote head/tree metadata verified only; independent frontend owner retains code/receipt acceptance",
+    "parentReportedConfig": "Requires explicit Test Clerk metadata; unavailable Strategy/Onboard/Meri disabled"
+  },
+  "allOriginalAndNewCandidateHeadsPreserved": true,
+  "receivingChecksDoNotRepeatNativeAcceptance": true
+}

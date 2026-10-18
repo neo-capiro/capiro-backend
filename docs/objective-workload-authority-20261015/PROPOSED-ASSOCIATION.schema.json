@@ -1,0 +1,264 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:capiro:objective-canonical-plan-row:proposal:1",
+  "title": "Proposed Core-owned canonical association, not SQL or a public receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bindingId",
+    "bindingVersion",
+    "epoch",
+    "previousEpoch",
+    "tenantId",
+    "clientId",
+    "objectiveId",
+    "requestedIntentId",
+    "canonicalStrategyId",
+    "canonicalProjectId",
+    "requestedRevision",
+    "strategyApplied",
+    "plannerApplied",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "bindingId": {
+      "$ref": "#/definitions/uuid"
+    },
+    "bindingVersion": {
+      "$ref": "#/definitions/version"
+    },
+    "epoch": {
+      "$ref": "#/definitions/version"
+    },
+    "previousEpoch": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/version"
+        }
+      ]
+    },
+    "tenantId": {
+      "$ref": "#/definitions/uuid"
+    },
+    "clientId": {
+      "$ref": "#/definitions/uuid"
+    },
+    "objectiveId": {
+      "$ref": "#/definitions/uuid"
+    },
+    "canonicalStrategyId": { "$ref": "#/definitions/uuid" },
+    "canonicalProjectId": { "$ref": "#/definitions/uuid" },
+    "requestedIntentId": {
+      "$ref": "#/definitions/uuid"
+    },
+    "requestedRevision": {
+      "$ref": "#/definitions/revision"
+    },
+    "strategyApplied": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/strategyPublication"
+        }
+      ]
+    },
+    "plannerApplied": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/planPublication"
+        }
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "strategyApplied": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "plannerApplied": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*(?![\\s\\S])"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "version": {
+          "$ref": "#/definitions/version"
+        }
+      }
+    },
+    "strategyPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intentId",
+        "sourceRevision",
+        "requestId",
+        "jobId",
+        "attemptId",
+        "runId",
+        "resultRef",
+        "resultHash",
+        "strategyId",
+        "strategyVersionId",
+        "strategyVersionDigest",
+        "receiptId",
+        "appliedAt"
+      ],
+      "properties": {
+        "intentId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "sourceRevision": {
+          "$ref": "#/definitions/revision"
+        },
+        "requestId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "jobId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "attemptId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "runId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "resultRef": {
+          "$ref": "#/definitions/ref"
+        },
+        "resultHash": {
+          "$ref": "#/definitions/hash"
+        },
+        "strategyId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "strategyVersionId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "strategyVersionDigest": {
+          "$ref": "#/definitions/hash"
+        },
+        "receiptId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "appliedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "planPublication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intentId",
+        "sourceRevision",
+        "generationReceiptId",
+        "strategyVersionId",
+        "strategyVersionDigest",
+        "materializationRequestId",
+        "projectId",
+        "groupsDigest",
+        "outputManifestRef",
+        "outputManifestDigest",
+        "receiptId",
+        "appliedAt"
+      ],
+      "properties": {
+        "intentId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "sourceRevision": {
+          "$ref": "#/definitions/revision"
+        },
+        "generationReceiptId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "strategyVersionId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "strategyVersionDigest": {
+          "$ref": "#/definitions/hash"
+        },
+        "materializationRequestId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "projectId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "groupsDigest": {
+          "$ref": "#/definitions/hash"
+        },
+        "outputManifestRef": {
+          "$ref": "#/definitions/ref"
+        },
+        "outputManifestDigest": {
+          "$ref": "#/definitions/hash"
+        },
+        "receiptId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "appliedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "source": "9b1a2b772767d523b672a217c82fde1698c223fd",
+  "tree": "60d707d1e632f49dc7c8bf598df701056847d3c7",
+  "originalDonorPreserved": "c625fcc4b5fb7c4270e701fe090b9f408d9108fe",
+  "originalBarrelDeclarationPin": "2e7a7dac5ff77b8e25cf27479a1249fb099b9e0d680bfa5718b66e65ebca11aa",
+  "receivingParentDeclarationPin": "1276c9abe859c65c0afca391edb730d6879317d24b1331018263031a3df99623",
+  "reason": "Merged Shared barrel retains original already-published prospect-brief-source export; original donor lacked it. Retained declarations pin matches receiving parent; exact five canonical tracker exports, all remaining assertions and seven other case identities preserved.",
+  "onlyTestLiteralChanged": true,
+  "additionalSparseFixture": "exact current Intel tracker-board-ownership.contract.spec.ts restored without content changes",
+  "productSourceUnchanged": true,
+  "failedWholeRunRetained": "attempt0-api-action-jest-receipt.json"
+}

@@ -76,6 +76,12 @@ function fixture(projects = [project()], tasks = [task()]) {
       { id: 'user_outsider', name: 'Outsider' },
     ]),
     spPlannerProject: {
+      create: jest.fn(async ({ data }) => {
+        const p = { ...project(), id: data.id ?? '20000000-0000-4000-8000-000000000009', ...data };
+        projects.push(p);
+        writes.push(data);
+        return p;
+      }),
       findMany: jest.fn(async () => projects.filter((p) => p.tenantId === ctx.tenantId)),
       findFirst: jest.fn(
         async ({ where }) =>
@@ -146,6 +152,19 @@ function fixture(projects = [project()], tasks = [task()]) {
 }
 
 describe('Planner project and task access', () => {
+  it('public project creation retains canonical defaults and exactly one created audit after helper extraction', async () => {
+    const f = fixture([], []);
+    const created = await f.service.saveProject(ctx, null, { data: { name: 'Manual project' } });
+    expect(created).toMatchObject({
+      name: 'Manual project',
+      privacy: 'private',
+      health: 'on_track',
+      defaultView: 'list',
+    });
+    expect(f.events).toHaveLength(1);
+    expect(f.events[0]).toMatchObject({ kind: 'created', text: 'Created project' });
+    expect(f.tx.spPlannerInbox.create).not.toHaveBeenCalled();
+  });
   it('private projects hide records from outsiders', () =>
     expect(plannerProjectAccess(project(), 'user_outsider')).toBeNull());
   it('team projects allow editors, and explicit viewer grants override team defaults', () => {

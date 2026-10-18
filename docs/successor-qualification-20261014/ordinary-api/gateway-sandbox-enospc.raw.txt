@@ -1,0 +1,4 @@
+
+thread 'main' (1269716) panicked at linux-sandbox/src/linux_run_main.rs:994:25:
+failed to register synthetic bubblewrap mount target /workspace/.codex: No space left on device (os error 28)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

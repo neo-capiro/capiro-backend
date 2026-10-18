@@ -1,0 +1,13 @@
+{
+  "exit": 1,
+  "failedCommand": [
+    "gh",
+    "api",
+    "--paginate",
+    "--slurp",
+    "user/repos?affiliation=owner&per_page=100"
+  ],
+  "observation": "Installed gh does not support --slurp. Authenticated owner matched and destination GET404 preceded this local CLI-option failure. Owner listing/source preflight/create/push did not complete.",
+  "newDestinationActionExecuted": false,
+  "recovery": "Use explicitly paginated supported gh api calls, no install/connection/credential change."
+}

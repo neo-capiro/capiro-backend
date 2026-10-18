@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUTC": "2026-10-16T04:01:44.945Z",
+  "reviewer": "/root/operational_proposal_review",
+  "verdict": "ACCEPT_SOURCE_ONLY",
+  "concreteBlockers": [],
+  "scope": "Narrow independent static review of the two-file exact-hash-match successor. No reviewer runtime, compiler, schema validator, database, security or source mutation.",
+  "predecessorReview": {
+    "path": "SOURCE-REVIEW.json",
+    "bytes": 22223,
+    "sha256": "e41ed7d5269e481b04fb9fd20077bb08cc2eed3f417f956e75c727a2354d8fde",
+    "unchanged": true,
+    "relationship": "Supersedes the predecessor production-source hash snapshot only for the two files listed below. All other predecessor findings, source-only scope, authored-test/schema independence disclosures, evidence limits and unresolved runtime qualifications remain in force. The original receipt and original execution artifacts are preserved."
+  },
+  "gitBase": {
+    "commit": "0ff04de02693fe52336d243a82f6dbbf98e2cc15",
+    "tree": "ea0ff9fbfa7b6e9310e29cebd078819c3c4cbceb",
+    "parent": "5034aaed12997604ab6bd6eb6a5f7d5615056384",
+    "successorCommitChecked": "0c764a41cb3ff38e1f9cfb727eb8fe7fab86eb81",
+    "publicationAssessed": false,
+    "currentState": "Initial diff reviewed against0ff; now exact two-file successor commit0c764 verified. Untracked documentation evidence is separate; no publication claim."
+  },
+  "change": {
+    "files": 2,
+    "insertions": 17,
+    "deletions": 2,
+    "production": {
+      "path": "apps/api/src/clients/objectives/work/objective-work-command.ts",
+      "bytes": 23548,
+      "sha256": "325eaf75fd548d8dc5bba5dc6eda29871ed8c70b8055b5d7e45710931f687a42",
+      "gitBlob": "afe46f6a749e0f43970621f600b8c06254f2e0dc",
+      "previousBytes": 23392,
+      "previousSha256": "ddecfae67401c2af6c59fab7b9ddaae6df726e1605303395daa51925f08d144c",
+      "insertions": 4,
+      "deletions": 2
+    },
+    "test": {
+      "path": "apps/api/test/objective-work-command.focused.test.mjs",
+      "bytes": 36486,
+      "sha256": "7b9724715114c021a828ffb8ea73cd6df8f8eb47c9d6658f62905d4f970e9441",
+      "gitBlob": "446f5f42823d20a79fd52ad3877549c7c5926003",
+      "previousBytes": 35722,
+      "previousSha256": "e27e7d29606875da7539e2c6a10c7714db4039a2de050e400b8672059416344a",
+      "insertions": 13,
+      "deletions": 0,
+      "newTestCases": 1,
+      "outcomesCoveredInNewCase": [
+        "failed",
+        "cancelled"
+      ]
+    },
+    "unchangedPriorSourceFiles": 18,
+    "allPriorTwentyFilesRehashed": true
+  },
+  "independentFindings": [
+    "checkSource now requires sourceSnapshotHash to be a primitive string whose full value equals the anchored HASH.exec match. A final newline can no longer be accepted through JavaScript $ behavior. Valid lowercase64-hex hashes remain accepted.",
+    "reconciliationState now requires accounted requestFingerprint to be a primitive string with the same complete64-hex match. Invalid/missing fingerprints become outcome_unconfirmed, preserving fail-closed retry behavior.",
+    "The single added test source supplies newline-suffixed fingerprints for failed and cancelled authoritative-accounting fixtures and expects OUTCOME_UNCONFIRMED, unchanged synthetic control/consent/receipt data, zero writes, no ID allocation and no policy call.",
+    "The production change does not supply an authoritative owner adapter, identify a caller, authorize a write or create an operation. It closes a pure-kernel syntax gap in a future trusted-accounting input path; it is not characterized as a public-caller privilege flaw.",
+    "No canonical request/ACK field, JSON schema, endpoint, private ledger kind, deterministic identity, consent policy, migration, current authority, materializer or workload binding changes occur in this delta."
+  ],
+  "executionEvidence": {
+    "reviewerExecutedAnything": false,
+    "baselineEvidenceRetained": true,
+    "previousEarnedUniqueFixtureCases": 137,
+    "previousRuns": [
+      {
+        "tests": 136,
+        "passed": 136,
+        "pid": 21204,
+        "seconds": 0.2298269
+      },
+      {
+        "tests": 13,
+        "passed": 13,
+        "pid": 8688,
+        "seconds": 0.1176094,
+        "overlap": true
+      },
+      {
+        "tests": 26,
+        "passed": 26,
+        "pid": 3372,
+        "seconds": 0.1562951,
+        "overlap": true
+      }
+    ],
+    "affected27CaseRun": {
+      "status": "OWNER_EXECUTED_PASS_STRUCTURED_RECORD_AND_LOGS_REVIEWED",
+      "executedBy": "Parent/root; not this reviewer",
+      "tests": 27,
+      "passed": 27,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "suites": 0,
+      "pid": 21740,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "timedOut": false,
+      "startedAt": "2026-10-16T03:59:26.0589698Z",
+      "completedAt": "2026-10-16T03:59:26.2177385Z",
+      "elapsedSeconds": 0.1504985,
+      "nodeTestDurationMs": 81.329,
+      "heapMiB": 128,
+      "wallLimitSeconds": 120,
+      "networkServerAndChildrenBlockedByRetainedGuard": true,
+      "peakWorkingSetBytes": null,
+      "physicalFreeBytesObserved": 11517411328,
+      "memoryNote": "Historical approved commit-availability relay plus process-local physical observation; no fresh commit-space or peak-memory guarantee.",
+      "outputWithin4MiB": true,
+      "scope": "Affected pure Core command file only, including26 prior cases plus one new failed/cancelled fingerprint newline case. No compiler, Nest/Prisma/native SQL or provider execution.",
+      "sourceNote": "Record names pinned-separately source and has no embedded prelaunch20-file hash set; final exact committed source/blobs are independently reviewed here.",
+      "evidenceRoot": "work-hash-successor",
+      "evidenceFiles": [
+        {
+          "path": "FOCUSED-RESULT.json",
+          "bytes": 1599,
+          "sha256": "0fa3eecb612cd6bc09688654a7d66117e2f6415cb7368dc05e9914c9cc137dab"
+        },
+        {
+          "path": "focused.stderr.log",
+          "bytes": 856,
+          "sha256": "a5c6579d895ff7b0635f6f694b2ca17764379b9df14fc17a50f8da4f8c232640"
+        },
+        {
+          "path": "focused.stdout.log",
+          "bytes": 3280,
+          "sha256": "fe7b5a1f05e6af7bf0363d8af50953165a4b100199b13aa0494a3c4f4985d7b6"
+        },
+        {
+          "path": "offline-source-guard.cjs",
+          "bytes": 777,
+          "sha256": "c72dd631bfa43116f077c9770f61afa6d5d0da58b6368993f175065223256282"
+        },
+        {
+          "path": "physical-admission.cjs",
+          "bytes": 307,
+          "sha256": "46f1dac6452bcb31822c206464044ccc06c813c66adeb90172ce0ee845fed6c7"
+        },
+        {
+          "path": "run-focused.ps1",
+          "bytes": 3421,
+          "sha256": "8d6f29dfde30d5a6da16662aede7ebf000a652dbca047d43ca3fc2070fc3d771"
+        }
+      ]
+    },
+    "coverageOfSuccessor": "Static exact two-file production/test diff and Git source pins independently reviewed. Parent executed the27 affected source fixtures, whose retained structured record and logs were read without rerun. This does not qualify production services/native SQL.",
+    "finalEarnedUniqueFixtureCases": 138,
+    "countsAreNotAdditive": true,
+    "overlapNote": "Baseline136 plus one UUID case plus one HASH case=138 unique fixtures. The13/26/27 affected reruns overlap; no aggregate sum is claimed."
+  },
+  "independence": {
+    "reviewerAuthoredSuccessorProduction": false,
+    "reviewerAuthoredNewFingerprintTestCase": false,
+    "priorReviewerAuthoredKernelTestAndContractDocs": "Preserved disclosure from predecessor; those authored artifacts are not represented as an independent test author opinion.",
+    "reviewerWrites": [
+      "objective-canonical-reconsent-evidence/SOURCE-REVIEW-HASH-SUCCESSOR.json"
+    ]
+  },
+  "exclusionsAndHolds": [
+    "No change to the18 other reviewed source files; exact hashes below are identical to predecessor.",
+    "No source/schema/migration/test edits by this reviewer.",
+    "No schema-validator or compiler execution.",
+    "No Meri runtime, provider, credentials, DB/ACL/security operation, relocation or bootstrap workaround.",
+    "Live workload verifier remains default unavailable; Core effect-owner reconciliation/settings port remains unavailable.",
+    "Native SQL/grants/RLS/concurrency/rollback, Nest DI/HTTP, semantic typing, owner canonical Jest8 and full applications remain unqualified.",
+    "Narrow reserved Strategy writer and existing-output collision/regeneration limits are unchanged.",
+    "No publication or branch update was performed by this reviewer. Exact local successor commit/tree/parent and two file blobs were read-only verified."
+  ],
+  "unchangedSchema": {
+    "path": "docs/objective-background-evidence-20261016/CANONICAL-APPLICATION.schema.json",
+    "sha256": "0b3fb823aeeb6b811946a647c4f82b47652c21065855316c7fff1eb1d23e8bc0",
+    "validatorRun": false
+  },
+  "currentSourceFiles": [
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.controller.ts",
+      "bytes": 1057,
+      "sha256": "112dd49f83922b018ed7d3d5b24a94a889aed5d933e874c939c8197a748e09a0",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.service.ts",
+      "bytes": 13238,
+      "sha256": "8d540c34b29936826482ddb9d6fc047007221a1288d383e46c07b75af26991fd",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "bytes": 15177,
+      "sha256": "0785ba9f6446fc552a2153ced3b61f4c4cb22e724ac8df8a10408d8b64048b60",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-authority.ts",
+      "bytes": 1591,
+      "sha256": "c6481bb5c433703492dd6f0bfc3eafebb8054739f265215957c4a20370877d23",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-fence.ts",
+      "bytes": 12600,
+      "sha256": "1f1cb8ae29718fbb7eb2663163ff31ad3c735159f3c6637c4de92ed82f1606b1",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.module.ts",
+      "bytes": 1716,
+      "sha256": "1a16440dc7569135cd55d9bec9b65b8de3908922f07701dc54fc51f4080f6c08",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "bytes": 253506,
+      "sha256": "6c0c5fcd848a8e6855bba9257121b9a6ce1a620dfc47bc54bf1fc5974ff8fd29",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization-canonical.spec.ts",
+      "bytes": 6963,
+      "sha256": "71f1ea6b2fefab389a94937d42c2979c79b22075e8398b384688f0a9743ddd83",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "bytes": 23555,
+      "sha256": "b31789a0f06de7487dae60908bc50604e3e9e0f2b1d578380b34208abf527432",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api-strategy/test/objective-canonical-application.focused.test.mjs",
+      "bytes": 23702,
+      "sha256": "dcc4597480f5b5e023b32698662f63e2bb656046e965d9cc57a8746fd6960150",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+      "bytes": 22831,
+      "sha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/src/auth/workload-authority/objective-consent-policy.ts",
+      "bytes": 4621,
+      "sha256": "d2eaa6856e03a944eb3494c1e379caa704ce86fd1ebdd75abf3b67343ae13c02",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "bytes": 8813,
+      "sha256": "d0abac8d54c15d21b6b021b13e90baf75134e683592033332fa2d60d165697ec",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work-command.ts",
+      "bytes": 23548,
+      "sha256": "325eaf75fd548d8dc5bba5dc6eda29871ed8c70b8055b5d7e45710931f687a42",
+      "changedFromPredecessor": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.controller.ts",
+      "bytes": 2011,
+      "sha256": "f292133e75139d12286c73e45d124cb2d1c5bb648ac074a08314c8ee15b86759",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.module.ts",
+      "bytes": 447,
+      "sha256": "4e6e8f681f877007c92f1399d330bcca849db2e0b93a1b90a42647fe5c222347",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.service.ts",
+      "bytes": 26238,
+      "sha256": "acf7dd57d9129d5b5ac636c62456c56ba7e7dd8d22f14a279f9de86a3b0ce30d",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/test/objective-consent-policy.focused.test.mjs",
+      "bytes": 13480,
+      "sha256": "08636b00bc412e715ff03f60f599dc1aa71cdc61ef9ee64584d71265f3caaca7",
+      "changedFromPredecessor": false
+    },
+    {
+      "path": "apps/api/test/objective-work-command.focused.test.mjs",
+      "bytes": 36486,
+      "sha256": "7b9724715114c021a828ffb8ea73cd6df8f8eb47c9d6658f62905d4f970e9441",
+      "changedFromPredecessor": true
+    },
+    {
+      "path": "apps/api/test/objective-work-reconsent-migration.focused.test.mjs",
+      "bytes": 25040,
+      "sha256": "780784d6930b1f3f7e7fd766f7204a75add8dbfd704921a0c8ddfc25cea15fd9",
+      "changedFromPredecessor": false
+    }
+  ],
+  "gitSuccessor": {
+    "commit": "0c764a41cb3ff38e1f9cfb727eb8fe7fab86eb81",
+    "tree": "ccf98e37370a50b483774e13140be467f7329ea0",
+    "directParent": "0ff04de02693fe52336d243a82f6dbbf98e2cc15",
+    "exactTwoFileDeltaVerified": true,
+    "gitBlobsVerified": true,
+    "publicationAssessed": false
+  }
+}

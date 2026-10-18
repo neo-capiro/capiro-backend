@@ -1,0 +1,41 @@
+{
+  "afterScopedChecks": true,
+  "ownedRuntimeRetired": "/tmp/backend-receiving-shared-runtime-20261013",
+  "inventoryRows": 158,
+  "linksRemoved": [
+    {
+      "path": "packages/shared/dist",
+      "target": "/tmp/backend-receiving-shared-runtime-20261013/dist"
+    },
+    {
+      "path": "packages/shared/node_modules",
+      "target": "/workspace/capirov2/packages/shared/node_modules"
+    }
+  ],
+  "ownedOverlaysRemoved": [
+    {
+      "path": "apps/api/node_modules",
+      "symlinks": 70,
+      "ownedCopiedShimFiles": 17
+    },
+    {
+      "path": "node_modules",
+      "symlinks": 11,
+      "ownedCopiedShimFiles": 0
+    }
+  ],
+  "ownedTypeInfoRetired": [
+    {
+      "path": "/tmp/backend-receiving-api-type-20261013.tsbuildinfo",
+      "bytes": 1329633,
+      "sha256": "2c3958874accfb79486d669d073d1ab1a565abb3b624dd7e3c3143bd909ac93a"
+    },
+    {
+      "path": "/tmp/backend-receiving-shared-20261013.tsbuildinfo",
+      "bytes": 24976,
+      "sha256": "8464992a7c0301a64901f96242a72641bc218d9a4960a8bb23128e49a6127668"
+    }
+  ],
+  "cacheFilesRetired": 174,
+  "borrowedTargetsModified": false
+}

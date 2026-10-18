@@ -7,15 +7,7 @@ import {
   compactedAttachmentContext,
 } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
-import type { Request } from 'express';
-import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
-import { ContextSecurityScopeService } from '../context/context-security-scope.service.js';
-import {
-  assertApplicationAuthorityIdentityBody,
-  parseApplicationAuthorityContextBody,
-  applicationAuthorityIdentityReceipt,
-  readApplicationAuthorityContext,
-} from '../auth/application-authority.js';
+import { assertCurrentClientVisible, loadOwnedActiveClioConversation } from '../context/application-authority-resource.helpers.js';
 import {
   BadRequestException,
   ConflictException,
@@ -59,10 +51,10 @@ import {
   type MeriProspectScope,
 } from '../business-development/bizdev-meri-scope.service.js';
 import {
-  authorizeMeriProspectScope,
   prospectScopeDirective,
   prospectTurnScopeReceipt,
 } from './meri-prospect-scope.helpers.js';
+import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import {
   authorizeMeriResearchPortfolioScope,
   MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY,
@@ -263,6 +255,12 @@ interface CreateConversationInput {
   researchPortfolioId?: string;
 }
 
+interface BootstrapConversationInput {
+  schemaVersion: 1;
+  requestId: string;
+  clientId: string;
+}
+
 interface UpdateConversationInput {
   title?: string;
   clientId?: string | null;
@@ -388,37 +386,7 @@ export class MeriService implements MeriTurnMaintenance {
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
-    @Optional() private readonly applicationAuthorityTenant?: TenantContextMiddleware,
-    @Optional() private readonly applicationAuthorityScope?: ContextSecurityScopeService,
   ) {}
-
-  async applicationAuthorityIdentity(ctx: TenantContext, req: Request, body: unknown) {
-    assertApplicationAuthorityIdentityBody(body);
-    if (!this.applicationAuthorityTenant) throw new ForbiddenException('Application authority unavailable');
-    return applicationAuthorityIdentityReceipt(await this.applicationAuthorityTenant.readApplicationAuthority(req, ctx));
-  }
-
-  async applicationAuthorityContext(ctx: TenantContext, req: Request, body: unknown) {
-    const input = parseApplicationAuthorityContextBody(body);
-    const tenant = this.applicationAuthorityTenant;
-    const securityScope = this.applicationAuthorityScope;
-    if (!tenant || !securityScope) throw new ForbiddenException('Application authority unavailable');
-    try {
-      return await readApplicationAuthorityContext(input, {
-        identity: () => tenant.readApplicationAuthority(req, ctx),
-        conversation: (id) => this.ensureConversation(ctx, id),
-        conversationScope: async (conversation) => {
-          const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata);
-          if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
-          return prospect ? [prospect.prospectId, prospect.canonicalOrganizationId, prospect.linkedClientId, prospect.scopeVersion] : null;
-        },
-        clientVisible: (id) => this.ensureClientVisible(ctx, id),
-        clientAuthority: (id) => securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, id),
-      });
-    } catch {
-      throw new ForbiddenException('Application authority unavailable');
-    }
-  }
 
   async status(ctx: TenantContext) {
     const profile = await this.currentProfile(ctx);
@@ -578,6 +546,132 @@ export class MeriService implements MeriTurnMaintenance {
         },
       }),
     );
+  }
+
+  /** Allocate one native Core conversation for a stable New Chat intent. */
+  async bootstrapConversation(ctx: TenantContext, input: BootstrapConversationInput) {
+    const requestId = input.requestId.toLowerCase();
+    const clientId = input.clientId.toLowerCase();
+    const replay = await this.readBootstrapConversation(ctx, requestId, clientId);
+    if (replay) return replay;
+
+    const profile = await this.currentProfile(ctx);
+    try {
+      return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const client = await tx.client.findFirst({
+          where: {
+            id: clientId,
+            tenantId: ctx.tenantId,
+            status: { not: 'archived' },
+            OR: [
+              { memoryWall: false },
+              { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (!client) throw new NotFoundException('Client not found');
+
+        // The conversation and its durable request key commit together. A
+        // concurrent request losing the receipt uniqueness race rolls back
+        // its conversation insert with this transaction.
+        const conversation = await tx.clioConversation.create({
+          data: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId,
+            title: 'New Meri session',
+            workspaceKey: 'workspace',
+            metadata: {
+              brand: PRODUCT_NAME,
+              runtime: RUNTIME_NAME,
+              userEmail: profile.email,
+            } satisfies Prisma.InputJsonValue,
+          },
+          select: { id: true },
+        });
+        await tx.clioConversationBootstrapReceipt.create({
+          data: {
+            tenantId: ctx.tenantId,
+            actorUserId: ctx.userId,
+            requestId,
+            clientId,
+            conversationId: conversation.id,
+          },
+        });
+        return this.bootstrapConversationReceipt(ctx, requestId, clientId, conversation.id);
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      // A unique violation aborts the insert transaction in PostgreSQL.
+      // Read the winning receipt in a new tenant-scoped transaction.
+      const winner = await this.readBootstrapConversation(ctx, requestId, clientId);
+      if (winner) return winner;
+      throw error;
+    }
+  }
+
+  private bootstrapConversationReceipt(
+    ctx: TenantContext,
+    requestId: string,
+    clientId: string,
+    conversationId: string,
+  ) {
+    return {
+      schemaVersion: 1 as const,
+      requestId,
+      conversationId,
+      tenantId: ctx.tenantId,
+      actorId: ctx.userId,
+      clientId,
+    };
+  }
+
+  private readBootstrapConversation(ctx: TenantContext, requestId: string, clientId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const receipt = await tx.clioConversationBootstrapReceipt.findFirst({
+        where: { tenantId: ctx.tenantId, actorUserId: ctx.userId, requestId },
+        select: { clientId: true, conversationId: true },
+      });
+      if (!receipt) return null;
+      if (receipt.clientId !== clientId) {
+        throw new ConflictException('New Chat requestId is bound to a different client');
+      }
+      if (!receipt.conversationId) {
+        throw new ConflictException('New Chat conversation is no longer available');
+      }
+
+      const conversation = await tx.clioConversation.findFirst({
+        where: {
+          id: receipt.conversationId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          clientId,
+          status: 'active',
+          archivedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!conversation) {
+        throw new ConflictException('New Chat conversation is no longer active in this client');
+      }
+      const client = await tx.client.findFirst({
+        where: {
+          id: clientId,
+          tenantId: ctx.tenantId,
+          status: { not: 'archived' },
+          OR: [
+            { memoryWall: false },
+            { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!client) throw new NotFoundException('Client not found');
+      return this.bootstrapConversationReceipt(ctx, requestId, clientId, conversation.id);
+    });
   }
 
   async getConversation(ctx: TenantContext, conversationId: string) {
@@ -910,21 +1004,7 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
-    const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const row = await tx.clioConversation.findFirst({
-        where: {
-          id: conversationId,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          archivedAt: null,
-        },
-        include: { client: { select: { id: true, name: true } } },
-      });
-      if (row) await authorizeResearchPortfolioConversation(tx, ctx, row);
-      return row;
-    });
-    if (!conversation) throw new NotFoundException('Meri conversation not found');
-    return conversation;
+    return loadOwnedActiveClioConversation(this.prisma, ctx, conversationId);
   }
 
   private async ensureConversationAnyStatus(ctx: TenantContext, conversationId: string) {
@@ -992,13 +1072,7 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   private async ensureClientVisible(ctx: TenantContext, clientId: string) {
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-        select: { id: true },
-      }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
+    return assertCurrentClientVisible(this.prisma, ctx, clientId);
   }
 
   private async currentProfile(ctx: TenantContext) {

@@ -1,0 +1,695 @@
+{
+  "schema": "backend-cleanup-closeout-map/v1",
+  "sourceCheckpoint": {
+    "head": "1ecd4b71b3243a38585a11cba6535bd7384d668b",
+    "tree": "0bc843bbf8667fe7a5914c058d1f64daf1eff775",
+    "cleanTrackedAndUntracked": true,
+    "publishedDraftPR": 2485,
+    "originalRequirementsCommit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+    "sourcePreparedNotDeployedAcceptance": true
+  },
+  "requirementsSnapshot": {
+    "path": "docs/backend-cleanup/20261013/requirements-reconciliation/REQUIREMENTS-RECONCILIATION-v2.json",
+    "sha256": "edf9224a0b8b1ea8e9ce50b2a6c9251b4013f44c3a06dd74bf5d3067ca57e763",
+    "originalCommit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29"
+  },
+  "privateAccounting": {
+    "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-20261013/closeout/CLOSEOUT-ACCOUNTING.json",
+    "sha256": "4f77e6490fadfb63ccee91cc9879737c4046a0338c991cdf6a10aa3cd53218b2"
+  },
+  "exclusiveTotals": {
+    "finite_satisfied": 6,
+    "binding_preserved": 15,
+    "actionable_local_implementation": 18,
+    "blocked_or_acceptance_only": 45
+  },
+  "remainingCloseoutGroupTotal": 63,
+  "blockedPrimarySubtotals": {
+    "authentic_execution_or_provenance": 15,
+    "aggregate_global_gates_depend_on_other_rows": 3,
+    "named_owner_security_adr_or_protected_scope": 27
+  },
+  "countsByPlan": {
+    "1\u20134": {
+      "total": 5,
+      "finite_satisfied": 1,
+      "binding_preserved": 3,
+      "actionable_local_implementation": 1,
+      "blocked_or_acceptance_only": 0,
+      "remainingCloseoutGroups": 1
+    },
+    "1": {
+      "total": 13,
+      "finite_satisfied": 0,
+      "binding_preserved": 2,
+      "actionable_local_implementation": 1,
+      "blocked_or_acceptance_only": 10,
+      "remainingCloseoutGroups": 11
+    },
+    "2": {
+      "total": 19,
+      "finite_satisfied": 0,
+      "binding_preserved": 3,
+      "actionable_local_implementation": 8,
+      "blocked_or_acceptance_only": 8,
+      "remainingCloseoutGroups": 16
+    },
+    "3": {
+      "total": 9,
+      "finite_satisfied": 1,
+      "binding_preserved": 2,
+      "actionable_local_implementation": 1,
+      "blocked_or_acceptance_only": 5,
+      "remainingCloseoutGroups": 6
+    },
+    "4": {
+      "total": 34,
+      "finite_satisfied": 4,
+      "binding_preserved": 4,
+      "actionable_local_implementation": 7,
+      "blocked_or_acceptance_only": 19,
+      "remainingCloseoutGroups": 26
+    },
+    "Acceptance": {
+      "total": 4,
+      "finite_satisfied": 0,
+      "binding_preserved": 1,
+      "actionable_local_implementation": 0,
+      "blocked_or_acceptance_only": 3,
+      "remainingCloseoutGroups": 3
+    }
+  },
+  "accountingRules": [
+    "Every original84 ID appears exactly once in the primary partition; facets/workstream dependency references never add groups.",
+    "Six finite results count accepted published artifacts, not a composed release tree or all findings. Intelligence facade is a non-inherited sibling.",
+    "Fifteen preservation rules continue to bind; missing concrete ledger/failure/kept-disposition evidence is accounted in implementation/acceptance groups.",
+    "Eighteen implementation-primary obligation groups are not eighteen verified defects or eighteen PRs; exact current inventory determines the finite eligible source work list.",
+    "Forty-five blocked/acceptance-primary groups are not all pure execution: fifteen are execution/provenance, three aggregate original gates, twenty-seven owner/security/ADR/protected decisions with possible conditional adoption.",
+    "Tracker closes a verified instance within C4-17, not that multi-app remaining-gods group. No primary group count changes by inventing a Tracker ID.",
+    "No qualified old slice is rerun merely to make broader flags green; evidence is consumed at exact source applicability."
+  ],
+  "workstreams": [
+    {
+      "id": "A1",
+      "primaryBucket": "actionable_local_implementation",
+      "title": "Current eligible-source inventory",
+      "groupIds": ["COMMON-1", "C2-2"],
+      "groupCount": 2,
+      "owner": "Backend cleanup integration owner; subject inventory owners",
+      "finiteDeliverable": "One new source-bound generated STRICT/LOOSE inventory with current subject/path/caller/runner counts, blind spots, mirror metadata and separate stable-ID human dispositions. Include backend-only eligible and protected/other-owner partitions; do not overwrite the a533ad1 historical ledger.",
+      "exitCriteria": "Every frozen eligible current ID is merged, waived by its actual owner, obsolete with removing identity, or explicitly blocked; zero unresolved source paths; all eight historical subjects are retained in scope accounting. A local source snapshot can progress without a provider or graph runtime.",
+      "dependencies": "None for read-only source preparation; canonical production roots remain declared source, not image build trees."
+    },
+    {
+      "id": "A2",
+      "primaryBucket": "actionable_local_implementation",
+      "title": "Canonical production/helper/config ownership",
+      "groupIds": ["C2-1", "C2-3", "C2-6", "C2-8", "C2-9", "C2-12", "C2-16", "C4-11"],
+      "groupCount": 8,
+      "owner": "Cleanup integration owner plus disjoint source family owners",
+      "finiteDeliverable": "Use the A1 frozen eligible IDs as the finite work list. Extract actual identical helpers once; characterize reviewed literal variants; repoint retained tests; preserve CLI/operator wrappers and consumed config names. Entity/bill-key adoption uses existing authorities, not a new resolver.",
+      "exitCriteria": "All eligible IDs have one canonical owner and all verified callers adopt it; original case identities/assertions/order/defaults hold; relevant build/native/mirror/type/reference gates pass; ownership ratchets prevent reintroduction. Full all-subject exhaustion still requires B4 and protected/ADR rows.",
+      "dependencies": "A1 current inventory; per-slice original-source characterization; mirror/security decisions where an individual ID intersects them."
+    },
+    {
+      "id": "A3",
+      "primaryBucket": "actionable_local_implementation",
+      "title": "Verified duplicate-test ownership",
+      "groupIds": ["C3-1"],
+      "groupCount": 1,
+      "owner": "Dedicated test-only owner; cleanup integration owner",
+      "finiteDeliverable": "A frozen current test-area ID list, exact shared helper bodies and explicitly reproduced surviving-twin/rename mappings. Only proved eligible backend test clusters; do not change production or remove uncertain cases.",
+      "exitCriteria": "Each eligible group is merged or explicitly kept/waived by the actual owner; expanded runtime name/status multiplicity and fixture values are accounted for before repoint, before delete and after delete. All five-runner global proof is B1; historical floor/visuals are B2/B3.",
+      "dependencies": "A1 inventory; production canonical owner qualified first; B5 for chamber/fork-dependent suites; existing guards and isolated runner prerequisites."
+    },
+    {
+      "id": "A4",
+      "primaryBucket": "actionable_local_implementation",
+      "title": "Eligible shared contracts/flags/dispatch ratchets",
+      "groupIds": ["C4-8", "C4-9", "C4-W2-9", "C4-23"],
+      "groupCount": 4,
+      "owner": "Cleanup seam owners; CI/global-data hunks composed by integration owner",
+      "finiteDeliverable": "For each eligible named backend caller, use canonical typed flag/contract/dispatch metadata and publish its exact migration matrix. Supply the missing data-owned HTTP/config/flag/tenant anti-bypass guards for an actually introduced seam, with finite inputs and same-change wiring. No security membership/default/policy change.",
+      "exitCriteria": "Every eligible listed caller is adopted and each corresponding guard rejects a real new bypass; no allowances conceal missing adoption. Full cross-app scope, protected frontend/Clio, security and actual CI remain explicit blocked facets.",
+      "dependencies": "A1 current caller inventory; B6 for control decisions; B7 for reserved assets; B8 for protected consumers; no competing registry or generic runtime framework."
+    },
+    {
+      "id": "A5",
+      "primaryBucket": "actionable_local_implementation",
+      "title": "Named current twins and remaining facade capabilities",
+      "groupIds": ["C4-14", "C4-17"],
+      "groupCount": 2,
+      "owner": "Cleanup integration owner and disjoint capability owners",
+      "finiteDeliverable": "Freeze an eligible current symbol/capability list from original named backend findings. Tracker is already closed; Intelligence facade is an accepted sibling, so compose it deliberately rather than reimplement it. For each newly verified remaining twin/god, preserve existing facade and extract one capability per PR with canonical ownership.",
+      "exitCriteria": "Every capability in the frozen eligible list is qualified or explicitly blocked to its actual owner. Every resulting owned file/function meets the agreed budget; full public/private receiver/DI/export/default behavior and active worker/legacy contracts hold. No arbitrary further large-file hunt is a closeout condition.",
+      "dependencies": "A1 current inventory; original-source characterization; B5 ADR-dependent twins, B7 reservations and B8 protected owners. Tracker instance is complete, whole C4-17 is not."
+    },
+    {
+      "id": "A6",
+      "primaryBucket": "actionable_local_implementation",
+      "title": "Missing meaningful characterization at intended conversions",
+      "groupIds": ["C1-6"],
+      "groupCount": 1,
+      "owner": "Characterization owner independent of source extraction",
+      "finiteDeliverable": "Use A1 readiness to identify currently untested eligible changed sites and add behavior tests at real entrypoints with I/O-only fakes; no test per byte-identical helper copy.",
+      "exitCriteria": "Every frozen eligible conversion has an original-source BEFORE behavior receipt and matching AFTER identities/decision evidence. Tracker supplies 74 added and 115 retained cases for its complete boundary; this does not establish repo-wide readiness.",
+      "dependencies": "A1 current readiness; dependency/runtime lanes for the applicable package; no production/provider/database call."
+    },
+    {
+      "id": "B1",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Actual complete native foundation and runner execution",
+      "groupIds": ["C1-1", "C1-4", "C1-5", "C1-7", "C1-8", "C1-13", "C2-5", "C3-5"],
+      "groupCount": 8,
+      "owner": "Foundation/CI/native qualification owner; package owners",
+      "finiteDeliverable": "One exact committed source tree with frozen dependencies, dynamically discovered packages, complete unit/type/four-guard/Python lanes, isolated script smoke, five-runner name/status multiplicity and a real all-package failure inventory with owners/expiries. Preserve all red runs.",
+      "exitCriteria": "Actual exit receipts and raw source-bound artifacts cover the declared packages and guards with every failure disposition; real applicable PR workflow execution under its existing main-only trigger is recorded. No stack-targeted draft claims CI ran. No failing/skip-deleted green baseline.",
+      "dependencies": "B2 coverage floor; B3 retained visual lane; canonical shared assets/CI changes require integration-owner composition. No database/provider execution is authorized in this accounting or cleanup slice."
+    },
+    {
+      "id": "B2",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Authentic coverage-floor acceptance",
+      "groupIds": ["C1-3", "C3-7"],
+      "groupCount": 2,
+      "owner": "Acceptance/coverage contract owner",
+      "finiteDeliverable": "Recover genuine original source-bound per-package baseline evidence, or obtain and record an explicit separately owned backend-scope contract for unavailable historical scope. Preserve absent/null/red historical evidence.",
+      "exitCriteria": "Authentic accepted per-package floor and source identities exist and actual before/after native operands are complete. Fresh Tracker 308/359 branches and 206 exact decision vectors qualify its slice; they do not manufacture the missing historical floor.",
+      "dependencies": "Historical source/evidence provenance and accepted scope; B1 native runner dependencies. No invented threshold or historical manifest rewrite."
+    },
+    {
+      "id": "B3",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Retained pinned visual evidence",
+      "groupIds": ["C1-9", "C1-10", "C1-11", "C3-8"],
+      "groupCount": 4,
+      "owner": "Visual/frontend owner",
+      "finiteDeliverable": "Current full route-to-baseline source mapping, deterministic Chromium at three viewports, content-addressed captures/manifest and three exact-commit comparison repeats.",
+      "exitCriteria": "Retained route coverage and real comparison pass with pinned bytes unchanged, no update-snapshots; additions/product changes need their own justified acceptance. Merely having three program-elements PNGs is not all-route proof.",
+      "dependencies": "Active protected frontend, auth-free interception environment and original pinned sources; B8 if any explicit retirement is later authorized."
+    },
+    {
+      "id": "B4",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Composed global Cleanup gates",
+      "groupIds": ["C2-19", "C3-9", "C4-24"],
+      "groupCount": 3,
+      "owner": "Integration/acceptance owner",
+      "finiteDeliverable": "An actually composed candidate tree with all bounded packets/decisions, current closed production/test inventories, coverage/visual/mirror/name/count evidence and complete native gate receipts. Preserve original requirements and scoped failures.",
+      "exitCriteria": "Original CleanUp1\u20134 criteria are proved for explicitly accepted scope. No open eligible stable-ID row and no unexplained removed/changed cases; all required guards and evidence lanes execute. Held owners remain held; a source-ready backend checkpoint is not global Cleanup completion.",
+      "dependencies": "A1\u2013A6 implementations and B1\u2013B3 execution, B5\u2013B9 decisions/provenance/protected scope. PR2480 is a sibling of PR2481; Tracker does not incorporate its facade."
+    },
+    {
+      "id": "B5",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Defense/parser forks and source postures",
+      "groupIds": ["C2-7", "C2-10", "C2-14", "C2-17", "C3-3", "C4-2", "C4-3", "C4-4", "C4-W2-1"],
+      "groupCount": 9,
+      "owner": "Defense/parser domain and ADR owners",
+      "finiteDeliverable": "A single recorded TS+Python family/chamber fork ADR plus revalidated posture for mirror/extractor/orchestrator roots and their real dispatch/build consumers. Preserve isolation and same-commit mirror semantics.",
+      "exitCriteria": "Actual owners approve compile/wire/gate/move posture and one-pipeline/N-profiles versus shared-kernel decision; any newly authorized leaf/profile/test/kernel change has original characterization, exact mirrors, case mappings and native Python prerequisites.",
+      "dependencies": "Original ADR/security/mirror constraints; actual current consumers rather than stale graph similarity. Decision rows do not themselves require a new code change. Shadow/canary/decommission are outside this source task."
+    },
+    {
+      "id": "B6",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Security and recovery control ownership",
+      "groupIds": ["C4-7", "C4-10", "C4-W2-2", "C4-W2-3", "C4-19", "SCOPE-4"],
+      "groupCount": 6,
+      "owner": "Security/control owner plus migration recovery owner; cleanup only structural source after decisions",
+      "finiteDeliverable": "Written canonical ownership/decision for auth/deadline/RLS/tenant data, host allowlist, legal task transitions, live env mismatch and exact manual recovery/guard contract. Follow with only separately approved structural migrations.",
+      "exitCriteria": "Each control conflict is resolved by its actual owner; no cleanup security-policy changes, duplicate remediation or inferred provider/DB/MVCC acceptance. Manual recovery interfaces and migration blobs/modes remain preserved; runtime/deploy callers need separate proof.",
+      "dependencies": "Security review and canonical recovery decisions; real runtime evidence under that owner. These held controls are not counted as ordinary cleanup coding tasks."
+    },
+    {
+      "id": "B7",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Reserved owner adoption and ambient/eval scope",
+      "groupIds": ["C4-5", "C4-12", "C4-13", "C4-W2-4", "C4-W2-6", "C4-W2-7", "C4-18"],
+      "groupCount": 7,
+      "owner": "Rebuild/Strategy/Workspace/defense owners and integration owner",
+      "finiteDeliverable": "Exact owner-produced adoption/posture matrix for Strategy app-path eval, clocks/RNG/governed context, Workspace generation/products, template metadata and defense catalogue. Integrate published disjoint packets deliberately.",
+      "exitCriteria": "The actual listed consumers adopt the owner-approved artifact and current native/governance gates pass. 123 ambient samples at 116 identities remain deferred original scope, not silently completed or an automatic 123-fix cleanup task.",
+      "dependencies": "Immutable reservation and existing active-owner histories; required app/runtime contracts and domain acceptance. Do not duplicate Workspace product or Strategy/rebuild source work."
+    },
+    {
+      "id": "B8",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Protected frontend/Meri and CDP ownership",
+      "groupIds": ["C2-11", "C2-15", "C4-W2-5", "C4-W2-8", "SCOPE-2"],
+      "groupCount": 5,
+      "owner": "Frontend/Meri/replacement/retirement owners; integration owner",
+      "finiteDeliverable": "Explicit retained-scope ownership or separately authorized replacement/retirement packet closing image/assets/public URLs/manifests/CI/nested verifiers/shared evidence/worker/API consumers. Classify every CDP script as evidence/automation/superseded before any action.",
+      "exitCriteria": "Protected active functionality still works; a superseded path is removed only after its actual replacement is committed and accepted. Kept CDP copies may be canonicalized by their owner. No current frontend/Meri retirement is accepted.",
+      "dependencies": "Actual production/replacement consumers, pinned visuals, original histories and public payloads. Backend static import emptiness does not satisfy this row."
+    },
+    {
+      "id": "B9",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "title": "Actual production build provenance",
+      "groupIds": ["SCOPE-1"],
+      "groupCount": 1,
+      "owner": "AWS mapping coordinator and integration owner",
+      "finiteDeliverable": "Service/task image digest \u2192 actual build-used source/tree mapping for every admitted runtime, with protected tag-only unknowns explicitly retained.",
+      "exitCriteria": "Actual provenance is established independently of main/label assertions. Declared nine configuration-bound revisions remain usable source preparation inputs; they cannot be labeled deployed-build equivalence.",
+      "dependencies": "Coordinator evidence; no AWS/provider/security mutation by this cleanup owner."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "COMMON-1",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A1"
+    },
+    {
+      "id": "COMMON-2",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "COMMON-3",
+      "primaryBucket": "finite_satisfied",
+      "primaryWorkstream": "FINITE"
+    },
+    {
+      "id": "COMMON-4",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "COMMON-5",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C1-1",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C1-2",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C1-3",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B2"
+    },
+    {
+      "id": "C1-4",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C1-5",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C1-6",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A6"
+    },
+    {
+      "id": "C1-7",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C1-8",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C1-9",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B3"
+    },
+    {
+      "id": "C1-10",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B3"
+    },
+    {
+      "id": "C1-11",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B3"
+    },
+    {
+      "id": "C1-12",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C1-13",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C2-1",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-2",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A1"
+    },
+    {
+      "id": "C2-3",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-4",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C2-5",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C2-6",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-7",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C2-8",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-9",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-10",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C2-11",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B8"
+    },
+    {
+      "id": "C2-12",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-13",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C2-14",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C2-15",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B8"
+    },
+    {
+      "id": "C2-16",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C2-17",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C2-18",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C2-19",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B4"
+    },
+    {
+      "id": "C3-1",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A3"
+    },
+    {
+      "id": "C3-2",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C3-3",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C3-4",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C3-5",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B1"
+    },
+    {
+      "id": "C3-6",
+      "primaryBucket": "finite_satisfied",
+      "primaryWorkstream": "FINITE"
+    },
+    {
+      "id": "C3-7",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B2"
+    },
+    {
+      "id": "C3-8",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B3"
+    },
+    {
+      "id": "C3-9",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B4"
+    },
+    {
+      "id": "C4-1",
+      "primaryBucket": "finite_satisfied",
+      "primaryWorkstream": "FINITE"
+    },
+    {
+      "id": "C4-2",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C4-3",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C4-4",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C4-5",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-6",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C4-7",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B6"
+    },
+    {
+      "id": "C4-8",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A4"
+    },
+    {
+      "id": "C4-9",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A4"
+    },
+    {
+      "id": "C4-10",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B6"
+    },
+    {
+      "id": "C4-11",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A2"
+    },
+    {
+      "id": "C4-12",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-13",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-W2-1",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B5"
+    },
+    {
+      "id": "C4-W2-2",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B6"
+    },
+    {
+      "id": "C4-W2-3",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B6"
+    },
+    {
+      "id": "C4-W2-4",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-W2-5",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B8"
+    },
+    {
+      "id": "C4-W2-6",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-W2-7",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-W2-8",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B8"
+    },
+    {
+      "id": "C4-W2-9",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A4"
+    },
+    {
+      "id": "C4-14",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A5"
+    },
+    {
+      "id": "C4-15",
+      "primaryBucket": "finite_satisfied",
+      "primaryWorkstream": "FINITE"
+    },
+    {
+      "id": "C4-16",
+      "primaryBucket": "finite_satisfied",
+      "primaryWorkstream": "FINITE"
+    },
+    {
+      "id": "C4-17",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A5"
+    },
+    {
+      "id": "C4-18",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B7"
+    },
+    {
+      "id": "C4-19",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B6"
+    },
+    {
+      "id": "C4-20",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C4-21",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "C4-22",
+      "primaryBucket": "finite_satisfied",
+      "primaryWorkstream": "FINITE"
+    },
+    {
+      "id": "C4-23",
+      "primaryBucket": "actionable_local_implementation",
+      "primaryWorkstream": "A4"
+    },
+    {
+      "id": "C4-24",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B4"
+    },
+    {
+      "id": "C4-25",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "SCOPE-1",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B9"
+    },
+    {
+      "id": "SCOPE-2",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B8"
+    },
+    {
+      "id": "SCOPE-3",
+      "primaryBucket": "binding_preserved",
+      "primaryWorkstream": "PRESERVE"
+    },
+    {
+      "id": "SCOPE-4",
+      "primaryBucket": "blocked_or_acceptance_only",
+      "primaryWorkstream": "B6"
+    }
+  ],
+  "finiteCloseoutTarget": {
+    "sourcePreparation": "Freeze eligible current original requirement IDs/capabilities, qualify every named eligible implementation/adoption or explicitly block it to its real owner, and publish a composed source-ready backend checkpoint with exact current inventory/case/consumer/recovery evidence.",
+    "stopRule": "Work the frozen eligible list, not a new large-file search after each PR. New additions need an explicit current finding/source/consumer/owner admission and revised inventory count. Completed Tracker/dossier/facade capabilities are not selected again.",
+    "wholeCleanup": "Keep original global acceptance false until B1\u2013B9 real execution, decisions and provenance satisfy the explicitly accepted original or deliberately transitioned scope; no new waiver is invented by accounting."
+  },
+  "trackerActionSlice": {
+    "algorithmsCanonicalized": 2,
+    "originalImplementations": 4,
+    "canonicalImplementations": 2,
+    "relatedGroups": ["C2-1", "C2-3", "C2-9", "C4-14"],
+    "wholeGroupCompletedByThisSlice": false,
+    "exclusiveTotalsChangedByThisSlice": false
+  },
+  "wholeCleanupAccepted": false,
+  "actualLiveImageBuildSourceEstablished": false
+}

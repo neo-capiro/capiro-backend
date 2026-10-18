@@ -1,0 +1,10 @@
+{
+  "result": "PASS",
+  "checkedRows": 44,
+  "exactFiniteInventory": true,
+  "excludedOnly": [
+    "SHA256-INDEX.json",
+    "evidence/sha256-verification.json"
+  ],
+  "indexSHA256": "71075a601feaef0a8f31ac5854f07ae5da6f26aad987fa2d0b72ecc7f2ee2af3"
+}

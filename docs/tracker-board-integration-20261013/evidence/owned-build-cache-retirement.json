@@ -1,0 +1,19 @@
+{
+  "ownedBuildRetired": true,
+  "ownedTypeInfosRetired": [
+    {
+      "path": "/tmp/tracker-board-intel-build-20261013.tsbuildinfo",
+      "bytes": 632911,
+      "sha256": "f2bd12c0793a326d658c7ff19983868cbb53b5da431e3c65a507b5ba31b65466"
+    },
+    {
+      "path": "/tmp/tracker-board-intel-type-20261013.tsbuildinfo",
+      "bytes": 654947,
+      "sha256": "a66632d9618a4879936bdaabd53d934974949e9198d0aab933366c79488ac749"
+    }
+  ],
+  "ownedPassingCacheRetired": true,
+  "ownedPassingCacheFiles": 326,
+  "temporaryOwnedConfigsRemoved": true,
+  "borrowedTargetsModified": false
+}

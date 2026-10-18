@@ -1,0 +1,9 @@
+{
+  "head": "36ba0b9e236c2fa3162d01803289f52ca375b3ae",
+  "result": "pass",
+  "totalSources": 1641,
+  "repoSources": 59,
+  "diagnostics": 0,
+  "engagementSourceInClosure": false,
+  "scope": "Strict changed-entry closure with all workspace packages bound to exact source; API strict options, rootDir widened for workspace source and DOM added from Shared owner compiler config; cached third-party/Prisma declarations, no full API/native acceptance"
+}

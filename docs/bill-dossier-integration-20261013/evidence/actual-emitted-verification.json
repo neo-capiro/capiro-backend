@@ -1,0 +1,96 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "tree": "b50b85e34c5e12e371125f50a479f182c4fdec16",
+  "fourteenActualChangedProductionSyntaxChecks": [
+    {
+      "path": "bill-dossier/bill-dossier-actions.js",
+      "bytes": 6706,
+      "sha256": "991e5066e8461287fc0fad4f744c1e77cb41715e3a1c9b1db75a026cbb12fd84",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-client-context.js",
+      "bytes": 8261,
+      "sha256": "33746902f963a9135727ae6f2f1c9387a59fd9be5bfc345847e03627c8f6e96f",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-federal.js",
+      "bytes": 11624,
+      "sha256": "f5fa2adf5cfae3963db89a55818a7a9aff53d792d042229847a57857adccd0a1",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-funding-comparisons.js",
+      "bytes": 4467,
+      "sha256": "d99cdf2357646b88e4eb914a59ab1282abcaccc8e1620b2931f48c7e1de20ec4",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-funding-empty.js",
+      "bytes": 1459,
+      "sha256": "eb329ad7f12f04f4c942f35edf852587e676eb91f94ec8d69009cc2bfaccc6c7",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-funding-format.js",
+      "bytes": 2133,
+      "sha256": "c799ebc42f0e3f480788a4af326813041c0be9bd33a21634123942a0e0bda3f1",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-funding-projections.js",
+      "bytes": 8506,
+      "sha256": "94bdb1ec2a0dae8037742022589645d89dd11666243c69d68a8914063e789baa",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-funding.constants.js",
+      "bytes": 1876,
+      "sha256": "18c4a4ed85c325cda407cd54f06c658cb4862fb0092f851c3b3877c72c92ed59",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-funding.js",
+      "bytes": 5744,
+      "sha256": "73129d182915bf7ad1dc22602aca8bbff95464ceb8b55bc36492684bc823ef4e",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-kpis.js",
+      "bytes": 6071,
+      "sha256": "89f2c2e514a878755ed70d749189006639f548095813e464971819db938ab7e4",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-presentation.js",
+      "bytes": 970,
+      "sha256": "4897c19d8e7ba86ae2d0f3ee2034b6e1d307f1344f4458e3cb021ac2d8442623",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-state.js",
+      "bytes": 7007,
+      "sha256": "6e34e7a7291ebdc97e718bf747cb62065d8c70478ecdef3be6d443aef3dc934f",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier-vote-status.js",
+      "bytes": 5174,
+      "sha256": "ec30caa4f5f63882856f8d669507438fae45fc0d458c4a9a6660403a9d79b6e4",
+      "syntaxExit": 0
+    },
+    {
+      "path": "bill-dossier/bill-dossier.service.js",
+      "bytes": 14228,
+      "sha256": "e9c636c58c3534b962a3b6d080a2715a230cd392891ef61ea3cf90f036f85f33",
+      "syntaxExit": 0
+    }
+  ],
+  "actualEmittedDIMetadata": "design:paramtypes\", [prisma_service_js_1.PrismaService,\n        source_data_repository_js_1.SourceDataRepository,\n        state_source_data_repository_js_1.StateSourceDataRepository])\n], BillDossierService);\n",
+  "inspection": "Static actualemittedsyntax/metadata only; no App/bootstrap/clientconstruction/native acceptance",
+  "allEmittedFiles": 756,
+  "emittedBytes": 3950927,
+  "productionMapsQualified": false,
+  "nativeABIQualified": false
+}

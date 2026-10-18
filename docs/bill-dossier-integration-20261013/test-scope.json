@@ -1,0 +1,21 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "tests": [
+    "test/bill-dossier-auth.spec.ts",
+    "test/bill-dossier-funding.spec.ts",
+    "test/bill-dossier-ownership-context.spec.ts",
+    "test/bill-dossier-ownership-federal.spec.ts",
+    "test/bill-dossier-ownership-funding.spec.ts",
+    "test/bill-dossier-ownership-ordering.spec.ts",
+    "test/bill-dossier-ownership-pagination.spec.ts",
+    "test/bill-dossier-ownership-state.spec.ts",
+    "test/bill-dossier-ownership.contract.spec.ts",
+    "test/bill-dossier-state.spec.ts",
+    "test/bill-dossier.spec.ts",
+    "test/bill-dossier.truth.spec.ts",
+    "test/verify-bill-dossier-sources.spec.ts"
+  ],
+  "selectedSuites": 13,
+  "expected": 201,
+  "kind": "actualdossierownerswithfakeI/Oplusownershipguards"
+}

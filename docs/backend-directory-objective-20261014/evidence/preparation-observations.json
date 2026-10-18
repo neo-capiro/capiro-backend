@@ -1,0 +1,11 @@
+{
+  "sourceOnly": true,
+  "observations": [
+    {"action":"read new --no-checkout worktree service file","result":"ENOENT before explicit read-tree initialization","productEdits":false},
+    {"action":"materialize runtime closure using sparse-checkout add --no-cone --stdin","result":"exit1: add rejected unknown --no-cone option","correction":"keep existing non-cone mode; add --stdin","productEdits":false},
+    {"action":"corrected runtime closure materialization","result":"pass:27 tracked source paths","productEdits":false},
+    {"action":"probe @capiro/shared from root workspace","result":"MODULE_NOT_FOUND","correction":"resolve from owning apps/api scope with borrowed existing dependency links","productEdits":false},
+    {"action":"probe @capiro/shared from apps/api","result":"helper and error constructor functions present at existing receiving packages/shared/dist/index.js","productEdits":false},
+    {"action":"remove completed own baseline transform cache","bytesApprox":4943872,"result":"only .qualification-cache/directory-jest after baseline outputs/receipt preserved; no source/evidence/object/borrowed target removed"}
+  ]
+}

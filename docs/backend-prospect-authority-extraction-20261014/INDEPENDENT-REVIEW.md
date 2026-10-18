@@ -1,0 +1,13 @@
+# Independent prospect source acceptance
+
+Accepted source freeze `eeb71e6e45024afd32dbbd3e8158d1184241da68`, tree `baf1fc9349a0823add4873bc1840b745bf62e920`, on published private PR8 `afff08b0342985e3a8050a5fb4cd843741a720a5`. No blocking source issue found. Root retains publication/ref ownership; final publication head may append only the reviewed packet/review evidence without product edits.
+
+Independently compared exact Git source: moved authorization signature/body SHA256 `cdca7a13e3a86c5eb86107fbb51959e5ce3a0c48914ab54bfa6b1fdb2627d6e6`; both retained directive/turn receipt bodies exact; AuthorityController equals the original source with only the requested import substitution; current scope-service, authority contract, tenant middleware, role guard and complete published MeriService blobs unchanged. No new provider, query, store, cache, route, permission or auth rule. The existing typed denial/result behavior remains one current-owner call without retry or replacement error. Actual compatibility identity and domain boundary are covered by meaningful added tests.
+
+Reviewed supplied final exact-source receipts for all 150 cases across seven suites, strict narrow emit, source comparison and hygiene (all exit zero and exact committed source). Independently matched the raw baseline/final assertion lists and all 146 original expanded identities/multiplicities. Exactly four additions are the former-helper boundary mutant and three identity/current-owner forwarding/error propagation controls. Only the existing future-createdAt title's trailing clock value is normalized, with both raw titles preserved. Failures before the corrected source freeze are retained and not counted as acceptance.
+
+Decoded/hash-verified final raw outputs without executing them. Strict check reports zero diagnostics over 34 source files, with 136 emitted artifacts. Read-only tar verification matched every archived path, length and SHA256 to that final manifest (136/136); no extraction or runtime execution. Archive SHA256 `b04b6e1552cfe63bdc864f0436d6b53bebf2c85702469f80cf9dde5bcee6cfeb`.
+
+Qualification remains source/narrow/synthetic I/O only. This reviewer ran no tests, provider, database, migration, generated-client/native download, AWS or production operation, and did not read the protected unpublished Engagement body. This relocation does not qualify fresh full Core startup, deployed images/origins, native PostgreSQL/RLS/current sessions or runtime retirement. The three bounded retirement scopes remain held as explained in `FINITE-RETIREMENT.md`.
+
+Read-only comparison bindings and receipt hashes: `PROSPECT-REVIEW.json`. Preliminary review was superseded by this final source acceptance.

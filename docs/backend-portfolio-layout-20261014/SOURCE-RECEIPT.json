@@ -1,0 +1,128 @@
+{
+  "base": {
+    "head": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+    "tree": "403c6f22ce6602f98e3bc45943b81684eeb716fb"
+  },
+  "source": {
+    "head": "e0adf31652f6987593728028d5b8eae4a1b96390",
+    "tree": "ff170e9da7524db0a70b852a48a962b0d31e0a73",
+    "paths": [
+      {
+        "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+        "blob": "e3445102a7ff5f06021704cea272bbb559b8f03f",
+        "bytes": 2094,
+        "sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f"
+      },
+      {
+        "path": "apps/api/prisma/schema.prisma",
+        "blob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+        "bytes": 980470,
+        "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.spec.ts",
+        "blob": "9c57a84335feaac289bdbeb6e2e21cce50a94102",
+        "bytes": 4319,
+        "sha256": "4af5ff10ad7901b43a202d2300247363a5af63ac1e195f80ac96aaebe848ebf5"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.ts",
+        "blob": "d071939ac0f18deccab65794b9be20222c5887e8",
+        "bytes": 12683,
+        "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.controller.spec.ts",
+        "blob": "4843f0042eb686f129957c0a361ddb4b89020e24",
+        "bytes": 17024,
+        "sha256": "ea54d079bdc58378227031f818bad794a1368383209ba9af0d7c7dd780492dbf"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.controller.ts",
+        "blob": "0290478a7e6fca55ea9b9109601a6c1e6289deeb",
+        "bytes": 2050,
+        "sha256": "7af96c53dbd33ead959c07baf6b9bb1a677dbcf014ab73144c3e7a2b9c37e000"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.helpers.spec.ts",
+        "blob": "4a6f13abdbdf3e49609753a0bf1b5c4bc1652112",
+        "bytes": 13510,
+        "sha256": "fce26c17a4e0ad6f19dae18dbdddf5b63c74ad951d3a3c5109ae3f195dc6350e"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.helpers.ts",
+        "blob": "358276a659c3a5d85225c5e11cd83ace7299bb6a",
+        "bytes": 8602,
+        "sha256": "0292537c2177ed5d8e3263f4c5c87636a0391bb2356f417d23ed61bb2cb2e1b7"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.module.spec.ts",
+        "blob": "bb93b279733c333796f6f5daefc77d5af2e49803",
+        "bytes": 9748,
+        "sha256": "ee22070d82c4244be40d6f2c0baa62a7e6b44051dfc206fe8ba7101ed3212877"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.transaction.ts",
+        "blob": "b7931baa3a801374230c5fb6cf925cc6acd5e0c9",
+        "bytes": 7292,
+        "sha256": "22fde9cc8fc53bf54445303ca3dc4f5a64ca1b616cc230fb0cb9059479d79504"
+      },
+      {
+        "path": "apps/api/src/users/users.module.ts",
+        "blob": "fd13f1c65d16a97b75f2b55ce6b9686ff65cb264",
+        "bytes": 279,
+        "sha256": "79370567a742460677178f1db358797e1d4f9a958d3e7deaab0582a81deef735"
+      }
+    ]
+  },
+  "receivedPreparation": "4c211c9ce921300befca43c1f4aa30d501011f73",
+  "originalPreparation": "9d562aa0625e18733bb87a22c807d6377f8e4143",
+  "preservation": [
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "baseBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sourceBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "baseBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sourceBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "baseBlob": "60fbbc8a1de21962a95af60842d25087f58a612d",
+      "sourceBlob": "60fbbc8a1de21962a95af60842d25087f58a612d",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "baseBlob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "sourceBlob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "exact": true
+    },
+    {
+      "path": "apps/api/src/users/users.controller.ts",
+      "baseBlob": "1bd5eb81436f3857761f4aec4af05ee7742f5ed6",
+      "sourceBlob": "1bd5eb81436f3857761f4aec4af05ee7742f5ed6",
+      "exact": true
+    }
+  ],
+  "qualification": {
+    "jest": {
+      "attempt": "18",
+      "exitCode": 0,
+      "passed": 110,
+      "failed": 0,
+      "pending": 0
+    },
+    "types": {
+      "attempt": "19",
+      "exitCode": 0
+    },
+    "all75OriginalIdentitiesRetained": true,
+    "scope": "Actual UsersModule/native proof/guard synthetic HTTP; DB and Clerk I/O ports; source-only concurrency/rollback; not native, fullCore or deployed"
+  },
+  "state": "REGISTERED_SOURCE_READY_FOR_INDEPENDENT_REVIEW_ROOT_PUBLICATION"
+}

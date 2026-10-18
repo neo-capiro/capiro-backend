@@ -1,9 +1,9 @@
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
-  authorizeMeriProspectScope,
   prospectScopeDirective,
   prospectTurnScopeReceipt,
 } from './meri-prospect-scope.helpers.js';
+import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import {
   BizDevMeriScopeService,
   type MeriProspectScope,

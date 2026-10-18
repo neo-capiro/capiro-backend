@@ -61,13 +61,10 @@ import {
 import { MeriResearchService } from './meri-research.service.js';
 import { createGovernedMeriResearchService } from './governed-meri-research.factory.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
-import { MeriMcpService } from './meri-mcp.service.js';
-import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
-import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
-import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import { MeriFeatureFlagsModule } from '../common/meri-feature-flags.module.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -90,6 +87,7 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
 @Module({
   imports: [
+    MeriFeatureFlagsModule,
     ManagedMcpModule,
     EngagementModule,
     ClientDocumentsModule,
@@ -190,7 +188,6 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     MeriJobLeaseSweeper,
     MeriFirmSkillsService,
     MeriProcedureRuntimeValidationService,
-    MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,
     {
@@ -267,6 +264,6 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     },
     MeriOtelLifecycleProvider,
   ],
-  exports: [MeriToolsService, MeriFeatureFlagsService],
+  exports: [MeriToolsService, MeriFeatureFlagsModule],
 })
 export class MeriModule {}

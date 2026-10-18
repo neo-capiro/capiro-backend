@@ -77,7 +77,7 @@ it('bounds all final family modules and complete functions without waiving the f
     visit(ast);
   }
   const { text, ast } = facade();
-  expect(text.split('\n').filter((x) => x.trim()).length).toBeGreaterThanOrEqual(400);
+  expect(text.split('\n').filter((x) => x.trim()).length).toBeLessThan(400);
   const visit = (n: ts.Node) => {
     if (
       (ts.isFunctionDeclaration(n) ||
@@ -118,12 +118,23 @@ it('routes all twenty-four final family methods to concrete owners with bounded 
   expect(
     cls.members.find(ts.isConstructorDeclaration)?.getText(ast).split('\n').length,
   ).toBeLessThanOrEqual(80);
+  const composition = parsed('intelligence-facade-final-composition.ts');
+  const factory = composition.ast.statements.find(
+    (n): n is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(n) && n.name?.text === 'createFinalSources',
+  );
+  expect(factory?.body?.statements).toHaveLength(1);
+  expect(factory?.getText(composition.ast).split('\n').length).toBeLessThanOrEqual(80);
+  expect(cls.members.find(ts.isConstructorDeclaration)?.body?.getText(ast)).toContain(
+    'this.finalSources = createFinalSources(this,',
+  );
   expect(
-    cls.members
-      .find((n) => n.name?.getText(ast) === 'createFinalSources')
-      ?.getText(ast)
-      .split('\n').length,
-  ).toBeLessThanOrEqual(80);
+    ast.statements
+      .filter(ts.isImportDeclaration)
+      .some(
+        (n) => n.moduleSpecifier.getText(ast) === "'./intelligence-facade-final-composition.js'",
+      ),
+  ).toBe(true);
 });
 it('keeps canonical quarter helpers and original public module paths without an unused private shim', () => {
   const { ast } = facade();

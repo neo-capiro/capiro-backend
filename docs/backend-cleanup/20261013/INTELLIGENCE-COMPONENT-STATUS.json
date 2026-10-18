@@ -270,22 +270,17 @@
   "namedMethodFamilyOwnershipPrepared": true,
   "nativeQualificationRecordedInHandover": true,
   "facade": {
-    "sourceSHA256": "24bdc3d7d33f38499ceeea6f344c3c904cd2f922519cd7c2adaae4919727d249",
-    "nonblankLines": 1499,
-    "physicalLines": 1650,
-    "methodCount": 98,
-    "originalMethodHeadersRetained": 97,
-    "unrelatedWholeMethodsRetained": 73,
-    "constructorPhysicalLines": 69,
-    "finalCompositionFactoryPhysicalLines": 48,
-    "fileBudgetBelow400": false,
+    "sourceSHA256": "c2ef4949243c3a500d43c3203dbf29b8cfb04d34e1942172d02b38432eb0f79d",
+    "nonblankLines": 365,
+    "physicalLines": 469,
+    "methodCount": 95,
+    "constructorPhysicalLines": 22,
+    "fileBudgetBelow400": true,
     "remainingDisposition": [
-      "original provider/API/private compatibility routing and three-dependency construction",
-      "explicit owner composition and typed request-time callbacks",
-      "existing shared profile source-budget/slow-warning mechanism",
-      "original mutable/static policy and Root cache/inflight/gate compatibility fields",
-      "original exports/type contracts and historical operating comments"
-    ]
+      "real compatibility delegates, original3DI/state/static fields and public export aliases only; canonical policy/composition owned outside"
+    ],
+    "originalProductionMethodSignaturesRetained": 95,
+    "originalProductionSignaturesDisposition": "95 original formal/async/private/default signatures preserved after canonical erased type-alias expansion"
   },
   "newOwnerModules": [
     {
@@ -357,5 +352,13 @@
     "sourceConsumerAudit": "BILL-DOSSIER-NEXT.md and BILL-DOSSIER-NEXT-INVENTORY.json",
     "implementationInThisSlice": false
   },
-  "qualificationRecord": "INTELLIGENCE-FINAL-QUALIFICATION.json"
+  "qualificationRecord": "INTELLIGENCE-FINAL-QUALIFICATION.json",
+  "facadeStructuralAcceptancePrepared": true,
+  "facadeAcceptanceComplete": true,
+  "cleanupFactoryDisposition": {
+    "count": 3,
+    "reason": "prior cleanup-only construction methods replaced by concrete free factories; all95 originalCore methods retained"
+  },
+  "currentFacadeQualificationRecord": "INTELLIGENCE-FACADE-HANDOVER.md",
+  "facadeSourceBaseline": "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
 }

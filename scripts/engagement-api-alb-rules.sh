@@ -3,7 +3,7 @@
 # engagement-api — fail-closed dark-preview ALB listener rule manager.
 #
 # Manages EXACTLY ONE rule on the live HTTPS listener:
-#   priority 6
+#   priority 7 after the held Core/Meri shared-listener reconciliation
 #   path       /api/engagement/*
 #   AND header X-Capiro-Engagement-Preview: v3
 #   -> forward 100% to the engagement-api target group
@@ -17,6 +17,9 @@
 # own them. Unlike those scripts, this one is fail-closed by construction: it
 # refuses on any ambiguity rather than picking a "close enough" resource, and
 # create/delete each require a distinct, exact confirmation token.
+# The priority-7 default is a SOURCE CANDIDATE recorded in
+# infra/routing/capiro-prod-alb-priorities.json; the live rule remains at 6
+# until its separately approved, same-ARN relocation is verified.
 #
 # Commands:
 #   list             describe every rule on the listener (read-only)
@@ -34,7 +37,7 @@
 #   GENERIC_API_RULE_PRIORITY     the discovered live value, e.g. 10
 #
 # Optional (all have the Phase 2 contract defaults):
-#   PREVIEW_RULE_PRIORITY=6
+#   PREVIEW_RULE_PRIORITY=7
 #   PREVIEW_HEADER_NAME=X-Capiro-Engagement-Preview
 #   PREVIEW_HEADER_VALUE=v3
 #   AWS_BIN, NODE_BIN
@@ -52,7 +55,7 @@ export MSYS_NO_PATHCONV=1
 
 AWS_BIN="${AWS_BIN:-aws}"
 NODE_BIN="${NODE_BIN:-node}"
-PREVIEW_RULE_PRIORITY="${PREVIEW_RULE_PRIORITY:-6}"
+PREVIEW_RULE_PRIORITY="${PREVIEW_RULE_PRIORITY:-7}"
 PREVIEW_HEADER_NAME="${PREVIEW_HEADER_NAME:-X-Capiro-Engagement-Preview}"
 PREVIEW_HEADER_VALUE="${PREVIEW_HEADER_VALUE:-v3}"
 PREVIEW_PATH_PATTERN="/api/engagement/*"
@@ -63,6 +66,12 @@ refuse() { printf 'REFUSED %s\n' "$*" >&2; exit 2; }
 
 command="${1:-}"
 [ -n "$command" ] || die "usage: engagement-api-alb-rules.sh <list|verify-baseline|create-preview|verify-preview|delete-preview>"
+case "$command" in
+  create-preview | delete-preview)
+    [ "$PREVIEW_RULE_PRIORITY" = 7 ] ||
+      refuse "shared-listener source reserves engagement preview priority 7; refusing priority override"
+    ;;
+esac
 
 for var in AWS_REGION EXPECTED_AWS_ACCOUNT_ID HTTPS_LISTENER_ARN \
   ENGAGEMENT_TARGET_GROUP_ARN MAIN_API_TARGET_GROUP_ARN GENERIC_API_RULE_PRIORITY; do

@@ -1,0 +1,516 @@
+{
+  "baseCommit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+  "baseTree": "19a32179300851342902cab3afdaf3f50992975f",
+  "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "declaredIntelRevision": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+  "originalSourceSHA256": "9f2b5865eb53534109773649f96f17162442b44c1d0f3ceda1337bffae6fe343",
+  "recoveryBeforeTag": "backend-cleanup-tracker-board-before-20261013",
+  "recoveryBeforeBundleSHA256": "cf07abcf41691276da5f0602b173c5d923f49e3c17e17b37a941867ee1609759",
+  "sourceOnly": true,
+  "trackerBoardOwnershipAcceptanceComplete": true,
+  "fullCleanupAcceptanceComplete": false,
+  "facade": {
+    "originalNonblankLines": 1736,
+    "originalPhysicalLines": 1810,
+    "nonblankLines": 321,
+    "physicalLines": 360,
+    "originalMethods": 25,
+    "originalStandaloneHelpers": 8,
+    "originalDiParameters": 4,
+    "methodHeadersDefaultsArityRetained": true,
+    "publicTypeExports": 9,
+    "runtimeExports": 5,
+    "allOriginalDataInitializers": 8,
+    "newInstanceFields": 0,
+    "everyOperationReceivesActualInvocationReceiver": true,
+    "statelessOwners": 7,
+    "defaultsRetainedOnlyAtOriginalFacade": true,
+    "retiredHelpersOrImplementations": 0
+  },
+  "budgets": {
+    "allFilesBelow400NB": true,
+    "allCompleteFunctionsAtMost80Physical": true,
+    "maxProductionNB": 321,
+    "maxNewTestNB": 399,
+    "maxCompleteFunctionPhysical": 80
+  },
+  "runtimeComparison": {
+    "beforeCases": 189,
+    "afterCases": 189,
+    "suitesPerPhase": 18,
+    "retainedOriginalCases": 115,
+    "newCharacterizationCases": 74,
+    "sameExpandedIdentityMultiset": true,
+    "caseStatusMultisetExact": true,
+    "skips": 0,
+    "supplementalAfterGuardCases": 8,
+    "supplementalAfterGuardSuites": 1,
+    "finalTotalCases": 197,
+    "finalTotalSuites": 19
+  },
+  "coverage": {
+    "before": {
+      "files": 1,
+      "statements": {
+        "total": 476,
+        "covered": 459
+      },
+      "functions": {
+        "total": 101,
+        "covered": 99
+      },
+      "branches": {
+        "decisions": 206,
+        "arms": 359,
+        "covered": 308
+      }
+    },
+    "after": {
+      "files": 10,
+      "statements": {
+        "total": 591,
+        "covered": 574
+      },
+      "functions": {
+        "total": 150,
+        "covered": 148
+      },
+      "branches": {
+        "decisions": 206,
+        "arms": 359,
+        "covered": 308
+      }
+    },
+    "originalBranchDecisions": 206,
+    "branchArms": 359,
+    "coveredBranchArms": 308,
+    "allOriginalBranchShapesAndHitVectorsExact": true,
+    "originalFunctions": 101,
+    "allOriginalFunctionCallsExact": true,
+    "uncalledOriginalFunctionsRetained": 2,
+    "originalUnexecutedStatementsRetained": 17,
+    "compositionProbeDenominatorGainIsNotBusinessCoverageGain": true,
+    "historicalFloorEstablished": false,
+    "runtimeMeasuredClientReadSHA256": "de1bb5e920c46db63d65999d5edb134e26c9e2849af78e9391125d4e670ae2d9",
+    "finalClientReadSHA256": "18777ee7aa11789ee1a973935ca003eacd60fa82146e8668b0c23ce9bc97e550",
+    "finalRuntimeApplicability": "Independently verified exact CommonJS and ESNext erasure proof for one internal tuple annotation correction; all other measured source bytes retained"
+  },
+  "sourceFiles": [
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board.service.ts",
+      "privatePath": "tracker-board.service.draft.ts",
+      "sha256": "b4d4247ec6118809bf39a4fcd44afb02628e1db2ba57275949cbe51dcddfcc7b",
+      "nonblankLines": 321,
+      "physicalLines": 360
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-recommendations.ts",
+      "privatePath": "recommendation-drafts/tracker-board-recommendations.ts",
+      "sha256": "ae749f5804b5c024544010d2d6a31b22591abe7a8d0cca131dadd7e4205352e0",
+      "nonblankLines": 234,
+      "physicalLines": 249
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-topics.ts",
+      "privatePath": "recommendation-drafts/tracker-board-topics.ts",
+      "sha256": "5e389a88e8f15e6f7693f5653f327b568d0f8565f7e2b77bde83f1174284c7ec",
+      "nonblankLines": 219,
+      "physicalLines": 228
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-read.contracts.ts",
+      "privatePath": "board-drafts/tracker-board-read.contracts.ts",
+      "sha256": "70ccc177cce937c347e7ac22b5c4eff6ce096edd91208d1b1085baa56cb58ecb",
+      "nonblankLines": 10,
+      "physicalLines": 10
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-client-board-read.ts",
+      "privatePath": "board-drafts/tracker-client-board-read.ts",
+      "sha256": "18777ee7aa11789ee1a973935ca003eacd60fa82146e8668b0c23ce9bc97e550",
+      "nonblankLines": 273,
+      "physicalLines": 274,
+      "runtimeMeasuredSourceSHA256": "de1bb5e920c46db63d65999d5edb134e26c9e2849af78e9391125d4e670ae2d9"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-tenant-board-read.ts",
+      "privatePath": "board-drafts/tracker-tenant-board-read.ts",
+      "sha256": "9130e62c70f03d848b734fcec12d7edd521b9f8fc95b6b06a278eb54162f9d2a",
+      "nonblankLines": 294,
+      "physicalLines": 294
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-commands.ts",
+      "privatePath": "support-drafts/tracker-board-commands.ts",
+      "sha256": "c138e896d05029387ce10b3732ae0b87257e112d45beaddbc7029838d168fc29",
+      "nonblankLines": 302,
+      "physicalLines": 308
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-cursors.ts",
+      "privatePath": "support-drafts/tracker-board-cursors.ts",
+      "sha256": "e33edd61c25593c25a94968e79ac3988d21bebf0a2b4756a68809d8fb2e755d4",
+      "nonblankLines": 31,
+      "physicalLines": 33
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-presentation.ts",
+      "privatePath": "support-drafts/tracker-board-presentation.ts",
+      "sha256": "9cdbc075b42ab93983c64a0aa14b5b39e1813a571f8bb34b80746c4a7e231656",
+      "nonblankLines": 65,
+      "physicalLines": 67
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-queries.ts",
+      "privatePath": "support-drafts/tracker-board-queries.ts",
+      "sha256": "f6de227ec8596566d1fff2794e6145752174521cdcb82acedda26bb652f10390",
+      "nonblankLines": 152,
+      "physicalLines": 155
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-state-support.ts",
+      "privatePath": "support-drafts/tracker-board-state-support.ts",
+      "sha256": "ce29b99b7ae5ce7fb109359ac1cddf0a752010878833f573306610fe3447c7b3",
+      "nonblankLines": 257,
+      "physicalLines": 265
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board.contracts.ts",
+      "privatePath": "support-drafts/tracker-board.contracts.ts",
+      "sha256": "f265e2a813e13be18f7d859de1e99b2f859a19c5bb619d0b4d39e2e0c5560d73",
+      "nonblankLines": 168,
+      "physicalLines": 177
+    }
+  ],
+  "testAssets": [
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-board-ownership/harness.ts",
+      "sha256": "3bdacef7e353e6dc8bf8fa8b716f47614dcfb066591961594f529e725593d9f8"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-board-ownership/io.ts",
+      "sha256": "c50b6d24804c8a4b0615f97fd350b7ed774f4334c91569de84d4f391941378f9"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-board-ownership/rows.ts",
+      "sha256": "3680ec803abd5415191df7c2ac2cd7175fda6f532287035e467b571dac7292bc"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-compilation.spec.ts",
+      "sha256": "562037d0a001e4af4943569ced9899f22cd5cc8011be0f08d460ea0416595304"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-curation.spec.ts",
+      "sha256": "06248c8ecf832f5b1f12a9a60bc49422657e469c601b70eb8159125c93bce9bc"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-lookups.spec.ts",
+      "sha256": "b8522c6738f0921d97f7e75a5f2825cd2df3b58f717f14911ce9838be00ba823"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-reads.spec.ts",
+      "sha256": "6aadbb9765bac42d561612e70f0fc32f8d806aed91334b0c18f46da6ff65ce8f"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-recommendations.spec.ts",
+      "sha256": "85f81dead9c47e930e66f525712eee08891c51fd46a7c2e018f88195459b4ffd"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-worker-receivers.spec.ts",
+      "sha256": "8dee718cf74dc8da27fa87650cc3b0babb8b5ba1edc3b14da68204c8f81a67ed"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership.contract.spec.ts",
+      "sha256": "b82d53e47478e5ce11cdc0089b2e32da32021f98df7b47297db726b54ed81ce2"
+    }
+  ],
+  "newTestSemanticConfig": {
+    "path": "apps/intel-api/tsconfig.tracker-board-ownership.json",
+    "sha256": "41f392e9f63c3ffebfa2511b7a67b4167c01a041f05b50bb8a90cd21a2458783"
+  },
+  "gates": [
+    {
+      "gate": "BEFORE-characterization-v2",
+      "exitCode": 0,
+      "durationSeconds": 10.703,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/tracker/tracker-board-state-stage.spec.ts",
+        "src/tracker/tracker-tenant-scoping.spec.ts",
+        "test/tracker-board-guards.spec.ts",
+        "test/tracker-board-highfit.spec.ts",
+        "test/tracker-board-pagination.spec.ts",
+        "test/tracker-board-feedback.spec.ts",
+        "test/tracker-summary.spec.ts",
+        "test/tracker-portfolio-counts.spec.ts",
+        "test/bill-search.spec.ts",
+        "test/bill-search-jurisdictions.spec.ts",
+        "test/new-match-detector.spec.ts",
+        "test/tracker-board-ownership-compilation.spec.ts",
+        "test/tracker-board-ownership-curation.spec.ts",
+        "test/tracker-board-ownership-lookups.spec.ts",
+        "test/tracker-board-ownership-reads.spec.ts",
+        "test/tracker-board-ownership-recommendations.spec.ts",
+        "test/tracker-board-ownership-worker-receivers.spec.ts",
+        "test/task-runner.spec.ts",
+        "--coverage",
+        "--collectCoverageFrom=src/tracker/tracker-board.service.ts",
+        "--collectCoverageFrom=src/tracker/tracker-board-*.ts",
+        "--collectCoverageFrom=src/tracker/tracker-client-board-read.ts",
+        "--collectCoverageFrom=src/tracker/tracker-tenant-board-read.ts",
+        "--collectCoverageFrom=!src/tracker/**/*.spec.ts",
+        "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-board-b17fb898-20261013/coverage-before-v2",
+        "--coverageReporters=json",
+        "--coverageReporters=json-summary",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-board-b17fb898-20261013/BEFORE-results-v2.json"
+      ],
+      "receiptSHA256": "8852c31392050cf92539cf84832cc9a8c2cadfb0343225c06fd7b7272acf0f9b"
+    },
+    {
+      "gate": "AFTER-characterization",
+      "exitCode": 0,
+      "durationSeconds": 11.072,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/tracker/tracker-board-state-stage.spec.ts",
+        "src/tracker/tracker-tenant-scoping.spec.ts",
+        "test/tracker-board-guards.spec.ts",
+        "test/tracker-board-highfit.spec.ts",
+        "test/tracker-board-pagination.spec.ts",
+        "test/tracker-board-feedback.spec.ts",
+        "test/tracker-summary.spec.ts",
+        "test/tracker-portfolio-counts.spec.ts",
+        "test/bill-search.spec.ts",
+        "test/bill-search-jurisdictions.spec.ts",
+        "test/new-match-detector.spec.ts",
+        "test/tracker-board-ownership-compilation.spec.ts",
+        "test/tracker-board-ownership-curation.spec.ts",
+        "test/tracker-board-ownership-lookups.spec.ts",
+        "test/tracker-board-ownership-reads.spec.ts",
+        "test/tracker-board-ownership-recommendations.spec.ts",
+        "test/tracker-board-ownership-worker-receivers.spec.ts",
+        "test/task-runner.spec.ts",
+        "--coverage",
+        "--collectCoverageFrom=src/tracker/tracker-board.service.ts",
+        "--collectCoverageFrom=src/tracker/tracker-board-*.ts",
+        "--collectCoverageFrom=src/tracker/tracker-client-board-read.ts",
+        "--collectCoverageFrom=src/tracker/tracker-tenant-board-read.ts",
+        "--collectCoverageFrom=!src/tracker/**/*.spec.ts",
+        "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-board-b17fb898-20261013/coverage-after",
+        "--coverageReporters=json",
+        "--coverageReporters=json-summary",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-board-b17fb898-20261013/AFTER-results.json"
+      ],
+      "receiptSHA256": "569740a1ec9002f72726e0777d17d6c3bb6e9f889a90e552877f4d97a52e2792"
+    },
+    {
+      "gate": "AFTER-ownership-guards",
+      "exitCode": 0,
+      "durationSeconds": 2.222,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "test/tracker-board-ownership.contract.spec.ts",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-board-b17fb898-20261013/AFTER-guard-results.json"
+      ],
+      "receiptSHA256": "5cfb48829364bdf07cb824882ac642c63e80b1038a6200e5f58b6d3747feae4f"
+    },
+    {
+      "gate": "intel-typecheck-final",
+      "exitCode": 0,
+      "durationSeconds": 9.718,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "typecheck"
+      ],
+      "receiptSHA256": "2c68c94ebc3496b302c899a83bc33a5999a61f68ac6ba737159cffd94ba1f280"
+    },
+    {
+      "gate": "intel-build-final",
+      "exitCode": 0,
+      "durationSeconds": 11.58,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "build"
+      ],
+      "receiptSHA256": "0b4946d4d8083b04b64a79c97aa40777998efe335f11dcea8c681d28bb8fa941"
+    },
+    {
+      "gate": "intel-typecheck-new-tests-guard-final",
+      "exitCode": 0,
+      "durationSeconds": 3.586,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.tracker-board-ownership.json",
+        "--noEmit"
+      ],
+      "receiptSHA256": "4ea342940e9d44284f088dd64eedfff9a4b931ecd56b25beb23b23b73192a443"
+    }
+  ],
+  "failureDisposition": "Four new original-baseline fixture/expectation mistakes corrected without identity/assertion removals or original tests/shared fixture changes; one new internal tuple type annotation corrected with independently reproduced identical CommonJS/ESNext emits. Failed receipts, initial case-probe pairing report, old drafts and exact original source are retained. No behavior change or native failure is suppressed.",
+  "sourceConsumerClosure": {
+    "originalTwelveSuitesByteExact": true,
+    "allFortyFixedAssetsByteExact": true,
+    "controllerModuleDtoWorkerTaskRunnerRetained": true,
+    "activeFrontendLegacyApiMeriRetained": true,
+    "schemaMigrationsBuildPackageCiDeploymentRetained": true,
+    "actualCompiledOutputs": 12,
+    "allEmittedSyntaxChecksExitZero": true,
+    "compiledDiMetadataOriginalFourDependencies": true,
+    "unknownExternalConsumersNotInferred": true
+  },
+  "requirementsSnapshot": {
+    "entrypoint": "requirements-reconciliation/REQUIREMENTS-RECONCILIATION-v2.md",
+    "groups": 84,
+    "snapshotThroughSiblingHeads": [
+      "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+    ],
+    "immutableOriginalRequirementsCommit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+    "publicCopyManifestSHA256": "59bfde809d312c41a9aa010fd2fc7793a4cf8f218cb0e5fbacd1283a9defddef",
+    "laterTrackerQualificationSeparate": true,
+    "intelligenceFacadeSiblingNotIncorporated": true
+  },
+  "evidenceDirectory": "/workspace/backend-cleanup-recovery-20261012/tracker-board-b17fb898-20261013",
+  "evidence": [
+    {
+      "file": "BEFORE.json",
+      "sha256": "1c23239c34aedc4aee9de573c4c83acca3821573a0fae7f723c9b99ed6af9998"
+    },
+    {
+      "file": "SOURCE-INVENTORY.json",
+      "sha256": "203598924b52829b99c665cb2f543e2ad929e833e462bf73636ab24e593d48fd"
+    },
+    {
+      "file": "INTEGRATED-SOURCE.json",
+      "sha256": "9e9a8f9eeea67abf9eacd2b4726c0b48d6868eef627bafd348d0eefe3db792df"
+    },
+    {
+      "file": "INTEGRATED-SOURCE-v2.json",
+      "sha256": "d64542301696893cbafd3f0847eadbed5151b9104c5c11855d19e685f9565621"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-BODY-PROOF.json",
+      "sha256": "91ec96abf1ba5881b976ea29aabb29e990e1df4aab53cd2a653865c0daac4da4"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-ROOT-COMPOSITION.json",
+      "sha256": "dcb82d7d2051fbfe8326527a91a893e2d461e1187165915bb463e3f01f7585d8"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-BASELINE-CALIBRATION.json",
+      "sha256": "ea41f633315aa25c784d8fb027013444f3f321ee16074afe951c199154bccd71"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-INTEGRATED.json",
+      "sha256": "99eacce70f2197d2596df9ea1a39c02fb11b44f3f2b8c306b3a9bb2a0c703db3"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-ERASED-TYPE-REPAIR.json",
+      "sha256": "b548ea1a0b72c57c2c7e8e4477310953eb4f4e8085ea5688894aaa2347a20809"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-NATIVE.json",
+      "sha256": "ee3b0dafcd8b5839525221b2e39f019c159523ac5bb288b0a9d010da83b6c7b9"
+    },
+    {
+      "file": "BASELINE-CHARACTERIZATION-REPAIR.json",
+      "sha256": "0fe85cc033009055e05f6b7e977bfd2b5a7025d5c7f677d0ce306fabc5931bdd"
+    },
+    {
+      "file": "ERASED-TYPE-REPAIR.json",
+      "sha256": "c40c7e84daf215e7a6559b010fcee7c2570f394097e5695eb227428c1ed3ce03"
+    },
+    {
+      "file": "NATIVE-SOURCE-BINDING.json",
+      "sha256": "5ebdd41bbd4a80a99a568ac6a5e2d69add771736d2186f56b070e5038d5ed9b2"
+    },
+    {
+      "file": "STATIC-FINAL-SOURCE.json",
+      "sha256": "1fccbcefb16eeaaf3dd1100ba25632ee849bc2d6c5c5f745eaea19ca43c2ba01"
+    },
+    {
+      "file": "STATIC-FINAL-FORMAT.json",
+      "sha256": "783188895c3d318bc5204c09ac145d6c5f834f4c8aae087b0e8a7b42cbccdda5"
+    },
+    {
+      "file": "STRUCTURAL-GUARD-HANDOFF.json",
+      "sha256": "7fb6913d91a32afeaa11f86ebfb0a357b35601aeaecdcbc57dd0a0432e56e673"
+    },
+    {
+      "file": "CASE-COVERAGE-RECONCILIATION-v2.json",
+      "sha256": "38142daae4fdac071dd5773f8bca7090bdd4679782bb8e6e2186198da0a871a3"
+    },
+    {
+      "file": "DEPENDENCY-PROVENANCE.json",
+      "sha256": "7de5456af94bb0d9c98bdac9333b2ce05971fc4ad1c7df9414ab63b94511eff5"
+    },
+    {
+      "file": "REQUIREMENTS-PUBLICATION.json",
+      "sha256": "e19c18c9a960042e66495af74845496a5e31194ebae8504d106d2e4d9b80f5d7"
+    }
+  ],
+  "rawReports": {
+    "BEFORE-results.json": "5aefabbc65d5f9afd5d4b8125d853a1053491c9bec7166f7a3affd80ebfa6a07",
+    "BEFORE-results-v2.json": "e9cb4f35cc8a25f07378581f4e1584535158455847889e0e15afadb24162a4a7",
+    "AFTER-results.json": "c39a1ac2d3334ac191ab5cd096491eadde576bd34233b0728459604ef2320e4b",
+    "AFTER-guard-results.json": "e851544d4867ff4950382cc7d3d6ddc0b74d4c5e4e399c92eabc4a1708b6fe67",
+    "coverage-before/coverage-final.json": "536d6230fcfd146903aa703d6eb4ef48d5625cf177586ba8c65a59a9fa2124f2",
+    "coverage-before/coverage-summary.json": "90a2fb3548963de151479855411d3b8214cd1f0432e77dd9491c62a26f7cf86d",
+    "coverage-before-v2/coverage-final.json": "2eee3437f04cdbded8d2cb8c800cc567891a5d2468f4427fec2fdc692bbe4083",
+    "coverage-before-v2/coverage-summary.json": "e93618927a1c02f47dfb50aa4ad5d47c16167282a763329155d248d9bd173262",
+    "coverage-after/coverage-final.json": "f4dd8d634fae9b972c97a6f07fa838f3aa95ee9adb28bdbf78e10d77759e5a10",
+    "coverage-after/coverage-summary.json": "f139cda7d616fc9542b003933ba0b8797e272f210b096236858402771ff61a5e"
+  },
+  "externalAcceptance": {
+    "actualLiveImageBuildTreesEstablished": false,
+    "mainOnlyCiExecutionEstablished": false,
+    "globalCleanupGatesAccepted": false,
+    "databaseExecuted": false,
+    "providersExecuted": false,
+    "deploymentPerformed": false,
+    "mainMerged": false,
+    "frontendRetirementAccepted": false,
+    "credentialsSecurityAwsMutated": false,
+    "originalRebuildHistoriesPreserved": true,
+    "unpublishedEngagementReportPreserved": true,
+    "repositoryCreatedOrRemoteConfigurationChanged": false
+  }
+}

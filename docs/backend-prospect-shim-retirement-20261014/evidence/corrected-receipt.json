@@ -1,0 +1,80 @@
+{
+  "label": "corrected",
+  "ref": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "tree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "argv": [
+    "node",
+    "/workspace/capiro-backend-cleanup-receiving-20261014/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/workspace/backend-prospect-shim-qualification-20261014/jest.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/workspace/backend-prospect-shim-qualification-20261014/corrected-jest.json"
+  ],
+  "exitCode": 0,
+  "seconds": 2.461,
+  "inputs": [
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "sha256": "10a872f4dfc94ac96420c1e1ac0471881f9b5aa7610285980a2943ec4ba0b7d6",
+      "blob": "63264170abf3b562676bff372d8ba291490a005a"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+      "sha256": "edd4d441b39af3e9803ca9252945520562bbc63397602c1b4187a314f66eabfb",
+      "blob": "a82a9e595f15aca29d1ae6641b59eaecb064ff78"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "sha256": "6bce61461a3cc221d1c00cbbfc48c96a14c96b9995d89559748afe8077460893",
+      "blob": "2d99109db0f60f03f8e1514cf68cea24606bba5e"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.spec.ts",
+      "sha256": "7462b109878319c2cf6dee0921ba3fc54ae0d1417d7641859fe301d6cf314435",
+      "blob": "022678284dd159f29620268bec89e0bc47eaf7b4"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "sha256": "6b080e96aa03d724cf3c078203a1859c09ec87ee69e226a0d38238de928614fa",
+      "blob": "9d63db1b742ab2df74da4dcab7d01050a534547f"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94",
+      "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525",
+      "blob": "2cb7e71ff5929a6a78a97d60d27668409633572d"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.ts",
+      "sha256": "7959dec95e9e323a58a7f9218add0aa432d2ad0368ef15aafe631b9af7134d80",
+      "blob": "e87c4f22bb0e53741de5ad8f63a5419f589b3d0e"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-brief.types.ts",
+      "sha256": "ba2c8b5e8f45dbf58ca5e8bfcfa5998b537d9ce4e7ccc45d1abd30a299598b8d",
+      "blob": "ef2dc0e5667c2f978d9d4bc6d7993e55ab480494"
+    },
+    {
+      "path": "apps/api/src/common/tenant-flags.ts",
+      "sha256": "9a78b70d147496aadd94dfd7e11eb87f4e9300553670297987bead550de337a9",
+      "blob": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.ts",
+      "sha256": "e0808b351f92eb2a5d1b609fcfeafd08f2ed4388e2c26e9cdcf4b991af0a4287",
+      "blob": "e0cd084e488b50feadabfd8e325f86edc1611b41"
+    }
+  ],
+  "sourceStatusBeforeAfter": "?? apps/api/node_modules\n?? docs/backend-prospect-shim-retirement-20261014/\n?? node_modules\n",
+  "sourceHeadBeforeAfter": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "scope": "Four existing direct-construction inert-port suites; exact Git overlay; TypeScript CJS without DI metadata, no native/Core/V3 graph acceptance",
+  "captureMode": "stderr-to-stdout",
+  "overlayInputsAreCompleteRuntimeClosure": false,
+  "borrowedRuntimeQualification": "Existing cached Shared/runtime imports; transitive runtime source closure held/unqualified to frozen Git. See BORROWED-RUNTIME.json."
+}

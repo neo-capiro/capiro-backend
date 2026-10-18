@@ -1,0 +1,39 @@
+{
+  "sourceHead": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "entries": [
+    "apps/api/src/clients/client-targets.controller.ts",
+    "apps/api/src/clients/client-targets.service.spec.ts",
+    "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+    "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+    "apps/api/src/clients/objectives/objective-destination.shared.spec.ts"
+  ],
+  "files": [
+    "apps/api/src/clients/client-targets.controller.ts",
+    "apps/api/src/clients/client-targets.service.spec.ts",
+    "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+    "apps/api/src/auth/roles.decorator.ts",
+    "apps/api/src/auth/roles.guard.ts",
+    "apps/api/src/tenant/current-tenant.decorator.ts",
+    "apps/api/src/clients/client-targets.service.ts",
+    "apps/api/src/clients/objectives/objective-destination.ts",
+    "apps/api/src/directory/directory.service.ts",
+    "apps/api/src/clients/representation-resolver.service.ts",
+    "apps/api/src/prisma/prisma.service.ts",
+    "apps/api/src/auth/clerk.service.ts",
+    "apps/api/src/tenant/tenant.module.ts",
+    "apps/api/src/tenant/tenant-context.middleware.ts",
+    "apps/api/src/tenant/tenant-context.store.ts",
+    "apps/api/src/common/district-code.util.ts",
+    "apps/api/src/common/us-congressional-districts.ts",
+    "apps/api/src/directory/boundary-artifact.util.ts",
+    "apps/api/src/intelligence/fec-disclaimer.ts",
+    "apps/api/src/directory/directory-indexes.ts",
+    "apps/api/src/directory/directory-photo.ts",
+    "apps/api/src/clients/district-code.util.ts",
+    "apps/api/src/common/us-states.ts",
+    "apps/api/src/auth/clerk-role.util.ts",
+    "apps/api/src/auth/application-authority.ts",
+    "apps/api/src/clients/clients.module.ts",
+    "apps/api/src/app.module.ts"
+  ]
+}

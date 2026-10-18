@@ -7,11 +7,8 @@ import {
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { asRecord, asString } from './client-profile-fill.helpers.js';
-import { mergeFillProgress } from './client-profile-fill-completion-projection.js';
-import {
-  TERMINAL_TASK_STATUSES,
-  type CompletionTaskRow,
-} from './client-profile-fill-completion-runtime.shared.js';
+import { projectFillRunState } from './client-profile-fill-completion-projection.js';
+import type { CompletionTaskRow } from './client-profile-fill-completion-runtime.shared.js';
 
 interface RunReadModelPorts {
   getSchedule(
@@ -75,42 +72,7 @@ export class ClientProfileFillRunReadModel {
       ? (core.tasks as Array<Record<string, unknown>>)
       : [];
     const allTasks = [...coreTasks, ...tasks];
-    const progress = mergeFillProgress(allTasks);
-    const pending =
-      core.status !== 'cancelled' &&
-      allTasks.some((task) => task.status === 'queued' || task.status === 'running');
-    const allTerminal =
-      allTasks.length > 0 &&
-      allTasks.every((task) => TERMINAL_TASK_STATUSES.has(String(task.status)));
-    const anyFailed = allTasks.some((task) => task.status === 'failed');
-    const anyCompleted = allTasks.some(
-      (task) => task.status === 'completed' || task.status === 'skipped',
-    );
-    const status =
-      core.status === 'cancelled'
-        ? 'cancelled'
-        : pending
-          ? 'running'
-          : allTerminal
-            ? anyFailed
-              ? anyCompleted
-                ? 'partial'
-                : 'failed'
-              : 'completed'
-            : core.status;
-    const stage = pending
-      ? tasks.some(
-          (task) =>
-            task.status === 'running' &&
-            (task.taskType === 'reconciliation' || task.taskType === 'completion_audit'),
-        )
-        ? 'reconciliation'
-        : 'research'
-      : status === 'failed'
-        ? 'failed'
-        : status === 'cancelled'
-          ? 'cancelled'
-          : 'review_ready';
+    const { status, stage, pending, progress } = projectFillRunState(core.status, coreTasks, tasks);
     const sourceStates = { ...asRecord(core.sourceStates) };
     for (const task of tasks) {
       sourceStates[task.taskType] = {

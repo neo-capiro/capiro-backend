@@ -1,0 +1,220 @@
+{
+  "onlyOwnedReproducibleCompletedCacheFiles": true,
+  "lastConsumer": "Layout checks complete and published; owner confirmed no active consumers before cleanup",
+  "sourceMapProof": [
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/6c/beforecatalogproxy_6cf3281ab5e475ca49815e914d88dd62.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/docs/backend-portfolio-layout-20261014/evidence/before-catalog-proxy.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/d9/portfoliolayouthelpersspec_d90558240b2f8b5354a808b5e761dfbe.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/cd/beforecatalogproxy_cdcbe312eb5a2f28be6853b90c47980a.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/docs/backend-portfolio-layout-20261014/evidence/before-catalog-proxy.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/d0/portfoliolayouthelpersspec_d0313c2b1e0b999631258516bf3ecc2e.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/8e/portfoliolayouthelpers_8e63c2fd22d7503b30309269c3185a67.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/d7/portfoliolayouthelpersspec_d7582fc47a5856332fc006ca795efbde.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/cc/portfoliolayouthelpersspec_cc2067b0eb7db38ed9d0b0118ac9f310.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/1e/portfoliolayouthelpersspec_1e9eba1107761b17c36f5d131b70ab96.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/6d/prismatenantscopespec_6d5241bfd17d7f8d27ba3ecf9fd9eb0e.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/prisma/prisma-tenant-scope.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/12/prismaservice_12574f5762acc1c97741a018c6d7a895.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/prisma/prisma.service.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/16/prismaservicespec_16c92e1df536ff2633fe119d2f896863.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/prisma/prisma.service.spec.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/ff/portfoliolayouthelpers_ff05721c4a62baa64972795af4b8b0f3.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.ts"
+      ]
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/14/portfoliolayouthelpersspec_1442f488bf1dcb61358ec9e705300bf4.map",
+      "sourcePaths": [
+        "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/src/users/portfolio-layout.helpers.spec.ts"
+      ]
+    }
+  ],
+  "archive": "/workspace/backend-layout-core-check-20261014/OWNED-OLD-LAYOUT-TMP-CACHE.tar.gz",
+  "archiveSha256": "5ddff838d06cfb4a8335a86147382ffc46040ea67e34b657f1f57356941cca31",
+  "archiveBytes": 197586,
+  "files": [
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/12/prismaservice_12574f5762acc1c97741a018c6d7a895",
+      "bytes": 37070,
+      "sha256": "7b1e8026547a068fad93e774c183d71e11dbf99e206fd854d563f995bbb335aa"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/12/prismaservice_12574f5762acc1c97741a018c6d7a895.map",
+      "bytes": 18169,
+      "sha256": "02b97c4f1172302b71ff30c15b90fa4b83e6bf3a2b9533c145b694eeb471fc57"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/14/portfoliolayouthelpersspec_1442f488bf1dcb61358ec9e705300bf4",
+      "bytes": 54247,
+      "sha256": "c5458540c616ee05de8f84e07b3d64550d82a5f5992382889203f878dd5b1ac7"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/14/portfoliolayouthelpersspec_1442f488bf1dcb61358ec9e705300bf4.map",
+      "bytes": 29358,
+      "sha256": "62e82eb63976f775bc56b6f2ccf219793cf109075edfda639b2190a2c9ef8fda"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/16/prismaservicespec_16c92e1df536ff2633fe119d2f896863",
+      "bytes": 16452,
+      "sha256": "684326a7ff8122c14b8f738aa2a3b2464c684d2d8b33e4c0b531aa765a40ebce"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/16/prismaservicespec_16c92e1df536ff2633fe119d2f896863.map",
+      "bytes": 8735,
+      "sha256": "f8b10f870b69662266c69e253c8e649722b9060f4c11aeede1f1cf0a7bfecfd3"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/1e/portfoliolayouthelpersspec_1e9eba1107761b17c36f5d131b70ab96",
+      "bytes": 54225,
+      "sha256": "213f2ccd2395e9e62e1b588cee634c0ae8d7eb8e64ef0efda35505bfc9565f06"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/1e/portfoliolayouthelpersspec_1e9eba1107761b17c36f5d131b70ab96.map",
+      "bytes": 29342,
+      "sha256": "18d4e1654bca45882756d6b1cbb88d31b2ded07aaedb392ce6eae4690524a5fc"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/6d/prismatenantscopespec_6d5241bfd17d7f8d27ba3ecf9fd9eb0e",
+      "bytes": 13114,
+      "sha256": "1e96f15a48e18e12f134f19c58588e936f6e2d0c3123d2116433857a758c87f5"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/6d/prismatenantscopespec_6d5241bfd17d7f8d27ba3ecf9fd9eb0e.map",
+      "bytes": 7194,
+      "sha256": "997b3c8c9cfea08f703446b8ec954dfd4d3c7e8d95c7d23f0645487965eb5188"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/8e/portfoliolayouthelpers_8e63c2fd22d7503b30309269c3185a67",
+      "bytes": 31083,
+      "sha256": "0236a5716eca6a14c2ae4be699d77d73885854fa24e291cea8dc309280efd8e6"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/8e/portfoliolayouthelpers_8e63c2fd22d7503b30309269c3185a67.map",
+      "bytes": 17003,
+      "sha256": "4d3d7bc41945eb07986cbdd588b2ee7cf8bc9165ed3ebc44114653e1a2507a7f"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/cc/portfoliolayouthelpersspec_cc2067b0eb7db38ed9d0b0118ac9f310",
+      "bytes": 54237,
+      "sha256": "950d1861acc5387674e281cb18169755d7c108c31a4ea24d54a8502482dbdf09"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/cc/portfoliolayouthelpersspec_cc2067b0eb7db38ed9d0b0118ac9f310.map",
+      "bytes": 29351,
+      "sha256": "9960e5dcab045279929a59b61c78778e4d827fc4c5e94131e3488515a409ef6b"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/d7/portfoliolayouthelpersspec_d7582fc47a5856332fc006ca795efbde",
+      "bytes": 56135,
+      "sha256": "a883da670d76f6a6384fdbfbdb6edf1e26d52af4076f5d5d268f982fb0cfc08c"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/d7/portfoliolayouthelpersspec_d7582fc47a5856332fc006ca795efbde.map",
+      "bytes": 30375,
+      "sha256": "718dec6ba8b62ae4de5dea4fd4cbb1cd73a89761fb7011fe92f31064b7f185ad"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/ff/portfoliolayouthelpers_ff05721c4a62baa64972795af4b8b0f3",
+      "bytes": 31083,
+      "sha256": "3188480caa430935fa63777a40edb40d270c9f93e9fcfcd9f613c1e469ce1b6c"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-44dfd78b9539686c5c0f679687412118-79ef2876fae7ca75eedb2aa53dc48338/ff/portfoliolayouthelpers_ff05721c4a62baa64972795af4b8b0f3.map",
+      "bytes": 17003,
+      "sha256": "fd2d2b6ce4031b8c50f660378c5aedef57d34a7ede664f85f9d33dd3aa471185"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/6c/beforecatalogproxy_6cf3281ab5e475ca49815e914d88dd62",
+      "bytes": 31151,
+      "sha256": "8a0a716fd8d0fab8613aababb4380c6cfbcdb9f6b6c77b801a1bc595e82f4358"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/6c/beforecatalogproxy_6cf3281ab5e475ca49815e914d88dd62.map",
+      "bytes": 17053,
+      "sha256": "3b5b46c6ae9b04a89ab55e9335203b48bb6b8330f93b18d43904a458c318bc4c"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/cd/beforecatalogproxy_cdcbe312eb5a2f28be6853b90c47980a",
+      "bytes": 31151,
+      "sha256": "8a0a716fd8d0fab8613aababb4380c6cfbcdb9f6b6c77b801a1bc595e82f4358"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/cd/beforecatalogproxy_cdcbe312eb5a2f28be6853b90c47980a.map",
+      "bytes": 17053,
+      "sha256": "3b5b46c6ae9b04a89ab55e9335203b48bb6b8330f93b18d43904a458c318bc4c"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/d0/portfoliolayouthelpersspec_d0313c2b1e0b999631258516bf3ecc2e",
+      "bytes": 56135,
+      "sha256": "a883da670d76f6a6384fdbfbdb6edf1e26d52af4076f5d5d268f982fb0cfc08c"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/d0/portfoliolayouthelpersspec_d0313c2b1e0b999631258516bf3ecc2e.map",
+      "bytes": 30375,
+      "sha256": "718dec6ba8b62ae4de5dea4fd4cbb1cd73a89761fb7011fe92f31064b7f185ad"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/d9/portfoliolayouthelpersspec_d90558240b2f8b5354a808b5e761dfbe",
+      "bytes": 56135,
+      "sha256": "a883da670d76f6a6384fdbfbdb6edf1e26d52af4076f5d5d268f982fb0cfc08c"
+    },
+    {
+      "path": "/tmp/jest_rs/jest-transform-cache-978b5520a4c3f48875a6e0af4420d6ad-79ef2876fae7ca75eedb2aa53dc48338/d9/portfoliolayouthelpersspec_d90558240b2f8b5354a808b5e761dfbe.map",
+      "bytes": 30375,
+      "sha256": "718dec6ba8b62ae4de5dea4fd4cbb1cd73a89761fb7011fe92f31064b7f185ad"
+    }
+  ],
+  "noDirectoriesBorrowedTargetsSourceEvidenceOrObjectsRemoved": true
+}

@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "tests/successor-capture-bootstrap.test.cjs"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 2.674,
+  "stdoutBytes": 12766,
+  "stderrBytes": 0,
+  "stdoutSha256": "09a12987c91b8967d231350dc5f716bac418830ea9a9d250bea63cc4b3a9a706",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source": "d15bba2cd75a8d36743e5d7a10eda346e4e48e2a",
+  "sanitizedEnvironmentNames": [
+    "PATH",
+    "NODE_ENV",
+    "AWS_EC2_METADATA_DISABLED"
+  ],
+  "nativeProviderDbOperation": false
+}

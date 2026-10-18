@@ -1,0 +1,11 @@
+src/hearing/hearing-record-workflow.service.ts(569,46): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/editorial/editorial-fiscal-context.ts(69,23): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-fiscal-context.ts(73,45): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-fiscal-context.ts(73,77): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-fiscal-context.ts(74,49): error TS2345: Argument of type 'Set<unknown>' is not assignable to parameter of type 'Set<string>'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/editorial/editorial-fiscal-context.ts(77,43): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/editorial/editorial-fiscal-context.ts(78,39): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/editorial/editorial-fiscal-context.ts(88,8): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(310,12): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(311,133): error TS7006: Parameter 'r' implicitly has an 'any' type.

@@ -236,7 +236,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    */
   async withSystem<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
   ): Promise<T> {
     // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
     // preserving the intentional cross-tenant reach of system paths.
@@ -250,7 +250,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // with no way to extend it — which is how a slow-but-legitimate write
       // (MemoryStoreService.upsertSystem, the Client Soul save) failed under
       // pool pressure rather than merely running slowly.
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      opts?.timeoutMs || opts?.isolationLevel
+        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
+        : undefined,
     );
   }
 }

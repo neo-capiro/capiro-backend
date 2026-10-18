@@ -1,0 +1,235 @@
+{
+  "base": {
+    "head": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+    "tree": "403c6f22ce6602f98e3bc45943b81684eeb716fb"
+  },
+  "combined": {
+    "head": "078c55f805de8599cc413917ef90b7e20f040942",
+    "tree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+    "parents": [
+      "484dc0af7adc41103b189f262113bebfce10074c",
+      "7239a4a4ace420492d8aace6c85e55773865be38"
+    ]
+  },
+  "layout": {
+    "acceptedSourceHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+    "acceptedSourceTree": "ff170e9da7524db0a70b852a48a962b0d31e0a73",
+    "acceptedCandidateHead": "484dc0af7adc41103b189f262113bebfce10074c"
+  },
+  "prospect": {
+    "acceptedSourceHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+    "acceptedSourceTree": "baf1fc9349a0823add4873bc1840b745bf62e920",
+    "publishedCandidateHead": "7239a4a4ace420492d8aace6c85e55773865be38",
+    "publishedCandidateTree": "a12f02b2694069ecfc325c045ad2ebe29f4ec258",
+    "draftPR": 9,
+    "publicationDeltaNonDocPaths": []
+  },
+  "sourceUnion": {
+    "layoutPaths": 11,
+    "prospectPaths": 6,
+    "pathCount": 17,
+    "overlap": [],
+    "outsideUnion": [],
+    "missing": [],
+    "allBlobsAndModesExact": true,
+    "paths": [
+      {
+        "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "e3445102a7ff5f06021704cea272bbb559b8f03f",
+        "bytes": 2094,
+        "sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f"
+      },
+      {
+        "path": "apps/api/prisma/schema.prisma",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+        "bytes": 980470,
+        "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12"
+      },
+      {
+        "path": "apps/api/src/auth/application-authority-boundary.spec.ts",
+        "owner": "prospect",
+        "acceptedHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5d87349306fafeb5ad97b0227f450d9dd8085ab4",
+        "bytes": 5025,
+        "sha256": "48752673b936aa2fd147e198b392da0cb4a2fcb650c053507c74178236ef0aef"
+      },
+      {
+        "path": "apps/api/src/auth/application-authority.controller.ts",
+        "owner": "prospect",
+        "acceptedHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f",
+        "bytes": 3597,
+        "sha256": "34509c16b1c7fdf9fb2bf0c0d8f1e9fabb0990c081084daea645db5f104652d1"
+      },
+      {
+        "path": "apps/api/src/auth/application-authority.spec.ts",
+        "owner": "prospect",
+        "acceptedHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "3d3098133ce80973079de1a65c4a43be7d7ffbc3",
+        "bytes": 28721,
+        "sha256": "3e1d8a501484675e0b5e332f36638544f547d9c76d0b90299a6725621b426325"
+      },
+      {
+        "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+        "owner": "prospect",
+        "acceptedHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f28e58850550e9d097ae1fb0a2831f448a21a29a",
+        "bytes": 2213,
+        "sha256": "035d8f5e91fb7e55d2ea4249d421d458a15b8ddd7da80b8495b08d34d9a7253d"
+      },
+      {
+        "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+        "owner": "prospect",
+        "acceptedHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada",
+        "bytes": 1633,
+        "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94"
+      },
+      {
+        "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+        "owner": "prospect",
+        "acceptedHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "721ecf1c9fb2bbb7a467436901aa925cebb5a9cc",
+        "bytes": 2550,
+        "sha256": "96c71c73f3637b4902e52d2277b84423ec05ed463e9c76544e6d1e2b03610fee"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.spec.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9c57a84335feaac289bdbeb6e2e21cce50a94102",
+        "bytes": 4319,
+        "sha256": "4af5ff10ad7901b43a202d2300247363a5af63ac1e195f80ac96aaebe848ebf5"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d071939ac0f18deccab65794b9be20222c5887e8",
+        "bytes": 12683,
+        "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.controller.spec.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4843f0042eb686f129957c0a361ddb4b89020e24",
+        "bytes": 17024,
+        "sha256": "ea54d079bdc58378227031f818bad794a1368383209ba9af0d7c7dd780492dbf"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.controller.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0290478a7e6fca55ea9b9109601a6c1e6289deeb",
+        "bytes": 2050,
+        "sha256": "7af96c53dbd33ead959c07baf6b9bb1a677dbcf014ab73144c3e7a2b9c37e000"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.helpers.spec.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4a6f13abdbdf3e49609753a0bf1b5c4bc1652112",
+        "bytes": 13510,
+        "sha256": "fce26c17a4e0ad6f19dae18dbdddf5b63c74ad951d3a3c5109ae3f195dc6350e"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.helpers.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "358276a659c3a5d85225c5e11cd83ace7299bb6a",
+        "bytes": 8602,
+        "sha256": "0292537c2177ed5d8e3263f4c5c87636a0391bb2356f417d23ed61bb2cb2e1b7"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.module.spec.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "bb93b279733c333796f6f5daefc77d5af2e49803",
+        "bytes": 9748,
+        "sha256": "ee22070d82c4244be40d6f2c0baa62a7e6b44051dfc206fe8ba7101ed3212877"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.transaction.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b7931baa3a801374230c5fb6cf925cc6acd5e0c9",
+        "bytes": 7292,
+        "sha256": "22fde9cc8fc53bf54445303ca3dc4f5a64ca1b616cc230fb0cb9059479d79504"
+      },
+      {
+        "path": "apps/api/src/users/users.module.ts",
+        "owner": "layout",
+        "acceptedHead": "e0adf31652f6987593728028d5b8eae4a1b96390",
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fd13f1c65d16a97b75f2b55ce6b9686ff65cb264",
+        "bytes": 279,
+        "sha256": "79370567a742460677178f1db358797e1d4f9a958d3e7deaab0582a81deef735"
+      }
+    ]
+  },
+  "qualification": {
+    "jest": {
+      "attempt": "20",
+      "passed": 110,
+      "failed": 0,
+      "pending": 0,
+      "exact110IdentityMultiplicityMatches18": true
+    },
+    "types": {
+      "attempt": "21",
+      "exitCode": 0
+    },
+    "scope": "Focused layout source/synthetic check on exact combined head; unchanged prospect source preserved, its independent150-case qualification remains historical, not rerun here."
+  },
+  "reviewCopies": [
+    {
+      "file": "LAYOUT-ACCEPTANCE.md",
+      "bytes": 4190,
+      "sha256": "21999abc8f2853fa5f6ec1229bb84b91f65e14db3941802e49211784444f86b1"
+    },
+    {
+      "file": "LAYOUT-REVIEW.json",
+      "bytes": 5103,
+      "sha256": "8a24065bbcfb8094962ba1cd69219418024989f4d48fff2f7e9d65e0caaa596c"
+    }
+  ],
+  "state": "COMBINED_SOURCE_CHECKED_READY_FOR_ROOT_REVIEW_DRAFT_PUBLICATION"
+}

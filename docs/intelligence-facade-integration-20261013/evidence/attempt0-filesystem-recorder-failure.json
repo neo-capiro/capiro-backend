@@ -1,0 +1,21 @@
+{
+  "ownedCache": "/tmp/intelligence-facade-mapless-jest-cache-20261013",
+  "cacheFiles": 63,
+  "cacheBytes": 17730382,
+  "ownedCacheRetired": true,
+  "typeInfosRetired": [
+    {
+      "path": "/tmp/intelligence-facade-api-type-20261013.tsbuildinfo",
+      "bytes": 32768,
+      "sha256": "239d2134b1b947a23b4b8cfd6cbdd259884c8b9ac62eba00683e8623426493dd"
+    },
+    {
+      "path": "/tmp/intelligence-facade-shared-20261013.tsbuildinfo",
+      "bytes": 25000,
+      "sha256": "139f552b03c66d08de7d6074c71439150d1ba1f469c5115f9ac329ff76ab5b70"
+    }
+  ],
+  "observation": "Both type and Jest receipt files are zero bytes after filesystem ENOSPC. Jest log4096bytes retained, reports code-cache write ENOSPC; no results JSON exists. Recorder process Jest exit1 is known from traceback; actual subprocess exit/elapsed/case outcomes were not persisted and are not reconstructed. Type recorder also exited1 with ENOSPC traceback; actual compiler exit/elapsed was not persisted. No gate pass inferred from empty log or written build-info.",
+  "borrowedCachesModified": false,
+  "recovery": "Increase available task-owned space by retiring unrelated owned sparse source only after type succeeds, or use bounded task-owned checks/cache chunks. Preserve raw failures."
+}

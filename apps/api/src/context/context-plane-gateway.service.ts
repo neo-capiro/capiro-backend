@@ -5,7 +5,7 @@ import {
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
-import type { ModuleRef } from '@nestjs/core';
+import { ModuleRef } from '@nestjs/core';
 import {
   CONTEXT_PLANE_ENFORCEMENT_PHASE,
   evaluateContextOperationEnforcement,

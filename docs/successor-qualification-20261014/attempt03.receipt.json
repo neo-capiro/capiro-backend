@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "--max-old-space-size=4096",
+    "scripts/qualify-successor-build.cjs"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 184.63,
+  "stdoutBytes": 6832,
+  "stderrBytes": 1067,
+  "stdoutSha256": "9e4125b6479515dc58554bdc23ed0c134a48a88f41e890a75d70f384df3b108f",
+  "stderrSha256": "eba1b8d6e974547da5b90d74bf7c495e62bd76af82fa4f1216ae286d8beef36e",
+  "runnerSha256": "feb81b2f2aab4ad4fb3058a79c9b038eeaee0e0ee9b317dbcebcc1e3c7162278",
+  "correction": "Translate pnpm realpaths into the virtual source namespace while retaining peer dependency layout; map cached Strategy/Intel generated declarations. No canonical source, native load, schema or DB execution."
+}

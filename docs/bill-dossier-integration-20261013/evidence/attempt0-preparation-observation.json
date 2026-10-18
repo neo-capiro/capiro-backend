@@ -1,0 +1,5 @@
+{
+  "exit": 1,
+  "observation": "Output adapter preparation asserted the canonical generator had nooutput field; it already has an outputfield. No derived schema was written. A mistakenly sequenced generation call then failed beforeloading schema (exit1/0.501s); bothobservations retained, no network/database operation.",
+  "correction": "Replaceonly existing outputfield in owned derived schema; canonicalsourceunchanged; never writeborrowedclientpaths."
+}

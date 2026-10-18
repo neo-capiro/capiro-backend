@@ -1,0 +1,442 @@
+{
+  "schema": "cleanup-next-whole-backend-boundary/v1",
+  "scope": "Complete Intel tracker-board source ownership; no implementation or native execution by this reconciliation",
+  "path": "apps/intel-api/src/tracker/tracker-board.service.ts",
+  "publishedSourceHead": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+  "commonPublishedSourceBase": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "sourceBlob": "1242e6f5b0c780f2cf679db08b3934827fb36b7e",
+  "sourceSHA256": "9f2b5865eb53534109773649f96f17162442b44c1d0f3ceda1337bffae6fe343",
+  "sourceParity": {
+    "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "declaredIntel": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "exactBoth": true,
+    "actualLiveImageBuildTreesEstablished": false
+  },
+  "fileBudget": {
+    "nonblank": 1736,
+    "physical": 1811,
+    "targetNonblankExclusive": 400
+  },
+  "methods": [
+    {
+      "name": "stateStatusToBoardStage",
+      "sha256": "5c70ac8607d32acb5af7a4a4de016f3f5ffefa499cdbf36c154eceeefa38cb25",
+      "physicalLines": 12,
+      "nonblankLines": 12,
+      "parameters": [
+        "status: string | null"
+      ]
+    },
+    {
+      "name": "stateBoardStage",
+      "sha256": "28316f329b08fe98bdc91aec4ab7207be591d2c4c2f3395baf16831bd2167039",
+      "physicalLines": 7,
+      "nonblankLines": 7,
+      "parameters": [
+        "bill: { status?: string | null } | null",
+        "persisted: BillStage | null"
+      ]
+    },
+    {
+      "name": "stateStageLabel",
+      "sha256": "22aeb52d2d431c7022113b33b31bee16efe4a716ff1adfde66368d64feac678e",
+      "physicalLines": 5,
+      "nonblankLines": 5,
+      "parameters": [
+        "status: string | null",
+        "stage: BillStage"
+      ]
+    },
+    {
+      "name": "fetchMergedBills",
+      "sha256": "27883c35398f8ee7667bb4e49a8a76c9b7e0de525a9e67020d10482843dc3cc5",
+      "physicalLines": 47,
+      "nonblankLines": 47,
+      "parameters": [
+        "billIds: string[]"
+      ]
+    },
+    {
+      "name": "canonicalStatusFor",
+      "sha256": "632f6ad947582011dd73deca1fe464ccbc3073a5776c7fcac402e5ace3eeae2a",
+      "physicalLines": 10,
+      "nonblankLines": 10,
+      "parameters": [
+        "billId: string",
+        "chip: ChangeChip | null",
+        "status: string | null | undefined",
+        "stage: BillStage"
+      ]
+    },
+    {
+      "name": "isTerminalNegativeStateStatus",
+      "sha256": "2e1652fc5b0167605d0d98837cb8342cd04d779bac9206e9c3213ec5aeb10dde",
+      "physicalLines": 7,
+      "nonblankLines": 7,
+      "parameters": [
+        "billId: string",
+        "status: string | null | undefined"
+      ]
+    },
+    {
+      "name": "displayNumFor",
+      "sha256": "0671127d754e60f76d389a12b4cd502163e9970114b3b050ed7c39c27472c8e7",
+      "physicalLines": 3,
+      "nonblankLines": 3,
+      "parameters": [
+        "billId: string"
+      ]
+    },
+    {
+      "name": "alignStateStageFilter",
+      "sha256": "d7910212f18c6988c82d4e1bee449a988e6086af9eca6452f72edca82b5fe1af",
+      "physicalLines": 57,
+      "nonblankLines": 53,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string | null",
+        "baseWhere: Record<string, unknown>",
+        "filters: BoardFilters | undefined"
+      ]
+    },
+    {
+      "name": "jurisdictionFor",
+      "sha256": "a46e27d3b75cdfaac604d394db84b752942e2808c9c390664192cdaaac883b72",
+      "physicalLines": 3,
+      "nonblankLines": 3,
+      "parameters": [
+        "billId: string"
+      ]
+    },
+    {
+      "name": "compiledTopics",
+      "sha256": "c1d029bb96a32b83809023cba202b553db7d56518f4fa2ee16e89c4bf03ade5b",
+      "physicalLines": 37,
+      "nonblankLines": 37,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string"
+      ]
+    },
+    {
+      "name": "getRecommendations",
+      "sha256": "acb7655aaf1e17a77bae5b53299ae98d6ae689e3cb0c107c01b6639bd11180ac",
+      "physicalLines": 169,
+      "nonblankLines": 162,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "limit = 25"
+      ]
+    },
+    {
+      "name": "getBoard",
+      "sha256": "f8c2130c62dc74f49cb685a37fa2c69666f1d2e995ab00ddb7b75266fe8ce81e",
+      "physicalLines": 191,
+      "nonblankLines": 186,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "opts: BoardQueryOpts = {}"
+      ]
+    },
+    {
+      "name": "getTenantBoard",
+      "sha256": "0383062fd44c70e80927ddb4935222d6d9176f030f1323684c0b96e69232528f",
+      "physicalLines": 217,
+      "nonblankLines": 210,
+      "parameters": [
+        "tenantId: string",
+        "opts: BoardQueryOpts = {}"
+      ]
+    },
+    {
+      "name": "compileTopicsForClients",
+      "sha256": "f6e6154363af29a62e2b7c80a9d4a604a6a97ec5381a72e736be4ee7d992332c",
+      "physicalLines": 137,
+      "nonblankLines": 134,
+      "parameters": [
+        "tenantId: string",
+        "clientIds: string[]"
+      ]
+    },
+    {
+      "name": "getTrackedStatus",
+      "sha256": "966064715faa9f15cadbb6a3b741698b4772aed1119a4cacd50d0a0cdf8d1246",
+      "physicalLines": 9,
+      "nonblankLines": 9,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "billId: string"
+      ]
+    },
+    {
+      "name": "getSummary",
+      "sha256": "bca3d4c6c03bd856134253e61c97ed1918249f2e08b891748d3de6174ccce701",
+      "physicalLines": 26,
+      "nonblankLines": 26,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string"
+      ]
+    },
+    {
+      "name": "getPortfolioCounts",
+      "sha256": "73c6bbd43871ca0509a209d5a60890bb0298744aedf8c93f35ef5bddfd8f3cff",
+      "physicalLines": 10,
+      "nonblankLines": 10,
+      "parameters": [
+        "tenantId: string"
+      ]
+    },
+    {
+      "name": "searchBills",
+      "sha256": "40fa0f7db91e1e1c7bca540530a9087b8810fe034e6c5176212bf5a726e72c6f",
+      "physicalLines": 54,
+      "nonblankLines": 50,
+      "parameters": [
+        "q: string",
+        "opts: { jurisdictions?: string[]; limit?: number } = {}"
+      ]
+    },
+    {
+      "name": "trackCongressStage",
+      "sha256": "6000e1977a7da958e1b18fbdff5d1e0397392d09aca71754793b1b04e2a3fc28",
+      "physicalLines": 11,
+      "nonblankLines": 11,
+      "parameters": [
+        "billId: string"
+      ]
+    },
+    {
+      "name": "trackStateStage",
+      "sha256": "5c3db7796ca5fa4c06946f86a83a2d7fd41104ebc490c096df86e134c2f11389",
+      "physicalLines": 11,
+      "nonblankLines": 11,
+      "parameters": [
+        "billId: string"
+      ]
+    },
+    {
+      "name": "trackBill",
+      "sha256": "be863a93955a5d88ace33964f710bb92e2788717ec83df2a1a4830c89dab0ffc",
+      "physicalLines": 55,
+      "nonblankLines": 55,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "userId: string",
+        "billId: string",
+        "opts?: { note?: string | null; source?: string; isManual?: boolean }"
+      ]
+    },
+    {
+      "name": "untrackBill",
+      "sha256": "c9a17b200c4077724735b23ddde08f0c89dcd87dc9eeb95adb6b6d9a8c06a936",
+      "physicalLines": 8,
+      "nonblankLines": 8,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "billId: string"
+      ]
+    },
+    {
+      "name": "updateBillContext",
+      "sha256": "cd7c2e264539e8aa497f1b019f5ed5d15a00f6c83367564cfa83554c057c1a04",
+      "physicalLines": 60,
+      "nonblankLines": 56,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "userId: string",
+        "billId: string",
+        "input: UpdateBillContextInput"
+      ]
+    },
+    {
+      "name": "recordFeedback",
+      "sha256": "29fa44579a434c65ba9184714bc55217c1be70fa9c36bc15f84e41812fa5d206",
+      "physicalLines": 49,
+      "nonblankLines": 49,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string",
+        "userId: string",
+        "input: {\n      targetType?: string;\n      targetRef: string;\n      signal: string;\n      alertId?: string | null;\n      /** §4.10 (Gate E phase f): structured dismiss reason. */\n      reason?: string | null;\n      /** §4.10 (Gate E phase f): matched topic labels at dismissal time. */\n      matchedTags?: string[];\n      /** Gate K (MP-09): the topic ids behind matchedTags's topic entries\n       *  (never issue areas) — the id-keyed twin feedbackSignal prefers. */\n      matchedTopicIds?: string[];\n    }"
+      ]
+    },
+    {
+      "name": "feedbackSignal",
+      "sha256": "b74f2d88b8b2881af2d8268b78cbfb5ad3c59e10c77785ea16a9eac2275c9866",
+      "physicalLines": 28,
+      "nonblankLines": 28,
+      "parameters": [
+        "tenantId: string",
+        "clientId: string"
+      ]
+    }
+  ],
+  "standaloneFunctions": [
+    {
+      "name": "encodeBoardCursor",
+      "sha256": "305b071d63b16306169b0b8377542fb2cad6884cc3fae12331825beab5c73ec0",
+      "physicalLines": 3,
+      "nonblankLines": 3
+    },
+    {
+      "name": "encodeTenantBoardCursor",
+      "sha256": "2a33c65f06b7b948fd1be73ffecc398cac40300f09e73941b13b77f0a7a7bfb7",
+      "physicalLines": 11,
+      "nonblankLines": 11
+    },
+    {
+      "name": "billSearchPatterns",
+      "sha256": "d4e9bfbb0fceb8cf65db872f4cea693eb10954a8eb58865e949dfae51b810f33",
+      "physicalLines": 8,
+      "nonblankLines": 8
+    },
+    {
+      "name": "summarizeTrackedRows",
+      "sha256": "348dde2fd7737a525cf8d603d6e8db872c64bb6a157854518b0bb5c9fee15940",
+      "physicalLines": 8,
+      "nonblankLines": 8
+    }
+  ],
+  "namedStandaloneArrows": [
+    {
+      "name": "b64encode",
+      "sha256": "85d286f36328e24e9c140480e332835fadb21aa5dea4334ae142984d5f20743d",
+      "physicalLines": 2,
+      "nonblankLines": 2
+    },
+    {
+      "name": "b64decode",
+      "sha256": "a8219bbd86a651ac191ea710b8a0744f61fc9698fb0199a97c3a593619ce4cdd",
+      "physicalLines": 13,
+      "nonblankLines": 13
+    },
+    {
+      "name": "stageLabelOf",
+      "sha256": "1391d2c324253348b4051a8a677625d7395f03c33324f513b678386b49ba0066",
+      "physicalLines": 1,
+      "nonblankLines": 1
+    },
+    {
+      "name": "toRelevanceBill",
+      "sha256": "38ce909a6a26ed320316864f86586c0035310d630bf8490b2d8f4a4a2c581634",
+      "physicalLines": 23,
+      "nonblankLines": 23
+    }
+  ],
+  "constructor": {
+    "name": "(module policy IIFE)",
+    "sha256": "e2e48010c241b07d344c794eb9f31d6e511bdcd4d780999e94129b36de57ad29",
+    "physicalLines": 6,
+    "nonblankLines": 6,
+    "dependencies": [
+      "PrismaService",
+      "SourceDataRepository",
+      "TrackerWatchlistService",
+      "StateSourceDataRepository"
+    ]
+  },
+  "originalModuleExports": [
+    "EMBED_CANDIDATE_FLOOR",
+    "LEGIWATCH_STATE_FIT_FLOOR",
+    "BoardFilters",
+    "BoardQueryOpts",
+    "BoardPage",
+    "UpdateBillContextInput",
+    "RecommendationItem",
+    "BillSearchResult",
+    "billSearchPatterns",
+    "summarizeTrackedRows",
+    "ChangeChip",
+    "BoardCard",
+    "BoardColumn",
+    "TrackerBoardService"
+  ],
+  "positiveSourceConsumerPaths": [
+    "apps/api/src/tracker/tracker.controller.ts",
+    "apps/intel-api/src/tasks/task-runner.ts",
+    "apps/intel-api/src/tracker/bill-fit.util.ts",
+    "apps/intel-api/src/tracker/new-match-detector.service.ts",
+    "apps/intel-api/src/tracker/tracker-board-state-stage.spec.ts",
+    "apps/intel-api/src/tracker/tracker-board.controller.ts",
+    "apps/intel-api/src/tracker/tracker-board.service.ts",
+    "apps/intel-api/src/tracker/tracker-tenant-scoping.spec.ts",
+    "apps/intel-api/src/tracker/tracker.dto.ts",
+    "apps/intel-api/src/tracker/tracker.module.ts",
+    "apps/intel-api/test/bill-search-jurisdictions.spec.ts",
+    "apps/intel-api/test/bill-search.spec.ts",
+    "apps/intel-api/test/tracker-board-feedback.spec.ts",
+    "apps/intel-api/test/tracker-board-guards.spec.ts",
+    "apps/intel-api/test/tracker-board-highfit.spec.ts",
+    "apps/intel-api/test/tracker-board-pagination.spec.ts",
+    "apps/intel-api/test/tracker-portfolio-counts.spec.ts",
+    "apps/intel-api/test/tracker-summary.spec.ts",
+    "apps/web/src/pages/clients/tracker/TrackerTab.boardviews.test.tsx",
+    "apps/web/src/pages/clients/tracker/TrackerTab.pagination.test.tsx",
+    "apps/web/src/pages/clients/tracker/TrackerTab.responsive.test.tsx",
+    "apps/web/src/pages/clients/tracker/intel-tracker-api.ts",
+    "apps/web/src/pages/clients/tracker/tracker-components.tsx",
+    "apps/web/src/pages/radar/LegacyRadarPage.tsx",
+    "apps/web/src/pages/radar/RadarPage.test.tsx",
+    "apps/web/src/pages/workspace/ContextBuilderPage.tsx",
+    "apps/web/src/vnext/pages/client-crm/tabs/IntelligenceTab.legislative-v2.test.tsx",
+    "apps/web/src/vnext/pages/client-crm/tabs/IntelligenceTab.test.tsx",
+    "apps/web/src/vnext/pages/legiwatch/bills/BillsTab.tsx",
+    "apps/web/src/vnext/pages/legiwatch/bills/bills-all-scope.integration.test.tsx",
+    "apps/web/src/vnext/pages/legiwatch/bills/bills-legacy-corpus.integration.test.tsx",
+    "apps/web/src/vnext/pages/legiwatch/legiwatch-scope-gate.integration.test.tsx",
+    "apps/web/src/vnext/pages/legiwatch/settings/watchlist-management.integration.test.tsx",
+    "apps/web/src/vnext/testing/visual/legiwatch-qa-api.ts"
+  ],
+  "positiveWorkerConsumer": {
+    "path": "apps/intel-api/src/tracker/new-match-detector.service.ts",
+    "entry": "getRecommendations",
+    "meaning": "Recommendation compute-on-read is used by the worker; absence of a schedule import on the owner itself is not a retirement argument."
+  },
+  "behaviorToPin": [
+    "All original 25 selected method bodies and eight named standalone helpers remain real; mock only database/provider I/O and outside-family canonical seams.",
+    "Global federal/state repository authority versus tenant/client/user transactions, filters, ordered launches/awaits, errors and empty/archived inputs.",
+    "Distinct federal/state stages, terminal-negative policy, canonical labels/risk/change-tone and intentionally different state/federal fit floors.",
+    "Module-time env sampling, state fit Number coercion, BOARD_PAGE_SIZE IIFE default200/max500, existing constants/Set allocation/evaluation order.",
+    "All board filters default OFF; active/recent/stage/client facet behavior must not silently narrow current board output.",
+    "Cursor malformed/stale behavior falls back to page1; client tuple and tenant (trackedAt,billId,clientId) tuple/defaults/order/caps/withheld/missing hydration remain distinct.",
+    "Recommendations/fit/feedback/ranking/counts/tracked status and search patterns; preserve optional legacy fields, no fabricated zero/status/source.",
+    "Public exported helpers/interfaces/constants, all original method names/parameters/defaults/async/private visibility and actual four canonical Nest dependencies.",
+    "Root/current receiver and late method/property/optional collaborator lookup; do not capture callback methods or reorder getter/argument effects.",
+    "Manual track/untrack/context/feedback validation and actor identity, idempotency, same-tenant writes, untouched legacy note/canonical status and state/federal key authorities.",
+    "Preserve DTO feedback vocabulary, controller TenantGuard/TrackerOwnerGuard and tracker_owner_intel dark/shadow posture; no security/flag policy change.",
+    "All existing source/runtime/worker/public API/frontend/Meri consumers and operating contracts remain; no active consumer retirement."
+  ],
+  "nextSafeSequence": [
+    "Freeze source head/tree/blob/hash, exact originals and recovery path, using the eventual explicit combined baseline without overwriting either published sibling.",
+    "Inventory all25 methods, four function declarations, four named arrows, module policies/contracts and constructed worker/controller/module/DTO consumers; identify canonical existing dependencies.",
+    "Assign disjoint concrete owners for complete behavior boundaries. Preserve Root constants/env initialization and source/public contracts; plan meaningful operation phases for the four oversized methods.",
+    "Pin independent BEFORE cases at real entries and selected canonical helpers with inert I/O; preserve every existing case identity/data and actual native source scope.",
+    "Integration owner runs one aggregate original-source native packet with honest complete coverage, then admits source after independent decision/SQL/await/receiver review.",
+    "Split behind existing facade; every resulting production/test file below400 nonblank and every complete function/callback no more than80 physical lines. No prototype installer, mirrored algorithm, generic registry or framework to hide size.",
+    "Integration owner runs the identical AFTER case multiset plus concrete ownership guards, native coverage, actual Intel strict type/build/new-test semantic gate and emitted-module validation. Preserve failures and explain any moved/removed uncovered operand honestly.",
+    "Publish finite source qualification with source/test/raw hashes, retained defaults/consumer scope, independent review and single-slice rollback. Keep broader acceptance flags false."
+  ],
+  "exclusions": [
+    "Active frontend and Meri retirement/refactor",
+    "Original/rebuild branch/source overwrite",
+    "Unpublished Engagement report",
+    "Provider/model/database/native operator execution",
+    "Security settings, credentials, AWS/deployment/main merge",
+    "Defense mirror or two-language pipeline consolidation",
+    "Neighboring worker algorithms, repositories, guards, DTO/controllers/module behavior and persistence schemas"
+  ],
+  "originalRequirementOwners": [
+    "Cleanup1 §2/§5/§6/§10–11",
+    "Cleanup2 §2/§3–4/§10–13",
+    "Cleanup3 §7–10",
+    "Cleanup4 §1/§3/§4 Wave3/§7–8/§10–12",
+    "Current backend acceptance index"
+  ]
+}

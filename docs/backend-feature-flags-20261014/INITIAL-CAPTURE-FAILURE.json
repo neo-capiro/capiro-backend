@@ -1,0 +1,9 @@
+{
+  "scope": "Runner qualification failure; not accepted baseline",
+  "exitCode": 1,
+  "observedStderr": "AssertionError: Source status changed during check",
+  "reason": "Wiring edits began after asynchronous baseline process yielded; source status changed before capture completed. The flag implementation/test files remained unchanged, but this run is not used as exact baseline.",
+  "retainedJestResults": "evidence/flags-baseline-results.json",
+  "originalJestPassed": 55,
+  "correction": "Preserve owned prepared wiring patch/module locally, restore only those three owned paths to PR6, run and await clean exact baseline, then reapply prepared edits. No protected or other-owner state touched."
+}

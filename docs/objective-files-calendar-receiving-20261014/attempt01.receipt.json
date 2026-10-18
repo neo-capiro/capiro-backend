@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "docs/objective-files-calendar-receiving-20261014/qualification.test.mjs"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 3.393,
+  "stdoutBytes": 34039,
+  "stderrBytes": 0,
+  "sources": {
+    "receiver.mjs": "8ea474a351e1f9e7341a9a9680e94f25cd18bef3ce06335313296de2629d8872",
+    "canonical-harness.cjs": "36370e5c98891870f872e77101aa9f5b55002d3703ee976093ea9251083f9bb7",
+    "qualification.test.mjs": "18f4b3d6b33da017a7a86771076ecc50790edd94c6ff94aef662629162645335"
+  },
+  "scope": "Synthetic in-memory source/receiving qualification; no HTTP, provider, database, native Prisma or AWS execution."
+}

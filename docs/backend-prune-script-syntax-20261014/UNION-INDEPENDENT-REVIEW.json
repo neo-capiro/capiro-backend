@@ -1,0 +1,73 @@
+{
+  "result": "ordinary_prune_union_accept",
+  "base": "078c55f805de8599cc413917ef90b7e20f040942",
+  "tinyParent": "0aac4d308410bb5485f544863e2d4e41baf0f73b",
+  "layoutPublishedParent": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "mergedHead": "e709a279703c751690c114633db37c460ea6115b",
+  "mergedTree": "e9ba03103efe3d9fc996f9d7c7a5751536e11e86",
+  "orderedParentsAndMergeBaseExact": true,
+  "allModesKindsBlobsExactOrdinaryUnion": true,
+  "overlap": 0,
+  "tinyDeltaPaths": 20,
+  "layoutDocsOnlyDeltaPaths": 26,
+  "incomingLayoutPathsDocsOnly": 26,
+  "allFourTypedProductInputsAndSevenConfigsExact": [
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "mode": "100644",
+      "blob": "d071939ac0f18deccab65794b9be20222c5887e8"
+    },
+    {
+      "path": "apps/api/src/intelligence/contractor-identity.ts",
+      "mode": "100644",
+      "blob": "f34d6b8b89610f0456d3dc2eb548cc184694a568"
+    },
+    {
+      "path": "apps/api/src/intelligence/entity-resolution.service.ts",
+      "mode": "100644",
+      "blob": "79ab9bbdb80db097685c056f4dc7cfd0bea11d1b"
+    },
+    {
+      "path": "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+      "mode": "100644",
+      "blob": "ae45411410c7927a173bf622734091944f190be7"
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "mode": "100644",
+      "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "mode": "100644",
+      "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+    },
+    {
+      "path": "apps/api/package.json",
+      "mode": "100644",
+      "blob": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a"
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "mode": "100644",
+      "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+    },
+    {
+      "path": "apps/api/tsconfig.build.json",
+      "mode": "100644",
+      "blob": "7dd226f439717a3af68152f01118a60b2e8671fd"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "mode": "100644",
+      "blob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5"
+    }
+  ],
+  "relativePublishedLayoutOnlyOperatorTestAndOwnPacket": true,
+  "scope": "Read-only metadata/source input/ordinary ancestry review; original five synthetic and strict type qualification reused only for byte-identical inputs; no reviewer or operator/runtime/database/provider execution."
+}

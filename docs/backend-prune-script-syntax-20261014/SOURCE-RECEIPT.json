@@ -1,0 +1,25 @@
+{
+  "base": "078c55f805de8599cc413917ef90b7e20f040942",
+  "baseTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "sourceHead": "b66a1f6d08e01fe2901f65cee1befe41ca8a7b65",
+  "sourceTree": "4b2110dee3f360cb826e4628144f233c87071310",
+  "sourceDelta": [
+    {
+      "path": "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+      "blob": "ae45411410c7927a173bf622734091944f190be7",
+      "bytes": 14616,
+      "sha256": "9495471d30dada03cc2bf90bc4aedd9afbca666efa219d4598f1ce39d2d61189"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/assistance-recipient-prune-syntax.test.mjs",
+      "blob": "89a19e0c9bcff25dd3cfcf03b4a048082dfdb7b6",
+      "bytes": 5403,
+      "sha256": "ec1066e1040c06e4f9cef59126aa4cd019501d494ce44538df011864b3e209e1"
+    }
+  ],
+  "productionPathCount": 1,
+  "regressionPathCount": 1,
+  "donorSourceHead": "720cf9c7a4336bef69933f54f45e3a7a5f141dba",
+  "donorReviewedHead": "33ea55e50e46dfe75e0aa79b6208f7392acfba39",
+  "wholeDonorBranchReceived": false
+}

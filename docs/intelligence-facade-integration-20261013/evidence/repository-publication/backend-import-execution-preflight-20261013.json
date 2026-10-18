@@ -1,0 +1,54 @@
+{
+  "checkedAtUTC": "2026-10-13T21:02:21.929163+00:00",
+  "authenticatedOwner": {
+    "login": "neo-capiro",
+    "id": 276034435,
+    "type": "User"
+  },
+  "destination": "neo-capiro/capiro-backend",
+  "repositoryGetExit": 1,
+  "repositoryGetSafeObservation": "gh: Not Found (HTTP 404)\n",
+  "newDestinationActionExecuted": false,
+  "ownerRepositoryListing": [
+    {
+      "full_name": "neo-capiro/capiro-frontend",
+      "private": false,
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
+    },
+    {
+      "full_name": "neo-capiro/capirov2",
+      "private": true,
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
+    },
+    {
+      "full_name": "neo-capiro/meri-greenfield",
+      "private": false,
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
+    }
+  ],
+  "source": {
+    "head": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "tree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+    "activeCopiedAutomationPaths": 0,
+    "quarantinedPaths": 74
+  },
+  "result": "PASS: matching authenticated owner, destination404 and absent from owner listing, exact reviewed source/no active copied automation"
+}

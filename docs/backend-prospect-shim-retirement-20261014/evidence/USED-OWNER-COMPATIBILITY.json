@@ -1,0 +1,164 @@
+{
+  "result": "pass",
+  "ref": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "typescriptVersion": "5.9.3",
+  "rows": [
+    {
+      "frozenSourcePath": "packages/shared/src/index.ts",
+      "frozenBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "sourceBytes": 273930,
+      "sourceSha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887",
+      "borrowedSourcePath": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/src/index.ts",
+      "borrowedSourceBytesEqualFrozen": true,
+      "runtimePath": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/dist/index.js",
+      "runtimeBytes": 253955,
+      "runtimeSha256": "77be215d385277589bfc8a386b43eb78ca50b004f91cba47ecf9fae30b704b95",
+      "expectedEmittedBytes": 253955,
+      "expectedEmittedSha256": "77be215d385277589bfc8a386b43eb78ca50b004f91cba47ecf9fae30b704b95",
+      "wholeOwnerEmissionEqual": true,
+      "diagnostics": [],
+      "usedOwners": [
+        "resolveEntitlements",
+        "ENTITLEMENT_FEATURES",
+        "ALWAYS_ENTITLED",
+        "PLAN_ENTITLEMENTS"
+      ],
+      "cacheArtifactMatches": [
+        {
+          "path": "jest-transform-cache-1433515bf4205b721f0ba1d32e0e6dc6-79ef2876fae7ca75eedb2aa53dc48338/9d/index_9d683ff56a5524e8e5a053fbb5041178",
+          "bytes": 253988,
+          "sha256": "67ab83767f6e10d85e360e3438e624d9abbc110b0796711d3c21ef3114d8f7b1"
+        }
+      ],
+      "configPath": "packages/shared/tsconfig.json",
+      "configSha256": "89278950647f196ac9ae3c088f96a35f83e2fa45a7c28c563af3b2e2c059dab5",
+      "baseConfigSha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "compilerOptions": {
+        "target": 9,
+        "module": 1,
+        "moduleResolution": 2,
+        "lib": [
+          "lib.es2022.d.ts",
+          "lib.dom.d.ts"
+        ],
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": false,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "incremental": true,
+        "outDir": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/dist",
+        "rootDir": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src",
+        "composite": true
+      }
+    },
+    {
+      "frozenSourcePath": "packages/shared/src/tenant-feature.ts",
+      "frozenBlob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "sourceBytes": 550,
+      "sourceSha256": "0256d761d048fc28ad6f0c0753e99ed4a6559b4a001a0688f24e21f1d350fbb6",
+      "borrowedSourcePath": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/src/tenant-feature.ts",
+      "borrowedSourceBytesEqualFrozen": true,
+      "runtimePath": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/dist/tenant-feature.js",
+      "runtimeBytes": 659,
+      "runtimeSha256": "7d9930490a8b93b2aa7736f84fd9f61463474755510c7a278e8e4b18ba89738d",
+      "expectedEmittedBytes": 659,
+      "expectedEmittedSha256": "7d9930490a8b93b2aa7736f84fd9f61463474755510c7a278e8e4b18ba89738d",
+      "wholeOwnerEmissionEqual": true,
+      "diagnostics": [],
+      "usedOwners": [
+        "tenantFeatureEnabled"
+      ],
+      "cacheArtifactMatches": [
+        {
+          "path": "jest-transform-cache-1433515bf4205b721f0ba1d32e0e6dc6-79ef2876fae7ca75eedb2aa53dc48338/66/tenantfeature_66e8bfeb53423e09f65230148b9d5bd3",
+          "bytes": 692,
+          "sha256": "2054258e59793bc3245ee0a90214df589fcd394adb75818b3a6be7bee389af97"
+        }
+      ],
+      "configPath": "packages/shared/tsconfig.json",
+      "configSha256": "89278950647f196ac9ae3c088f96a35f83e2fa45a7c28c563af3b2e2c059dab5",
+      "baseConfigSha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "compilerOptions": {
+        "target": 9,
+        "module": 1,
+        "moduleResolution": 2,
+        "lib": [
+          "lib.es2022.d.ts",
+          "lib.dom.d.ts"
+        ],
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": false,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "incremental": true,
+        "outDir": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/dist",
+        "rootDir": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src",
+        "composite": true
+      }
+    },
+    {
+      "frozenSourcePath": "packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "frozenBlob": "b828fd982686cb66bd6e98239066ddc40af3a0cf",
+      "sourceBytes": 605,
+      "sourceSha256": "0e413376f4a50f07cbe8b7bd8e5b47fc6117be162e78389e2061a32da24f71e0",
+      "borrowedSourcePath": "/workspace/capirov2/packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "borrowedSourceBytesEqualFrozen": true,
+      "runtimePath": "/workspace/capirov2/packages/meriv2-core/dist/registry/tool-execution-control.js",
+      "runtimeBytes": 530,
+      "runtimeSha256": "13224ff9fc8f63335c7bb7dea8881eebdda4f88599470a4e5d74e63d2faf77c3",
+      "expectedEmittedBytes": 530,
+      "expectedEmittedSha256": "13224ff9fc8f63335c7bb7dea8881eebdda4f88599470a4e5d74e63d2faf77c3",
+      "wholeOwnerEmissionEqual": true,
+      "diagnostics": [],
+      "usedOwners": [
+        "assertToolExecutionActive"
+      ],
+      "cacheArtifactMatches": [
+        {
+          "path": "jest-transform-cache-1433515bf4205b721f0ba1d32e0e6dc6-79ef2876fae7ca75eedb2aa53dc48338/8c/toolexecutioncontrol_8c17c9d66e007373d1a61901cdf4a87f",
+          "bytes": 563,
+          "sha256": "18995856eb5369bccaef3583bcee02fac99379334fa268485cdd471f4cf0f057"
+        }
+      ],
+      "configPath": "packages/meriv2-core/tsconfig.json",
+      "configSha256": "5b42e7299a11a416282e65b78cb44dc1a9658e3348d97ad00729b0fa25c8d145",
+      "baseConfigSha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+      "compilerOptions": {
+        "target": 9,
+        "module": 1,
+        "moduleResolution": 2,
+        "lib": [
+          "lib.es2022.d.ts"
+        ],
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": false,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "incremental": true,
+        "outDir": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/meriv2-core/dist",
+        "rootDir": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/meriv2-core/src",
+        "composite": true
+      }
+    }
+  ],
+  "cacheHeaderAlgorithm": "Installed Jest29.7 ScriptTransformer SHA1(code).hex.substring(0,32) + newline",
+  "scope": "Bounded actually-used owner source/emission/cached-artifact equivalence; no test rerun/package execution or whole export-graph qualification"
+}
