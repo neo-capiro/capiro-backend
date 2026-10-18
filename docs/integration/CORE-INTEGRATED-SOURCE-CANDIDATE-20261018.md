@@ -35,10 +35,17 @@ history; the memory migrations have not been run or qualified in a live database
 Core's approval verifier now reads a bounded prepared-approval aggregate from the
 existing `run_facts_v1` interface and fails closed on missing, overflow, or mismatched
 facts. The corresponding Meri projection is draft PR165 at
-`8a0fdd1fd874fef37899f550b3142329122bd3f5`, stacked on PR157. Its SQL is a
-**non-runnable receiving proposal** outside executable migrations and PLAN until
-Meri centrally allocates and pins a migration ID. Restricted-role runtime readback
-and allocation-before-prepare proof remain gates. No raw-table grant is added.
+`e2d62589742fd349907274e5ee325e39059f14f4`, stacked on PR157. Meri centrally
+allocated `apps/runtime/native-authority/read-delegation/migrations/0002_prepared_approval_facts.sql`
+(SHA-256 `b203cf0faef94523270eb9c43f7508d0b805e658652214e71ca92e10a050fc1a`)
+and pinned it in `first-chat-migrate.mjs`'s integration stage after read-delegation
+`0001` and approval-metadata `0001`, before `integration_grants`. It adds a bounded
+64-item prepared-approval projection and overflow refusal to the existing
+security-barrier `run_facts_v1` view. The source migration is registered but has
+**not been applied or qualified in the shared runtime**. Restricted-role runtime
+readback and allocation-before-prepare proof remain gates. No raw-table grant is
+added; the existing admission predicate, transaction lock, and original ADMITTED
+grant set remain unchanged.
 Confirm the exact source/image/config pins, migrations and restricted-role
 behavior, signed relay, listener and output validation, and runtime readback before
 changing availability.
