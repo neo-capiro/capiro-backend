@@ -65,6 +65,9 @@ function fixture() {
     process.env.CORE_ROSTER_PREVIEW_ENABLED === 'true',
     process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true',
   ));
+  // Main bootstrap installs the shared JSON parser after the process gate and
+  // before tenant middleware. Parser errors must inherit no-store.
+  app.use(express.json());
   const excludedReached = jest.fn();
   app.get('/health', (_req, res) => { excludedReached(); res.status(200).end(); });
   app.post('/webhooks/clerk', (_req, res) => { excludedReached(); res.status(200).end(); });
@@ -81,25 +84,30 @@ function fixture() {
   app.get('/api/memory/candidates/mine', reply);
   app.get('/api/memory/candidates/mine/:id/status', reply);
   app.get('/api/memory/owner/items', reply);
-  app.use((error: { getStatus?: () => number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    res.status(error.getStatus?.() ?? 500).end();
+  app.use((error: { getStatus?: () => number; status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    res.status(error.getStatus?.() ?? error.status ?? 500).end();
   });
   return { app, reached, excludedReached, verifySessionToken, assertActiveApplicationAuthoritySession, withSystem, mutations };
 }
 
 async function send(server: Server, method: string, target: string, host = previewHost,
-  bearer = 'native-session') {
+  bearer = 'native-session', body?: string) {
   const address = server.address() as AddressInfo;
   return new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }>((resolve, reject) => {
     const req = httpRequest({ hostname: '127.0.0.1', port: address.port, method, path: target,
-      headers: { Host: host, Authorization: `Bearer ${bearer}` } }, (res) => {
+      headers: {
+        Host: host, Authorization: `Bearer ${bearer}`,
+        ...(body === undefined ? {} : {
+          'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
+        }),
+      } }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk: string) => { body += chunk; });
       res.on('end', () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
     });
     req.on('error', reject);
-    req.end();
+    req.end(body);
   });
 }
 
@@ -218,6 +226,26 @@ describe('preview native reads through real Node HTTP and Express routing', () =
       expect(h.verifySessionToken).toHaveBeenCalledTimes(1);
       expect(h.assertActiveApplicationAuthoritySession).toHaveBeenCalledTimes(1);
       expect(h.withSystem).toHaveBeenCalledTimes(1);
+      for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15000);
+
+  it('marks a malformed JSON parser response no-store before tenant middleware', async () => {
+    process.env.PREVIEW_NATIVE_GETS_ENABLED = 'true';
+    process.env.CORE_ROSTER_PREVIEW_ENABLED = 'true';
+    const h = fixture();
+    const server = await start(h.app);
+    try {
+      const result = await send(server, 'GET', '/api/clients', rosterHost,
+        'native-session', '{');
+      expect(result.status).toBe(400);
+      expect(result.headers['cache-control']).toBe('no-store');
+      expect(h.reached).not.toHaveBeenCalled();
+      expect(h.verifySessionToken).not.toHaveBeenCalled();
+      expect(h.withSystem).not.toHaveBeenCalled();
       for (const mutation of h.mutations) expect(mutation).not.toHaveBeenCalled();
     } finally {
       server.closeAllConnections();

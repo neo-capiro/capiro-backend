@@ -12,11 +12,15 @@ export function coreRosterPreviewHttpGate(
 ): RequestHandler {
   return (req, res, next) => {
     const decision = coreRosterPreviewDecision(req, enabled, nativeGetsEnabled);
-    if (decision === 'unrelated' || decision === 'preview') {
+    if (decision === 'unrelated') {
       next();
       return;
     }
     res.setHeader('Cache-Control', 'no-store');
+    if (decision === 'preview') {
+      next();
+      return;
+    }
     const status = decision === 'unavailable' ? 503 : 404;
     res.status(status).json({ statusCode: status, message: status === 503 ? 'Preview reads unavailable' : 'Not Found' });
   };
