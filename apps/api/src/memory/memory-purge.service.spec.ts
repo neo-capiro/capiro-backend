@@ -9,10 +9,28 @@ import { MemoryPurgeService } from './memory-purge.service.js';
  */
 type Recorded = { executed: string[]; queried: string[]; audits: Array<Record<string, unknown>> };
 
+const receiptRelation = {
+  relationKind: 'r', persistence: 'p', rowSecurityEnabled: true,
+  rowSecurityForced: true, hasChildren: false, builtInType: true,
+};
+const receiptColumns: Array<readonly [string, string, number, boolean, boolean]> = [
+  ['tenant_id', 'uuid', -1, true, false],
+  ['candidate_id', 'uuid', -1, true, false],
+  ['candidate_sha256', 'bpchar', 68, true, false],
+  ['proposer_user_id', 'uuid', -1, true, false],
+  ['review_id', 'uuid', -1, true, false],
+  ['created_at', 'timestamptz', 6, true, true],
+];
+const canonicalReceiptShape = () => receiptColumns.map(
+  ([columnName, typeName, typeModifier, notNull, hasDefault]) => ({
+    ...receiptRelation, columnName, typeName, typeModifier, notNull, hasDefault,
+  }),
+);
+
 function makeService(opts?: {
   held?: Array<{ id: string; slug: string }>;
   receiptCandidateColumn?: boolean;
-  receiptShape?: Array<{ hasCandidateColumn: boolean }>;
+  receiptShape?: ReturnType<typeof canonicalReceiptShape>;
   receiptReadError?: Error;
   receiptShapeError?: Error;
 }): {
@@ -31,9 +49,14 @@ function makeService(opts?: {
       }
       if (/pg_catalog\.pg_attribute/.test(sql)) {
         if (opts?.receiptShapeError) return Promise.reject(opts.receiptShapeError);
-        return Promise.resolve(
-          opts?.receiptShape ?? [{ hasCandidateColumn: opts?.receiptCandidateColumn ?? false }],
-        );
+        const shape = opts?.receiptShape ?? canonicalReceiptShape();
+        if (opts?.receiptCandidateColumn) {
+          shape.splice(5, 0, {
+            ...receiptRelation, columnName: 'candidate', typeName: 'jsonb',
+            typeModifier: -1, notNull: true, hasDefault: false,
+          });
+        }
+        return Promise.resolve(shape);
       }
       if (/legal_hold = true/.test(sql)) return Promise.resolve(held);
       if (/count\(\*\)/.test(sql)) return Promise.resolve([{ n: 0n }]);
@@ -106,10 +129,22 @@ describe('MemoryPurgeService.purgeClient', () => {
   it('refuses execute before any delete when the legacy receipt column exists', async () => {
     const { svc, rec } = makeService({ receiptCandidateColumn: true });
     await expect(svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' }))
-      .rejects.toThrow(/receipt candidate payload disposition/);
+      .rejects.toThrow(/verified content-free shape/);
     expect(rec.executed).toHaveLength(0);
     expect(rec.audits).toHaveLength(0);
     expect(rec.queried).toHaveLength(2);
+  });
+
+  it('keeps the nullable Stage 1 candidate column held', async () => {
+    const shape = canonicalReceiptShape();
+    shape.splice(5, 0, {
+      ...receiptRelation, columnName: 'candidate', typeName: 'jsonb',
+      typeModifier: -1, notNull: false, hasDefault: false,
+    });
+    const { svc, rec } = makeService({ receiptShape: shape });
+    await expect(svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' }))
+      .rejects.toThrow(/verified content-free shape/);
+    expect(rec.executed).toHaveLength(0);
   });
 
   it('keeps execution closed on missing or malformed receipt shape readback', async () => {
@@ -117,7 +152,9 @@ describe('MemoryPurgeService.purgeClient', () => {
       { receiptReadError: new Error('receipt table unavailable') },
       { receiptShapeError: new Error('catalog read unavailable') },
       { receiptShape: [] },
-      { receiptShape: [{ hasCandidateColumn: null as never }] },
+      { receiptShape: canonicalReceiptShape().slice(1) },
+      { receiptShape: canonicalReceiptShape().map((row, i) =>
+        i === 2 ? { ...row, typeModifier: '68' as never } : row) },
     ]) {
       const { svc, rec } = makeService(opts);
       await expect(svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' }))
@@ -125,6 +162,29 @@ describe('MemoryPurgeService.purgeClient', () => {
       expect(rec.executed).toHaveLength(0);
       expect(rec.audits).toHaveLength(0);
     }
+  });
+
+  const noncanonicalShapes: Array<[string, () => ReturnType<typeof canonicalReceiptShape>]> = [
+    ['renamed JSONB payload', () => [
+      ...canonicalReceiptShape(),
+      { ...receiptRelation, columnName: 'legacy_payload', typeName: 'jsonb',
+        typeModifier: -1, notNull: false, hasDefault: false },
+    ]],
+    ['unexpected extra column', () => [
+      ...canonicalReceiptShape(),
+      { ...receiptRelation, columnName: 'legacy_payload', typeName: 'text',
+        typeModifier: -1, notNull: false, hasDefault: false },
+    ]],
+    ['payload in a known column type', () => canonicalReceiptShape().map((row) =>
+      row.columnName === 'candidate_sha256' ? { ...row, typeName: 'jsonb' } : row)],
+    ['RLS disabled', () => canonicalReceiptShape().map((row) =>
+      ({ ...row, rowSecurityForced: false }))],
+  ];
+  it.each(noncanonicalShapes)('holds purge for %s despite missing candidate name', async (_label, shape) => {
+    const { svc, rec } = makeService({ receiptShape: shape() });
+    await expect(svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' }))
+      .rejects.toThrow(/verified content-free shape/);
+    expect(rec.executed).toHaveLength(0);
   });
 
   it('deletes the client candidate payload while leaving the content-free Meri replay receipt', async () => {

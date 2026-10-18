@@ -115,7 +115,14 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
       CREATE TABLE memory_candidate(tenant_id uuid,client_id uuid);
       CREATE TABLE client_memory_access(tenant_id uuid,client_id uuid);
       -- Content-free receipt shape: the purge guard must permit execution here.
-      CREATE TABLE clio_meri_memory_submissions(tenant_id uuid,candidate_id uuid);`);
+      CREATE TABLE clio_meri_memory_submissions(
+        tenant_id uuid NOT NULL, candidate_id uuid NOT NULL,
+        candidate_sha256 char(64) NOT NULL, proposer_user_id uuid NOT NULL,
+        review_id uuid NOT NULL,
+        created_at timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      ALTER TABLE clio_meri_memory_submissions ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE clio_meri_memory_submissions FORCE ROW LEVEL SECURITY;`);
     await writer.connect();
     await mutation.connect();
     await writer.query(`SET search_path TO "${schema}"`);

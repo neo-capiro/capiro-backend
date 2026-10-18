@@ -548,8 +548,8 @@ export class MemoryController {
    * MEMORY_PURGE_ENABLED (503 while off). Dry-run by default (counts only);
    * an actual delete requires body.dryRun===false AND body.confirm to equal the
    * client's exact name (fat-finger guard). Legal-held rows are never deleted.
-   * Execution also returns 503 while a Meri submission receipt can still
-   * retain candidate JSONB; dry-run reports receiptPayloadDispositionHold.
+   * Execution also returns 503 unless the Meri submission receipt matches the
+   * content-free schema; dry-run reports receiptPayloadDispositionHold.
    */
   @Post('purge/client/:clientId')
   @Roles('user_admin')
