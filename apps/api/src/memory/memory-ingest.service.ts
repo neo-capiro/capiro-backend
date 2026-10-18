@@ -15,6 +15,7 @@ import type { IngestContext, MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { normalize } from '../embeddings/embedder.js';
 import { embedMemoryItem, memoryEmbeddingEligibilitySql } from './memory-embedding-lifecycle.js';
+import { governedRecallColumnsAvailableInTx } from './memory-recall-suppression.helpers.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 
 /** Build the text we embed for a memory item: title + human-authored section bodies
@@ -338,8 +339,9 @@ export class MemoryIngestService {
       // aborts), so one bad row can't strand the rest. ----
       try {
         const items = await this.prisma.withSystem(
-          (tx) =>
-            tx.$queryRaw<
+          async (tx) => {
+            const memoryColumnsAvailable = await governedRecallColumnsAvailableInTx(tx);
+            return tx.$queryRaw<
               Array<{
                 id: string;
                 client_id: string | null;
@@ -352,8 +354,9 @@ export class MemoryIngestService {
             >`
           SELECT id, client_id, owner_user_id, type, title, slug, sections_jsonb AS sections
           FROM memory_items mi WHERE mi.tenant_id = ${ctx.tenantId}::uuid
-            AND ${Prisma.raw(memoryEmbeddingEligibilitySql())}
-        `,
+            AND ${Prisma.raw(memoryEmbeddingEligibilitySql(memoryColumnsAvailable))}
+        `;
+          },
         );
         for (const it of items) {
           const sections = Array.isArray(it.sections)
