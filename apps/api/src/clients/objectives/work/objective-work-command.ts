@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { objectiveConsentPolicyTerms } from '../../../auth/workload-authority/objective-consent-policy.js';
+import { verifiedObjectivePlannerRegenerationWitness,
+  type ObjectivePlannerRegenerationWitness } from './objective-planner-regeneration.js';
+import type { ObjectiveWorkOutputRequest, ObjectiveWorkOutputObservation } from './objective-work-output.js';
 
 export type WorkAction = 'objective.strategy.draft' | 'objective.plan.prepare';
 export type WorkCommand = {
@@ -62,6 +65,8 @@ export type WorkReconciliation = {
   operationId?: string; attemptId?: string; runId?: string; requestFingerprint?: string;
   originalDeadlineAt?: string; terminalReceiptId?: string;
   outcome?: 'failed' | 'cancelled' | 'applied';
+  /** Internal owner proof for a NEW current source; historical accounting stays applied. */
+  regeneration?: ObjectivePlannerRegenerationWitness;
 };
 export type WorkPolicyFacts = {
   configuredDurationMs: number | null; tenantDurationLimitMs: number | null;
@@ -79,6 +84,9 @@ export interface WorkTransaction {
   /** The connected owner must join the exact original immutable operation,
    * attempt, run, fingerprint, deadline and receipt; syntax is not that proof. */
   reconcile(authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkReconciliation>;
+  /** Read-only projection of private native custody followed by current resource access. */
+  outputs?(authority: WorkAuthority, state: WorkState, request: ObjectiveWorkOutputRequest,
+    observedAt: string): Promise<ObjectiveWorkOutputObservation>;
   policy(authority: WorkAuthority, action: WorkAction, state: WorkState): Promise<WorkPolicyFacts>;
   insertConsent(authority: WorkAuthority, action: WorkAction, consent: WorkConsent): Promise<void>;
   casControl(authority: WorkAuthority, action: WorkAction, before: WorkControl, after: WorkControl): Promise<boolean>;
@@ -158,6 +166,17 @@ export function parseWorkRead(client: unknown, objective: unknown, raw: unknown)
   const v = closed(raw, ['workAction'], ['requestId']);
   return { clientId: workUuid(client), objectiveId: workUuid(objective), workAction: action(v.workAction),
     ...(Object.hasOwn(v, 'requestId') ? { requestId: workUuid(v.requestId) } : {}) };
+}
+/** Public selectors identify an exact source, never a private receipt or output ID. */
+export function parseWorkOutputRead(client: unknown, objective: unknown, raw: unknown): ObjectiveWorkOutputRequest {
+  const v = closed(raw, ['workAction', 'sourceRevisionId', 'sourceObjectiveVersion', 'canonicalBindingVersion']);
+  const counter = (value: unknown) => {
+    if (typeof value !== 'string' || /^[1-9][0-9]{0,9}$/.exec(value)?.[0] !== value) return workFailure('INVALID_REQUEST');
+    return integer(Number(value));
+  };
+  return { clientId: workUuid(client), objectiveId: workUuid(objective), workAction: action(v.workAction),
+    source: { revision: { id: workUuid(v.sourceRevisionId), version: counter(v.sourceObjectiveVersion) },
+      canonicalBindingVersion: counter(v.canonicalBindingVersion) } };
 }
 export function parseWorkPairConfirmation(client: unknown, objective: unknown, raw: unknown): WorkPairRequest {
   const v = closed(raw, ['schemaVersion', 'expectedObjectiveVersion', 'expectedCanonicalBindingVersion', 'strategy', 'planner']);
@@ -283,7 +302,9 @@ async function retryPreflight(tx: WorkTransaction, a: WorkAuthority, request: Wo
   const evidence = await tx.reconcile(a, c.workAction, state);
   const outcome = reconciliationState(evidence, a, c.workAction, state);
   if (outcome === 'unavailable') workFailure('AUTHORITY_UNAVAILABLE', c.requestId);
-  if (outcome === 'outcome_unconfirmed' || outcome === 'accounted' && evidence.outcome === 'applied')
+  if (outcome === 'outcome_unconfirmed' || outcome === 'accounted' && evidence.outcome === 'applied' &&
+      (c.workAction !== 'objective.plan.prepare' ||
+        !verifiedObjectivePlannerRegenerationWitness(evidence.regeneration, a, state)))
     workFailure('OUTCOME_UNCONFIRMED', c.requestId);
   const facts = await tx.policy(a, c.workAction, state);
   if (typeof facts.limitReference !== 'string' || !facts.limitReference || facts.limitReference.length > 128 ||
@@ -466,7 +487,10 @@ export async function executeWorkPairConfirmation(request: WorkPairRequest, owne
   });
 }
 export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOwner) {
-  return owner.transaction(false, async tx => {
+  return owner.transaction(false, async tx => (await readWorkGenerationWithinTx(request, tx)).response);
+}
+/** Internal transaction composition. Authority/state and native custody never enter the public DTO. */
+export async function readWorkGenerationWithinTx(request: WorkReadRequest, tx: WorkTransaction) {
     const a = await tx.currentAuthority(); checkAuthority(a, request);
     let receipt: WorkReceipt | null = null;
     if (request.requestId) {
@@ -479,14 +503,23 @@ export async function readWorkGeneration(request: WorkReadRequest, owner: WorkOw
     const observedAt = utc(await tx.clock());
     const evidence = await tx.reconcile(a, request.workAction, state);
     const reconciled = reconciliationState(evidence, a, request.workAction, state);
-    return { schemaVersion: 1 as const, clientId: a.clientId,
+    // Requested ready source and original accounted source may differ after a
+    // newer Objective revision. These observations let a browser build the
+    // existing command CAS without guessing a binding version, while retaining
+    // the source of any terminal result. They confer no retry/effect authority.
+    const accountedSource = state.consent?.source ?? state.source;
+    const response = { schemaVersion: 1 as const, clientId: a.clientId,
       objective: { id: a.objectiveId, revision: { id: a.objectiveRevisionId, version: a.objectiveVersion }, status: a.objectiveStatus },
       workAction: request.workAction,
+      requestedSource: { revision: { id: state.source.sourceRevisionId, version: state.source.sourceObjectiveVersion },
+        canonicalBindingVersion: state.source.canonicalBindingVersion },
       control: { version: state.control?.version ?? 0, currentAuthorizationRequestId: state.control?.currentConsentId ?? null,
         cancelledAt: state.control?.cancelledAt ?? null },
       consent: state.consent ? { id: state.consent.id, confirmedAt: state.consent.confirmedAt,
         expiresAt: state.consent.expiresAt, expired: Date.parse(state.consent.expiresAt) <= Date.parse(observedAt) } : null,
       reconciliation: reconciled === 'unavailable' ? 'outcome_unconfirmed' : reconciled,
+      accounting: reconciled === 'accounted' ? { outcome: evidence.outcome!,
+        sourceRevision: { id: accountedSource.sourceRevisionId, version: accountedSource.sourceObjectiveVersion } } : null,
       commandReceipt: receipt, observedAt };
-  });
+    return { authority: a, state, response };
 }

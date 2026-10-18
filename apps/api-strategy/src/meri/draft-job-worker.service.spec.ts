@@ -91,6 +91,24 @@ function claimedJob(overrides: Partial<ClaimedJobLike> = {}): ClaimedJobLike {
   };
 }
 
+describe('native Objective intake reservations', () => {
+  it('all deadline/reclaim/claim SQL paths exclude even malformed present markers', async () => {
+    const f = makeWorker();
+    await f.internals.failExpired(); await f.internals.reclaimStale(); await f.internals.claimNext();
+    const tagged = (f.tx.$executeRaw as any).mock.calls.map((call: any[]) => call[0].join('?'));
+    expect(tagged).toHaveLength(3);
+    for (const sql of [...tagged, f.queryRawUnsafe.mock.calls[0]![0]])
+      expect(sql).toContain("NOT (input ? 'objectiveCanonicalReservation')");
+  });
+  it.each([null, {}, { schemaVersion: 1, intakeId: 'fake' }])('never dispatches or writes a present reservation %j', async marker => {
+    const f = makeWorker(), job = claimedJob();
+    (job.input as any).objectiveCanonicalReservation = marker;
+    await f.internals.processJob(job);
+    expect(f.draftMock).not.toHaveBeenCalled(); expect(f.updateMany).not.toHaveBeenCalled();
+    expect((f.prisma.withSystem as any)).not.toHaveBeenCalled();
+  });
+});
+
 describe('DraftJobWorkerService claim query', () => {
   it('claims via FOR UPDATE SKIP LOCKED, scoped to queued + not-yet-expired jobs, and maps the snake_case row', async () => {
     const { internals, queryRawUnsafe } = makeWorker();
@@ -203,18 +221,16 @@ describe('DraftJobWorkerService sweeps', () => {
   });
 
   it('reclaimStale returns a running-but-quiet job to queued (no-progress reclaim, not just claim age)', async () => {
-    const { internals, updateMany } = makeWorker();
+    const { internals, updateMany, tx } = makeWorker();
     await internals.reclaimStale();
-    expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: 'running',
-          updatedAt: { lt: expect.any(Date) },
-          deadlineAt: { gt: expect.any(Date) },
-        }),
-        data: { status: 'queued', claimedBy: null, claimedAt: null },
-      }),
-    );
+    const [strings, cutoff, deadline] = (tx.$executeRaw as any).mock.calls[0];
+    const sql = strings.join('?');
+    expect(sql).toContain("SET status='queued',claimed_by=NULL,claimed_at=NULL");
+    expect(sql).toContain("WHERE status='running' AND updated_at < ? AND deadline_at > ?");
+    expect(sql).toContain("NOT (input ? 'canonicalGeneration')");
+    expect(sql).toContain("NOT (input ? 'objectiveCanonicalReservation')");
+    expect(cutoff).toBeInstanceOf(Date); expect(deadline).toBeInstanceOf(Date);
+    expect(updateMany).not.toHaveBeenCalled();
   });
 });
 

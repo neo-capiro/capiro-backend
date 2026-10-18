@@ -4,8 +4,9 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../../../auth/roles.decorator.js';
 import { RolesGuard } from '../../../auth/roles.guard.js';
 import { CurrentTenant } from '../../../tenant/current-tenant.decorator.js';
-import { ObjectiveWorkError, parseWorkCommand, parseWorkPairConfirmation, parseWorkRead } from './objective-work-command.js';
+import { ObjectiveWorkError, parseWorkCommand, parseWorkPairConfirmation, parseWorkRead, parseWorkOutputRead } from './objective-work-command.js';
 import { ObjectiveWorkService } from './objective-work.service.js';
+import { parseObjectiveStrategySelection } from './objective-strategy-selection.js';
 
 @Controller('clients/:clientId/objectives/:objectiveId/generation')
 @UseGuards(RolesGuard)
@@ -28,6 +29,13 @@ export class ObjectiveWorkController {
     @Param('clientId') client: string, @Param('objectiveId') objective: string, @Body() body: unknown) {
     return this.safe(() => this.service.command(ctx, req, parseWorkCommand(client, objective, body)));
   }
+  @Post('strategy-commands')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  selectedStrategy(@CurrentTenant() ctx: TenantContext, @Req() req: Request,
+    @Param('clientId') client: string, @Param('objectiveId') objective: string, @Body() body: unknown) {
+    return this.safe(() => this.service.selectedStrategyCommand(ctx, req, parseObjectiveStrategySelection(client, objective, body)));
+  }
   @Post('confirm-pair')
   @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')
@@ -40,5 +48,11 @@ export class ObjectiveWorkController {
   read(@CurrentTenant() ctx: TenantContext, @Req() req: Request,
     @Param('clientId') client: string, @Param('objectiveId') objective: string, @Query() query: unknown) {
     return this.safe(() => this.service.read(ctx, req, parseWorkRead(client, objective, query)));
+  }
+  @Get('outputs')
+  @Header('Cache-Control', 'private, no-store')
+  outputs(@CurrentTenant() ctx: TenantContext, @Req() req: Request,
+    @Param('clientId') client: string, @Param('objectiveId') objective: string, @Query() query: unknown) {
+    return this.safe(() => this.service.outputs(ctx, req, parseWorkOutputRead(client, objective, query)));
   }
 }

@@ -38,6 +38,12 @@
       ],
       "newsletter-render": [
         "dist/newsletter-render.d.ts"
+      ],
+      "objective-strategy-intake": [
+        "dist/objective-strategy-intake.d.ts"
+      ],
+      "objective-planner-owner-codec": [
+        "dist/objective-planner-owner-codec.d.ts"
       ]
     }
   },
@@ -113,6 +119,18 @@
       "require": "./dist/newsletter-render.js",
       "import": "./dist/newsletter-render.js",
       "default": "./dist/newsletter-render.js"
+    },
+    "./objective-strategy-intake": {
+      "types": "./dist/objective-strategy-intake.d.ts",
+      "require": "./dist/objective-strategy-intake.js",
+      "import": "./dist/objective-strategy-intake.js",
+      "default": "./dist/objective-strategy-intake.js"
+    },
+    "./objective-planner-owner-codec": {
+      "types": "./dist/objective-planner-owner-codec.d.ts",
+      "require": "./dist/objective-planner-owner-codec.js",
+      "import": "./dist/objective-planner-owner-codec.js",
+      "default": "./dist/objective-planner-owner-codec.js"
     }
   },
   "scripts": {

@@ -1,37 +1,35 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { registerHooks, stripTypeScriptTypes } from 'node:module';
+import { registerHooks } from 'node:module';
 import test from 'node:test';
 import { planCanonicalRegeneration } from '../src/planner/canonical-regeneration-plan.ts';
+import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 
 // Execute the actual immutable materialization helpers with their actual pure
 // calendar helper. Only Nest's error transport is replaced; no application,
 // current authority, database, transaction or provider is simulated by it.
 const source = new URL('../src/', import.meta.url);
-const objective = readFileSync(new URL('meri/objective-generation.types.ts', source), 'utf8');
-const uuidLine = objective.match(/^export const UUID = .*;$/m)?.[0];
-const begin = objective.indexOf('export function digest('), end = objective.indexOf('\nfunction exact(', begin);
-assert.ok(uuidLine && begin > 0 && end > begin, 'exact source digest boundary');
 const moduleUrl = text => 'data:text/javascript;base64,' + Buffer.from(text).toString('base64');
-const digestUrl = moduleUrl(stripTypeScriptTypes(`import {createHash} from 'node:crypto';\n${uuidLine}\n${objective.slice(begin, end)}`));
 const errorsUrl = moduleUrl(`export class HttpException extends Error {
  constructor(response,status){super(String(response?.code));this.response=response;this.status=status;}
  getResponse(){return this.response;} getStatus(){return this.status;}
-}`);
+} export class BadRequestException extends Error{};export class ConflictException extends Error{};`);
 registerHooks({ resolve(specifier, context, nextResolve) {
   if (specifier === '@nestjs/common') return nextResolve(errorsUrl, context);
+  if (specifier === '@capiro/shared/objective-strategy-intake') return nextResolve(objectiveStrategyIntakeUrl, context);
+  if (specifier === '@capiro/shared/objective-planner-owner-codec') return nextResolve(objectivePlannerOwnerCodecUrl, context);
   if (specifier === '@capiro/strategy-verifier')
     return nextResolve(new URL('../../../packages/strategy-verifier/src/planner.ts', source).href, context);
   let url;
   try { url = new URL(specifier, context.parentURL).href; } catch {}
-  if (url === new URL('meri/objective-generation.types.js', source).href) return nextResolve(digestUrl, context);
+  if (url === new URL('meri/objective-generation.types.js', source).href)
+    return nextResolve(new URL('meri/objective-generation.types.ts', source).href, context);
   if (url === new URL('planner/canonical-regeneration-plan.js', source).href)
     return nextResolve(new URL('planner/canonical-regeneration-plan.ts', source).href, context);
   return nextResolve(specifier, context);
 } });
 const m = await import(new URL('planner/strategy-materialization.ts', source).href);
-// Receipt hashes use the exact existing Objective digest copied above.
-const { digest: hash } = await import(digestUrl);
+// Receipt hashes execute the full production Objective adapter and shared factory.
+const { digest: hash } = await import(new URL('meri/objective-generation.types.ts', source).href);
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const clone = x => structuredClone(x);
 function fixture() {

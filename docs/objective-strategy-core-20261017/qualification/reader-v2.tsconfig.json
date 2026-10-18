@@ -1,0 +1,5 @@
+{
+ "extends":"../../../tsconfig.base.json",
+ "compilerOptions":{"module":"Node16","moduleResolution":"Node16","types":["node","jest"],"typeRoots":["../../../apps/api/node_modules/@types"],"isolatedModules":true,"incremental":false,"noEmit":true,"declaration":false,"declarationMap":false,"sourceMap":false},
+ "files":["../../../apps/api/src/auth/workload-authority/objective-reader-v2-jwt.spec.ts","../../../apps/api/src/auth/workload-authority/objective-reader-v2-client.spec.ts"]
+}

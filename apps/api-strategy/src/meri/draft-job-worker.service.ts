@@ -135,13 +135,15 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
         error_message=${failure.message}, stream_preview=NULL, progress_text=NULL,
         input=jsonb_set(input,'{objectiveGeneration,receipt,failure}',${JSON.stringify(failure)}::jsonb), updated_at=clock_timestamp()
         WHERE input ? 'objectiveGeneration' AND NOT (input ? 'canonicalGeneration')
+          AND NOT (input ? 'objectiveCanonicalReservation')
           AND status IN ('queued','running') AND deadline_at <= clock_timestamp()`;
       // A deadline can cross between statements, and the host clock may be
       // ahead of PostgreSQL. Never let the legacy projection consume an
       // Objective job without atomically recording its safe receipt.
       return tx.$executeRaw`UPDATE sp_draft_job SET status='failed', stage='failed',
         error_message=${DEADLINE_MESSAGE}, updated_at=clock_timestamp()
-        WHERE NOT (input ? 'objectiveGeneration') AND NOT (input ? 'canonicalGeneration') AND status IN ('queued','running')
+        WHERE NOT (input ? 'objectiveGeneration') AND NOT (input ? 'canonicalGeneration')
+          AND NOT (input ? 'objectiveCanonicalReservation') AND status IN ('queued','running')
           AND deadline_at <= clock_timestamp()`;
     });
   }
@@ -159,7 +161,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.withSystem((tx) => tx.$executeRaw`
       UPDATE sp_draft_job SET status='queued',claimed_by=NULL,claimed_at=NULL,updated_at=clock_timestamp()
       WHERE status='running' AND updated_at < ${cutoff} AND deadline_at > ${new Date()}
-        AND NOT (input ? 'canonicalGeneration')`);
+        AND NOT (input ? 'canonicalGeneration') AND NOT (input ? 'objectiveCanonicalReservation')`);
   }
 
   /** Atomically claim the oldest eligible queued job (pool + replica safe). */
@@ -171,6 +173,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
          WHERE id IN (
            SELECT id FROM sp_draft_job
            WHERE status = 'queued' AND deadline_at > NOW() AND NOT (input ? 'canonicalGeneration')
+             AND NOT (input ? 'objectiveCanonicalReservation')
            ORDER BY created_at
            LIMIT 1
            FOR UPDATE SKIP LOCKED
@@ -194,6 +197,9 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processJob(job: ClaimedDraftJob): Promise<void> {
+    // Presence, including malformed/null values, refuses legacy dispatch. The
+    // native intake owner alone can promote a reservation after real admission.
+    if (Object.hasOwn(job.input, 'objectiveCanonicalReservation')) return;
     if (job.input.objectiveGeneration) return this.processObjectiveJob(job);
     const { dto, bearer } = job.input;
     let streamBuffer = job.streamPreview ?? '';

@@ -127,6 +127,52 @@ describe('Objective required context observation and budget coverage', () => {
     expect(f.state.events.some((e) => e.includes('LOCK TABLE'))).toBe(false);
     expect(JSON.stringify(admission)).not.toContain('TENANT_NOTE');
   });
+  test.each(['PRIVATE_EIN_SENTINEL', null, undefined])(
+    'omits EIN from the model prompt and reports policy omission for saved value %p',
+    async (ein) => {
+      const f = fixture();
+      const profile = f.state.sources.government_profile_support[0]! as Record<string, any>;
+      const sentinels = OBJECTIVE_FIELD_INVENTORY.government_profile_support!
+        .filter((field) => field !== 'id')
+        .map((field) => [field, `KEEP_${field}`] as const);
+      Object.assign(profile, Object.fromEntries(sentinels));
+      // A mixed-version reader must not bypass the model-boundary omission.
+      profile.ein = ein;
+      const observed = await f.service.observe(f.input);
+      const readOmittedValue = jest.fn(() => { throw new Error('EIN must not be read at the model boundary'); });
+      Object.defineProperty(observed.sources.government_profile_support[0]!, 'ein', {
+        enumerable: true, configurable: true, get: readOmittedValue,
+      });
+      const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+      const prompt = f.bundle.governedContext.prompt;
+      expect(prompt).not.toContain('PRIVATE_EIN_SENTINEL');
+      expect(prompt).not.toContain('"ein"');
+      for (const [, sentinel] of sentinels) expect(prompt).toContain(sentinel);
+      for (const sentinel of ['COMMITTEE', 'FACILITY', 'TENANT_NOTE', 'CURRENT_OFFICE'])
+        expect(prompt).toContain(sentinel);
+      const coverage = admission.coverage.find((group) => group.group === 'government_profile_support')!;
+      expect(coverage.fieldInventory).not.toContain('ein');
+      expect(coverage.fields.filter((field) => field.field === 'ein')).toEqual([{
+        field: 'ein', sourceReference: profile.id, sourceVersionOrAsOf: observed.observedAt,
+        disposition: 'policy_omitted',
+      }]);
+      expect(JSON.stringify(admission)).not.toContain('PRIVATE_EIN_SENTINEL');
+      expect(readOmittedValue).not.toHaveBeenCalled();
+      expect(admission.context.state).toBe('complete');
+      const legacyCoverage = structuredClone(admission.coverage);
+      const legacyProfile = legacyCoverage.find((group) => group.group === 'government_profile_support')!;
+      legacyProfile.fieldInventory = [...legacyProfile.fieldInventory!, 'ein'];
+      legacyProfile.fields.find((field) => field.field === 'ein')!.disposition =
+        ein == null ? 'absent' : 'included';
+      expect(admission.context.coverageDigest).not.toBe(objectiveDigest({
+        manifest: legacyCoverage, history: f.bundle.governedContext.retrieval.coverage,
+        policy: 'objective-v1-required-lossless',
+      }));
+      delete observed.sources.government_profile_support[0]!.ein;
+      const withoutSavedEin = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+      expect(withoutSavedEin.context.coverageDigest).toBe(admission.context.coverageDigest);
+    },
+  );
   test.each(['missing-page', 'record-budget', 'total-budget', 'missing-key', 'directory-error'])(
     'refuses %s without dispatch',
     async (which) => {
@@ -175,6 +221,8 @@ describe('Objective required context observation and budget coverage', () => {
     expect(core).toContain("THEN 'sbClassification'");
     expect(core).toContain('engagement_connections');
     expect(core).toContain('state_legislator');
+    expect(core).not.toContain("'ein'");
+    expect(OBJECTIVE_FIELD_INVENTORY.government_profile_support).not.toContain('ein');
     expect(objectiveDigest({ b: 2, a: 1 })).toBe(objectiveDigest({ a: 1, b: 2 }));
   });
 });

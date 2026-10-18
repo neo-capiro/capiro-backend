@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { STRATEGY_TYPES, type StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
+import { types as nodeTypes } from 'node:util';
+import { createObjectiveStrategyRequestCodec } from '@capiro/shared/objective-strategy-intake';
+import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
 
 export interface ObjectiveDraftRequest {
   requestId: string;
@@ -209,57 +211,17 @@ export const SAFE_FAILURES: Record<string, string> = {
   OBJECTIVE_GENERATION_FAILED: 'This Objective strategy could not be generated.',
 };
 export function digest(value: unknown): string {
-  const stable = (v: any): any =>
-    v instanceof Date
-      ? v.toISOString()
-      : Array.isArray(v)
-        ? v.map(stable)
-        : v && typeof v === 'object'
-          ? Object.fromEntries(
-              Object.keys(v)
-                .sort()
-                .map((k) => [k, stable(v[k])]),
-            )
-          : v;
-  return createHash('sha256')
-    .update(JSON.stringify(stable(value)))
-    .digest('hex');
+  return requestCodec.digest(value);
 }
-function exact(value: unknown, keys: string[]): asserts value is Record<string, any> {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    Object.keys(value).sort().join(',') !== keys.sort().join(',')
-  )
-    throw new BadRequestException('Invalid Objective generation request');
-}
+const requestCodec = createObjectiveStrategyRequestCodec({
+  sha256: text => createHash('sha256').update(text).digest('hex'), isProxy: nodeTypes.isProxy,
+  invalidRequest: () => { throw new BadRequestException('Invalid Objective generation request'); },
+});
 export function parseObjectiveDraft(value: unknown): ObjectiveDraftRequest {
-  exact(value, ['requestId', 'clientId', 'objective', 'type']);
-  exact(value.objective, ['objectiveId', 'objectiveVersion']);
-  const version = value.objective.objectiveVersion;
-  if (
-    ![value.requestId, value.clientId, value.objective.objectiveId].every(
-      (v) => typeof v === 'string' && UUID.test(v),
-    ) ||
-    !Number.isInteger(version) ||
-    version < 1 ||
-    version > 2147483647 ||
-    !STRATEGY_TYPES.includes(value.type)
-  )
-    throw new BadRequestException('Invalid Objective generation request');
-  return {
-    requestId: value.requestId.toLowerCase(),
-    clientId: value.clientId.toLowerCase(),
-    objective: {
-      objectiveId: value.objective.objectiveId.toLowerCase(),
-      objectiveVersion: version,
-    },
-    type: value.type,
-  };
+  return requestCodec.parseObjectiveDraft(value);
 }
 export function requestKey(tenant: string, actor: string, requestId: string): string {
-  return `objective-v1:${digest([tenant, actor, requestId])}`;
+  return requestCodec.requestKey(tenant, actor, requestId);
 }
 export function requestConflict(): never {
   throw new ConflictException({
@@ -271,21 +233,5 @@ export function pendingReceipt(
   request: ObjectiveDraftRequest,
   source: ObjectiveSource,
 ): ObjectiveReceipt {
-  return {
-    schemaVersion: 1,
-    requestId: request.requestId,
-    source,
-    context: {
-      reobservedAt: null,
-      state: 'pending',
-      packetId: null,
-      compiledAt: null,
-      sourceDigest: null,
-      coverageDigest: null,
-      inputDigest: null,
-      issues: [],
-    },
-    result: null,
-    failure: null,
-  };
+  return requestCodec.pendingReceipt(request, source);
 }

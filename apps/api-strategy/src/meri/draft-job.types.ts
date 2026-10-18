@@ -78,6 +78,9 @@ export function computeDraftRequestKey(dto: Pick<DraftStrategyDto, 'clientId' | 
  *  after a ~60s Clerk session token has expired. Never returned to the client
  *  (the public job DTO below omits it). */
 export interface DraftJobInput {
+  /** Actual native intake association only. This excludes every legacy job
+   * path until genuine canonical admission atomically replaces it. */
+  objectiveCanonicalReservation?: import('@capiro/shared/objective-strategy-intake').ObjectiveStrategyReservation;
   /** Original verified non-success accounting only; omitted from public DTO. */
   canonicalTerminal?: import('./objective-canonical-terminal.js').CanonicalTerminalRecord;
   /** Private original SDK custody, inserted only by the same atomic Strategy /

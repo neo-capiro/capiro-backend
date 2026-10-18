@@ -42,7 +42,7 @@ export async function readObjectiveSources(
           WHEN 'lda_registrant_name' THEN 'ldaRegistrantName' ELSE k END)) AS value FROM clients c,
           unnest(ARRAY['id','description','product_description','sector_tag','sectors','funding_priorities',
             'submission_tracks','issue_codes','uei','cage_code','naics_codes','psc_codes','applicant_types',
-            'set_aside_certifications','sb_classification','sam_status','sam_expiration_date','lda_registrant_name','ein']) k
+            'set_aside_certifications','sb_classification','sam_status','sam_expiration_date','lda_registrant_name']) k
         WHERE c.tenant_id=${tenantId}::uuid AND c.id=${clientId}::uuid GROUP BY c.id) p),
       'government_targets', COALESCE((SELECT jsonb_agg((SELECT jsonb_object_agg(k,to_jsonb(t)->k)
         FROM unnest(ARRAY['id','client_id','member_id','member_name','source_directory','party','state','chamber','committee','staff_kind','tier','source','added_at']) k) ORDER BY t.id)

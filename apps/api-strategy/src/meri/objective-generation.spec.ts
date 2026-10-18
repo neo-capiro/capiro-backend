@@ -14,6 +14,22 @@ import { toPublicDraftJob } from './draft-job.types.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+describe('reserved Objective persistence exclusion', () => {
+  test.each([null, {}, { schemaVersion: 1 }])('present marker %j refuses before context or persistence work', async marker => {
+    const f = objectiveFixture();
+    (f.state.job.input as any).objectiveCanonicalReservation = marker;
+    const context = { recheckObjective: jest.fn() };
+    const hooks = objectivePersistence({ ...f.state.job, claimToken: f.state.job.claimedBy,
+      input: f.state.job.input } as any, context as any, () => f.admission);
+    await expect(hooks.beforeTransaction!()).rejects.toThrow();
+    expect(context.recheckObjective).not.toHaveBeenCalled();
+    f.state.events.length = 0;
+    await expect(hooks.beforeWrite(f.tx)).rejects.toThrow();
+    expect(f.state.events).toHaveLength(1);
+    expect(f.state.events[0]).toContain('FROM sp_draft_job');
+  });
+});
+
 describe('Objective authoritative admission and exact request', () => {
   test('binds every saved field and immutable revision', async () => {
     const f = objectiveFixture();
@@ -93,6 +109,7 @@ describe('Objective authoritative admission and exact request', () => {
       {} as any,
     );
     const first = await svc.submitObjective(f.actor, f.request);
+    expect(f.state.events[0]).toBe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))::text');
     expect(await svc.submitObjective(f.actor, f.request)).toEqual(first);
     await expect(
       svc.submitObjective(f.actor, { ...f.request, type: 'authorization' }),
