@@ -1,0 +1,185 @@
+{
+  "source": {
+    "head": "9492c5226ddd3929205da711e35054fcab5cda13",
+    "tree": "52a145fc45522da00cce0e4334668a0345c2d800"
+  },
+  "verdict": "Shared public ledger is the preserved deployment-source intent; approved observed-ledger read does not require proven live service URL. Live applicability remains UNKNOWN.",
+  "sourceFingerprints": [
+    {
+      "key": "mapping_start_1",
+      "gitBlob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/prisma/schema.prisma",
+      "bytesRead": 851,
+      "completeRead": false
+    },
+    {
+      "key": "mapping_start_2",
+      "gitBlob": "e42752de937aa412887878f7e2d15fcf9ea4fc4f",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/workspace/prisma/schema.prisma",
+      "bytesRead": 1482,
+      "completeRead": false
+    },
+    {
+      "key": "mapping_runtime_1",
+      "gitBlob": "dcbb443eeccc9ad4adef2899ed1e4552d6d065af",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/Dockerfile",
+      "bytesRead": 9730,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_runtime_2",
+      "gitBlob": "49e9918b942d36b051505ca6436524a148d6c289",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/workspace/Dockerfile",
+      "bytesRead": 7450,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_runtime_3",
+      "gitBlob": "34b9d2413f76f7ab5b1ce6102096c1f76598b890",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/scripts/entrypoint.sh",
+      "bytesRead": 16346,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_runtime_4",
+      "gitBlob": "f11ecf87c93fbf1526f16d62dda3602e933df5a4",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/workspace/src/prisma/prisma.service.ts",
+      "bytesRead": 1572,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_deploy_inputs_1",
+      "gitBlob": "2c120ae2f778dbf3a82cacffc83d07437d588cf7",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/workspace/scripts/entrypoint.sh",
+      "bytesRead": 2444,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_deploy_inputs_2",
+      "gitBlob": "bee4d7ed29139c84337db66dc002040374e6a8cd",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/scripts/lib/pe-compose-database-url.js",
+      "bytesRead": 1026,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_deploy_inputs_3",
+      "gitBlob": "4f8fb3029be6229f277c61fe40daf88f4c691fac",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/scripts/entrypoint-legacy.sh",
+      "bytesRead": 645,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_owner_1",
+      "gitBlob": "22df95e11308397f0cce32d655294a0074d535fb",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/infra/cdk/bin/capiro.ts",
+      "bytesRead": 3856,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_owner_2",
+      "gitBlob": "d071939ac0f18deccab65794b9be20222c5887e8",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/src/prisma/prisma.service.ts",
+      "bytesRead": 12683,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_owner_3",
+      "gitBlob": "976b1daee22326bbcf622b9ea2ecc7e33be104c1",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/apps/api/scripts/entrypoint-dispatcher.inc",
+      "bytesRead": 5221,
+      "completeRead": false
+    },
+    {
+      "key": "mapping_config_0",
+      "gitBlob": "6b00290053cd08cec718134070ad3138ade0cb9b",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/infra/cdk/lib/compute-stack.ts",
+      "bytesRead": 117059,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_config_2",
+      "gitBlob": "dc273e3ec9a9df2918e07fdc70ab625744fc5d88",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/infra/cdk/lib/data-stack.ts",
+      "bytesRead": 16591,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_config_3",
+      "gitBlob": "0f8598d13eaec207b3cf1b93d8bd7b73c8f90cb3",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/infra/deploy/workspace-migrate-taskdef.json",
+      "bytesRead": 1664,
+      "completeRead": true
+    },
+    {
+      "key": "mapping_config_4",
+      "gitBlob": "493a8b4746604348784265624343c9b15a719541",
+      "sourceUrl": "https://github.com/neo-capiro/capiro-backend/blob/9492c5226ddd3929205da711e35054fcab5cda13/infra/deploy/workspace-serve-taskdef.json",
+      "bytesRead": 2843,
+      "completeRead": true
+    }
+  ],
+  "sourceMapping": {
+    "bothDatasourcesEnv": "DATABASE_URL",
+    "workspaceClientOutputIsCodeIsolation": true,
+    "coreServeSchema": "public",
+    "coreMigrateSchema": "public",
+    "workspaceFallbackSchema": "public",
+    "workspacePreservesExplicitUrl": true,
+    "cdkDatabaseName": "capiro",
+    "cdkHostPortReferencesSame": true,
+    "cdkDbNameVariableSame": true,
+    "serveCredentialReference": "appDbSecretImported",
+    "migrateCredentialReference": "dbSecretImported"
+  },
+  "paths": {
+    "coreCwd": "/app/apps/api",
+    "coreSchema": "/app/apps/api/prisma/schema.prisma",
+    "workspaceCwd": "/app/apps/workspace",
+    "workspaceSchema": "/app/apps/workspace/prisma/schema.prisma"
+  },
+  "shippingReported": {
+    "twoApprovedReadersStopped": true,
+    "temporaryDefinitionsInactive": true,
+    "primaryTlsDatabase": "capiro",
+    "readableLedger": "public._prisma_migrations",
+    "historyRowsWithheld": true,
+    "liveServiceUrlBindingUnproved": true,
+    "evidenceSource": "Delegation; no independent native operation by source task."
+  },
+  "correction": {
+    "collectApprovedObservedLedgerMetadata": true,
+    "sourceSets": [
+      "Core12",
+      "Workspace13"
+    ],
+    "requireServiceBindingToReadObservation": false,
+    "requireServiceBindingToClaimDeploymentApplicability": true,
+    "keepAuthConnectionReadOnlyVisibilityChecks": true,
+    "doNotInferOwnerFromLedger": true,
+    "noRowIsNotNeverApplied": true,
+    "querySqlChanged": false
+  },
+  "preservedSqlBlobs": {
+    "discovery": "3e62cdcbbf6eee64b75ee6eced83bc6a471e8a2f",
+    "core12": "7b59903fbe0d8669edf5632e5ab45d46071374ab",
+    "workspace13": "822586ed802c3f29c62cf3252d11459ef2d42799"
+  },
+  "failures": [
+    {
+      "kind": "default sandbox initialization",
+      "error": "ENOSPC synthetic /tmp/.aws mount; no AWS/secret access involved",
+      "recovery": "Approved read-only source-location/Git path actions."
+    },
+    {
+      "kind": "published sparse checkout discovery",
+      "error": "infra/cdk/lib/compute-stack.ts and bin/capiro.ts absent from sparse checkout, rg exit2",
+      "recovery": "Exact published GitHub file reads; no source-loss inference."
+    }
+  ],
+  "databaseQueriesExecuted": false,
+  "awsOperations": false,
+  "secretValuesRequestedOrExposed": false,
+  "migrationOrQuerySqlChanged": false,
+  "appSourceChanged": false,
+  "firstChatProofChanged": false
+}

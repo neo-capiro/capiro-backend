@@ -1,0 +1,214 @@
+{
+  "baseline": {
+    "head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "tree": "03d6508d021825621f921aa37a5da6d235bb63e0"
+  },
+  "implementation": {
+    "head": "3f747849a1d037806faa819f7c174d8b29675947",
+    "tree": "99cfcbde6c8016747d45740eb7352f456d501125",
+    "sourcePaths": 9
+  },
+  "sourceCorrections": {
+    "prismaRuntimeRetention": {
+      "apps": 4,
+      "specifier": "^5.20.0",
+      "resolvedVersion": "5.22.0",
+      "packageSnapshotIntegritySettingsUnchanged": true,
+      "exactPnpm": "9.12.0",
+      "beforeCliPresentAfterProd": false,
+      "afterCliPresentAfterProd": true,
+      "lifecycleDisabledInLinkProbeOnly": true
+    },
+    "retiredWorkflowSeed": {
+      "removedBytes": 49424,
+      "removedLines": 792,
+      "coreMigrateNoExtraSeed": true,
+      "prismaArgvUnchanged": true,
+      "guardLogicUnchanged": true,
+      "onlyTwoRawEnvelopeHashesUpdated": true,
+      "legacyEnvelopeSourceUnchanged": true
+    }
+  },
+  "verification": {
+    "priorNormalBuilds": {
+      "passed": 10,
+      "source": "PR17"
+    },
+    "priorStockSourceGeneration": {
+      "passed": 4,
+      "source": "PR17"
+    },
+    "pinnedSyntaxImports": {
+      "passed": 14
+    },
+    "coreExistingDiSpec": {
+      "passed": 1,
+      "node": "22.23.3",
+      "seconds": 4.602
+    },
+    "otherDiGraphs": {
+      "passed": 3,
+      "nodes": {
+        "workspace": "22.23.3",
+        "strategy": "20.16.0",
+        "intel": "20.16.0"
+      }
+    },
+    "diUsesStrictDatabasePort": true,
+    "diOutboundIoAttempts": 0,
+    "appInitializationRequested": false,
+    "canonicalGuardCases": {
+      "author": 64,
+      "independent": 64
+    },
+    "inertDispatchCases": {
+      "author": 10,
+      "independent": 10
+    },
+    "shellSyntax": {
+      "author": 3,
+      "independent": 3
+    },
+    "proposalsSourceDerivedFixtureExpectations": {
+      "passed": 55,
+      "canonicalLegalModelsPlanEditsEmittersCompatible": true,
+      "opaqueOpsAdmissionGapProved": true,
+      "liveFailingFieldKnown": false
+    }
+  },
+  "container": {
+    "daemon": "28.4.0",
+    "storageDriver": "vfs",
+    "availableBackingBytes": 0,
+    "reclaimableBytes": 0,
+    "requiredBaseImagesCached": false,
+    "buildPullPruneAttempted": false,
+    "productionPruneImageBookwormArm64Accepted": false
+  },
+  "migrations": {
+    "allSourceNamesAndSqlUnchanged": true,
+    "coreAddedVersusOldMain": 12,
+    "workspaceAddedVersusOldMain": 13,
+    "strategyIntelTreesUnchanged": true,
+    "allCoreApplicationHistory": "UNKNOWN",
+    "oldMainTimestampPolicyFailures": [
+      "20261007010000_newsletter_outreach_format",
+      "20261007020000_newsletter_review_email_delivery",
+      "20261007030000_newsletter_invitation_email_delivery",
+      "20261007040000_newsletter_account_invitations",
+      "20261014050000_user_portfolio_layout"
+    ],
+    "backendImportAppendPolicyFailsOnlyLayout": true,
+    "noRenameOrLedgerRepairAuthorizedBySourceProof": true,
+    "workspaceStrategyMigrateEntrypointsAlsoSeedGlobalReferenceData": true,
+    "coreMigrationSqlMayBackfillAndGrantEvenWithoutExtraSeed": true,
+    "databaseMigrationSeedExecution": false,
+    "workspaceApplicationHistory": "UNKNOWN for all13",
+    "proposedLayoutRenameImplemented": false,
+    "sqlDataAndPermissionActionsReviewed": true,
+    "catalog": "docs/runtime-source-qualification-20261014/cleanup/migration-source-catalog.json"
+  },
+  "firstChat": {
+    "frontendHead": "348c98dfe1962fac962157eb785732281a282d06",
+    "meriDocumentHead": "5a87ffd7f0a5441919c1b4a869295824f1a32d08",
+    "existingCoreAuthorityHandlers": true,
+    "existingCanonicalConversationCreate": "POST /api/clio/conversations body {clientId} optional title",
+    "createsContentOrCallsModel": false,
+    "actualNativeSessionAndOwnedConversationMappingProvided": false,
+    "continuationAndApprovalOwnersRequired": false,
+    "newApiStoreAuthIamNeeded": false,
+    "bootstrapJoin": {
+      "sourceOnly": true,
+      "exactConfiguredPreapprovedRunBinding": true,
+      "composition": "startControl -> candidate.identityContext -> ActionSessionOwner -> context-adapter -> Core canonical record/current principal -> submit persisted/dispatched same binding",
+      "currentNativeActor": "queried native user.id, not guessed Clerk subject",
+      "existingCoreRecord": {
+        "requiresExactTuple": [
+          "tenantId",
+          "nativeUserId",
+          "clientId",
+          "conversationId"
+        ],
+        "requiresActive": true,
+        "requiresNonArchived": true,
+        "requiresCurrentAcl": true
+      },
+      "arbitraryConversationOrRunUuidAccepted": false,
+      "coreAuthorityIssuesGrantBudgetRunIdentity": false,
+      "clientOnlyHintsAcceptedOnlyForConfiguredScope": true,
+      "initialMissingMeriRunRowUsesOnlyApprovedConfiguration": true,
+      "sourceTests": "Meri PR82 author118/118 and independent37/37 preserved; root did not rerun or execute native infrastructure",
+      "realInputsProvided": false
+    },
+    "frontendConnection": {
+      "coreBaseIncludesApi": true,
+      "meriControlBase": "pathless HTTPS MERI_API_BASE_URL",
+      "optIn": "MERI_CONVERSATION_WORKFLOW_ENABLED=true",
+      "configBlob": "289bb035208bc394797b9882a8d8912015894f96",
+      "configurationChanged": false
+    },
+    "coordination": {
+      "url": "https://github.com/neo-capiro/meri-greenfield/pull/82#issuecomment-6167937332",
+      "repliesObserved": 0
+    }
+  },
+  "remainingSourceItems": [
+    "Legacy frontend/Onboard/e2e/operator/infra dependencies prevent blind removal",
+    "Pre-existing seed-demo-client.ts references retired workflowTemplate outside this scoped nine-file change"
+  ],
+  "remainingRuntimeInputs": [
+    "Authorized builder with free layer/export space; resolved image/base digests and matching existing task platform",
+    "Actual migration ledger/checksums and allocation reconciliation for five Core timestamps",
+    "Existing DB/native/RLS/full init/schema/worker-ownership acceptance",
+    "Live proposals value-free diagnostic issue paths",
+    "Actual native identity/session, active owned client-bound conversation and Meri first-run grant/task/resource references"
+  ],
+  "protectedPublishedEngagementBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+  "protectedUnpublishedEngagementAccess": false,
+  "awsSecurityCredentialChanges": false,
+  "liveProviderCustomerWrites": false,
+  "crossRepositoryEmbeddedFrontendSourceArchivalRetried": false,
+  "mainMergeDeployment": false,
+  "publication": {
+    "branch": "codex/backend-runtime-candidate-20261014",
+    "baseBranch": "codex/backend-successor-qualification-20261014",
+    "baseHead": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "expectedFinalParent": "3f747849a1d037806faa819f7c174d8b29675947",
+    "draft": true,
+    "mainMergeDeployment": false,
+    "canonicalHandoff": "docs/successor-qualification-20261014/HANDOFF.md",
+    "headAndTree": "Read the final draft PR publication; this record excludes its own future commit identity."
+  },
+  "proposals": {
+    "observedBy": "Shipping coordinator; no live request by source task",
+    "path": "https://os.capiro.ai/strategy-api/agents/change-sets",
+    "observedStatus": "successful JSON",
+    "frontendFailure": "strategyChangeSet[] parser -> generic502",
+    "previousReachabilityHypothesisSuperseded": true,
+    "liveFailingFieldKnown": false,
+    "sourceOnlyFixtureExpectations": 55,
+    "malformedOpsAdmissionGapCases": 7,
+    "parserRelaxed": false,
+    "sourceListEmissionChanged": false,
+    "valueFreeDiagnosticOwner": "Frontend",
+    "sourceFindings": "docs/runtime-source-qualification-20261014/proposals/PROPOSALS-CONTRACT-FINDINGS.md"
+  },
+  "refRefresh": {
+    "capirov2Main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "backendImport": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "pr17Head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "frontendPr39Head": "348c98dfe1962fac962157eb785732281a282d06",
+    "meriPr82Head": "5a87ffd7f0a5441919c1b4a869295824f1a32d08"
+  },
+  "retainedHistoricalEvidence": "PR17 closed manifest/results and all earlier artifacts are preserved unchanged; current canonical HANDOFF replacement is the sole exception and its dd02 version remains at that immutable head.",
+  "failedEvidenceRetained": [
+    "initial guard ENOSPC",
+    "initial inert dispatch mock mismatch",
+    "initial comment-word source catalog extraction",
+    "initial Core DI credential-directory regex matching @aws namespace",
+    "independent final metadata sandbox ENOSPC",
+    "source-only layout and old-main five timestamp refusal results",
+    "prior PR17 failed builds/install/namespace/raw-output preservation and archival rejection"
+  ],
+  "toolFailureNotes": "docs/runtime-source-qualification-20261014/TOOL-READ-FAILURES.md"
+}
