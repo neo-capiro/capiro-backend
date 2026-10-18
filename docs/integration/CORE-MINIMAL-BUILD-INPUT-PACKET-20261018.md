@@ -3,8 +3,9 @@
 **Status: provisional source preparation.** This packet is based on Core
 `869ee0eb461d15af75ccf83186e6b897d7529bc1` and must be regenerated after
 the document identity adapter at `93ac25e0ef3a59ec10adf269bc8455bdd856b308`,
-Core memory continuation, PR166/PR167 receiving work, and all other accepted
-Core source slices are merged. The adapter is source-only: its trusted
+Core memory continuation at `ab1675ade0da4da2820e667a06497109b53d9f27`,
+the A8 receiving work, and all other accepted Core source slices are merged.
+The adapter is source-only: its trusted
 control-plane identity port/provider remains unimplemented and unregistered.
 No ZIP has been sealed or uploaded. No paid build, image, AWS mutation, live SQL,
 grant, listener change, or deployment is evidenced here.
@@ -126,13 +127,25 @@ earlier PR86, PR90 or PR43 pin. Build/readback details remain in
    are still required. Preserve the original ADMITTED grant set and transaction
    lock in `current_admission_v1`.
 
-Meri PR166 (`15288a79`, six source adapters) and PR167 (`2c53e6c5`,
-`actions.query`/local datasets) are separate provisional source dependencies.
-The reservation-bound `actions.query` to `query_action_items` alias and the
-remaining A8 authority facts are not established by those source pins alone.
-Core memory eligibility/pages/proposal continuation receiving is also pending
-at this packet revision. Add their exact accepted pins and runtime gates after
-receiving; do not silently count them as complete.
+Meri PR166 `15288a7954862e348af86bf1eab119fdb30863a0` prepares six A8
+adapters with canonical selected-client UUIDs in exact Core tool bodies. It
+does not supply Core's nullable hearing-selector admission, authenticated
+legal citation-resolution facts, news cutoff/folder/monitor/default-year owner
+facts, or Outreach walls for unscoped and detail reads. Meri PR167
+`2c53e6c5123d392308d84a74eb8da2e5741f5dc1` prepares selected
+`actions.query@0.2.0` and `list_global_datasets@0.2.0` ports, but its shared
+CLI/registry receiving diff is still unapplied. Core's existing
+`query_action_items` route accepts a user bearer; the reservation-bound signed
+`actions.query` to `query_action_items` alias is not established by PR167.
+Do not select unattended `actions.query` or claim the A8 adapter family live
+from these Meri source pins.
+
+Core memory continuation `ab1675ade0da4da2820e667a06497109b53d9f27`
+adds unmounted page admission and client-scoped proposal continuation source.
+Its signed one-use eligibility helper, reservation-bound Meri proposal alias,
+and final receipt-expiry enforcement remain open. Add exact accepted receiver
+pins and runtime gates after receiving; do not count unmounted preparation as
+live memory availability.
 
 ## Failure and rollback boundary
 
