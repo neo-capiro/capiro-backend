@@ -58,7 +58,13 @@ function own(value: unknown, keys: readonly string[]): Record<string, unknown> {
       ![Object.prototype, null].includes(Object.getPrototypeOf(value))) refuse();
   const names = Reflect.ownKeys(value as object);
   if (names.length !== keys.length || names.some((k) => typeof k !== 'string' || !keys.includes(k))) refuse();
-  return value as Record<string, unknown>;
+  const captured: Record<string, unknown> = Object.create(null);
+  for (const key of keys) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor?.enumerable || !('value' in descriptor)) refuse();
+    captured[key] = descriptor.value;
+  }
+  return captured;
 }
 
 const sha256Utf8 = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
@@ -100,9 +106,10 @@ export function objectiveAdmitCredentialEcho(input: {
         claims.phase !== 'admit' || claims.operation !== OPERATION || claims.method !== 'POST' ||
         claims.path !== OBJECTIVE_ADMIT_ROUTE || claims.query !== '' || claims.bodySha256 !== r.bodySha256 ||
         claims.generationJobId !== jobId || claims.tenantId !== binding.tenantId || claims.exp !== issued.expSeconds) refuse();
-    if (v.delegatedActorId !== binding.actorId) refuse();
+    if (typeof binding.actorId !== 'string' || binding.actorId.length < 1 || binding.actorId.length > 128 ||
+        v.delegatedActorId !== binding.actorId) refuse();
     const expiresAtMs = (issued.expSeconds as number) * 1000;
-    if (expiresAtMs <= (v.checkedAtMs as number)) refuse();
+    if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= (v.checkedAtMs as number)) refuse();
     return {
       credential: token, actorId: binding.actorId as string, tenantId: binding.tenantId as string, generationJobId: jobId,
       operation: OPERATION, method: 'POST', route: OBJECTIVE_ADMIT_ROUTE, phase: 'admit',
