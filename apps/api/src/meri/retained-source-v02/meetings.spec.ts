@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   captureMeetingV02OwnerRead,
   prepareMeetingV02OwnerInput,
@@ -327,6 +329,18 @@ function meetingSourceBody(): MeetingV02ProjectionRequest {
 }
 
 describe('Core meeting 0.2 owner projection', () => {
+  it('pins the complete Meri PR158 meeting output schema dependency closure', () => {
+    const files = {
+      'mail-base.schema.json': 'e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b',
+      'mail-common.schema.json': '7d7ac22eff809cc31e84d1fc9b2fada1b56c316f73e50115207b579de0d92c4b',
+      'mail-retrieval.schema.json': '6058aa0d735b595a093907eec8bf7e4e8f4eb96952f497caa3c1eb00f3ad1a8c',
+      'meetings.schema.json': 'b7ec6ecbdaab3fcccac3b83b9530828c90bda96685385b6f49f929fbd2776664',
+    };
+    for (const [name, expected] of Object.entries(files))
+      expect(createHash('sha256').update(readFileSync(join(__dirname, name))).digest('hex'))
+        .toBe(expected);
+  });
+
   it('maps normalized upcoming selection to its private owner without cursor metadata', () => {
     const selection = upcoming().selection;
     expect(prepareMeetingV02OwnerInput('meeting.list_upcoming_meetings', selection, null)).toEqual({
@@ -403,6 +417,38 @@ describe('Core meeting 0.2 owner projection', () => {
       id('0');
     observe(request);
     expect(() => projectMeetingSourceV02(request)).toThrow('selected client');
+  });
+
+  it('refuses a projected page that violates a nested Meri output schema', () => {
+    const request = upcoming();
+    (request.result as { meetings: Array<{ attendees: unknown[] }> }).meetings[0]!.attendees = [
+      { name: 'Missing required attendee fields' },
+    ];
+    observe(request);
+    expect(() => projectMeetingSourceV02(request)).toThrow('output schema mismatch');
+  });
+
+  it('enforces Meri output maxLength and maxItems limits', () => {
+    const request = upcoming();
+    const row = (request.result as { meetings: Array<{ subject: string; attendees: unknown[] }> })
+      .meetings[0]!;
+    row.subject = 'x'.repeat(4097);
+    observe(request);
+    expect(() => projectMeetingSourceV02(request)).toThrow('output schema mismatch');
+    row.subject = 'Review';
+    row.attendees = Array.from({ length: 4097 }, () => ({
+      name: null, email: null, role: null, responseStatus: null,
+    }));
+    observe(request);
+    expect(() => projectMeetingSourceV02(request)).toThrow('output schema mismatch');
+  });
+
+  it('enforces the response byte ceiling and a smaller supplied claims budget', () => {
+    const request = upcoming();
+    request.maxOutputBytes = 256;
+    expect(() => projectMeetingSourceV02(request)).toThrow('output exceeds byte cap');
+    request.maxOutputBytes = 16 * 1024 * 1024 + 1;
+    expect(() => projectMeetingSourceV02(request)).toThrow('maxOutputBytes');
   });
 
   it('requires matching owner inventory, subject, and current read time', () => {

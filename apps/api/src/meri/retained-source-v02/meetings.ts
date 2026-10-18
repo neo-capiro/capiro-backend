@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
+import baseSchema from './mail-base.schema.json';
+import commonSchema from './mail-common.schema.json';
+import retrievalSchema from './mail-retrieval.schema.json';
+import meetingSchema from './meetings.schema.json';
 
 /**
  * Pure Core meeting-owner projection for Meri's candidate 0.2 transport.
@@ -13,6 +19,18 @@ export type MeetingV02Operation =
   'meeting.list_upcoming_meetings' | 'meeting.query_debriefs' | 'meeting.read_client_meetings';
 
 type JsonRecord = Record<string, unknown>;
+
+// The dependency closure and meeting schema are byte-pinned to Meri PR158
+// 052f9865 in meetings.spec.ts. Validate the complete DTO before release.
+const ajv = new Ajv2020({ strict: true, allErrors: true });
+addFormats(ajv);
+for (const schema of [baseSchema, commonSchema, retrievalSchema, meetingSchema])
+  ajv.addSchema(schema);
+const upcomingShape = ajv.getSchema('urn:meri:retrieval:meeting:0.2.0#/$defs/MeetingUpcomingPage');
+const debriefShape = ajv.getSchema('urn:meri:retrieval:meeting:0.2.0#/$defs/DebriefSourcePage');
+const meetingShape = ajv.getSchema('urn:meri:retrieval:meeting:0.2.0#/$defs/ClientMeetingReadPage');
+if (!upcomingShape || !debriefShape || !meetingShape)
+  throw new Error('Meri meeting 0.2 schema compilation failed');
 
 export interface MeetingV02Authority {
   requestId: string;
@@ -68,7 +86,12 @@ export interface MeetingV02ProjectionRequest {
   result: unknown;
   /** Trusted clock supplied at the owner invocation boundary. */
   nowMs: number;
+  /** Optional smaller authenticated claims budget. The current admission
+   * receipt does not expose it; the hard transport ceiling still applies. */
+  maxOutputBytes?: number;
 }
+
+const MAX_MEETING_V02_OUTPUT_BYTES = 16 * 1024 * 1024;
 
 export class MeetingV02ProjectionError extends Error {
   constructor(message: string) {
@@ -764,9 +787,23 @@ export function projectMeetingSourceV02(request: MeetingV02ProjectionRequest): J
   };
   // The result may outlive the mutable owner record or admission object. Copy
   // through the same strict canonical JSON form used for its argument digest.
+  let serialized: string;
   try {
-    return JSON.parse(canonicalizeCoreRetainedJson(projected)) as JsonRecord;
+    serialized = canonicalizeCoreRetainedJson(projected);
   } catch {
     return refuse('meeting page is not inert JSON');
   }
+  const maxOutputBytes = request.maxOutputBytes === undefined
+    ? MAX_MEETING_V02_OUTPUT_BYTES
+    : integer(request.maxOutputBytes, 'maxOutputBytes', 1, MAX_MEETING_V02_OUTPUT_BYTES);
+  if (Buffer.byteLength(serialized, 'utf8') > maxOutputBytes)
+    refuse('Meri meeting 0.2 output exceeds byte cap');
+  const projectedPage = JSON.parse(serialized) as JsonRecord;
+  const shape = request.operation === 'meeting.list_upcoming_meetings'
+    ? upcomingShape
+    : request.operation === 'meeting.query_debriefs'
+      ? debriefShape : meetingShape;
+  if (!shape) refuse('Meri meeting 0.2 output schema unavailable');
+  if (!shape(projectedPage)) refuse('Meri meeting 0.2 output schema mismatch');
+  return projectedPage;
 }
