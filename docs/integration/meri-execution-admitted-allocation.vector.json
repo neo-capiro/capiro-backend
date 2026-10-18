@@ -44,13 +44,15 @@
   },
   "issuanceRequest": {
     "requestId": "07310f71-2d8b-4c8a-b6ba-446ece1e7d3f",
-    "budgets": {
-      "maxTurns": 20,
-      "maxRuntimeSeconds": 900,
-      "maxCostMicrousd": 2000000,
-      "maxOutputBytes": 1048576
+    "allocationSha256": "ae61330f3c2f2ce7f33e89587415372a1ad5a84048e42017137e4c3d969bf0d5",
+    "qualification": {
+      "runId": "55555555-5555-4555-8555-555555555555",
+      "attempt": 2,
+      "workerArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0123456789abcdef0123456789abcdef",
+      "fence": 4,
+      "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9"
     },
-    "allocationSha256": "ae61330f3c2f2ce7f33e89587415372a1ad5a84048e42017137e4c3d969bf0d5"
+    "runDeadlineMs": 1792304130000
   },
   "inputs": {
     "proposal": {

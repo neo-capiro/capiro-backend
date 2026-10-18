@@ -34,6 +34,14 @@ export class NativeApprovalController {
     return this.approvals.decision(req, ctx, body);
   }
 
+  /** Approver revocation (append-only; the decision stays immutable). */
+  @Post('revoke')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  revoke(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.approvals.revoke(req, ctx, body);
+  }
+
   /** Approved-execution capability issuance (D016 #9): Meri's decide route,
    * attended approver's native bearer + verified service identity. */
   @Post('execution')

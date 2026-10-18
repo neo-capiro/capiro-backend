@@ -2319,6 +2319,7 @@ model ClioMeriApprovalDecision {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_approval_decisions_tenant_fkey")
   executionIssuances ClioMeriExecutionIssuance[]
+  revocation         ClioMeriApprovalRevocation?
 
   @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
   @@map("clio_meri_approval_decisions")
@@ -2384,6 +2385,21 @@ model ClioMeriRoutineCancelProof {
 
   @@index([tenantId, intentId], map: "clio_meri_routine_cancel_proofs_intent_idx")
   @@map("clio_meri_routine_cancel_proofs")
+}
+
+/// Meri approval decision revocation: an append-only fact; the decision stays immutable.
+model ClioMeriApprovalRevocation {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  proposalId       String   @map("proposal_id") @db.Uuid
+  commandSha256    String   @map("command_sha256") @db.Char(64)
+  revokedByUserId  String   @map("revoked_by_user_id") @db.Uuid
+  reason           String   @db.VarChar(32)
+  revokedAt        DateTime @default(now()) @map("revoked_at") @db.Timestamptz(6)
+
+  decision ClioMeriApprovalDecision @relation(fields: [tenantId, proposalId], references: [tenantId, proposalId], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_approval_revocations_decision_fkey")
+
+  @@id([tenantId, proposalId], map: "clio_meri_approval_revocations_pkey")
+  @@map("clio_meri_approval_revocations")
 }
 
 /// Meri approved-execution issuance ledger (D016 #9): one row per capability.

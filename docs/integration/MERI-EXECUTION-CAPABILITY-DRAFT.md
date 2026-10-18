@@ -1,9 +1,9 @@
 # Meri execution capability — `capiro.meri-execution-capability.v1` (rev 5)
 
-**Status: in source on capiro-backend #84, not deployed.** The issuance route and the `create_task` receiver exist. Both answer 503 until all of these are in place:
+**Status: in source on capiro-backend #84, not deployed.** The issuance route, the revocation route and the `create_task` receiver exist. All answer 503 until these are in place:
 - the four `MERI_EXECUTION_SIGNER_*` values;
 - the KMS key (created only in the deployment packet);
-- Core's SELECT on Meri's run owner tables (§3).
+- Core's access to Meri's admission tables (§8).
 
 The ledger migration `20281018040000_clio_meri_execution_authority` is reserved and NOT applied.
 
@@ -11,47 +11,44 @@ The ledger migration `20281018040000_clio_meri_execution_authority` is reserved 
 
 | Role | Owner |
 | --- | --- |
-| Draft and Core source (issuance agreement, replay, receiver) | Core integration owner |
-| Meri's 13-field verifier and the ACTIVE execution-grant installer | Meri lane X (in progress) |
+| Core source: issuance, replay, receiver, revocation | Core integration owner |
+| Meri's 13-field verifier and the execution-grant installer | Meri lane X (merged at `11b90c7f`) |
 | Consumer and lifecycle review | R0 |
 | Cross-repo fit review | dot |
 
-**Shape note.** dot reviewed rev 3's 13-field execution member (#121 6247443108 / 6247464370), and R0 assigned Meri lane X to adopt it. Rev 5 keeps that shape. Meri's verifier at the integration tip (`10f01297`) still closes the member to 10 keys, so it refuses rev 5 tokens until lane X lands. A rev 4 that dropped to 10 keys to match Meri `1cc5a554` was never pushed.
+**Cross-check with Meri's own code** at integration tip `a2239dde`, against the complete admitted-allocation vector. All of these accept:
+- `verifyExecutionCapability`
+- `assertExecutionCorrelation` (with the allocation hash and the qualification)
+- `executionRequestId`
+- `capabilityBudgets` (exact budgets and allocation hash)
+- `commandSourceBody`
+- `parseToolGrantFacts`
+
+`exp*1000` matches too.
 
 **What exists in source:**
 
 | Piece | File |
 | --- | --- |
-| Codec: issue, verify, trusted comparison, Meri's request id, allocation budgets, qualification, body inverse | `apps/api/src/meri/execution-capability/meri-execution-capability.ts` |
-| Meri run owner reader | `apps/api/src/meri/execution-capability/meri-admitted-run.reader.ts` |
+| Codec: issue, verify, trusted comparison, request id, allocation budgets, qualification, body inverse, platform maxima, client-scope containment | `apps/api/src/meri/execution-capability/meri-execution-capability.ts` |
+| Meri's canonical admission predicate | `apps/api/src/meri/execution-capability/meri-admitted-run.reader.ts` |
 | Issuance service and route | `apps/api/src/meri/native-approvals/native-execution.service.ts` (`POST /api/clio/approvals/native/execution`) |
-| Receiver | `apps/api/src/meri/execution-capability/meri-execution-receiver.service.ts`, called from `MeriController.executeTool` |
+| Revocation and `revoked` on reads | `apps/api/src/meri/native-approvals/native-approval.service.ts` (`POST /api/clio/approvals/native/revoke`) |
+| Receiver and the preview no-fallback rule | `apps/api/src/meri/execution-capability/meri-execution-receiver.service.ts`, called from `MeriController.executeTool` |
 | Middleware admission | `apps/api/src/tenant/tenant-context.middleware.ts` (`useMeriExecutionCapability`), `apps/api/src/auth/meri-execution-request.ts` |
-| Key configuration and verification (pure, SDK-free; the middleware's closure) | `apps/api/src/auth/core-ed25519-key-config.ts`, `apps/api/src/auth/core-ed25519-signer.ts` |
+| Key configuration and verification (pure, SDK-free) | `apps/api/src/auth/core-ed25519-key-config.ts`, `apps/api/src/auth/core-ed25519-signer.ts` |
 | KMS signer (the only `@aws-sdk/client-kms` import) | `apps/api/src/auth/core-ed25519-kms-config.ts` |
-| Ledger | `apps/api/prisma/migrations/20281018040000_clio_meri_execution_authority/migration.sql` |
-| Codec vector (minimal allocation, SYNTHETIC key) | `docs/integration/meri-execution-capability.vector.json` |
-| Complete admitted-allocation vector | `docs/integration/meri-execution-admitted-allocation.vector.json` |
+| Ledger: issuances, consumptions, revocations | `apps/api/prisma/migrations/20281018040000_clio_meri_execution_authority/migration.sql` |
+| Vectors | `docs/integration/meri-execution-capability.vector.json` (codec, minimal allocation)<br>`docs/integration/meri-execution-admitted-allocation.vector.json` (complete allocation from Meri's `composeGeneralReadAllocation`) |
 
-The complete vector's allocation is composed by Meri's own `composeGeneralReadAllocation` (D016 default run budgets) and parses with Meri's `allocation()`.
+## 1. What Meri needs (meri-greenfield `11b90c7f`)
 
-**Cross-check with Meri's own code** (integration tip `10f01297`). These all match:
-- `executionRequestId`;
-- `capabilityBudgets` (exact budgets and `allocationSha256`);
-- `commandSourceBody` (`sourceBodySha256`);
-- `parseToolGrantFacts` (qualification and allocation as grant facts);
-- `exp*1000`.
-
-Meri's verifier refuses only on the 10-key closure.
-
-## 1. What Meri needs
-
-| Meri site | Requirement this contract satisfies |
+| Meri site | Requirement |
 | --- | --- |
-| `apps/runtime/native-authority/execution-issuance.mjs` | Posts `{proposal, executorBinding, requestId, budgets, allocationSha256}` with the attended approver's native bearer and the service secret. Requires a closed receipt `{execution, credential, checkedAtMs, expiresAtMs}` where `expiresAtMs === exp*1000`, `execution` equals the verified request, and budgets are exactly equal to its own. |
-| `apps/runtime/native-authority/execution-capability.mjs` | `executionRequestId`, `capabilityBudgets`, `assertExecutionCorrelation`, and the closed execution member (13 keys after lane X). |
-| `apps/runtime/native-authority/execution-grant.mjs` | `executionGrantFacts` binds `qualificationBinding` and `allocationSha256` from the run's admitted grant set; the signed facts must equal them. |
-| `apps/control/commands/source-http.mjs` | `POST /api/clio/tools/create_task` with `Authorization: Bearer <capability>`, the service secret, and the null-omitting body. Requires HTTP 200 JSON. |
+| `apps/runtime/native-authority/execution-issuance.mjs` | Posts the rev 3 body `{proposal, executorBinding, requestId, allocation, allocationSha256, qualification, runDeadlineMs}` with the attended approver's native bearer and the service secret. It requires a closed receipt `{execution, credential, checkedAtMs, expiresAtMs}` with `expiresAtMs === exp*1000` and budgets equal to its allocation's. It then installs the capability's execution grant before the receipt is used. |
+| `apps/runtime/native-authority/execution-capability.mjs` | Verifies the 13-key execution member; applies `assertExecutionCorrelation` and `executionRequestId`. |
+| `apps/gateway/budget/execution-grant-admission.mjs` | Inserts the ACTIVE execution grant (`grant_id = jti`, `capability_sha256` = SHA-256 of the token, `expires_at = exp`) under the budget lock. Its `revoke` sets the run's execution grants to REVOKED. |
+| `apps/control/commands/source-http.mjs` | `POST /api/clio/tools/create_task` with the capability bearer, the service secret and the null-omitting body; requires HTTP 200 JSON. |
 
 ## 2. Token
 
@@ -63,130 +60,122 @@ A compact JWS of at most 8192 bytes; the signing input is at most 4096 bytes.
 | Payload member | Value |
 | --- | --- |
 | `iss`, `aud` | Core issuer label; `meri-gateway` |
-| `iat` = `nbf`, `exp` | `exp = min(iat + 120, decision.expiresAt, proposal.expiresAt, run deadline)`. The run deadline is `started_at + maxRuntimeSeconds` and `schedule.expiresAt`, from Meri's owner. |
-| `jti` | `capabilityId` (UUIDv4) |
-| `capability` | Exactly Meri `CapabilityClaims`. `budgets` is derived from the admitted allocation exactly as Meri's `capabilityBudgets` derives it. |
-| `execution.requestId` … `requestSha256` | Request id (Meri's deterministic id), proposal, command hash, idempotency key, `task.create`, `argumentsSha256`, client ids, `decisionSha256`, approver, `requestSha256` |
-| `execution.sourceBodySha256` | `SHA-256(JCS(commandSourceBody(command)))`: Meri's exact `create_task` body |
-| `execution.allocationSha256` | `SHA-256(JCS(admitted allocation))`, read from Meri's allocation owner |
-| `execution.qualification` | `{runId, attempt, workerArn, fence, policyRevision}`, read from Meri's run owner. It must be the executor's run and fence, at the decision's policy revision; the worker ARN uses Meri's pinned account pattern. |
+| `iat` = `nbf`, `exp` | The database clock read under Meri's budget lock. `exp = min(iat + 120, decision.expiresAt, proposal.expiresAt, admission deadline)`. |
+| `jti` | `capabilityId` (UUIDv4); also Meri's execution `grant_id` |
+| `capability` | Meri `CapabilityClaims`. `budgets` are derived from the admitted allocation exactly as Meri's `capabilityBudgets` derives them. |
+| `execution` (13 keys) | `requestId`, `proposalId`, `commandSha256`, `idempotencyKey`, `action`, `argumentsSha256`, `sourceBodySha256`, `clientIds`, `decisionSha256`, `approver`, `requestSha256`, `allocationSha256`, `qualification` |
 
 ## 3. Issuance: `POST /api/clio/approvals/native/execution`
 
-**Auth:** the same as R12. Native session bearer, verified service identity, `standard_user`, `Cache-Control: no-store`, HTTP 200.
+**Auth:** native session bearer, verified service identity (`hasVerifiedToolServiceIdentity`), `standard_user`, `no-store`, HTTP 200.
 
-**Request:** the body is closed: `{proposal, executorBinding, requestId, budgets, allocationSha256}`.
-
-**Preconditions.** Every call re-runs all five, a replay included:
-1. The caller is the proposal's `requiredApprover`, and is also the executor binding's tenant and actor.
-2. The stored R12 decision for (tenant, proposal) meets all of these:
-   - it is approved and unexpired;
-   - it is for this `commandSha256`, actor, conversation and run;
-   - the caller approved it.
+**Preconditions.** Every call re-runs all five, a replay included. They run under the proposal's advisory lock and Meri's budget lock, against the database clock:
+1. The caller is the required approver and the executor binding's actor.
+2. The stored decision meets all of these:
+   - approved, unexpired and **not revoked**;
+   - for this command and run;
+   - approved by the caller.
 
    The proposal must also equal Meri's prepared approval metadata.
-3. The executor binding keeps the proposal's tenant, actor, conversation and run. `requestId` must equal Meri's `executionRequestId` for this exact executor binding.
-4. The action is `task.create`, with closed arguments and no attachments. A non-null `clientId` is a UUID.
-5. Every scope belongs to this tenant at the decision's policy revision. Every client (scopes and `arguments.clientId`) is visible to the actor now.
+3. The executor binding meets all of these:
+   - it keeps the proposal's tenant, actor, conversation and run;
+   - it is **exactly** the admitted grants' binding (this authenticates `attemptId`, `workerId` and `writerFence`);
+   - `requestId` is Meri's deterministic id for it.
+4. The action is `task.create`, with closed arguments and no attachments.
+5. Scopes and clients:
+   - every scope is this tenant's at the decision's revision;
+   - **the task's client is inside the approved client scope**: a non-null `clientId` is one of the client scopes; a null `clientId` needs no client scope and the tenant's own tenant scope;
+   - every client is visible now.
 
-**Allocation and qualification come from an authenticated owner, never from the caller** (dot item 2). Core reads Meri's run owner tables on its own transaction, the way it already reads `meri_commands.approval_metadata`:
+**Meri's canonical admission** (`readCurrentAdmission` + `execution-grant-admission`), read by Core on its transaction:
+- **Lock.** `SELECT … FROM meri_product_budget.budget WHERE id = 1 FOR SHARE`. This conflicts with the `FOR UPDATE` that Meri's admission, revocation, grant installation and fence changes take, so nothing commits in between. It also requires the budget not to be quarantined, and supplies the database clock.
+- **Run and allocation rows.** There must be one `runs` row and one `tool_run_allocations` row, and all of these hold:
+  - the stored hash equals the RFC 8785 hash of the allocation;
+  - the allocation's run is the executor's;
+  - the qualification is the run row's, at the executor's fence and the decision's revision.
+- **Admitted grants.** Every grant on the run that is not a Core-issued capability is an admitted grant. Each must be ACTIVE, unexpired and bound in `tool_grant_bindings`. Its facts must have the executor binding, the run's qualification, the allocation hash and the row's digest.
+- **Deadline.** `min(started_at + maxRuntimeSeconds, schedule.expiresAt, admitted grant expiries)` must be ahead.
 
-```sql
-SELECT r.run_id, r.attempt, r.worker_arn, r.fence, r.policy_revision,
-       a.allocation, a.allocation_sha256, a.started_at
-  FROM meri_product_budget.runs r
-  JOIN meri_product_budget.tool_run_allocations a ON a.run_id = r.run_id
- WHERE r.run_id = $executorRun
-```
+The request's `allocation`, `allocationSha256`, `qualification` and `runDeadlineMs` must **equal** the owner's.
 
-It requires all of these:
-- exactly one row;
-- the stored hash equals the RFC 8785 hash of the stored allocation;
-- the allocation's run is the executor's;
-- the qualification is the executor's run and fence at the decision's revision;
-- the run deadline is still ahead.
+**Budgets** are never caller-chosen: they are derived from the allocation. The configured platform maxima `MERI_EXECUTION_MAX_{TURNS,RUNTIME_SECONDS,COST_MICROUSD,OUTPUT_BYTES}` refuse above themselves. Unset means no extra bound, and a malformed value answers 503. The D016 default profile is set in the deployment template, never hard-coded.
 
-The request's `budgets` and `allocationSha256` must **equal** the owner's, as an exact copy. A request above the D016 B1 envelope is refused. If the tables are unreadable, Core answers 503.
-
-**Ledger** (`clio_meri_execution_issuances`, immutable, RLS): one row per capability. Each row holds the hashes, the executor binding, the budgets, the allocation hash, the qualification, the signer, `iat` and `exp`. The row is written **before** signing, under a per-(tenant, proposal) advisory lock. An existing row decides the outcome:
+**Ledger:** the row is written before signing. Existing rows decide the outcome:
 
 | Existing state | Outcome |
 | --- | --- |
-| A live row for the same `requestId` | The same immutable capability is re-signed at its recorded `iat`, only after every precondition and the owner read pass again and all of these are identical: binding, budgets, allocation, qualification, decision and signer. `checkedAtMs` is Core's fresh observation, never the old receipt. |
+| A live row for the same request | The same immutable token, re-signed after every check above passes again; `checkedAtMs` is fresh. |
 | A live row for another attempt | 409 |
-| A higher writer fence on the run | 409 |
+| A lower writer fence | 409 |
 | An expired row | A new capability is issued. |
-
-**Receipt:** `{execution, credential, checkedAtMs, expiresAtMs}` with `expiresAtMs = exp*1000`.
 
 ## 4. Verification
 
 `verifyMeriExecutionCapability` checks:
 - the exact header, a pinned `kid`, and a pure Ed25519 signature;
 - payload bytes equal to their JCS form;
-- `iss` and `aud`, and `nbf = iat ≤ now < exp` with `exp − iat ≤ 120`;
+- `iss`, `aud` and time;
 - the capability against the payload;
-- scope tenant and revision, with no duplicates;
-- `clientIds` re-derived and `requestSha256` recomputed;
-- the qualification bound to the binding and the policy revision.
+- scopes, `clientIds`, `requestSha256` and the qualification binding.
 
-Verification is only self-consistency. `assertExecutionMatches` compares the token with the actual request, proposal, current decision, allocation and qualification.
+`assertExecutionMatches` compares the token with the actual request, proposal, current decision, allocation and qualification.
 
-## 5. Replay, consumption and revocation
+## 5. Consumption and revocation
 
-**Core consumption** (`clio_meri_execution_consumptions`) has one durable effect identity per (tenant, proposal, idempotency key), shared by every capability for that proposal. The receiver does all of the following in **one transaction**, so either everything commits or nothing does:
+**Consumption.** The receiver does all of the following in **one transaction**, under the proposal lock and Meri's budget lock:
 - the checks;
 - the claim;
-- the task write (`EngagementService.createTask` on the same transaction, with `source_type = meri_approved_execution` and `source_id = <proposalId>|<idempotencyKey>`, which also hits the existing partial UNIQUE on tasks);
-- completing the row with the JSON result.
+- the task write (`source_type meri_approved_execution`, which also hits the partial UNIQUE on tasks);
+- the completion.
 
-A repeat answers the stored result. A claimed row without a result cannot commit in this design; if one is read it answers 409 UNKNOWN and is never redispatched.
+A repeat answers the stored result only after every check passed again on the database clock. A claimed row without a result answers UNKNOWN and is never redispatched.
 
-**Revocation is still not supplied.** R12 decisions are immutable and `approval/decision` answers `revoked: false`. Within the ≤120 s window the receiver re-checks all of these: the current decision, membership, the client wall, Meri's run owner (attempt, worker, fence, allocation) and the ledger. A decision-revocation record needs an owner decision (ledger D33).
+**Decision revocation.** The approver calls `POST /api/clio/approvals/native/revoke` (the same body and auth as `approval/decision`). Core writes an append-only `clio_meri_approval_revocations` row under the proposal lock; the decision row stays immutable. From then on:
+- `approval/decision` and `approval/record` answer `revoked: true`, and Meri's `readDecision` treats that as no decision;
+- issuance, receipt and completed-result release all refuse.
+
+The revocation and an effect serialize on the same lock. **Run cancellation and fence changes** come from Meri's owner: its `revoke` sets the grants to REVOKED, and a fence move changes the run row. The admission predicate sees either one at the next issuance, effect or release.
 
 ## 6. Receiver: `POST /api/clio/tools/create_task` with the capability
 
-**Middleware admission.** The tenant middleware admits `Authorization: Bearer <capiro-meri-execution+jwt>` only on this exact path, for POST, with no query. It then checks:
-- the signature, issuer, audience and time, against the configured key;
+**Middleware admission.** The tenant middleware admits the capability only on this exact path:
+- signature, issuer, audience and time;
 - no tenant or impersonation header;
-- that the signed actor is an existing active member of an active tenant, with at least `standard_user`.
+- an existing active member with at least `standard_user`.
 
-On any other path the bearer gets Clerk verification and fails. The service secret (`hasVerifiedToolServiceIdentity`) and the tool allowlist still apply.
+Service identity and the allowlist still apply.
 
-**Receiver checks**, all before the effect and under the proposal lock:
-- **Identity.** The tool is `create_task`. The whole capability is re-verified, and its `jti`, tenant and actor equal the admitted ones.
-- **Body.** The body hashes to `sourceBodySha256` and maps back to closed arguments whose hash is `argumentsSha256`.
-- **Ledger.** The capability is Core's issuance row, with the same request, hashes, binding, budgets, allocation, qualification, window and signer. It is the newest issuance for the proposal.
-- **Run.** Meri's run owner still holds the same allocation and qualification, before the deadline. An attempt or fence change at Meri refuses.
-- **Decision.** The current decision hashes to `decisionSha256`. It is approved, unexpired, for this run, and at the signed revision.
-- **Membership.** It is active with at least `standard_user`, re-read in the transaction.
-- **Clients.** Every client is visible now.
-- **Consumption.** As in §5.
+**Receiver checks**, all under the proposal lock and Meri's budget lock:
+- **Identity.** The tool is `create_task`, and the capability is fully re-verified.
+- **Body.** The body equals `sourceBodySha256` and maps back to `argumentsSha256`.
+- **Ledger.** Core's issuance row matches exactly and is the newest.
+- **Decision.** The current decision is unrevoked.
+- **Admission.** Meri's admission predicate passes, **including this capability's own execution grant**: ACTIVE, unexpired, with the token's digest.
+- **Clock.** The database clock is before the token `exp`, the decision expiry and the admission deadline. It is checked once under the locks (before any completed-result release) and again **at the effect boundary**.
+- **Membership.** It is active with at least `standard_user`.
+- **Clients.** The client is inside the approved scope, and the wall is current.
 
-The capability is never accepted on `approval/decision` or any other route. Lane L supplies the run- and proposal-bound executor forwarder for decision reads, with native plus verified service identity.
+**No fallback (dot 6247742665 item 3).** In the `first-chat-preview` profile, where Meri is the only tool caller, `create_task` is refused on the ordinary bearer path. A capability that fails admission is refused at the receiver and never retried as an ordinary call. Other deployments keep their existing orchestrator path.
 
 ## 7. Questions and answers
 
-1. ~~**Budgets.**~~ They are derived from the owner's admitted allocation, and the request must equal them exactly.
-2. ~~**Issuance request (dot 6247464370 item 2).**~~ Meri's five members are accepted. Core proves the allocation and qualification from Meri's owner tables, not from the caller's hash. The complete admitted-allocation vector is published.
-3. ~~**Replay (item 3).**~~ The same immutable token is returned only after a fresh current-authority check. The receipt's `checkedAtMs` is fresh; Meri stamps its own as well.
-4. ~~**Receiver (item 7).**~~ Mounted in source with durable effect consumption and current checks; 503 until keyed.
-5. **Open (D33):**
-   - decision revocation;
-   - whether `arguments.clientId` must also appear among the client scopes;
-   - closing the ordinary bearer `create_task` in the preview.
+1. ~~**Budgets.**~~ They are derived from the owner's allocation and bounded only by configured platform maxima.
+2. ~~**Issuance request.**~~ Meri's rev 3 body is accepted, and every member must equal Meri's admission owner.
+3. ~~**Replay.**~~ The same immutable token is returned only after fresh current authority, with a fresh `checkedAtMs`.
+4. ~~**Receiver.**~~ Durable consumption, the canonical admission and database-clock checks at release and at the effect.
+5. ~~**Revocation, client scope, no fallback, configurable bounds**~~ (dot 6247742665): implemented.
+6. **Open:** Meri's executor and lifecycle callers of `revoke` (R0 lane L/cancellation).
 
 ## 8. Keys and grants (deployment packet only)
 
-One AWS KMS key: `KeySpec ECC_NIST_EDWARDS25519`, `KeyUsage SIGN_VERIFY`, signed with `ED25519_SHA_512` over RAW (pure Ed25519).
+One AWS KMS key: `KeySpec ECC_NIST_EDWARDS25519`, `KeyUsage SIGN_VERIFY`, signed with `ED25519_SHA_512` over RAW.
 
 The Core task needs:
-- `MERI_EXECUTION_SIGNER_ISSUER` = `capiro-core:meri-execution:v1`;
-- `MERI_EXECUTION_SIGNER_KID`;
-- `MERI_EXECUTION_SIGNER_KMS_KEY_ARN` (server-side only);
-- `MERI_EXECUTION_SIGNER_PUBLIC_KEY_X` (the `GetPublicKey` readback);
-- `kms:Sign` on that key ARN only.
+- `MERI_EXECUTION_SIGNER_{ISSUER,KID,KMS_KEY_ARN,PUBLIC_KEY_X}`;
+- optionally `MERI_EXECUTION_MAX_*`;
+- `kms:Sign` on the key only.
 
-Meri pins the same `(issuer, kid, x)`.
-
-Core's database role needs SELECT on `meri_product_budget.runs` and `meri_product_budget.tool_run_allocations`, and the SELECT on `meri_commands.approval_metadata` already listed as D17.
+Core's database role needs:
+- SELECT on `meri_product_budget.{budget,runs,tool_run_allocations,grants,tool_grant_bindings}`;
+- the row lock on the single `budget` row. PostgreSQL requires UPDATE privilege for `FOR SHARE`, so this means a column-level UPDATE grant on one column of `meri_product_budget.budget`. Core never issues an UPDATE, and a spec pins `FOR SHARE`. A narrower alternative is a Meri-owned `SECURITY DEFINER` snapshot function with EXECUTE only; that is Meri's choice;
+- SELECT on `meri_commands.approval_metadata` (D17).

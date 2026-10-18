@@ -75,3 +75,11 @@ export async function meriExecutionClientsVisible(
           WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id AND a.user_id = ${actorId}::uuid))`;
   return Array.isArray(rows) && rows.length === ids.length && rows.every((r) => ids.includes(r.id));
 }
+
+/** The database clock on the caller's transaction (the effect-boundary recheck). */
+export async function meriExecutionDbNow(tx: Prisma.TransactionClient): Promise<number> {
+  const rows = await tx.$queryRaw<Array<{ db_now: Date }>>`SELECT clock_timestamp() AS db_now`;
+  const at = Array.isArray(rows) && rows[0]?.db_now instanceof Date ? rows[0].db_now.getTime() : NaN;
+  if (!Number.isSafeInteger(at)) throw new Error('database clock unavailable');
+  return at;
+}

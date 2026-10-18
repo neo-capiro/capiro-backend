@@ -61,7 +61,10 @@ import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-resear
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { meriExecutionRequestOf } from '../auth/meri-execution-request.js';
-import { MeriExecutionReceiverService } from './execution-capability/meri-execution-receiver.service.js';
+import {
+  MeriExecutionReceiverService,
+  assertOrdinaryToolPathAllowed,
+} from './execution-capability/meri-execution-receiver.service.js';
 import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
 import {
@@ -560,6 +563,7 @@ export class MeriController {
       if (!this.executionReceiver) throw new ServiceUnavailableException('Execution capabilities are not enabled');
       return this.executionReceiver.receive(req, ctx, name, body, approvedExecution);
     }
+    assertOrdinaryToolPathAllowed(name);
     const admittedRead = admitMeriReadObservation(name, body, req);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(

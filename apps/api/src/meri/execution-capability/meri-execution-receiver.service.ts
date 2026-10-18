@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   ConflictException,
   ForbiddenException,
@@ -21,10 +22,12 @@ import {
   MERI_EXECUTION_KEY_CONFIG,
   lockMeriExecutionProposal,
   meriExecutionClientsVisible,
+  meriExecutionDbNow,
   meriExecutionTrust,
 } from './meri-execution-authority.js';
 import { readMeriAdmittedRun } from './meri-admitted-run.reader.js';
 import {
+  taskClientWithinScopes,
   taskCreateArgumentsFromBody,
   verifyMeriExecutionCapability,
   type VerifiedMeriExecution,
@@ -32,6 +35,20 @@ import {
 
 /** The one tool a Meri execution capability may run (`task.create`). */
 export const MERI_EXECUTION_TOOL = 'create_task';
+
+/**
+ * dot #121 6247742665 item 3: Meri's agent never falls back to the ordinary
+ * bearer path for an approved write. In the first-chat-preview profile, whose
+ * only tool caller is Meri, `create_task` is accepted only on the capability
+ * branch; a capability that fails admission is refused there and never
+ * retried here. Other deployments keep their existing (post-compliance-gate)
+ * orchestrator path unchanged.
+ */
+export function assertOrdinaryToolPathAllowed(name: string, profile: string | undefined = process.env.CORE_DEPLOYMENT_PROFILE): void {
+  if (profile === 'first-chat-preview' && name === MERI_EXECUTION_TOOL) {
+    throw new ForbiddenException('Approved execution capability required');
+  }
+}
 /** `engagement_tasks.source_type` of an approved execution's task; with
  * `source_id = <proposalId>|<idempotencyKey>` it hits the existing partial
  * UNIQUE (tenant_id, source_type, source_id), a second effect identity. */
@@ -108,9 +125,9 @@ export class MeriExecutionReceiverService {
     if (args.clientId !== null && !UUID.test(args.clientId)) throw conflict('Execution client is not a resolved client id');
 
     const key = { tenantId: ctx.tenantId, proposalId: execution.proposalId, idempotencyKey: execution.idempotencyKey };
+    const capabilitySha256 = createHash('sha256').update(identity.token, 'utf8').digest('hex');
     return this.prisma.withTenant(ctx.tenantId, async (tx): Promise<Prisma.JsonValue> => {
       await lockMeriExecutionProposal(tx, ctx.tenantId, execution.proposalId);
-      const nowMs = Date.now();
       // Ledger.
       const issuance = await tx.clioMeriExecutionIssuance.findUnique({ where: { jti: claims.capabilityId } });
       if (!issuance || issuance.tenantId !== ctx.tenantId || issuance.proposalId !== execution.proposalId ||
@@ -128,22 +145,35 @@ export class MeriExecutionReceiverService {
         orderBy: [{ iatSeconds: 'desc' }, { recordedAt: 'desc' }],
       });
       if (!newest || newest.jti !== issuance.jti) throw conflict('Execution attempt superseded');
-      // Current decision.
+      // Current decision and its revocation.
       const row = await tx.clioMeriApprovalDecision.findUnique({
         where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: execution.proposalId } },
       });
       if (!row) throw conflict('Approval decision is not current');
       const decision = nativeDecisionOf(row);
       if (nativeCanonicalSha256(decision) !== execution.decisionSha256 || decision.decision !== 'approved' ||
-          row.expiresAt.getTime() <= nowMs || decision.policyRevision !== claims.policyRevision ||
+          decision.policyRevision !== claims.policyRevision ||
           row.approverUserId !== ctx.userId || row.bindingActorUserId !== claims.binding.actorId ||
           row.conversationId !== claims.binding.conversationId || row.runId !== claims.binding.runId) {
         throw conflict('Approval decision is not current');
       }
-      // Current run (Meri's owner): same allocation, attempt, worker, fence, policy.
-      const admitted = await readMeriAdmittedRun(tx, claims.binding, claims.policyRevision, nowMs);
+      const revocation = await tx.clioMeriApprovalRevocation.findUnique({
+        where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: execution.proposalId } },
+      });
+      if (revocation) throw conflict('Approval decision is revoked');
+      // Meri's canonical admission under its budget lock (serialized with its
+      // revoke/install/fence changes), including this capability's own ACTIVE
+      // execution grant. From here every time check uses the database clock.
+      const admitted = await readMeriAdmittedRun(tx, claims.binding, claims.policyRevision, {
+        tenantId: ctx.tenantId, expect: { jti: claims.capabilityId, capabilitySha256 },
+      });
       if (admitted.allocationSha256 !== execution.allocationSha256 || !sameJson(admitted.qualification, execution.qualification) ||
           !sameJson(admitted.budgets, claims.budgets)) throw conflict('Execution run is not current');
+      const assertLive = (nowMs: number) => {
+        if (nowMs >= identity.expMs) throw new UnauthorizedException('Invalid execution capability');
+        if (nowMs >= row.expiresAt.getTime() || nowMs >= admitted.deadlineMs) throw conflict('Execution authority expired');
+      };
+      assertLive(admitted.dbNowMs);
       // Current membership.
       const membership = await tx.tenantMembership.findFirst({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
@@ -151,10 +181,12 @@ export class MeriExecutionReceiverService {
       });
       if (!membership || membership.tenant.status !== 'active' || !Object.hasOwn(ROLE_RANK, membership.role) ||
           ROLE_RANK[membership.role as TenantRole] < ROLE_RANK.standard_user) throw forbidden();
-      // Current client wall.
+      // Scope containment and the current client wall.
+      if (!taskClientWithinScopes(args.clientId, claims.scopes, ctx.tenantId)) throw conflict('Execution client is outside the approved scope');
       const clients = [...execution.clientIds, ...(args.clientId === null ? [] : [args.clientId])];
       if (!(await meriExecutionClientsVisible(tx, ctx.tenantId, ctx.userId, clients))) throw forbidden();
-      // Durable effect identity.
+      // Durable effect identity: a completed result is released only after
+      // every check above passed on this transaction's clock.
       const existing = await tx.clioMeriExecutionConsumption.findUnique({ where: { tenantId_proposalId_idempotencyKey: key } });
       if (existing) {
         if (existing.commandSha256 !== execution.commandSha256 || existing.argumentsSha256 !== execution.argumentsSha256) {
@@ -163,11 +195,11 @@ export class MeriExecutionReceiverService {
         if (existing.state === 'COMPLETED' && existing.result !== null) return existing.result;
         throw conflict('Execution outcome unknown');
       }
-      if (nowMs >= identity.expMs) throw new UnauthorizedException('Invalid execution capability');
       await tx.clioMeriExecutionConsumption.create({
         data: { ...key, commandSha256: execution.commandSha256, argumentsSha256: execution.argumentsSha256, jti: issuance.jti },
       });
-      // The effect, on the same transaction.
+      // The effect boundary: the database clock again, still under both locks.
+      assertLive(await meriExecutionDbNow(tx));
       const task = await this.engagement.createTask(ctx, {
         title: args.title, clientId: args.clientId ?? undefined, dueDate: args.dueDate ?? undefined,
       }, { tx, sourceType: MERI_EXECUTION_TASK_SOURCE, sourceId: `${execution.proposalId}|${execution.idempotencyKey}` });

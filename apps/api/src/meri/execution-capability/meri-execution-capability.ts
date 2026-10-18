@@ -209,17 +209,54 @@ function budgets(value: unknown): MeriCapabilityBudgets {
 }
 
 /**
- * D016 B1 (meri-greenfield DECISIONS.md): the owner-approved per-run envelope.
- * Budgets are copied exactly from Meri's request; Core refuses a request above
- * this envelope and never lowers or rewrites one (stricter check, not a
- * ceiling Core substitutes). maxOutputBytes has no owner value and is copied.
+ * Configured platform maxima (D016-A item 3; dot #121 6247742665): never a
+ * hard-coded universal ceiling. Budgets always come from the authenticated
+ * allocation; each `MERI_EXECUTION_MAX_*` that is set refuses an allocation
+ * above it and never rewrites one. Unset means no extra platform bound. The
+ * D016 default integration profile (20 turns, 900 s, $2) is configured in the
+ * deployment template, not here. A malformed value throws (the route answers
+ * 503 rather than issue unbounded).
  */
-export const MERI_EXECUTION_BUDGET_ENVELOPE = Object.freeze({ maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicrousd: 2_000_000 });
+export interface MeriExecutionPlatformMaxima {
+  maxTurns?: number;
+  maxRuntimeSeconds?: number;
+  maxCostMicrousd?: number;
+  maxOutputBytes?: number;
+}
 
-export function withinMeriExecutionBudgetEnvelope(b: MeriCapabilityBudgets): boolean {
-  return b.maxTurns <= MERI_EXECUTION_BUDGET_ENVELOPE.maxTurns &&
-    b.maxRuntimeSeconds <= MERI_EXECUTION_BUDGET_ENVELOPE.maxRuntimeSeconds &&
-    b.maxCostMicrousd <= MERI_EXECUTION_BUDGET_ENVELOPE.maxCostMicrousd;
+const MAXIMA_ENV: ReadonlyArray<[keyof MeriExecutionPlatformMaxima, string]> = [
+  ['maxTurns', 'MERI_EXECUTION_MAX_TURNS'],
+  ['maxRuntimeSeconds', 'MERI_EXECUTION_MAX_RUNTIME_SECONDS'],
+  ['maxCostMicrousd', 'MERI_EXECUTION_MAX_COST_MICROUSD'],
+  ['maxOutputBytes', 'MERI_EXECUTION_MAX_OUTPUT_BYTES'],
+];
+
+export function readMeriExecutionPlatformMaxima(env: NodeJS.ProcessEnv): MeriExecutionPlatformMaxima {
+  const out: MeriExecutionPlatformMaxima = {};
+  for (const [key, name] of MAXIMA_ENV) {
+    const raw = env[name];
+    if (raw === undefined || raw.trim() === '') continue;
+    if (!/^[1-9][0-9]{0,15}$/.test(raw.trim()) || !Number.isSafeInteger(Number(raw.trim()))) throw new Error(`${name} must be a positive integer`);
+    out[key] = Number(raw.trim());
+  }
+  return out;
+}
+
+export function withinMeriExecutionPlatformMaxima(b: MeriCapabilityBudgets, m: MeriExecutionPlatformMaxima): boolean {
+  return (Object.keys(m) as Array<keyof MeriExecutionPlatformMaxima>).every((k) => b[k] <= (m[k] as number));
+}
+
+/**
+ * dot #121 6247742665 item 2: a task's client must be inside the approved
+ * command's exact client scope. A non-null `clientId` is a lowercase UUID
+ * among the client scopes; a null `clientId` is the tenant-level task
+ * contract: no client scope at all and this tenant's own tenant scope, so a
+ * null client never widens a client-bound approval.
+ */
+export function taskClientWithinScopes(clientId: string | null, scopes: readonly NativeScope[], tenantId: string): boolean {
+  const clients = clientIdsOf(scopes);
+  if (clientId !== null) return UUID.test(clientId) && clients.includes(clientId);
+  return clients.length === 0 && scopes.some((s) => s.kind === 'tenant' && s.tenantId === tenantId && s.resourceId === tenantId);
 }
 
 /** Closed budgets: exactly the four keys, each a positive safe integer. */

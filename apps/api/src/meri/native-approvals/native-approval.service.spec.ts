@@ -77,6 +77,8 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOn
       findUnique: jest.fn(async ({ where }: any) => rows.get(key(where)) ?? null),
       create,
     },
+    // No revocation in these cases (revocation is covered by the execution flow spec).
+    clioMeriApprovalRevocation: { findUnique: jest.fn(async () => null) },
     $queryRaw: jest.fn(async () => {
       if (options.metadata === 'unavailable') throw new Error('relation "meri_commands.approval_metadata" does not exist');
       if (!current) return [];

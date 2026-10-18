@@ -804,6 +804,12 @@ export const configSchema = z.object({
   MERI_ROUTINE_CANCEL_SIGNER_KID: z.string().optional(),
   MERI_ROUTINE_CANCEL_SIGNER_KMS_KEY_ARN: z.string().optional(),
   MERI_ROUTINE_CANCEL_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  // D016-A 3 configured platform maxima for execution capabilities (optional,
+  // positive integers; budgets always come from the authenticated allocation).
+  MERI_EXECUTION_MAX_TURNS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_EXECUTION_MAX_RUNTIME_SECONDS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_EXECUTION_MAX_COST_MICROUSD: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_EXECUTION_MAX_OUTPUT_BYTES: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
   // Dark rollout gate for the new API/orchestrator/web proposal contract. The
   // insecure legacy browser routes are disabled regardless of this value.
   MERIV2_ACTION_PROPOSALS_ENABLED: z

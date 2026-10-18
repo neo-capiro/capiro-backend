@@ -12,6 +12,26 @@
 -- Only digests, claims, the allocation hash and qualification facts read from
 -- Meri's run owner, and the tool result are stored, never a bearer token.
 
+-- Decision revocation (dot #121 6247742665 item 1): the R12 decision stays
+-- immutable; a revocation is a separate append-only fact. Once a row exists,
+-- `approval/decision` answers `revoked: true` and no capability is issued,
+-- received or replayed for that proposal.
+CREATE TABLE "clio_meri_approval_revocations" (
+  "tenant_id" UUID NOT NULL,
+  "proposal_id" UUID NOT NULL,
+  "command_sha256" CHAR(64) NOT NULL,
+  "revoked_by_user_id" UUID NOT NULL,
+  "reason" VARCHAR(32) NOT NULL,
+  "revoked_at" TIMESTAMPTZ(6) NOT NULL DEFAULT clock_timestamp(),
+  CONSTRAINT "clio_meri_approval_revocations_pkey" PRIMARY KEY ("tenant_id", "proposal_id"),
+  CONSTRAINT "clio_meri_approval_revocations_decision_fkey"
+    FOREIGN KEY ("tenant_id", "proposal_id")
+    REFERENCES "clio_meri_approval_decisions" ("tenant_id", "proposal_id")
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT "clio_meri_approval_revocations_sha_check" CHECK ("command_sha256" ~ '^[0-9a-f]{64}$'),
+  CONSTRAINT "clio_meri_approval_revocations_reason_check" CHECK ("reason" IN ('approver_revoked'))
+);
+
 CREATE TABLE "clio_meri_execution_issuances" (
   "jti" UUID NOT NULL,
   "tenant_id" UUID NOT NULL,
@@ -71,7 +91,7 @@ CREATE TABLE "clio_meri_execution_consumptions" (
 
 CREATE FUNCTION clio_meri_execution_issuance_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  RAISE EXCEPTION 'Meri execution issuance rows are immutable' USING ERRCODE='23514';
+  RAISE EXCEPTION 'Meri execution authority rows are immutable' USING ERRCODE='23514';
 END $$;
 CREATE TRIGGER clio_meri_execution_issuances_immutable
   BEFORE UPDATE ON "clio_meri_execution_issuances"
@@ -92,6 +112,15 @@ CREATE TRIGGER clio_meri_execution_consumptions_transition
   BEFORE UPDATE ON "clio_meri_execution_consumptions"
   FOR EACH ROW EXECUTE FUNCTION clio_meri_execution_consumption_transition();
 
+CREATE TRIGGER clio_meri_approval_revocations_immutable
+  BEFORE UPDATE ON "clio_meri_approval_revocations"
+  FOR EACH ROW EXECUTE FUNCTION clio_meri_execution_issuance_immutable();
+
+ALTER TABLE "clio_meri_approval_revocations" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "clio_meri_approval_revocations" FORCE ROW LEVEL SECURITY;
+CREATE POLICY "clio_meri_approval_revocations_isolation" ON "clio_meri_approval_revocations"
+  USING (rls_bypass() OR tenant_id = current_tenant_id())
+  WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id());
 ALTER TABLE "clio_meri_execution_issuances" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "clio_meri_execution_issuances" FORCE ROW LEVEL SECURITY;
 CREATE POLICY "clio_meri_execution_issuances_isolation" ON "clio_meri_execution_issuances"
@@ -106,6 +135,8 @@ CREATE POLICY "clio_meri_execution_consumptions_isolation" ON "clio_meri_executi
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
+    REVOKE UPDATE, DELETE, TRUNCATE ON "clio_meri_approval_revocations" FROM capiro_app;
+    GRANT SELECT, INSERT ON "clio_meri_approval_revocations" TO capiro_app;
     REVOKE UPDATE, DELETE, TRUNCATE ON "clio_meri_execution_issuances" FROM capiro_app;
     REVOKE UPDATE, DELETE, TRUNCATE ON "clio_meri_execution_consumptions" FROM capiro_app;
     GRANT SELECT, INSERT ON "clio_meri_execution_issuances" TO capiro_app;

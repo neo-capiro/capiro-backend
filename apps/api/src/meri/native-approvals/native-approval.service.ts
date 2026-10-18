@@ -17,6 +17,7 @@ import {
   type NativeScope,
 } from './native-approval.contract.js';
 import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
+import { lockMeriExecutionProposal } from '../execution-capability/meri-execution-authority.js';
 
 /** Clock allowance for a proposal created by Meri slightly ahead of Core. */
 const CREATED_AT_SKEW_MS = 5_000;
@@ -87,16 +88,21 @@ export class NativeApprovalService {
     };
     const stored = await this.storeOnce(create);
     if (stored.commandSha256 !== proposal.commandSha256) throw new ConflictException('Approval proposal already decided for another command');
-    return receipt(stored);
+    return receipt(stored, await this.revoked(stored.tenantId, stored.proposalId));
   }
 
   async decision(req: Request, ctx: TenantContext, raw: unknown): Promise<NativeApprovalReceipt> {
     if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
     const input = parseApprovalDecisionInput(raw);
     if (input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioMeriApprovalDecision.findUnique({
-      where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: input.proposalId } },
-    })) as DecisionRow | null;
+    const [row, revoked] = await this.prisma.withTenant(ctx.tenantId, async (tx) => [
+      await tx.clioMeriApprovalDecision.findUnique({
+        where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: input.proposalId } },
+      }) as DecisionRow | null,
+      (await tx.clioMeriApprovalRevocation.findUnique({
+        where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: input.proposalId } },
+      })) !== null,
+    ] as const);
     // Callers pass different bindings (original, fresh executor attempt, current
     // run), so only tenant/actor/conversation/run are compared. Anything else is
     // answered as "no decision" without disclosing another run's state.
@@ -107,7 +113,44 @@ export class NativeApprovalService {
     ) {
       return { decision: null, checkedAtMs: Date.now(), revoked: false };
     }
-    return receipt(row);
+    return receipt(row, revoked);
+  }
+
+  /**
+   * Revocation of an approval by its approver (dot #121 6247742665 item 1).
+   * The decision row stays immutable; an append-only revocation fact is
+   * written once under the proposal's execution lock, so it serializes with
+   * capability issuance and the `create_task` receiver: an effect either
+   * committed before the revocation or is refused after it. Idempotent: a
+   * repeat answers the same revoked receipt. Same body and auth as
+   * `approval/decision`.
+   */
+  async revoke(req: Request, ctx: TenantContext, raw: unknown): Promise<NativeApprovalReceipt> {
+    if (!hasVerifiedToolServiceIdentity(req)) throw forbidden();
+    const input = parseApprovalDecisionInput(raw);
+    if (input.binding.tenantId !== ctx.tenantId || input.binding.actorId !== ctx.userId) throw forbidden();
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await lockMeriExecutionProposal(tx, ctx.tenantId, input.proposalId);
+      const decision = await tx.clioMeriApprovalDecision.findUnique({
+        where: { tenantId_proposalId: { tenantId: ctx.tenantId, proposalId: input.proposalId } },
+      }) as DecisionRow | null;
+      if (!decision || decision.commandSha256 !== input.commandSha256 || decision.approverUserId !== ctx.userId ||
+          decision.bindingActorUserId !== input.binding.actorId || decision.conversationId !== input.binding.conversationId ||
+          decision.runId !== input.binding.runId) throw new ConflictException('Approval decision not found');
+      await tx.clioMeriApprovalRevocation.createMany({
+        data: [{ tenantId: ctx.tenantId, proposalId: input.proposalId, commandSha256: input.commandSha256,
+          revokedByUserId: ctx.userId, reason: 'approver_revoked' }],
+        skipDuplicates: true,
+      });
+      return decision;
+    });
+    return receipt(row, true);
+  }
+
+  private async revoked(tenantId: string, proposalId: string): Promise<boolean> {
+    return (await this.prisma.withTenant(tenantId, (tx) => tx.clioMeriApprovalRevocation.findUnique({
+      where: { tenantId_proposalId: { tenantId, proposalId } },
+    }))) !== null;
   }
 
   private async storeOnce(create: DecisionRow): Promise<DecisionRow> {
@@ -155,6 +198,6 @@ export function nativeDecisionOf(row: Pick<DecisionRow, 'proposalId' | 'commandS
   };
 }
 
-function receipt(row: DecisionRow): NativeApprovalReceipt {
-  return { decision: nativeDecisionOf(row), checkedAtMs: Date.now(), revoked: false };
+function receipt(row: DecisionRow, revoked: boolean): NativeApprovalReceipt {
+  return { decision: nativeDecisionOf(row), checkedAtMs: Date.now(), revoked };
 }
