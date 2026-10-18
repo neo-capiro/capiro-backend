@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -125,6 +125,7 @@ function makeHarness(
     payload_jsonb: payload(candidateKind, candidateBody),
   };
   const executeSql: string[] = [];
+  const executeValues: unknown[][] = [];
   const querySql: string[] = [];
 
   const tx = {
@@ -142,8 +143,9 @@ function makeHarness(
       if (/FROM memory_items/i.test(sql)) return [source];
       return [];
     },
-    $executeRaw: async (strings: unknown) => {
+    $executeRaw: async (strings: unknown, ...values: unknown[]) => {
       executeSql.push(sqlText(strings));
+      executeValues.push(values);
       return 1;
     },
   } as unknown as Prisma.TransactionClient;
@@ -205,7 +207,7 @@ function makeHarness(
     audit,
     outbox,
   );
-  return { service, executeSql, querySql, audit, outbox };
+  return { service, executeSql, executeValues, querySql, audit, outbox };
 }
 
 async function governed<T>(fn: () => Promise<T>): Promise<T> {
@@ -315,6 +317,48 @@ describe('ImmutableMemoryVersionService', () => {
       );
       expect(h.querySql.some((sql) => /INSERT INTO memory_items/i.test(sql))).toBe(false);
       expect(h.executeSql.some((sql) => /UPDATE memory_items/i.test(sql))).toBe(false);
+    });
+  });
+});
+
+describe('ImmutableMemoryVersionService.proposeReviewOnlyCorrection (W8 Meri)', () => {
+  const W8_ID = '77777777-7777-4777-8777-777777777777';
+  const input = { candidateId: W8_ID, sourceItemId: SOURCE, newContent: 'New truth.', provenance: { meriCandidateId: W8_ID } };
+
+  test('keeps the caller id and stays pending even for private memory, verifying before and recording after the insert', async () => {
+    await governed(async () => {
+      const h = makeHarness({ source: item({ memory_scope: 'user_private', owner_user_id: PROPOSER, visibility: 'user' }) });
+      const order: string[] = [];
+      const verify = jest.fn(async () => { order.push(`verify:${h.executeSql.length}`); });
+      const record = jest.fn(async () => { order.push(`record:${h.executeSql.length}`); });
+      await expect(h.service.proposeReviewOnlyCorrection(proposerContext, input, { verify, record })).resolves.toEqual({ candidateId: W8_ID });
+      expect(order).toEqual(['verify:0', 'record:1']);
+      expect(h.executeSql).toHaveLength(1);
+      expect(h.executeSql[0]).toMatch(/INSERT INTO memory_candidate/);
+      expect(h.executeValues[0]![0]).toBe(W8_ID);
+      expect(JSON.parse(h.executeValues[0]![7] as string)).toMatchObject({ kind: 'correction', meri: { meriCandidateId: W8_ID } });
+      expect(h.querySql.some((sql) => /INSERT INTO memory_items/i.test(sql))).toBe(false);
+    });
+  });
+
+  test('a failing pin verification writes nothing', async () => {
+    await governed(async () => {
+      const h = makeHarness();
+      const record = jest.fn(async () => undefined);
+      await expect(h.service.proposeReviewOnlyCorrection(proposerContext, input, {
+        verify: async () => { throw new ConflictException('stale'); }, record,
+      })).rejects.toBeInstanceOf(ConflictException);
+      expect(h.executeSql).toHaveLength(0);
+      expect(record).not.toHaveBeenCalled();
+    });
+  });
+
+  test('refuses legal-held and non-controlling sources', async () => {
+    await governed(async () => {
+      await expect(makeHarness({ source: item({ legal_hold: true }) }).service.proposeReviewOnlyCorrection(proposerContext, input))
+        .rejects.toBeInstanceOf(ConflictException);
+      await expect(makeHarness({ source: item({ governed_status: 'superseded' }) }).service.proposeReviewOnlyCorrection(proposerContext, input))
+        .rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

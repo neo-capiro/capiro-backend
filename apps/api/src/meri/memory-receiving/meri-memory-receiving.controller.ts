@@ -6,6 +6,7 @@ import { Roles } from '../../auth/roles.decorator.js';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
+import { MemoryModule } from '../../memory/memory.module.js';
 import { MeriMemoryReceivingService } from './meri-memory-receiving.service.js';
 
 /** Fixed Meri routes (`apps/control/memory/core-http.mjs` CORE_MEMORY_ROUTES).
@@ -46,7 +47,7 @@ export class MeriMemoryReceivingController {
 }
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MemoryModule],
   controllers: [MeriMemoryReceivingController],
   providers: [MeriMemoryReceivingService, ToolServiceSecretGuard],
 })

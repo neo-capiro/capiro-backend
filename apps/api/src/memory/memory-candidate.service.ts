@@ -145,6 +145,8 @@ function isMeriPersonal(candidate: { scope: string; sourceType?: string | null }
 
 export interface OwnPersonalCandidate {
   id: string;
+  /** 'correction' candidates are decided at /memory/version-candidates/:id. */
+  kind: 'addition' | 'correction' | 'restore' | 'contradiction';
   key: string;
   value: string;
   sourceType: string;
@@ -656,13 +658,16 @@ export class MemoryCandidateService {
         where: { tenantId: ctx.tenantId, proposedBy: ctx.userId, scope: 'personal', status: 'pending' },
         orderBy: { createdAt: 'desc' },
         take: 100,
-        select: { id: true, payload: true, sourceType: true, createdAt: true },
+        select: { id: true, payload: true, sourceType: true, sourceKind: true, createdAt: true },
       }),
     );
     return rows.flatMap((row) => {
       const p = row.payload as { key?: unknown; value?: unknown; ownerUserId?: unknown } | null;
       if (!p || p.ownerUserId !== ctx.userId || typeof p.key !== 'string' || typeof p.value !== 'string') return [];
-      return [{ id: row.id, key: p.key, value: p.value, sourceType: row.sourceType, createdAt: row.createdAt.toISOString() }];
+      const kind = row.sourceKind === 'memory_correction' ? 'correction' as const
+        : row.sourceKind === 'memory_restore' ? 'restore' as const
+        : row.sourceKind === 'memory_contradiction' ? 'contradiction' as const : 'addition' as const;
+      return [{ id: row.id, kind, key: p.key, value: p.value, sourceType: row.sourceType, createdAt: row.createdAt.toISOString() }];
     });
   }
 
@@ -681,8 +686,9 @@ export class MemoryCandidateService {
     const missing = () => new NotFoundException('No personal memory candidate of yours with that id.');
     if (!CANDIDATE_UUID.test(candidateId)) throw missing();
     const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      tx.$queryRaw<Array<{ proposedBy: string; scope: string; ownerUserId: string | null }>>`
-        SELECT proposed_by::text AS "proposedBy", scope, payload_jsonb->>'ownerUserId' AS "ownerUserId"
+      tx.$queryRaw<Array<{ proposedBy: string; scope: string; ownerUserId: string | null; sourceKind: string }>>`
+        SELECT proposed_by::text AS "proposedBy", scope, payload_jsonb->>'ownerUserId' AS "ownerUserId",
+               source_kind AS "sourceKind"
         FROM memory_candidate
         WHERE id = ${candidateId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
       `,
@@ -690,6 +696,11 @@ export class MemoryCandidateService {
     const row = rows[0];
     if (!row || row.scope !== 'personal' || row.proposedBy !== ctx.userId || row.ownerUserId !== ctx.userId) {
       throw missing();
+    }
+    // Immutable version candidates (a Meri correction among them) have their own
+    // database-guarded activation; the generic owner must never decide them.
+    if (['memory_correction', 'memory_restore', 'memory_contradiction'].includes(row.sourceKind)) {
+      throw new ConflictException('Decide this version candidate at /memory/version-candidates/:id/approve or /reject.');
     }
     if (decision === 'approve') {
       const { memoryId } = await this.approve(ctx.tenantId, candidateId, ctx.userId, ctx);

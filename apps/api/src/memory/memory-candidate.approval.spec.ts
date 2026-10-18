@@ -142,7 +142,7 @@ describe('MemoryCandidateService — W8 Meri personal submissions are owner-only
   const OWNER = '22222222-2222-4222-8222-222222222222';
   const OTHER = '33333333-3333-4333-8333-333333333333';
   const CANDIDATE = '66666666-6666-4666-8666-666666666666';
-  function makeOwnerService(row: { scope: string; sourceType: string; proposedBy: string; ownerUserId: string | null }) {
+  function makeOwnerService(row: { scope: string; sourceType: string; proposedBy: string; ownerUserId: string | null; sourceKind?: string }) {
     const update = jest.fn(async () => ({ id: 'mem-1' }));
     const findMany = jest.fn(async () => [
       { id: 'a', proposedBy: OWNER, scope: 'personal', sourceType: 'meri', clientId: null },
@@ -156,7 +156,7 @@ describe('MemoryCandidateService — W8 Meri personal submissions are owner-only
         proposedBy: row.proposedBy,
         ownerUserId: row.ownerUserId,
         scope: row.scope,
-        sourceKind: 'explicit_user',
+        sourceKind: row.sourceKind ?? 'explicit_user',
         sourceType: row.sourceType,
       }]),
       $executeRaw: jest.fn(async () => 1),
@@ -195,6 +195,12 @@ describe('MemoryCandidateService — W8 Meri personal submissions are owner-only
       const { service } = makeOwnerService(row);
       await expect(service.decideOwnPersonalCandidate(ctx(OWNER), id, 'approve')).rejects.toBeInstanceOf(NotFoundException);
     });
+
+  it('sends a version candidate (a Meri correction) to the version routes instead of deciding it', async () => {
+    const { service, tx } = makeOwnerService({ scope: 'personal', sourceType: 'user_message', proposedBy: OWNER, ownerUserId: OWNER, sourceKind: 'memory_correction' });
+    await expect(service.decideOwnPersonalCandidate(ctx(OWNER), CANDIDATE, 'approve')).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.clioMemory.create).not.toHaveBeenCalled();
+  });
 
   it('lets the owner reject their own personal submission', async () => {
     const { service, tx } = makeOwnerService({ scope: 'personal', sourceType: 'meri', proposedBy: OWNER, ownerUserId: OWNER });

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -202,6 +203,46 @@ export class ImmutableMemoryVersionService {
     const body = (newContent ?? '').trim();
     if (!body) throw new BadRequestException('newContent is required.');
     return this.proposeOrActivate(ctx, itemId, 'contradiction', body);
+  }
+
+  /**
+   * W8 Meri corrections (dot #121 6246374007): always a PENDING version
+   * candidate under the caller's own candidate id, for every scope. Unlike
+   * proposeCorrection, a private correction is never activated inline. The
+   * source checks are the ones proposeOrActivate applies (controlling version,
+   * legal hold, canonical read and propose/edit authority). `hooks.verify`
+   * runs under the source row lock before anything is written (an exact
+   * target pin); `hooks.record` runs after the insert in the same transaction,
+   * so a receiving ledger row commits atomically with the candidate.
+   */
+  async proposeReviewOnlyCorrection(
+    ctx: TenantContext,
+    input: { candidateId: string; sourceItemId: string; newContent: string; provenance: Record<string, unknown> },
+    hooks: {
+      verify?: (tx: Prisma.TransactionClient) => Promise<void>;
+      record?: (tx: Prisma.TransactionClient) => Promise<void>;
+    } = {},
+  ): Promise<{ candidateId: string }> {
+    this.requireLifecycle();
+    const body = (input.newContent ?? '').trim();
+    if (!body) throw new BadRequestException('newContent is required.');
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const source = await this.loadItem(tx, ctx.tenantId, input.sourceItemId);
+      if (!source) throw new NotFoundException('Memory item not found.');
+      await hooks.verify?.(tx);
+      if (!isControlling(source)) {
+        throw new ConflictException('Correct the current controlling memory version.');
+      }
+      if (source.legal_hold) throw new ConflictException('Memory operation denied: legal_hold');
+      await this.authorizeSource(tx, ctx, source, 'correction');
+      const sections = [{ key: 'memory', heading: 'Memory', owner: 'human' as const, body }];
+      const candidateId = await this.insertCandidate(tx, {
+        ctx, source, targetId: source.id, kind: 'correction', sections,
+        proposedText: textFromSections(sections), candidateId: input.candidateId, provenance: input.provenance,
+      });
+      await hooks.record?.(tx);
+      return { candidateId };
+    });
   }
 
   async proposeRestore(ctx: TenantContext, itemId: string): Promise<MemoryVersionResult> {
@@ -779,9 +820,13 @@ export class ImmutableMemoryVersionService {
       kind: MemoryVersionKind;
       sections: VersionSection[];
       proposedText: string;
+      /** Caller-owned id (W8 Meri candidate id); default a fresh UUID. */
+      candidateId?: string;
+      /** Extra provenance merged under `meri` (W8 receiving identity). */
+      provenance?: Record<string, unknown>;
     },
   ): Promise<string> {
-    const id = randomUUID();
+    const id = input.candidateId ?? randomUUID();
     const scope = scopeFor(input.source);
     const payload: VersionPayload = {
       key: input.source.title,
@@ -816,7 +861,7 @@ export class ImmutableMemoryVersionService {
         ${id}::uuid, ${input.ctx.tenantId}::uuid, ${input.ctx.userId}::uuid,
         ${VERSION_SOURCE_KIND[input.kind]}, ${legacyScope}, ${input.source.client_id}::uuid,
         ${JSON.stringify(payload)}::jsonb,
-        ${JSON.stringify({ kind: input.kind, sourceItemId: input.source.id })}::jsonb,
+        ${JSON.stringify({ kind: input.kind, sourceItemId: input.source.id, ...(input.provenance ? { meri: input.provenance } : {}) })}::jsonb,
         'pending', ${input.source.memory_class}, ${scope}, 'pending_review',
         'user_message', ${input.source.id}, ${VERSION_SOURCE_KIND[input.kind]}, ${hash},
         ${`candidate:${id}`}, ${input.ctx.userId}::uuid, now(), now(),
