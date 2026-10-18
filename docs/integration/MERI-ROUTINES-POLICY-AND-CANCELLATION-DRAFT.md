@@ -1,124 +1,155 @@
 # Meri routines: selection-policy receipt and cancellation proof — DRAFT
 
-**Status: DRAFT for R0/laneB review** (assigned to Core by dot, #121 6246642210). Nothing is implemented, mounted, keyed or
-activated. This draft covers **two wires only**: the attended selection-policy receipt and the cancellation proof.
+**Status: DRAFT for R0/laneB review** (assigned to Core by dot, #121 6246642210).
+
+**Source:**
+- `apps/api/src/meri/routines/*`, with specs.
+- The reserved migration `20281018030000_clio_meri_routine_authority` (**not applied**).
+
+**Not mounted:** `MeriRoutinesModule` is absent from `AppModule`. No key exists: the cancellation signer is `null`, so the
+proof route answers 503.
 
 **Out of scope:**
-- **Unattended firing** (routine grant, whole-grant accounting, grant revocation custody). It stays **HELD** under Meri's
+- **Unattended firing.** The routine grant, whole-grant accounting and revocation custody stay **HELD** under Meri's
   normative `docs/coordination/contracts/CODEX-ROUTINE-GRANT-PROPOSAL-20261017.md`.
 - **The pending #121 6246196380 policy.** It is read-only delegation and authorizes no unattended execution, writes or
-  routine grants (dot 6246642210). Nothing below infers authority from it.
+  routine grants (dot 6246642210). Nothing here infers authority from it.
 
-Meri sources are cited at meri-greenfield `09781127`.
+Meri sources are cited at meri-greenfield `09781127` unless noted.
 
 ## 1. Meri contracts this answers
 
 | Meri site | Requirement |
 | --- | --- |
 | `apps/runtime/product-ports/routines.mjs` `PRODUCTION_ROUTINE_OWNERS` | `context.policy` is a "Core schedule policy receipt route (fresh owner/client/tenant authority per selection)". `runControl` is a "Core unattended-grant proof for a service-authenticated cancellation of the owner's run (no service privilege)". |
-| `apps/control/schedules/runtime-context.mjs:24-56` `policy()` | `check({selection, selectionSha256, signal, limitDeadline})` answers **exactly** `{authorized: true, selectionSha256, binding, scopes, selectedClientId, destinationResolution, limits, checkedAtMs, expiresAtMs}`.<br>Every echo must equal the selection. `checkedAtMs` lies in `[started, now]` and `expiresAtMs > now`.<br>For list/cancel, `destinationResolution` and `limits` are `null`. Otherwise the destination is `{reference: request.destinationReference, destinationId: 'meri-inbox'}` and limits are `{maxCostMicrousd ≥1, maxRuntimeSeconds ≥1, retryLimit ≥0}`. |
-| `runtime-context.mjs` `resolve` / `authorize` | Meri calls the check at `before_preparation_release`, `resolve`, and each lifecycle `authorize(phase)`, always inside a **live native session** (`createRequestCurrent` over the caller's credential). Effective limits are `min(requested, receipt, allocation)`. A later receipt may not shrink below the approved projection. |
-| `apps/control/schedules/scheduled-run-cancellation.mjs` | A human-approved `cancel_scheduled_task` with `running: 'request_cancel'` re-selects the exact same-work runs. It then calls `runControl.cancel({binding: currentBinding, signal, deadlineMs})` for that occurrence's current run only. |
+| `apps/control/schedules/runtime-context.mjs:24-56` `policy()` | `check({selection, selectionSha256, signal, limitDeadline})` answers **exactly** `{authorized: true, selectionSha256, binding, scopes, selectedClientId, destinationResolution, limits, checkedAtMs, expiresAtMs}`. For list/cancel, the destination and limits are `null`. The spec checks every receipt against these acceptance rules as an oracle. |
+| `runtime-context.mjs` `resolve` / `authorizeRequest` / `authorize(phase)` | Each runs with the caller's native session credential (`createRequestCurrent`), so every policy check is **attended**. Effective limits are `min(requested, receipt, allocation)`. |
+| `apps/control/schedules/scheduled-run-cancellation.mjs` | An approved `cancel_scheduled_task` with `running: 'request_cancel'` re-selects the exact same-work runs. It then calls `runControl.cancel({binding, signal, deadlineMs})` inside the approval request's lifetime (`maxRequestMs`). |
 
-## 2. Wire A — selection-policy receipt (attended)
+## 2. Authority: what proves the owner's current rights
 
-**Route:** `POST /api/clio/routines/policy/check`, HTTP 200, `Cache-Control: no-store`.
+Both routes require all three of the following, the same as R12/R13:
+- the **verified service identity** (`x-internal-service-secret`, `hasVerifiedToolServiceIdentity`);
+- the **native session** bearer of the routine owner;
+- `standard_user`.
 
-**Auth:** the same as R12/R13: native session bearer, verified `x-internal-service-secret`, and `standard_user`. Every Meri
-caller phase runs with the user's session, so this wire is attended and no service privilege is involved.
+The owner's current rights are Core's **canonical application-membership receipt**, from
+`ApplicationMembershipService.read`:
+- the identity is rechecked across reads;
+- the tenant and membership are active, with the role floor;
+- the client list is filtered by the memory wall;
+- the membership revision is included.
 
-**Body:** `{selection, selectionSha256}`. The selection is Meri's exact object, `{phase, operation, request, currentSchedule,
-proposal, current: {binding, scopes, selectedClientId}, scheduleBinding}`.
+A membership receipt alone is never treated as policy. The decision below also binds the exact selection, scopes,
+schedule owner and destination.
 
-**Core's checks.** Core recomputes `selectionSha256` as RFC 8785 SHA-256. It parses closed only the members it decides on;
-the rest are bound by the hash, so Core needs no second schedules-0.2 parser. The operation is one of `schedule_task`,
-`update_scheduled_task`, `list_scheduled_tasks` or `cancel_scheduled_task`. **Authorized** requires all of:
+## 3. Parsing: a minimal digest-bound subset, not a second validator
 
-1. **Principal.** The session principal equals the `current.binding` tenant and actor.
-2. **Membership.** The current application membership is active. This reuses `ApplicationMembershipService` facts and is
-   never membership alone as policy.
-3. **Client.** `selectedClientId`, if any, is in the member's `clientIds`.
-4. **Scopes.** Every scope belongs to this tenant, all share one `policyRevision`, and client scopes are within `clientIds`.
-5. **Existing schedule.** When `currentSchedule` or `proposal` is present, its owner is the principal and its scopes equal
-   `current.scopes`.
-6. **Destination (create and update).** `request.destinationReference` must resolve to `meri-inbox`, the only supported
-   destination. Any other reference is refused, because no other output adapter exists.
+Core does **not** vendor Meri's schedules-0.2 validators. `tool-interface.schema.json` and `lifecycle.schema.json` `$ref`
+each other and the whole `meri.schema.json`, so a copy would become a second schema owner that drifts.
 
-**Limits (create and update).** Each comes from existing approved semantics, or is flagged:
+Instead, Core recomputes Meri's own RFC 8785 digests (`selectionSha256`, `intentSha256` and every `projectionSha256`).
+It then parses closed only the members it decides on:
+- `operation`;
+- the operation's exact request key set;
+- `destinationReference` and `scheduleId`;
+- `current.{binding, scopes, selectedClientId}`;
+- the `owner`/`scopes`/`scheduleId` of `currentSchedule.projection` and of a pending `proposal.projection`;
+- for cancellation, the intent's `operation`, `projection` and `cancel.{mode, running, runs}`.
 
-| Limit | Value | Basis |
+Every other byte is bound by the digest. The schema files are pinned in `MERI_SCHEDULES_SCHEMA_PINS`:
+- `tool-interface` `2de84501…`;
+- `lifecycle` `0b391e3e…`.
+
+## 4. Wire A — `POST /api/clio/routines/policy/check`
+
+**Body:** `{selection, selectionSha256}`, where the selection is Meri's exact object.
+
+**Authorized when all of these hold** (otherwise 403; a malformed body is 400):
+1. The session principal equals both the membership receipt and `current.binding`'s tenant and actor.
+2. All scopes belong to this tenant and share one `policyRevision`, and every client scope is in the member's
+   `clientIds`.
+3. `selectedClientId` is null or in `clientIds`.
+4. `currentSchedule`, and any pending `proposal`, is owned by the principal with the same scopes and the same
+   `scheduleId` as the request.
+5. For create and update, the destination reference is `meri-inbox`, the only supported destination. It answers
+   `{reference, destinationId: 'meri-inbox'}`.
+
+**Limits.** Reconciled with existing approved semantics; nothing is new policy. They are the pinned, approved first-chat
+allocation budgets (meri-greenfield `9ce9ecd5` `infra/product-preview/first-chat/allocation.json`, sha256 `d9cd9a84…`;
+D1 is $2 per run). Meri then takes the minimum with the routine's own sealed allocation, so the receipt is a ceiling,
+never a grant.
+
+| Limit | Value | Allocation field |
 | --- | --- | --- |
-| `maxCostMicrousd` | 2,000,000 | D1, Neo-approved: $2 per run (lane-5 doc, budget row). |
-| `retryLimit` | 0 | The only supported static profile (routine-grant contract, "Current PR128 receiving profile"). |
-| `maxRuntimeSeconds` | **NEW POLICY, flagged.** | No approved value exists. Core requires an explicit `ROUTINES_POLICY_MAX_RUNTIME_SECONDS`, with no default. When it is unset, the route answers 503 rather than guessing. |
+| `maxCostMicrousd` | 2,000,000 | `maxCostMicroUSD` |
+| `maxRuntimeSeconds` | 900 | `maxRuntimeSeconds` |
+| `retryLimit` | 0 | `maxRecoveryAttempts` 0, the supported routine profile |
 
-**Lease.** `expiresAtMs = min(checkedAtMs + lease, session expiry)`. The lease is **NEW POLICY, flagged**: the routine-grant
-contract forbids a default check-lease. Core requires an explicit `ROUTINES_POLICY_RECEIPT_LEASE_MS`, with no default, and
-answers 503 when it is unset.
+**Lease.** `expiresAtMs = min(membership receipt expiry, now + 30 s)`. The membership receipt expiry is the native
+session's; 30 s is Meri's own request bound (`maxRequestMs` ≤ 30000). No new lease value is introduced.
 
-**Answers.** On success, the exact closed receipt. Refusal is 403 and unavailability is 503. Meri's receipt has no
-`authorized: false` branch, so every non-200 fails closed there.
+**Clock.** Meri's trusted adapter stamps its own observation after a correlated fresh Core response, as dot set for R14.
 
-**Clock.** Use the same pattern dot set for R14: Meri's trusted adapter stamps its own local observation after a correlated
-fresh Core response. `expiresAtMs` stays enforced separately.
+## 5. Wire B — `POST /api/clio/routines/cancellation-proof`
 
-## 3. Wire B — cancellation proof (issued attended, used by service)
+**When it is called.** During the attended approval of the cancellation.
 
-**Purpose.** The schedule service stops the owner's own scheduled run with no service privilege, carrying a proof that
-the owner approved exactly this cancellation.
-
-**Issuance route:** `POST /api/clio/routines/cancellation-proof`, HTTP 200, with the same auth as Wire A. It is called
-during the attended approval of the cancel.
-
-**Body:** `{intent, intentSha256, decision, runs, targets}`.
-- `intent` is the cancel intent, and `intentSha256` its RFC 8785 SHA-256.
-- `decision` is Meri's `ApprovalDecision`.
-- `runs` is `[{workflowId, runId}]`, the human-approved selection.
-- `targets` is the exact RunBindings of `expectedLineage.currentBinding` and its `bindings`.
+**Body:** `{intent, intentSha256, decision, targets}`.
+- `runs` comes from `intent.cancel.runs`.
+- `targets` is the exact RunBindings of `expectedLineage`.
 
 **Core's checks:**
-- The session principal equals `intent.projection.owner` and `decision.approver`.
-- The decision is `approved`, with `proposalId = intentId` and `commandSha256 = intentSha256`. It is unexpired, and its
-  `policyRevision` equals the intent's single scope revision.
-- The intent is `cancel_scheduled_task` with `running: 'request_cancel'`, and `intent.cancel.runs` equals `runs`.
-- Membership is current, as in Wire A.
+- `intentSha256` is the intent's RFC 8785 hash.
+- The intent is `cancel_scheduled_task` with `running: 'request_cancel'`, owned by the principal, and its scopes pass §4
+  rule 2.
+- The decision is an `approved` `ApprovalDecision` for `proposalId = intentId` and `commandSha256 = intentSha256`. Its
+  approver is the owner, its `policyRevision` is the intent's, and it is unexpired. This mirrors Meri's `approved()`.
+- Every target is a run of that owner.
 
-**Proof.** Core issues an EdDSA compact JWS, `typ capiro-meri-routine-cancel+jwt`, through the shared `CoreEd25519Signer`.
-Its payload bytes are exactly the RFC 8785 form, as in R14:
+**Proof.** An EdDSA compact JWS (`typ capiro-meri-routine-cancel+jwt`, `aud meri-schedule-run-control`), signed through the
+shared `CoreEd25519Signer`, with an exact RFC 8785 payload. It carries:
 
 ```
-{iss, aud: 'meri-schedule-run-control', iat, nbf, exp, jti,
- cancel: {tenantId, ownerActorId, scheduleId, intentId, intentSha256, decisionSha256, runs, targets}}
+{tenantId, ownerActorId, scheduleId, intentId, intentSha256, decisionSha256, runs, targets}
 ```
 
-`exp` is the minimum of `decision.expiresAt` and `iat + ROUTINES_CANCEL_PROOF_TTL_SECONDS`. That TTL is **NEW POLICY,
-flagged**, with no default.
+Its lifetime is at most 30 s (Meri's request bound, within which the cancellation runs) and never past the decision. This
+is existing semantics.
 
-**Consumer (Meri, R0/laneB).** The production `runControl.cancel({binding})` presents the proof from the approval journal
-to Meri's own run-lifecycle cancel owner. That owner verifies:
-- the pinned key, issuer and audience;
-- that `binding` is one of `targets` and is owned by `ownerActorId` in `tenantId`;
-- that the proof is unexpired.
+**Use.** The proof authorizes **only stopping those exact owner runs** (`cancellationCoversRun`). It grants no execution,
+read or write. A replay re-requests the same stop.
 
-It then requests the stop. The proof authorizes **stopping only those exact runs**; it grants no execution, read or write.
+**Reference verifier.** `verifyRoutineCancellationProof` is the reference for Meri's run-lifecycle cancel owner: pinned
+key, issuer and audience, exact header and payload bytes, TTL, and every target owned by `ownerActorId`.
 
-**Replay and revocation.** Stopping is monotone and idempotent, so a replay inside `exp` re-requests the same stop and
-nothing else. No revocation list is needed. A proof never outlives the approving decision.
+**Ordering.** The consent row and the proof's `jti` are recorded **before** signing, so every released proof has a
+ledger row.
 
-**No Core run state.** Core does not see or stop Meri runs. It attests only the owner's approval of an exact selection.
+## 6. Storage — reserved, not applied
 
-## 4. Flags and open items for R0/laneB
+Migration `20281018030000_clio_meri_routine_authority` follows the Objective workload delegation pattern:
+- **`clio_meri_routine_approvals`** (the consent row): the owner's approval of one exact intent.
+  - Key: `(tenant, intent_id)`, plus the intent and decision digests, the schedule, the operation and the decision window.
+  - **`CHECK (unattended_enabled = false)`**: no row can authorize unattended firing until a later reviewed migration,
+    under the held routine-grant contract, lifts the fence.
+  - An exact replay reuses the row; a different digest for the same intent answers 409.
+- **`clio_meri_routine_cancel_proofs`** (the issuance ledger): one row per `jti`, with claims digests only, never the
+  token. It has an FK to the approval **without cascade**, so deleting an approval never releases a proof, and a check
+  that `exp - iat ≤ 30`.
+- **Both tables:** immutability triggers, FORCE RLS on `tenant_id`, and insert-only grants for `capiro_app`.
 
-1. **New policy values, none chosen here:** `ROUTINES_POLICY_MAX_RUNTIME_SECONDS`, `ROUTINES_POLICY_RECEIPT_LEASE_MS` and
-   `ROUTINES_CANCEL_PROOF_TTL_SECONDS`. Each is explicit, with no default; a missing value answers 503.
-2. **Destination vocabulary.** This draft accepts only the reference `meri-inbox`. Confirm the reference strings the
-   schedule tool actually emits.
-3. **Meri lifecycle consumer.** Does Meri's run-lifecycle cancel owner accept a Core proof in place of a session? Its
-   verifier and the journal custody of the proof are Meri work. If R0 prefers, Core could expose a verify-and-stop relay,
-   but Core holds no Meri run state.
+## 7. Open items for R0/laneB
+
+1. **Limits.** dot asked R0/laneB to reconcile them with D015 / `6f315108`. D015 sets no routine timing, and
+   `6f315108`'s receiving code applies `min(requested, receipt, allocation)`. Core therefore proposes the pinned approved
+   allocation (§4). Confirm that this is the right existing source.
+2. **Destination vocabulary.** Only the reference `meri-inbox` is accepted. Confirm the reference strings the schedule
+   tool emits.
+3. **Meri consumer.** Does Meri's run-lifecycle cancel owner accept a Core proof in place of a session? The verifier and
+   the journal custody of the proof are Meri's.
 4. **Listener.** Both routes are POSTs on the preview host. They fit as one more value in the P3 native-operations
-   condition, which holds up to 3 values: `^/api/clio/routines/(policy/check|cancellation-proof)$`. This is a source
-   change for dot to review.
-5. **Keys.** One more Ed25519 key for Wire B, created only in the deployment packet.
-6. **Firing grant.** Unchanged and held. When Neo approves unattended execution policy, the routine-grant contract's Core
-   rows (grant schema, proof custody, revocation, service audience) become Core work on top of these wires.
+   condition (up to 3 values): `^/api/clio/routines/(policy/check|cancellation-proof)$`. Not encoded until review.
+5. **Keys.** One more Ed25519 key, created only in the deployment packet.
+6. **Firing grant.** Unchanged and held. Create/update approvals have a consent table ready, but no route records them
+   yet. That waits for the routine-grant owners and Neo's unattended policy.

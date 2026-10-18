@@ -239,6 +239,7 @@ model Tenant {
   clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
   clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
   clioMeriMemorySubmissions          ClioMeriMemorySubmission[]
+  clioMeriRoutineApprovals           ClioMeriRoutineApproval[]
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
@@ -2337,6 +2338,51 @@ model ClioMeriMemorySubmission {
 
   @@id([tenantId, candidateId], map: "clio_meri_memory_submissions_pkey")
   @@map("clio_meri_memory_submissions")
+}
+
+/// DRAFT item 5: the routine owner's approval of one exact schedules-0.2 intent
+/// (consent row). `unattendedEnabled` is DB-fenced to false. Immutable.
+model ClioMeriRoutineApproval {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  intentId          String   @map("intent_id") @db.Uuid
+  ownerUserId       String   @map("owner_user_id") @db.Uuid
+  scheduleId        String   @map("schedule_id") @db.Uuid
+  operation         String   @db.VarChar(32)
+  intentSha256      String   @map("intent_sha256") @db.Char(64)
+  decisionSha256    String   @map("decision_sha256") @db.Char(64)
+  policyRevision    String   @map("policy_revision") @db.VarChar(128)
+  decidedAt         DateTime @map("decided_at") @db.Timestamptz(3)
+  decisionExpiresAt DateTime @map("decision_expires_at") @db.Timestamptz(3)
+  unattendedEnabled Boolean  @default(false) @map("unattended_enabled")
+  recordedAt        DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_routine_approvals_tenant_fkey")
+  cancelProofs ClioMeriRoutineCancelProof[]
+
+  @@id([tenantId, intentId], map: "clio_meri_routine_approvals_pkey")
+  @@unique([tenantId, intentId, intentSha256], map: "clio_meri_routine_approvals_intent_key")
+  @@map("clio_meri_routine_approvals")
+}
+
+/// DRAFT item 5: issuance ledger of routine cancellation proofs (claims and
+/// digests only, never the token). Immutable; never released for reuse.
+model ClioMeriRoutineCancelProof {
+  jti           String   @id(map: "clio_meri_routine_cancel_proofs_pkey") @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  intentId      String   @map("intent_id") @db.Uuid
+  intentSha256  String   @map("intent_sha256") @db.Char(64)
+  targetsSha256 String   @map("targets_sha256") @db.Char(64)
+  runsSha256    String   @map("runs_sha256") @db.Char(64)
+  signerIssuer  String   @map("signer_issuer") @db.VarChar(256)
+  signerKeyId   String   @map("signer_key_id") @db.VarChar(64)
+  iatSeconds    BigInt   @map("iat_seconds")
+  expSeconds    BigInt   @map("exp_seconds")
+  recordedAt    DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  approval ClioMeriRoutineApproval @relation(fields: [tenantId, intentId, intentSha256], references: [tenantId, intentId, intentSha256], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_routine_cancel_proofs_approval_fkey")
+
+  @@index([tenantId, intentId], map: "clio_meri_routine_cancel_proofs_intent_idx")
+  @@map("clio_meri_routine_cancel_proofs")
 }
 
 /// User-owned reusable instructions for the Meri vNext workspace.

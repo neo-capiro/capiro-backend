@@ -169,6 +169,28 @@
         "live migration execution",
         "memory_candidate or clio_memory schema changes"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018030000_clio_meri_routine_authority/migration.sql",
+      "owner": "Core item 5 DRAFT: Meri routine approvals (consent rows, unattended fence) and cancellation-proof issuance ledger",
+      "workstream": "fable/core-integration-20261018",
+      "base": "a7885e8e",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018020000_clio_meri_memory_submissions)",
+      "allocatedAt": "2026-10-18T07:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018020000_clio_meri_memory_submissions",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable routine approval consent rows with CHECK(unattended_enabled=false)",
+        "cancellation-proof issuance ledger (jti, claims digests)",
+        "RLS and insert-only grants"
+      ],
+      "excluded": [
+        "live migration execution",
+        "lifting the unattended fence",
+        "routine firing grants"
+      ]
     }
   ]
 }
