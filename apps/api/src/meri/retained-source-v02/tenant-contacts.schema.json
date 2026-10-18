@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:tenant-contacts:0.2.0",
+  "$defs": {
+    "TenantContactsContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "required": []
+    },
+    "TenantContactsRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 16384
+        },
+        "domain": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 16384
+        },
+        "query": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 16384
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "TenantContactsInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "domain": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "query": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "clientId",
+        "domain",
+        "query",
+        "limit"
+      ]
+    },
+    "TenantContactsContact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "organization": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastContact": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "messageCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "source": {
+          "type": "string"
+        },
+        "onProfile": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "phone",
+        "title",
+        "organization",
+        "lastContact",
+        "messageCount",
+        "source",
+        "onProfile"
+      ]
+    },
+    "TenantContactsRefusal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "const": "find_contacts"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "contacts": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "note": {
+          "const": "Pass a clientId, a domain, or a query \u2014 find_contacts will not dump the whole contact table."
+        }
+      },
+      "required": [
+        "tool",
+        "generatedAt",
+        "contacts",
+        "note"
+      ]
+    },
+    "TenantContactsPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "const": "find_contacts"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clientName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "matchedOn": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "domain": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "query": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "linkedClient": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "domain",
+            "query",
+            "linkedClient"
+          ]
+        },
+        "contacts": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/TenantContactsContact"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "generatedAt",
+        "clientId",
+        "clientName",
+        "matchedOn",
+        "contacts",
+        "note"
+      ]
+    },
+    "TenantContactsResult": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TenantContactsRefusal"
+        },
+        {
+          "$ref": "#/$defs/TenantContactsPage"
+        }
+      ]
+    }
+  }
+}
