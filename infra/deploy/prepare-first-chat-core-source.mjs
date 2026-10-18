@@ -44,7 +44,14 @@ const migrationFiles = [
 const forbiddenPath = /(^|\/)(?:\.env(?:\.[^/]*)?|\.npmrc|\.aws|\.ssh|id_rsa|id_ed25519|credentials\.json|service-account\.json)$|\.(?:pem|p12|pfx|key)$/i;
 
 function git(args, encoding = 'utf8') {
-  const result = spawnSync('git', args, { cwd: root, encoding, maxBuffer: 64 * 1024 * 1024 });
+  const result = spawnSync('git', args, {
+    cwd: root,
+    encoding,
+    maxBuffer: 64 * 1024 * 1024,
+    // This preparer must fail on a missing local object, never fetch one from a
+    // partial clone while collecting a supposedly offline source inventory.
+    env: { ...process.env, GIT_NO_LAZY_FETCH: '1', GIT_OPTIONAL_LOCKS: '0' },
+  });
   if (result.error || result.status !== 0) {
     throw new Error(`git ${args.slice(0, 3).join(' ')} failed: ${result.error?.message ?? String(result.stderr)}`);
   }
