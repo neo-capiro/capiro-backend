@@ -104,8 +104,8 @@ export function prepareMondayRead(input: JsonObject, current: TrustedClientReadC
     fail('Monday normalized selection differs from canonical 0.2 input');
   if (mapping?.tenantId !== current.binding.tenantId || mapping.userId !== current.binding.actorId ||
     mapping.clientId !== clientId || !nonempty(mapping.mappingVersionId) ||
-    !Array.isArray(mapping.boardIds) || mapping.boardIds.length === 0 || mapping.boardIds.length > 3000 ||
-    mapping.boardIds.some((id) => typeof id !== 'string' || !/^[0-9]{1,80}$/.test(id)) ||
+    !Array.isArray(mapping.boardIds) || mapping.boardIds.length === 0 || mapping.boardIds.length > 20 ||
+    mapping.boardIds.some((id) => typeof id !== 'string' || !/^[0-9]{1,24}$/.test(id)) ||
     new Set(mapping.boardIds).size !== mapping.boardIds.length) fail('Current managed board mapping is missing');
   if (mapping.requestBoardIds !== undefined && (!Array.isArray(mapping.requestBoardIds) ||
     mapping.requestBoardIds.some((id) => !mapping.boardIds.includes(id)) ||
