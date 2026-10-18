@@ -14,6 +14,11 @@ import { PreviewBackendNetwork } from './network-stack';
 
 export const PREVIEW_APP_ORIGIN = 'https://portfolio-preview.app.capiro.ai';
 export const PREVIEW_BACKEND_ORIGIN = PREVIEW_APP_ORIGIN;
+const PREVIEW_HOST = 'portfolio-preview.app.capiro.ai';
+// An ALB path regex keeps the detail read to one UUID segment. A value
+// pattern such as /api/clients/* would also expose nested client GETs.
+const CORE_CLIENT_DETAIL_PATH =
+  '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
 
 /** Concrete held definitions for the existing canonical API owners. No worker is started. */
 export class PreviewBackendServices extends cdk.Stack {
@@ -49,6 +54,11 @@ export class PreviewBackendServices extends cdk.Stack {
       'PreviewClerkKey',
       bindings.clerkSecretArn,
     );
+    const clerkWebhook = secrets.Secret.fromSecretCompleteArn(
+      this,
+      'PreviewClerkWebhook',
+      bindings.clerkWebhookSecretArn,
+    );
     const encryptionKey = kms.Key.fromKeyArn(this, 'PreviewClerkEncryption', bindings.clerkKeyArn);
     const heldPaths = [['/strategy-api/*', '/onboard-api/*', '/meri-api/*'], ['/api/meri/*']];
     heldPaths.forEach(
@@ -59,7 +69,7 @@ export class PreviewBackendServices extends cdk.Stack {
           conditions: [
             {
               field: 'host-header',
-              hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] },
+              hostHeaderConfig: { values: [PREVIEW_HOST] },
             },
             { field: 'path-pattern', pathPatternConfig: { values } },
           ],
@@ -87,7 +97,7 @@ export class PreviewBackendServices extends cdk.Stack {
           conditions: [
             {
               field: 'host-header',
-              hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] },
+              hostHeaderConfig: { values: [PREVIEW_HOST] },
             },
             { field: 'path-pattern', pathPatternConfig: { values } },
           ],
@@ -98,7 +108,7 @@ export class PreviewBackendServices extends cdk.Stack {
       (tenantId) => [`tenants/${tenantId}/*`, `tenants/client-logo-uploads/${tenantId}/*`],
     );
     const owners = [
-      { name: 'core' as const, port: 4000, path: '/api/*', health: '/api/health' },
+      { name: 'core' as const, port: 4000, path: null, health: '/health' },
       { name: 'workspace' as const, port: 4200, path: '/workspace-api/*', health: '/health' },
       { name: 'intelligence' as const, port: 4300, path: '/intel-api/*', health: '/health' },
     ];
@@ -162,8 +172,8 @@ export class PreviewBackendServices extends cdk.Stack {
       );
       const task = new ecs.FargateTaskDefinition(this, `${owner.name}Task`, {
         family: `capiro-preview-${owner.name}`,
-        cpu: 512,
-        memoryLimitMiB: 1024,
+        cpu: owner.name === 'core' ? 1024 : 512,
+        memoryLimitMiB: owner.name === 'core' ? 2048 : 1024,
         taskRole: role,
         executionRole,
         runtimePlatform: {
@@ -185,6 +195,9 @@ export class PreviewBackendServices extends cdk.Stack {
           DB_USER: ecs.Secret.fromSecretsManager(appCredentials, 'username'),
           DB_PASSWORD: ecs.Secret.fromSecretsManager(appCredentials, 'password'),
           CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkKey),
+          ...(owner.name === 'core'
+            ? { CLERK_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(clerkWebhook) }
+            : {}),
         },
         environment: {
           NODE_ENV: 'production',
@@ -196,7 +209,29 @@ export class PreviewBackendServices extends cdk.Stack {
           CLERK_JWT_ISSUER: bindings.clerkIssuer,
           RELEASE_SHA: bindings.images[owner.name].sourceHead,
           ASSETS_BUCKET: assets.bucket.bucketName,
-          DIRECTORY_S3_BUCKET: assets.bucket.bucketName,
+          ...(owner.name === 'core'
+            ? {
+                // The portfolio API uses ordinary tenant-scoped reads on this
+                // host. First-chat native reads are host-specific and stay off.
+                CORE_DEPLOYMENT_PROFILE: 'standard',
+                PREVIEW_NATIVE_GETS_ENABLED: 'false',
+                RETAINED_READS_ENABLED: 'false',
+                // Booting the full API module must not start its background
+                // processors or trigger outbound Engagement actions.
+                CAPIRO_SERVICE_NAME: 'api',
+                ENGAGEMENT_PROCESS_MODE: 'shadow',
+                ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
+                ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
+                ENGAGEMENT_CALLBACKS_ENABLED: 'false',
+                ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+                CLIENT_PROFILE_FILL_WORKER_ENABLED: 'false',
+                CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED: 'false',
+                MERI_JOB_SWEEPER_ENABLED: 'false',
+                RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED: 'false',
+                NEWSLETTER_REVIEW_EMAIL_ENABLED: 'false',
+                NEWSLETTER_INVITATION_EMAIL_ENABLED: 'false',
+              }
+            : {}),
         },
       });
       container.addPortMappings({ containerPort: owner.port });
@@ -205,7 +240,7 @@ export class PreviewBackendServices extends cdk.Stack {
         port: owner.port,
         protocol: elb.ApplicationProtocol.HTTP,
         targetType: elb.TargetType.IP,
-        healthCheck: { path: owner.health },
+        healthCheck: { path: owner.health, healthyHttpCodes: '200' },
       });
       const service = new ecs.FargateService(this, `${owner.name}Service`, {
         cluster,
@@ -218,18 +253,54 @@ export class PreviewBackendServices extends cdk.Stack {
         circuitBreaker: { rollback: true },
       });
       service.attachToApplicationTargetGroup(target);
-      new elb.CfnListenerRule(this, `${owner.name}Route`, {
-        listenerArn: bindings.listenerArn,
-        priority: 612 + index,
-        conditions: [
-          {
-            field: 'host-header',
-            hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] },
-          },
-          { field: 'path-pattern', pathPatternConfig: { values: [owner.path] } },
-        ],
-        actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
-      });
+      const host = { field: 'host-header', hostHeaderConfig: { values: [PREVIEW_HOST] } };
+      if (owner.name === 'core') {
+        const get = { field: 'http-request-method', httpRequestMethodConfig: { values: ['GET'] } };
+        const exactReads = [
+          { name: 'CorePreviewReads', priority: 612, paths: ['/api/me', '/api/clients', '/api/client-account-owners'] },
+          { name: 'CorePreviewOwnerOptionsRead', priority: 615, paths: ['/api/client-account-owners/options'] },
+        ];
+        for (const read of exactReads) {
+          new elb.CfnListenerRule(this, read.name, {
+            listenerArn: bindings.listenerArn,
+            priority: read.priority,
+            conditions: [host, get, { field: 'path-pattern', pathPatternConfig: { values: read.paths } }],
+            actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+          });
+        }
+        new elb.CfnListenerRule(this, 'CorePreviewClientDetailRead', {
+          listenerArn: bindings.listenerArn,
+          priority: 616,
+          conditions: [host, get, {
+            field: 'path-pattern',
+            pathPatternConfig: { regexValues: [CORE_CLIENT_DETAIL_PATH] },
+          }],
+          actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+        });
+        // Higher priorities 608-611 preserve Meri's held routes and the
+        // frontend proxies. Unlisted /api requests never reach Core or the
+        // listener's unknown default target.
+        new elb.CfnListenerRule(this, 'RejectOtherPreviewApi', {
+          listenerArn: bindings.listenerArn,
+          priority: 617,
+          conditions: [host, { field: 'path-pattern', pathPatternConfig: { values: ['/api', '/api/*'] } }],
+          actions: [{
+            type: 'fixed-response',
+            fixedResponseConfig: {
+              statusCode: '503',
+              contentType: 'application/json',
+              messageBody: '{"error":"PREVIEW_SERVICE_UNAVAILABLE"}',
+            },
+          }],
+        });
+      } else {
+        new elb.CfnListenerRule(this, `${owner.name}Route`, {
+          listenerArn: bindings.listenerArn,
+          priority: 612 + index,
+          conditions: [host, { field: 'path-pattern', pathPatternConfig: { values: [owner.path] } }],
+          actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+        });
+      }
     });
     new cdk.CfnOutput(this, 'FrontendCoreApiBaseUrl', { value: `${PREVIEW_BACKEND_ORIGIN}/api` });
     new cdk.CfnOutput(this, 'FrontendWorkspaceApiBaseUrl', {

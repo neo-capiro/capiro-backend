@@ -1,6 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import { previewBackendApplication } from '../lib/preview/application';
@@ -11,7 +12,7 @@ import { main } from '../bin/preview-backends';
 const fixture = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../fixtures/preview-backends.synthetic.json'), 'utf8'),
 );
-const output = `/tmp/capiro-preview-backends-synthetic-synth-${process.pid}`;
+const output = path.join(os.tmpdir(), `capiro-preview-backends-synthetic-synth-${process.pid}`);
 assert.equal(fs.existsSync(output), false);
 after(() => {
   if (fs.existsSync(output)) {
@@ -39,6 +40,15 @@ test('preview refuses production/default/extra resource configuration before all
       x.clerkSecretArn = x.clerkSecretArn.replace('secretsmanager:', 'ssm:');
     },
     (x: any) => {
+      delete x.clerkWebhookSecretArn;
+    },
+    (x: any) => {
+      x.clerkWebhookSecretArn = x.clerkSecretArn;
+    },
+    (x: any) => {
+      x.clerkWebhookSecretArn = x.clerkWebhookSecretArn.replace('/preview/', '/dev/');
+    },
+    (x: any) => {
       x.clusterArn = x.clusterArn.replace('capiro-portfolio-preview', 'capiro-dev');
     },
     (x: any) => {
@@ -61,6 +71,9 @@ test('preview refuses production/default/extra resource configuration before all
     },
     (x: any) => {
       x.images.core.sourceHead = '4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace';
+    },
+    (x: any) => {
+      x.images.workspace.sourceHead = x.images.core.sourceHead;
     },
     (x: any) => {
       x.images.workspace.uri = x.images.core.uri;
@@ -111,29 +124,46 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
     assert.equal(env.CLERK_JWT_ISSUER, fixture.clerkIssuer);
     assert.notEqual(typeof env.DB_HOST, 'string');
     assert.notEqual(typeof env.ASSETS_BUCKET, 'string');
-    assert.deepEqual(env.DIRECTORY_S3_BUCKET, env.ASSETS_BUCKET);
+    assert.equal(env.DIRECTORY_S3_BUCKET, undefined);
     assert.equal(env.DB_PORT, '5432');
     assert.equal(env.DB_NAME, 'capiro');
-    assert.deepEqual(container.Secrets.map((r: any) => r.Name).sort(), [
-      'CLERK_SECRET_KEY',
-      'DB_PASSWORD',
-      'DB_USER',
-    ]);
+    const core = task.Properties.Family === 'capiro-preview-core';
+    assert.equal(task.Properties.Cpu, core ? '1024' : '512');
+    assert.equal(task.Properties.Memory, core ? '2048' : '1024');
+    assert.deepEqual(container.Secrets.map((r: any) => r.Name).sort(), core
+      ? ['CLERK_SECRET_KEY', 'CLERK_WEBHOOK_SIGNING_SECRET', 'DB_PASSWORD', 'DB_USER']
+      : ['CLERK_SECRET_KEY', 'DB_PASSWORD', 'DB_USER']);
+    if (core) {
+      assert.equal(env.RELEASE_SHA, '784b1c3a91eb6d78f16d92c42e71f05c12c5b5bb');
+      assert.equal(env.CORE_DEPLOYMENT_PROFILE, 'standard');
+      assert.equal(env.PREVIEW_NATIVE_GETS_ENABLED, 'false');
+      assert.equal(env.RETAINED_READS_ENABLED, 'false');
+      assert.equal(env.CAPIRO_SERVICE_NAME, 'api');
+      assert.equal(env.ENGAGEMENT_PROCESS_MODE, 'shadow');
+      assert.equal(env.ENGAGEMENT_BACKGROUND_OWNER, 'disabled');
+      assert.equal(env.ENGAGEMENT_EXTERNAL_ACTIONS, 'disabled');
+      for (const key of [
+        'ENGAGEMENT_CALLBACKS_ENABLED', 'ENGAGEMENT_RECALL_WEBHOOK_ENABLED',
+        'CLIENT_PROFILE_FILL_WORKER_ENABLED', 'CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED',
+        'MERI_JOB_SWEEPER_ENABLED', 'RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED',
+        'NEWSLETTER_REVIEW_EMAIL_ENABLED', 'NEWSLETTER_INVITATION_EMAIL_ENABLED',
+      ]) assert.equal(env[key], 'false');
+    }
   }
   for (const service of resources.filter((r) => r.Type === 'AWS::ECS::Service'))
     assert.equal(service.Properties.DesiredCount, 0);
   const rules = resources.filter(
     (r: any) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule',
   );
-  assert.equal(rules.length, 7);
+  assert.equal(rules.length, 10);
   assert.deepEqual(
     rules.map((r: any) => r.Properties.Priority).sort(),
-    [608, 609, 610, 611, 612, 613, 614],
+    [608, 609, 610, 611, 612, 613, 614, 615, 616, 617],
   );
   for (const rule of rules) {
     const counts = rule.Properties.Conditions.map((c: any) =>
-      Object.values(c).find((v: any) => v && typeof v === 'object' && 'Values' in v),
-    ).map((v: any) => v.Values.length);
+      Object.values(c).find((v: any) => v && typeof v === 'object' && ('Values' in v || 'RegexValues' in v)),
+    ).map((v: any) => (v.Values ?? v.RegexValues).length);
     assert.ok(counts.every((n: number) => n <= 3));
     assert.ok(counts.reduce((a: number, b: number) => a + b, 0) <= 5);
   }
@@ -152,6 +182,31 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
     assert.deepEqual(proxy.Properties.Actions[0].TargetGroupArn, fixture.frontendTargetGroupArn);
   for (const held of rules.filter((r: any) => [608, 609].includes(r.Properties.Priority)))
     assert.equal(held.Properties.Actions[0].FixedResponseConfig.StatusCode, '503');
+  const coreReads = rules.filter((r: any) => [612, 615, 616].includes(r.Properties.Priority));
+  assert.equal(coreReads.length, 3);
+  for (const read of coreReads) {
+    assert.equal(read.Properties.Conditions[0].HostHeaderConfig.Values[0], 'portfolio-preview.app.capiro.ai');
+    assert.deepEqual(read.Properties.Conditions[1].HttpRequestMethodConfig.Values, ['GET']);
+    assert.equal(read.Properties.Actions[0].Type, 'forward');
+  }
+  const byPriority = (priority: number) => rules.find((r: any) => r.Properties.Priority === priority) as any;
+  assert.deepEqual(byPriority(612).Properties.Conditions[2].PathPatternConfig.Values, [
+    '/api/me', '/api/clients', '/api/client-account-owners',
+  ]);
+  assert.deepEqual(byPriority(615).Properties.Conditions[2].PathPatternConfig.Values, [
+    '/api/client-account-owners/options',
+  ]);
+  assert.deepEqual(byPriority(616).Properties.Conditions[2].PathPatternConfig.RegexValues, [
+    '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+  ]);
+  const detailPath = new RegExp(byPriority(616).Properties.Conditions[2].PathPatternConfig.RegexValues[0]);
+  assert.equal(detailPath.test('/api/clients/d1b0cb55-fd3a-49ef-847a-7bbe9175dc44'), true);
+  assert.equal(detailPath.test('/api/clients/d1b0cb55-fd3a-49ef-847a-7bbe9175dc44/files'), false);
+  assert.equal(detailPath.test('/api/clients/not-a-uuid'), false);
+  assert.deepEqual(byPriority(617).Properties.Conditions[1].PathPatternConfig.Values, ['/api', '/api/*']);
+  assert.equal(byPriority(617).Properties.Actions[0].FixedResponseConfig.StatusCode, '503');
+  const targets = resources.filter((r: any) => r.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup');
+  assert.equal(targets.find((r: any) => r.Properties.Port === 4000)?.Properties.HealthCheckPath, '/health');
   assert.equal(
     resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerCertificate').length,
     0,
@@ -272,11 +327,11 @@ test('CLI help/missing/unknown modes never allocate output', () => {
 });
 
 test('CLI refuses a dangling output symlink before assembly allocation', () => {
-  const link = `/tmp/capiro-preview-output-link-${process.pid}`;
-  const target = `/tmp/capiro-preview-output-target-${process.pid}`;
+  const link = path.join(os.tmpdir(), `capiro-preview-output-link-${process.pid}`);
+  const target = path.join(os.tmpdir(), `capiro-preview-output-target-${process.pid}`);
   assert.equal(fs.lstatSync(link, { throwIfNoEntry: false }), undefined);
   assert.equal(fs.lstatSync(target, { throwIfNoEntry: false }), undefined);
-  fs.symlinkSync(target, link, 'dir');
+  fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
   try {
     assert.equal(
       main(['--render', path.join(__dirname, '../fixtures/preview-backends.synthetic.json'), link]),

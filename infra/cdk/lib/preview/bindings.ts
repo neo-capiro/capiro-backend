@@ -10,6 +10,7 @@ export interface PreviewBindings {
   clerkIssuer: string;
   clerkApplicationId: string;
   clerkSecretArn: string;
+  clerkWebhookSecretArn: string;
   clerkKeyArn: string;
   clerkPublishableKeyArn: string;
   vpcCidr: '10.90.0.0/16';
@@ -33,6 +34,7 @@ const keys = [
   'clerkIssuer',
   'clerkApplicationId',
   'clerkSecretArn',
+  'clerkWebhookSecretArn',
   'clerkKeyArn',
   'clerkPublishableKeyArn',
   'vpcCidr',
@@ -87,7 +89,14 @@ export function previewBindings(input: unknown): PreviewBindings {
           `^${account}\\.dkr\\.ecr\\.${region}\\.amazonaws\\.com/capiro/preview-${name}@sha256:[0-9a-f]{64}$`,
         ),
       ),
-      sourceHead: text(image.sourceHead, /^e50aed3c5b5cce58317b37de442482fa970842cb$/),
+      // Core is the reviewed PR96 receiving tree. The held Workspace and
+      // Intelligence images retain their own earlier source pin.
+      sourceHead: text(
+        image.sourceHead,
+        name === 'core'
+          ? /^784b1c3a91eb6d78f16d92c42e71f05c12c5b5bb$/
+          : /^e50aed3c5b5cce58317b37de442482fa970842cb$/,
+      ),
     };
   }
   const result: PreviewBindings = {
@@ -112,6 +121,7 @@ export function previewBindings(input: unknown): PreviewBindings {
     clerkIssuer: text(input.clerkIssuer, /^https:\/\/[a-z0-9-]+\.clerk\.accounts\.dev$/),
     clerkApplicationId: text(input.clerkApplicationId, /^app_[A-Za-z0-9]{8,80}$/),
     clerkSecretArn: text(input.clerkSecretArn, secret('clerk/secret-key')),
+    clerkWebhookSecretArn: text(input.clerkWebhookSecretArn, secret('clerk/webhook-signing-secret')),
     clerkKeyArn: text(input.clerkKeyArn, new RegExp(`^${arn('kms')}key/[0-9a-f-]{36}$`)),
     clerkPublishableKeyArn: text(input.clerkPublishableKeyArn, secret('clerk/publishable-key')),
     vpcCidr: text(input.vpcCidr, /^10[.]90[.]0[.]0\/16$/) as '10.90.0.0/16',
