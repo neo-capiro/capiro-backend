@@ -2,7 +2,11 @@
 -- memory disposition migration is explicitly qualified and applied, or before
 -- the signed Meri/Core two-step wire and role readback are qualified. This alters the existing
 -- Option B token table; it adds no runtime role grant, table or tool slot.
+-- Keep this directory out of the Stage1 migration set until target PostgreSQL
+-- rehearsal and a bounded maintenance window qualify the table lock/index work.
 BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
 
 ALTER TABLE "meri_read_tokens"
   ADD COLUMN "parent_jti" UUID,

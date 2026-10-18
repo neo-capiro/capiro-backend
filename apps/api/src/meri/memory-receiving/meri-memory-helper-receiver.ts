@@ -164,9 +164,12 @@ export async function consumeTaskBoundMemoryHelper(
       return { ctx, callback };
     }, { timeoutMs: 5000 });
     const receipt = await checkPassiveMemoryEligibility(prisma, admitted.ctx, admitted.callback, now);
-    await assertMemoryHelperReleasable(prisma, claims, admitted.ctx, receipt.expiresAtMs);
-    if (now() >= receipt.expiresAtMs) throw expired();
-    return receipt;
+    // The final Meri dispatcher narrows to the returned receipt expiry. It
+    // must not outlive the helper credential that admitted this exact body.
+    const expiresAtMs = Math.min(receipt.expiresAtMs, claims.exp * 1000);
+    await assertMemoryHelperReleasable(prisma, claims, admitted.ctx, expiresAtMs);
+    if (now() >= expiresAtMs) throw expired();
+    return { ...receipt, expiresAtMs };
   } catch (error) {
     if (error instanceof HttpException) throw error;
     throw new ServiceUnavailableException('Passive memory helper unavailable');

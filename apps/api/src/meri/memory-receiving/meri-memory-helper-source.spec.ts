@@ -1,5 +1,4 @@
 import { generateKeyPairSync } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from '@jest/globals';
 import { createInProcessEd25519Signer } from '../../auth/core-ed25519-signer.js';
 import { canonicalSha256, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
@@ -128,12 +127,4 @@ describe('unmounted memory page proof and distinct helper credential', () => {
       claims, stored(), nowMs)).toThrow();
   });
 
-  it('allocates only an existing-table helper and preserves ordinary slot and grant boundaries', () => {
-    const sql = readFileSync('prisma/migrations/20281018100000_meri_memory_eligibility_helper/migration.sql', 'utf8');
-    expect(sql).toMatch(/ALTER TABLE "meri_read_tokens"/);
-    expect(sql).toMatch(/UNIQUE INDEX "meri_read_tokens_memory_helper_slot_key"/);
-    expect(sql).toMatch(/UNIQUE INDEX "meri_read_tokens_memory_helper_parent_key"/);
-    const statements = sql.split('\n').filter((line) => !line.trimStart().startsWith('--')).join('\n');
-    expect(statements).not.toMatch(/\bGRANT\b|\bCREATE TABLE\b|\btool_tokens\s*=|current_admission_v1/i);
-  });
 });

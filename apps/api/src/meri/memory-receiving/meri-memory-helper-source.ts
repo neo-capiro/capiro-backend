@@ -18,9 +18,26 @@ type Tx = Prisma.TransactionClient;
 const OPERATION = Object.freeze({ id: 'search_memory', version: '0.2.0' });
 const CALL_KEY = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_BODY_BYTES = 16_384;
+const CALLBACK_KEYS = [
+  'operation', 'input', 'metadata', 'normalizationContext', 'argumentsSha256', 'requestSha256',
+  'binding', 'subject', 'policyRevision', 'sourceIds', 'resultSha256', 'records', 'deadlineMs',
+] as const;
 const denied = () => new ForbiddenException('Passive memory helper refused');
 const changed = () => new ConflictException('Passive memory helper changed');
 const expired = () => new GoneException('Passive memory helper expired');
+
+/** Read the database clock again after KMS work and after INSERT. If signing
+ * used up the short helper lifetime, throw inside the transaction so the
+ * one-per-parent unique slot is rolled back instead of stranded. */
+export async function assertMemoryHelperIssueFresh(
+  tx: Pick<Tx, '$queryRaw'>,
+  expiresAtMs: number,
+): Promise<void> {
+  const rows = await tx.$queryRaw<{ now_ms: string }[]>`
+    SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint::text AS now_ms`;
+  const dbNowMs = Number(rows[0]?.now_ms);
+  if (rows.length !== 1 || !Number.isSafeInteger(dbNowMs) || dbNowMs >= expiresAtMs - 1000) throw expired();
+}
 
 /** The one helper issuance request sent to the existing service-only token
  * endpoint after Meri validates the unchanged 0.2 page. A page proof is
@@ -124,7 +141,7 @@ export async function issueMemoryHelperToken(
          WHERE run_id = ${d.runId}::uuid AND call_key = ${t.callKey} FOR UPDATE`;
       if (slot.length !== 1 || Number(slot[0]!.tool_tokens) !== 1 || slot[0]!.delegation_id !== d.id) throw changed();
       const iat = Math.floor(facts.dbNowMs / 1000);
-      const exp = Math.min(iat + 5, Math.floor(hard / 1000));
+      const exp = Math.min(iat + 15, Math.floor(hard / 1000));
       if (exp <= iat + 1 || facts.dbNowMs >= exp * 1000) throw expired();
       const claims: Omit<MemoryHelperClaims, 'iss' | 'aud' | 'jti'> = {
         sub: d.id, iat, nbf: iat, exp, kind: MEMORY_HELPER_KIND,
@@ -138,6 +155,7 @@ export async function issueMemoryHelperToken(
         conversationId: d.conversationId, runId: d.runId, attemptId: d.attemptId, writerFence: d.writerFence,
       };
       const signed = await signMemoryHelperToken(signer, claims, AbortSignal.timeout(3000));
+      await assertMemoryHelperIssueFresh(tx, exp * 1000);
       await tx.$executeRaw`
         INSERT INTO meri_read_tokens (jti, token_sha256, tenant_id, delegation_id, run_id, call_key,
           kind, target_method, target_path, body_sha256, arguments_sha256, request_digest, issued_at, expires_at,
@@ -150,6 +168,7 @@ export async function issueMemoryHelperToken(
           ${proof.parentJti}::uuid, ${proof.parentBodySha256}, ${t.argumentsSha256},
           ${t.pageRequestSha256}, ${t.correlationSha256}, ${t.resultSha256},
           ${t.recordsSha256}, ${proof.bindingSha256})`;
+      await assertMemoryHelperIssueFresh(tx, exp * 1000);
       return { schemaVersion: 1 as const, token: signed.token, expiresAtMs: exp * 1000 };
     }, { timeoutMs: 5000 });
   } catch (error) {
@@ -178,6 +197,8 @@ export function assertMemoryHelperCallback(
       claims.recordsSha256 !== stored.records_sha256 || claims.bindingSha256 !== stored.binding_sha256) throw denied();
   const request = parsePassiveMemoryEligibilityRequest(raw, ctx, nowMs);
   if (rawBody.toString('utf8') !== JSON.stringify(raw) ||
+      !raw || typeof raw !== 'object' || Array.isArray(raw) ||
+      Object.keys(raw).join(',') !== CALLBACK_KEYS.join(',') ||
       request.input.clientId !== claims.clientId || request.binding.runId !== claims.runId ||
       request.binding.conversationId !== claims.conversationId || request.binding.attemptId !== claims.attemptId ||
       request.binding.writerFence !== claims.writerFence ||

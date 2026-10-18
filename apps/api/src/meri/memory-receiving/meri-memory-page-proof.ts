@@ -7,7 +7,7 @@ import { isSha, isUuid } from '../../auth/read-delegation/read-delegation.contra
 export const MEMORY_PAGE_PROOF_HEADER = 'x-meri-memory-page-proof';
 export const MEMORY_PAGE_PROOF_TYPE = 'capiro-meri-memory-page-proof+jwt';
 export const MEMORY_PAGE_PROOF_AUDIENCE = 'capiro:meri-memory-page-proof:v1';
-const MAX_SECONDS = 30;
+const MAX_SECONDS = 60;
 const CALL_KEY = /^[A-Za-z0-9_-]{1,128}$/;
 
 /** The proof cannot call a receiver. It only authenticates the Core page pins

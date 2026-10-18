@@ -62,7 +62,10 @@ export async function issueMemoryPageProof(
       if (parent.length !== 1 || parent[0]!.consumed !== true || parent[0]!.live !== true ||
           parent[0]!.body_sha256 !== grant.bodySha256 || parent[0]!.arguments_sha256 !== pins.argumentsSha256) throw changed();
       const iat = Math.floor(facts.dbNowMs / 1000);
-      const exp = Math.min(iat + 30, Math.floor(hard / 1000));
+      // Meri's callback cutoff is already narrowed by the parent credential
+      // receipt. The opaque proof deadline is that parent's upper bound; a
+      // shorter gateway/handle timeout in the callback remains valid.
+      const exp = Math.min(iat + 60, Math.floor(hard / 1000));
       if (exp <= iat + 1 || facts.dbNowMs >= exp * 1000) throw expired();
       const claims: Omit<MemoryPageProofClaims, 'iss' | 'aud' | 'jti'> = {
         sub: d.id, iat, nbf: iat, exp, parentJti: grant.jti, callKey: grant.callKey,

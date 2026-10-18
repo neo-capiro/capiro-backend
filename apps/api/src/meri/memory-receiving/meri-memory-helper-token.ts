@@ -12,7 +12,7 @@ export const MEMORY_HELPER_TYPE = 'capiro-meri-memory-eligibility+jwt';
 export const MEMORY_HELPER_AUDIENCE = 'capiro:meri-memory-eligibility:v1';
 export const MEMORY_HELPER_KIND = 'memory_eligibility';
 export const MEMORY_HELPER_PATH = '/api/clio/tools/search_memory_eligibility';
-const MAX_SECONDS = 5;
+const MAX_SECONDS = 15;
 const CALL_KEY = /^[A-Za-z0-9_-]{1,128}$/;
 
 export interface MemoryHelperClaims {
