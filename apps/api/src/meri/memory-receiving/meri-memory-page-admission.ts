@@ -29,6 +29,7 @@ export interface AdmittedPassiveMemoryPage {
   requestSha256: string;
   argumentsSha256: string;
   parentTokenJti: string;
+  parentBodySha256: string;
   callKey: string;
   clientId: string;
   hardExpiryMs: number;
@@ -51,7 +52,7 @@ export function admitPassiveMemoryPage(
       grant.tenantId !== ctx.tenantId || grant.actorId !== ctx.userId ||
       grant.binding.tenantId !== grant.tenantId || grant.binding.actorId !== grant.actorId ||
       grant.binding.conversationId !== grant.conversationId || grant.binding.runId !== grant.runId ||
-      !isSha(grant.correlationSha256)) throw denied();
+      !isSha(grant.correlationSha256) || !isSha(grant.bodySha256)) throw denied();
   let wire: PassiveMemoryWire;
   try { wire = parsePassiveMemoryWire(raw); } catch { throw denied(); }
   if (wire.input.clientId === null || wire.input.clientId !== grant.clientId ||
@@ -96,5 +97,6 @@ export function admitPassiveMemoryPage(
   });
   return Object.freeze({ wire: frozenWire, requestSha256: canonicalSha256(frozenWire),
     argumentsSha256: grant.argumentsSha256, parentTokenJti: grant.jti, callKey: grant.callKey,
+    parentBodySha256: grant.bodySha256,
     clientId: grant.clientId, hardExpiryMs: grant.hardExpiryMs });
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { canonicalSha256 } from '../../auth/read-delegation/read-delegation.contract.js';
+import { canonicalSha256, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
 import type { MeriReadDelegationGrant } from '../../auth/read-delegation/read-delegation-request.js';
 
 jest.mock('../../memory/memory-wall.helpers.js', () => ({
@@ -10,6 +10,7 @@ jest.mock('../../memory/memory-wall.helpers.js', () => ({
 
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { admitPassiveMemoryPage } from './meri-memory-page-admission.js';
+import { readTaskBoundPassiveMemoryPage } from './meri-memory-signed-page-source.js';
 import { parseTaskBoundMemoryProposalSelection, readTaskBoundMemoryProposalPage } from './meri-memory-proposal-source.js';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
@@ -43,6 +44,7 @@ function grant(operation = 'search_memory', argumentsSha256 = canonicalSha256(me
     clientId, conversationId, runId, binding: { tenantId, actorId, conversationId, runId, attemptId, writerFence: 2 },
     admittedBinding: { tenantId, actorId, conversationId, runId, attemptId, workerId, writerFence: 2 },
     policyRevision, correlationSha256: canonicalSha256(correlation()), argumentsSha256,
+    bodySha256: sha256Hex(JSON.stringify(memoryWire())),
     callKey: 'invocation_1', kind: 'tool', operation: { id: operation, version: '0.2.0' },
     toolRequestSha256: null, referenceSha256: null, jti: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     hardExpiryMs: nowMs + 5_000 } as MeriReadDelegationGrant;
@@ -53,6 +55,7 @@ describe('unmounted task-bound passive memory page admission', () => {
     const accepted = admitPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(), nowMs);
     expect(accepted).toMatchObject({ clientId, callKey: 'invocation_1',
       parentTokenJti: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      parentBodySha256: sha256Hex(JSON.stringify(memoryWire())),
       requestSha256: canonicalSha256(memoryWire()) });
     expect(Object.isFrozen(accepted.wire.input)).toBe(true);
   });
@@ -75,6 +78,67 @@ describe('unmounted task-bound passive memory page admission', () => {
     changedGrant.admittedBinding.workerId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
     expect(() => admitPassiveMemoryPage(ctx, memoryWire(), changedGrant, correlation(), nowMs))
       .toThrow(ForbiddenException);
+    const noEmittedBodyHash = grant();
+    delete noEmittedBodyHash.bodySha256;
+    expect(() => admitPassiveMemoryPage(ctx, memoryWire(), noEmittedBodyHash, correlation(), nowMs))
+      .toThrow(ForbiddenException);
+  });
+});
+
+describe('unmounted signed passive memory page composition', () => {
+  it('reads the exact selected client, preserves the result and computes helper correlation after release recheck', async () => {
+    const record = { recordId: workerId, payload: { title: 'Approved fact' } };
+    const result = { tool: 'search_memory', records: [record], results: [{ id: workerId }] };
+    const read = jest.fn(async () => result);
+    const release = jest.fn(async () => undefined);
+    const page = await readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
+      { executeFromAuthenticatedUser: read } as never, release, () => nowMs);
+    expect(read).toHaveBeenCalledWith(ctx, 'search_memory', memoryWire().input);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(page.result).toEqual(result);
+    expect(page.eligibility).toMatchObject({
+      parentTokenJti: grant().jti, parentBodySha256: sha256Hex(JSON.stringify(memoryWire())),
+      callKey: grant().callKey, clientId,
+      argumentsSha256: canonicalSha256(memoryWire().input),
+      requestSha256: canonicalSha256(memoryWire()), resultSha256: canonicalSha256(result),
+      records: [{ memoryItemId: workerId, recordSha256: canonicalSha256(record) }],
+    });
+  });
+
+  it('withholds a page if the owner output or pre-byte delegation check fails', async () => {
+    const read = jest.fn(async () => ({ tool: 'search_memory', records: [], results: [] }));
+    const release = jest.fn(async () => { throw new ForbiddenException('revoked'); });
+    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
+      { executeFromAuthenticatedUser: read } as never, release, () => nowMs))
+      .rejects.toThrow(ForbiddenException);
+    expect(release).toHaveBeenCalledTimes(1);
+
+    const bad = jest.fn(async () => ({ tool: 'search_memory', records: [
+      { recordId: workerId }, { recordId: workerId },
+    ] }));
+    const unreached = jest.fn(async () => undefined);
+    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
+      { executeFromAuthenticatedUser: bad } as never, unreached, () => nowMs))
+      .rejects.toThrow(ForbiddenException);
+    expect(unreached).not.toHaveBeenCalled();
+  });
+
+  it('refuses a page that expires during retrieval or immediately after release', async () => {
+    const result = { tool: 'search_memory', records: [], results: [] };
+    const read = jest.fn(async () => result);
+    const afterRead = jest.fn().mockReturnValueOnce(nowMs).mockReturnValueOnce(nowMs + 5_000);
+    const release = jest.fn(async () => undefined);
+    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
+      { executeFromAuthenticatedUser: read } as never, release, afterRead as () => number))
+      .rejects.toThrow(ForbiddenException);
+    expect(release).not.toHaveBeenCalled();
+
+    const afterRelease = jest.fn().mockReturnValueOnce(nowMs).mockReturnValueOnce(nowMs)
+      .mockReturnValueOnce(nowMs + 5_000);
+    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
+      { executeFromAuthenticatedUser: read } as never, release, afterRelease as () => number))
+      .rejects.toThrow(ForbiddenException);
+    expect(release).toHaveBeenCalledTimes(1);
   });
 });
 
