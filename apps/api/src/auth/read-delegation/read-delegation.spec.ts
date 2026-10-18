@@ -526,11 +526,19 @@ describe('RC1 option B read delegation, Core owner', () => {
         const operation = { id: 'actions.query', version: '0.2.0' };
         const h = harness({ ...allocation, manifest: { allowedOperations: [...OPS, operation] } });
         const d = await h.create();
-        const queryBody = { clientId: C, limit: 20, sort: 'deadline' };
-        const args = sha('original actions.query arguments');
+        const queryInput = { mode: 'client_scoped', selection: { clientId: C, actionItemId: null,
+          status: null, sort: 'deadline', page: 1, limit: 20, cursorApplied: false }, cursor: null };
+        const queryBody = { input: queryInput, metadata: null };
+        const args = canonicalSha256(queryInput);
+        const correlation = { binding: originalBinding,
+          subject: { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A,
+            authorizationDecisionId: ORIGINAL_GRANT, policyRevision: P,
+            scopes: [{ kind: 'client', resourceId: C, tenantId: T, policyRevision: P }], rosterVersionId: null },
+          policyRevision: P, normalizationContext: null };
+        const header = Buffer.from(canonicalizeCoreRetainedJson(correlation), 'utf8').toString('base64url');
         const target = '/api/clio/tools/actions.query';
         const request = { kind: 'tool', path: target, operation, argumentsSha256: args,
-          bodySha256: sha(JSON.stringify(queryBody)) };
+          bodySha256: sha(JSON.stringify(queryBody)), correlationSha256: canonicalSha256(correlation) };
         delete process.env.MERI_ACTION_QUERY_ALIAS_ENABLED;
         await expect(h.issue(d.delegationId, request)).rejects.toBeInstanceOf(ServiceUnavailableException);
         expect(h.db.state.tokens.size).toBe(0);
@@ -544,13 +552,20 @@ describe('RC1 option B read delegation, Core owner', () => {
         h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation,
           arguments_sha256: args, state: 'UNKNOWN' });
         const token = await h.issue(d.delegationId, request);
-        await expect(h.use(target, token.token, { ...queryBody, limit: 21 })).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(h.use(target, token.token, queryBody)).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(h.use(target, token.token, queryBody,
+          { headers: { 'x-meri-read-correlation': `${header}A` } })).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(h.use(target, token.token, { ...queryBody, metadata: 'changed' },
+          { headers: { 'x-meri-read-correlation': header } })).rejects.toBeInstanceOf(ForbiddenException);
         expect([...h.db.state.tokens.values()][0]!.consumed_at).toBeNull();
-        const used = await h.use(target, token.token, queryBody);
+        const used = await h.use(target, token.token, queryBody,
+          { headers: { 'x-meri-read-correlation': header } });
         expect(meriReadDelegationOf(used.req)).toMatchObject({ kind: 'tool', operation,
-          callKey: 'call-1', argumentsSha256: args, clientId: C });
+          callKey: 'call-1', argumentsSha256: args, correlationSha256: canonicalSha256(correlation), clientId: C });
+        expect(meriRetainedCorrelationOf(used.req)).toEqual(correlation);
         await assertMeriReadDelegationReleasable(h.db.prisma, used.req);
-        await expect(h.use(target, token.token, queryBody)).rejects.toBeInstanceOf(UnauthorizedException);
+        await expect(h.use(target, token.token, queryBody,
+          { headers: { 'x-meri-read-correlation': header } })).rejects.toBeInstanceOf(UnauthorizedException);
       } finally {
         if (priorEnabled === undefined) delete process.env.MERI_ACTION_QUERY_ALIAS_ENABLED;
         else process.env.MERI_ACTION_QUERY_ALIAS_ENABLED = priorEnabled;

@@ -76,4 +76,21 @@ describe('retained source read token correlation claim', () => {
       body.operation = {id: 'read_client_documents', version: '0.3.0'};
     }), config, nowMs)).toBeNull();
   });
+
+  it('requires the PR171 action successor correlation but forbids it on the original action read', async () => {
+    const correlationSha256 = sha('action successor signed correlation');
+    const successor = claims('actions.query');
+    await expect(signReadToken(signer, successor)).rejects.toThrow();
+    const { token } = await signReadToken(signer, { ...successor, correlationSha256 });
+    expect(verifyReadToken(token, config, nowMs)).toMatchObject({
+      operation: { id: 'actions.query', version: '0.2.0' }, correlationSha256,
+    });
+    expect(verifyReadToken(mutateSigned(token, (body) => { delete body.correlationSha256; }), config, nowMs)).toBeNull();
+    expect(verifyReadToken(mutateSigned(token, (body) => {
+      body.operation = { id: 'actions.query', version: '0.3.0' };
+    }), config, nowMs)).toBeNull();
+    await expect(signReadToken(signer, { ...claims('query_action_items'), correlationSha256 })).rejects.toThrow();
+    const original = await signReadToken(signer, claims('query_action_items'));
+    expect(verifyReadToken(original.token, config, nowMs)?.correlationSha256).toBeUndefined();
+  });
 });

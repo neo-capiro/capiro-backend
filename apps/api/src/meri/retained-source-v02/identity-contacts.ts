@@ -73,7 +73,7 @@ function exact(value: JsonRecord, keys: readonly string[], optional: readonly st
       actual.some((key) => !keys.includes(key) && !optional.includes(key))) fail('unexpected fields');
 }
 function text(value: unknown, label: string, max = 16384): string {
-  if (typeof value !== 'string' || value.length > max) fail(label);
+  if (typeof value !== 'string' || value.length > max) return fail(label);
   return value;
 }
 function nullableText(value: unknown, label: string): string | null {
@@ -134,10 +134,12 @@ function stateBillSelector(raw: string | null): StateSelector {
   const key = raw.toLowerCase().replace(/\s+/g, '').replace(/\./g, '');
   if (/^[a-z]{2}-\d{4}(x\d+)?-[a-z]+\d+[a-z]?$/.test(key)) return { kind: 'canonical', key };
   const leading = /^([A-Za-z]{2})\s+(.+)$/.exec(raw);
-  if (leading) {
+  if (leading?.[1] && leading[2]) {
     const match = /^([A-Za-z]+)\s*([0-9]+(?:-[0-9]+)*)([A-Za-z]?)$/.exec(leading[2].trim().replace(/\./g, ''));
-    if (match) return { kind: 'designation', state: leading[1].toUpperCase(),
-      billNumber: `${match[1]}${match[2].replace(/-/g, '')}${match[3]}`.toLowerCase() };
+    if (match?.[1] && match[2] && match[3] !== undefined) return {
+      kind: 'designation', state: leading[1].toUpperCase(),
+      billNumber: `${match[1]}${match[2].replace(/-/g, '')}${match[3]}`.toLowerCase(),
+    };
   }
   return { kind: 'invalid' };
 }
