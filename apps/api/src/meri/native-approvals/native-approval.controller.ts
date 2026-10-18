@@ -8,6 +8,8 @@ import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js'
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { NativeApprovalService } from './native-approval.service.js';
 import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
+import { NativeExecutionService } from './native-execution.service.js';
+import { meriExecutionKeyConfigProvider, meriExecutionSignerProvider } from '../execution-capability/meri-execution-authority.js';
 
 /** Bodies and receipts are the native provider operations `approval/record`
  * and `approval/decision` byte-for-byte, so Meri's provider can forward them.
@@ -16,7 +18,7 @@ import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 @UseGuards(RolesGuard, ToolServiceSecretGuard)
 @Roles('standard_user')
 export class NativeApprovalController {
-  constructor(private readonly approvals: NativeApprovalService) {}
+  constructor(private readonly approvals: NativeApprovalService, private readonly executions: NativeExecutionService) {}
 
   @Post('record')
   @HttpCode(200)
@@ -31,11 +33,23 @@ export class NativeApprovalController {
   decision(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
     return this.approvals.decision(req, ctx, body);
   }
+
+  /** Approved-execution capability issuance (D016 #9): Meri's decide route,
+   * attended approver's native bearer + verified service identity. */
+  @Post('execution')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  execution(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.executions.issue(req, ctx, body);
+  }
 }
 
 @Module({
   imports: [PrismaModule],
   controllers: [NativeApprovalController],
-  providers: [NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard],
+  providers: [
+    NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService,
+    meriExecutionKeyConfigProvider, meriExecutionSignerProvider,
+  ],
 })
 export class NativeApprovalModule {}

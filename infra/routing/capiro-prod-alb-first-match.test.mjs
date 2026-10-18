@@ -286,7 +286,7 @@ test('Core preview packet adds the P3 native-operations rule, moves only the gua
     `/api/research-portfolios/${validClient}/snapshots/${validClient}`,
   ]) assert.equal(at('GET', path).id, 'core-membership', path);
   for (const path of [
-    '/api/clio/approvals/native/record', '/api/clio/approvals/native/decision',
+    '/api/clio/approvals/native/record', '/api/clio/approvals/native/decision', '/api/clio/approvals/native/execution',
     '/api/clio/memory/review/submit', '/api/clio/memory/review/status',
     '/api/clio/memory/read_target', '/api/clio/memory/find_by_key',
   ]) {

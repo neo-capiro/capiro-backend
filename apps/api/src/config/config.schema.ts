@@ -793,6 +793,17 @@ export const configSchema = z.object({
     .string()
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // D016 #9 Core Ed25519 KMS signers (auth/core-ed25519-kms-config.ts): all
+  // four per purpose or none. Read from process.env by that module, which
+  // validates them and disables only its own routes (503) when partial/invalid.
+  MERI_EXECUTION_SIGNER_ISSUER: z.string().optional(),
+  MERI_EXECUTION_SIGNER_KID: z.string().optional(),
+  MERI_EXECUTION_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_EXECUTION_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_ISSUER: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_KID: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_PUBLIC_KEY_X: z.string().optional(),
   // Dark rollout gate for the new API/orchestrator/web proposal contract. The
   // insecure legacy browser routes are disabled regardless of this value.
   MERIV2_ACTION_PROPOSALS_ENABLED: z

@@ -12,6 +12,7 @@ import {
   parseApprovalDecisionInput,
   parseApprovalRecordInput,
   sameJson,
+  type NativeApprovalDecision,
   type NativeApprovalReceipt,
   type NativeScope,
 } from './native-approval.contract.js';
@@ -139,18 +140,21 @@ function singlePolicyRevision(scopes: readonly NativeScope[], tenantId: string):
   return [...revisions][0]!;
 }
 
-function receipt(row: DecisionRow): NativeApprovalReceipt {
+/** The exact `ApprovalDecision` Meri reads back for a stored row (and whose
+ * RFC 8785 hash an execution capability binds). */
+export function nativeDecisionOf(row: Pick<DecisionRow, 'proposalId' | 'commandSha256' | 'decision' | 'decidedAt' |
+  'expiresAt' | 'tenantId' | 'approverUserId' | 'policyRevision'>): NativeApprovalDecision {
   return {
-    decision: {
-      proposalId: row.proposalId,
-      commandSha256: row.commandSha256,
-      decision: row.decision as 'approved' | 'rejected',
-      decidedAt: row.decidedAt.toISOString(),
-      expiresAt: row.expiresAt.toISOString(),
-      approver: { tenantId: row.tenantId, actorId: row.approverUserId },
-      policyRevision: row.policyRevision,
-    },
-    checkedAtMs: Date.now(),
-    revoked: false,
+    proposalId: row.proposalId,
+    commandSha256: row.commandSha256,
+    decision: row.decision as 'approved' | 'rejected',
+    decidedAt: row.decidedAt.toISOString(),
+    expiresAt: row.expiresAt.toISOString(),
+    approver: { tenantId: row.tenantId, actorId: row.approverUserId },
+    policyRevision: row.policyRevision,
   };
+}
+
+function receipt(row: DecisionRow): NativeApprovalReceipt {
+  return { decision: nativeDecisionOf(row), checkedAtMs: Date.now(), revoked: false };
 }

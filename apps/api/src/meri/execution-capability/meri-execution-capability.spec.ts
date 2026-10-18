@@ -14,6 +14,7 @@ import {
   assertExecutionMatches,
   executionCoversDecisionRead,
   issueMeriExecutionCapability,
+  meriExecutionRequestId,
   taskCreateArgumentsFromBody,
   taskCreateSourceBody,
   verifyMeriExecutionCapability,
@@ -47,6 +48,14 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     expect(vector.key.publicJwk).toEqual({ kty: 'OKP', crv: 'Ed25519', x: publicKey.export({ format: 'jwk' }).x, kid: vector.key.kid, alg: 'EdDSA', use: 'sig' });
   });
 
+  it("derives Meri's deterministic request id (execution-capability.mjs executionRequestId)", () => {
+    const { proposal, executorBinding } = vector.inputs;
+    expect(meriExecutionRequestId({ proposalId: proposal.proposalId, commandSha256: proposal.commandSha256, executorBinding }))
+      .toBe(vector.inputs.requestId);
+    expect(meriExecutionRequestId({ proposalId: proposal.proposalId, commandSha256: proposal.commandSha256,
+      executorBinding: { ...executorBinding, writerFence: executorBinding.writerFence + 1 } })).not.toBe(vector.inputs.requestId);
+  });
+
   it('emits exactly Meri CapabilityClaims and a CommandExecutionRequest bound to the proposal and run', async () => {
     const issued = await issueMeriExecutionCapability(inputs(), signer);
     const { claims, execution } = verifyMeriExecutionCapability(issued.credential, trust());
@@ -55,13 +64,16 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     expect(claims).toMatchObject({
       audience: 'meri-gateway', actions: ['command.execute'], policyRevision: vector.inputs.decision.policyRevision,
       binding: vector.inputs.executorBinding,
-      // Copied exactly from Meri's request (its capabilityBudgets of the admitted allocation).
-      budgets: vector.inputs.budgets,
+      // Derived exactly as Meri's capabilityBudgets from the admitted allocation (maxCostMicroUSD -> maxCostMicrousd).
+      budgets: { maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicrousd: 2000000, maxOutputBytes: 1048576 },
     });
     expect(claims.policyRevision).toMatch(/^[a-f0-9]{64}$/);
-    // Exactly the ten execution members Meri's verifier admits (meri-greenfield 1cc5a554 EXECUTION_KEYS).
-    expect(Object.keys(execution).sort()).toEqual(['action', 'approver', 'argumentsSha256', 'clientIds', 'commandSha256',
-      'decisionSha256', 'idempotencyKey', 'proposalId', 'requestId', 'requestSha256']);
+    // The 13 execution members dot reviewed (rev 3, #121 6247464370); Meri lane X adopts them (R0 6247577743).
+    expect(Object.keys(execution).sort()).toEqual(['action', 'allocationSha256', 'approver', 'argumentsSha256', 'clientIds',
+      'commandSha256', 'decisionSha256', 'idempotencyKey', 'proposalId', 'qualification', 'requestId', 'requestSha256', 'sourceBodySha256']);
+    expect(execution.allocationSha256).toBe(nativeCanonicalSha256(vector.inputs.allocation));
+    expect(execution.qualification).toEqual(vector.inputs.qualification);
+    expect(execution.sourceBodySha256).toBe(nativeCanonicalSha256(taskCreateSourceBody(vector.inputs.proposal.command.arguments)));
     const proposal = vector.inputs.proposal;
     expect(issued.execution).toEqual({
       contractVersion: '0.1.0', requestId: vector.inputs.requestId, capabilityId: vector.inputs.capabilityId,
@@ -94,9 +106,16 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     ['a non-v4 capability id', { capabilityId: '15151515-1515-1151-8151-151515151515' }],
     ['a decision taken after now', { nowMs: Date.parse(vector.inputs.decision.decidedAt) - 1 }],
     ['an unknown input key', { extra: true }],
-    ['budgets with an unknown member', { budgets: { ...vector.inputs.budgets, maxToolCalls: 20 } }],
-    ['budgets missing a member', { budgets: { maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicrousd: 2000000 } }],
-    ['a non-positive budget', { budgets: { ...vector.inputs.budgets, maxTurns: 0 } }],
+    ['caller-chosen budgets instead of an allocation', { budgets: { maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicrousd: 2000000, maxOutputBytes: 1 } }],
+    ['allocation budgets with an unknown member', { allocation: { ...vector.inputs.allocation, budgets: { ...vector.inputs.allocation.budgets, extra: 1 } } }],
+    ['allocation budgets missing a member', { allocation: { ...vector.inputs.allocation, budgets: { maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicroUSD: 2000000 } } }],
+    ['a non-positive allocation budget', { allocation: { ...vector.inputs.allocation, budgets: { ...vector.inputs.allocation.budgets, maxTurns: 0 } } }],
+    ['an allocation for another run', { allocation: { ...vector.inputs.allocation, run: { ...vector.inputs.allocation.run, runId: '13131313-1313-4131-8131-131313131313' } } }],
+    ['an allocation without a schedule', { allocation: { run: vector.inputs.allocation.run, budgets: vector.inputs.allocation.budgets } }],
+    ['a qualification fence other than the executor', { qualification: { ...vector.inputs.qualification, fence: vector.inputs.qualification.fence + 1 } }],
+    ['a qualification for another policy', { qualification: { ...vector.inputs.qualification, policyRevision: 'f'.repeat(64) } }],
+    ['a worker outside the pinned account', { qualification: { ...vector.inputs.qualification, workerArn: 'arn:aws:ecs:us-east-1:111111111111:task/capiro-dev/0123456789abcdef0123456789abcdef' } }],
+    ['a qualification with an extra member', { qualification: { ...vector.inputs.qualification, extra: 1 } }],
   ] as Array<[string, Record<string, unknown>]>)('refuses to issue for %s', async (_label, o) => {
     await expect(issueMeriExecutionCapability(inputs(o), signer)).rejects.toThrow('MERI_EXECUTION_CAPABILITY_REFUSED');
   });
@@ -165,7 +184,10 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
   it('authorizes nothing until it equals the actual request, proposal and current decision', async () => {
     const issued = await issueMeriExecutionCapability(inputs(), signer);
     const verified = verifyMeriExecutionCapability(issued.credential, trust());
-    const actual = () => clone({ request: issued.execution, proposal: vector.inputs.proposal, decision: vector.inputs.decision });
+    const actual = () => clone({
+      request: issued.execution, proposal: vector.inputs.proposal, decision: vector.inputs.decision,
+      allocation: vector.inputs.allocation, qualification: vector.inputs.qualification,
+    });
     expect(() => assertExecutionMatches(verified, actual())).not.toThrow();
     const refused = (mutate: (a: ReturnType<typeof actual>) => void) => {
       const a = actual(); mutate(a);
@@ -175,6 +197,21 @@ describe('Meri execution capability (DRAFT capiro.meri-execution-capability.v1)'
     refused((a) => { a.proposal.command.arguments.title = 'Other'; });
     refused((a) => { a.decision.decidedAt = '2026-10-18T06:01:30.000Z'; });
     refused((a) => { a.decision.policyRevision = 'f'.repeat(64); });
+    refused((a) => { a.allocation.budgets.maxTurns = 19; });
+    refused((a) => { a.qualification.attempt += 1; });
+  });
+
+  it('carries the complete admitted allocation exactly (admitted-allocation vector, Meri composer output)', async () => {
+    const full = JSON.parse(readFileSync(resolve(__dirname, '../../../../../docs/integration/meri-execution-admitted-allocation.vector.json'), 'utf8'));
+    const issued = await issueMeriExecutionCapability(clone(full.inputs), signer);
+    expect(issued.credential).toBe(full.expected.credential);
+    expect(issued.expiresAtMs).toBe(full.expected.expiresAtMs);
+    const { claims, execution } = verifyMeriExecutionCapability(issued.credential, trust(full.inputs.nowMs));
+    expect(clone(claims.budgets)).toEqual(full.meriCapabilityBudgets.budgets);
+    expect(execution.allocationSha256).toBe(full.meriCapabilityBudgets.allocationSha256);
+    expect(execution.allocationSha256).toBe(full.meriOwner.allocationRow.allocation_sha256);
+    expect(execution.requestId).toBe(full.issuanceRequest.requestId);
+    expect(issued.expiresAtMs).toBeLessThanOrEqual(full.inputs.runDeadlineMs);
   });
 
   it('covers only its own proposal decision read in its own run (receiver-branch draft)', async () => {

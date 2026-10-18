@@ -22,11 +22,14 @@ import type { NextFunction, Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import {
   authDeniedEvent,
+  ROLE_RANK,
   TENANT_HEADER,
   type AuthDeniedReason,
   type TenantContext,
   type TenantRole,
 } from '@capiro/shared';
+import { readCoreEd25519KeyConfig, readMeriExecutionIdentity } from '../auth/core-ed25519-kms-config.js';
+import { isMeriExecutionCapabilityPost, markMeriExecutionRequest } from '../auth/meri-execution-request.js';
 import { ClerkService, isWellFormedMeriControlCredentialClaims, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
@@ -162,6 +165,13 @@ export class TenantContextMiddleware implements NestMiddleware {
     )) res.setHeader('Cache-Control', 'no-store');
     if (isRetainedSignedPost(req)) {
       next();
+      return;
+    }
+    // Meri's approved-execution capability (D016 #9) on its single receiver
+    // route. Never a fallback for any other path or token type.
+    if (isMeriExecutionCapabilityPost(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      await this.useMeriExecutionCapability(req, next);
       return;
     }
     // Belt-and-suspenders bypass for paths that authenticate via a different
@@ -503,6 +513,49 @@ export class TenantContextMiddleware implements NestMiddleware {
         impersonationId: selectedAuthorityImpersonation,
       });
     }
+    this.store.run(ctx, () => next());
+  }
+
+  /**
+   * Context for Meri's approved-execution capability on `create_task`. The
+   * capability is Core's own Ed25519 token (pinned key, exact header, RFC 8785
+   * payload, issuer, audience, time); its signed binding names the tenant and
+   * actor. Only an existing active member of an active tenant with at least
+   * `standard_user` is admitted: nothing is provisioned, repaired or written.
+   * The receiver re-verifies the whole capability and checks the current
+   * decision, membership, client scopes, ledger and body before any effect.
+   */
+  private async useMeriExecutionCapability(req: Request, next: NextFunction): Promise<void> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    let config: ReturnType<typeof readCoreEd25519KeyConfig>;
+    try {
+      config = readCoreEd25519KeyConfig(process.env, 'MERI_EXECUTION_SIGNER');
+    } catch {
+      config = null;
+    }
+    if (!config) throw new ServiceUnavailableException('Execution capabilities are not enabled');
+    const token = (req.headers.authorization ?? '').slice('Bearer '.length);
+    const identity = readMeriExecutionIdentity(token, config, Date.now());
+    if (!identity) throw new UnauthorizedException('Invalid execution capability');
+    if (req.header('x-capiro-impersonate-tenant') || req.header(TENANT_HEADER)) throw denied();
+    const selected = await this.prisma.withSystem(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: identity.actorId } });
+      const membership = await tx.tenantMembership.findFirst({
+        where: { tenantId: identity.tenantId, userId: identity.actorId, status: 'active' }, include: { tenant: true },
+      });
+      if (!user || !membership || membership.tenant.status !== 'active' || !Object.hasOwn(ROLE_RANK, membership.role) ||
+          ROLE_RANK[membership.role as TenantRole] < ROLE_RANK.standard_user) throw denied();
+      return { user, membership };
+    });
+    const ctx: TenantContext = {
+      tenantId: selected.membership.tenantId,
+      tenantSlug: selected.membership.tenant.slug,
+      userId: selected.user.id,
+      clerkUserId: selected.user.clerkUserId,
+      role: selected.membership.role as TenantRole,
+    };
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    markMeriExecutionRequest(req, { token, ...identity });
     this.store.run(ctx, () => next());
   }
 

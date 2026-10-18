@@ -129,7 +129,7 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   assert.deepEqual(routes.packet, { nativeOps: 3, guard: 'readback' });
   assert.equal(FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 3);
   assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
-    '^/api/clio/(approvals/native/(record|decision)|memory/(review/(submit|status)|read_target|find_by_key))$',
+    '^/api/clio/(approvals/native/(record|decision|execution)|memory/(review/(submit|status)|read_target|find_by_key))$',
   ]);
   assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
   assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);

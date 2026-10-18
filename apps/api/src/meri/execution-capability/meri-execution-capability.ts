@@ -20,8 +20,12 @@ import {
 } from '../native-approvals/native-approval.contract.js';
 
 /**
- * Contract `capiro.meri-execution-capability.v1` (rev 4: the exact shape Meri's verifier accepts at meri-greenfield 1cc5a554) (docs/integration/
+ * Contract `capiro.meri-execution-capability.v1` (docs/integration/
  * MERI-EXECUTION-CAPABILITY-DRAFT.md), requested by dot in #121 6246253130.
+ * Rev 5: the 13-field execution member dot reviewed (rev 3, #121 6247464370;
+ * Meri lane X adopts it, R0 6247577743) with rev 4's fixes: Meri's
+ * deterministic request id, budgets equal to the authenticated allocation,
+ * `expiresAtMs = exp*1000`, and the receiver's body inverse.
  *
  * Core issues one short-lived EdDSA (pure Ed25519) compact JWS per approved
  * proposal execution attempt. Meri's `verifyCapability` port verifies it with
@@ -75,6 +79,17 @@ export interface MeriCommandExecutionRequest {
   idempotencyKey: string;
 }
 
+/** Meri grant-fact `qualificationBinding` (dot #121 6246551969): the run's
+ * actual qualification facts, which the UUID attempt/worker ids cannot
+ * substitute. Core reads them from Meri's run owner, never from the caller. */
+export interface MeriQualificationBinding {
+  runId: string;
+  attempt: number;
+  workerArn: string;
+  fence: number;
+  policyRevision: string;
+}
+
 export interface MeriExecutionBinding {
   requestId: string;
   proposalId: string;
@@ -82,10 +97,15 @@ export interface MeriExecutionBinding {
   idempotencyKey: string;
   action: string;
   argumentsSha256: string;
+  /** SHA-256(JCS(Meri `commandSourceBody(command)`)): the exact tool body. */
+  sourceBodySha256: string;
   clientIds: string[];
   decisionSha256: string;
   approver: NativeIdentity;
   requestSha256: string;
+  /** SHA-256(JCS(admitted allocation)), read from Meri's allocation owner. */
+  allocationSha256: string;
+  qualification: MeriQualificationBinding;
 }
 
 export interface MeriExecutionTokenPayload {
@@ -128,6 +148,9 @@ const refuse = (): never => { throw new MeriExecutionCapabilityRefused(); };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+/** Meri `tool-budget-binding.mjs` `validateGrantBinding` (exact). */
+const WORKER_ARN = /^arn:aws:ecs:us-east-1:967807252336:task\/[A-Za-z0-9_-]{1,255}\/[0-9a-f]{32}$/;
+const INT32_MAX = 2147483647;
 const HEX64 = /^[a-f0-9]{64}$/;
 const SEGMENT = /^[A-Za-z0-9_-]+$/;
 const exact = (pattern: RegExp, value: unknown): value is string =>
@@ -148,6 +171,36 @@ function own(value: unknown, keys: readonly string[]): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/**
+ * Capability budgets from the admitted allocation, exactly as Meri's
+ * `capabilityBudgets` derives them (maxCostMicroUSD -> maxCostMicrousd). The
+ * allocation's run must be the executor's tenant/actor/conversation/run, its
+ * budgets the closed Meri `Budgets` and its schedule present.
+ */
+export function meriAllocationBudgets(allocation: unknown, binding: NativeRunBinding): MeriCapabilityBudgets {
+  return guarded(() => {
+    if (!allocation || typeof allocation !== 'object' || Array.isArray(allocation)) refuse();
+    const a = allocation as Record<string, unknown>;
+    const run = own(a.run, ['tenantId', 'actorId', 'conversationId', 'runId']);
+    const schedule = a.schedule as { revision?: unknown; operations?: unknown } | null | undefined;
+    if (run.tenantId !== binding.tenantId || run.actorId !== binding.actorId || run.conversationId !== binding.conversationId ||
+        run.runId !== binding.runId || typeof schedule?.revision !== 'string' || !Array.isArray(schedule.operations)) refuse();
+    const b = own(a.budgets, ['maxTurns', 'maxToolCalls', 'maxRecoveryAttempts', 'maxRuntimeSeconds', 'maxCostMicroUSD', 'maxOutputBytes']);
+    return budgets({ maxTurns: b.maxTurns, maxRuntimeSeconds: b.maxRuntimeSeconds, maxCostMicrousd: b.maxCostMicroUSD, maxOutputBytes: b.maxOutputBytes });
+  });
+}
+
+/** Closed qualification facts bound to the executor run, fence and policy. */
+export function parseMeriQualification(value: unknown, binding: NativeRunBinding, policyRevision: string): MeriQualificationBinding {
+  return guarded(() => {
+    const q = own(value, ['runId', 'attempt', 'workerArn', 'fence', 'policyRevision']);
+    if (q.runId !== binding.runId || !positive(q.attempt) || (q.attempt as number) > INT32_MAX || !exact(WORKER_ARN, q.workerArn) ||
+        q.fence !== binding.writerFence || (q.fence as number) > INT32_MAX || q.policyRevision !== policyRevision) refuse();
+    return { runId: q.runId as string, attempt: q.attempt as number, workerArn: q.workerArn as string,
+      fence: q.fence as number, policyRevision: q.policyRevision as string };
+  });
+}
+
 function budgets(value: unknown): MeriCapabilityBudgets {
   const b = own(value, ['maxTurns', 'maxRuntimeSeconds', 'maxCostMicrousd', 'maxOutputBytes']);
   if (![b.maxTurns, b.maxRuntimeSeconds, b.maxCostMicrousd, b.maxOutputBytes].every(positive)) refuse();
@@ -155,8 +208,44 @@ function budgets(value: unknown): MeriCapabilityBudgets {
     maxCostMicrousd: b.maxCostMicrousd as number, maxOutputBytes: b.maxOutputBytes as number };
 }
 
+/**
+ * D016 B1 (meri-greenfield DECISIONS.md): the owner-approved per-run envelope.
+ * Budgets are copied exactly from Meri's request; Core refuses a request above
+ * this envelope and never lowers or rewrites one (stricter check, not a
+ * ceiling Core substitutes). maxOutputBytes has no owner value and is copied.
+ */
+export const MERI_EXECUTION_BUDGET_ENVELOPE = Object.freeze({ maxTurns: 20, maxRuntimeSeconds: 900, maxCostMicrousd: 2_000_000 });
+
+export function withinMeriExecutionBudgetEnvelope(b: MeriCapabilityBudgets): boolean {
+  return b.maxTurns <= MERI_EXECUTION_BUDGET_ENVELOPE.maxTurns &&
+    b.maxRuntimeSeconds <= MERI_EXECUTION_BUDGET_ENVELOPE.maxRuntimeSeconds &&
+    b.maxCostMicrousd <= MERI_EXECUTION_BUDGET_ENVELOPE.maxCostMicrousd;
+}
+
+/** Closed budgets: exactly the four keys, each a positive safe integer. */
+export function parseMeriCapabilityBudgets(value: unknown): MeriCapabilityBudgets {
+  return guarded(() => budgets(value));
+}
+
+/**
+ * Meri `executionRequestId` (meri-greenfield 1cc5a554
+ * `apps/runtime/native-authority/execution-capability.mjs`): a UUIDv4-shaped
+ * digest of (proposal, command hash, executor binding), so a replay for the
+ * same attempt carries the same id and any other attempt a different one.
+ */
+export function meriExecutionRequestId(input: { proposalId: string; commandSha256: string; executorBinding: NativeRunBinding }): string {
+  const h = createHash('sha256').update(canonicalizeCoreRetainedJson({
+    purpose: 'meri-execution-request/v1', proposalId: input.proposalId, commandSha256: input.commandSha256,
+    executorBinding: input.executorBinding,
+  }), 'utf8').digest('hex').split('');
+  h[12] = '4';
+  h[16] = '89ab'[parseInt(h[16]!, 16) & 3]!;
+  const v = h.join('');
+  return `${v.slice(0, 8)}-${v.slice(8, 12)}-${v.slice(12, 16)}-${v.slice(16, 20)}-${v.slice(20, 32)}`;
+}
+
 /** Lowercase client resource ids, sorted and unique: the client scopes this execution may touch. */
-function clientIdsOf(scopes: readonly NativeScope[]): string[] {
+export function clientIdsOf(scopes: readonly NativeScope[]): string[] {
   return [...new Set(scopes.filter((s) => s.kind === 'client').map((s) => s.resourceId.toLowerCase()))].sort();
 }
 
@@ -198,6 +287,23 @@ export function taskCreateArgumentsFromBody(body: unknown): { title: string; cli
   return args as { title: string; clientId: string | null; dueDate: string | null };
 }
 
+/** The capability window: at most 120 s and never past the decision, the
+ * proposal or the run deadline. Shared by issuance (ledger before signing) and
+ * the codec, so a replay at the recorded `iat` reproduces the same `exp`. */
+export function meriExecutionWindow(input: {
+  nowMs: number; decisionExpiresAt: string; proposalExpiresAt: string; runDeadlineMs: number;
+}): { iat: number; exp: number } {
+  const iat = Math.floor(input.nowMs / 1000);
+  const exp = Math.min(
+    iat + MERI_EXECUTION_MAX_TTL_SECONDS,
+    Math.floor(Date.parse(input.decisionExpiresAt) / 1000),
+    Math.floor(Date.parse(input.proposalExpiresAt) / 1000),
+    Math.floor(input.runDeadlineMs / 1000),
+  );
+  if (!Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || exp <= iat) refuse();
+  return { iat, exp };
+}
+
 function guarded<T>(fn: () => T): T {
   try { return fn(); } catch { return refuse(); }
 }
@@ -210,10 +316,12 @@ export async function issueMeriExecutionCapability(
     executorBinding: NativeRunBinding;
     requestId: string;
     capabilityId: string;
-    /** Copied exactly from Meri's request: its admitted-run owner's authenticated
-     * currentAllocation budgets (maxCostMicroUSD -> maxCostMicrousd). Never a
-     * ceiling Core chooses (dot #121 6246551969 item 1). */
-    budgets: MeriCapabilityBudgets;
+    /** The admitted allocation read from Meri's allocation owner. Budgets are
+     * derived from it exactly; never a ceiling Core chooses (dot #121
+     * 6246551969 item 1), never a caller-supplied hash. */
+    allocation: unknown;
+    /** The run's qualification facts read from Meri's run owner. */
+    qualification: MeriQualificationBinding;
     nowMs: number;
     /** Current run deadline; the capability never outlives it. */
     runDeadlineMs: number;
@@ -222,7 +330,7 @@ export async function issueMeriExecutionCapability(
   options: { signal?: AbortSignal } = {},
 ): Promise<MeriExecutionIssuance> {
   const prepared = guarded(() => {
-    const v = own(input, ['proposal', 'decision', 'executorBinding', 'requestId', 'capabilityId', 'budgets', 'nowMs', 'runDeadlineMs']);
+    const v = own(input, ['proposal', 'decision', 'executorBinding', 'requestId', 'capabilityId', 'allocation', 'qualification', 'nowMs', 'runDeadlineMs']);
     const proposal = parseApprovalProposal(v.proposal);
     const executorBinding = parseRunBinding(v.executorBinding, 'executorBinding');
     const d = own(v.decision, ['proposalId', 'commandSha256', 'decision', 'decidedAt', 'expiresAt', 'approver', 'policyRevision']);
@@ -237,14 +345,12 @@ export async function issueMeriExecutionCapability(
         !MERI_EXECUTION_ACTIONS.includes(command.action) || !sameRun(executorBinding, command.binding) ||
         command.scopes.length < 1 || command.scopes.some((s) => s.tenantId !== executorBinding.tenantId || s.policyRevision !== d.policyRevision) ||
         new Set(command.scopes.map((s) => sha256(s))).size !== command.scopes.length) refuse();
-    const iat = Math.floor(nowMs / 1000);
-    const exp = Math.min(
-      iat + MERI_EXECUTION_MAX_TTL_SECONDS,
-      Math.floor(Date.parse(d.expiresAt as string) / 1000),
-      Math.floor(Date.parse(proposal.expiresAt) / 1000),
-      Math.floor((v.runDeadlineMs as number) / 1000),
-    );
-    if (!Number.isSafeInteger(exp) || exp <= iat || Date.parse(d.decidedAt as string) > nowMs) refuse();
+    const { iat, exp } = meriExecutionWindow({
+      nowMs, decisionExpiresAt: d.expiresAt as string, proposalExpiresAt: proposal.expiresAt, runDeadlineMs: v.runDeadlineMs as number,
+    });
+    // Second granularity: a replay re-signs at the recorded iat, which may be
+    // earlier in the same second than the decision.
+    if (Math.floor(Date.parse(d.decidedAt as string) / 1000) > iat) refuse();
     const capabilityId = v.capabilityId as string;
     const execution: MeriCommandExecutionRequest = {
       contractVersion: '0.1.0', requestId: v.requestId as string, capabilityId, executorBinding,
@@ -253,15 +359,18 @@ export async function issueMeriExecutionCapability(
     const claims: MeriCapabilityClaims = {
       capabilityId, issuer: signer.issuer, audience: MERI_EXECUTION_AUDIENCE, binding: executorBinding,
       actions: [MERI_EXECUTION_ACTION], scopes: command.scopes, issuedAt: iso(iat), expiresAt: iso(exp),
-      policyRevision: d.policyRevision as string, budgets: budgets(v.budgets),
+      policyRevision: d.policyRevision as string, budgets: meriAllocationBudgets(v.allocation, executorBinding),
     };
+    const qualification = parseMeriQualification(v.qualification, executorBinding, d.policyRevision as string);
     const payload: MeriExecutionTokenPayload = {
       iss: signer.issuer, aud: MERI_EXECUTION_AUDIENCE, iat, nbf: iat, exp, jti: capabilityId, capability: claims,
       execution: {
         requestId: execution.requestId, proposalId: execution.proposalId, commandSha256: execution.commandSha256,
         idempotencyKey: execution.idempotencyKey, action: command.action, argumentsSha256: sha256(command.arguments),
+        sourceBodySha256: sha256(taskCreateSourceBody(command.arguments)),
         clientIds: clientIdsOf(command.scopes), decisionSha256: sha256(d),
         approver: { tenantId: approver.tenantId as string, actorId: approver.actorId as string }, requestSha256: sha256(execution),
+        allocationSha256: sha256(v.allocation), qualification,
       },
     };
     const signingInput = `${Buffer.from(headerJson(signer.kid)).toString('base64url')}.${Buffer.from(canonicalizeCoreRetainedJson(payload), 'utf8').toString('base64url')}`;
@@ -324,12 +433,12 @@ export function verifyMeriExecutionCapability(token: string, trust: MeriExecutio
       policyRevision: c.policyRevision as string, budgets: budgets(c.budgets),
     };
     const e = own(p.execution, ['requestId', 'proposalId', 'commandSha256', 'idempotencyKey', 'action', 'argumentsSha256',
-      'clientIds', 'decisionSha256', 'approver', 'requestSha256']);
+      'sourceBodySha256', 'clientIds', 'decisionSha256', 'approver', 'requestSha256', 'allocationSha256', 'qualification']);
     const approver = own(e.approver, ['tenantId', 'actorId']);
     if (!exact(UUID, e.requestId) || !exact(UUID, e.proposalId) || !exact(HEX64, e.commandSha256) ||
         typeof e.idempotencyKey !== 'string' || e.idempotencyKey.length < 1 || e.idempotencyKey.length > 128 ||
         !MERI_EXECUTION_ACTIONS.includes(e.action as string) || !exact(HEX64, e.argumentsSha256) ||
-        !exact(HEX64, e.decisionSha256) ||
+        !exact(HEX64, e.sourceBodySha256) || !exact(HEX64, e.decisionSha256) || !exact(HEX64, e.allocationSha256) ||
         approver.tenantId !== binding.tenantId || approver.actorId !== binding.actorId ||
         canonicalizeCoreRetainedJson(e.clientIds) !== canonicalizeCoreRetainedJson(clientIdsOf(scopes))) refuse();
     const request: MeriCommandExecutionRequest = {
@@ -337,6 +446,7 @@ export function verifyMeriExecutionCapability(token: string, trust: MeriExecutio
       proposalId: e.proposalId as string, commandSha256: e.commandSha256 as string, idempotencyKey: e.idempotencyKey as string,
     };
     if (e.requestSha256 !== sha256(request)) refuse();
+    parseMeriQualification(e.qualification, binding, claims.policyRevision);
     const execution = e as unknown as MeriExecutionBinding;
     return Object.freeze({ claimsJson: JSON.stringify(claims), claims, execution: Object.freeze({ ...execution }) });
   });
@@ -345,14 +455,19 @@ export function verifyMeriExecutionCapability(token: string, trust: MeriExecutio
 /**
  * Trusted comparison before dispatch (dot #121 6246551969): a verified token is
  * only self-consistent; it authorizes nothing until it equals the actual
- * external execution request, approved proposal and current decision the
- * dispatcher holds. Throws when any differs. Meri applies the same comparison
- * (`assertExecutionCorrelation`) and binds allocation and qualification facts
- * in its own grant facts.
+ * external execution request, approved proposal, current decision, admitted
+ * allocation and qualification facts the dispatcher holds. Throws when any
+ * differs.
  */
 export function assertExecutionMatches(
   verified: VerifiedMeriExecution,
-  actual: { request: MeriCommandExecutionRequest; proposal: NativeApprovalProposal; decision: NativeApprovalDecision },
+  actual: {
+    request: MeriCommandExecutionRequest;
+    proposal: NativeApprovalProposal;
+    decision: NativeApprovalDecision;
+    allocation: unknown;
+    qualification: MeriQualificationBinding;
+  },
 ): void {
   guarded(() => {
     const e = verified.execution;
@@ -360,6 +475,8 @@ export function assertExecutionMatches(
     if (e.requestSha256 !== sha256(actual.request) || actual.request.capabilityId !== verified.claims.capabilityId ||
         e.proposalId !== actual.proposal.proposalId || e.commandSha256 !== actual.proposal.commandSha256 ||
         nativeCanonicalSha256(command) !== actual.proposal.commandSha256 || e.argumentsSha256 !== sha256(command.arguments) ||
+        e.sourceBodySha256 !== sha256(taskCreateSourceBody(command.arguments)) ||
+        e.allocationSha256 !== sha256(actual.allocation) || sha256(e.qualification) !== sha256(actual.qualification) ||
         e.decisionSha256 !== sha256(actual.decision) || actual.decision.decision !== 'approved' ||
         actual.decision.policyRevision !== verified.claims.policyRevision ||
         canonicalizeCoreRetainedJson(verified.claims.scopes) !== canonicalizeCoreRetainedJson(command.scopes)) refuse();

@@ -2318,6 +2318,7 @@ model ClioMeriApprovalDecision {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_approval_decisions_tenant_fkey")
+  executionIssuances ClioMeriExecutionIssuance[]
 
   @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
   @@map("clio_meri_approval_decisions")
@@ -2383,6 +2384,56 @@ model ClioMeriRoutineCancelProof {
 
   @@index([tenantId, intentId], map: "clio_meri_routine_cancel_proofs_intent_idx")
   @@map("clio_meri_routine_cancel_proofs")
+}
+
+/// Meri approved-execution issuance ledger (D016 #9): one row per capability.
+model ClioMeriExecutionIssuance {
+  jti              String   @id(map: "clio_meri_execution_issuances_pkey") @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  proposalId       String   @map("proposal_id") @db.Uuid
+  runId            String   @map("run_id") @db.Uuid
+  attemptId        String   @map("attempt_id") @db.Uuid
+  requestId        String   @map("request_id") @db.Uuid
+  requestSha256    String   @map("request_sha256") @db.Char(64)
+  commandSha256    String   @map("command_sha256") @db.Char(64)
+  decisionSha256   String   @map("decision_sha256") @db.Char(64)
+  argumentsSha256  String   @map("arguments_sha256") @db.Char(64)
+  idempotencyKey   String   @map("idempotency_key") @db.VarChar(128)
+  executorBinding  Json     @map("executor_binding")
+  budgets          Json
+  allocationSha256 String   @map("allocation_sha256") @db.Char(64)
+  qualification    Json
+  signerIssuer     String   @map("signer_issuer") @db.VarChar(256)
+  signerKeyId      String   @map("signer_key_id") @db.VarChar(64)
+  iatSeconds       BigInt   @map("iat_seconds")
+  expSeconds       BigInt   @map("exp_seconds")
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  decision     ClioMeriApprovalDecision       @relation(fields: [tenantId, proposalId], references: [tenantId, proposalId], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_issuances_decision_fkey")
+  consumptions ClioMeriExecutionConsumption[]
+
+  @@index([tenantId, proposalId, runId, attemptId, iatSeconds], map: "clio_meri_execution_issuances_attempt_idx")
+  @@map("clio_meri_execution_issuances")
+}
+
+/// Meri approved-execution consumption: one durable effect identity per
+/// (tenant, proposal, idempotency key); CLAIMED -> COMPLETED once.
+model ClioMeriExecutionConsumption {
+  tenantId        String    @map("tenant_id") @db.Uuid
+  proposalId      String    @map("proposal_id") @db.Uuid
+  idempotencyKey  String    @map("idempotency_key") @db.VarChar(128)
+  commandSha256   String    @map("command_sha256") @db.Char(64)
+  argumentsSha256 String    @map("arguments_sha256") @db.Char(64)
+  jti             String    @db.Uuid
+  state           String    @default("CLAIMED") @db.VarChar(9)
+  result          Json?
+  claimedAt       DateTime  @default(now()) @map("claimed_at") @db.Timestamptz(6)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  issuance ClioMeriExecutionIssuance @relation(fields: [jti], references: [jti], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_jti_fkey")
+
+  @@id([tenantId, proposalId, idempotencyKey], map: "clio_meri_execution_consumptions_pkey")
+  @@map("clio_meri_execution_consumptions")
 }
 
 /// User-owned reusable instructions for the Meri vNext workspace.

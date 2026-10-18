@@ -191,6 +191,26 @@
         "lifting the unattended fence",
         "routine firing grants"
       ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018040000_clio_meri_execution_authority/migration.sql",
+      "owner": "Core Meri approved-execution authority: capability issuance ledger and durable consumption (D016 #9)",
+      "workstream": "fable/core-integration-20261018",
+      "base": "5412c053",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018030000_clio_meri_routine_authority)",
+      "allocatedAt": "2026-10-18T08:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018030000_clio_meri_routine_authority",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable capability issuance ledger with RLS",
+        "consumption ledger with a single CLAIMED->COMPLETED transition"
+      ],
+      "excluded": [
+        "live migration execution",
+        "decision revocation (not yet specified)"
+      ]
     }
   ]
 }

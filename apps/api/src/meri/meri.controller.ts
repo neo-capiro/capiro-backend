@@ -10,6 +10,8 @@ import {
   Patch,
   Post,
   NotFoundException,
+  Optional,
+  ServiceUnavailableException,
   UnprocessableEntityException,
   Query,
   Req,
@@ -58,6 +60,8 @@ import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { meriExecutionRequestOf } from '../auth/meri-execution-request.js';
+import { MeriExecutionReceiverService } from './execution-capability/meri-execution-receiver.service.js';
 import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
 import {
@@ -341,6 +345,7 @@ export class MeriController {
     private readonly approvals: MeriApprovalService,
     private readonly complianceAudit: MeriComplianceAuditService,
     private readonly claimWriter: MeriClaimWriterService,
+    @Optional() private readonly executionReceiver?: MeriExecutionReceiverService,
   ) {}
 
   @Get('status')
@@ -546,6 +551,15 @@ export class MeriController {
     @Req() req: Request,
   ) {
     assertMeriToolAllowed(name);
+    // Meri's approved-execution capability (D016 #9), admitted by the tenant
+    // middleware on create_task only: the receiver runs every current check and
+    // writes the task with its durable effect identity in one transaction. No
+    // other admission applies.
+    const approvedExecution = meriExecutionRequestOf(req);
+    if (approvedExecution) {
+      if (!this.executionReceiver) throw new ServiceUnavailableException('Execution capabilities are not enabled');
+      return this.executionReceiver.receive(req, ctx, name, body, approvedExecution);
+    }
     const admittedRead = admitMeriReadObservation(name, body, req);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
