@@ -52,7 +52,7 @@ function verifiedRequest(verified = true): Request {
   return req;
 }
 
-function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOnCreate?: boolean } = {}) {
+function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch' | 'missing' | 'overflow'; raceOnCreate?: boolean } = {}) {
   const rows = new Map<string, any>();
   const revocations = new Map<string, any>();
   const key = (where: any) => `${where.tenantId_proposalId.tenantId}:${where.tenantId_proposalId.proposalId}`;
@@ -65,12 +65,18 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOn
     return { ...data };
   });
   const metadataRow = (p: ReturnType<typeof proposal>) => ({
-    command_id: p.command.commandId, idempotency_key: p.command.idempotencyKey, command_sha256: p.commandSha256,
-    payload: { record: {
-      proposalId: p.proposalId, commandId: p.command.commandId, idempotencyKey: p.command.idempotencyKey,
-      createdAt: p.createdAt, expiresAt: p.expiresAt, requiredApprover: p.requiredApprover,
-      binding: p.command.binding, scopes: p.command.scopes,
-    } },
+    tenant_id: tenantId, conversation_id: binding.conversationId, run_id: binding.runId,
+    run_binding: p.command.binding,
+    prepared_approvals_overflow: options.metadata === 'overflow',
+    prepared_approvals: [{
+      proposal_id: p.proposalId, command_id: p.command.commandId,
+      idempotency_key: p.command.idempotencyKey, command_sha256: p.commandSha256,
+      record: {
+        proposalId: p.proposalId, commandId: p.command.commandId, idempotencyKey: p.command.idempotencyKey,
+        createdAt: p.createdAt, expiresAt: p.expiresAt, requiredApprover: p.requiredApprover,
+        binding: p.command.binding, scopes: p.command.scopes,
+      },
+    }],
   });
   let current: ReturnType<typeof proposal> | null = null;
   const tx = {
@@ -90,10 +96,11 @@ function fixture(options: { metadata?: 'ok' | 'unavailable' | 'mismatch'; raceOn
       }),
     },
     $queryRaw: jest.fn(async () => {
-      if (options.metadata === 'unavailable') throw new Error('relation "meri_commands.approval_metadata" does not exist');
+      if (options.metadata === 'unavailable') throw new Error('relation "meri_read_delegation_facts.run_facts_v1" does not exist');
+      if (options.metadata === 'missing') return [];
       if (!current) return [];
       const row = metadataRow(current);
-      if (options.metadata === 'mismatch') row.command_sha256 = '0'.repeat(64);
+      if (options.metadata === 'mismatch') row.prepared_approvals[0]!.command_sha256 = '0'.repeat(64);
       return [row];
     }),
   };
@@ -200,6 +207,10 @@ describe('P-INT-10 approval/record', () => {
 
   it('fails closed when Meri approval metadata is unavailable or differs', async () => {
     await expect(fixture({ metadata: 'unavailable' }).record({ proposal: proposal(), decision: 'approved' }))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(fixture({ metadata: 'missing' }).record({ proposal: proposal(), decision: 'approved' }))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(fixture({ metadata: 'overflow' }).record({ proposal: proposal(), decision: 'approved' }))
       .rejects.toBeInstanceOf(ServiceUnavailableException);
     const mismatch = fixture({ metadata: 'mismatch' });
     await expect(mismatch.record({ proposal: proposal(), decision: 'approved' })).rejects.toBeInstanceOf(ConflictException);

@@ -251,6 +251,11 @@ function receive(w: ReturnType<typeof world>, credential: string, body: unknown)
 describe('Meri execution issuance (POST /api/clio/approvals/native/execution)', () => {
   it("issues from Meri's rev 3 body against Meri's canonical admission, ledger first, under the budget lock", async () => {
     const w = world();
+    jest.mocked(w.metadata.verify).mockImplementation(async (candidate, tx) => {
+      expect(candidate).toEqual(w.proposal);
+      expect(tx).toBe(w.tx);
+      expect(w.state.locks).toBe(1);
+    });
     const receipt = await issue(w);
     expect(Object.keys(receipt)).toEqual(['execution', 'credential', 'checkedAtMs', 'expiresAtMs']);
     const verified = verifyMeriExecutionCapability(receipt.credential, meriExecutionTrust(w.config, Date.now()));
