@@ -29,13 +29,20 @@ const pins = {
 const secretArn = (name: string) => `arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/${name}-AbC123`;
 // Synthetic readback slot; the real one comes from the live listener readback
 // checked by infra/routing corePreviewPacketRules.
+const kmsKey = (n: number) => `arn:aws:kms:us-east-1:967807252336:key/0000000${n}-0000-4000-8000-000000000000`;
+const signer = (n: number) => ({ issuer: `capiro-core:purpose-${n}:v1`, kid: `purpose-${n}-synthetic`, keyArn: kmsKey(n), publicKeyX: 'A'.repeat(43) });
 const binding = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   sourceHead: pins.sourceHead,
   imageDigest: pins.imageDigest,
-  internalServiceSecretArn: secretArn('internal-service'),
+  internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:meri/preview/core/internal-service-secret-AbC123',
   retainedTrust: null,
   listener: { guardPriority: 4 },
+  previewTenantId: '11111111-1111-4111-8111-111111111111',
+  // The D016 default integration profile, as the packet supplies it.
+  profile: { executionMaxTurns: 20, executionMaxRuntimeSeconds: 900, executionMaxCostMicrousd: 2_000_000,
+    routineMaxCostMicrousd: 2_000_000, routineMaxRuntimeSeconds: 900 },
+  signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3) },
 };
 const trust = {
   issuer: 'capiro-core-retained',
@@ -85,6 +92,16 @@ test('requires the exact pinned image, exact secret ARNs and fixed retained trus
     { ...binding, databaseUrl: 'postgres://unreviewed.invalid/capiro' },
     { ...binding, schemaVersion: 1 },
     { ...binding, schemaVersion: 2 },
+    { ...binding, schemaVersion: 3 },
+    { ...binding, internalServiceSecretArn: secretArn('internal-service') },
+    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-jwt-secret-AbC123' },
+    { ...binding, previewTenantId: 'tenant' },
+    { ...binding, profile: { ...binding.profile, executionMaxTurns: 0 } },
+    { ...binding, profile: { ...binding.profile, extra: 1 } },
+    { ...binding, signers: { ...binding.signers, routineFire: signer(1) } },
+    { ...binding, signers: { ...binding.signers, execution: { ...signer(1), keyArn: 'arn:aws:kms:us-east-1:111111111111:key/00000001-0000-4000-8000-000000000000' } } },
+    { ...binding, signers: { ...binding.signers, execution: { ...signer(1), publicKeyX: 'short' } } },
+    { ...binding, signers: { execution: null, routineCancel: null } },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:111111111111:secret:other-AbC123' },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-west-2:967807252336:secret:other-AbC123' },
     { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:partial' },
@@ -143,6 +160,34 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   assert.ok(third.test('/api/clio/tools/send_email'));
   assert.ok(!meriTools.tools.includes('send_email'));
   for (const name of meriTools.tools) assert.ok(third.test(`/api/clio/tools/${name}`), name);
+});
+
+test('renders D016 memory governance, the packet profile and the signers with a Sign-only task role', () => {
+  const policies = (service: any) => (Object.values(Template.fromStack(service).toJSON().Resources) as any[])
+    .filter((r) => r.Type === 'AWS::IAM::Policy').flatMap((r) => r.Properties.PolicyDocument.Statement);
+  render(binding, ({ service }) => {
+    const serve = serveContainer(service);
+    const env = envOf(serve);
+    assert.equal(env.MEMORY_GOVERNANCE_LIFECYCLE, 'enforce');
+    assert.equal(env.MEMORY_GOVERNANCE_TENANTS, binding.previewTenantId);
+    assert.deepEqual([env.MERI_EXECUTION_MAX_TURNS, env.MERI_EXECUTION_MAX_RUNTIME_SECONDS, env.MERI_EXECUTION_MAX_COST_MICROUSD,
+      env.MERI_ROUTINE_MAX_COST_MICROUSD, env.MERI_ROUTINE_MAX_RUNTIME_SECONDS], ['20', '900', '2000000', '2000000', '900']);
+    for (const [prefix, n] of [['MERI_EXECUTION_SIGNER', 1], ['MERI_ROUTINE_CANCEL_SIGNER', 2], ['MERI_ROUTINE_FIRE_SIGNER', 3]] as const) {
+      assert.deepEqual([env[`${prefix}_ISSUER`], env[`${prefix}_KID`], env[`${prefix}_KMS_KEY_ARN`], env[`${prefix}_PUBLIC_KEY_X`]],
+        [signer(n).issuer, signer(n).kid, signer(n).keyArn, signer(n).publicKeyX]);
+    }
+    const sign = policies(service).filter((st: any) => [st.Action].flat().includes('kms:Sign'));
+    assert.equal(sign.length, 1);
+    assert.deepEqual([sign[0].Resource].flat().sort(), [kmsKey(1), kmsKey(2), kmsKey(3)]);
+    assert.deepEqual(sign[0].Condition, { StringEquals: { 'kms:SigningAlgorithm': 'ED25519_SHA_512', 'kms:MessageType': 'RAW' } });
+    const byName = Object.fromEntries(serve.Secrets.map((secret: any) => [secret.Name, secret.ValueFrom]));
+    assert.equal(byName.INTERNAL_SERVICE_SECRET, binding.internalServiceSecretArn);
+  });
+  render({ ...binding, signers: { execution: null, routineCancel: null, routineFire: null } }, ({ service }) => {
+    const env = envOf(serveContainer(service));
+    assert.ok(Object.keys(env).every((name) => !name.includes('_SIGNER_')));
+    assert.equal(policies(service).filter((st: any) => [st.Action].flat().includes('kms:Sign')).length, 0);
+  });
 });
 
 test('renders the retained-trust variant with server-side signing-key secrets only', () => {

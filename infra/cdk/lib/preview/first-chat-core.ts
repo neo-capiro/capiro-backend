@@ -89,6 +89,13 @@ export const FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY: number = routes.packet.nativeO
 
 const SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}$`);
 const PIN_TEXT = /^[\x21-\x7e]{1,256}$/;
+/** The service identity is the dedicated preview secret, created in the packet (never the JWT secret). */
+const INTERNAL_SERVICE_SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:meri/preview/core/internal-service-secret-[A-Za-z0-9]{6}$`);
+const KMS_KEY_ARN = new RegExp(`^arn:aws:kms:${region}:${account}:key/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`);
+const SIGNER_ISSUER = /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,255}$/;
+const SIGNER_KID = /^[A-Za-z0-9._-]{1,64}$/;
+const B64URL_32 = /^[A-Za-z0-9_-]{43}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** Retained-read trust for this task. Private keys arrive only as Secrets
  * Manager references; Core is the sole signer and Intel holds public keys. */
@@ -108,15 +115,53 @@ export interface FirstChatCoreListenerBinding {
   guardPriority: number;
 }
 
+/** One Core KMS Ed25519 signing purpose (`ECC_NIST_EDWARDS25519`, pure Ed25519, RAW
+ * `ED25519_SHA_512`), created in the packet; `publicKeyX` is its GetPublicKey readback. */
+export interface FirstChatCoreSignerBinding {
+  issuer: string;
+  kid: string;
+  keyArn: string;
+  publicKeyX: string;
+}
+
+/** D016-A item 3: the run profile is configuration the packet supplies (the default
+ * integration profile is 20 turns, 900 s, $2), never a hard-coded ceiling in source. */
+export interface FirstChatCoreProfileBinding {
+  executionMaxTurns: number;
+  executionMaxRuntimeSeconds: number;
+  executionMaxCostMicrousd: number;
+  routineMaxCostMicrousd: number;
+  routineMaxRuntimeSeconds: number;
+}
+
 export interface FirstChatCoreImageBinding {
-  schemaVersion: 3;
+  schemaVersion: 4;
   sourceHead: string;
   imageDigest: string;
-  /** Server-side service identity for tools and read-mode observation. */
+  /** Server-side service identity: exactly the `meri/preview/core/internal-service-secret` secret. */
   internalServiceSecretArn: string;
   /** null keeps retained reads disabled (every retained route 503). */
   retainedTrust: FirstChatCoreRetainedTrustBinding | null;
   listener: FirstChatCoreListenerBinding;
+  /** The preview tenant: governed memory lifecycle enforced for it only (D016). */
+  previewTenantId: string;
+  profile: FirstChatCoreProfileBinding;
+  /** Each null keeps its routes at 503 (execution issuance/receipt, routine cancel proof, routine firing grant). */
+  signers: {
+    execution: FirstChatCoreSignerBinding | null;
+    routineCancel: FirstChatCoreSignerBinding | null;
+    routineFire: FirstChatCoreSignerBinding | null;
+  };
+}
+
+function signerPin(value: unknown, label: string): FirstChatCoreSignerBinding | null {
+  if (value === null) return null;
+  const s = exactKeys(value, ['issuer', 'kid', 'keyArn', 'publicKeyX'], label);
+  if (typeof s.issuer !== 'string' || !SIGNER_ISSUER.test(s.issuer) || typeof s.kid !== 'string' || !SIGNER_KID.test(s.kid) ||
+      typeof s.keyArn !== 'string' || !KMS_KEY_ARN.test(s.keyArn) || typeof s.publicKeyX !== 'string' || !B64URL_32.test(s.publicKeyX)) {
+    throw new Error(`${label}: exact issuer, kid, KMS key ARN and public key required`);
+  }
+  return s as unknown as FirstChatCoreSignerBinding;
 }
 
 function guardPriority(value: unknown): number {
@@ -154,19 +199,32 @@ export function firstChatCoreImageBinding(
   pins: FirstChatCoreImagePins | null = FIRST_CHAT_CORE_IMAGE_PINS,
 ): FirstChatCoreImageBinding {
   const record = exactKeys(input,
-    ['schemaVersion', 'sourceHead', 'imageDigest', 'internalServiceSecretArn', 'retainedTrust', 'listener'],
+    ['schemaVersion', 'sourceHead', 'imageDigest', 'internalServiceSecretArn', 'retainedTrust', 'listener',
+      'previewTenantId', 'profile', 'signers'],
     'First-chat image binding');
   if (!pins) throw new Error('No qualified integrated Core image is pinned yet');
   if (
-    record.schemaVersion !== 3 ||
+    record.schemaVersion !== 4 ||
     !/^[0-9a-f]{40}$/.test(pins.sourceHead) || !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
     record.sourceHead !== pins.sourceHead ||
     record.imageDigest !== pins.imageDigest
   ) {
     throw new Error('Exact qualified Core source and image digest required');
   }
-  if (typeof record.internalServiceSecretArn !== 'string' || !SECRET_ARN.test(record.internalServiceSecretArn)) {
-    throw new Error('Exact internal service secret ARN required');
+  if (typeof record.internalServiceSecretArn !== 'string' || !SECRET_ARN.test(record.internalServiceSecretArn) ||
+      !INTERNAL_SERVICE_SECRET_ARN.test(record.internalServiceSecretArn)) {
+    throw new Error('Exact meri/preview/core/internal-service-secret ARN required');
+  }
+  if (typeof record.previewTenantId !== 'string' || !UUID.test(record.previewTenantId)) throw new Error('Preview tenant UUID required');
+  const profile = exactKeys(record.profile, ['executionMaxTurns', 'executionMaxRuntimeSeconds', 'executionMaxCostMicrousd',
+    'routineMaxCostMicrousd', 'routineMaxRuntimeSeconds'], 'Profile');
+  if (Object.values(profile).some((v) => typeof v !== 'number' || !Number.isSafeInteger(v) || v < 1)) throw new Error('Profile values must be positive integers');
+  const signers = exactKeys(record.signers, ['execution', 'routineCancel', 'routineFire'], 'Signers');
+  const pinned = [signerPin(signers.execution, 'Execution signer'), signerPin(signers.routineCancel, 'Routine cancel signer'),
+    signerPin(signers.routineFire, 'Routine fire signer')].filter((s): s is FirstChatCoreSignerBinding => s !== null);
+  // One key per purpose: Meri pins the purposes apart.
+  if (new Set(pinned.map((s) => s.keyArn)).size !== pinned.length || new Set(pinned.map((s) => s.kid)).size !== pinned.length) {
+    throw new Error('Each signing purpose needs its own KMS key and kid');
   }
   if (record.retainedTrust !== null) {
     const trust = exactKeys(record.retainedTrust, ['issuer', 'intelOrigin', 'principalKeyId',
@@ -277,11 +335,33 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         StringEquals: { 'kms:ViaService': 'secretsmanager.us-east-1.amazonaws.com' },
       },
     }));
+    // The application's own role: only kms:Sign, pure Ed25519 over RAW messages,
+    // on exactly the configured signing keys.
+    const serveTaskRole = new iam.Role(this, 'ServeTaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+    });
+    const signerEntries: Array<[string, FirstChatCoreSignerBinding | null]> = [
+      ['MERI_EXECUTION_SIGNER', binding.signers.execution],
+      ['MERI_ROUTINE_CANCEL_SIGNER', binding.signers.routineCancel],
+      ['MERI_ROUTINE_FIRE_SIGNER', binding.signers.routineFire],
+    ];
+    const signerKeyArns = signerEntries.flatMap(([, s]) => (s ? [s.keyArn] : []));
+    if (signerKeyArns.length) {
+      serveTaskRole.addToPolicy(new iam.PolicyStatement({
+        actions: ['kms:Sign'],
+        resources: signerKeyArns,
+        conditions: { StringEquals: { 'kms:SigningAlgorithm': 'ED25519_SHA_512', 'kms:MessageType': 'RAW' } },
+      }));
+    }
+    const signerEnvironment = Object.fromEntries(signerEntries.flatMap(([prefix, s]) => (s ? [
+      [`${prefix}_ISSUER`, s.issuer], [`${prefix}_KID`, s.kid], [`${prefix}_KMS_KEY_ARN`, s.keyArn], [`${prefix}_PUBLIC_KEY_X`, s.publicKeyX],
+    ] : [])));
     const serveTask = new ecs.FargateTaskDefinition(this, 'ServeTask', {
       family: 'capiro-preview-first-chat-core',
       cpu: 512,
       memoryLimitMiB: 1024,
       executionRole: serveExecutionRole,
+      taskRole: serveTaskRole,
       runtimePlatform: {
         cpuArchitecture: ecs.CpuArchitecture.X86_64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
@@ -322,6 +402,16 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         PREVIEW_NATIVE_GETS_ENABLED: 'true',
         MERI_TOOL_ALLOWLIST: FIRST_CHAT_CORE_MERI_TOOLS.join(','),
         MERI_TOOLS_REQUIRE_SERVICE_SECRET: 'true',
+        // D016: governed memory lifecycle for the preview tenant only.
+        MEMORY_GOVERNANCE_LIFECYCLE: 'enforce',
+        MEMORY_GOVERNANCE_TENANTS: binding.previewTenantId,
+        // D016-A item 3: the packet's run profile as configured platform maxima.
+        MERI_EXECUTION_MAX_TURNS: String(binding.profile.executionMaxTurns),
+        MERI_EXECUTION_MAX_RUNTIME_SECONDS: String(binding.profile.executionMaxRuntimeSeconds),
+        MERI_EXECUTION_MAX_COST_MICROUSD: String(binding.profile.executionMaxCostMicrousd),
+        MERI_ROUTINE_MAX_COST_MICROUSD: String(binding.profile.routineMaxCostMicrousd),
+        MERI_ROUTINE_MAX_RUNTIME_SECONDS: String(binding.profile.routineMaxRuntimeSeconds),
+        ...signerEnvironment,
         ...(trust
           ? {
               RETAINED_READS_ENABLED: 'true',
