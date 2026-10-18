@@ -15,11 +15,14 @@ The merge commits preserve the published source commits and their ancestry.
 | Modules receiving map | `76c193e8c86eb6132aba765b5d03c58db8848b87` (PR89) |
 | Core prepared-approval verifier through bounded run facts | `3d30faca6cdaaf906705ddfbcee2da8ac68050a0` |
 | Memory receiving, preserving published and local histories | `20fc9f5473e0b5f3a7d9057c4e0417b9701855d3` (PR88) |
+| Fail-closed document runtime identity adapter | `93ac25e0ef3a59ec10adf269bc8455bdd856b308` |
 
 Retained reads are **source-wired, not available in preview**. The document receiver
-requires an independent current Core image/config identity reader. Its default 503
-remains in force, and the Meri post-reservation signed relay and runtime readback are
-still outstanding. The exact source_text_only tariff is tied to the original ADMITTED
+now has an ECS metadata selector and fail-closed adapter for independent Core
+image/config identity readback. Its trusted control-plane readback port and Nest
+provider remain unimplemented and unregistered, so the default 503 remains in force.
+The Meri post-reservation signed relay and runtime readback are still outstanding.
+The exact source_text_only tariff is tied to the original ADMITTED
 allocation under the existing transaction lock; do not substitute a later allocation
 or claim a source pin as proof of deployment. The current admission snapshot and its
 original ADMITTED grant set remain unchanged.
