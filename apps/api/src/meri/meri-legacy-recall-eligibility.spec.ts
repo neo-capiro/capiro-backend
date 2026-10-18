@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MeriService } from './meri.service.js';
 
@@ -18,15 +19,15 @@ const clientId = '33333333-3333-4333-8333-333333333333';
 const approvedId = '44444444-4444-4444-8444-444444444444';
 const unprojectedId = '55555555-5555-4555-8555-555555555555';
 
-describe('legacy automatic recall while governance is enforced', () => {
+describe('legacy automatic recall uses canonical eligibility in either lifecycle mode', () => {
   const prior = process.env.MEMORY_GOVERNANCE_LIFECYCLE;
   afterEach(() => {
     if (prior === undefined) delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
     else process.env.MEMORY_GOVERNANCE_LIFECYCLE = prior;
   });
 
-  it('admits keyword fallback only through current canonical projections', async () => {
-    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+  it.each(['off', 'enforce'])('admits keyword fallback only through current canonical projections with lifecycle %s', async (mode) => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = mode;
     const read = jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = Prisma.sql(strings, ...values);
       expect(sql.text).toContain('mi.effective_from <= now()');
@@ -62,8 +63,8 @@ describe('legacy automatic recall while governance is enforced', () => {
     expect(findMany).not.toHaveBeenCalled();
   });
 
-  it('returns an older approved canonical projection beyond twenty newer ineligible rows', async () => {
-    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+  it.each(['off', 'enforce'])('returns an older approved projection beyond twenty newer ineligible rows with lifecycle %s', async (mode) => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = mode;
     const db = await PGlite.create();
     try {
       await db.exec(`
@@ -125,6 +126,38 @@ describe('legacy automatic recall while governance is enforced', () => {
         UPDATE memory_items SET governed_status='revoked', status='revoked'
         WHERE id='88888888-8888-4888-8888-888888888888'::uuid
       `);
+      // A legacy-active row may be held by governance alone. A future row may
+      // likewise have an active source and projection but not yet be effective.
+      await db.query(`
+        INSERT INTO clio_memory(id, tenant_id, key, value, scope, updated_at)
+        VALUES
+          ('99999999-9999-4999-8999-999999999999'::uuid, $1::uuid,
+           'held-budget', 'Held budget', 'firm', now()),
+          ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid, $1::uuid,
+           'future-budget', 'Future budget', 'firm', now()),
+          ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid, $1::uuid,
+           'foreign-budget', 'Foreign private budget', 'user_private', now())
+      `, [tenantId]);
+      await db.query(`
+        UPDATE clio_memory SET owner_user_id=$1::uuid
+        WHERE id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid
+      `, ['cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
+      await db.query(`
+        INSERT INTO memory_items(id, tenant_id, slug, approved_by_user_id,
+          approved_at, source_ref, memory_class, memory_scope, owner_user_id,
+          visibility, governed_status, effective_from)
+        VALUES
+          ('dddddddd-dddd-4ddd-8ddd-dddddddddddd'::uuid, $1::uuid,
+           'clio:99999999-9999-4999-8999-999999999999', $2::uuid, now(), 'held',
+           'institutional_authoritative', 'firm', null, 'tenant', 'revoked', null),
+          ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid, $1::uuid,
+           'clio:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', $2::uuid, now(), 'future',
+           'institutional_authoritative', 'firm', null, 'tenant', 'active', now() + interval '1 day'),
+          ('ffffffff-ffff-4fff-8fff-ffffffffffff'::uuid, $1::uuid,
+           'clio:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', null, null, 'foreign',
+           'user_preference', 'user_private', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid,
+           'user', 'active', null)
+      `, [tenantId, userId]);
       const tx = {
         $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
           const sql = Prisma.sql(strings, ...values);
@@ -142,5 +175,101 @@ describe('legacy automatic recall while governance is enforced', () => {
     } finally {
       await db.close();
     }
+  });
+
+  it.each([false, true])('rechecks Clio-derived steering before prompt injection when the client wall allows=%s', async (allowed) => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'off';
+    const clioId = '66666666-6666-4666-8666-666666666666';
+    const rendered = [
+      { id: approvedId, slug: 'firm', layer: 'firm-identity', type: 'firm-soul',
+        title: 'Firm', body: 'Ordinary firm context' },
+      { id: clioId, slug: `clio:${clioId}`, layer: 'client-steering', type: 'client-compass',
+        title: 'Client', body: 'Clio client context' },
+    ];
+    const queries: Prisma.Sql[] = [];
+    const tx = {
+      $queryRawUnsafe: jest.fn(async () => [{ allowed }]),
+      $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+        queries.push(Prisma.sql(strings, ...values));
+        return allowed ? [{ id: clioId }] : [];
+      }),
+    };
+    const service = Object.create(MeriService.prototype) as any;
+    service.prisma = {
+      withTenant: (_tenant: string, run: (tx: unknown) => unknown) => run(tx),
+      withTenantUser: (_tenant: string, _user: string, run: (tx: unknown) => unknown) => run(tx),
+    };
+    service.contextCompiler = { compile: jest.fn(async () => ({ rendered })) };
+
+    const output = await service.loadUserVoiceContext({ tenantId, userId }, clientId);
+    expect(output).toContain('Ordinary firm context');
+    expect(output?.includes('Clio client context')).toBe(allowed);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]!.text).toContain("mi.governed_status IN ('active', 'stale')");
+    expect(queries[0]!.text).toContain('mi.effective_from <= now()');
+    expect(queries[0]!.text).toContain('mi.owner_user_id');
+    expect(queries[0]!.values).toContainEqual(allowed ? [clientId] : []);
+  });
+
+  it('retains ordinary voice files but withholds Clio steering when canonical columns are unavailable', async () => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'off';
+    const service = Object.create(MeriService.prototype) as any;
+    service.prisma = {
+      withTenantUser: (_tenant: string, _user: string, run: (tx: unknown) => unknown) =>
+        run({ $queryRaw: jest.fn(async () => { throw new Error('missing governed_status'); }) }),
+    };
+    service.contextCompiler = { compile: jest.fn(async () => ({ rendered: [
+      { id: approvedId, slug: 'voice', layer: 'user-voice', type: 'user-voice',
+        title: 'Voice', body: 'Ordinary voice context' },
+      { id: unprojectedId, slug: `clio:${unprojectedId}`, layer: 'firm-identity',
+        type: 'firm-soul', title: 'Legacy', body: 'Clio held context' },
+    ] })) };
+
+    const output = await service.loadUserVoiceContext({ tenantId, userId }, null);
+    expect(output).toContain('Ordinary voice context');
+    expect(output).not.toContain('Clio held context');
+  });
+
+  it('routes off-mode semantic Clio recall through canonical eligibility after a stubbed embedding response', async () => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'off';
+    const priorFetch = global.fetch;
+    const fetchStub = jest.fn(async () => ({ ok: true,
+      json: async () => ({ data: [{ embedding: Array(1536).fill(0) }] }),
+    }));
+    global.fetch = fetchStub as unknown as typeof fetch;
+    try {
+      const queries: Prisma.Sql[] = [];
+      const tx = {
+        $queryRawUnsafe: jest.fn(async () => [{ allowed: false }]),
+        $queryRaw: jest.fn(async (query: Prisma.Sql) => {
+          queries.push(query);
+          return [{ key: 'budget', value: 'Approved budget', score: 0.9 }];
+        }),
+      };
+      const service = Object.create(MeriService.prototype) as any;
+      service.prisma = { withTenantUser: (_tenant: string, _user: string,
+        run: (tx: unknown) => unknown) => run(tx) };
+      service.config = { get: (key: string) => key === 'OPENAI_API_KEY' ? 'test-only-key' : undefined };
+
+      const result = await service.semanticMemorySearch(tenantId, userId, 'budget', 8, clientId);
+      expect(result).toEqual([{ key: 'budget', value: 'Approved budget', score: 0.9 }]);
+      expect(queries).toHaveLength(1);
+      expect(queries[0]!.text).toContain('mi.effective_from <= now()');
+      expect(queries[0]!.text).toContain("mi.governed_status IN ('active', 'stale')");
+      expect(queries[0]!.values).toContainEqual([]);
+      expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(1); // wall only
+      expect(fetchStub).toHaveBeenCalledTimes(1); // local stub; no provider call
+    } finally {
+      global.fetch = priorFetch;
+    }
+  });
+
+  it('has no legacy projection branch that can bypass canonical current-memory eligibility', () => {
+    const source = readFileSync(resolve(__dirname, 'meri.service.ts'), 'utf8');
+    const projection = source.slice(source.indexOf('private async projectionRecall('),
+      source.indexOf('private toRecalledRows('));
+    expect(projection).toContain('canonicalMemoryEligibilitySql({');
+    expect(projection).not.toContain('$queryRawUnsafe');
+    expect(projection).not.toContain('governedRecallSuppressionEnabled()');
   });
 });
