@@ -128,7 +128,10 @@ import {
   type SystemTextBlock,
 } from './meri-prompt.helpers.js';
 import { rankMemoriesByKeyword, memorySectionValue } from './meri-memory.helpers.js';
-import { bindUnscopedMemoryTool } from './meri-memory-client-binding.js';
+import {
+  bindUnscopedMemoryTool,
+  clientMemorySaveWallRefusal,
+} from './meri-memory-client-binding.js';
 import { runToolsConcurrently } from './meri-tool-exec.helpers.js';
 import {
   extractCitationsFromToolResult,
@@ -2227,15 +2230,12 @@ export class MeriService implements MeriTurnMaintenance {
             parsedInput = bound.input;
             if (bound.refusal) scopeViolation = bound.refusal;
           }
-          if (!scopeViolation && !isBridged && t.name === 'save_memory' &&
-              typeof parsedInput.scope === 'string' &&
-              parsedInput.scope.trim().toLowerCase() === 'client' && conversation.clientId) {
-            const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-              clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, conversation.clientId!),
+          if (!scopeViolation && !isBridged) {
+            scopeViolation = await clientMemorySaveWallRefusal(
+              t.name, parsedInput, conversation.clientId,
+              (clientId) => this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+                clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)),
             );
-            if (!allowed) {
-              scopeViolation = 'Client memory access is not authorized for this conversation.';
-            }
           }
           // Always thread the active conversationId into the tool input. The
           // model never supplies it (it isn't in any tool schema), and the
