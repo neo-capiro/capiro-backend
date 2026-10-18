@@ -367,7 +367,7 @@ function candidatePage(operation: 'mail.list_messages' | 'mail.search_messages',
       toTruncated: row.toTruncated, ccTruncated: row.ccTruncated});
   }
   for (let i = 1; i < messages.length; i++) {
-    const previous = messages[i - 1], current = messages[i];
+    const previous = messages[i - 1]!, current = messages[i]!;
     const before = previous.effectiveAt === null ? -Infinity : Date.parse(previous.effectiveAt as string);
     const after = current.effectiveAt === null ? -Infinity : Date.parse(current.effectiveAt as string);
     if (after > before || after === before && String(current.messageId) > String(previous.messageId))
@@ -502,7 +502,9 @@ export function projectMailRetainedSourceV02(input: MailRetainedProjectionInput)
     ? threadPage(binding, subject, selection, owner, scopes, stamp, requestId, traceId)
     : candidatePage(operation, binding, subject, selection, owner, scopes, stamp, requestId, traceId);
   const result = json(projected, 'projection_result');
-  const valid = operation === 'mail.read_thread' ? threadShape(result) : candidateShape(result);
+  const outputShape = operation === 'mail.read_thread' ? threadShape : candidateShape;
+  if (!outputShape) return refuse('output.schema');
+  const valid = outputShape(result);
   if (!valid) refuse('output.schema');
   return result;
 }
