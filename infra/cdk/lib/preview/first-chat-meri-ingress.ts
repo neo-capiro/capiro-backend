@@ -6,7 +6,7 @@ import { Construct } from 'constructs';
 // from a CDK bin or deploy command. Listener moves and the target group have
 // separate owners and must be reviewed before this rule can be applied.
 export const FIRST_CHAT_MERI_HOST = 'meri-preview.capiro.ai';
-export const FIRST_CHAT_MERI_INGRESS_PRIORITY = 9;
+export const FIRST_CHAT_MERI_INGRESS_PRIORITY = 6;
 export const FIRST_CHAT_MERI_INGRESS_STACK_NAME = 'Capiro-Preview-First-Chat-Meri-Ingress';
 export const FIRST_CHAT_MERI_INGRESS_RULE_EXPORT =
   'Capiro-Preview-First-Chat-Meri-Ingress-RuleArn';

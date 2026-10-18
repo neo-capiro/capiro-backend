@@ -1,47 +1,20 @@
 {
   "schemaVersion": 1,
   "host": "first-chat-preview.app-dev.capiro.ai",
-  "note": "Generated from first-chat-core-meri-tools.json by packToolPathPatterns (first-chat-core-route-packing.ts); the CDK spec asserts equality. Priorities are the reserved candidate layout in infra/routing/capiro-prod-alb-priorities.json.",
+  "note": "Shared by infra/cdk/lib/preview/first-chat-core.ts and the offline first-match model. Compact preview layout chosen by dot (#121 6246021908): existing priorities 1 (POST) and 2 (GET) before the retained host-only guard at 3; no shared rule moves.",
   "priorities": {
     "post": 1,
     "get": 2,
-    "tools": [
-      3,
-      4,
-      5,
-      6
-    ],
-    "guard": 7
+    "guard": 3
   },
   "post": [
     "^/api/clio/application-authority/(identity|context|membership|read-mode-observation|retained-florida-(budget|principal))$",
     "^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?|florida-(native-)?current)$",
-    "^/api/clio/(conversations/bootstrap|clients/check-ref|retained-reads/research-portfolio(-changes)?)$"
+    "^/api/clio/(conversations/bootstrap|clients/check-ref|retained-reads/research-portfolio(-changes)?|tools/[a-z][a-z0-9_]{1,63})$"
   ],
   "get": [
     "^/api/(me|clients)$",
     "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     "^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$"
-  ],
-  "tools": [
-    [
-      "^/api/clio/tools/(create_task|get_(acquisition_person|b(ill_status|usiness_development_(context|recent_changes))))$",
-      "^/api/clio/tools/(get_(committee_roster|district_(federal_market|nexus_c(hanges|ontext))|funding_opportunity(_requirements)?))$",
-      "^/api/clio/tools/(get_(legal_reference|opportunity_(client_context|government_landscape)|pe_b(ills|udget_timeline)))$"
-    ],
-    [
-      "^/api/clio/tools/(get_(p(e_(contractors|report_language)|rogram_element)|representation|state_(bill_status|legislator)))$",
-      "^/api/clio/tools/(l(ist_mem(bers|ory_proposals)|ookup_client_registry)|query_(action_items|economic_data|global_data))$",
-      "^/api/clio/tools/(query_(intelligence|knowledge_graph|outreach|regulatory_dockets|tasks)|read_bill_text|save_chat_attachments)$"
-    ],
-    [
-      "^/api/clio/tools/(s(ave_memory|crape_web_page|earch_(acquisition_personnel|c(apiro_data|bo_cost_estimates|lient_knowledge))))$",
-      "^/api/clio/tools/(search_(c(o(mmittee_hearings|n(gress_bills|tract_vehicles))|rs_reports)|f(ara_registrations|ederal_awards)))$",
-      "^/api/clio/tools/(search_(f(ederal_(contract_awards|grants|subawards)|loor_votes|unding_opportunities)|gao_reports))$"
-    ],
-    [
-      "^/api/clio/tools/(search_(intel_articles|l(da_filings|egi(slative_research|watch_news))|pro(curement_forecasts|gram_elements)))$",
-      "^/api/clio/tools/(search_(public_web|s(ec_filings|tate_(bills|floor_votes))|tracked_bills)|update_task)$"
-    ]
   ]
 }

@@ -5,8 +5,8 @@
 # CloudFormation and a `cdk deploy` must never own them.
 #
 # Adds two rules on the HTTPS listener:
-#   priority 12  host-header onboarding.capiro.ai -> onboard-api TG (SPA + API)
-#   priority 13  path /onboard-api/*              -> onboard-api TG (API from app.capiro.ai)
+#   priority 9   host-header onboarding.capiro.ai -> onboard-api TG (SPA + API)
+#   priority 16  path /onboard-api/*              -> onboard-api TG (API from app.capiro.ai)
 #
 # Shared priority reservation: infra/routing/capiro-prod-alb-priorities.json.
 # These defaults describe the SOURCE CANDIDATE, not the current live listener.
@@ -26,8 +26,8 @@ ALB_NAME="${ALB_NAME:-capiro-prod-alb}"
 REGION="${REGION:-us-east-1}"
 HOST="${HOST:-onboarding.capiro.ai}"
 PATH_PATTERN="${PATH_PATTERN:-/onboard-api/*}"
-HOST_PRIORITY="${HOST_PRIORITY:-12}"
-PATH_PRIORITY="${PATH_PRIORITY:-13}"
+HOST_PRIORITY="${HOST_PRIORITY:-9}"
+PATH_PRIORITY="${PATH_PRIORITY:-16}"
 
 listener_arn() {
   local alb_arn
@@ -38,8 +38,8 @@ listener_arn() {
 }
 
 assert_reserved_priorities() {
-  if [ "$HOST_PRIORITY" != 12 ] || [ "$PATH_PRIORITY" != 13 ]; then
-    echo "!! shared-listener source reserves onboard host 12 and path 13; refusing priority override" >&2
+  if [ "$HOST_PRIORITY" != 9 ] || [ "$PATH_PRIORITY" != 16 ]; then
+    echo "!! shared-listener source reserves onboard host 9 and path 16; refusing priority override" >&2
     exit 1
   fi
 }

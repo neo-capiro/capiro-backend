@@ -6,59 +6,17 @@ import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import {
   FIRST_CHAT_CORE_GET_PATHS,
-  FIRST_CHAT_CORE_GUARD_PRIORITY,
   FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
   FIRST_CHAT_CORE_MERI_TOOLS,
   FIRST_CHAT_CORE_POST_PATHS,
   FIRST_CHAT_CORE_RETIRED_PR48,
-  FIRST_CHAT_CORE_TOOL_PATH_GROUPS,
-  FIRST_CHAT_CORE_TOOL_RULE_PRIORITIES,
   firstChatCoreImageBinding,
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
-import { TOOL_PATH_PREFIX, TOOL_PATH_SUFFIX, packToolPathPatterns } from '../lib/preview/first-chat-core-route-packing';
 import meriTools from '../lib/preview/first-chat-core-meri-tools.json';
 import routes from '../lib/preview/first-chat-core-routes.json';
-
-/** Exact language of a generated tool alternation: literals, groups, '|', '?'. */
-function expand(pattern: string): Set<string> {
-  let index = 0;
-  function alternation(): string[] {
-    const out: string[] = [];
-    for (;;) {
-      out.push(...sequence());
-      if (pattern[index] !== '|') return out;
-      index += 1;
-    }
-  }
-  function sequence(): string[] {
-    let acc = [''];
-    while (index < pattern.length && pattern[index] !== '|' && pattern[index] !== ')') {
-      let atom: string[];
-      if (pattern[index] === '(') {
-        index += 1;
-        atom = alternation();
-        assert.equal(pattern[index], ')');
-        index += 1;
-      } else {
-        assert.match(pattern[index]!, /[a-z0-9_]/);
-        atom = [pattern[index]!];
-        index += 1;
-      }
-      if (pattern[index] === '?') {
-        atom = ['', ...atom];
-        index += 1;
-      }
-      acc = acc.flatMap((head) => atom.map((tail) => head + tail));
-    }
-    return acc;
-  }
-  const words = alternation();
-  assert.equal(index, pattern.length);
-  return new Set(words);
-}
 
 // Synthetic qualified-image pins; the committed source pins stay null until the
 // integrated image is built and scanned.
@@ -140,24 +98,7 @@ test('keeps the exact Meri tool list and every listener pattern within ALB limit
   assert.deepEqual([...FIRST_CHAT_CORE_MERI_TOOLS], meriTools.tools);
   assert.ok(FIRST_CHAT_CORE_MERI_TOOLS.length > 0);
   assert.ok(!FIRST_CHAT_CORE_MERI_TOOLS.includes('get_florida_budget_project'));
-  // Committed routes are exactly the deterministic packing of the tool list,
-  // and together accept the listed names and nothing else.
-  assert.deepEqual(routes.tools, packToolPathPatterns(meriTools.tools));
-  const accepted = new Set<string>();
-  for (const value of FIRST_CHAT_CORE_TOOL_PATH_GROUPS.flat()) {
-    assert.ok(value.startsWith(TOOL_PATH_PREFIX) && value.endsWith(TOOL_PATH_SUFFIX), value);
-    for (const name of expand(value.slice(TOOL_PATH_PREFIX.length, -TOOL_PATH_SUFFIX.length))) {
-      assert.ok(!accepted.has(name), `${name} is matched by two tool patterns`);
-      accepted.add(name);
-    }
-  }
-  assert.deepEqual([...accepted].sort(), [...meriTools.tools].sort());
-  assert.deepEqual(routes.priorities, {
-    post: 1, get: 2, tools: [...FIRST_CHAT_CORE_TOOL_RULE_PRIORITIES], guard: FIRST_CHAT_CORE_GUARD_PRIORITY,
-  });
-  assert.deepEqual([...FIRST_CHAT_CORE_TOOL_RULE_PRIORITIES], FIRST_CHAT_CORE_TOOL_PATH_GROUPS.map((_, i) => 3 + i));
-  assert.equal(FIRST_CHAT_CORE_GUARD_PRIORITY, 3 + FIRST_CHAT_CORE_TOOL_PATH_GROUPS.length);
-  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS, ...FIRST_CHAT_CORE_TOOL_PATH_GROUPS]) {
+  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS]) {
     assert.ok(values.length <= 3);
     for (const value of values) {
       assert.ok(value.length <= 128, value);
@@ -165,6 +106,22 @@ test('keeps the exact Meri tool list and every listener pattern within ALB limit
       assert.ok(!value.includes('(?'), value);
     }
   }
+});
+
+test("uses dot's compact preview layout and records the bounded tool perimeter", () => {
+  // dot #121 6246021908: existing P1 POST / P2 GET / P3 host404, no shared rule moves.
+  assert.deepEqual(routes.priorities, { post: 1, get: 2, guard: 3 });
+  assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
+  assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);
+  assert.equal(routes.post[2],
+    '^/api/clio/(conversations/bootstrap|clients/check-ref|retained-reads/research-portfolio(-changes)?|tools/[a-z][a-z0-9_]{1,63})$');
+  assert.equal(routes.post[2].length, 127);
+  // Perimeter tradeoff: any syntactically valid tool name reaches Core; Core then
+  // refuses names outside the mandatory preview MERI_TOOL_ALLOWLIST after auth.
+  const third = new RegExp(routes.post[2]);
+  assert.ok(third.test('/api/clio/tools/send_email'));
+  assert.ok(!meriTools.tools.includes('send_email'));
+  for (const name of meriTools.tools) assert.ok(third.test(`/api/clio/tools/${name}`), name);
 });
 
 test('renders the retained-trust variant with server-side signing-key secrets only', () => {
@@ -198,7 +155,7 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
   assert.equal(guardRule.DeletionPolicy, 'Retain');
   assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
-  assert.equal(guardRule.Properties.Priority, FIRST_CHAT_CORE_GUARD_PRIORITY);
+  assert.equal(guardRule.Properties.Priority, 3);
   assert.deepEqual(guardRule.Properties.Conditions, [
     { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
   ]);
@@ -234,6 +191,7 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
     assert.equal(environment.PREVIEW_NATIVE_GETS_ENABLED, 'true');
     assert.equal(environment.MERI_TOOL_ALLOWLIST, meriTools.tools.join(','));
     assert.equal(environment.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
+    assert.equal(environment.CORE_DEPLOYMENT_PROFILE, 'first-chat-preview');
     assert.equal(environment.RETAINED_READS_ENABLED, 'false');
     assert.ok(!Object.keys(environment).some((name) => name.startsWith('RETAINED_') && name !== 'RETAINED_READS_ENABLED'));
   }
@@ -291,9 +249,6 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   assert.equal(services[0].Properties.DesiredCount, 0);
   assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatPostsOnly')));
   assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatMembershipPostOnly')));
-  for (const index of [1, 2, 3, 4]) {
-    assert.ok(services[0].DependsOn.some((id: string) => id.startsWith(`FirstChatMeriTools${index}`)));
-  }
   assert.equal(resources.filter((r) => r.Type === 'AWS::Events::Rule').length, 0);
   assert.equal(resources.filter((r) => r.Type === 'AWS::RDS::DBCluster').length, 0);
   assert.equal(resources.filter((r) => r.Type === 'AWS::SecretsManager::Secret').length, 0);
@@ -327,32 +282,10 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   );
   assert.deepEqual(ruleEntries.map(([id]) => id).sort(), [
     'FirstChatMembershipPostOnly',
-    'FirstChatMeriTools1',
-    'FirstChatMeriTools2',
-    'FirstChatMeriTools3',
-    'FirstChatMeriTools4',
     'FirstChatPostsOnly',
   ]);
   const rules = ruleEntries.map(([, rule]) => rule as any);
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3, 4, 5, 6]);
-  assert.ok(rules.every((rule) => rule.Properties.Priority < FIRST_CHAT_CORE_GUARD_PRIORITY));
-  const toolRules = [1, 2, 3, 4].map((index) => stack.Resources[`FirstChatMeriTools${index}`]);
-  const toolPatterns: RegExp[] = [];
-  toolRules.forEach((rule: any, index: number) => {
-    const toolPath = rule.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
-    assert.deepEqual(toolPath.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_TOOL_PATH_GROUPS[index]!] });
-    const toolMethod = rule.Properties.Conditions.find((condition: any) => condition.Field === 'http-request-method');
-    assert.deepEqual(toolMethod.HttpRequestMethodConfig.Values, ['POST']);
-    assert.ok(rule.Properties.Conditions.length <= 3);
-    toolPatterns.push(...toolPath.PathPatternConfig.RegexValues.map((value: string) => new RegExp(value)));
-  });
-  for (const name of meriTools.tools) {
-    assert.equal(toolPatterns.filter((pattern) => pattern.test(`/api/clio/tools/${name}`)).length, 1, name);
-  }
-  for (const rejected of ['send_email', 'create_client', 'search_federal', 'get_florida_budget_project', 'search_memory',
-    'run_analysis', 'create_word', 'Search_federal_grants', 'search_federal_grants/x', '']) {
-    assert.ok(toolPatterns.every((pattern) => !pattern.test(`/api/clio/tools/${rejected}`)), rejected);
-  }
+  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2]);
   const allowed = stack.Resources.FirstChatPostsOnly;
   const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
   assert.deepEqual(path.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] });
@@ -375,11 +308,9 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
     '/api/clio/application-authority/retained-florida-native-current',
     '/api/clio/retained-reads/research-portfolio',
     '/api/clio/retained-reads/research-portfolio-changes',
+    ...meriTools.tools.map((name: string) => `/api/clio/tools/${name}`),
   ]) {
     assert.ok(postMatches(allowedPath), allowedPath);
-  }
-  for (const name of meriTools.tools) {
-    assert.equal(postMatches(`/api/clio/tools/${name}`), false, `tools are enumerated outside rule 1: ${name}`);
   }
   for (const rejectedPath of [
     '/api/clio/conversations',
@@ -448,7 +379,7 @@ test('renders two stable listener rules for every Meri/Intel Core route before t
   assert.ok(rules.every((rule) => rule.Properties.Actions[0].Type === 'forward'));
   assert.deepEqual(
     rules.map((rule) => rule.Properties.Actions[0].TargetGroupArn),
-    rules.map(() => ({ Ref: targetLogicalId })),
+    [1, 2].map(() => ({ Ref: targetLogicalId })),
   );
   for (const rule of rules) {
     const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');

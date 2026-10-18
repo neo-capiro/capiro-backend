@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   compactCorePreviewRules,
+  corePreviewPacketRules,
   addMeriRule,
-  enumeratedCorePreviewRules,
   firstMatch,
   movePriority,
   readCoreRoutes,
@@ -19,18 +19,6 @@ const live = snapshot.rules;
 const coreHost = registry.hostReservations.core;
 const meriHost = registry.hostReservations.meri;
 const validClient = '12345678-abcd-4def-8abc-123456789abc';
-const routes = readCoreRoutes();
-const meriTools = JSON.parse(readFileSync(new URL('../cdk/lib/preview/first-chat-core-meri-tools.json', import.meta.url), 'utf8')).tools;
-
-function relocate(rules) {
-  let next = rules;
-  for (const move of registry.relocationOrder) next = movePriority(next, move.id, move.from, move.to);
-  return next;
-}
-/** Reported compact layout, then the order-preserving shift, then the held Meri rule. */
-function compactRelocatedWithMeri() {
-  return addMeriRule(relocate(compactCorePreviewRules(live)));
-}
 
 const hosts = [
   coreHost, coreHost.toUpperCase(), meriHost, meriHost.toUpperCase(),
@@ -101,7 +89,7 @@ function assertOverlapOrder(rules) {
 
 test('snapshot and registry cover every live rule with exact precedence-bearing predicates', () => {
   assert.equal(snapshot.rules.length, 17);
-  assert.equal(registry.candidateRules.length, 22);
+  assert.equal(registry.candidateRules.length, 18);
   assert.match(registry.status, /reported but current AWS template is unverified/);
   assert.equal(snapshot.listenerArn, registry.listenerArn);
   assertUniquePriorities(live);
@@ -142,11 +130,6 @@ test('Core, Meri and manual-script candidate priorities agree with the shared re
   assert.match(core, new RegExp(`FIRST_CHAT_CORE_GUARD_PRIORITY\\s*=\\s*${at('core-guard')};`));
   assert.match(core, /FirstChatPostsOnly'[\s\S]*?priority: 1,/);
   assert.match(core, /FirstChatMembershipPostOnly'[\s\S]*?priority: 2,/);
-  assert.match(core, /import routes from '\.\/first-chat-core-routes\.json';/);
-  assert.equal(routes.priorities.post, at('core-post'));
-  assert.equal(routes.priorities.get, at('core-membership'));
-  assert.equal(routes.priorities.guard, at('core-guard'));
-  assert.deepEqual(routes.priorities.tools, routes.tools.map((_, index) => at(`core-tools-${index + 1}`)));
   assert.equal(registry.candidateRules.some((item) => item.id === 'core-get'), false);
   assert.match(meri, new RegExp(`FIRST_CHAT_MERI_INGRESS_PRIORITY\\s*=\\s*${at('meri-preview')};`));
   assert.match(meri, /FIRST_CHAT_MERI_HOST = 'meri-preview\.capiro\.ai'/);
@@ -216,7 +199,11 @@ test('the proposed Meri deny is host-only and intercepts all paths before produc
 });
 
 test('reported compact Core layout preserves snapshot IDs for four POSTs and three GETs', () => {
-  const held = live;
+  let relocated = live;
+  for (const move of registry.relocationOrder) {
+    relocated = movePriority(relocated, move.id, move.from, move.to);
+  }
+  const held = addMeriRule(relocated);
   const compact = compactCorePreviewRules(held);
   assertUniquePriorities(compact);
   assert.equal(compact.length, held.length);
@@ -258,23 +245,24 @@ test('reported compact Core layout preserves snapshot IDs for four POSTs and thr
   }).id, 'core-guard');
 });
 
-test('enumerated Core layout routes every packet route and exact tool name before the moved guard', () => {
-  const held = compactRelocatedWithMeri();
-  const enumerated = enumeratedCorePreviewRules(held);
-  assertUniquePriorities(enumerated);
-  assertOverlapOrder(enumerated);
-  assertRoutingEqual(held, enumerated, hosts.filter((host) => host.toLowerCase() !== coreHost));
-  const guardAt = enumerated.find((rule) => rule.id === 'core-guard').priority;
-  const firstAnyHost = Math.min(...enumerated
-    .filter((rule) => Number.isInteger(rule.priority) && !rule.conditions.hosts)
-    .map((rule) => rule.priority));
-  assert.ok(enumerated.filter((rule) => rule.id.startsWith('core-')).every((rule) => rule.priority <= guardAt));
-  assert.ok(guardAt < firstAnyHost, 'the Core guard must precede every any-host rule');
-  for (const rule of enumerated) {
-    for (const regex of rule.conditions.pathRegexes ?? []) assert.ok(regex.length <= 128, regex);
-    assert.ok((rule.conditions.pathRegexes ?? rule.conditions.paths ?? []).length <= 3, rule.id);
+test('Core preview packet keeps P1/P2/P3 and every shared priority, and routes every packet path', () => {
+  const routes = readCoreRoutes();
+  const meriTools = JSON.parse(readFileSync(new URL('../cdk/lib/preview/first-chat-core-meri-tools.json', import.meta.url), 'utf8')).tools;
+  const source = readFileSync(new URL('../../infra/cdk/lib/preview/first-chat-core.ts', import.meta.url), 'utf8');
+  assert.match(source, /import routes from '\.\/first-chat-core-routes\.json';/);
+  let relocated = live;
+  for (const move of registry.relocationOrder) relocated = movePriority(relocated, move.id, move.from, move.to);
+  const compact = compactCorePreviewRules(addMeriRule(relocated));
+  const packet = corePreviewPacketRules(compact, routes);
+  assertUniquePriorities(packet);
+  assert.deepEqual(packet.map(({ id, priority }) => [id, priority]), compact.map(({ id, priority }) => [id, priority]));
+  assertRoutingEqual(compact, packet, hosts.filter((host) => host.toLowerCase() !== coreHost));
+  for (const rule of packet.filter((item) => ['core-post', 'core-membership'].includes(item.id))) {
+    assert.ok(rule.conditions.pathRegexes.length <= 3);
+    for (const regex of rule.conditions.pathRegexes) assert.ok(regex.length <= 128, regex);
   }
-  const postRoutes = [
+  const at = (method, path) => firstMatch(packet, { host: coreHost, path, method, headers: {} });
+  for (const path of [
     '/api/clio/conversations/bootstrap', '/api/clio/clients/check-ref',
     '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
     '/api/clio/application-authority/membership', '/api/clio/application-authority/read-mode-observation',
@@ -287,42 +275,32 @@ test('enumerated Core layout routes every packet route and exact tool name befor
     '/api/clio/application-authority/retained-florida-current',
     '/api/clio/application-authority/retained-florida-native-current',
     '/api/clio/retained-reads/research-portfolio', '/api/clio/retained-reads/research-portfolio-changes',
-  ];
-  const getRoutes = [
+    ...meriTools.map((name) => `/api/clio/tools/${name}`),
+  ]) assert.equal(at('POST', path).id, 'core-post', path);
+  for (const path of [
     '/api/me', '/api/clients', `/api/clients/${validClient}`,
     `/api/research-portfolios/${validClient}`, `/api/research-portfolios/${validClient}/changes`,
     `/api/research-portfolios/${validClient}/reviews`, `/api/research-portfolios/${validClient}/annual-review`,
     `/api/research-portfolios/${validClient}/snapshots/${validClient}`,
-  ];
-  const at = (method, path) => firstMatch(enumerated, { host: coreHost, path, method, headers: {} });
-  for (const path of postRoutes) assert.equal(at('POST', path).id, 'core-post', path);
-  for (const path of getRoutes) assert.equal(at('GET', path).id, 'core-membership', path);
-  for (const name of meriTools) {
-    const result = at('POST', `/api/clio/tools/${name}`);
-    assert.match(result.id, /^core-tools-[1-4]$/, name);
-    assert.deepEqual(result.action, { type: 'forward', target: 'core-preview' });
-    assert.equal(at('GET', `/api/clio/tools/${name}`).id, 'core-guard', name);
-  }
+  ]) assert.equal(at('GET', path).id, 'core-membership', path);
+  // Recorded perimeter tradeoff: a syntactically valid unlisted tool reaches Core,
+  // which refuses it after authentication through the mandatory preview allowlist.
+  assert.equal(at('POST', '/api/clio/tools/send_email').id, 'core-post');
   for (const [method, path] of [
-    ['POST', '/api/clio/tools/send_email'], ['POST', '/api/clio/tools/get_florida_budget_project'],
-    ['POST', '/api/clio/tools/search_federal'], ['POST', '/api/clio/tools/'], ['GET', '/api/clio/tools'],
-    ['POST', '/api/clio/approvals/check'], ['POST', '/api/me'], ['GET', '/api/clio/application-authority/identity'],
-    ['GET', `/api/research-portfolios/${validClient}/analytics`], ['POST', '/intel-api/internal/legiwatch/retained-florida-budget'],
-    ['GET', '/health'], ['POST', '/webhooks/recall'], ['GET', '/strategy-api/x'],
-  ]) {
-    const result = at(method, path);
-    assert.equal(result.id, 'core-guard', `${method} ${path}`);
-    assert.equal(result.action.statusCode, 404);
-  }
-  for (const request of requests([coreHost, coreHost.toUpperCase()])) {
-    assert.ok(firstMatch(enumerated, request).id.startsWith('core-'), JSON.stringify(request));
-  }
-  assert.throws(() => enumeratedCorePreviewRules(enumerated), /Exact compact Core/);
-  assert.throws(() => enumeratedCorePreviewRules(live), /Exact compact Core/);
+    ['POST', '/api/clio/tools/'], ['POST', '/api/clio/tools/Send'], ['POST', '/api/clio/tools/a/b'],
+    ['GET', '/api/clio/tools/search_federal_grants'], ['POST', '/api/clio/approvals/check'],
+    ['GET', `/api/research-portfolios/${validClient}/analytics`], ['GET', '/health'], ['POST', '/webhooks/recall'],
+  ]) assert.equal(at(method, path).id, 'core-guard', `${method} ${path}`);
+  assert.throws(() => corePreviewPacketRules(packet, routes), /Exact compact Core/);
 });
 
 test('one stable Meri rule performs deny, forward, deny without any production fallthrough', () => {
-  const candidate = enumeratedCorePreviewRules(compactRelocatedWithMeri());
+  let candidate = live;
+  for (const move of registry.relocationOrder) {
+    candidate = movePriority(candidate, move.id, move.from, move.to);
+  }
+  candidate = addMeriRule(candidate);
+  candidate = compactCorePreviewRules(candidate);
   const forwarded = setMeriAction(candidate, 'forward');
   const deniedAgain = setMeriAction(forwarded, 'deny');
   assertUniquePriorities(candidate);

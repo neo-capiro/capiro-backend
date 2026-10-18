@@ -8,9 +8,7 @@
 # so it can be re-created for DR without archaeology.
 #
 # Adds ONE rule on the HTTPS listener:
-#   priority 17  path /meri-api/*  -> capiro-prod-meriv2-orch-tg
-#   (13 live; 17 is the reserved order-preserving slot in
-#   infra/routing/capiro-prod-alb-priorities.json once relocated)
+#   priority 13  path /meri-api/*  -> capiro-prod-meriv2-orch-tg
 #
 # LIVE-VERIFIED 2026-07-14 (`aws elbv2 describe-rules` on capiro-prod-alb 443):
 #   8  onboarding.capiro.ai   9 /onboard-api/*   10 /api/*   12 /workspace-api/*
@@ -33,7 +31,7 @@ export MSYS_NO_PATHCONV=1
 ALB_NAME="${ALB_NAME:-capiro-prod-alb}"
 REGION="${REGION:-us-east-1}"
 PATH_PATTERN="${PATH_PATTERN:-/meri-api/*}"
-PATH_PRIORITY="${PATH_PRIORITY:-17}"
+PATH_PRIORITY="${PATH_PRIORITY:-13}"
 
 listener_arn() {
   local alb_arn

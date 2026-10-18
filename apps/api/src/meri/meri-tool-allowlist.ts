@@ -24,7 +24,18 @@ function currentAllowlist(): ReadonlySet<string> | null {
   return cached.allowlist;
 }
 
-/** Same 404 as an unregistered tool, so the list itself is not disclosed. */
-export function assertMeriToolAllowed(name: string, allowlist: ReadonlySet<string> | null = currentAllowlist()): void {
-  if (allowlist && !allowlist.has(name)) throw new NotFoundException('Meri tool not found');
+/** Same 404 as an unregistered tool, so the list itself is not disclosed. In
+ * the first-chat-preview profile a missing list refuses every tool (startup
+ * validation already rejects that configuration; this keeps the route closed
+ * even if the check were bypassed). */
+export function assertMeriToolAllowed(
+  name: string,
+  allowlist: ReadonlySet<string> | null = currentAllowlist(),
+  profile: string | undefined = process.env.CORE_DEPLOYMENT_PROFILE,
+): void {
+  if (!allowlist) {
+    if (profile === 'first-chat-preview') throw new NotFoundException('Meri tool not found');
+    return;
+  }
+  if (!allowlist.has(name)) throw new NotFoundException('Meri tool not found');
 }

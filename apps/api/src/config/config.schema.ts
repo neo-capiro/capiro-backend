@@ -37,6 +37,10 @@ export const configSchema = z.object({
   // Only the separately pinned first-chat Core task opts into native GETs.
   // Exact strings prevent a typo from silently opening ordinary read policy.
   PREVIEW_NATIVE_GETS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Deployment profile. 'first-chat-preview' (the held preview Core task only)
+  // requires an exact, non-empty MERI_TOOL_ALLOWLIST at startup; every other
+  // deployment keeps 'standard' and its existing tool behavior.
+  CORE_DEPLOYMENT_PROFILE: z.enum(['standard', 'first-chat-preview']).default('standard'),
   // Retained-read trust pins (server-only; see @capiro/shared/core-retained-trust).
   // Absent or 'false' keeps every retained route at 503. 'true' requires every
   // pin below and fails startup if any is missing or invalid.
@@ -1245,6 +1249,14 @@ export type AppConfig = z.infer<typeof configSchema>;
  */
 export function validateConfig(raw: Record<string, unknown>): AppConfig {
   const parsed = configSchema.parse(raw);
+  // The preview listener forwards any syntactically valid tool name, so the
+  // preview profile must never fall back to 'every registered tool'.
+  if (parsed.CORE_DEPLOYMENT_PROFILE === 'first-chat-preview' && !parsed.MERI_TOOL_ALLOWLIST) {
+    throw new Error(
+      'CORE_DEPLOYMENT_PROFILE=first-chat-preview requires an exact, non-empty MERI_TOOL_ALLOWLIST. ' +
+        'Refusing to start with every registered tool reachable.',
+    );
+  }
   if (parsed.NODE_ENV !== 'test' && !parsed.CLERK_JWT_ISSUER) {
     throw new Error(
       'CLERK_JWT_ISSUER is required outside tests — set it in the ECS task definition ' +

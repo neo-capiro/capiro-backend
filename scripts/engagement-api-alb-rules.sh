@@ -3,7 +3,7 @@
 # engagement-api — fail-closed dark-preview ALB listener rule manager.
 #
 # Manages EXACTLY ONE rule on the live HTTPS listener:
-#   priority 10 after the held Core/Meri shared-listener reconciliation
+#   priority 7 after the held Core/Meri shared-listener reconciliation
 #   path       /api/engagement/*
 #   AND header X-Capiro-Engagement-Preview: v3
 #   -> forward 100% to the engagement-api target group
@@ -37,7 +37,7 @@
 #   GENERIC_API_RULE_PRIORITY     the discovered live value, e.g. 10
 #
 # Optional (all have the Phase 2 contract defaults):
-#   PREVIEW_RULE_PRIORITY=10
+#   PREVIEW_RULE_PRIORITY=7
 #   PREVIEW_HEADER_NAME=X-Capiro-Engagement-Preview
 #   PREVIEW_HEADER_VALUE=v3
 #   AWS_BIN, NODE_BIN
@@ -55,7 +55,7 @@ export MSYS_NO_PATHCONV=1
 
 AWS_BIN="${AWS_BIN:-aws}"
 NODE_BIN="${NODE_BIN:-node}"
-PREVIEW_RULE_PRIORITY="${PREVIEW_RULE_PRIORITY:-10}"
+PREVIEW_RULE_PRIORITY="${PREVIEW_RULE_PRIORITY:-7}"
 PREVIEW_HEADER_NAME="${PREVIEW_HEADER_NAME:-X-Capiro-Engagement-Preview}"
 PREVIEW_HEADER_VALUE="${PREVIEW_HEADER_VALUE:-v3}"
 PREVIEW_PATH_PATTERN="/api/engagement/*"
@@ -68,8 +68,8 @@ command="${1:-}"
 [ -n "$command" ] || die "usage: engagement-api-alb-rules.sh <list|verify-baseline|create-preview|verify-preview|delete-preview>"
 case "$command" in
   create-preview | delete-preview)
-    [ "$PREVIEW_RULE_PRIORITY" = 10 ] ||
-      refuse "shared-listener source reserves engagement preview priority 10; refusing priority override"
+    [ "$PREVIEW_RULE_PRIORITY" = 7 ] ||
+      refuse "shared-listener source reserves engagement preview priority 7; refusing priority override"
     ;;
 esac
 

@@ -22,10 +22,6 @@ export function readCoreRoutes() {
   return JSON.parse(readFileSync(new URL('../cdk/lib/preview/first-chat-core-routes.json', here), 'utf8'));
 }
 
-function registryPriority(id) {
-  return readPriorityRegistry().candidateRules.find((rule) => rule.id === id).candidatePriority;
-}
-
 export function cloneRules(rules) {
   return structuredClone(rules);
 }
@@ -81,15 +77,15 @@ export function movePriority(rules, id, from, to) {
   return next;
 }
 
-export function addMeriRule(rules, action = 'deny', priority = registryPriority('meri-preview')) {
+export function addMeriRule(rules, action = 'deny') {
   if (!['deny', 'forward'].includes(action)) throw new Error('Unknown Meri action');
   const next = cloneRules(rules);
-  if (next.some((rule) => rule.priority === priority || rule.id === 'meri-preview')) {
+  if (next.some((rule) => rule.priority === 6 || rule.id === 'meri-preview')) {
     throw new Error('Meri priority or rule is already occupied');
   }
   next.push({
     id: 'meri-preview',
-    priority,
+    priority: 6,
     conditions: structuredClone(meriConditions),
     action: action === 'deny'
       ? structuredClone(meriDenyAction)
@@ -102,7 +98,7 @@ export function setMeriAction(rules, action) {
   if (!['deny', 'forward'].includes(action)) throw new Error('Unknown Meri action');
   const next = cloneRules(rules);
   const rule = next.find((item) => item.id === 'meri-preview');
-  if (!rule || rule.priority !== registryPriority('meri-preview')) throw new Error('Stable Meri rule at its reserved priority required');
+  if (!rule || rule.priority !== 6) throw new Error('Stable Meri rule at priority 6 required');
   if (!isDeepStrictEqual(rule.conditions, meriConditions) ||
       ![meriDenyAction, meriForwardAction].some((expected) => isDeepStrictEqual(rule.action, expected))) {
     throw new Error('Exact Meri host and previous action required');
@@ -161,43 +157,28 @@ export function compactCorePreviewRules(rules) {
 }
 
 /**
- * Source-only transform from the compact layout (after the registry relocation
- * and the held Meri rule) to the enumerated Core layout: rule 1 carries the
- * non-tool POSTs, rule 2 the native GETs, and new rules at the reserved
- * priorities carry the exact Meri tool names, all before the moved guard.
+ * Source-only transform from the compact layout to the Core preview packet
+ * (dot #121 6246021908): the same priority-1 POST and priority-2 GET rules
+ * carry every Meri/Intel Core route; the host-only guard stays at 3 and no
+ * other rule moves.
  */
-export function enumeratedCorePreviewRules(rules, routes = readCoreRoutes()) {
+export function corePreviewPacketRules(rules, routes = readCoreRoutes()) {
   const next = cloneRules(rules);
   const host = 'first-chat-preview.app-dev.capiro.ai';
-  const forward = { type: 'forward', target: 'core-preview' };
   const post = next.filter((rule) => rule.id === 'core-post');
   const second = next.filter((rule) => rule.id === 'core-membership');
   const guard = next.filter((rule) => rule.id === 'core-guard');
   if (post.length !== 1 || second.length !== 1 || guard.length !== 1 ||
-      next.some((rule) => rule.id.startsWith('core-tools-')) ||
       post[0].priority !== routes.priorities.post || second[0].priority !== routes.priorities.get ||
       guard[0].priority !== routes.priorities.guard ||
       !isDeepStrictEqual(post[0].conditions, {
         hosts: [host], methods: ['POST'],
         pathRegexes: ['^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$'],
       }) ||
-      second[0].conditions.methods?.[0] !== 'GET' ||
-      !isDeepStrictEqual(post[0].action, forward) || !isDeepStrictEqual(second[0].action, forward)) {
-    throw new Error('Exact compact Core rules and relocated guard required');
-  }
-  if (routes.tools.length !== routes.priorities.tools.length ||
-      routes.priorities.tools.some((priority) => next.some((rule) => rule.priority === priority))) {
-    throw new Error('Reserved Core tool priorities must be vacant');
+      second[0].conditions.methods?.[0] !== 'GET') {
+    throw new Error('Exact compact Core rules and guard required');
   }
   post[0].conditions = { hosts: [host], methods: ['POST'], pathRegexes: [...routes.post] };
   second[0].conditions = { hosts: [host], methods: ['GET'], pathRegexes: [...routes.get] };
-  routes.tools.forEach((group, index) => {
-    next.push({
-      id: `core-tools-${index + 1}`,
-      priority: routes.priorities.tools[index],
-      conditions: { hosts: [host], methods: ['POST'], pathRegexes: [...group] },
-      action: structuredClone(forward),
-    });
-  });
   return next;
 }
