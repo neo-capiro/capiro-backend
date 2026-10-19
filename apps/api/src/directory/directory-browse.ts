@@ -431,8 +431,8 @@ export class DirectoryBrowse {
 
   toPositiveInt(raw: unknown, fallback: number, max?: number): number {
     const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
     const intValue = Math.floor(parsed);
+    if (!Number.isFinite(intValue) || intValue <= 0) return fallback;
     if (max && intValue > max) return max;
     return intValue;
   }
