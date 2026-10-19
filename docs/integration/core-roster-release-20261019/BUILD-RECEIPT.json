@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "status": "BUILD_STARTED_NOT_DEPLOYED",
+  "authorization": {
+    "receivedAtUtc": "2026-10-19T20:21:00Z",
+    "coreUsd": 4,
+    "frontendUsd": 2,
+    "bundleUsd": 6,
+    "overallCapUsd": 616,
+    "coreAttempts": 1,
+    "operatorRetries": 0,
+    "deployment": "HELD pending parent configuration/route review and FE/Meri coordination"
+  },
+  "source": "50475125275853299798fc40f8cb119f0b865464",
+  "tree": "c01138fed2e0e89e50f0f54f35c0ff4d4415c9b4",
+  "archive": {
+    "name": "core-50475125275853299798fc40f8cb119f0b865464.zip",
+    "bytes": 43408386,
+    "sha256": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+    "trackedFiles": 6304,
+    "zipEntries": 7189,
+    "gitBlobVerification": "passed",
+    "s3VersionId": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+    "s3Bucket": "capiro-portfolio-preview-source-967807252336-us-east-1",
+    "s3Key": "inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+    "sha256Base64": "Ho1odKmbciRROw0vnZKlxesCfzFg84VhtQSazDu0wXs=",
+    "serverSideEncryption": "AES256",
+    "uploadMode": "conditional IfNoneMatch=*; exact version-specific HeadObject checksum and size passed"
+  },
+  "project": {
+    "name": "capiro-preview-first-chat-core-build",
+    "sourceVersion": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+    "recipeLfSha256": "eab9286249f8d101f39d9abd09052248ee7bb5d74095419b2b680fa60b0e67f3",
+    "approvedPins": [
+      {
+        "name": "APPROVED_SOURCE_SHA",
+        "value": "50475125275853299798fc40f8cb119f0b865464",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "APPROVED_ARCHIVE_SHA256",
+        "value": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "APPROVED_SOURCE_BUCKET",
+        "value": "capiro-portfolio-preview-source-967807252336-us-east-1",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "APPROVED_SOURCE_VERSION_ID",
+        "value": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+        "type": "PLAINTEXT"
+      }
+    ],
+    "qualifiedAtUtc": "2026-10-19T20:26:38.1057674Z",
+    "allowedDiffPassed": true,
+    "idleBeforeStart": true,
+    "candidateTagAbsentBeforeStart": true,
+    "computeType": "BUILD_GENERAL1_LARGE",
+    "timeoutInMinutes": 60,
+    "queuedTimeoutInMinutes": 5,
+    "concurrentBuildLimit": 1,
+    "autoRetryLimit": 0
+  },
+  "start": {
+    "id": "capiro-preview-first-chat-core-build:3049e163-298d-4fc4-8dbd-9e6bc87eb057",
+    "arn": "arn:aws:codebuild:us-east-1:967807252336:build/capiro-preview-first-chat-core-build:3049e163-298d-4fc4-8dbd-9e6bc87eb057",
+    "buildNumber": 6,
+    "status": "IN_PROGRESS",
+    "currentPhase": "QUEUED",
+    "startTime": "2026-10-19T20:26:49.178000+00:00",
+    "sourceVersion": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+    "projectName": "capiro-preview-first-chat-core-build",
+    "computeType": "BUILD_GENERAL1_LARGE",
+    "timeoutInMinutes": 60,
+    "queuedTimeoutInMinutes": 5,
+    "idempotencyToken": "core-roster-50475125-20261019-01",
+    "requestCount": 1,
+    "overrideFields": []
+  },
+  "qualification": {
+    "buildTerminalStatus": null,
+    "imageDigest": null,
+    "scanStatus": null,
+    "scanFindingSeverityCounts": null,
+    "runtimeSource": null,
+    "runtimeDigest": null,
+    "routeActivation": false,
+    "taskRegistration": false,
+    "serviceUpdate": false,
+    "dnsChange": false
+  },
+  "writesCompleted": [
+    "One conditional source-object upload",
+    "Dedicated project source/version/inline recipe/four nonsecret source pins update",
+    "One StartBuild"
+  ],
+  "mutationsExcluded": [
+    "ECS/task registration or deployment",
+    "ALB listener/rules",
+    "DNS/TLS",
+    "IAM grants",
+    "migrations/schema/data",
+    "Meri configuration",
+    "frontend release"
+  ]
+}

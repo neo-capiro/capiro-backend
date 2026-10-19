@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "status": "FROZEN_SOURCE_ONLY_NOT_SERVING",
+  "repository": "neo-capiro/capiro-backend",
+  "source": "50475125275853299798fc40f8cb119f0b865464",
+  "tree": "c01138fed2e0e89e50f0f54f35c0ff4d4415c9b4",
+  "sourcePR": 98,
+  "sourceBranch": "codex/core-pagination-positive-int-20261019",
+  "parentPR97": "b841544adef13ab5f129339cf7c4d813dd67bad4",
+  "pr96": "784b1c3a91eb6d78f16d92c42e71f05c12c5b5bb",
+  "defaultRead": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "inventory": {
+    "pullRequests": 98,
+    "ancestorHeads": 87,
+    "allIncludedRange": "40-98",
+    "olderExclusions": [
+      2,
+      3,
+      19,
+      25,
+      28,
+      29,
+      30,
+      32,
+      34,
+      36,
+      39
+    ],
+    "note": "Older exclusions match the existing integration ledger; cleanup proposals are not blanket-superseded."
+  },
+  "archive": {
+    "name": "core-50475125275853299798fc40f8cb119f0b865464.zip",
+    "bytes": 43408386,
+    "sha256": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+    "trackedFiles": 6304,
+    "zipEntries": 7189,
+    "gitBlobVerification": "passed",
+    "s3VersionId": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl"
+  },
+  "buildspec": {
+    "path": "infra/deploy/first-chat-core-preview.buildspec.yml",
+    "lfSha256": "eab9286249f8d101f39d9abd09052248ee7bb5d74095419b2b680fa60b0e67f3"
+  },
+  "preparer": {
+    "path": "infra/deploy/prepare-first-chat-core-source.mjs",
+    "lfSha256": "e31971d0638c6d8e6557fda5cca2b1aabd0cf2fa84936574ed530fb240f2786d"
+  },
+  "stage1Migration": {
+    "name": "20281018090000_clio_meri_memory_submissions_content_free",
+    "lfSha256": "f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51",
+    "activation": "held; source inclusion does not authorize migration"
+  },
+  "held100000": "absent",
+  "paginationEvidence": {
+    "baseFailed": 9,
+    "basePassed": 27,
+    "fixedPassed": 36,
+    "fixedFailed": 0,
+    "scopedStrictTypeScript": "passed",
+    "diffCheck": "passed",
+    "independentReview": "no findings",
+    "changedPaths": [
+      "apps/api/src/directory/directory-browse.ts",
+      "apps/api/src/directory/directory-browse.spec.ts"
+    ]
+  },
+  "frontend": {
+    "repository": "neo-capiro/capiro-frontend",
+    "pr": 111,
+    "head": "e6180219b589ae8fced7155d1c451840c8663d94",
+    "base": "5cd5f20d0f2919dce915a67a46487ce81f3e4f15",
+    "status": "open draft unmerged",
+    "sourceAllowedValuesStillBlank": true,
+    "servingSource": null,
+    "servingDigest": null,
+    "note": "Old frontend main archive is not successor build evidence; frontend lane owns qualification."
+  },
+  "servingCandidate": {
+    "source": null,
+    "imageDigest": null
+  },
+  "documentationBranch": "codex/core-roster-release-plan-20261019",
+  "publicationMeaning": "Documentation commit is not a replacement Core build candidate."
+}

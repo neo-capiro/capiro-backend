@@ -1,0 +1,496 @@
+[
+    {
+        "Priority": "1",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/7b2114d8ca65b042",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "first-chat-preview.app-dev.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "first-chat-preview.app-dev.capiro.ai"
+                    ]
+                }
+            },
+            {
+                "Field": "path-pattern",
+                "PathPatternConfig": {
+                    "RegexValues": [
+                        "^/api/clio/(application-authority/(identity|context|membership)|conversations/bootstrap)$"
+                    ]
+                },
+                "RegexValues": [
+                    "^/api/clio/(application-authority/(identity|context|membership)|conversations/bootstrap)$"
+                ]
+            },
+            {
+                "Field": "http-request-method",
+                "HttpRequestMethodConfig": {
+                    "Values": [
+                        "POST"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-CoreT-NHA4DBPHLZ2E/11512f9487ee2f54",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "2",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/daee7daa9866aff3",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "first-chat-preview.app-dev.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "first-chat-preview.app-dev.capiro.ai"
+                    ]
+                }
+            },
+            {
+                "Field": "path-pattern",
+                "PathPatternConfig": {
+                    "RegexValues": [
+                        "^/api/me$",
+                        "^/api/clients$",
+                        "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    ]
+                },
+                "RegexValues": [
+                    "^/api/me$",
+                    "^/api/clients$",
+                    "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                ]
+            },
+            {
+                "Field": "http-request-method",
+                "HttpRequestMethodConfig": {
+                    "Values": [
+                        "GET"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-CoreT-NHA4DBPHLZ2E/11512f9487ee2f54",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "3",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/e6aded81b8a7e13d",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "first-chat-preview.app-dev.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "first-chat-preview.app-dev.capiro.ai"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "fixed-response",
+                "TargetGroupArn": null,
+                "FixedResponseConfig": {
+                    "MessageBody": "{\"error\":\"PREVIEW_ROUTE_NOT_FOUND\"}",
+                    "StatusCode": "404",
+                    "ContentType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "Priority": "4",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/4baf4f7a4f3a912e",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "meri-preview.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "meri-preview.capiro.ai"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/meri-preview-control-8080/03297203fa59801c",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "5",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/42d5a986d7bc6183",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "app.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "app.capiro.ai"
+                    ]
+                }
+            },
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/api/engagement/integrations/microsoft/callback",
+                    "/api/engagement/integrations/microsoft/notifications",
+                    "/api/engagement/integrations/google/callback"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/api/engagement/integrations/microsoft/callback",
+                        "/api/engagement/integrations/microsoft/notifications",
+                        "/api/engagement/integrations/google/callback"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "6",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/31705c7bdd372a94",
+        "Conditions": [
+            {
+                "Field": "http-header",
+                "HttpHeaderConfig": {
+                    "HttpHeaderName": "X-Capiro-Engagement-Preview",
+                    "Values": [
+                        "v3"
+                    ]
+                }
+            },
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/api/engagement/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/api/engagement/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "7",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/0e2faafaa4c69a9d",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/webhooks/recall",
+                    "/webhooks/recall/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/webhooks/recall",
+                        "/webhooks/recall/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "8",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/878247ea681750a9",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "onboarding.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "onboarding.capiro.ai"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-onboardapi-albtg/23e641b281a28f2e",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "9",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/dac3fbd914769700",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/onboard-api/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/onboard-api/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-onboardapi-albtg/23e641b281a28f2e",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "10",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/41a54ee9cf0e579c",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/api/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/api/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "11",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/4e4154f18f64b67d",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/strategy-api/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/strategy-api/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-strategy-tg/201cbb6a7e39491c",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "12",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/eb4eff203ad0fb47",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/workspace-api/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/workspace-api/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-workspace-tg/078f0cc5251ef03c",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "13",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/14d2a8c17043a736",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/meri-api/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/meri-api/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-meriv2-orch-tg/9c49e0a42493ce64",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "14",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/ffe016a2e4ea40a9",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/intel-api/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/intel-api/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-intelapi-albtg/5dff8081c597be23",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "15",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/7f35c5f92b95b9ad",
+        "Conditions": [
+            {
+                "Field": "path-pattern",
+                "Values": [
+                    "/webhooks/*"
+                ],
+                "PathPatternConfig": {
+                    "Values": [
+                        "/webhooks/*"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "20",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/2fdc2da83160a20d",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "capiro.ai",
+                    "www.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "capiro.ai",
+                        "www.capiro.ai"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-marketing-tg/389a4a891d9f97ea",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "50",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/e1760f1c2c8ed3ec",
+        "Conditions": [
+            {
+                "Field": "host-header",
+                "Values": [
+                    "os.capiro.ai"
+                ],
+                "HostHeaderConfig": {
+                    "Values": [
+                        "os.capiro.ai"
+                    ]
+                }
+            }
+        ],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-WebVN-NF4THUBAPLB6/1d31ba8b99313644",
+                "FixedResponseConfig": null
+            }
+        ]
+    },
+    {
+        "Priority": "default",
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/48817b4560c2c442",
+        "Conditions": [],
+        "Actions": [
+            {
+                "Type": "forward",
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-web-tg/387a5af982c1707e",
+                "FixedResponseConfig": null
+            }
+        ]
+    }
+]

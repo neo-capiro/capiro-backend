@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "mode": "offline model only; not AWS or authenticated runtime verification",
+  "modelSource": "50475125275853299798fc40f8cb119f0b865464:infra/routing/capiro-prod-alb-first-match.mjs",
+  "existingHostRequests": 5040,
+  "rosterHostRequests": 630,
+  "existingRulesPreserved": 18,
+  "priorityChangesOnly": 11,
+  "addedRules": 2,
+  "assertions": [
+    "All modeled non-roster requests retain the same rule identity and action.",
+    "Canonical roster host admits only GET /api/clients, including with legacy Engagement preview header; all other modeled paths/methods hit its guard.",
+    "Every existing condition/action is unchanged; priorities remain unique."
+  ],
+  "limitations": [
+    "Does not model ALB URI/Host normalization, propagation, TLS, query validation or authorization.",
+    "No mutation or network probe was made by this local check."
+  ]
+}
