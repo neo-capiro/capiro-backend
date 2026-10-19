@@ -1,5 +1,7 @@
 # Core OS findings: read-only remediation research
 
+This original research covers the **seven HIGH findings only**. The complete scan contains **11 findings (7 HIGH, 2 MEDIUM, 2 LOW)**; use [SCAN-FINDINGS.json](./SCAN-FINDINGS.json) and [SCAN-DISPOSITIONS.md](./SCAN-DISPOSITIONS.md) for the full inventory and release disposition. Resolving this subset would not satisfy the receiving zero-findings gate. Positive PostgreSQL-backed application qualification is separately defined in [POSTGRES-QUALIFICATION-PLAN.md](./POSTGRES-QUALIFICATION-PLAN.md) and remains unexecuted.
+
 Checked 2026-10-19. Frozen application source: `50475125275853299798fc40f8cb119f0b865464`, tree `c01138fed2e0e89e50f0f54f35c0ff4d4415c9b4`. The receiving checkout remained clean. No repository edits, image builds, package installs, AWS operations, or vulnerability suppressions were performed by this research task.
 
 **Decision: no safe one-line GNU/Debian fix was established.** Current Bookworm packages remain classified vulnerable to all seven reported HIGH findings. Current Trixie packages resolve only two of the six util-linux findings and leave zlib unresolved. Alpine offers relevant patched packages, but changing Core from glibc to musl requires repairing and qualifying the existing AMD64 candidate. No replacement image is established as fixed or deployable.
