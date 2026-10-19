@@ -1,0 +1,688 @@
+TAP version 13
+# Subtest: AMD64 selector binds the native loader, Prisma target, and optional packages
+ok 1 - AMD64 selector binds the native loader, Prisma target, and optional packages
+  ---
+  duration_ms: 1.837
+  type: 'test'
+  ...
+# Subtest: candidate Dockerfile copies the shared platform gate into build and runtime
+ok 2 - candidate Dockerfile copies the shared platform gate into build and runtime
+  ---
+  duration_ms: 1.3103
+  type: 'test'
+  ...
+# Subtest: PR48 canonical source schema binds both raw image-local Prisma targets
+ok 3 - PR48 canonical source schema binds both raw image-local Prisma targets
+  ---
+  duration_ms: 21.7709
+  type: 'test'
+  ...
+# Subtest: Prisma 5.22 formats both pinned image-local schemas into exact generated companions
+ok 4 - Prisma 5.22 formats both pinned image-local schemas into exact generated companions
+  ---
+  duration_ms: 1949.9009
+  type: 'test'
+  ...
+# Subtest: exact locked x64 Canvas archive evidence rejects GNU and admits musl
+ok 5 - exact locked x64 Canvas archive evidence rejects GNU and admits musl
+  ---
+  duration_ms: 2.6077
+  type: 'test'
+  ...
+# Subtest: AMD64 ELF classification admits musl and rejects glibc native owners
+ok 6 - AMD64 ELF classification admits musl and rejects glibc native owners
+  ---
+  duration_ms: 15.8904
+  type: 'test'
+  ...
+# Subtest: scan admission binds immutable digest, complete fresh findings, and zero high severity
+ok 7 - scan admission binds immutable digest, complete fresh findings, and zero high severity
+  ---
+  duration_ms: 1.4947
+  type: 'test'
+  ...
+# Subtest: provider dynsym retains exact definition, binding, visibility and version versus requirement
+ok 8 - provider dynsym retains exact definition, binding, visibility and version versus requirement
+  ---
+  duration_ms: 4.8681
+  type: 'test'
+  ...
+# Subtest: provider parser rejects wrong machine, missing symbols, truncated/version/offset corruption
+ok 9 - provider parser rejects wrong machine, missing symbols, truncated/version/offset corruption
+  ---
+  duration_ms: 4.1229
+  type: 'test'
+  ...
+# Subtest: mapped addresses are calculated candidates, never observed process lookup
+ok 10 - mapped addresses are calculated candidates, never observed process lookup
+  ---
+  duration_ms: 2.5832
+  type: 'test'
+  ...
+# Subtest: provider collection retains per-file failures and later valid observations without lookup exemption
+ok 11 - provider collection retains per-file failures and later valid observations without lookup exemption
+  ---
+  duration_ms: 2.5163
+  type: 'test'
+  ...
+# Subtest: changed provider bytes and escaped provider roots are explicit unverified rows
+ok 12 - changed provider bytes and escaped provider roots are explicit unverified rows
+  ---
+  duration_ms: 2.3577
+  type: 'test'
+  ...
+# Subtest: static vendor sources bind exact owner and entry bytes without executing side effects
+ok 13 - static vendor sources bind exact owner and entry bytes without executing side effects
+  ---
+  duration_ms: 25.4517
+  type: 'test'
+  ...
+# Subtest: vendor large source capture retains hash and explicit incomplete prefix
+ok 14 - vendor large source capture retains hash and explicit incomplete prefix
+  ---
+  duration_ms: 20.7847
+  type: 'test'
+  ...
+# Subtest: API graph is explicitly incomplete lexical evidence and does not execute application or prove unused vendor
+ok 15 - API graph is explicitly incomplete lexical evidence and does not execute application or prove unused vendor
+  ---
+  duration_ms: 24.5161
+  type: 'test'
+  ...
+# Subtest: source containment/type constraints and missing vendor entry never justify selection
+ok 16 - source containment/type constraints and missing vendor entry never justify selection
+  ---
+  duration_ms: 17.71
+  type: 'test'
+  ...
+# Subtest: Sharp glibc owner lacking -gnu is retained inactive using positive package evidence
+ok 17 - Sharp glibc owner lacking -gnu is retained inactive using positive package evidence
+  ---
+  duration_ms: 17.8667
+  type: 'test'
+  ...
+# Subtest: musl Sharp package is compatible and passes the active binding identity gate
+ok 18 - musl Sharp package is compatible and passes the active binding identity gate
+  ---
+  duration_ms: 15.5714
+  type: 'test'
+  ...
+# Subtest: absent libc uses actual ELF DT_NEEDED, not a GNU-looking path
+ok 19 - absent libc uses actual ELF DT_NEEDED, not a GNU-looking path
+  ---
+  duration_ms: 17.4699
+  type: 'test'
+  ...
+# Subtest: absent package libc can establish incompatibility from ELF glibc dependency
+ok 20 - absent package libc can establish incompatibility from ELF glibc dependency
+  ---
+  duration_ms: 8.4456
+  type: 'test'
+  ...
+# Subtest: no libc evidence remains UNKNOWN and fails the active gate
+ok 21 - no libc evidence remains UNKNOWN and fails the active gate
+  ---
+  duration_ms: 9.7534
+  type: 'test'
+  ...
+# Subtest: package/ELF libc disagreement fails closed
+ok 22 - package/ELF libc disagreement fails closed
+  ---
+  duration_ms: 12.514
+  type: 'test'
+  ...
+# Subtest: wrong ELF machine cannot pass an arm64 package declaration
+ok 23 - wrong ELF machine cannot pass an arm64 package declaration
+  ---
+  duration_ms: 12.5222
+  type: 'test'
+  ...
+# Subtest: positively identified x64 package remains incompatible and never passes active gate
+ok 24 - positively identified x64 package remains incompatible and never passes active gate
+  ---
+  duration_ms: 16.3425
+  type: 'test'
+  ...
+# Subtest: malformed ELF, metadata and escaped root are rejected
+ok 25 - malformed ELF, metadata and escaped root are rejected
+  ---
+  duration_ms: 29.3432
+  type: 'test'
+  ...
+# Subtest: truncated ELF tables and absent package ownership fail closed
+ok 26 - truncated ELF tables and absent package ownership fail closed
+  ---
+  duration_ms: 8.2787
+  type: 'test'
+  ...
+# Subtest: negated CPU and libc constraints contradicting observed ELF hold
+ok 27 - negated CPU and libc constraints contradicting observed ELF hold
+  ---
+  duration_ms: 25.8334
+  type: 'test'
+  ...
+# Subtest: incompatible addon requires actual exact optional owner resolution before exemption
+ok 28 - incompatible addon requires actual exact optional owner resolution before exemption
+  ---
+  duration_ms: 28.0373
+  type: 'test'
+  ...
+# Subtest: required incompatible addon holds even when another owner declares it optional
+ok 29 - required incompatible addon holds even when another owner declares it optional
+  ---
+  duration_ms: 24.9344
+  type: 'test'
+  ...
+# Subtest: same name in another physical owner and an unverified range engine cannot authorize skip
+ok 30 - same name in another physical owner and an unverified range engine cannot authorize skip
+  ---
+  duration_ms: 26.7136
+  type: 'test'
+  ...
+# Subtest: canonical deployed semver admits ^0.1.18 to0.1.31 and rejects nonmatching/prerelease versions
+ok 31 - canonical deployed semver admits ^0.1.18 to0.1.31 and rejects nonmatching/prerelease versions
+  ---
+  duration_ms: 692.4189
+  type: 'test'
+  ...
+# Subtest: bundled payload owner relation is distinct from required/optional package and remains unverified
+ok 32 - bundled payload owner relation is distinct from required/optional package and remains unverified
+  ---
+  duration_ms: 178.2594
+  type: 'test'
+  ...
+# Subtest: failure policy retains all16 exact unexplained loader lines, mappings and successful operation evidence
+ok 33 - failure policy retains all16 exact unexplained loader lines, mappings and successful operation evidence
+  ---
+  duration_ms: 1.3311
+  type: 'test'
+  ...
+# Subtest: positive WASM header has separate vendor scope and cannot pass the active native binding gate
+ok 34 - positive WASM header has separate vendor scope and cannot pass the active native binding gate
+  ---
+  duration_ms: 12.4441
+  type: 'test'
+  ...
+# Subtest: Prisma CLI schema WASM inventory uses only exact archive-backed evidence
+ok 35 - Prisma CLI schema WASM inventory uses only exact archive-backed evidence
+  ---
+  duration_ms: 0.3287
+  type: 'test'
+  ...
+# Subtest: all six actual QuickJS vendor identities match the preserved integrity-verified provenance
+ok 36 - all six actual QuickJS vendor identities match the preserved integrity-verified provenance
+  ---
+  duration_ms: 0.8838
+  type: 'test'
+  ...
+# Subtest: PE and Mach-O require positive bounded headers; names never decide their format
+ok 37 - PE and Mach-O require positive bounded headers; names never decide their format
+  ---
+  duration_ms: 11.0077
+  type: 'test'
+  ...
+# Subtest: generic libc.so needs exact loaded addon and resolved/mapped positive musl proof
+ok 38 - generic libc.so needs exact loaded addon and resolved/mapped positive musl proof
+  ---
+  duration_ms: 0.334
+  type: 'test'
+  ...
+# Subtest: generic libc rejects glibc, unknown, escaped, unobserved and contradictory mappings
+ok 39 - generic libc rejects glibc, unknown, escaped, unobserved and contradictory mappings
+  ---
+  duration_ms: 1.8713
+  type: 'test'
+  ...
+# Subtest: unknown non-libc dependency cannot become musl just because the process maps musl
+ok 40 - unknown non-libc dependency cannot become musl just because the process maps musl
+  ---
+  duration_ms: 0.2198
+  type: 'test'
+  ...
+# Subtest: loader mapping parser retains dependency and actual absolute target, ignores unrelated lines
+ok 41 - loader mapping parser retains dependency and actual absolute target, ignores unrelated lines
+  ---
+  duration_ms: 0.283
+  type: 'test'
+  ...
+# Subtest: stripped section table holds rather than treating absent evidence as compatibility
+ok 42 - stripped section table holds rather than treating absent evidence as compatibility
+  ---
+  duration_ms: 4.6742
+  type: 'test'
+  ...
+# Subtest: bounded native child outcomes retain failure, timeout and capped output evidence
+ok 43 - bounded native child outcomes retain failure, timeout and capped output evidence
+  ---
+  duration_ms: 223.2951
+  type: 'test'
+  ...
+# Subtest: bounded children inherit the selected qualification architecture
+ok 44 - bounded children inherit the selected qualification architecture
+  ---
+  duration_ms: 246.6534
+  type: 'test'
+  ...
+# Subtest: collector runs Sharp and remaining independent cases after prior failures; aggregate stays HOLD
+ok 45 - collector runs Sharp and remaining independent cases after prior failures; aggregate stays HOLD
+  ---
+  duration_ms: 106.4457
+  type: 'test'
+  ...
+# Subtest: child proof rejects missing, duplicate, malformed and failed receipts
+ok 46 - child proof rejects missing, duplicate, malformed and failed receipts
+  ---
+  duration_ms: 0.5263
+  type: 'test'
+  ...
+# Subtest: dispatcher resolves exact physical native owner without inventing absent libc metadata
+ok 47 - dispatcher resolves exact physical native owner without inventing absent libc metadata
+  ---
+  duration_ms: 15.5815
+  type: 'test'
+  ...
+# Subtest: dispatcher rejects wrong optional pin, wrong installed version and ambiguous native owner
+ok 48 - dispatcher rejects wrong optional pin, wrong installed version and ambiguous native owner
+  ---
+  duration_ms: 16.0327
+  type: 'test'
+  ...
+# Subtest: deployed package inventory records real identity/hash/platform without libc inference
+ok 49 - deployed package inventory records real identity/hash/platform without libc inference
+  ---
+  duration_ms: 16.1466
+  type: 'test'
+  ...
+# Subtest: package inventory rejects escaped, malformed and invalid platform metadata
+ok 50 - package inventory rejects escaped, malformed and invalid platform metadata
+  ---
+  duration_ms: 13.1097
+  type: 'test'
+  ...
+# Subtest: actual report finalizer counts the summary receipt in emitted output
+ok 51 - actual report finalizer counts the summary receipt in emitted output
+  ---
+  duration_ms: 0.4746
+  type: 'test'
+  ...
+# Subtest: compact gate summary preserves all seven bounded child outcomes after verbose receipts
+ok 52 - compact gate summary preserves all seven bounded child outcomes after verbose receipts
+  ---
+  duration_ms: 4.311
+  type: 'test'
+  ...
+# Subtest: compact gate summary excludes passing children and caps failed child rows at 32
+ok 53 - compact gate summary excludes passing children and caps failed child rows at 32
+  ---
+  duration_ms: 0.337
+  type: 'test'
+  ...
+# Subtest: per-file inspection failures retain rows and do not stop the next native observation
+ok 54 - per-file inspection failures retain rows and do not stop the next native observation
+  ---
+  duration_ms: 9.0056
+  type: 'test'
+  ...
+# Subtest: accepts the pinned version from stderr, as observed in the failed Alpine build
+ok 55 - accepts the pinned version from stderr, as observed in the failed Alpine build
+  ---
+  duration_ms: 53.2916
+  type: 'test'
+  ...
+# Subtest: accepts the same pinned version from stdout
+ok 56 - accepts the same pinned version from stdout
+  ---
+  duration_ms: 52.632
+  type: 'test'
+  ...
+# Subtest: rejects a different version on either stream
+ok 57 - rejects a different version on either stream
+  ---
+  duration_ms: 109.4705
+  type: 'test'
+  ...
+# Subtest: rejects nonzero exit even when the expected version is printed
+ok 58 - rejects nonzero exit even when the expected version is printed
+  ---
+  duration_ms: 52.891
+  type: 'test'
+  ...
+# Subtest: rejects empty output
+ok 59 - rejects empty output
+  ---
+  duration_ms: 51.911
+  type: 'test'
+  ...
+# Subtest: kills and rejects a command exceeding the deadline
+ok 60 - kills and rejects a command exceeding the deadline
+  ---
+  duration_ms: 106.3433
+  type: 'test'
+  ...
+# Subtest: rejects output exceeding the bounded buffer
+ok 61 - rejects output exceeding the bounded buffer
+  ---
+  duration_ms: 56.1806
+  type: 'test'
+  ...
+# Subtest: rejects an unavailable executable
+ok 62 - rejects an unavailable executable
+  ---
+  duration_ms: 0.8124
+  type: 'test'
+  ...
+# Subtest: optional peer snapshot placement preserves a required direct dependency
+ok 63 - optional peer snapshot placement preserves a required direct dependency
+  ---
+  duration_ms: 1.2741
+  type: 'test'
+  ...
+# Subtest: explicit optional dependency overrides same-name direct dependency
+ok 64 - explicit optional dependency overrides same-name direct dependency
+  ---
+  duration_ms: 0.2236
+  type: 'test'
+  ...
+# Subtest: exception requires exact frozen and installed optional peer declarations
+ok 65 - exception requires exact frozen and installed optional peer declarations
+  ---
+  duration_ms: 1.593
+  type: 'test'
+  ...
+# Subtest: reverse kind mismatch and unlocked direct declarations still hold
+ok 66 - reverse kind mismatch and unlocked direct declarations still hold
+  ---
+  duration_ms: 0.2681
+  type: 'test'
+  ...
+# Subtest: required and optional peer-only placements preserve existing graph obligations
+ok 67 - required and optional peer-only placements preserve existing graph obligations
+  ---
+  duration_ms: 0.2718
+  type: 'test'
+  ...
+# Subtest: all 516 frozen nodes and 1022 edges retain their exact placement; every optional-peer overlap stays physically required
+ok 68 - all 516 frozen nodes and 1022 edges retain their exact placement; every optional-peer overlap stays physically required
+  ---
+  duration_ms: 8.9912
+  type: 'test'
+  ...
+# Subtest: full closure accepts corroborated overlap with exact physical owner
+ok 69 - full closure accepts corroborated overlap with exact physical owner
+  ---
+  duration_ms: 135.0888
+  type: 'test'
+  ...
+# Subtest: direct dependency cannot be absent even when optional-peer target is platform incompatible
+ok 70 - direct dependency cannot be absent even when optional-peer target is platform incompatible
+  ---
+  duration_ms: 126.8573
+  type: 'test'
+  ...
+# Subtest: genuine optional dependency still needs positive incompatible-platform absence proof
+ok 71 - genuine optional dependency still needs positive incompatible-platform absence proof
+  ---
+  duration_ms: 111.0691
+  type: 'test'
+  ...
+# Subtest: overlap does not waive exact owner version or installed target compatibility
+ok 72 - overlap does not waive exact owner version or installed target compatibility
+  ---
+  duration_ms: 106.1143
+  type: 'test'
+  ...
+# Subtest: exact direct owners, three hashes and four former HOLD gates produce a contained repair plan
+ok 73 - exact direct owners, three hashes and four former HOLD gates produce a contained repair plan
+  ---
+  duration_ms: 72.5979
+  type: 'test'
+  ...
+# Subtest: wrong Prisma engine bytes hold before either binary is linked and retain bounded four-record evidence
+ok 74 - wrong Prisma engine bytes hold before either binary is linked and retain bounded four-record evidence
+  ---
+  duration_ms: 98.8322
+  type: 'test'
+  ...
+# Subtest: unknown Prisma WASM and wrong direct platform identity cannot plan any link
+ok 75 - unknown Prisma WASM and wrong direct platform identity cannot plan any link
+  ---
+  duration_ms: 53.6633
+  type: 'test'
+  ...
+# Subtest: matching copies with unknown engine or esbuild bytes still fail exact official pins
+ok 76 - matching copies with unknown engine or esbuild bytes still fail exact official pins
+  ---
+  duration_ms: 63.0373
+  type: 'test'
+  ...
+# Subtest: archive identity and effective target constraints @napi-rs/canvas-linux-arm64-gnu@0.1.80
+ok 77 - archive identity and effective target constraints @napi-rs/canvas-linux-arm64-gnu@0.1.80
+  ---
+  duration_ms: 6.6804
+  type: 'test'
+  ...
+# Subtest: archive identity and effective target constraints @napi-rs/canvas-linux-arm64-gnu@1.0.9
+ok 78 - archive identity and effective target constraints @napi-rs/canvas-linux-arm64-gnu@1.0.9
+  ---
+  duration_ms: 0.9558
+  type: 'test'
+  ...
+# Subtest: archive identity and effective target constraints @napi-rs/canvas-linux-arm64-musl@0.1.80
+ok 79 - archive identity and effective target constraints @napi-rs/canvas-linux-arm64-musl@0.1.80
+  ---
+  duration_ms: 0.2574
+  type: 'test'
+  ...
+# Subtest: archive identity and effective target constraints @napi-rs/canvas-linux-arm64-musl@1.0.9
+ok 80 - archive identity and effective target constraints @napi-rs/canvas-linux-arm64-musl@1.0.9
+  ---
+  duration_ms: 0.2762
+  type: 'test'
+  ...
+# Subtest: no broad platform override: changed SRI, manifest, lock os/cpu/libc, version and unknown libc HOLD
+ok 81 - no broad platform override: changed SRI, manifest, lock os/cpu/libc, version and unknown libc HOLD
+  ---
+  duration_ms: 3.9235
+  type: 'test'
+  ...
+# Subtest: full closure retains proven GNU optional owner inactive and musl owner active
+ok 82 - full closure retains proven GNU optional owner inactive and musl owner active
+  ---
+  duration_ms: 168.8068
+  type: 'test'
+  ...
+# Subtest: archive effective constraints permit GNU optional absence, never compatible musl absence or direct absence
+ok 83 - archive effective constraints permit GNU optional absence, never compatible musl absence or direct absence
+  ---
+  duration_ms: 85.8857
+  type: 'test'
+  ...
+# Subtest: GNU required owner rejected, including required revisit after optional owner was already assigned
+ok 84 - GNU required owner rejected, including required revisit after optional owner was already assigned
+  ---
+  duration_ms: 65.2193
+  type: 'test'
+  ...
+# Subtest: collector checks incompatible optional relations before skipping native load; full graph barrier precedes fixtures
+ok 85 - collector checks incompatible optional relations before skipping native load; full graph barrier precedes fixtures
+  ---
+  duration_ms: 1.7683
+  type: 'test'
+  ...
+# Subtest: only the packaging target changes in the full application schema
+ok 86 - only the packaging target changes in the full application schema
+  ---
+  duration_ms: 123.5736
+  type: 'test'
+  ...
+# Subtest: AMD64 image-local generator selects Prisma musl/OpenSSL3 without changing models
+ok 87 - AMD64 image-local generator selects Prisma musl/OpenSSL3 without changing models
+  ---
+  duration_ms: 101.1977
+  type: 'test'
+  ...
+# Subtest: unexpected generator target fails without modifying schema: ["native"]
+ok 88 - unexpected generator target fails without modifying schema: ["native"]
+  ---
+  duration_ms: 73.3739
+  type: 'test'
+  ...
+# Subtest: unexpected generator target fails without modifying schema: ["linux-arm64-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+ok 89 - unexpected generator target fails without modifying schema: ["linux-arm64-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+  ---
+  duration_ms: 75.2168
+  type: 'test'
+  ...
+# Subtest: exact five-root graph resolves required owner with snapshot, integrity and manifest evidence
+ok 90 - exact five-root graph resolves required owner with snapshot, integrity and manifest evidence
+  ---
+  duration_ms: 103.8218
+  type: 'test'
+  ...
+# Subtest: missing required or compatible optional dependency holds; declared incompatible optional absence is explicit
+ok 91 - missing required or compatible optional dependency holds; declared incompatible optional absence is explicit
+  ---
+  duration_ms: 149.8929
+  type: 'test'
+  ...
+# Subtest: extra dev-only store owner is rejected even when no binary exists
+ok 92 - extra dev-only store owner is rejected even when no binary exists
+  ---
+  duration_ms: 60.0936
+  type: 'test'
+  ...
+# Subtest: unindexed physical, nested or generated package outside graph holds
+ok 93 - unindexed physical, nested or generated package outside graph holds
+  ---
+  duration_ms: 145.0747
+  type: 'test'
+  ...
+# Subtest: wrong exact version or platform metadata cannot impersonate expected owner
+ok 94 - wrong exact version or platform metadata cannot impersonate expected owner
+  ---
+  duration_ms: 110.7774
+  type: 'test'
+  ...
+# Subtest: peer context collision, duplicate edge, unknown target and modified source input hold
+ok 95 - peer context collision, duplicate edge, unknown target and modified source input hold
+  ---
+  duration_ms: 120.4581
+  type: 'test'
+  ...
+# Subtest: contract hash and new undeclared installed dependency are not accepted
+ok 96 - contract hash and new undeclared installed dependency are not accepted
+  ---
+  duration_ms: 57.3064
+  type: 'test'
+  ...
+# Subtest: mocked contained symlinks deduplicate and external symlinks hold without creating junctions
+ok 97 - mocked contained symlinks deduplicate and external symlinks hold without creating junctions
+  ---
+  duration_ms: 28.9691
+  type: 'test'
+  ...
+# Subtest: artifact policy joins physical locked owner and rejects injected file names or workspace binaries
+ok 98 - artifact policy joins physical locked owner and rejects injected file names or workspace binaries
+  ---
+  duration_ms: 37.379
+  type: 'test'
+  ...
+# Subtest: non-executable extensionless ELF and renamed WASM cannot evade magic inventory
+ok 99 - non-executable extensionless ELF and renamed WASM cannot evade magic inventory
+  ---
+  duration_ms: 41.6254
+  type: 'test'
+  ...
+# Subtest: PDFjs WASM provenance binds exact vendor identity, member, size and bytes without executing codecs
+ok 100 - PDFjs WASM provenance binds exact vendor identity, member, size and bytes without executing codecs
+  ---
+  duration_ms: 0.3089
+  type: 'test'
+  ...
+# Subtest: Prisma CLI schema WASM binds the pinned archive and exact member bytes
+ok 101 - Prisma CLI schema WASM binds the pinned archive and exact member bytes
+  ---
+  duration_ms: 0.1547
+  type: 'test'
+  ...
+# Subtest: actual collector stops before every package/child/native fixture when installed closure rejects
+ok 102 - actual collector stops before every package/child/native fixture when installed closure rejects
+  ---
+  duration_ms: 27.3709
+  type: 'test'
+  ...
+# Subtest: actual collector retains artifact HOLD and stops before fixtures after graph success
+ok 103 - actual collector retains artifact HOLD and stops before fixtures after graph success
+  ---
+  duration_ms: 11.2148
+  type: 'test'
+  ...
+# Subtest: canonical source bytes tolerate checkout CRLF only, preserving exact archive hashes
+ok 104 - canonical source bytes tolerate checkout CRLF only, preserving exact archive hashes
+  ---
+  duration_ms: 2.9451
+  type: 'test'
+  ...
+# Subtest: production BFS preserves workspace, alias, peer-qualified and optional edges, excludes dev roots
+ok 105 - production BFS preserves workspace, alias, peer-qualified and optional edges, excludes dev roots
+  ---
+  duration_ms: 2.8961
+  type: 'test'
+  ...
+# Subtest: unresolved optional edges are retained rather than silently omitted
+ok 106 - unresolved optional edges are retained rather than silently omitted
+  ---
+  duration_ms: 0.4293
+  type: 'test'
+  ...
+# Subtest: missing workspace importer is unresolved and snapshot links cannot invent importers
+ok 107 - missing workspace importer is unresolved and snapshot links cannot invent importers
+  ---
+  duration_ms: 0.5251
+  type: 'test'
+  ...
+# Subtest: mixed LF and CRLF checkout preserves the exact canonical bytes
+ok 108 - mixed LF and CRLF checkout preserves the exact canonical bytes
+  ---
+  duration_ms: 0.3931
+  type: 'test'
+  ...
+# Subtest: lone carriage returns are semantic bytes, never normalized away
+ok 109 - lone carriage returns are semantic bytes, never normalized away
+  ---
+  duration_ms: 2.0613
+  type: 'test'
+  ...
+# Subtest: different invalid UTF8 bytes cannot compare equal through replacement decoding
+ok 110 - different invalid UTF8 bytes cannot compare equal through replacement decoding
+  ---
+  duration_ms: 0.5598
+  type: 'test'
+  ...
+# Subtest: byte custody requires byte buffers rather than implicit string normalization
+ok 111 - byte custody requires byte buffers rather than implicit string normalization
+  ---
+  duration_ms: 7.9261
+  type: 'test'
+  ...
+# Subtest: pure export uses exact LF with a single terminating newline and no BOM
+ok 112 - pure export uses exact LF with a single terminating newline and no BOM
+  ---
+  duration_ms: 1.411
+  type: 'test'
+  ...
+# Subtest: stable contract export excludes audit head and time without mutating input
+ok 113 - stable contract export excludes audit head and time without mutating input
+  ---
+  duration_ms: 0.9729
+  type: 'test'
+  ...
+1..113
+# tests 113
+# suites 0
+# pass 113
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2542.9369

@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 1,
+  "reviewDate": "2026-10-19",
+  "baseSourceCommit": "50475125275853299798fc40f8cb119f0b865464",
+  "branch": "codex/core-runtime-security-review-20261019",
+  "status": "SOURCE_QUALIFICATION_PINS_REFRESHED_FOCUSED_CHECKS_PASS",
+  "ownedRepositoryFiles": [
+    {
+      "path": "docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json",
+      "workingGitBlob": "31504257be72e4a2e46b2ac5e55a14f290266615",
+      "canonicalLfSHA256": "c3af6fb6b8eb7d6963718045bc25221b154f25ba08996c319d3eaede157bb187"
+    },
+    {
+      "path": "apps/api/scripts/qualification/runtime-closure-contract.cjs",
+      "workingGitBlob": "32cd25ac70216b66ca862f2870e0deb0eaad162a",
+      "canonicalLfSHA256": "bd72fed4d3067393ec28e4aab571499f75b2c792bd0ff3e382f01dff8e6f24a1"
+    },
+    {
+      "path": "apps/api/scripts/qualification/dependency-relations.test.cjs",
+      "workingGitBlob": "4450bc074ecd8629fe610b06c82a3082ce544a8a",
+      "canonicalLfSHA256": "4011be689efa8c863691693f8a2628b77840029cbd1c324febd5ed4f7319e72f"
+    }
+  ],
+  "closure": {
+    "sourceCommit": "50475125275853299798fc40f8cb119f0b865464",
+    "deterministicRegeneration": true,
+    "oldSHA256": "78dfcb0a438c74df4c0778e1316bef4b15874fedad4e8c4ecbd7ae5361305def",
+    "newSHA256": "c3af6fb6b8eb7d6963718045bc25221b154f25ba08996c319d3eaede157bb187",
+    "oldCounts": {
+      "nodes": 515,
+      "edges": 1011
+    },
+    "newCounts": {
+      "roots": 5,
+      "nodes": 516,
+      "edges": 1022,
+      "optionalPeerOverlaps": 11,
+      "unresolvedEdges": 0
+    },
+    "addedNodes": [
+      "@aws-sdk/client-kms@3.1141.0"
+    ],
+    "removedNodes": [],
+    "changedNodes": [],
+    "addedEdges": [
+      {
+        "from": "importer:apps/api",
+        "dependencyName": "@aws-sdk/client-kms",
+        "kind": "dependencies",
+        "to": "@aws-sdk/client-kms@3.1141.0"
+      },
+      {
+        "from": "importer:apps/api",
+        "dependencyName": "ajv",
+        "kind": "dependencies",
+        "to": "ajv@8.20.0"
+      },
+      {
+        "from": "importer:apps/api",
+        "dependencyName": "ajv-formats",
+        "kind": "dependencies",
+        "to": "ajv-formats@3.0.1(ajv@8.20.0)"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@aws-sdk/core",
+        "kind": "dependencies",
+        "to": "@aws-sdk/core@3.978.1"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@aws-sdk/credential-provider-node",
+        "kind": "dependencies",
+        "to": "@aws-sdk/credential-provider-node@3.972.84"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@aws-sdk/types",
+        "kind": "dependencies",
+        "to": "@aws-sdk/types@3.974.6"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@smithy/core",
+        "kind": "dependencies",
+        "to": "@smithy/core@3.35.0"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@smithy/fetch-http-handler",
+        "kind": "dependencies",
+        "to": "@smithy/fetch-http-handler@5.8.0"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@smithy/node-http-handler",
+        "kind": "dependencies",
+        "to": "@smithy/node-http-handler@4.12.1"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "@smithy/types",
+        "kind": "dependencies",
+        "to": "@smithy/types@4.19.0"
+      },
+      {
+        "from": "@aws-sdk/client-kms@3.1141.0",
+        "dependencyName": "tslib",
+        "kind": "dependencies",
+        "to": "tslib@2.8.1"
+      }
+    ],
+    "removedEdges": [],
+    "inputs": {
+      "package.json": "996d7ecefa2ce0def25c6e842e67002926dd10ed08d69921dbc1538e6334f9bf",
+      "pnpm-lock.yaml": "83518c0c80c23ecdab556511ca7567d100f0d96ac5cd26bfc3f0cc9241f41802",
+      "apps/api/package.json": "558ba9a1ea7206bedc2128bcaa6b69bc1f4b472ec390513cfde8d3c843a7eea8",
+      "packages/shared/package.json": "18ed3388e7fa6a7d8d8e864b763879a2a612fae69b8e6866f7546dd86370a235",
+      "packages/meriv2-core/package.json": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
+      "packages/defense-contracts/package.json": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
+      "packages/defense-domain/package.json": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
+    }
+  },
+  "schemas": {
+    "sourceCommit": "50475125275853299798fc40f8cb119f0b865464",
+    "sourceSchemaSHA256": "834823af673157ade5a474c5e12e06cb48f14b0e84e7c3e5d4806c7e071c4cc3",
+    "schemaPath": "apps/api/prisma/schema.prisma",
+    "tool": {
+      "package": "prisma",
+      "version": "5.22.0",
+      "wasmBytes": 2893316,
+      "wasmSHA256": "adf02f9b486d507024be2bf59b271a88e39f48c3ca2266c6c46d7e9109296c05"
+    },
+    "mode": "UNMODIFIED_PRISMA_CLI_FORMAT_WITH_NORMAL_CHECKSUM_VERIFIED_ENGINE_ACQUISITION",
+    "environment": {
+      "sanitizedAllowlist": true,
+      "inheritedCredentials": false,
+      "checkpointDisabled": true,
+      "updateNoticeDisabled": true,
+      "engineOverrides": false,
+      "checksumVerificationBypassed": false
+    },
+    "rows": [
+      {
+        "architecture": "arm64",
+        "target": "linux-musl-arm64-openssl-3.0.x",
+        "rawArtifact": "schema.arm64.raw.prisma",
+        "rawSHA256": "9255ff9fad2aa1af84ae08c66d99bfe2ca74de1f21e276aaa2a843a0eee92ab9",
+        "formattedArtifact": "schema.arm64.formatted.prisma",
+        "generatedCompanionSHA256": "064a6790228f328443c6c65481cc850d569f94d02a6ad0fa58a33498c01496f4",
+        "formatExitCode": 0
+      },
+      {
+        "architecture": "x64",
+        "target": "linux-musl-openssl-3.0.x",
+        "rawArtifact": "schema.x64.raw.prisma",
+        "rawSHA256": "136b5ba3abba41f39e654d9b10ce33db9e87b7c18825b87aa870066454f436dc",
+        "formattedArtifact": "schema.x64.formatted.prisma",
+        "generatedCompanionSHA256": "d01f5803643b3d1f58c53d7bda1913cb844d067b98c87d7ceb67fd464d88c5a2",
+        "formatExitCode": 0
+      }
+    ],
+    "limits": [
+      "Formatting evidence only; no generated application client, image, native ABI, database or runtime qualification."
+    ]
+  },
+  "priorFormatterEquivalence": {
+    "sourceCommit": "c89b4d34720dcb18714fa317d759afa321e2e82d",
+    "tool": "Unmodified Prisma5.22.0 CLI format with verified cached engines and packaged WASM",
+    "rows": [
+      {
+        "architecture": "arm64",
+        "rawSHA256": "6aa1892cfbb9f3c5da1057ebb05234c892c0fd39dd828d37aa15d0ebfda291ee",
+        "formattedSHA256": "2162851624c0c9ab16e9263e5ab68bd38ac55f471ae61a9df13a8a4aed295124",
+        "matchesPriorPin": true
+      },
+      {
+        "architecture": "x64",
+        "rawSHA256": "c909a6ce3610f35b9179473af3bf6f418a6e47b4c5ba761bac157aa41b9b0498",
+        "formattedSHA256": "e4bbd8daed6f2695081e99515fc652c44b991aedd478576717e81be04fc37320",
+        "matchesPriorPin": true
+      }
+    ]
+  },
+  "tooling": {
+    "nodeVersion": "v22.23.3",
+    "tools": [
+      {
+        "name": "yaml",
+        "version": "2.9.1",
+        "integrity": "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==",
+        "resolved": "https://registry.npmjs.org/yaml/-/yaml-2.9.1.tgz",
+        "integrityMatchesSourceLock": true
+      },
+      {
+        "name": "prisma",
+        "version": "5.22.0",
+        "integrity": "sha512-vtpjW3XuYCSnMsNVBjLMNkTj6OZbudcPPTPYHqX0CJfpcdWciI1dM8uHETwmDxxiqEwCIE6WvXucWUetJgfu/A==",
+        "resolved": "https://registry.npmjs.org/prisma/-/prisma-5.22.0.tgz",
+        "integrityMatchesSourceLock": true
+      }
+    ],
+    "installScope": "runtime-security-test-tools outside all repositories",
+    "lifecycleScripts": false,
+    "installCommand": "npm.cmd install --ignore-scripts --no-audit --no-fund --no-progress --update-notifier=false --fetch-retries=0 --fetch-timeout=30000 --cache ./npm-cache"
+  },
+  "engines": {
+    "engineCommit": "605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+    "platform": "windows",
+    "source": "Normal unmodified Prisma5.22.0 ensureBinariesExist/download path, official endpoint and default checksum verification.",
+    "checksumIgnoreFlags": false,
+    "mirrorOverrides": false,
+    "enginePathOverrides": false,
+    "cacheScope": "runtime-security-test-tools/engine-cache outside repositories",
+    "purpose": "CLI format startup dependency acquisition; actual formatting uses packaged Prisma WASM. This is not linux/amd64/musl ABI qualification.",
+    "files": [
+      {
+        "target": "query_engine-windows.dll.node",
+        "bytes": 19261952,
+        "SHA256": "7d58cada77c5833e57d2ab4ad61ea2948247b2caa8575066b2fe3bc7e4ea4e5a",
+        "officialUncompressedSHA256": "7d58cada77c5833e57d2ab4ad61ea2948247b2caa8575066b2fe3bc7e4ea4e5a",
+        "officialCompressedSHA256": "b72732897f7fb1d24ea9d26cb254b78b10d4257eaeb27f04d9fb82d20addc5d5",
+        "cacheMatchesInstalledTarget": true,
+        "downloadURL": "https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/windows/query_engine.dll.node.gz",
+        "checksumURLs": [
+          "https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/windows/query_engine.dll.node.sha256",
+          "https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/windows/query_engine.dll.node.gz.sha256"
+        ]
+      },
+      {
+        "target": "schema-engine-windows.exe",
+        "bytes": 18145792,
+        "SHA256": "a7d949e16cc5937aa77d67888c8993118ef16c764e536e9ed7c17cfe61bb65ad",
+        "officialUncompressedSHA256": "a7d949e16cc5937aa77d67888c8993118ef16c764e536e9ed7c17cfe61bb65ad",
+        "officialCompressedSHA256": "cfdcce35f151ea8e57772f07fd909b6118389119b76e51ab1105ef86f955048b",
+        "cacheMatchesInstalledTarget": true,
+        "downloadURL": "https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/windows/schema-engine.exe.gz",
+        "checksumURLs": [
+          "https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/windows/schema-engine.exe.sha256",
+          "https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/windows/schema-engine.exe.gz.sha256"
+        ]
+      }
+    ]
+  },
+  "tests": {
+    "command": "node --test scripts/qualification/runtime-production-closure.test.cjs apps/api/scripts/qualification/runtime-closure-contract.test.cjs apps/api/scripts/qualification/prisma-musl-target.test.cjs apps/api/scripts/qualification/runtime-closure-integration.test.cjs apps/api/scripts/qualification/platform-metadata.test.cjs apps/api/scripts/qualification/dependency-relations.test.cjs apps/api/scripts/qualification/derived-owner-repair.test.cjs apps/api/scripts/qualification/alpine-runtime-probe.test.cjs apps/api/scripts/qualification/alpine-amd64-qualification.test.cjs",
+    "nodeVersion": "v22.23.3",
+    "environment": {
+      "sanitized": true,
+      "CAPIRO_QUALIFICATION_ARCH": "unset",
+      "CAPIRO_QUALIFICATION_PRISMA_CLI": "<tools>/node_modules/prisma/build/index.js",
+      "CACHE_DIR": "<tools>/engine-cache",
+      "TEMP": "<tools>/test-temp",
+      "CHECKPOINT_DISABLE": "1",
+      "PRISMA_HIDE_UPDATE_MESSAGE": "1"
+    },
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "total": 113,
+    "passed": 113,
+    "failed": 0,
+    "skipped": 0,
+    "log": "focused-tests.tap",
+    "scope": "Source qualification helpers, schema formatter and synthetic native-owner fixtures; not real image/native ABI qualification."
+  },
+  "review": {
+    "independentReview": "PASS_NO_FINDINGS",
+    "verified": [
+      "Exact generator output equality and all seven canonical Git input hashes",
+      "All prior515nodes unchanged; no removed edges",
+      "Only five hash constants changed in runtime helper; native-owner/admission policies unchanged",
+      "Relation test changes only graph counts/title; optional-peer overlap11 preserved",
+      "Raw/formatted schema artifacts match all four refreshed pins",
+      "Scoped git diff --check passed"
+    ],
+    "reviewerWroteFiles": false
+  },
+  "reproduction": {
+    "generator": "node scripts/qualification/runtime-production-closure.cjs --yaml-module <tools>/node_modules/yaml --contract --out <evidence>/RUNTIME-CLOSURE-CONTRACT.generated.json",
+    "schema": "node <evidence>/derive-schema-pins.cjs <source> <tools>",
+    "tests": "node <evidence>/run-focused-tests.cjs <source> <tools>",
+    "inputs": "Canonical Git LF source bytes; generated contract is JSON with LF and one terminating newline."
+  },
+  "boundaries": {
+    "applicationFeatureFilesChanged": false,
+    "repositoryDependencyManifestsChanged": false,
+    "repositoryLockfileChanged": false,
+    "nativeOwnerPoliciesChanged": false,
+    "paidBuildRun": false,
+    "dockerRun": false,
+    "databaseConnection": false,
+    "awsCalled": false,
+    "deployed": false,
+    "committedByThisReviewer": false
+  },
+  "limits": [
+    "Only source qualification evidence and tests are complete.",
+    "No built image, Linux AMD64 musl native compatibility, startup, deployment or fresh exact-image scan qualification.",
+    "No claim that the seven reported Debian util-linux/zlib findings are resolved by this unbuilt source candidate."
+  ]
+}

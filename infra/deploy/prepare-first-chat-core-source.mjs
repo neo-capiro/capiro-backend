@@ -8,9 +8,13 @@ import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
 
+// This reviewed candidate reuses PR48's AMD64 musl qualification recipe.
+// Validate the same recipe that CodeBuild selects, including its pinned graph.
+const dockerfilePath = 'apps/api/Dockerfile.alpine-amd64-qualification';
 const inputPaths = [
   '.dockerignore',
-  'apps/api/Dockerfile',
+  dockerfilePath,
+  'docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json',
   'apps/api/package.json',
   'apps/api/nest-cli.json',
   'apps/api/tsconfig.json',
@@ -213,7 +217,7 @@ for (const path of inputPaths) {
 
 // Fail if the Dockerfile adds a new local COPY source without expanding the
 // reviewed inventory. Staged COPY --from references are generated internally.
-const dockerfile = git(['show', `${ref}:apps/api/Dockerfile`]);
+const dockerfile = git(['show', `${ref}:${dockerfilePath}`]);
 const localCopySources = new Set();
 for (const line of dockerfile.replace(/\\\r?\n\s*/g, ' ').split(/\r?\n/)) {
   const match = /^\s*COPY\s+(.+)$/i.exec(line);
@@ -250,7 +254,8 @@ const result = {
   fileCount: files.length,
   uncompressedBlobBytes: files.reduce((sum, file) => sum + file.size, 0),
   inventorySha256: sha256(inventoryText),
-  dockerfileSha256: sha256(git(['show', `${ref}:apps/api/Dockerfile`], null)),
+  dockerfilePath,
+  dockerfileSha256: sha256(git(['show', `${ref}:${dockerfilePath}`], null)),
   reviewedBuildspecSha256: sha256(git(['show', `${ref}:infra/deploy/first-chat-core-preview.buildspec.yml`], null)),
   criticalMigrationSha256: Object.fromEntries(migrationFiles.map(path =>
     [path, sha256(git(['show', `${ref}:${path}`], null))])),

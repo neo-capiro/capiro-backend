@@ -1,4 +1,5 @@
-# Source-only CodeBuild recipe for one frozen integrated Core image.
+# Source-only CodeBuild recipe for one frozen integrated Core AMD64 Alpine
+# qualification candidate. No execution or deployment is authorized by this file.
 # The reviewed project configuration pins APPROVED_SOURCE_SHA,
 # APPROVED_ARCHIVE_SHA256, APPROVED_SOURCE_BUCKET and
 # APPROVED_SOURCE_VERSION_ID to an exact versioned Git archive ZIP. Read back
@@ -67,18 +68,27 @@ phases:
           | sha256sum -c -
         stage=held-helper-migration-absence
         test ! -e apps/api/prisma/migrations/20281018100000_meri_memory_eligibility_helper
+        stage=qualification-source-presence
+        test -f apps/api/Dockerfile.alpine-amd64-qualification
+        test -f docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json
         stage=ecr-login
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
         stage=docker-build
         docker build --pull --platform linux/amd64 \
           --label "org.opencontainers.image.revision=$SOURCE_SHA" \
           --label org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend \
-          -f apps/api/Dockerfile -t "$IMAGE" .
+          -f apps/api/Dockerfile.alpine-amd64-qualification -t "$IMAGE" .
         stage=image-architecture
         test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = amd64
         stage=runtime-smoke
         docker run --rm --network none --entrypoint node "$IMAGE" -e \
           "const a=require('node:assert/strict'); a.equal(process.arch,'x64'); a.equal(process.version,'v22.23.3'); require('@prisma/client'); require('./dist/meri/meri.service.js');"
+        stage=alpine-native-runtime
+        sh apps/api/scripts/qualification/run-alpine-amd64-runtime-probes.sh "$IMAGE"
+        stage=alpine-isolated-entrypoint
+        sh apps/api/scripts/qualification/run-alpine-amd64-entrypoint-db-gate.sh "$IMAGE"
+        # This negative DB boundary is not full API startup. Independent exact-
+        # digest scan and fixture startup remain release gates after a build.
         stage=docker-push
         docker push "$IMAGE"
         stage=registry-digest

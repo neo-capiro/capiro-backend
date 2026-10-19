@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Complete finding inventory for the prior scanned image; not a scan or acceptance result for the unbuilt PR100 candidate.",
+  "observedAtUtc": "2026-10-19T21:03:31.4020464Z",
+  "priorScannedImage": {
+    "registryId": "967807252336",
+    "region": "us-east-1",
+    "repositoryName": "capiro/preview-core",
+    "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+    "sourceSha": "50475125275853299798fc40f8cb119f0b865464",
+    "buildId": "capiro-preview-first-chat-core-build:3049e163-298d-4fc4-8dbd-9e6bc87eb057",
+    "architecture": "amd64"
+  },
+  "candidate": {
+    "sourceHeadAtInventoryStart": "355bb11ae0a1e404f49411193a2b3f0e55190c16",
+    "imageDigest": null,
+    "scanStatus": "NOT_BUILT_NOT_SCANNED",
+    "baseFamilyDecision": "HELD",
+    "runtimeQualification": "HELD",
+    "newBuildAuthorization": "NOT_GRANTED_BY_THIS_DOCUMENT"
+  },
+  "collection": {
+    "operation": "ecr:DescribeImageScanFindings",
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "exactImageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+    "readOnly": true,
+    "newScanStarted": false,
+    "projection": "registryId, repositoryName, imageId, imageScanStatus, imageScanCompletedAt, vulnerabilitySourceUpdatedAt, findingSeverityCounts, complete basic findings (including descriptions, URI and all attributes), enhanced finding count, nextToken for pagination control only",
+    "priorEvidenceLimit": "PR99 BUILD-RECEIPT.json and retained terminal receipt contained the aggregate 7/2/2 counts and only the seven HIGH finding records. A fresh read of the existing scan was needed for the full inventory.",
+    "pagination": {
+      "requestedMaxResults": 100,
+      "pages": [
+        {
+          "pageNumber": 1,
+          "basicFindingCount": 11,
+          "enhancedFindingCount": 0,
+          "nextTokenPresent": false
+        }
+      ],
+      "exhausted": true,
+      "totalBasicFindings": 11
+    }
+  },
+  "checks": {
+    "terminalScanComplete": true,
+    "paginationExhausted": true,
+    "totalFindingCount": 11,
+    "uniqueFindingIdCount": 11,
+    "countedSeverities": {
+      "MEDIUM": 2,
+      "LOW": 2,
+      "HIGH": 7
+    },
+    "allReportedSeverityCountsMatch": true,
+    "sumReportedSeverityCounts": 11,
+    "enhancedFindingsReturned": 0
+  },
+  "interpretation": {
+    "criticalKeyPresent": false,
+    "criticalCount": null,
+    "missingSeverityMeaning": "Unreported severity keys, including CRITICAL, are absent rather than explicit zeros supplied by AWS. No missing key was rewritten as an observed zero.",
+    "fixAvailability": "The basic findings contain no fixAvailable or fixed-in-version attributes. Unknown does not mean no fix exists. Advisory analysis is separate in SCAN-DISPOSITIONS.md.",
+    "releaseGate": "FAIL: 11 recorded findings. The full zero-findings requirement is unmet. No advisory interpretation in this inventory removes, suppresses, waives, or marks any record fixed.",
+    "scope": "Current source-only candidate has no resulting immutable image or scan. These findings belong solely to the prior Bookworm image."
+  },
+  "normalizedFindings": [
+    {
+      "id": "CVE-2026-13595",
+      "severity": "MEDIUM",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-13595",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-13595"
+    },
+    {
+      "id": "CVE-2026-97399",
+      "severity": "LOW",
+      "packageName": "glibc",
+      "packageVersion": "2.36-9+deb12u14",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-97399",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-97399"
+    },
+    {
+      "id": "CVE-2026-78410",
+      "severity": "HIGH",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78410",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-78410"
+    },
+    {
+      "id": "CVE-2026-53615",
+      "severity": "HIGH",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-53615",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-53615"
+    },
+    {
+      "id": "CVE-2026-78409",
+      "severity": "HIGH",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78409",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-78409"
+    },
+    {
+      "id": "CVE-2026-76642",
+      "severity": "HIGH",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-76642",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-76642"
+    },
+    {
+      "id": "CVE-2026-95818",
+      "severity": "LOW",
+      "packageName": "glibc",
+      "packageVersion": "2.36-9+deb12u14",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-95818",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-95818"
+    },
+    {
+      "id": "CVE-2026-53613",
+      "severity": "HIGH",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-53613",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-53613"
+    },
+    {
+      "id": "CVE-2026-86805",
+      "severity": "MEDIUM",
+      "packageName": "glibc",
+      "packageVersion": "2.36-9+deb12u14",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-86805",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-86805"
+    },
+    {
+      "id": "CVE-2026-85091",
+      "severity": "HIGH",
+      "packageName": "zlib",
+      "packageVersion": "1.2.13.dfsg-1",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-85091",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-85091"
+    },
+    {
+      "id": "CVE-2026-78408",
+      "severity": "HIGH",
+      "packageName": "util-linux",
+      "packageVersion": "2.38.1-5+deb12u3",
+      "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78408",
+      "fixAvailability": "UNKNOWN_NOT_SUPPLIED_BY_BASIC_SCAN",
+      "fixedInVersion": null,
+      "rawRecordName": "CVE-2026-78408"
+    }
+  ],
+  "rawScan": {
+    "observedAtUtc": "2026-10-19T21:03:31.4020464Z",
+    "registryId": "967807252336",
+    "repositoryName": "capiro/preview-core",
+    "imageId": {
+      "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467"
+    },
+    "imageScanStatus": {
+      "status": "COMPLETE",
+      "description": "The scan was completed successfully."
+    },
+    "imageScanCompletedAt": "2026-10-19T20:34:28+00:00",
+    "vulnerabilitySourceUpdatedAt": "2026-10-19T20:34:28+00:00",
+    "findingSeverityCounts": {
+      "HIGH": 7,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "pagination": {
+      "requestedMaxResults": 100,
+      "pages": [
+        {
+          "pageNumber": 1,
+          "basicFindingCount": 11,
+          "enhancedFindingCount": 0,
+          "nextTokenPresent": false
+        }
+      ],
+      "exhausted": true,
+      "totalBasicFindings": 11
+    },
+    "findings": [
+      {
+        "name": "CVE-2026-13595",
+        "description": "A flaw was found in the libblkid library of util-linux. During nested partition probing, the BSD, Minix, Solaris x86, and UnixWare partition probers cache a raw pointer to a parent partition entry in a dynamically allocated array. When subsequent partition additions cause the array to be reallocated, this pointer becomes stale, leading to a heap use-after-free read. An attacker who can present a crafted block device image (for example, via USB insertion or a loop-mounted disk image) can trigger this flaw without user interaction, as libblkid is invoked automatically by udev/udisks as root on block-device hot-plug events. This could lead to limited information disclosure or denial of service.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-13595",
+        "severity": "MEDIUM",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "5.3"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:L/I:N/A:H"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-97399",
+        "description": "The strncasecmp function in the GNU C Library 2.24 and later optimized for the Power8 architecture may read one byte beyond the input size limit, which may crash a program when that byte is not readable. This condition may happen when the input strings to the strncasecmp function are attacker controlled in an application and they match all the way up to the edge of their page and the neighbouring page is either not mapped or is not readable.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-97399",
+        "severity": "LOW",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "3.7"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          {
+            "key": "package_version",
+            "value": "2.36-9+deb12u14"
+          },
+          {
+            "key": "package_name",
+            "value": "glibc"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-78410",
+        "description": "A flaw was found in util-linux. Restricted bind mounts take the source path from fstab but do not pin that source before the privileged mount. A local unprivileged user who can replace the authorized source or a writable ancestor can redirect SUID mount(8) to bind another host directory. If the fstab entry also sets X-mount.owner, X-mount.group, or X-mount.mode, root then changes ownership or mode on that redirected inode.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78410",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "7.8"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-53615",
+        "description": "util-linux is a random collection of Linux utilities. Before util-linux 2.41.4, `parse_dos_extended()` in `libblkid/src/partitions/dos.c` computes an extended-partition start sector with 32-bit addition and does not apply the extended-area bounds checks to the first two EBR entries. A local attacker who causes a crafted DOS extended-partition disk image or removable medium to be probed can wrap `cur_start + start` to sector zero and cause libblkid to report a false partition overlapping the MBR. This directly compromises the integrity of the reported partition metadata; disk modification or availability loss requires a separate downstream consumer to act on that metadata. This issue is fixed in 2.41.4.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-53615",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "8.0"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:L/I:H/A:H"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-78409",
+        "description": "The X-mount.subdir option uses a detached-tree fast path on Linux 6.15 and later and passes the configured subdirectory to open_tree() with AT_SYMLINK_NOFOLLOW. That flag does not stop intermediate symlink traversal or keep resolution inside the newly mounted filesystem. A local unprivileged user with an fstab-authorized X-mount.subdir entry can attach a host path at the intended mountpoint.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78409",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "7.0"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-76642",
+        "description": "util-linux versions through 2.41.5 and 2.42.2 fail to check mount helper exit status before running post-mount hooks, allowing unprivileged users to execute privileged operations on pre-existing filesystems. Attackers can exploit X-mount.idmap or X-mount.owner hooks to clone filesystems with inherited suid bits or modify target inode permissions after a helper fails, achieving privilege escalation.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-76642",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS4_SCORE",
+            "value": "8.5"
+          },
+          {
+            "key": "CVSS4_VECTOR",
+            "value": "CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-95818",
+        "description": "A stack-based buffer overflow in the dynamic loader (ld.so) of the GNU C Library (glibc) versions 2.14 through 2.44 allows a local attacker to crash or corrupt the memory of setuid/setgid (AT_SECURE) programs. When such a program's DT_RPATH or DT_RUNPATH begins with $ORIGIN and is followed by NUL or '/' the loader both reads past the end of the path buffer and writes past the end of a stack-allocated internal buffer. The corrupted loader stack can lead to a loader crash (denial of service) and limited disclosure of process memory.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-95818",
+        "severity": "LOW",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "3.6"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N"
+          },
+          {
+            "key": "package_version",
+            "value": "2.36-9+deb12u14"
+          },
+          {
+            "key": "package_name",
+            "value": "glibc"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-53613",
+        "description": "util-linux is a random collection of Linux utilities. In util-linux 2.17 through 2.41.6 and 2.42 through 2.42.3, and in 2.42.4 when the legacy `mount(2)` path is used without `/proc`, restricted non-root `mount` requests validate an `/etc/fstab` target before the mount operation re-resolves that pathname. A local low-privileged user authorized by an fstab `user` or `users` entry whose target has an attacker-writable ancestor can use `renameat2(RENAME_EXCHANGE)` to swap a path component and redirect an authorized mount to a root-owned location, such as mounting attacker-controlled content over `/etc/sudoers.d`, and thereby gain root privileges. Versions 2.41.5 and 2.42.2 pin targets for the new mount API, and 2.42.4 pins legacy targets through `/proc/self/fd`; the documented legacy fallback without `/proc` remains affected.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-53613",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "7.0"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-86805",
+        "description": "A time-of-check to time-of-use (TOCTOU) race condition in the dynamic loader (ld.so) of the GNU C Library (glibc) versions 2.14 through 2.44 allows a local attacker to escalate privileges. When expanding $ORIGIN in DT_RPATH for setuid/setgid (AT_SECURE) programs, glibc validates the lexically normalized search path against the trusted directories but then opens the raw, un-normalized path. On systems where the Linux fs.protected_hardlinks sysctl is disabled, a local attacker who hard-links such a program into an attacker-controlled directory and wins a race to replace an intermediate path component with a symbolic link can direct the loader outside the trusted directory, causing it to load an attacker-controlled shared object and execute arbitrary code with the elevated privileges of the program. Exploitation requires an installed setuid or setgid binary whose DT_RPATH uses $ORIGIN followed by \"..\" traversal that normalizes into a trusted directory, and the ability to hard-link that binary and win the race by swapping a path component for a symbolic link. Major Linux-based OS distributions ship with fs.protected_hardlinks enabled by default and mitigate the vulnerability.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-86805",
+        "severity": "MEDIUM",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "6.3"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:H/I:H/A:L"
+          },
+          {
+            "key": "package_version",
+            "value": "2.36-9+deb12u14"
+          },
+          {
+            "key": "package_name",
+            "value": "glibc"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-85091",
+        "description": "zlib versions 1.3.1.2 through 1.3.2 contain a heap buffer overflow vulnerability in the gz_vacate() function when processing non-blocking gzwrite() operations with stale external buffer pointers. Attackers can trigger the overflow by calling gzprintf() or gzvprintf() after a write stall, causing an unchecked memmove() to write beyond the internal input buffer boundary.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-85091",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS4_SCORE",
+            "value": "8.3"
+          },
+          {
+            "key": "CVSS4_VECTOR",
+            "value": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:N/VI:H/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X"
+          },
+          {
+            "key": "package_version",
+            "value": "1.2.13.dfsg-1"
+          },
+          {
+            "key": "package_name",
+            "value": "zlib"
+          }
+        ]
+      },
+      {
+        "name": "CVE-2026-78408",
+        "description": "The nsenter --join-cgroup option opens the target cgroup.procs file as root and leaves that file descriptor open across later namespace and credential changes and across execve(). Because the kernel checks later cgroup migrations using the credentials from the original open, a program run in an attacker-controlled target can inherit root's ability to move host processes between cgroups. After a privileged operator uses --join-cgroup against that target, an unprivileged user can migrate and terminate unrelated root processes.",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78408",
+        "severity": "HIGH",
+        "attributes": [
+          {
+            "key": "CVSS3_SCORE",
+            "value": "7.9"
+          },
+          {
+            "key": "CVSS3_VECTOR",
+            "value": "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:C/C:N/I:H/A:H"
+          },
+          {
+            "key": "package_version",
+            "value": "2.38.1-5+deb12u3"
+          },
+          {
+            "key": "package_name",
+            "value": "util-linux"
+          }
+        ]
+      }
+    ]
+  }
+}

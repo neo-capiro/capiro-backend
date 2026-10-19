@@ -1,0 +1,816 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-19 20:45:23 UTC",
+  "scope": "Read-only origin analysis of the exact successful Core image and a previously pinned public Alpine alternative. No source edits, paid build, retry, Docker execution, scan start, or AWS mutation.",
+  "builtImage": {
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "repositoryName": "capiro/preview-core",
+    "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+    "sourceSha": "50475125275853299798fc40f8cb119f0b865464",
+    "manifest": {
+      "schemaVersion": 2,
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "config": {
+        "mediaType": "application/vnd.docker.container.image.v1+json",
+        "size": 16703,
+        "digest": "sha256:a4bc88299a88b23e55eb7c0836eafd0db3e6104d9273b2d18dd91be57f7bfb4b"
+      },
+      "layers": [
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 29166224,
+          "digest": "sha256:56d14e8ac0f63e3493f7ebeff7526ecd2517aebd1260a98cf7b4af110b542115"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 3313,
+          "digest": "sha256:f0400f4b55b0ad346bf6167a1b64a258e4d73db608c457798ce35e4ffeebfaaf"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 49837030,
+          "digest": "sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 1713011,
+          "digest": "sha256:2cfab517365cfc6b4bd1f8c4cb01754884ef75bc38758b3c41e291c696f019f5"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 448,
+          "digest": "sha256:a8de9fa052209313d8e45435a8486e29b20eebaa820e2e7f63a7c3c94b4fa567"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 6156160,
+          "digest": "sha256:88b911d6d7e4b365ace0ec63f8701f8b183760274e37d910cf1f572421be4905"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 172,
+          "digest": "sha256:e5f42d45c7808adf4b6951379e32018f36b69ae2ec102448d6dbc8e676caea0c"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 32,
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 171510379,
+          "digest": "sha256:49b51e8e71184df067cc972e7c72e358e3d5c5087a84ff949a8da3a1ce365e19"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 462588,
+          "digest": "sha256:77bb625a076fbcd2694d69e8d537fa317f34c492c8e26eb641cc4c9dd4ed2aea"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 1213,
+          "digest": "sha256:34c8491568aea521049adfc33b7676082e8e15e3310079c4fb9922ad19dc9feb"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 576957,
+          "digest": "sha256:e93c06777e65e9a97814d07bbe3c31a80210cb4f102fb8792fa185fcef75f0c5"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 1085,
+          "digest": "sha256:74ebac222c03ac9e0cade1657e7cddcac3769079d5046de822eef3d1b3989edd"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 570,
+          "digest": "sha256:91020e6fa4c68262e43b61dc5ab8ae23d07909bee2234f02f120a41bac40a1d4"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 22596,
+          "digest": "sha256:4888fa80b938fa0222bb2fa3bc08de955722cba5e76893b92878e556e3ce059a"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 526,
+          "digest": "sha256:42dad2021527ec1e62d3accf753ba5052a2c197324a50ee95f37db4a96ad42bb"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 209192,
+          "digest": "sha256:96c8e4ae23f2529a4c72f00b178646b5eab91b4392f0bc379d21bf9a67a4d80d"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 836,
+          "digest": "sha256:aa0cd54e5e9bcf7c8f60234fced87095812d2c7382670bb32fef6673e2fc128a"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 302,
+          "digest": "sha256:d50a524c7c50311ff9c033719aaadc015b89ae3c8aee7101643950faa67c957d"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 9128654,
+          "digest": "sha256:c026b3d07f396a576091516ba1d8ace3eaeddf2776c511ee2b0f7b04460e64aa"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 3086,
+          "digest": "sha256:6ef86cc254ed4fa9ec39782f8f4ae51feae17a551788ff07f37c9a2d98c73bb0"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 758963,
+          "digest": "sha256:e543f0c2d4807f84acb72da91ec83e51ada23a58b8a18d89002164b214389141"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 1197298,
+          "digest": "sha256:8117d7599f1907a53ba28c4b04e22fac207dfb76e1526dd8f539fbfefa70280d"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 6039,
+          "digest": "sha256:988c5d5b58e56af40488858de4cf7c72f0ae6b72f2a20b1f456e2c80e5f8ea21"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 15742876,
+          "digest": "sha256:daab7a8d911ebbae79198bcf6d329670d6f7f8cd3db58c355d094ec6647bb311"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 20484128,
+          "digest": "sha256:f4ef25deb24037ebaf8e9564241165f40b7909df89cbcbc41f8fcd015da7649f"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 385,
+          "digest": "sha256:0c66cbed44db739524428b7e373cf81d015ef02b039457a807191e607424ecfe"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 505,
+          "digest": "sha256:bac9d6d0466c02de0bbb8f1096ffb7af7594e33081c80914ee9bc41cb19ca028"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 637,
+          "digest": "sha256:7573569b97451b12faa3c8cb72e81c4ec1c220bce52b714b1368dfcd5a6b3291"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 4882,
+          "digest": "sha256:5577f3167fb9b9374040fe278551206deb6f1f669fc81aaa6b96a00ddf2b85ae"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 5206,
+          "digest": "sha256:84456338415732e0c8f26efb52ee7c5aaeaccf076e79de838ff02823a3bf7b81"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 32,
+          "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1"
+        },
+        {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 91,
+          "digest": "sha256:0793f3a5792c0823dc39b1a0785a3970bcd90dd2e14bb09d28490645c5eac2b7"
+        }
+      ]
+    },
+    "config": {
+      "digest": "sha256:a4bc88299a88b23e55eb7c0836eafd0db3e6104d9273b2d18dd91be57f7bfb4b",
+      "sizeBytes": 16703,
+      "architecture": "amd64",
+      "os": "linux",
+      "created": "2026-10-19T20:31:26.538331737Z",
+      "sourceRevision": "50475125275853299798fc40f8cb119f0b865464",
+      "sourceRepository": "https://github.com/neo-capiro/capiro-backend",
+      "baseDigestLabel": null,
+      "baseNameLabel": null,
+      "rootfsType": "layers",
+      "rootfsDiffIds": [
+        "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+        "sha256:4990a62cab1587a2ed690c9d4f41675b9216d68120e99033d664b558662e90c8",
+        "sha256:3714bbaf32038e259cddcddea09e13fc9aaa1a86a644274a6c6e263b00972240",
+        "sha256:f6becc1249c39a0f6d687460220dcfcf9f2a46d01770a70fc0a8ed4c98a6fd49",
+        "sha256:cae24708e29a74f04cc1ec51fc52e2d283c35f243ab21912e036095a2b50dbde",
+        "sha256:47339f682a0bb5a0be3c12e6ee296fd0ad9825be3863c67f8f5049fc11d2f1bd",
+        "sha256:67db133aacf36d75eabae4a60b7ff46cfe4d73bafe5741295bd8ce832a522f25",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        "sha256:5ce85483c24b8ec7111e378f733b85fae12f46a825c7629eaf6783e6b254ecb8",
+        "sha256:b8be8f0cad6fcd5029a46c915524c53a20570c7c581480b09f2aa9c786773ec6",
+        "sha256:03566d58277df7f1cef9da799b3470eae9895239838c45abcd53820155352d8d",
+        "sha256:4ef732a2383b5f8c654969e58a8c45a15472cc74a1afa45c82a118aed77e109a",
+        "sha256:f0c52e008e2cb6ef605abe85d459dc8f6cdee02ef630da319d04f37b851d634c",
+        "sha256:d82e4978c9608fdf52b2f86e8087519499e35191b9a2d2bfbcf7889c6d87443c",
+        "sha256:54aaaf30573603525196c5255d91d572d8ea2e246a65121dde74058f3682d345",
+        "sha256:fe0caf1146cf4b868a75936ac95fc27da82406b56d05a05f5ac64c342e48d928",
+        "sha256:2fb0283d768107d4e9c771fc5732439666b416b482355189df241b83f57dda2b",
+        "sha256:97526cd1a31d0c95a308a9999f7e05a4f408c09294594efca8236b80b77fff88",
+        "sha256:a2d68358f9d27c3c13ab022faa1600731c1096a89edd045fa889b9230d9055e2",
+        "sha256:c74468aeaff0e94820c7fda41726710f646bede669a18e5d511ccb13e8c64729",
+        "sha256:7493a5bded7bfc1cae09ce1a433c63d75c83b823fdbc046d88f5a24191099b92",
+        "sha256:bb5b0502615cc2312854b898657ca7e7f8e9fda9b4660f9e81c55d7419fbb4e8",
+        "sha256:b5d8ccfa099249ce16cd1e61145c64b12884147d2b68c6aa793dfaaae690a050",
+        "sha256:45971bff373422dc66da0f1d2bafaedd5d76a95ee3c692487efcf6ef28c07773",
+        "sha256:bbaae406d0bfa58fabd4467b2c16150aac5802258036f5b376ba1d904e71a5f8",
+        "sha256:57ed94232b77c6f978baeda07c744463f3429d738ec572e22229edb27a49a8ff",
+        "sha256:567923ac98534659a57fff55e8c35e2ee6c80258bb22fd578ade0d2e494d20a7",
+        "sha256:8becde8d5c6b4ba9ebdb268a1312f6a3137404a14b87b909bebe92271883da98",
+        "sha256:81974c147ead3fa097367fa6e83526fbd898c33f231ac7b78ac9f2e4132c406f",
+        "sha256:679679f9e39b63d00850b1e8251927d330f045eeb5d856c04f6030ff0257c4e0",
+        "sha256:02ed5c6be060e84e7323741da1a991048752d206fec4cb55307c9197e1fc4268",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        "sha256:fbd7ddbe2f1fd01a431ba0f04a4289d8bd570335e5fec681cb81ab4392deaef6"
+      ],
+      "history": [
+        {
+          "created": "2026-10-05T00:00:00Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 1,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-06T01:45:05.891677742Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 2,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-06T01:45:26.957189441Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "node-version-metadata"
+        },
+        {
+          "created": "2026-10-06T01:45:26.957189441Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 3,
+          "instructionKind": "node-distribution-install"
+        },
+        {
+          "created": "2026-10-06T01:45:26.957189441Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "yarn-distribution-install"
+        },
+        {
+          "created": "2026-10-06T01:45:40.990616378Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 4,
+          "instructionKind": "yarn-distribution-install"
+        },
+        {
+          "created": "2026-10-06T01:45:41.041313292Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 5,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-06T01:45:41.041313292Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-06T01:45:41.041313292Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:27:27.308541677Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:27:27.308541677Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:27:27.308541677Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 6,
+          "instructionKind": "capiro-runtime-os-package-install-and-perl-upgrade"
+        },
+        {
+          "created": "2026-10-19T20:27:27.876976536Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 7,
+          "instructionKind": "capiro-runtime-tmp-directories"
+        },
+        {
+          "created": "2026-10-19T20:27:27.876976536Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:27:27.928972013Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 8,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:30:32.814770479Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 9,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:20.550223599Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 10,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:20.740556634Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 11,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:21.009183151Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 12,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:21.171929309Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 13,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:21.373715733Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 14,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:21.568847894Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 15,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:21.736738106Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 16,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:21.921259134Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 17,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:22.092799753Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 18,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:22.252697776Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 19,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:22.651724703Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 20,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:22.820690891Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 21,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:23.056767029Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 22,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:23.225260763Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 23,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:23.388770828Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 24,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:23.641066194Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 25,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:24.055893487Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 26,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:24.211794865Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 27,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:24.388713237Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 28,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:24.518870289Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 29,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:24.654853434Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 30,
+          "instructionKind": "copy"
+        },
+        {
+          "created": "2026-10-19T20:31:25.018713083Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 31,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:31:25.018713083Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:31:25.124946412Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 32,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:31:26.538331737Z",
+          "emptyLayer": false,
+          "nonemptyLayerIndex": 33,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:31:26.538331737Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:31:26.538331737Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        },
+        {
+          "created": "2026-10-19T20:31:26.538331737Z",
+          "emptyLayer": true,
+          "nonemptyLayerIndex": null,
+          "instructionKind": "other-image-instruction"
+        }
+      ]
+    }
+  },
+  "buildBaseMarkers": [
+    {
+      "timestamp": 1792441638002,
+      "message": "#2 [internal] load metadata for public.ecr.aws/docker/library/node:22.23.3-bookworm-slim\n"
+    },
+    {
+      "timestamp": 1792441640018,
+      "message": "#4 [base 1/3] FROM public.ecr.aws/docker/library/node:22.23.3-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392\n"
+    },
+    {
+      "timestamp": 1792441640018,
+      "message": "#4 resolve public.ecr.aws/docker/library/node:22.23.3-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 done\n"
+    },
+    {
+      "timestamp": 1792441640018,
+      "message": "#4 [base 1/3] FROM public.ecr.aws/docker/library/node:22.23.3-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392\n"
+    }
+  ],
+  "publicNodeBase": {
+    "baseIndexDigest": "sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392",
+    "indexMediaType": "application/vnd.oci.image.index.v1+json",
+    "platform": {
+      "architecture": "amd64",
+      "os": "linux"
+    },
+    "platformManifestDigest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
+    "manifest": {
+      "schemaVersion": 2,
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:d0a16be756b6ec6658aecb8b7bcf87fa6c7d0d7fcc6ca53ad14bb49a4c90bdd7",
+        "size": 6771
+      },
+      "layers": [
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:7fd1ebe418b5079d4aa36f416af9b143d127bc75b0155d71cb5fd559b5e04d39",
+          "size": 28249323
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:f0400f4b55b0ad346bf6167a1b64a258e4d73db608c457798ce35e4ffeebfaaf",
+          "size": 3313
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856",
+          "size": 49837030
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:2cfab517365cfc6b4bd1f8c4cb01754884ef75bc38758b3c41e291c696f019f5",
+          "size": 1713011
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:a8de9fa052209313d8e45435a8486e29b20eebaa820e2e7f63a7c3c94b4fa567",
+          "size": 448
+        }
+      ],
+      "annotations": {
+        "com.docker.official-images.bashbrew.arch": "amd64",
+        "org.opencontainers.image.base.digest": "sha256:a4672c0cb26fbdde88e38fa2dfb6c681942306680e41e4378b28770b6e79ee91",
+        "org.opencontainers.image.base.name": "debian:bookworm-slim",
+        "org.opencontainers.image.created": "2026-10-06T01:45:03Z",
+        "org.opencontainers.image.revision": "81f419144a1251854c6d9afb09eaa39928e724e8",
+        "org.opencontainers.image.source": "https://github.com/nodejs/docker-node.git#81f419144a1251854c6d9afb09eaa39928e724e8:22/bookworm-slim",
+        "org.opencontainers.image.url": "https://hub.docker.com/_/node",
+        "org.opencontainers.image.version": "22-bookworm-slim"
+      }
+    }
+  },
+  "publicNodeBaseConfig": {
+    "digest": "sha256:d0a16be756b6ec6658aecb8b7bcf87fa6c7d0d7fcc6ca53ad14bb49a4c90bdd7",
+    "architecture": "amd64",
+    "os": "linux",
+    "rootfsDiffIds": [
+      "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+      "sha256:4990a62cab1587a2ed690c9d4f41675b9216d68120e99033d664b558662e90c8",
+      "sha256:3714bbaf32038e259cddcddea09e13fc9aaa1a86a644274a6c6e263b00972240",
+      "sha256:f6becc1249c39a0f6d687460220dcfcf9f2a46d01770a70fc0a8ed4c98a6fd49",
+      "sha256:cae24708e29a74f04cc1ec51fc52e2d283c35f243ab21912e036095a2b50dbde"
+    ],
+    "historyCount": 9
+  },
+  "packageMetadata": {
+    "baseOsLayer": {
+      "compressedDigest": "sha256:7fd1ebe418b5079d4aa36f416af9b143d127bc75b0155d71cb5fd559b5e04d39",
+      "compressedBytes": 28249323,
+      "uncompressedDiffId": "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+      "packageMetadataMember": "var/lib/dpkg/status",
+      "packageRecordCount": 88,
+      "selectedPackages": [
+        {
+          "name": "bsdutils",
+          "version": "1:2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libblkid1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libmount1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libsmartcols1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libuuid1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "mount",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "util-linux",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "util-linux-extra",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "zlib1g",
+          "version": "1:1.2.13.dfsg-1",
+          "sourcePackage": "zlib",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        }
+      ],
+      "utilLinuxFamilyPresent": true,
+      "zlibFamilyPresent": true
+    },
+    "runtimeOsPackageLayer": {
+      "compressedDigest": "sha256:88b911d6d7e4b365ace0ec63f8701f8b183760274e37d910cf1f572421be4905",
+      "compressedBytes": 6156160,
+      "uncompressedDiffId": "sha256:47339f682a0bb5a0be3c12e6ee296fd0ad9825be3863c67f8f5049fc11d2f1bd",
+      "packageMetadataMember": "var/lib/dpkg/status",
+      "packageRecordCount": 94,
+      "selectedPackages": [
+        {
+          "name": "bsdutils",
+          "version": "1:2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libblkid1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libmount1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libsmartcols1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "libuuid1",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "mount",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "util-linux",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "util-linux-extra",
+          "version": "2.38.1-5+deb12u3",
+          "sourcePackage": "util-linux",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        },
+        {
+          "name": "zlib1g",
+          "version": "1:1.2.13.dfsg-1",
+          "sourcePackage": "zlib",
+          "architecture": "amd64",
+          "status": "install ok installed"
+        }
+      ],
+      "utilLinuxFamilyPresent": true,
+      "zlibFamilyPresent": true
+    },
+    "alternativeAlpineBase": {
+      "requestedDigest": "sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8",
+      "platformManifestDigest": "sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8",
+      "platform": {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      "configDigest": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+      "layers": [
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:e2de96513ba9eb53b431787ec8a65cdde380ac4772a3e4c4b714dcfde2a102b5",
+          "size": 3849738
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:f7f2d304681aaa935c9cfd180850cf616ae843efce7682873d6521ded7268937",
+          "size": 55585204
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:e554276b05e6306c5ad33cd85bfa7f0693083e21f6114db5abf60a20fb413039",
+          "size": 1262001
+        },
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:d39db1cf9caa4f49c5a2e67111fbe6e0d5eea8ede550cb82f3dc2b79712688d6",
+          "size": 447
+        }
+      ],
+      "rootfsDiffIds": [
+        "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711",
+        "sha256:ba3263475f993ce3855e4edf69b59a64716f9b4f4b43c369113a33f0c6a1b114",
+        "sha256:50a35fcbb91b0a6dd3821fb8ee87c3e44743f5f57c4337c1721280ff811f2d2a",
+        "sha256:ff5db628aec4eaf74f091c36d7fc5f855481dfa4de3cb6c0b05b0684bfcea637"
+      ],
+      "osLayer": {
+        "compressedDigest": "sha256:e2de96513ba9eb53b431787ec8a65cdde380ac4772a3e4c4b714dcfde2a102b5",
+        "compressedBytes": 3849738,
+        "uncompressedDiffId": "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711",
+        "packageMetadataMember": "lib/apk/db/installed",
+        "packageRecordCount": 16,
+        "selectedPackages": [
+          {
+            "name": "zlib",
+            "version": "1.3.2-r0",
+            "sourcePackage": "zlib",
+            "architecture": "x86_64",
+            "status": "installed"
+          }
+        ],
+        "utilLinuxFamilyPresent": false,
+        "zlibFamilyPresent": true
+      },
+      "scopeLimit": "Inventory covers the public Alpine OS layer only, not an unbuilt Capiro candidate or its later apk additions."
+    }
+  },
+  "checks": {
+    "builtSourceLabelMatchesFrozenSource": true,
+    "allFiveBaseDiffIdsMatchBuiltPrefix": true,
+    "baseLayerInventoryDiffIdMatchesConfig": true,
+    "runtimeLayerInventoryDiffIdMatchesBuiltConfig": true,
+    "selectedPackageMetadataIdenticalBeforeAndAfterRuntimeInstall": true,
+    "runtimeOsLayerMatchesBuiltManifest": true,
+    "alternativeAlpinePlatformIsAmd64": true
+  },
+  "conclusions": [
+    "High confidence: the affected util-linux and zlib packages originate in the inherited Debian Bookworm OS layer. The public base package database and the Core runtime OS-install layer record the same versions for all nine selected binary packages.",
+    "The exact resolved Node base index is sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392; its linux/amd64 child manifest is sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562.",
+    "Node's child manifest annotates its upstream base as debian:bookworm-slim at sha256:a4672c0cb26fbdde88e38fa2dfb6c681942306680e41e4378b28770b6e79ee91; this annotation is recorded, not independently resolved here.",
+    "Core's runtime OS package layer is layer 6, sha256:88b911d6d7e4b365ace0ec63f8701f8b183760274e37d910cf1f572421be4905. Frozen Dockerfile explicitly upgrades Perl packages only; it does not explicitly upgrade util-linux or zlib.",
+    "The public Alpine qualifier digest sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8 resolves directly to linux/amd64. Its OS layer has no util-linux family package and has zlib 1.3.2-r0. It does not by itself satisfy a zlib >=1.3.2-r1 gate."
+  ],
+  "limitations": [
+    "The first inherited OS layer uses different compressed blobs in the public OCI manifest and built Docker manifest: public sha256:7fd1ebe418b5079d4aa36f416af9b143d127bc75b0155d71cb5fd559b5e04d39 versus built sha256:56d14e8ac0f63e3493f7ebeff7526ecd2517aebd1260a98cf7b4af110b542115. Both config records identify the same uncompressed diff ID, sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7. No cause for the compression difference is asserted.",
+    "Only selected package metadata from the public OS layer and the 6 MB Core OS-install layer was inspected. Private application layers were not downloaded; no layer files were extracted to disk or published.",
+    "Alpine package inventory is scoped to its OS layer; later Node or candidate apk changes were not executed. No final candidate image or rescan exists from this investigation.",
+    "No advisory or fixed-version claim is made beyond observed package metadata. Parent owns advisory comparison and candidate source changes.",
+    "Opaque ECR signed URLs and anonymous public-registry tokens were retained only in process memory and never output or saved."
+  ]
+}

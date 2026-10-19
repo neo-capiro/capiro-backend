@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "inputSHA256": {
-    "package.json": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824",
-    "pnpm-lock.yaml": "01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c",
-    "apps/api/package.json": "10a90b3357aad5c52dc04ae2e00d25dadd5a501ee49a9eb8fd25e6904c501c40",
-    "packages/shared/package.json": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+    "package.json": "996d7ecefa2ce0def25c6e842e67002926dd10ed08d69921dbc1538e6334f9bf",
+    "pnpm-lock.yaml": "83518c0c80c23ecdab556511ca7567d100f0d96ac5cd26bfc3f0cc9241f41802",
+    "apps/api/package.json": "558ba9a1ea7206bedc2128bcaa6b69bc1f4b472ec390513cfde8d3c843a7eea8",
+    "packages/shared/package.json": "18ed3388e7fa6a7d8d8e864b763879a2a612fae69b8e6866f7546dd86370a235",
     "packages/meriv2-core/package.json": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
     "packages/defense-contracts/package.json": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
     "packages/defense-domain/package.json": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
@@ -106,6 +106,25 @@
       "peerContext": "",
       "resolution": {
         "integrity": "sha512-nmHWGKDkb5+F+2tsO43tAIo3r11o6FXx6s9s5pNcRgVQc6LzROFIqWs37GabHeVOAC1N5L4MKXoirjjrhEHCsA=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=20.0.0"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "@aws-sdk/client-kms@3.1141.0",
+      "name": "@aws-sdk/client-kms",
+      "version": "3.1141.0",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-dfdarFBC2U0j0oyb3PQPdQX0m/jrjNXmxD162OU/Ln+ZGUIAHYseeqo5XqgITKYM+83NnSzv3QpWmuELI7nirQ=="
       },
       "os": null,
       "cpu": null,
@@ -9774,6 +9793,12 @@
     },
     {
       "from": "importer:apps/api",
+      "dependencyName": "@aws-sdk/client-kms",
+      "kind": "dependencies",
+      "to": "@aws-sdk/client-kms@3.1141.0"
+    },
+    {
+      "from": "importer:apps/api",
       "dependencyName": "@aws-sdk/client-s3",
       "kind": "dependencies",
       "to": "@aws-sdk/client-s3@3.1141.0"
@@ -9879,6 +9904,18 @@
       "dependencyName": "@prisma/client",
       "kind": "dependencies",
       "to": "@prisma/client@5.22.0(prisma@5.22.0)"
+    },
+    {
+      "from": "importer:apps/api",
+      "dependencyName": "ajv",
+      "kind": "dependencies",
+      "to": "ajv@8.20.0"
+    },
+    {
+      "from": "importer:apps/api",
+      "dependencyName": "ajv-formats",
+      "kind": "dependencies",
+      "to": "ajv-formats@3.0.1(ajv@8.20.0)"
     },
     {
       "from": "importer:apps/api",
@@ -10266,6 +10303,54 @@
     },
     {
       "from": "@aws-sdk/client-efs@3.1141.0",
+      "dependencyName": "tslib",
+      "kind": "dependencies",
+      "to": "tslib@2.8.1"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@aws-sdk/core",
+      "kind": "dependencies",
+      "to": "@aws-sdk/core@3.978.1"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@aws-sdk/credential-provider-node",
+      "kind": "dependencies",
+      "to": "@aws-sdk/credential-provider-node@3.972.84"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@aws-sdk/types",
+      "kind": "dependencies",
+      "to": "@aws-sdk/types@3.974.6"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@smithy/core",
+      "kind": "dependencies",
+      "to": "@smithy/core@3.35.0"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@smithy/fetch-http-handler",
+      "kind": "dependencies",
+      "to": "@smithy/fetch-http-handler@5.8.0"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@smithy/node-http-handler",
+      "kind": "dependencies",
+      "to": "@smithy/node-http-handler@4.12.1"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
+      "dependencyName": "@smithy/types",
+      "kind": "dependencies",
+      "to": "@smithy/types@4.19.0"
+    },
+    {
+      "from": "@aws-sdk/client-kms@3.1141.0",
       "dependencyName": "tslib",
       "kind": "dependencies",
       "to": "tslib@2.8.1"
@@ -10845,6 +10930,36 @@
       "dependencyName": "prisma",
       "kind": "optionalDependencies",
       "to": "prisma@5.22.0"
+    },
+    {
+      "from": "ajv@8.20.0",
+      "dependencyName": "fast-deep-equal",
+      "kind": "dependencies",
+      "to": "fast-deep-equal@3.1.3"
+    },
+    {
+      "from": "ajv@8.20.0",
+      "dependencyName": "fast-uri",
+      "kind": "dependencies",
+      "to": "fast-uri@3.1.8"
+    },
+    {
+      "from": "ajv@8.20.0",
+      "dependencyName": "json-schema-traverse",
+      "kind": "dependencies",
+      "to": "json-schema-traverse@1.0.0"
+    },
+    {
+      "from": "ajv@8.20.0",
+      "dependencyName": "require-from-string",
+      "kind": "dependencies",
+      "to": "require-from-string@2.0.2"
+    },
+    {
+      "from": "ajv-formats@3.0.1(ajv@8.20.0)",
+      "dependencyName": "ajv",
+      "kind": "optionalDependencies",
+      "to": "ajv@8.20.0"
     },
     {
       "from": "cheerio@1.2.0",
@@ -12153,36 +12268,6 @@
       "dependencyName": "hono",
       "kind": "dependencies",
       "to": "hono@4.13.12"
-    },
-    {
-      "from": "ajv@8.20.0",
-      "dependencyName": "fast-deep-equal",
-      "kind": "dependencies",
-      "to": "fast-deep-equal@3.1.3"
-    },
-    {
-      "from": "ajv@8.20.0",
-      "dependencyName": "fast-uri",
-      "kind": "dependencies",
-      "to": "fast-uri@3.1.8"
-    },
-    {
-      "from": "ajv@8.20.0",
-      "dependencyName": "json-schema-traverse",
-      "kind": "dependencies",
-      "to": "json-schema-traverse@1.0.0"
-    },
-    {
-      "from": "ajv@8.20.0",
-      "dependencyName": "require-from-string",
-      "kind": "dependencies",
-      "to": "require-from-string@2.0.2"
-    },
-    {
-      "from": "ajv-formats@3.0.1(ajv@8.20.0)",
-      "dependencyName": "ajv",
-      "kind": "optionalDependencies",
-      "to": "ajv@8.20.0"
     },
     {
       "from": "cors@2.8.6",
