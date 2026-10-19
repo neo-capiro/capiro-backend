@@ -12,8 +12,8 @@
     {
       "field": "containerDefinitions[name=core].image",
       "before": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:46acfc0734fd40afdfca6851ab542173b9d35eb9658d35c60180d716c02acde8",
-      "after": null,
-      "resolveFrom": "Qualified immutable ECR digest of the one approved build of source 50475125275853299798fc40f8cb119f0b865464; tag alone is insufficient."
+      "after": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+      "resolveFrom": "Actual built image in BUILD-RECEIPT.json; source and digest matched, but scan gate failed. This proposed value is held and must not be deployed."
     },
     {
       "field": "containerDefinitions[name=core].environment[name=RELEASE_SHA]",
@@ -74,5 +74,18 @@
     "whole CDK/CloudFormation stack deployment",
     "meeting routes or PUT",
     "other ordinary-auth fixed reads"
-  ]
+  ],
+  "imageQualification": {
+    "source": "50475125275853299798fc40f8cb119f0b865464",
+    "digest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+    "buildStatus": "SUCCEEDED",
+    "scanStatus": "COMPLETE",
+    "scanFindingSeverityCounts": {
+      "HIGH": 7,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "scanGatePassed": false,
+    "deploymentEligible": false
+  }
 }

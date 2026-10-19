@@ -1,6 +1,8 @@
 # Frozen Core build and upload plan
 
-**APPROVED BUILD ONLY; execution receipt pending.** Neo's approval, relayed by the parent at **2026-10-19 20:21 UTC**, allocates **$6 total: $4 Core + $2 frontend**, within the **$616 overall cap**, for one attempt each plus bounded rollout costs. The root shipping owner may perform the exact Core archive upload, dedicated-project pin update and one reviewed build/image push below after fresh gates. This lane executes no AWS writes. **Deployment remains held until the parent's concrete configuration/route review**; this approval does not waive that gate or authorize SQL, grants, unrelated route changes or secret-value retrieval. Runtime source and original request templates/idempotency token remain unchanged. Actual upload/build/image outputs remain unresolved in this plan; the root owner will record them separately in `BUILD-RECEIPT.json`.
+**Historical approved plan; the single build has completed successfully and its scan did not pass the zero-findings gate.** [BUILD-RECEIPT.json](./BUILD-RECEIPT.json) records the actual upload, project update, build and image/scan results. The existing scan returned 7 HIGH, 2 MEDIUM and 2 LOW findings. The one-attempt authorization is consumed; do not rerun these instructions. No retry or deployment occurred.
+
+Neo's approval, relayed by the parent at **2026-10-19 20:21 UTC**, allocated **$6 total: $4 Core + $2 frontend**, within the **$616 overall cap**, for one attempt each plus bounded rollout costs. The root shipping owner performed the exact Core archive upload, dedicated-project pin update and one reviewed build/image push after fresh gates. **Deployment remains held for scan review and the parent's concrete configuration/route review**; the build approval does not waive those gates or authorize SQL, grants, unrelated route changes or secret-value retrieval. Runtime source and original request templates/idempotency token remain unchanged. Below is the retained pre-execution plan; its old readbacks and unresolved template fields are historical, with actual results recorded separately in the receipt.
 
 The runtime source remains **`50475125275853299798fc40f8cb119f0b865464`**, tree `c01138fed2e0e89e50f0f54f35c0ff4d4415c9b4`. A later documentation commit containing this plan must never replace that runtime pin. Machine-readable pins and request templates are in [build-plan.json](./build-plan.json). Every null in its unresolved outputs or request templates is an unresolved value, not an instruction to send null to AWS.
 
@@ -26,11 +28,11 @@ node infra/deploy/prepare-first-chat-core-source.mjs --ref 50475125275853299798f
 
 Extract the buildspec from the frozen Git blob as raw bytes, independently check its LF hash, and decode those bytes as UTF-8 for the inline project recipe. Do not hash the Windows CRLF checkout or use a later documentation HEAD. The archive contains Docker inputs only; it does not supply the project's inline recipe. Its reviewed Stage 1 migration hash is `f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51`; held helper migration `20281018100000_meri_memory_eligibility_helper` is absent. These are source checks, not permission to execute any migration.
 
-## Exact target and current-to-proposed diff
+## Exact target and historical before-to-proposed diff
 
 Account `967807252336`, region `us-east-1`; project **`capiro-preview-first-chat-core-build`**; existing role **`arn:aws:iam::967807252336:role/capiro-codebuild-role`**. Do not use the generic `capiro-build-intel-api` project or any deployment pipeline.
 
-| Field | Current readback | Proposed after approval |
+| Field | Pre-execution readback | Reviewed proposal |
 | --- | --- | --- |
 | Source type | S3 | Same |
 | Source location | `capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-5baef67a0ce7d67ae96255022ec7c5beb5364f8a.zip` | `capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip` |
@@ -71,6 +73,6 @@ Exact upload target: `s3://capiro-portfolio-preview-source-967807252336-us-east-
 
 One build, max 60-minute configured timeout / 5-minute queue, concurrency 1, retries 0. Verified AWS Price List Linux/x86-64 OnDemand-EC2 general1.large rate is **$0.02/minute**, SKU `8MTWRQ8M475YQT7D`, rate code `8MTWRQ8M475YQT7D.JRTCKXETXF.6YS6EN2CT7`, effective 2026-08-01, read 2026-10-19: 60 billed minutes = **$1.20**. A conservative 65 billed minutes = $1.30. The allocated bounded rollout allowance covers at most 30 minutes of one extra current-size 0.5-vCPU/1-GiB task, about **$0.01234** compute, but deployment execution stays held for the parent's concrete configuration/route review. Combined baseline compute estimate is about $1.21234, leaving about $2.78766 of the allocated Core $4 for billable overhead/ancillaries. Storage, logs, transfer and shared-service usage remain additional; the allocation is not an AWS-enforced dollar ceiling or a statement of actual spend. No retry, new infrastructure, sustained replica or private qualification task is included.
 
-Approval for this frozen source/archive/recipe, narrow project diff and one paid build has been received. The root owner must still pass the specified fresh gates and resolve upload-derived fields before submitting the unchanged requests. Do not request the same build authorization again. Deployment approval gates and unknown execution outputs remain separate; this documentation edit is not a build or deployment receipt.
+Approval for this frozen source/archive/recipe, narrow project diff and one paid build was received and used once. Fresh gates passed before execution; actual outputs are in [BUILD-RECEIPT.json](./BUILD-RECEIPT.json). The nonzero scan stops shipping under the recorded gate. Remediation, another build or deployment requires a separately reviewed decision; none is implied by this retained plan.
 
 References: [AWS StartBuild](https://docs.aws.amazon.com/cli/latest/reference/codebuild/start-build.html), [CodeBuild pricing](https://aws.amazon.com/codebuild/pricing/), [S3 PutObject](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html).

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "BUILD_STARTED_NOT_DEPLOYED",
+  "status": "BUILD_SUCCEEDED_SCAN_GATE_FAILED_NOT_DEPLOYED",
   "authorization": {
     "receivedAtUtc": "2026-10-19T20:21:00Z",
     "coreUsd": 4,
@@ -80,16 +80,23 @@
     "overrideFields": []
   },
   "qualification": {
-    "buildTerminalStatus": null,
-    "imageDigest": null,
-    "scanStatus": null,
-    "scanFindingSeverityCounts": null,
+    "buildTerminalStatus": "SUCCEEDED",
+    "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+    "scanStatus": "COMPLETE",
+    "scanFindingSeverityCounts": {
+      "HIGH": 7,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
     "runtimeSource": null,
     "runtimeDigest": null,
     "routeActivation": false,
     "taskRegistration": false,
     "serviceUpdate": false,
-    "dnsChange": false
+    "dnsChange": false,
+    "scanZeroFindingsGatePassed": false,
+    "deploymentEligible": false,
+    "holdReason": "Existing scan returned 7 HIGH, 2 MEDIUM and 2 LOW findings. Parent scan/configuration/route review and FE/Meri coordination remain required. No retry is authorized."
   },
   "writesCompleted": [
     "One conditional source-object upload",
@@ -104,5 +111,448 @@
     "migrations/schema/data",
     "Meri configuration",
     "frontend release"
-  ]
+  ],
+  "terminalObservation": {
+    "schemaVersion": 1,
+    "observedAtUtc": "2026-10-19T20:36:32Z",
+    "status": "BUILD_SUCCEEDED_SCAN_COMPLETE_WITH_HIGH_FINDINGS_DEPLOYMENT_HELD",
+    "scope": "Read-only observation of the single authorized Core build and its exact ECR image. No retry, scan start, or deployment.",
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "expected": {
+      "sourceSha": "50475125275853299798fc40f8cb119f0b865464",
+      "archiveSha256": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+      "sourceBucket": "capiro-portfolio-preview-source-967807252336-us-east-1",
+      "sourceKey": "inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+      "sourceVersionId": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+      "buildspecSha256": "eab9286249f8d101f39d9abd09052248ee7bb5d74095419b2b680fa60b0e67f3"
+    },
+    "equalityChecks": {
+      "sourceSha": true,
+      "archiveSha256": true,
+      "sourceBucket": true,
+      "sourceVersionInput": true,
+      "actualBuildSourceVersion": true,
+      "sourceLocation": true,
+      "actualBuildspecSha256": true,
+      "imageTagMatchesSource": true,
+      "scanDigestMatchesImage": true,
+      "currentProjectSourceVersion": true,
+      "currentProjectSourceLocation": true,
+      "currentProjectBuildspecSha256": true,
+      "projectAndActualBuildRecipeEqual": true,
+      "currentProjectApprovedInputs": true
+    },
+    "build": {
+      "id": "capiro-preview-first-chat-core-build:3049e163-298d-4fc4-8dbd-9e6bc87eb057",
+      "arn": "arn:aws:codebuild:us-east-1:967807252336:build/capiro-preview-first-chat-core-build:3049e163-298d-4fc4-8dbd-9e6bc87eb057",
+      "buildStatus": "SUCCEEDED",
+      "buildComplete": true,
+      "currentPhase": "COMPLETED",
+      "startTime": "2026-10-19T20:26:49.178+00:00",
+      "endTime": "2026-10-19T20:31:57.736+00:00",
+      "sourceVersion": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+      "resolvedSourceVersion": null,
+      "source": {
+        "type": "S3",
+        "location": "capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "buildspecSha256": "eab9286249f8d101f39d9abd09052248ee7bb5d74095419b2b680fa60b0e67f3"
+      },
+      "environment": {
+        "type": "LINUX_CONTAINER",
+        "image": "aws/codebuild/standard:8.0",
+        "computeType": "BUILD_GENERAL1_LARGE",
+        "privilegedMode": true,
+        "imagePullCredentialsType": "CODEBUILD",
+        "approvedInputs": [
+          {
+            "name": "APPROVED_SOURCE_SHA",
+            "value": "50475125275853299798fc40f8cb119f0b865464",
+            "type": "PLAINTEXT"
+          },
+          {
+            "name": "APPROVED_ARCHIVE_SHA256",
+            "value": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+            "type": "PLAINTEXT"
+          },
+          {
+            "name": "APPROVED_SOURCE_BUCKET",
+            "value": "capiro-portfolio-preview-source-967807252336-us-east-1",
+            "type": "PLAINTEXT"
+          },
+          {
+            "name": "APPROVED_SOURCE_VERSION_ID",
+            "value": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+            "type": "PLAINTEXT"
+          }
+        ]
+      },
+      "timeoutInMinutes": 60,
+      "queuedTimeoutInMinutes": 5,
+      "phases": [
+        {
+          "phaseType": "SUBMITTED",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": null
+        },
+        {
+          "phaseType": "QUEUED",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": null
+        },
+        {
+          "phaseType": "PROVISIONING",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 7,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "DOWNLOAD_SOURCE",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 2,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "INSTALL",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "PRE_BUILD",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "BUILD",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 296,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "POST_BUILD",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "UPLOAD_ARTIFACTS",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "FINALIZING",
+          "phaseStatus": "SUCCEEDED",
+          "durationInSeconds": 0,
+          "contextStatusCodes": [
+            ""
+          ]
+        },
+        {
+          "phaseType": "COMPLETED",
+          "phaseStatus": null,
+          "durationInSeconds": null,
+          "contextStatusCodes": null
+        }
+      ]
+    },
+    "buildWallTimeSeconds": 308.558,
+    "image": {
+      "registryId": "967807252336",
+      "repositoryName": "capiro/preview-core",
+      "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+      "imageTags": [
+        "50475125275853299798fc40f8cb119f0b865464"
+      ],
+      "imageSizeInBytes": 307012087,
+      "imagePushedAt": "2026-10-19T20:31:55.899000+00:00",
+      "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "artifactMediaType": "application/vnd.docker.container.image.v1+json",
+      "imageScanStatus": null,
+      "imageScanFindingsSummary": null,
+      "immutableImageUri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467"
+    },
+    "scan": {
+      "registryId": "967807252336",
+      "repositoryName": "capiro/preview-core",
+      "imageId": {
+        "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467"
+      },
+      "imageScanStatus": {
+        "status": "COMPLETE",
+        "description": "The scan was completed successfully."
+      },
+      "imageScanFindings": {
+        "imageScanCompletedAt": "2026-10-19T20:34:28+00:00",
+        "vulnerabilitySourceUpdatedAt": "2026-10-19T20:34:28+00:00",
+        "findingSeverityCounts": {
+          "HIGH": 7,
+          "MEDIUM": 2,
+          "LOW": 2
+        }
+      }
+    },
+    "evidenceLimits": [
+      "Source equality comes from the actual build source location/version, the four explicitly selected nonsecret approved inputs, the actual recipe hash, the current project recipe and inputs, and the exact ECR source tag. No runtime deployment or live compatibility assertion is made.",
+      "The completed scan reports HIGH 7, MEDIUM 2, LOW 2. Other severity keys, including CRITICAL, were not returned; the raw severity map is preserved. This is not a clean scan or a deployment clearance.",
+      "Offline check evidence is qualified by the matching fail-fast recipe and successful BUILD phase; individual check stdout and full build logs were not fetched.",
+      "No arbitrary environment variables, credentials, private network addresses, or secret references were retrieved.",
+      "AWS billing has not been queried; elapsed duration is not a billing receipt.",
+      "Deployment remains held for the parent configuration, route, and scan review. This observer performed no AWS writes."
+    ],
+    "currentProject": {
+      "name": "capiro-preview-first-chat-core-build",
+      "sourceVersion": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+      "source": {
+        "type": "S3",
+        "location": "capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "buildspecSha256": "eab9286249f8d101f39d9abd09052248ee7bb5d74095419b2b680fa60b0e67f3"
+      },
+      "approvedInputs": [
+        {
+          "name": "APPROVED_SOURCE_SHA",
+          "value": "50475125275853299798fc40f8cb119f0b865464",
+          "type": "PLAINTEXT"
+        },
+        {
+          "name": "APPROVED_ARCHIVE_SHA256",
+          "value": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+          "type": "PLAINTEXT"
+        },
+        {
+          "name": "APPROVED_SOURCE_BUCKET",
+          "value": "capiro-portfolio-preview-source-967807252336-us-east-1",
+          "type": "PLAINTEXT"
+        },
+        {
+          "name": "APPROVED_SOURCE_VERSION_ID",
+          "value": "TDiU.O1kGG_gMyr8nkAQz5CkQKTY_VPl",
+          "type": "PLAINTEXT"
+        }
+      ],
+      "autoRetryLimit": 0
+    },
+    "offlineCheckEvidence": {
+      "basis": "The actual build recipe hash equals the frozen source recipe and the current project recipe. Its single BUILD command uses set -euo pipefail and unconditional checks before its final successful exit. AWS reports BUILD SUCCEEDED. This establishes the checks below passed through the recorded build outcome; individual stdout was not retrieved.",
+      "frozenRecipePath": "infra/deploy/first-chat-core-preview.buildspec.yml",
+      "passedChecks": [
+        "x86_64 build host, us-east-1 region, and account 967807252336.",
+        "Exact source S3 VersionId and full archive SHA-256 before extraction; CodeBuild resolvedSourceVersion empty.",
+        "Required integrated source and receipt migrations present; reviewed stage-one migration checksum matches; held helper migration directory absent.",
+        "Docker image architecture amd64.",
+        "Offline docker run with --network none: process.arch x64, Node v22.23.3, require('@prisma/client'), and require('./dist/meri/meri.service.js').",
+        "Published registry digest has valid sha256 form and matches the local image RepoDigests."
+      ],
+      "notEstablishedByTheseChecks": [
+        "Database migration application or live schema compatibility.",
+        "Live application authentication, Meri delegation, route access, or service health for the new image.",
+        "A vulnerability-free image."
+      ]
+    },
+    "highFindingReadback": {
+      "registryId": "967807252336",
+      "repositoryName": "capiro/preview-core",
+      "imageId": {
+        "imageDigest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467"
+      },
+      "imageScanStatus": {
+        "status": "COMPLETE",
+        "description": "The scan was completed successfully."
+      },
+      "imageScanCompletedAt": "2026-10-19T20:34:28+00:00",
+      "findingSeverityCounts": {
+        "HIGH": 7,
+        "MEDIUM": 2,
+        "LOW": 2
+      },
+      "highFindings": [
+        {
+          "name": "CVE-2026-78410",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78410",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS3_SCORE",
+            "CVSS3_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "2.38.1-5+deb12u3"
+            },
+            {
+              "key": "package_name",
+              "value": "util-linux"
+            }
+          ]
+        },
+        {
+          "name": "CVE-2026-53615",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-53615",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS3_SCORE",
+            "CVSS3_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "2.38.1-5+deb12u3"
+            },
+            {
+              "key": "package_name",
+              "value": "util-linux"
+            }
+          ]
+        },
+        {
+          "name": "CVE-2026-78409",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78409",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS3_SCORE",
+            "CVSS3_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "2.38.1-5+deb12u3"
+            },
+            {
+              "key": "package_name",
+              "value": "util-linux"
+            }
+          ]
+        },
+        {
+          "name": "CVE-2026-76642",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-76642",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS4_SCORE",
+            "CVSS4_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "2.38.1-5+deb12u3"
+            },
+            {
+              "key": "package_name",
+              "value": "util-linux"
+            }
+          ]
+        },
+        {
+          "name": "CVE-2026-53613",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-53613",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS3_SCORE",
+            "CVSS3_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "2.38.1-5+deb12u3"
+            },
+            {
+              "key": "package_name",
+              "value": "util-linux"
+            }
+          ]
+        },
+        {
+          "name": "CVE-2026-85091",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-85091",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS4_SCORE",
+            "CVSS4_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "1.2.13.dfsg-1"
+            },
+            {
+              "key": "package_name",
+              "value": "zlib"
+            }
+          ]
+        },
+        {
+          "name": "CVE-2026-78408",
+          "severity": "HIGH",
+          "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-78408",
+          "fixAvailable": null,
+          "attributeNames": [
+            "CVSS3_SCORE",
+            "CVSS3_VECTOR",
+            "package_version",
+            "package_name"
+          ],
+          "packageAttributes": [
+            {
+              "key": "package_version",
+              "value": "2.38.1-5+deb12u3"
+            },
+            {
+              "key": "package_name",
+              "value": "util-linux"
+            }
+          ]
+        }
+      ],
+      "enhancedHighFindings": null
+    },
+    "scanInterpretation": {
+      "reportedSeverityCounts": {
+        "HIGH": 7,
+        "MEDIUM": 2,
+        "LOW": 2
+      },
+      "criticalKeyPresent": false,
+      "criticalCount": null,
+      "criticalInterpretation": "CRITICAL is absent from the returned map, not an explicit zero supplied by AWS. No CRITICAL count was invented.",
+      "highFindingsReturned": 7,
+      "highCountMatchesReturnedFindings": true,
+      "fixAvailability": "Not supplied by this basic ECR scan response: fixAvailable null, no fixed-in-version/fix-availability package attributes, enhancedHighFindings null. This does not establish that no fix exists."
+    }
+  }
 }

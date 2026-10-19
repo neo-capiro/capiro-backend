@@ -1,16 +1,22 @@
 {
   "schemaVersion": 1,
-  "status": "APPROVED_BUILD_ONLY_EXECUTION_RECEIPT_PENDING",
+  "status": "HISTORICAL_APPROVED_PLAN_EXECUTED_ONCE_SEE_BUILD_RECEIPT",
   "authorization": {
     "approvedBy": "Neo",
     "relayedBy": "parent shipping owner",
     "relayedAtUtc": "2026-10-19T20:21:00Z",
-    "approvedCoreActions": ["exact archive upload", "dedicated project pin update", "one reviewed build and image push"],
+    "approvedCoreActions": [
+      "exact archive upload",
+      "dedicated project pin update",
+      "one reviewed build and image push"
+    ],
     "coreExecutionOwner": "root shipping owner",
-    "freshGatesStillRequired": true,
+    "freshGatesStillRequired": false,
     "deploymentStatus": "HELD_PENDING_PARENT_CONCRETE_CONFIGURATION_AND_ROUTE_REVIEW",
     "executionReceiptFile": "BUILD-RECEIPT.json",
-    "thisLaneExecutedAwsWrites": false
+    "freshGatesPassedBeforeExecution": true,
+    "originalPlanPreparationExecutedAwsWrites": false,
+    "authorizedExecutionRecordedSeparately": true
   },
   "account": "967807252336",
   "region": "us-east-1",
@@ -42,9 +48,24 @@
     "s3HistoricalVersionsEnumerated": false,
     "roleArn": "arn:aws:iam::967807252336:role/capiro-codebuild-role",
     "iamSimulation": [
-      {"action": "s3:GetObject", "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip", "decision": "allowed", "missingContext": []},
-      {"action": "s3:GetObjectVersion", "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip", "decision": "allowed", "missingContext": []},
-      {"action": "s3:GetBucketLocation", "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1", "decision": "allowed", "missingContext": []}
+      {
+        "action": "s3:GetObject",
+        "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "decision": "allowed",
+        "missingContext": []
+      },
+      {
+        "action": "s3:GetObjectVersion",
+        "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "decision": "allowed",
+        "missingContext": []
+      },
+      {
+        "action": "s3:GetBucketLocation",
+        "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1",
+        "decision": "allowed",
+        "missingContext": []
+      }
     ],
     "simulationIsNotEffectiveAccessGuarantee": true,
     "grantsChanged": false
@@ -58,7 +79,10 @@
     "buildspecUtf8Bytes": 5008,
     "sourceInsecureSsl": false,
     "sourceAuthPresent": false,
-    "environmentVariableNames": ["APPROVED_SOURCE_BUCKET", "APPROVED_SOURCE_VERSION_ID"]
+    "environmentVariableNames": [
+      "APPROVED_SOURCE_BUCKET",
+      "APPROVED_SOURCE_VERSION_ID"
+    ]
   },
   "preserve": {
     "serviceRole": "arn:aws:iam::967807252336:role/capiro-codebuild-role",
@@ -112,10 +136,26 @@
         "privilegedMode": true,
         "imagePullCredentialsType": "CODEBUILD",
         "environmentVariables": [
-          {"name": "APPROVED_SOURCE_SHA", "type": "PLAINTEXT", "value": "50475125275853299798fc40f8cb119f0b865464"},
-          {"name": "APPROVED_ARCHIVE_SHA256", "type": "PLAINTEXT", "value": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b"},
-          {"name": "APPROVED_SOURCE_BUCKET", "type": "PLAINTEXT", "value": "capiro-portfolio-preview-source-967807252336-us-east-1"},
-          {"name": "APPROVED_SOURCE_VERSION_ID", "type": "PLAINTEXT", "value": null}
+          {
+            "name": "APPROVED_SOURCE_SHA",
+            "type": "PLAINTEXT",
+            "value": "50475125275853299798fc40f8cb119f0b865464"
+          },
+          {
+            "name": "APPROVED_ARCHIVE_SHA256",
+            "type": "PLAINTEXT",
+            "value": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b"
+          },
+          {
+            "name": "APPROVED_SOURCE_BUCKET",
+            "type": "PLAINTEXT",
+            "value": "capiro-portfolio-preview-source-967807252336-us-east-1"
+          },
+          {
+            "name": "APPROVED_SOURCE_VERSION_ID",
+            "type": "PLAINTEXT",
+            "value": null
+          }
         ]
       }
     },
@@ -128,9 +168,19 @@
   "materialization": {
     "putObject.Body": "Exact verified local archive bytes; resolve outside-worktree file location only at approved execution time. CLI --body takes the file path without file:// or fileb://.",
     "updateProject.source.buildspec": "Exact UTF-8/LF Git blob at source.commit:source.buildspecPath; verify source.buildspecGitBlobSha256 before use.",
-    "versionConsumers": ["updateProject.sourceVersion", "updateProject.environment.environmentVariables[name=APPROVED_SOURCE_VERSION_ID].value", "startBuild.sourceVersion"],
+    "versionConsumers": [
+      "updateProject.sourceVersion",
+      "updateProject.environment.environmentVariables[name=APPROVED_SOURCE_VERSION_ID].value",
+      "startBuild.sourceVersion"
+    ],
     "versionRule": "Fill all consumers with the same VersionId returned by PutObject and confirmed by version-specific HeadObject; never substitute a Git SHA, latest version, branch or historical VersionId.",
-    "postUploadHeadObject": {"ExpectedBucketOwner": "967807252336", "ChecksumMode": "ENABLED", "expectedContentLength": 43408386, "expectedChecksumSHA256": "Ho1odKmbciRROw0vnZKlxesCfzFg84VhtQSazDu0wXs=", "expectedServerSideEncryption": "AES256"},
+    "postUploadHeadObject": {
+      "ExpectedBucketOwner": "967807252336",
+      "ChecksumMode": "ENABLED",
+      "expectedContentLength": 43408386,
+      "expectedChecksumSHA256": "Ho1odKmbciRROw0vnZKlxesCfzFg84VhtQSazDu0wXs=",
+      "expectedServerSideEncryption": "AES256"
+    },
     "unresolvedNullsMustNeverBeSubmitted": true
   },
   "expectedOutputs": {
@@ -157,7 +207,9 @@
     "uncertainStartRule": "Resolve original outcome from build metadata before any resend; do not assume deduplication after five minutes.",
     "noEcsOrSqlInBuild": true,
     "approvalRequiredBeforeUploadProjectUpdateAndPaidBuild": true,
-    "approvalReceivedForUploadProjectUpdateAndOnePaidBuild": true
+    "approvalReceivedForUploadProjectUpdateAndOnePaidBuild": true,
+    "authorizedAttemptConsumed": true,
+    "furtherStartBuildAuthorized": false
   },
   "costProposal": {
     "allocated": true,
@@ -181,5 +233,6 @@
     "baselineComputeEstimateUsd": 1.2123426,
     "proposedAncillaryHeadroomUsd": 2.7876574,
     "hardAwsDollarCap": false
-  }
+  },
+  "historicalTemplateNotice": "Pre-execution readbacks and unresolved request/output templates are retained for provenance. Actual results are in BUILD-RECEIPT.json. The one authorized attempt is consumed; do not rerun these templates."
 }
