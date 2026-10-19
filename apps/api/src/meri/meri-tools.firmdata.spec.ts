@@ -7,6 +7,10 @@ import { ContextResolverService } from '../context/context-resolver.service.js';
 import type { ContextResolutionRequest } from '../context/context-resolver.types.js';
 import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
 import { generatedOoxmlBytes } from './meri-artifact-test-fixtures.js';
+import {
+  currentMeriSamProducerContext,
+  withMeriReadObservation,
+} from './meri-funding-read-observation.js';
 
 // This suite supplies the engagement port below. Loading its entire mail and
 // generation dependency graph is unrelated to testing Meri's tool dispatch.
@@ -867,6 +871,31 @@ describe('query_regulatory_dockets', () => {
 });
 
 describe('search_sam_opportunities', () => {
+  const observedAsOf = '2026-10-19T12:00:00.000Z';
+  const observedHealthAsOf = '2026-10-19T08:00:00.000Z';
+  const observedStatusAsOf = '2026-10-19T10:00:00.000Z';
+  const observedSourceSyncedAt = '2026-10-17T10:00:00.000Z';
+  const observation = (sourceStatusAsOf = observedStatusAsOf) => ({
+    operationId: 'search_sam_opportunities' as const,
+    asOf: observedAsOf,
+    sourceStatusAsOf,
+    sourceHealthAsOf: observedHealthAsOf,
+    evidenceAccuracyMode: 'enforce' as const,
+  });
+  const withEnforcedChatMode = async <T>(run: () => Promise<T>): Promise<T> => {
+    const previous = process.env;
+    process.env = {
+      ...previous,
+      MERI_EVIDENCE_ACCURACY_MODE: 'enforce',
+      MERI_EVIDENCE_ACCURACY_TENANTS: 'all',
+      MERI_EVIDENCE_ACCURACY_SURFACES: 'chat',
+    };
+    try {
+      return await run();
+    } finally {
+      process.env = previous;
+    }
+  };
   const freshSam = {
     source: 'sam_gov',
     state: 'current',
@@ -941,6 +970,100 @@ describe('search_sam_opportunities', () => {
         else process.env[envKey] = value;
       }
     }
+  });
+
+  it('consumes distinct observed generation, source-status and source-health clocks with current Core mode', async () => {
+    await withEnforcedChatMode(async () => {
+      const m = makeMocks();
+      m.opportunityTools.readSamSourceFreshness.mockResolvedValue([{
+        ...freshSam,
+        lastSyncedAt: observedSourceSyncedAt,
+      }]);
+      m.programElement.listSamOpportunities.mockResolvedValue({
+        data: [{ id: 'opp-1', title: 'Radar RFI', responseDeadline: new Date('2026-10-20T12:00:00.000Z') }],
+        total: 1,
+      });
+      const observed = observation('2026-10-19T09:59:59.999Z');
+      const result = await withMeriReadObservation(observed, async () => {
+        expect(currentMeriSamProducerContext(ctx.tenantId)).toEqual({
+          asOf: observed.asOf,
+          sourceStatusAsOf: observed.sourceStatusAsOf,
+          sourceHealthAsOf: observed.sourceHealthAsOf,
+          evidenceAccuracyMode: observed.evidenceAccuracyMode,
+        });
+        return m.service.execute(ctx, 'search_sam_opportunities', {});
+      }) as {
+        generatedAt: string;
+        sourceStatus: string;
+        sourceReason: string | null;
+        results: Array<{ deadline: { daysRemaining: number; status: string } }>;
+      };
+      expect(m.opportunityTools.readSamSourceFreshness).toHaveBeenCalledWith(
+        { tenantId: ctx.tenantId, userId: ctx.userId }, new Date(observedHealthAsOf),
+      );
+      expect(result.generatedAt).toBe(observedAsOf);
+      expect(result.sourceStatus).toBe('healthy');
+      expect(result.sourceReason).toBeNull();
+      expect(result.results[0]!.deadline).toMatchObject({ daysRemaining: 1, status: 'open' });
+    });
+  });
+
+  it('uses the exact 48-hour source-status boundary without substituting the other clocks', async () => {
+    await withEnforcedChatMode(async () => {
+      const m = makeMocks();
+      m.opportunityTools.readSamSourceFreshness.mockResolvedValue([{
+        ...freshSam, lastSyncedAt: observedSourceSyncedAt,
+      }]);
+      const before = await withMeriReadObservation(observation('2026-10-19T09:59:59.999Z'), () =>
+        m.service.execute(ctx, 'search_sam_opportunities', {}));
+      const at = await withMeriReadObservation(observation(), () =>
+        m.service.execute(ctx, 'search_sam_opportunities', {}));
+      expect(before).toMatchObject({ generatedAt: observedAsOf, sourceStatus: 'healthy', sourceReason: null });
+      expect(at).toMatchObject({ generatedAt: observedAsOf, sourceStatus: 'degraded', sourceReason: 'source_sync_stale' });
+      expect(m.opportunityTools.readSamSourceFreshness).toHaveBeenNthCalledWith(
+        2, { tenantId: ctx.tenantId, userId: ctx.userId }, new Date(observedHealthAsOf),
+      );
+    });
+  });
+
+  it('refuses a current policy change during source awaits before returning a SAM result', async () => {
+    await withEnforcedChatMode(async () => {
+      const m = makeMocks();
+      m.opportunityTools.readSamSourceFreshness.mockImplementation(async () => {
+        await Promise.resolve();
+        process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
+        return [{ ...freshSam, lastSyncedAt: observedSourceSyncedAt }];
+      });
+      await expect(withMeriReadObservation(observation(), () =>
+        m.service.execute(ctx, 'search_sam_opportunities', {}))).rejects.toThrow('Current SAM evidence mode changed');
+      expect(m.programElement.listSamOpportunities).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('preserves observed source-state precedence for failed, never-synced and missing-count rows', async () => {
+    await withEnforcedChatMode(async () => {
+      const cases = [
+        [{ ...freshSam, state: 'error_cached' }, 'degraded', 'latest_source_sync_incomplete'],
+        [{ ...freshSam, state: 'never_synced', lastSyncedAt: null }, 'degraded', 'all_federal_source_never_synced'],
+        [{ ...freshSam, state: 'unknown', recordCount: null }, 'unknown', 'source_freshness_unavailable'],
+        // Existing producer precedence treats missing counts as unknown even if the owner says never synced.
+        [{ ...freshSam, state: 'never_synced', recordCount: null, lastSyncedAt: null }, 'unknown', 'source_freshness_unavailable'],
+      ] as const;
+      for (const [source, status, reason] of cases) {
+        const m = makeMocks();
+        m.opportunityTools.readSamSourceFreshness.mockResolvedValue([source]);
+        const result = await withMeriReadObservation(observation(), () =>
+          m.service.execute(ctx, 'search_sam_opportunities', { query: 'unmatched' }));
+        expect(result).toMatchObject({
+          generatedAt: observedAsOf,
+          total: 0,
+          results: [],
+          sourceFreshness: [source],
+          sourceStatus: status,
+          sourceReason: reason,
+        });
+      }
+    });
   });
 
   it.each([

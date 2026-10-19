@@ -681,7 +681,7 @@ export class MeriController {
     // delegated client/conversation; checked again before the result is released.
     const delegatedRead = meriReadDelegationOf(req);
     if (delegatedRead) this.admitDelegatedReadTool(ctx, name, body, req, delegatedRead);
-    const admittedRead = admitMeriReadObservation(name, body, req);
+    const admittedRead = admitMeriReadObservation(name, body, req, ctx, delegatedRead);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
       name,

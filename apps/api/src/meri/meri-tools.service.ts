@@ -13,7 +13,10 @@ import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
-import { currentMeriFundingReadAsOf, currentMeriReadAsOf, currentMeriEvidenceAccuracyMode } from './meri-funding-read-observation.js';
+import {
+  currentMeriFundingReadAsOf, currentMeriReadAsOf, currentMeriEvidenceAccuracyMode,
+  currentMeriCertificationComparisonLocale, currentMeriRuleStatusClocks, currentMeriSamProducerContext,
+} from './meri-funding-read-observation.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -3952,18 +3955,24 @@ export class MeriToolsService {
    * floor consideration. Explicit no-vote honesty note; never infers passage.
    */
   private async getCertificationStatus(input: Record<string, unknown>) {
+    const comparisonLocale = currentMeriCertificationComparisonLocale();
     if (input.program !== 'fedramp') throw new BadRequestException('program must be fedramp');
     const query = typeof input.query === 'string' ? input.query.trim() : '';
     if (!query) throw new BadRequestException('query is required');
-    const normalized = query.toLocaleLowerCase();
+    // Preserve the ambient legacy comparison only when no private observation
+    // was admitted. An observed call uses its one canonical supported locale
+    // for every comparison, never the process default or a model argument.
+    const fold = (value: string) => comparisonLocale
+      ? value.toLocaleLowerCase(comparisonLocale) : value.toLocaleLowerCase();
+    const normalized = fold(query);
     const records = await fetchFedrampProducts();
-    const exactId = records.find((record) => record.productId.toLocaleLowerCase() === normalized);
+    const exactId = records.find((record) => fold(record.productId) === normalized);
     const matches = exactId
       ? [exactId]
       : records.filter(
           (record) =>
-            record.csoName.toLocaleLowerCase().includes(normalized) ||
-            record.cspName.toLocaleLowerCase().includes(normalized),
+            fold(record.csoName).includes(normalized) ||
+            fold(record.cspName).includes(normalized),
         );
     const candidates = matches.slice(0, 10);
     const searchedEntireDataset = true;
@@ -6327,6 +6336,7 @@ export class MeriToolsService {
    * `@capiro/shared`) — this tool and that UI rail can never disagree.
    */
   private async getStateRuleStatus(input: Record<string, unknown>) {
+    const observedClocks = currentMeriRuleStatusClocks();
     const query = optionalString(input, 'query', 200);
     const state = optionalString(input, 'state', 2)?.toUpperCase();
     if (!query) {
@@ -6342,14 +6352,14 @@ export class MeriToolsService {
       const fr = await this.prisma.federalRegisterDocument.findUnique({
         where: { documentNumber: query },
       });
-      if (fr) return this.formatRuleStatus('federal', fr);
+      if (fr) return this.formatRuleStatus('federal', fr, observedClocks);
     }
     const sr = await this.prisma.stateRule.findUnique({ where: { id: query } });
     // W4.5: honor the `state` filter on the exact-id path too — a caller who
     // scoped to (say) FL must not get an exact-id hit for a rule in another
     // state. state_rule.id is globally unique, so without this guard a mismatched
     // state param was silently ignored.
-    if (sr && (!state || sr.state === state)) return this.formatRuleStatus('state', sr);
+    if (sr && (!state || sr.state === state)) return this.formatRuleStatus('state', sr, observedClocks);
 
     // W4.5: match on abstract as well as title (the header promises a keyword
     // search over the notice text, and many rules carry the substantive keywords
@@ -6408,11 +6418,14 @@ export class MeriToolsService {
       };
     }
     return stateMatches.length
-      ? this.formatRuleStatus('state', stateMatches[0]!)
-      : this.formatRuleStatus('federal', federalMatches[0]!);
+      ? this.formatRuleStatus('state', stateMatches[0]!, observedClocks)
+      : this.formatRuleStatus('federal', federalMatches[0]!, observedClocks);
   }
 
-  private formatRuleStatus(jurisdiction: 'federal' | 'state', row: Record<string, unknown>) {
+  private formatRuleStatus(
+    jurisdiction: 'federal' | 'state', row: Record<string, unknown>,
+    observedClocks?: { stageAsOf: string; commentAsOf: string },
+  ) {
     const ruleType =
       jurisdiction === 'federal' ? (row.type as string) : ((row.ruleType as string) ?? null);
     const commentEndDate = (row.commentEndDate as Date | null) ?? null;
@@ -6423,6 +6436,7 @@ export class MeriToolsService {
       documentType: ruleType,
       commentEndDate,
       effectiveDate,
+      ...(observedClocks ? { today: new Date(observedClocks.stageAsOf) } : {}),
     });
     const stageLabel = RULE_LIFECYCLE_STAGES.find((s) => s.key === stage)?.label ?? stage;
 
@@ -6433,7 +6447,10 @@ export class MeriToolsService {
     // end-date → not provably open → false, with an explicit note.
     // W5.6: single source of truth — the isOpen gate is the shared
     // `isRuleCommentOpen` predicate the meriv2-evals mechanism gate pins.
-    const commentIsOpen = isRuleCommentOpen({ stage, commentStartDate, commentEndDate });
+    const commentIsOpen = isRuleCommentOpen({
+      stage, commentStartDate, commentEndDate,
+      ...(observedClocks ? { today: new Date(observedClocks.commentAsOf) } : {}),
+    });
 
     const notes: string[] = [];
     if (COMMENT_ACCEPTING_STAGES.includes(stage) && !commentEndDate) {
@@ -8829,6 +8846,7 @@ export class MeriToolsService {
   }
 
   private async searchSamOpportunities(ctx: TenantContext, input: Record<string, unknown>) {
+    const observed = currentMeriSamProducerContext(ctx.tenantId);
     const query = optionalString(input, 'query', 240);
     const naics = optionalString(input, 'naics', 12);
     const includeInactive = optionalBoolean(input, 'includeInactive');
@@ -8843,10 +8861,13 @@ export class MeriToolsService {
 
     // Same all-federal rail and ledger as Funding Opportunities. A successful
     // local search says nothing about current SAM.gov coverage by itself.
-    const sourceFreshness = await this.opportunityTools.readSamSourceFreshness({
-      tenantId: ctx.tenantId,
-      userId: ctx.userId,
-    });
+    const freshnessContext = { tenantId: ctx.tenantId, userId: ctx.userId };
+    const sourceFreshness = observed
+      ? await this.opportunityTools.readSamSourceFreshness(freshnessContext, new Date(observed.sourceHealthAsOf))
+      : await this.opportunityTools.readSamSourceFreshness(freshnessContext);
+    // The policy may change while either canonical owner is awaited. Refuse a
+    // drifted observed call before projecting or releasing any result.
+    const currentObserved = currentMeriSamProducerContext(ctx.tenantId);
     const source = sourceFreshness[0];
     const sourceReason =
       !source || source.recordCount == null
@@ -8859,7 +8880,8 @@ export class MeriToolsService {
               ? 'latest_source_sync_incomplete'
               : // The canonical all-federal schedule is daily. Two missed daily
                 // windows are stale, even when the last recorded attempt succeeded.
-                (Date.now() - Date.parse(source.lastSyncedAt!)) / 3600000 >= 48
+                ((currentObserved ? Date.parse(currentObserved.sourceStatusAsOf) : Date.now()) -
+                  Date.parse(source.lastSyncedAt!)) / 3600000 >= 48
                 ? 'source_sync_stale'
                 : null;
     const sourceStatus =
@@ -8870,8 +8892,9 @@ export class MeriToolsService {
           ? 'unknown'
           : 'degraded';
 
-    const asOf = new Date().toISOString();
-    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+    const asOf = currentObserved?.asOf ?? new Date().toISOString();
+    const enforce = (currentObserved?.evidenceAccuracyMode ??
+      resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat')) === 'enforce';
     return {
       tool: 'search_sam_opportunities',
       generatedAt: asOf,
