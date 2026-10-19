@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "status": "PROPOSAL_ONLY_NOT_APPROVED_NOT_APPLIED",
+  "source": "50475125275853299798fc40f8cb119f0b865464",
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "capiro-preview-first-chat-core",
+  "baselineTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-preview-first-chat-core:2",
+  "containerName": "core",
+  "allowedChanges": [
+    {
+      "field": "containerDefinitions[name=core].image",
+      "before": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:46acfc0734fd40afdfca6851ab542173b9d35eb9658d35c60180d716c02acde8",
+      "after": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+      "resolveFrom": "Actual built image in BUILD-RECEIPT.json; source and digest matched, but scan gate failed. This proposed value is held and must not be deployed."
+    },
+    {
+      "field": "containerDefinitions[name=core].environment[name=RELEASE_SHA]",
+      "before": "ade7fc883b7459cbc50e6f71d40ce3644bace5ea",
+      "after": "50475125275853299798fc40f8cb119f0b865464"
+    },
+    {
+      "field": "containerDefinitions[name=core].environment[name=PREVIEW_NATIVE_GETS_ENABLED]",
+      "beforeState": "absent",
+      "after": "true"
+    },
+    {
+      "field": "containerDefinitions[name=core].environment[name=CORE_ROSTER_PREVIEW_ENABLED]",
+      "beforeState": "absent",
+      "after": "true"
+    }
+  ],
+  "preserve": {
+    "cpu": "512",
+    "memory": "1024",
+    "desiredCount": 1,
+    "command": [
+      "serve"
+    ],
+    "architecture": "X86_64",
+    "operatingSystem": "LINUX",
+    "servicePlatformVersion": "LATEST",
+    "observedRunningPlatformVersion": "1.4.0",
+    "minimumHealthyPercent": 50,
+    "maximumPercent": 200,
+    "deploymentCircuitBreaker": {
+      "enable": true,
+      "rollback": true
+    },
+    "autoScaling": "none observed",
+    "absentVariables": [
+      "CORE_DEPLOYMENT_PROFILE",
+      "MERI_TOOL_ALLOWLIST",
+      "RETAINED_READS_ENABLED",
+      "MERI_TOOLS_REQUIRE_SERVICE_SECRET"
+    ],
+    "allOtherFields": "Compare actual baseline in memory; preserve every unrelated environment value, secret reference, role, health/log/runtime/network/volume setting and worker-off control. Do not publish full task JSON."
+  },
+  "serviceUpdate": {
+    "cluster": "capiro-dev",
+    "service": "capiro-preview-first-chat-core",
+    "taskDefinition": null,
+    "resolveFrom": "Exact registered successor ARN after reviewing the four-field task diff; do not assume revision 3.",
+    "allOtherSettings": "unchanged; no force-new-deployment, desired-count, network or capacity override"
+  },
+  "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-preview-first-chat-core:2",
+  "forbidden": [
+    "migrate command or task",
+    "SQL/grants/backfill/schema changes",
+    "shared auth/middleware edits",
+    "Meri tool/profile/service-secret activation",
+    "new task role or secret binding",
+    "whole CDK/CloudFormation stack deployment",
+    "meeting routes or PUT",
+    "other ordinary-auth fixed reads"
+  ],
+  "imageQualification": {
+    "source": "50475125275853299798fc40f8cb119f0b865464",
+    "digest": "sha256:ace1acca7229d0540145f437449cc819c9eb452df291c0851eb2202b047fa467",
+    "buildStatus": "SUCCEEDED",
+    "scanStatus": "COMPLETE",
+    "scanFindingSeverityCounts": {
+      "HIGH": 7,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "scanGatePassed": false,
+    "deploymentEligible": false
+  }
+}

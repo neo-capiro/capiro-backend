@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "status": "HISTORICAL_APPROVED_PLAN_EXECUTED_ONCE_SEE_BUILD_RECEIPT",
+  "authorization": {
+    "approvedBy": "Neo",
+    "relayedBy": "parent shipping owner",
+    "relayedAtUtc": "2026-10-19T20:21:00Z",
+    "approvedCoreActions": [
+      "exact archive upload",
+      "dedicated project pin update",
+      "one reviewed build and image push"
+    ],
+    "coreExecutionOwner": "root shipping owner",
+    "freshGatesStillRequired": false,
+    "deploymentStatus": "HELD_PENDING_PARENT_CONCRETE_CONFIGURATION_AND_ROUTE_REVIEW",
+    "executionReceiptFile": "BUILD-RECEIPT.json",
+    "freshGatesPassedBeforeExecution": true,
+    "originalPlanPreparationExecutedAwsWrites": false,
+    "authorizedExecutionRecordedSeparately": true
+  },
+  "account": "967807252336",
+  "region": "us-east-1",
+  "source": {
+    "commit": "50475125275853299798fc40f8cb119f0b865464",
+    "tree": "c01138fed2e0e89e50f0f54f35c0ff4d4415c9b4",
+    "documentationCommitMustNotReplaceRuntimeCommit": true,
+    "archiveBasename": "core-50475125275853299798fc40f8cb119f0b865464.zip",
+    "archiveBytes": 43408386,
+    "archiveSha256Hex": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b",
+    "archiveSha256Base64": "Ho1odKmbciRROw0vnZKlxesCfzFg84VhtQSazDu0wXs=",
+    "trackedFileCount": 6304,
+    "zipEntryCount": 7189,
+    "uncompressedGitBlobBytes": 118718058,
+    "inventorySha256": "186faf82290d921f787f3d7bb84b57858223e61a3058256ab4510517badc9580",
+    "dockerfilePath": "apps/api/Dockerfile",
+    "dockerfileGitBlobSha256": "86f5ed2b91cce3c9821a679c93363216af49d464213b7930cd8db51f915a57d2",
+    "buildspecPath": "infra/deploy/first-chat-core-preview.buildspec.yml",
+    "buildspecGitBlobSha256": "eab9286249f8d101f39d9abd09052248ee7bb5d74095419b2b680fa60b0e67f3",
+    "preparerPath": "infra/deploy/prepare-first-chat-core-source.mjs",
+    "preparerGitBlobSha256": "e31971d0638c6d8e6557fda5cca2b1aabd0cf2fa84936574ed530fb240f2786d",
+    "reviewedStage1MigrationSha256": "f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51",
+    "heldHelper100000Absent": true
+  },
+  "readOnlyEvidence": {
+    "observedAtUtc": "2026-10-19T20:18:07Z",
+    "candidateCurrentS3Object": "HeadObject returned 404",
+    "candidateImageTag": "DescribeImages returned ImageNotFoundException",
+    "s3HistoricalVersionsEnumerated": false,
+    "roleArn": "arn:aws:iam::967807252336:role/capiro-codebuild-role",
+    "iamSimulation": [
+      {
+        "action": "s3:GetObject",
+        "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "decision": "allowed",
+        "missingContext": []
+      },
+      {
+        "action": "s3:GetObjectVersion",
+        "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "decision": "allowed",
+        "missingContext": []
+      },
+      {
+        "action": "s3:GetBucketLocation",
+        "resource": "arn:aws:s3:::capiro-portfolio-preview-source-967807252336-us-east-1",
+        "decision": "allowed",
+        "missingContext": []
+      }
+    ],
+    "simulationIsNotEffectiveAccessGuarantee": true,
+    "grantsChanged": false
+  },
+  "observedProject": {
+    "name": "capiro-preview-first-chat-core-build",
+    "sourceType": "S3",
+    "sourceLocation": "capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-5baef67a0ce7d67ae96255022ec7c5beb5364f8a.zip",
+    "sourceVersion": "1JvSP5supUOJ5xN4A3Qsb8B.Vr3z77UA",
+    "buildspecLfSha256": "8b025a96d3a7b6cc054033445c9449f00b7b65b78859e9ac4afd0c30bab99011",
+    "buildspecUtf8Bytes": 5008,
+    "sourceInsecureSsl": false,
+    "sourceAuthPresent": false,
+    "environmentVariableNames": [
+      "APPROVED_SOURCE_BUCKET",
+      "APPROVED_SOURCE_VERSION_ID"
+    ]
+  },
+  "preserve": {
+    "serviceRole": "arn:aws:iam::967807252336:role/capiro-codebuild-role",
+    "environmentType": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:8.0",
+    "computeType": "BUILD_GENERAL1_LARGE",
+    "privilegedMode": true,
+    "imagePullCredentialsType": "CODEBUILD",
+    "timeoutInMinutes": 60,
+    "queuedTimeoutInMinutes": 5,
+    "concurrentBuildLimit": 1,
+    "autoRetryLimit": 0,
+    "cacheType": "NO_CACHE",
+    "artifactsType": "NO_ARTIFACTS",
+    "vpcPresent": false,
+    "webhookPresent": false,
+    "fleetPresent": false,
+    "dockerServerPresent": false,
+    "secondarySourcesPresent": false,
+    "secondaryArtifactsPresent": false,
+    "registryCredentialPresent": false,
+    "certificatePresent": false,
+    "cloudWatchLogsGroup": "/aws/codebuild/capiro-preview-first-chat-core-build"
+  },
+  "requestTemplates": {
+    "notExecutableUntilAuthorizedAndMaterialized": true,
+    "putObject": {
+      "Bucket": "capiro-portfolio-preview-source-967807252336-us-east-1",
+      "ExpectedBucketOwner": "967807252336",
+      "Key": "inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+      "Body": null,
+      "IfNoneMatch": "*",
+      "ContentType": "application/zip",
+      "ServerSideEncryption": "AES256",
+      "ChecksumAlgorithm": "SHA256",
+      "ChecksumSHA256": "Ho1odKmbciRROw0vnZKlxesCfzFg84VhtQSazDu0wXs="
+    },
+    "updateProject": {
+      "name": "capiro-preview-first-chat-core-build",
+      "source": {
+        "type": "S3",
+        "location": "capiro-portfolio-preview-source-967807252336-us-east-1/inputs/core-50475125275853299798fc40f8cb119f0b865464.zip",
+        "buildspec": null,
+        "insecureSsl": false
+      },
+      "sourceVersion": null,
+      "environment": {
+        "type": "LINUX_CONTAINER",
+        "image": "aws/codebuild/standard:8.0",
+        "computeType": "BUILD_GENERAL1_LARGE",
+        "privilegedMode": true,
+        "imagePullCredentialsType": "CODEBUILD",
+        "environmentVariables": [
+          {
+            "name": "APPROVED_SOURCE_SHA",
+            "type": "PLAINTEXT",
+            "value": "50475125275853299798fc40f8cb119f0b865464"
+          },
+          {
+            "name": "APPROVED_ARCHIVE_SHA256",
+            "type": "PLAINTEXT",
+            "value": "1e8d6874a99b7224513b0d2f9d92a5c5eb027f3160f38561b5049acc3bb4c17b"
+          },
+          {
+            "name": "APPROVED_SOURCE_BUCKET",
+            "type": "PLAINTEXT",
+            "value": "capiro-portfolio-preview-source-967807252336-us-east-1"
+          },
+          {
+            "name": "APPROVED_SOURCE_VERSION_ID",
+            "type": "PLAINTEXT",
+            "value": null
+          }
+        ]
+      }
+    },
+    "startBuild": {
+      "projectName": "capiro-preview-first-chat-core-build",
+      "sourceVersion": null,
+      "idempotencyToken": "core-roster-50475125-20261019-01"
+    }
+  },
+  "materialization": {
+    "putObject.Body": "Exact verified local archive bytes; resolve outside-worktree file location only at approved execution time. CLI --body takes the file path without file:// or fileb://.",
+    "updateProject.source.buildspec": "Exact UTF-8/LF Git blob at source.commit:source.buildspecPath; verify source.buildspecGitBlobSha256 before use.",
+    "versionConsumers": [
+      "updateProject.sourceVersion",
+      "updateProject.environment.environmentVariables[name=APPROVED_SOURCE_VERSION_ID].value",
+      "startBuild.sourceVersion"
+    ],
+    "versionRule": "Fill all consumers with the same VersionId returned by PutObject and confirmed by version-specific HeadObject; never substitute a Git SHA, latest version, branch or historical VersionId.",
+    "postUploadHeadObject": {
+      "ExpectedBucketOwner": "967807252336",
+      "ChecksumMode": "ENABLED",
+      "expectedContentLength": 43408386,
+      "expectedChecksumSHA256": "Ho1odKmbciRROw0vnZKlxesCfzFg84VhtQSazDu0wXs=",
+      "expectedServerSideEncryption": "AES256"
+    },
+    "unresolvedNullsMustNeverBeSubmitted": true
+  },
+  "expectedOutputs": {
+    "s3VersionId": null,
+    "buildId": null,
+    "buildStatus": null,
+    "imageTag": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core:50475125275853299798fc40f8cb119f0b865464",
+    "imageDigest": null,
+    "imagePlatform": "linux/amd64",
+    "scanStatus": null,
+    "scanCompletedAt": null,
+    "scanFindingSeverityCounts": null,
+    "requiredScanFindings": 0
+  },
+  "executionLimits": {
+    "authorized": true,
+    "authorizationScope": "BUILD_ONLY",
+    "deploymentExecutionAuthorizedByThisPlan": false,
+    "buildAttempts": 1,
+    "automaticRetries": 0,
+    "operatorRetriesIncluded": 0,
+    "startBuildOverrideFieldsAllowed": [],
+    "idempotencyWindowSeconds": 300,
+    "uncertainStartRule": "Resolve original outcome from build metadata before any resend; do not assume deduplication after five minutes.",
+    "noEcsOrSqlInBuild": true,
+    "approvalRequiredBeforeUploadProjectUpdateAndPaidBuild": true,
+    "approvalReceivedForUploadProjectUpdateAndOnePaidBuild": true,
+    "authorizedAttemptConsumed": true,
+    "furtherStartBuildAuthorized": false
+  },
+  "costProposal": {
+    "allocated": true,
+    "allocationApprovedAtUtc": "2026-10-19T20:21:00Z",
+    "coreUsd": 4,
+    "separateFrontendUsd": 2,
+    "combinedProposedUsd": 6,
+    "combinedApprovedUsd": 6,
+    "overallCapUsd": 616,
+    "actualSpendRecordedHere": false,
+    "codeBuildPriceServiceCode": "CodeBuild",
+    "codeBuildPriceSku": "8MTWRQ8M475YQT7D",
+    "codeBuildPriceRateCode": "8MTWRQ8M475YQT7D.JRTCKXETXF.6YS6EN2CT7",
+    "codeBuildPriceEffectiveDate": "2026-08-01T00:00:00Z",
+    "codeBuildLinuxGeneral1LargeUsdPerMinute": 0.02,
+    "sixtyBilledBuildMinutesUsd": 1.2,
+    "laterDeploymentExtraTaskLimitMinutes": 30,
+    "laterDeploymentExtraTaskCpuUnits": 512,
+    "laterDeploymentExtraTaskMemoryMiB": 1024,
+    "laterDeploymentExtraTaskComputeEstimateUsd": 0.0123426,
+    "baselineComputeEstimateUsd": 1.2123426,
+    "proposedAncillaryHeadroomUsd": 2.7876574,
+    "hardAwsDollarCap": false
+  },
+  "historicalTemplateNotice": "Pre-execution readbacks and unresolved request/output templates are retained for provenance. Actual results are in BUILD-RECEIPT.json. The one authorized attempt is consumed; do not rerun these templates."
+}

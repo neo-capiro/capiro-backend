@@ -1,0 +1,126 @@
+{
+  "status": "passed",
+  "mode": "offline model only; not AWS or authenticated runtime verification",
+  "modelSource": "50475125275853299798fc40f8cb119f0b865464:infra/routing/capiro-prod-alb-first-match.mjs",
+  "liveBaselineReadback": {
+    "checkedAtUtc": "2026-10-19T20:32:23.2594420Z",
+    "exactProjectedBaselineMatch": true,
+    "ruleCount": 18,
+    "occupiedPriorities": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "20",
+      "50",
+      "default"
+    ],
+    "freePrioritiesForProposal": [
+      16,
+      17
+    ],
+    "mutationPerformed": false
+  },
+  "existingHostRequests": 5040,
+  "rosterHostRequests": 630,
+  "guardOnlyRequests": 630,
+  "intermediateExistingHostRequests": 50400,
+  "intermediateSteps": [
+    {
+      "from": 15,
+      "to": 17,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 14,
+      "to": 16,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 13,
+      "to": 15,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 12,
+      "to": 14,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 11,
+      "to": 13,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 10,
+      "to": 12,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 9,
+      "to": 11,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 8,
+      "to": 10,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 7,
+      "to": 9,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    },
+    {
+      "from": 6,
+      "to": 8,
+      "targetVacantBefore": true,
+      "existingOrderPreserved": true,
+      "unchangedExistingRequests": 5040
+    }
+  ],
+  "existingRulesPreserved": 18,
+  "priorityChangesOnly": 10,
+  "addedRules": 2,
+  "batchEqualsDescendingFinalState": true,
+  "assertions": [
+    "P1-5, P20, P50 and default stay unchanged; all existing conditions/actions and relative ordering stay unchanged.",
+    "Each descending move targets a vacant priority and preserves every existing relative position and modeled non-roster response after each completed step.",
+    "All final modeled non-roster requests retain the same rule identity and action.",
+    "Guard-only state denies every modeled canonical roster request, including legacy Engagement preview headers.",
+    "Final canonical roster host admits only GET /api/clients; all other modeled paths/methods hit its guard."
+  ],
+  "limitations": [
+    "Does not model ALB URI/Host normalization, propagation, TLS, query validation or authorization.",
+    "No AWS mutation or network probe was made by this local check."
+  ]
+}

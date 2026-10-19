@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "status": "PROPOSAL_ONLY_NOT_APPROVED_NOT_APPLIED",
+  "observedAtDate": "2026-10-19",
+  "source": "50475125275853299798fc40f8cb119f0b865464",
+  "frontend": "e6180219b589ae8fced7155d1c451840c8663d94",
+  "prerequisite": "Explicit approval of shared-listener priority-only changes and verified rule ownership, in addition to spend/native-roster activation approval. Current preservation constraint holds execution.",
+  "before": "listener-before.json",
+  "region": "us-east-1",
+  "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440",
+  "priorityRelocation": [
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/31705c7bdd372a94",
+      "before": 6,
+      "after": 8
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/0e2faafaa4c69a9d",
+      "before": 7,
+      "after": 9
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/878247ea681750a9",
+      "before": 8,
+      "after": 10
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/dac3fbd914769700",
+      "before": 9,
+      "after": 11
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/41a54ee9cf0e579c",
+      "before": 10,
+      "after": 12
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/4e4154f18f64b67d",
+      "before": 11,
+      "after": 13
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/eb4eff203ad0fb47",
+      "before": 12,
+      "after": 14
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/14d2a8c17043a736",
+      "before": 13,
+      "after": 15
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/ffe016a2e4ea40a9",
+      "before": 14,
+      "after": 16
+    },
+    {
+      "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/7f35c5f92b95b9ad",
+      "before": 15,
+      "after": 17
+    }
+  ],
+  "setRulePrioritiesRequest": {
+    "RulePriorities": [
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/31705c7bdd372a94",
+        "Priority": 8
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/0e2faafaa4c69a9d",
+        "Priority": 9
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/878247ea681750a9",
+        "Priority": 10
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/dac3fbd914769700",
+        "Priority": 11
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/41a54ee9cf0e579c",
+        "Priority": 12
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/4e4154f18f64b67d",
+        "Priority": 13
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/eb4eff203ad0fb47",
+        "Priority": 14
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/14d2a8c17043a736",
+        "Priority": 15
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/ffe016a2e4ea40a9",
+        "Priority": 16
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/7f35c5f92b95b9ad",
+        "Priority": 17
+      }
+    ]
+  },
+  "restoreRulePrioritiesRequest": {
+    "RulePriorities": [
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/31705c7bdd372a94",
+        "Priority": 6
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/0e2faafaa4c69a9d",
+        "Priority": 7
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/878247ea681750a9",
+        "Priority": 8
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/dac3fbd914769700",
+        "Priority": 9
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/41a54ee9cf0e579c",
+        "Priority": 10
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/4e4154f18f64b67d",
+        "Priority": 11
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/eb4eff203ad0fb47",
+        "Priority": 12
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/14d2a8c17043a736",
+        "Priority": 13
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/ffe016a2e4ea40a9",
+        "Priority": 14
+      },
+      {
+        "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/7f35c5f92b95b9ad",
+        "Priority": 15
+      }
+    ]
+  },
+  "createGuardRequest": {
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440",
+    "Priority": 7,
+    "Conditions": [
+      {
+        "Field": "host-header",
+        "HostHeaderConfig": {
+          "Values": [
+            "core-roster-preview.capiro.ai"
+          ]
+        }
+      }
+    ],
+    "Actions": [
+      {
+        "Type": "fixed-response",
+        "FixedResponseConfig": {
+          "MessageBody": "{\"error\":\"PREVIEW_ROUTE_NOT_FOUND\"}",
+          "StatusCode": "404",
+          "ContentType": "application/json"
+        }
+      }
+    ],
+    "Tags": [
+      {
+        "Key": "Name",
+        "Value": "core-roster-preview-deny"
+      },
+      {
+        "Key": "ReleasePlan",
+        "Value": "core-roster-20261019"
+      }
+    ]
+  },
+  "createAllowRequest": {
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440",
+    "Priority": 6,
+    "Conditions": [
+      {
+        "Field": "host-header",
+        "HostHeaderConfig": {
+          "Values": [
+            "core-roster-preview.capiro.ai"
+          ]
+        }
+      },
+      {
+        "Field": "http-request-method",
+        "HttpRequestMethodConfig": {
+          "Values": [
+            "GET"
+          ]
+        }
+      },
+      {
+        "Field": "path-pattern",
+        "PathPatternConfig": {
+          "RegexValues": [
+            "^/api/clients$"
+          ]
+        }
+      }
+    ],
+    "Actions": [
+      {
+        "Type": "forward",
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-CoreT-NHA4DBPHLZ2E/11512f9487ee2f54"
+      }
+    ],
+    "Tags": [
+      {
+        "Key": "Name",
+        "Value": "core-roster-preview-clients-get"
+      },
+      {
+        "Key": "ReleasePlan",
+        "Value": "core-roster-20261019"
+      }
+    ]
+  },
+  "dnsRequest": {
+    "HostedZoneId": "Z085985135X6Q5QT98ZBK",
+    "ChangeBatch": {
+      "Comment": "Reviewed Core roster preview alias only; guard and exact GET must be qualified first",
+      "Changes": [
+        {
+          "Action": "CREATE",
+          "ResourceRecordSet": {
+            "Name": "core-roster-preview.capiro.ai.",
+            "Type": "A",
+            "AliasTarget": {
+              "HostedZoneId": "Z35SXDOTRQ7X7K",
+              "DNSName": "dualstack.capiro-prod-alb-57164953.us-east-1.elb.amazonaws.com.",
+              "EvaluateTargetHealth": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "tls": {
+    "changeRequired": false,
+    "certificateArn": "arn:aws:acm:us-east-1:967807252336:certificate/b3ed3fa7-c06b-4b94-a448-24cff7f03ab8",
+    "status": "ISSUED",
+    "coveringSAN": "*.capiro.ai",
+    "expires": "2027-03-30T23:59:59Z",
+    "listenerPolicy": "ELBSecurityPolicy-2016-08"
+  },
+  "dnsBefore": {
+    "exactRosterRecordAbsent": true,
+    "wildcardRecordAbsent": true,
+    "zonePrivate": false,
+    "ipv4Only": true
+  },
+  "sequence": [
+    "Revalidate exact before-state, ownership, permissions and all approvals; stop on drift. Priorities 16 and 17 must still be free.",
+    "If separately approved, move exactly old P15 through P6 in descending order to P17 through P8, reading back after every request; each target is vacant and all existing relative ordering is preserved at each completed step. Alternatively use the exact ten-rule batch, with no transactional propagation claim.",
+    "Create exact roster guard at priority 7 first; verify canonical roster host is denied for every path/method including legacy preview-header probes.",
+    "After candidate task/native authority qualification, create exact roster GET allow at priority 6; verify allow plus host-wide deny.",
+    "CREATE only the absent A alias, wait for INSYNC and TLS/auth negative/positive qualification; no AAAA record or certificate change.",
+    "Accept frontend source/origin pair only after matching qualified source/image/flags/host proof."
+  ],
+  "rollback": [
+    "Remove frontend roster admission pair first and retain CAPIRO_PREVIEW_READ_ONLY=true.",
+    "Remove only the newly created allow rule, leaving roster host denied; remove only the newly created DNS alias using exact receipt fields.",
+    "Restore baseline Core task revision 2 if image/auth regression occurred; verify its exact image and prior authority behavior.",
+    "Retain the new roster guard and shifted priorities until DNS caches/requesting clients are quiescent. Immediate priority restoration conflicts with the guard and could send roster traffic to shared API.",
+    "Only in separately reviewed cleanup with equivalent containment or an explicit Host-retirement decision, delete the new guard in its own operation, then restore all ten original priorities in one SetRulePriorities request. Verify exact original conditions/actions. Do not delete the existing first-chat guard or claim an atomic rollback."
+  ],
+  "unresolvedOutputs": {
+    "newGuardRuleArn": null,
+    "newAllowRuleArn": null,
+    "dnsChangeId": null
+  },
+  "limits": [
+    "No listener, route or DNS mutation has been called; the separate authorized build has completed.",
+    "No transactional traffic-cutover guarantee is asserted for SetRulePriorities; before/after equivalence and post-call readback are required.",
+    "ALB query-string/URI/Host normalization is not modeled; the frozen application gate and live negative probes remain mandatory.",
+    "Tags on old priority 5 and 7 say ManagedBy=manual-alb-rule; other ownership is not established by absent tags."
+  ],
+  "revision": "Ten-rule refinement supersedes the eleven-rule proposal in documentation commit 0c88c6d198c01a9bb0b8d7f0d82ffa8bdce779c0; frozen build source is unchanged.",
+  "descendingSingleRuleRequests": [
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/7f35c5f92b95b9ad",
+          "Priority": 17
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/ffe016a2e4ea40a9",
+          "Priority": 16
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/14d2a8c17043a736",
+          "Priority": 15
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/eb4eff203ad0fb47",
+          "Priority": 14
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/4e4154f18f64b67d",
+          "Priority": 13
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/41a54ee9cf0e579c",
+          "Priority": 12
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/dac3fbd914769700",
+          "Priority": 11
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/878247ea681750a9",
+          "Priority": 10
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/0e2faafaa4c69a9d",
+          "Priority": 9
+        }
+      ]
+    },
+    {
+      "RulePriorities": [
+        {
+          "RuleArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener-rule/app/capiro-prod-alb/7a4acb332b261724/e2d19b3dd47fc440/31705c7bdd372a94",
+          "Priority": 8
+        }
+      ]
+    }
+  ],
+  "minimality": "P5 is restricted to app.capiro.ai and cannot match the roster host. Both new rules must precede host-agnostic P6; with P1-15 occupied and existing relative order preserved, moving P6 to at least P8 forces every old P6-15 rule to move. Ten existing moves are minimal within this listener and exact two-rule containment design. Free P16/P17 alone cannot place containment before P6."
+}
