@@ -15,7 +15,7 @@ const decorator = () => () => undefined;
 const nest = { Injectable: decorator, Optional: decorator, Controller: decorator, UseGuards: decorator,
   Post: decorator, HttpCode: decorator, Header: decorator, Body: decorator, Req: decorator, Logger: class { log() {} warn() {} error() {} },
   UnauthorizedException: Refusal, ForbiddenException: Refusal, BadRequestException: Refusal,
-  NotFoundException: Refusal };
+  NotFoundException: Refusal, ServiceUnavailableException: class Unanswered extends Refusal { readonly status = 503; } };
 function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
   const module = { exports: {} as any };
   const context = createContext({ module, exports: module.exports, Date: clock, Object, Reflect, Array,
@@ -50,12 +50,13 @@ const identity = (): ApplicationAuthorityIdentityProof => ({ principal: { tenant
   recheckCurrent: async () => identity() });
 const conversation = () => ({ id: conversationId, tenantId, userId: actorId, clientId, status: 'active', archivedAt: null,
   updatedAt: new Date(), title: 'not a revision input', metadata: {} });
+const unavailableModule = () => load(sources('auth/application-authority-unavailable.ts'), { '@nestjs/common': nest });
 function clerkFixture(timers?: { setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
   const events: string[] = [];
   let row = session();
   let reader = async (_id: string) => row;
   const exports = load(sources('auth/clerk.service.ts'), {
-    '@nestjs/common': nest, '@nestjs/config': {},
+    '@nestjs/common': nest, '@nestjs/config': {}, './application-authority-unavailable.js': unavailableModule(),
     '@clerk/backend': { createClerkClient: () => ({ sessions: { getSession: (id: string) => {
       events.push(`getSession:${id}`); return reader(id);
     } } }), verifyToken: () => { throw new Error('JWT port must not be called by the dedicated assertion'); } },
@@ -175,13 +176,14 @@ describe('actual Clerk owner bounded read-only session assertion', () => {
   it('fails closed on provider failure and consumes timeout late rejection', async () => {
     const f = clerkFixture(); f.setReader(async () => { throw new Error('private provider payload'); });
     await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.toThrow('Application authority unavailable');
+    await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.toMatchObject({ status: 503 });
     let rejectLate!: (error: Error) => void; let timeout!: () => void; let cleared = 0;
     const timed = clerkFixture({ setTimeout: ((fn: () => void) => { timeout = fn; return 1; }) as any,
       clearTimeout: (() => { cleared++; }) as any });
     timed.setReader(() => new Promise((_resolve, reject) => { rejectLate = reject; }));
     const pending = timed.clerk.assertActiveApplicationAuthoritySession(claims());
     await Promise.resolve(); timeout();
-    await expect(pending).rejects.toThrow('Application authority unavailable');
+    await expect(pending).rejects.toMatchObject({ status: 503 });
     rejectLate(new Error('late')); await Promise.resolve(); expect(cleared).toBe(1);
   });
   it('refuses late resolution even when a delayed event loop has not fired the timeout callback', async () => {
@@ -189,8 +191,22 @@ describe('actual Clerk owner bounded read-only session assertion', () => {
     class Clock extends Date { static now() { return now; } }
     const f = clerkFixture({ setTimeout: (() => 1) as any, clearTimeout: (() => {}) as any }, Clock);
     f.setReader(async () => { now += 2001; return f.row; });
+    await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.toMatchObject({ status: 503 });
+  });
+  for (const status of [429, 500, 503]) it(`reports Clerk ${status} as unanswered (503), never as a refusal`, async () => {
+    const f = clerkFixture(); f.setReader(async () => { throw Object.assign(new Error('clerk'), { status }); });
+    await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.toMatchObject({ status: 503 });
+  });
+  for (const status of [400, 401, 403, 404, 422]) it(`keeps Clerk ${status} a refusal (401)`, async () => {
+    const f = clerkFixture(); f.setReader(async () => { throw Object.assign(new Error('clerk'), { status }); });
+    await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.not.toMatchObject({ status: 503 });
     await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.toThrow('Application authority unavailable');
   });
+  for (const [key, value] of [['status', 'ended'], ['status', 'revoked'], ['userId', 'other']] as const)
+    it(`keeps an answered inactive or mismatched session (${key}=${value}) a refusal, not unanswered`, async () => {
+      const f = clerkFixture(); (f.row as any)[key] = value;
+      await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.not.toMatchObject({ status: 503 });
+    });
 });
 
 describe('actual middleware selected-provenance current authority', () => {
@@ -323,8 +339,9 @@ describe('actual Meri and scope-owner source integration', () => {
     const resources = load(sources('context/application-authority-resource.helpers.ts'), {
       '@nestjs/common': nest, '../research-portfolios/research-portfolio-artifact-authority.js': scopes,
     });
+    const unavailable = unavailableModule();
     const cls = load(sources('auth/application-authority.controller.ts'), {
-      '@nestjs/common': nest, './application-authority.js': contract,
+      '@nestjs/common': nest, './application-authority.js': contract, './application-authority-unavailable.js': unavailable,
       '../context/application-authority-resource.helpers.js': resources,
       '../business-development/bizdev-meri-scope.authorization.js': scopes,
       './roles.decorator.js': { Roles: decorator }, './roles.guard.js': {},
@@ -345,6 +362,12 @@ describe('actual Meri and scope-owner source integration', () => {
     (row.metadata as any).portfolio = true;
     await expect(owner.applicationAuthorityContext(ctx, {}, input)).rejects.toThrow();
     expect(events).toEqual(['identity', 'portfolio']);
+    (row.metadata as any).portfolio = false;
+    // Clerk not answering stays a retryable 503 through the context owner; any refusal stays 403.
+    const silent = new cls(prisma, { readApplicationAuthority: async () => { throw new unavailable.ApplicationAuthorityUnavailableException(); } }, scope, {});
+    await expect(silent.applicationAuthorityContext(ctx, {}, input)).rejects.toMatchObject({ status: 503 });
+    const refused = new cls(prisma, { readApplicationAuthority: async () => { throw new Refusal('session ended'); } }, scope, {});
+    await expect(refused.applicationAuthorityContext(ctx, {}, input)).rejects.not.toMatchObject({ status: 503 });
   });
   it('uses canonical wall predicate before/after tenant/client-bounded fact read', async () => {
     const exports = load(sources('context/context-security-scope.service.ts'), {

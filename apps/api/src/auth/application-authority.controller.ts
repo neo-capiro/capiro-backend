@@ -10,6 +10,7 @@ import { BizDevMeriScopeService } from '../business-development/bizdev-meri-scop
 import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import { Roles } from './roles.decorator.js';
 import { RolesGuard } from './roles.guard.js';
+import { ApplicationAuthorityUnavailableException } from './application-authority-unavailable.js';
 import {
   assertApplicationAuthorityIdentityBody,
   parseApplicationAuthorityContextBody,
@@ -60,7 +61,9 @@ export class ApplicationAuthorityController {
         clientVisible: (id) => assertCurrentClientVisible(this.prisma, ctx, id),
         clientAuthority: (id) => securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, id),
       });
-    } catch {
+    } catch (error) {
+      // Clerk not answering is not a refusal: keep its retryable 503.
+      if (error instanceof ApplicationAuthorityUnavailableException) throw error;
       throw new ForbiddenException('Application authority unavailable');
     }
   }
