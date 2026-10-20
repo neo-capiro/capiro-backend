@@ -30,6 +30,7 @@ test('candidate Dockerfile copies the shared platform gate into build and runtim
   const source = fs.readFileSync(path.join(root, 'apps/api/Dockerfile.alpine-amd64-qualification'), 'utf8');
   const pin = 'node:22.23.3-alpine3.24@sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8';
   assert.equal(source.split(pin).length - 1, 2, 'same exact AMD64 base for build and runtime');
+  assert.equal(source.split(`FROM public.ecr.aws/docker/library/${pin}`).length - 1, 2, 'base pulled from the ECR Public mirror, not rate-limited Docker Hub');
   assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
   assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3\.0\.x/);
   assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2, 'build/prod-deps and runtime both require patched zlib');
