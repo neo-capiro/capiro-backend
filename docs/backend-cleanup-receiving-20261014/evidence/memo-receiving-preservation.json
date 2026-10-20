@@ -1,0 +1,64 @@
+{
+  "base": "b417a2610f5224c2a3e85c6a1ebba1a8102233c1",
+  "merge": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "merge_tree": "e0592f4137c67740c0b519f9a88f5d15840b0b8f",
+  "parents": [
+    "b417a2610f5224c2a3e85c6a1ebba1a8102233c1",
+    "c049f703d778b55684fd042a731069e73777d30c"
+  ],
+  "donor": "c049f703d778b55684fd042a731069e73777d30c",
+  "exact_donor_paths": [
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "tree_entry": "100644 blob b31cd3e30e66833697eb2ce8d8b624f903a332ce"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "tree_entry": "100644 blob 791c2863c9b549d6b5b238ccd229d38eaf6ee18a"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/cases.ts",
+      "tree_entry": "100644 blob e72f11a13925e0f74ebe3c08d6a3b4fe6f75ca27"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-characterization/dependencies.ts",
+      "tree_entry": "100644 blob 59c0846ee6bec874f57ef4a09a8f53ddbf7053b0"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/pins.ts",
+      "tree_entry": "100644 blob 56218402a6785fed59a4360340989fe77b049ce9"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/semantic.ts",
+      "tree_entry": "100644 blob 4f8bc7b0f10cded414e75b767289fac205b0d65f"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections-characterization.spec.ts",
+      "tree_entry": "100644 blob f656934974f65f006bb0e19f2ce87df95423a644"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections-ownership.contract.spec.ts",
+      "tree_entry": "100644 blob 5643fc59dafbb15f1efabf1bcb00afa590106ff7"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/memo-sections.ts",
+      "tree_entry": "100644 blob 84dd57168b99ba0dab21d4d5d368b5272edefd74"
+    },
+    {
+      "path": "apps/api/tsconfig.memo-sections.json",
+      "tree_entry": "100644 blob 52da62aec78fd19f7be9fc90a9e0a7f12be2dde4"
+    },
+    {
+      "path": "docs/backend-cleanup/20261014/MEMO-SECTIONS-HANDOVER.md",
+      "tree_entry": "100644 blob 025a4f7dd9526aa1f0b5520dc231ac7576c1ccf6"
+    },
+    {
+      "path": "docs/backend-cleanup/20261014/MEMO-SECTIONS-QUALIFICATION.json",
+      "tree_entry": "100644 blob e1f43ba4fc7f39da35f2ef4c5113d27a32b22e9e"
+    }
+  ],
+  "unrelated_base_entries_preserved": 27333,
+  "quarantines_exact": 74,
+  "no_conflict_or_whole_caller_replacement": true,
+  "prior_watchlist_runtime_and_test_entries_exact": true
+}

@@ -20,6 +20,10 @@ export interface ClerkSessionClaims {
   iss: string;
   sid?: string;
   exp?: number;
+  /** Dedicated Meri preview control template marker, never a native session. */
+  meri_control_credential?: boolean;
+  iat?: number;
+  jti?: string;
   email?: string;
   // Clerk Organizations claims (populated when the user has an active org).
   // NOTE: Clerk's *v2* default session token nests these under a compact `o`
@@ -59,6 +63,22 @@ export interface ActiveApplicationAuthoritySession {
   abandonAt: number;
   actor: Record<string, unknown> | null;
   expiresAtMs: number;
+}
+
+/** Pure admission shape check so a malformed marked token is refused before
+ * the ordinary tenant middleware can perform any local self-heal or audit. */
+export function isWellFormedMeriControlCredentialClaims(
+  claims: ClerkSessionClaims,
+  nowMs = Date.now(),
+): boolean {
+  const { iat, jti, exp } = claims;
+  return claims.meri_control_credential === true && claims.sid === undefined &&
+    typeof claims.sub === 'string' && /^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) &&
+    typeof jti === 'string' && /^[A-Za-z0-9_-]{1,256}$/.test(jti) &&
+    Number.isSafeInteger(iat) && Number.isSafeInteger(exp) &&
+    Number.isSafeInteger((iat ?? 0) * 1000) && Number.isSafeInteger((exp ?? 0) * 1000) &&
+    (iat ?? 0) <= (exp ?? 0) && (exp ?? 0) - (iat ?? 0) <= 604800 &&
+    (iat ?? 0) * 1000 <= nowMs + 5000 && (exp ?? 0) * 1000 > nowMs;
 }
 
 /**
@@ -111,7 +131,8 @@ export class ClerkService {
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
     const denied = () => new UnauthorizedException('Application authority unavailable');
-    if (typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
+    if (claims.meri_control_credential === true ||
+        typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
         typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
         !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
         (claims.exp ?? 0) * 1000 <= Date.now()) throw denied();
@@ -145,6 +166,56 @@ export class ClerkService {
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
+  }
+
+  /** Only the three named application-authority POSTs may call this method.
+   * A verified marked template token has no sid, so a fresh active session
+   * list checks current user presence without pretending the token is a native
+   * session. No positive proof is cached across calls or requests. */
+  async assertActiveMeriControlCredentialSession(
+    claims: ClerkSessionClaims,
+  ): Promise<ActiveApplicationAuthoritySession> {
+    const denied = () => new UnauthorizedException('Application authority unavailable');
+    const { iat, jti, exp } = claims;
+    const now0 = Date.now();
+    if (!isWellFormedMeriControlCredentialClaims(claims, now0)) throw denied();
+    const userId = claims.sub;
+    const deadlineMs = now0 + 2000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const listed = await Promise.race([
+        Promise.resolve().then(() => this.client.sessions.getSessionList({ userId, status: 'active' })),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(denied()), 2000);
+        }),
+      ]);
+      const now = Date.now();
+      const sessions = (Array.isArray(listed) ? listed : (listed as { data?: unknown }).data) as
+        Array<{ userId?: unknown; status?: unknown; expireAt?: unknown; abandonAt?: unknown }> | undefined;
+      if (now >= deadlineMs || !Array.isArray(sessions)) throw denied();
+      const live = sessions.filter((s) => s && s.userId === userId && s.status === 'active' &&
+        Number.isSafeInteger(s.expireAt) && Number.isSafeInteger(s.abandonAt) &&
+        Math.min(s.expireAt as number, s.abandonAt as number) > now);
+      if (live.length === 0) throw denied();
+      const sessionUntil = Math.max(...live.map((s) => Math.min(s.expireAt as number, s.abandonAt as number)));
+      const expiresAtMs = Math.min((exp ?? 0) * 1000, sessionUntil);
+      if (expiresAtMs <= now) throw denied();
+      return {
+        id: `meri-template:${jti}`, userId, status: 'active',
+        createdAt: (iat ?? 0) * 1000, expireAt: sessionUntil, abandonAt: sessionUntil,
+        actor: null, expiresAtMs,
+      };
+    } catch {
+      throw denied();
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
+  /** Reuse the native namespace pin for a verified Core-only retained frame. */
+  assertRetainedApplicationAuthorityIssuer(issuer: string): void {
+    try { this.assertIssuer({ iss: issuer }); }
+    catch { throw new UnauthorizedException('Application authority unavailable'); }
   }
 
   private assertIssuer(raw: Record<string, unknown>): void {

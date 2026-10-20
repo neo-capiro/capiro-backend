@@ -1,0 +1,162 @@
+{
+  "result": "exact_source_union_pass",
+  "base": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+  "layoutParent": "484dc0af7adc41103b189f262113bebfce10074c",
+  "prospectParent": "7239a4a4ace420492d8aace6c85e55773865be38",
+  "mergedHead": "078c55f805de8599cc413917ef90b7e20f040942",
+  "mergedTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "parentsExactOrdered": true,
+  "mergeBaseExact": true,
+  "ancestry": [
+    {
+      "ancestor": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+      "descendant": "484dc0af7adc41103b189f262113bebfce10074c",
+      "pass": true
+    },
+    {
+      "ancestor": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+      "descendant": "7239a4a4ace420492d8aace6c85e55773865be38",
+      "pass": true
+    },
+    {
+      "ancestor": "484dc0af7adc41103b189f262113bebfce10074c",
+      "descendant": "078c55f805de8599cc413917ef90b7e20f040942",
+      "pass": true
+    },
+    {
+      "ancestor": "7239a4a4ace420492d8aace6c85e55773865be38",
+      "descendant": "078c55f805de8599cc413917ef90b7e20f040942",
+      "pass": true
+    },
+    {
+      "ancestor": "e0adf31652f6987593728028d5b8eae4a1b96390",
+      "descendant": "484dc0af7adc41103b189f262113bebfce10074c",
+      "pass": true
+    },
+    {
+      "ancestor": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+      "descendant": "7239a4a4ace420492d8aace6c85e55773865be38",
+      "pass": true
+    }
+  ],
+  "pathCounts": {
+    "base": 27512,
+    "layout": 27597,
+    "prospect": 27563,
+    "merged": 27648,
+    "layoutDelta": 89,
+    "prospectDelta": 55,
+    "overlapIdentical": 0,
+    "differentOverlap": 0,
+    "union": 144,
+    "allOutsideUnionModeObjectExact": 27504
+  },
+  "allMergedModesTypesObjectsEqualOrdinaryUnion": true,
+  "layoutProductSpec11Exact": [
+    {
+      "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+      "mode": "100644",
+      "type": "blob",
+      "object": "e3445102a7ff5f06021704cea272bbb559b8f03f"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "mode": "100644",
+      "type": "blob",
+      "object": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "9c57a84335feaac289bdbeb6e2e21cce50a94102"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "d071939ac0f18deccab65794b9be20222c5887e8"
+    },
+    {
+      "path": "apps/api/src/users/portfolio-layout.controller.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "4843f0042eb686f129957c0a361ddb4b89020e24"
+    },
+    {
+      "path": "apps/api/src/users/portfolio-layout.controller.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "0290478a7e6fca55ea9b9109601a6c1e6289deeb"
+    },
+    {
+      "path": "apps/api/src/users/portfolio-layout.helpers.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "4a6f13abdbdf3e49609753a0bf1b5c4bc1652112"
+    },
+    {
+      "path": "apps/api/src/users/portfolio-layout.helpers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "358276a659c3a5d85225c5e11cd83ace7299bb6a"
+    },
+    {
+      "path": "apps/api/src/users/portfolio-layout.module.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "bb93b279733c333796f6f5daefc77d5af2e49803"
+    },
+    {
+      "path": "apps/api/src/users/portfolio-layout.transaction.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "b7931baa3a801374230c5fb6cf925cc6acd5e0c9"
+    },
+    {
+      "path": "apps/api/src/users/users.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "fd13f1c65d16a97b75f2b55ce6b9686ff65cb264"
+    }
+  ],
+  "prospectProductSpec6Exact": [
+    {
+      "path": "apps/api/src/auth/application-authority-boundary.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "5d87349306fafeb5ad97b0227f450d9dd8085ab4"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "2a062be013a2da9eac28612fe435dc2b72dd5d4f"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "3d3098133ce80973079de1a65c4a43be7d7ffbc3"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "f28e58850550e9d097ae1fb0a2831f448a21a29a"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "764c22f72d46587cceba491c30c39fd0c31c1ada"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "object": "721ecf1c9fb2bbb7a467436901aa925cebb5a9cc"
+    }
+  ],
+  "scope": "Read-only exact Git tree/mode/blob/ordinary ancestry verification; no test rerun, ref/source edit, native/provider/runtime execution or main merge/deployment"
+}

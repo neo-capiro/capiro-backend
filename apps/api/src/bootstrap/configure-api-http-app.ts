@@ -2,6 +2,8 @@ import type { INestApplication } from '@nestjs/common';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { json, raw } from 'express';
 import { PrismaClientExceptionFilter } from '../common/prisma-exception.filter.js';
+import { objectiveAdmissionRawBody } from './objective-admission-raw-body.js';
+import { meriReadDelegationRawBody } from '../auth/read-delegation/read-delegation-request.js';
 
 /**
  * Shared HTTP configuration extracted from the main bootstrap (main.ts).
@@ -15,6 +17,7 @@ import { PrismaClientExceptionFilter } from '../common/prisma-exception.filter.j
  *   2. optional service/release identity middleware
  *   3. CORS
  *   4. raw webhook parsers (Clerk, Recall)
+ *      and optional fixed Objective decision entity capture
  *   5. special email-signature large body parser
  *   6. default JSON parser
  *   7. ValidationPipe
@@ -37,6 +40,13 @@ export interface ConfigureApiHttpAppOptions {
    * invalidate every signature.
    */
   includeTangoRawBody: boolean;
+  /** Main API only: capture the fixed internal Objective decision entity.
+   * Omitted/false preserves other processes; this grants no authority. */
+  includeObjectiveDecisionRawBody?: boolean;
+  /** Main API only: capture the exact entity bytes of `CapiroMeriRead`
+   * requests (16 KiB, UTF-8 JSON, no inflation) for the read token's body
+   * hash. Other requests are untouched; this grants no authority. */
+  includeMeriReadDelegationRawBody?: boolean;
   /** Register the 32mb email-signature JSON parser on /api/me/email-signature. */
   includeEmailSignatureLargeBody: boolean;
   /** Default JSON body limit. */
@@ -134,6 +144,12 @@ export function configureApiHttpApp(
   // multi-megabyte payload can never be buffered, hashed, or parsed.
   if (options.includeTangoRawBody) {
     app.use('/webhooks/tango', raw({ type: '*/*', limit: '1mb' }));
+  }
+  if (options.includeObjectiveDecisionRawBody === true) {
+    app.use(objectiveAdmissionRawBody());
+  }
+  if (options.includeMeriReadDelegationRawBody === true) {
+    app.use(meriReadDelegationRawBody());
   }
 
   // 5. Email-signature large body parser — mounted before the global json()

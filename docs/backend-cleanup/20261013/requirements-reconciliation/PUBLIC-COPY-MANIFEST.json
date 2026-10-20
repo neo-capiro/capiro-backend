@@ -1,0 +1,269 @@
+{
+  "schema": "cleanup-requirements-public-copy/v1",
+  "sourceEvidenceDirectory": "/workspace/backend-cleanup-recovery-20261012/next-boundary-reconciliation-20261013",
+  "destinationDirectory": "docs/backend-cleanup/20261013/requirements-reconciliation/",
+  "sourceSnapshotHeads": {
+    "PR2480": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+    "PR2481": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+  },
+  "siblingCommonBase": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "scope": "Minimal byte-exact publication of the accepted pre-extraction/source-only requirements snapshot; later Tracker qualification is separate. No repository copy performed by this task.",
+  "copiedPayloadCount": 6,
+  "files": [
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.md",
+      "destinationFile": "REQUIREMENTS-RECONCILIATION-v2.md",
+      "sha256": "c8c445383279eb4d1ffeb8cd8175c794887588e72d264f9573dc3e2f9df10867",
+      "bytes": 6722,
+      "reason": "Final concise narrative and entrypoint; its three relative Markdown links must resolve.",
+      "copyExactlyWithoutRewriting": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "destinationFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "sha256": "edf9224a0b8b1ea8e9ce50b2a6c9251b4013f44c3a06dd74bf5d3067ca57e763",
+      "bytes": 61826,
+      "reason": "Final 84-group requirement/status mapping and explicit evidence index.",
+      "copyExactlyWithoutRewriting": true
+    },
+    {
+      "sourceFile": "INPUT-PROVENANCE.json",
+      "destinationFile": "INPUT-PROVENANCE.json",
+      "sha256": "be4ca4b0bfdea3be3d90f314975d5737212763fdc82f536d9d1b18f038dd3c88",
+      "bytes": 52981,
+      "reason": "Referenced by the narrative, inputProvenance and evidenceIndex.PROVENANCE.localFile; preserves exact source/receipt identity claims.",
+      "copyExactlyWithoutRewriting": true
+    },
+    {
+      "sourceFile": "SOURCE-OBSERVATIONS.json",
+      "destinationFile": "SOURCE-OBSERVATIONS.json",
+      "sha256": "e379fe94643363c62d125ea639ac4692da2ad61d1c147134a00957d9176485b9",
+      "bytes": 7531,
+      "reason": "Referenced by sourceObservations and six evidenceIndex localFile operands; keeps current-at-snapshot tool/absence claims distinct from execution.",
+      "copyExactlyWithoutRewriting": true
+    },
+    {
+      "sourceFile": "NEXT-BACKEND-BOUNDARY.json",
+      "destinationFile": "NEXT-BACKEND-BOUNDARY.json",
+      "sha256": "233b9d672118687468086939a806db96eca55bb32503566c8adfc13b4e7238ab",
+      "bytes": 17587,
+      "reason": "Referenced by the narrative and nextBoundary; preserves the original complete tracker pre-extraction inventory and constraints.",
+      "copyExactlyWithoutRewriting": true
+    },
+    {
+      "sourceFile": "PUBLIC-SNAPSHOT-ERRATA.md",
+      "destinationFile": "PUBLIC-SNAPSHOT-ERRATA.md",
+      "sha256": "31257db999bfa130550ddddbda01d5802e97c95e2819b752fa6b48be9c7a0328",
+      "bytes": 1962,
+      "reason": "Additive snapshot-scope/metric/constructor clarification without modifying any accepted v2 artifact.",
+      "copyExactlyWithoutRewriting": true
+    }
+  ],
+  "manifestDisposition": {
+    "publishThisManifest": true,
+    "destinationFile": "PUBLIC-COPY-MANIFEST.json",
+    "totalPublicArtifactsIncludingManifest": 7,
+    "selfHashOmitted": "A self hash is not a payload dependency; the publisher records the manifest blob/hash separately."
+  },
+  "requiredLocalDependencies": [
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.md",
+      "operand": "Markdown link 1",
+      "targetFile": "INPUT-PROVENANCE.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.md",
+      "operand": "Markdown link 2",
+      "targetFile": "NEXT-BACKEND-BOUNDARY.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.md",
+      "operand": "Markdown link 3",
+      "targetFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.inputProvenance",
+      "targetFile": "INPUT-PROVENANCE.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.sourceObservations",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.nextBoundary",
+      "targetFile": "NEXT-BACKEND-BOUNDARY.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.PROVENANCE.localFile",
+      "targetFile": "INPUT-PROVENANCE.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.GATE_SOURCE.localFile",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.CI_SOURCE.localFile",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.GUARD_SOURCE.localFile",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.NAME_SOURCE.localFile",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.VISUAL_SOURCE.localFile",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operand": "$.evidenceIndex.LEDGER.localFile",
+      "targetFile": "SOURCE-OBSERVATIONS.json",
+      "resolvedByCopySet": true
+    }
+  ],
+  "nonLocalOrDescriptiveReferenceClasses": [
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operands": [
+        "$.supersedes",
+        "$.priorDraftSHA256"
+      ],
+      "classification": "descriptive prior-draft custody",
+      "copyRequired": false,
+      "reason": "No file-reading operand or Markdown link; preserve hash/history without copying first drafts."
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.json",
+      "operands": [
+        "$.evidenceIndex.*.path",
+        "$.evidenceIndex.*.paths",
+        "$.evidenceIndex.*.handover",
+        "$.evidenceIndex.*.at"
+      ],
+      "classification": "repository-root source paths at immutable Git commits",
+      "copyRequired": false,
+      "reason": "Resolve against the paired original commit, not relative to the public subfolder; no historical plan/ledger/source copies."
+    },
+    {
+      "sourceFile": "INPUT-PROVENANCE.json",
+      "operands": [
+        "$.originalPlans[*].path + commit/blob",
+        "$.historicalBackendCleanupDocumentVersions[*].path + commit/blob",
+        "$.verifiedLatestFinitePublications[*].sourcePins[*].path + head",
+        "$.verifiedLatestFinitePublications[*].publicationPath + head",
+        "$.verifiedLatestFinitePublications[*].evidencePins[*].path",
+        "$.verifiedLatestFinitePublications[*].gatePins[*].receiptPath",
+        "$.nextBoardSource.path + publishedSourceHead"
+      ],
+      "classification": "immutable source or absolute original evidence custody references",
+      "copyRequired": false,
+      "reason": "Snapshot retains exact commit/blob/receipt hashes; raw reports remain in original recovery custody, not as public-folder dependencies."
+    },
+    {
+      "sourceFile": "SOURCE-OBSERVATIONS.json",
+      "operands": [
+        "$.observedSourceAssets[*].path + commit/blob",
+        "$.namedAssetsAbsentAtBothHeads[*]",
+        "$.rootCleanupScriptAliases.*"
+      ],
+      "classification": "source operands, absence observations and recorded command text",
+      "copyRequired": false,
+      "reason": "Existing source paths resolve at the stated head; absent targets must remain absent; commands are evidence text, not scripts to execute or copy."
+    },
+    {
+      "sourceFile": "NEXT-BACKEND-BOUNDARY.json",
+      "operands": [
+        "$.path + publishedSourceHead",
+        "$.positiveSourceConsumerPaths[*]",
+        "$.positiveWorkerConsumer.path",
+        "$.originalRequirementOwners[*]"
+      ],
+      "classification": "original repository source/consumer/requirement identities",
+      "copyRequired": false,
+      "reason": "Inventory is a source-only original snapshot, with exact Git source hashes and a separate later tracker handover."
+    }
+  ],
+  "excludedPrivateArtifacts": [
+    {
+      "file": "FINAL-RECONCILIATION.json",
+      "reason": "Private custody receipt includes prior drafts and independent tracker audit operands; neither final narrative nor final 84-group JSON requires it."
+    },
+    {
+      "file": "REQUIREMENTS-RECONCILIATION.json",
+      "reason": "First JSON draft retained privately; final mapping supersedes it without a file-reading dependency."
+    },
+    {
+      "file": "REQUIREMENTS-RECONCILIATION.md",
+      "reason": "First narrative draft retained privately; no final Markdown link targets it."
+    },
+    {
+      "file": "TRACKER-AUDIT-MANIFEST.json and five pinned audit assets",
+      "reason": "Independent auditor source custody remains separately retained; not required for minimal public references."
+    },
+    {
+      "file": "Historical plans/generic duplication ledgers/raw native reports",
+      "reason": "Already preserved by immutable Git objects and original recovery custody; copying them would broaden the snapshot and obscure stale-data boundaries."
+    }
+  ],
+  "errataArtifact": "PUBLIC-SNAPSHOT-ERRATA.md",
+  "errataOperands": [
+    {
+      "sourceFile": "INPUT-PROVENANCE.json",
+      "operand": "$.nextBoardSource.physicalLines",
+      "originalValue": 1811,
+      "canonicalPythonSplitlinesValue": 1810
+    },
+    {
+      "sourceFile": "NEXT-BACKEND-BOUNDARY.json",
+      "operand": "$.fileBudget.physical",
+      "originalValue": 1811,
+      "canonicalPythonSplitlinesValue": 1810
+    },
+    {
+      "sourceFile": "REQUIREMENTS-RECONCILIATION-v2.md",
+      "operand": "Tracker physical-line narrative",
+      "originalValue": 1811,
+      "canonicalPythonSplitlinesValue": 1810
+    },
+    {
+      "sourceFile": "NEXT-BACKEND-BOUNDARY.json",
+      "operand": "$.constructor.name",
+      "originalValue": "(module policy IIFE)",
+      "clarification": "Actual TrackerBoardService constructor; four recorded canonical dependency types remain correct."
+    }
+  ],
+  "validation": {
+    "allRelativeMarkdownLinksResolve": true,
+    "allDeclaredLocalJsonFileOperandsResolve": true,
+    "originalFiveArtifactBytesUnchanged": true,
+    "noPriorDraftOrStaleLedgerCopiesRequired": true,
+    "allJsonPayloadsParse": true,
+    "repoWrites": false,
+    "nativeRuns": false,
+    "frameworkAdded": false
+  }
+}

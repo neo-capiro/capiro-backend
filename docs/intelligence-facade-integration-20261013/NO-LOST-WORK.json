@@ -1,0 +1,34 @@
+{
+  "approvedInitialImport": {
+    "head": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "tree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+    "unchanged": true,
+    "repositoryCreation": "Approved; exactPOST/user/repos denied403 by existing integration; no repo/new-destination push"
+  },
+  "preservedDonors": [
+    {
+      "pr": 2480,
+      "head": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "tree": "e69cd621afb05835efe7644159165431c92c30be",
+      "base": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+      "receivingSource": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+      "status": "Qualified independently reviewed source successor; not silently included in approved initial import"
+    },
+    {
+      "pr": 2481,
+      "head": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "tree": "19a32179300851342902cab3afdaf3f50992975f",
+      "base": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+      "status": "Preserved local published donor ref; receiving queued; sibling of2480"
+    },
+    {
+      "pr": 2485,
+      "head": "1ecd4b71b3243a38585a11cba6535bd7384d668b",
+      "tree": "0bc843bbf8667fe7a5914c058d1f64daf1eff775",
+      "base": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "status": "Parent-published metadata pin; not yet fetched/composed; successor stacked on2481, never silently adopted"
+    }
+  ],
+  "originalInventory": "Inherited301-PR/15original-pin snapshot in docs/backend-repository-split-preparation-20261013/evidence/candidate-reachability.json; historical snapshot, not current complete inventory",
+  "protectedReporting": "Unpublished owner remains preserved/uninspected; no branch/body or semantics adoption claim"
+}

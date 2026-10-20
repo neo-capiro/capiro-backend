@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "kind": "BYTE_EXACT_SOURCE_PUBLICATION",
+  "repository": "neo-capiro/capiro-backend",
+  "branch": "feat/objective-background-evidence",
+  "reviewedLocalCommit": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+  "publishedSourceCommit": "97286c5848be5e2101d8eb7872e77ec2b0cddd76",
+  "sourceTree": "005806a89c89d039aacd32a6bcbd54ba20c2ca6c",
+  "parent": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "treeIdentityEqual": true,
+  "metadataOnlyCommitChange": {
+    "reason": "Normal Git push unavailable: shell DNS could not resolve GitHub. Authorized GitHub connector creates Git commits under connected account metadata; no author/timestamp override is exposed.",
+    "local": {
+      "author": "Neo Martinez <neo@capiro.ai>",
+      "date": "2026-10-15T22:53:25-04:00"
+    },
+    "published": {
+      "author": {
+        "name": "CapiroHQ",
+        "email": "neo@capiro.ai",
+        "date": "2026-10-16T03:07:45Z"
+      },
+      "committer": {
+        "name": "CapiroHQ",
+        "email": "neo@capiro.ai",
+        "date": "2026-10-16T03:07:45Z"
+      }
+    }
+  },
+  "verification": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion-projection.ts",
+      "blob": "1db06a5dafd9cfec8e84464fbbbbeae7bcdaae50",
+      "bytesMatch": true,
+      "sha256": "7e877ddf14aca433e4390e23dec7c8af45f36fc49b31e92437b8e8d0ab088986"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-read-model.ts",
+      "blob": "88a1bd113fcd7fe7ba4e35188192499c8e7d7673",
+      "bytesMatch": true,
+      "sha256": "2f2303335cd5c683369c9df7ce1584cdbbe17d1faff1a4ba28cfda2ad3d21cb0"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-background.ts",
+      "blob": "93965a024aed4e6bec78841aafe353bc297fee90",
+      "bytesMatch": true,
+      "sha256": "f05b8f3122b24a0f49e69b2596ca9a2ab4513ef4da7d3f68e1d304664b389978"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-context.service.spec.ts",
+      "blob": "0da492a7b40426f6e8b8b26d8b9fe6a81f654e49",
+      "bytesMatch": true,
+      "sha256": "0a0ae3affae6bbd215a14f194013913c35e1e1587bc9d282df81826ee240be15"
+    },
+    {
+      "path": "apps/api/src/context/objective-generation-context.service.ts",
+      "blob": "ba89e24d145a20fe280d8c7a75982432d9c9a1ff",
+      "bytesMatch": true,
+      "sha256": "adc4a1f7a6ab7fefafeb041cf1461c57e2afee854678aa076d338f0518dbfc83"
+    },
+    {
+      "path": "apps/api/src/context/strategy-context-plane.service.spec.ts",
+      "blob": "89abc54733e6539d0bff700d137ee294d974a715",
+      "bytesMatch": true,
+      "sha256": "8a116fcd76252c9d0080c43c146453e0e8539df729a4c8406a7ef799024dabe7"
+    },
+    {
+      "path": "apps/api/src/context/strategy-context-plane.service.ts",
+      "blob": "ed081585e5aa27a9d3b90f2e69d8febd5f2fa74e",
+      "bytesMatch": true,
+      "sha256": "263106f62d379664dbd9bdd558ea1935d397bef46e65024f0cde344b4ecc7ffd"
+    },
+    {
+      "path": "apps/api/test/objective-generation-background.focused.test.mjs",
+      "blob": "0030ff6e684d89c78e75ceb1cb2c93253e454f7e",
+      "bytesMatch": true,
+      "sha256": "e9236c3f7ea61333c5aec5b3c5289f844e031b78243ae9fd3a3c59bb2b89438d"
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/IMPLEMENTATION.md",
+      "blob": "218fed62944c80d2e5ecf7c99919a58c5956b495",
+      "bytesMatch": true,
+      "sha256": "905b8f5fc27fef981270748b21366c48ae3dddc5acdb0c071e9802a67f8a0296"
+    }
+  ],
+  "qualification": {
+    "sourceReview": "ACCEPT_SOURCE_ONLY",
+    "focusedTests": {
+      "passed": 68,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "semanticCompiler": "UNRUN",
+    "nestIntegration": "UNRUN",
+    "nativePostgreSQL": "UNQUALIFIED; existing ACL STOP preserved",
+    "automaticPublication": "UNIMPLEMENTED; new trust/schema contract required"
+  },
+  "noChanges": [
+    "main",
+    "shipping",
+    "credentials",
+    "SQL execution",
+    "ACLs",
+    "deployment"
+  ]
+}

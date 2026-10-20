@@ -1,0 +1,9 @@
+{"physicalFreeBytes":11870965760,"observedAt":"2026-10-16T03:42:49.656Z","commitObservation":"unavailable; no denied probe retried","heapCapMiB":128}
+(node:21204) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/neoma/Documents/Codex/2026-10-14/task-6/objective-background-evidence/apps/api-strategy/src/planner/objective-canonical-application.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\neoma\Documents\Codex\2026-10-14\task-6\objective-background-evidence\apps\api-strategy\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21204) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/neoma/Documents/Codex/2026-10-14/task-6/objective-background-evidence/apps/api/src/auth/workload-authority/objective-consent-policy.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\neoma\Documents\Codex\2026-10-14\task-6\objective-background-evidence\apps\api\package.json.
+(node:21204) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time

@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "receiptCreatedAt": "2026-10-14 14:49:27 UTC",
+  "frontend": {
+    "repo": "neo-capiro/capiro-frontend",
+    "head": "ee9d872743f44f927fa924eebd764da8e093888c",
+    "tree": "f17576deac06e97e0dfc9404a13844baa0c4cce4",
+    "functionalMode": "CAPIRO_PREVIEW_READ_ONLY=false",
+    "ordinaryTokenSelection": "existing capiro JWT template for Portfolio proxy; fixed-operation gateway uses existing default session only for declared clerk-session operations",
+    "normalLoginAndTenantPermissionsUnchanged": true,
+    "separateReadonlyApiRoleFixtureVpcRequired": false,
+    "sourceBlobs": [
+      {
+        "path": "apps/web/src/app/api/backend/[service]/[...path]/route.ts",
+        "blob": "ab09a205e2d52af8fcd674c51c3befe8a7b4ea80"
+      },
+      {
+        "path": "apps/web/src/shared/preview/backend-policy.server.ts",
+        "blob": "64fc75d5d3226ed521a3dc826def76e1321cb1ea"
+      },
+      {
+        "path": "apps/web/src/shared/portfolio/api/proxy.ts",
+        "blob": "b8d530e4ad26e9a5b6afcb7d090218dd14507f34"
+      },
+      {
+        "path": "apps/web/src/app/api/capiro/[operation]/route.ts",
+        "blob": "864e988d1489237330739014cf807b0321239fe5"
+      },
+      {
+        "path": "apps/web/src/shared/capiro/gateway.ts",
+        "blob": "c4c16fb183f0ce1ad6ccb998838a7b769fec3c00"
+      }
+    ]
+  },
+  "runtimeObservations": {
+    "kind": "credential-free external GET status/release-header only",
+    "requests": [
+      {
+        "method": "GET",
+        "url": "https://os.capiro.ai/api/me",
+        "httpStatus": 401,
+        "serviceHeader": "",
+        "releaseHeader": "1e99f0921b207318c6d2abf03927b5c4daa5768b"
+      },
+      {
+        "method": "GET",
+        "url": "https://os.capiro.ai/api/me/portfolio-layout",
+        "httpStatus": 401,
+        "serviceHeader": "",
+        "releaseHeader": "1e99f0921b207318c6d2abf03927b5c4daa5768b"
+      }
+    ],
+    "bodies": "discarded to /dev/null",
+    "credentialHeadersSent": false,
+    "cookiesSent": false,
+    "rawSourceOutput": [
+      "core_me status=401 service= release=1e99f0921b207318c6d2abf03927b5c4daa5768b\n",
+      "core_layout status=401 service= release=1e99f0921b207318c6d2abf03927b5c4daa5768b\n"
+    ],
+    "limitations": [
+      "401 proves unauthenticated refusal only; middleware may reject before route dispatch.",
+      "Release header is a server-advertised source hint, not an image/task/route attestation.",
+      "No signed-in identity, tenant, claims or successful route/read/write acceptance established."
+    ]
+  },
+  "sourceEvidence": {
+    "advertisedCoreSource": {
+      "repo": "neo-capiro/capirov2",
+      "ref": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "files": [
+        {
+          "path": "apps/api/src/users/users.module.ts",
+          "blob": "ee8239726abcdc91da5f2d23872a887fe42902b0",
+          "finding": "Registers only UsersController; no PortfolioLayoutController."
+        },
+        {
+          "path": "apps/api/src/clients/clients.module.ts",
+          "blob": "9aaa2281d899c26d6a35954794e232d662a2dcc9",
+          "finding": "No ClientObjectivesModule."
+        },
+        {
+          "path": "apps/api/src/auth/clerk.service.ts",
+          "blob": "ce5c4d9bf49e6df098e796b366c3a9f3f59e8d96",
+          "finding": "Ordinary verifySessionToken verifies signed JWT/issuer and normalizes v2 org claims; no universal sid/online-session prerequisite."
+        },
+        {
+          "path": "apps/api/src/clients/clients.controller.ts",
+          "blob": "54be4e4148352309522eb1632ca2e3750940dcb9",
+          "matches": []
+        },
+        {
+          "path": "apps/api/src/users/users.controller.ts",
+          "blob": "1bd5eb81436f3857761f4aec4af05ee7742f5ed6",
+          "matches": []
+        },
+        {
+          "path": "apps/api/src/app.module.ts",
+          "blob": "b7cf770413db5e5fab3c74ce07f7ed8ff873a993",
+          "matches": [
+            {
+              "line": 10,
+              "text": "import { UsersModule } from './users/users.module.js';"
+            },
+            {
+              "line": 16,
+              "text": "import { ClientsModule } from './clients/clients.module.js';"
+            },
+            {
+              "line": 91,
+              "text": "    UsersModule,"
+            },
+            {
+              "line": 97,
+              "text": "    ClientsModule,"
+            }
+          ]
+        }
+      ]
+    },
+    "rebuiltSource": {
+      "repo": "neo-capiro/capiro-backend",
+      "ref": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
+      "files": [
+        {
+          "path": "apps/api/src/users/users.module.ts",
+          "blob": "fd13f1c65d16a97b75f2b55ce6b9686ff65cb264",
+          "finding": "Registers existing PortfolioLayoutController."
+        },
+        {
+          "path": "apps/api/src/clients/clients.module.ts",
+          "blob": "f34b141a8101cece76c3765ed5d7d340334c5d98",
+          "finding": "Imports ClientObjectivesModule."
+        },
+        {
+          "path": "apps/api/src/auth/clerk.service.ts",
+          "blob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+          "finding": "sid/active online session applies to assertActiveApplicationAuthoritySession invoked by readApplicationAuthority-dependent owner endpoints, not all ordinary API requests."
+        }
+      ]
+    }
+  },
+  "reportedRuntimeGaps": {
+    "source": "frontend PR42 release HANDOFF.md / NATIVE-NEXT.md",
+    "layout404": "Recorded signed-in gap explained at source-registration level in advertised Core source; no authenticated reproduction by this lane.",
+    "objectives404": "Recorded signed-in gap explained at source-registration level in advertised Core source; no authenticated reproduction by this lane.",
+    "proposals502": "Exact failing field/path remains unknown; retain schema and use existing sanitized validation diagnostic on authorized read.",
+    "runtimeServingPrerequisites": "Actual admitted current image/service and existing signed-in tester identity/tenant remain shipping/native-owner verification."
+  },
+  "scope": {
+    "newApiOrAuthLayer": false,
+    "productSourceChanges": false,
+    "liveTestWrites": false,
+    "providerOrPaidCalls": false,
+    "credentialsOrPermissionsChanges": false,
+    "awsOperations": false,
+    "dbOrMigrationOrSqlExecution": false,
+    "protectedUnpublishedReportingAccess": false,
+    "sourceArchiveCreated": false
+  },
+  "retrievalFailures": [
+    {
+      "tool": "exec_command",
+      "kind": "default sandbox setup ENOSPC",
+      "raw": "\nthread 'main' (1282854) panicked at linux-sandbox/src/linux_run_main.rs:994:25:\nfailed to register synthetic bubblewrap mount target /tmp/.aws: No space left on device (os error 28)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "path": "apps/web/src/shared/capiro/server-auth.ts",
+      "result": "404 wrong guessed path; corrected by published app/api/capiro/[operation]/route.ts and gateway.ts reads"
+    },
+    {
+      "path": "apps/api-strategy/src/strategies/strategies.controller.ts",
+      "result": "404 wrong guessed path; exact source path resolved to apps/api-strategy/src/strategy/strategy.controller.ts"
+    },
+    {
+      "path": "AGENTS.md",
+      "ref": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "result": "404; read-only investigation, no auth editing"
+    }
+  ],
+  "independentReview": {
+    "reviewer": "shared_ledger_mapping_review",
+    "verdict": "ACCEPT WITH RUNTIME CAVEATS",
+    "scope": "Finite independent re-read of pinned frontend routing/token and old/new module/authority source; credential-free HTTP observations supplied by author, not reproduced by reviewer.",
+    "conclusions": [
+      "Source selects normal proxy/login/tenant permissions; no separate PR2/PR3/API/reader/VPC/auth prerequisite.",
+      "Advertised old registrations lack both route families; new canonical modules register them, consistent with reported404s.",
+      "Ordinary JWT verification is distinct from sid/online application-authority endpoints."
+    ],
+    "caveats": [
+      "401 does not prove route presence, signed-in claims or API compatibility.",
+      "Release header is not deployed image/source attestation.",
+      "Existing capiro template sid coverage for signed-in layout is unverified.",
+      "Proposals actual failing field/path and tester identity/tenant/owned flow remain unresolved."
+    ],
+    "nativeAcceptance": false,
+    "noWrites": true
+  }
+}

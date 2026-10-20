@@ -1,0 +1,284 @@
+{
+  "retainedOriginal": 55,
+  "afterPassed": 60,
+  "additional": 5,
+  "omitted": [],
+  "normalizedTitles": [],
+  "identities": [
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "evaluation order, caching and invalidation env off \u2192 no DB read",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "evaluation order, caching and invalidation env on \u2192 exactly one DB read decides the turn",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "evaluation order, caching and invalidation invalidate() makes a tenant flag flip land on the next turn",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "evaluation order, caching and invalidation the env key is re-read on every call: a warm settings cache cannot keep the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=false flag=absent \u2192 false",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=false flag=false \u2192 false",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=false flag=true \u2192 false",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=true flag=absent \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=true flag=false \u2192 false",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=true flag=true \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=unset flag=absent \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=unset flag=false \u2192 false",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) env=unset flag=true \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "isMeriV3ChatEnabled \u2014 9-cell truth table (env \u00d7 DB flag) the table enumerates every combination once; only explicit off values close it",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\" false \" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"\" leaves the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"0\" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"1\" leaves the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"FALSE\" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"OFF\" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"TRUE\" leaves the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"false\" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"no\" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"off\" closes the gate and never reads the DB",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"on\" leaves the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"true\" leaves the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 1 \u2014 env MERIV3_ENABLED is a kill switch that defaults on MERIV3_ENABLED=\"yes\" leaves the gate open",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false a DB read failure resolves to the default (on) and never throws into the hot path",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false a missing tenant row resolves to the default (on)",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false boolean false \u2192 false",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false boolean true \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false clioFeatureFlags is an array \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false key absent \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false no clioFeatureFlags object \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false null value \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false number 0 \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false settings is an array \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false settings null \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "key 2 \u2014 DB flag clioFeatureFlags[\"meriv3.fullChat\"] closes only on explicit false string 'false' \u2192 true",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.matrix.spec.ts",
+      "name": "no slug allow-list MERIV3_CANARY_TENANT_SLUGS is ignored; a tenant outside any list is served",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.service.spec.ts",
+      "name": "MeriFeatureFlagsService.isMeriV2SurfaceEnabled GA: with env on, defaults to TRUE when the tenant flag is unset",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.service.spec.ts",
+      "name": "MeriFeatureFlagsService.isMeriV2SurfaceEnabled an explicit false opts the tenant OUT even with env on",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.service.spec.ts",
+      "name": "MeriFeatureFlagsService.isMeriV2SurfaceEnabled flip ON->OFF after invalidate restores prior behavior immediately (SC0.4)",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.service.spec.ts",
+      "name": "MeriFeatureFlagsService.isMeriV2SurfaceEnabled returns false WITHOUT a DB read when MERIV2_ENABLED is off",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-feature-flags.service.spec.ts",
+      "name": "MeriFeatureFlagsService.isMeriV2SurfaceEnabled true when env on AND the per-tenant flag is on",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-mobile-flags.spec.ts",
+      "name": "Meri mobile rollout flags is default closed",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-mobile-flags.spec.ts",
+      "name": "Meri mobile rollout flags keeps each capability independently default closed",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-mobile-flags.spec.ts",
+      "name": "Meri mobile rollout flags requires the fleet switch and canonical tenant allowlist",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers an explicit cohort remains an available rollback carve-out",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers tenant slugs are normalized and blank values are discarded",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers the global switch is default-off",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers the global switch requires the explicit true literal",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers the rollout defaults to every tenant when no carve-out is configured",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers the service fails closed when tenant settings cannot be read",
+      "multiplicity": 1
+    },
+    {
+      "path": "meri-quick-action-flags.spec.ts",
+      "name": "Meri Quick Action rollout helpers the wildcard cohort admits every non-empty tenant slug",
+      "multiplicity": 1
+    }
+  ]
+}

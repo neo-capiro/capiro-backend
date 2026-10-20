@@ -1,0 +1,201 @@
+{
+  "schema": "capiro.meri-execution-capability.v1 test vector (rev 5)",
+  "note": "SYNTHETIC key derived from SHA-256(\"capiro-meri-execution-capability-vector-v1\"). Never deploy it. Regenerate only with a contract change. The allocation is minimal; meri-execution-admitted-allocation.vector.json carries a complete admitted allocation.",
+  "key": {
+    "seedHex": "9f5830a6f498cb4bcaec9e87b386e0ea02345c734726eee70742f08f79d7c54d",
+    "issuer": "capiro-core:meri-execution:v1",
+    "kid": "meri-execution-synthetic-1",
+    "publicJwk": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "e56uKebZXXCXjBSOpBuoSa2kB5P_WWFp9-TB_nwdH_M",
+      "kid": "meri-execution-synthetic-1",
+      "alg": "EdDSA",
+      "use": "sig"
+    }
+  },
+  "inputs": {
+    "proposal": {
+      "proposalId": "99999999-9999-4999-8999-999999999999",
+      "command": {
+        "contractVersion": "0.1.0",
+        "commandId": "88888888-8888-4888-8888-888888888888",
+        "binding": {
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "actorId": "22222222-2222-4222-8222-222222222222",
+          "conversationId": "44444444-4444-4444-8444-444444444444",
+          "runId": "55555555-5555-4555-8555-555555555555",
+          "attemptId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "workerId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "writerFence": 3
+        },
+        "action": "task.create",
+        "arguments": {
+          "title": "Call the delegation",
+          "clientId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "dueDate": null
+        },
+        "attachments": [],
+        "scopes": [
+          {
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "kind": "client",
+            "resourceId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9"
+          }
+        ],
+        "idempotencyKey": "intent-1"
+      },
+      "commandSha256": "25b18acee2043281ab7f0b14f7b425697bfad53e280a95e1b6f079adca6acf34",
+      "createdAt": "2026-10-18T06:00:00.000Z",
+      "expiresAt": "2026-10-18T06:30:00.000Z",
+      "requiredApprover": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "actorId": "22222222-2222-4222-8222-222222222222"
+      }
+    },
+    "decision": {
+      "proposalId": "99999999-9999-4999-8999-999999999999",
+      "commandSha256": "25b18acee2043281ab7f0b14f7b425697bfad53e280a95e1b6f079adca6acf34",
+      "decision": "approved",
+      "decidedAt": "2026-10-18T06:01:00.000Z",
+      "expiresAt": "2026-10-18T06:30:00.000Z",
+      "approver": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "actorId": "22222222-2222-4222-8222-222222222222"
+      },
+      "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9"
+    },
+    "executorBinding": {
+      "tenantId": "11111111-1111-4111-8111-111111111111",
+      "actorId": "22222222-2222-4222-8222-222222222222",
+      "conversationId": "44444444-4444-4444-8444-444444444444",
+      "runId": "55555555-5555-4555-8555-555555555555",
+      "attemptId": "66666666-6666-4666-8666-666666666666",
+      "workerId": "77777777-7777-4777-8777-777777777777",
+      "writerFence": 4
+    },
+    "requestId": "07310f71-2d8b-4c8a-b6ba-446ece1e7d3f",
+    "capabilityId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "allocation": {
+      "run": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "actorId": "22222222-2222-4222-8222-222222222222",
+        "conversationId": "44444444-4444-4444-8444-444444444444",
+        "runId": "55555555-5555-4555-8555-555555555555"
+      },
+      "budgets": {
+        "maxTurns": 20,
+        "maxToolCalls": 20,
+        "maxRecoveryAttempts": 0,
+        "maxRuntimeSeconds": 900,
+        "maxCostMicroUSD": 2000000,
+        "maxOutputBytes": 1048576
+      },
+      "schedule": {
+        "revision": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "expiresAt": "2026-10-18T09:30:00.000Z",
+        "operations": []
+      }
+    },
+    "qualification": {
+      "runId": "55555555-5555-4555-8555-555555555555",
+      "attempt": 2,
+      "workerArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0123456789abcdef0123456789abcdef",
+      "fence": 4,
+      "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9"
+    },
+    "nowMs": 1792303320250,
+    "runDeadlineMs": 1792304100000
+  },
+  "expected": {
+    "credential": "eyJhbGciOiJFZERTQSIsInR5cCI6ImNhcGlyby1tZXJpLWV4ZWN1dGlvbitqd3QiLCJraWQiOiJtZXJpLWV4ZWN1dGlvbi1zeW50aGV0aWMtMSJ9.eyJhdWQiOiJtZXJpLWdhdGV3YXkiLCJjYXBhYmlsaXR5Ijp7ImFjdGlvbnMiOlsiY29tbWFuZC5leGVjdXRlIl0sImF1ZGllbmNlIjoibWVyaS1nYXRld2F5IiwiYmluZGluZyI6eyJhY3RvcklkIjoiMjIyMjIyMjItMjIyMi00MjIyLTgyMjItMjIyMjIyMjIyMjIyIiwiYXR0ZW1wdElkIjoiNjY2NjY2NjYtNjY2Ni00NjY2LTg2NjYtNjY2NjY2NjY2NjY2IiwiY29udmVyc2F0aW9uSWQiOiI0NDQ0NDQ0NC00NDQ0LTQ0NDQtODQ0NC00NDQ0NDQ0NDQ0NDQiLCJydW5JZCI6IjU1NTU1NTU1LTU1NTUtNDU1NS04NTU1LTU1NTU1NTU1NTU1NSIsInRlbmFudElkIjoiMTExMTExMTEtMTExMS00MTExLTgxMTEtMTExMTExMTExMTExIiwid29ya2VySWQiOiI3Nzc3Nzc3Ny03Nzc3LTQ3NzctODc3Ny03Nzc3Nzc3Nzc3NzciLCJ3cml0ZXJGZW5jZSI6NH0sImJ1ZGdldHMiOnsibWF4Q29zdE1pY3JvdXNkIjoyMDAwMDAwLCJtYXhPdXRwdXRCeXRlcyI6MTA0ODU3NiwibWF4UnVudGltZVNlY29uZHMiOjkwMCwibWF4VHVybnMiOjIwfSwiY2FwYWJpbGl0eUlkIjoiZGRkZGRkZGQtZGRkZC00ZGRkLThkZGQtZGRkZGRkZGRkZGRkIiwiZXhwaXJlc0F0IjoiMjAyNi0xMC0xOFQwNjowNDowMC4wMDBaIiwiaXNzdWVkQXQiOiIyMDI2LTEwLTE4VDA2OjAyOjAwLjAwMFoiLCJpc3N1ZXIiOiJjYXBpcm8tY29yZTptZXJpLWV4ZWN1dGlvbjp2MSIsInBvbGljeVJldmlzaW9uIjoiMDAzNWYwNTQ1YjMwYjdlOGM4ZTMwZDdkMmVlNGMwOTI0OGUxZTM1Nzg0NjYzZTMyMmQwYjZiNTJhZDEzZDNlOSIsInNjb3BlcyI6W3sia2luZCI6ImNsaWVudCIsInBvbGljeVJldmlzaW9uIjoiMDAzNWYwNTQ1YjMwYjdlOGM4ZTMwZDdkMmVlNGMwOTI0OGUxZTM1Nzg0NjYzZTMyMmQwYjZiNTJhZDEzZDNlOSIsInJlc291cmNlSWQiOiJjY2NjY2NjYy1jY2NjLTRjY2MtOGNjYy1jY2NjY2NjY2NjY2MiLCJ0ZW5hbnRJZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSJ9XX0sImV4ZWN1dGlvbiI6eyJhY3Rpb24iOiJ0YXNrLmNyZWF0ZSIsImFsbG9jYXRpb25TaGEyNTYiOiI4NDEyNzI0YjQ3MDdkOWRjMWQwMjdkY2RmYzc0ODE4MGQyNDIyZmJhYzkwNWMzNzlhMjgzNWI1NjY2YmNjOGIwIiwiYXBwcm92ZXIiOnsiYWN0b3JJZCI6IjIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMiIsInRlbmFudElkIjoiMTExMTExMTEtMTExMS00MTExLTgxMTEtMTExMTExMTExMTExIn0sImFyZ3VtZW50c1NoYTI1NiI6IjVmMmVmYTlhNjU2YmYyNzY5ZDIzNzU2ZmU2YTkzNjdkMmExNDZmYzkzN2I5ZTc1YzRmMWZmOTVjOTE4Y2NiY2QiLCJjbGllbnRJZHMiOlsiY2NjY2NjY2MtY2NjYy00Y2NjLThjY2MtY2NjY2NjY2NjY2NjIl0sImNvbW1hbmRTaGEyNTYiOiIyNWIxOGFjZWUyMDQzMjgxYWI3ZjBiMTRmN2I0MjU2OTdiZmFkNTNlMjgwYTk1ZTFiNmYwNzlhZGNhNmFjZjM0IiwiZGVjaXNpb25TaGEyNTYiOiJlOTIxYzNjNWQ2N2JiM2M4MjVmOTMyZDk3ZmNhZDc3ZDk0MmM3NGU3MWRjYmJkMjRjYjVmNmY2OWUwNTNhOTg5IiwiaWRlbXBvdGVuY3lLZXkiOiJpbnRlbnQtMSIsInByb3Bvc2FsSWQiOiI5OTk5OTk5OS05OTk5LTQ5OTktODk5OS05OTk5OTk5OTk5OTkiLCJxdWFsaWZpY2F0aW9uIjp7ImF0dGVtcHQiOjIsImZlbmNlIjo0LCJwb2xpY3lSZXZpc2lvbiI6IjAwMzVmMDU0NWIzMGI3ZThjOGUzMGQ3ZDJlZTRjMDkyNDhlMWUzNTc4NDY2M2UzMjJkMGI2YjUyYWQxM2QzZTkiLCJydW5JZCI6IjU1NTU1NTU1LTU1NTUtNDU1NS04NTU1LTU1NTU1NTU1NTU1NSIsIndvcmtlckFybiI6ImFybjphd3M6ZWNzOnVzLWVhc3QtMTo5Njc4MDcyNTIzMzY6dGFzay9jYXBpcm8tZGV2LzAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmIn0sInJlcXVlc3RJZCI6IjA3MzEwZjcxLTJkOGItNGM4YS1iNmJhLTQ0NmVjZTFlN2QzZiIsInJlcXVlc3RTaGEyNTYiOiI2MWZjMGJhYWNmNjRlYjYxYTMxMWI3YTVhOWIwMThkNDJhOWU4Y2ZhMWEzZGU5NjFjNDE0M2QyOTA0Mzc5ZjUxIiwic291cmNlQm9keVNoYTI1NiI6IjliYmUzMjM2NjVlMjcxZGM1M2Q5NjgyNDNjY2MxZjJmNTNjYjlmOWI2MGI3MjJiMjE0MDg2Njc3MmJiMzk2M2IifSwiZXhwIjoxNzkyMzAzNDQwLCJpYXQiOjE3OTIzMDMzMjAsImlzcyI6ImNhcGlyby1jb3JlOm1lcmktZXhlY3V0aW9uOnYxIiwianRpIjoiZGRkZGRkZGQtZGRkZC00ZGRkLThkZGQtZGRkZGRkZGRkZGRkIiwibmJmIjoxNzkyMzAzMzIwfQ.JnCPkvdnTFWqG5dACNzusdmLL86ifCNQpDDbnrPxaRW63zwN-JRJ6WvZbLVeWm67BhAjRPAro4HjRVzjr4WKDQ",
+    "execution": {
+      "contractVersion": "0.1.0",
+      "requestId": "07310f71-2d8b-4c8a-b6ba-446ece1e7d3f",
+      "capabilityId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "executorBinding": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "actorId": "22222222-2222-4222-8222-222222222222",
+        "conversationId": "44444444-4444-4444-8444-444444444444",
+        "runId": "55555555-5555-4555-8555-555555555555",
+        "attemptId": "66666666-6666-4666-8666-666666666666",
+        "workerId": "77777777-7777-4777-8777-777777777777",
+        "writerFence": 4
+      },
+      "proposalId": "99999999-9999-4999-8999-999999999999",
+      "commandSha256": "25b18acee2043281ab7f0b14f7b425697bfad53e280a95e1b6f079adca6acf34",
+      "idempotencyKey": "intent-1"
+    },
+    "expiresAtMs": 1792303440000,
+    "claimsJson": "{\"capabilityId\":\"dddddddd-dddd-4ddd-8ddd-dddddddddddd\",\"issuer\":\"capiro-core:meri-execution:v1\",\"audience\":\"meri-gateway\",\"binding\":{\"tenantId\":\"11111111-1111-4111-8111-111111111111\",\"actorId\":\"22222222-2222-4222-8222-222222222222\",\"conversationId\":\"44444444-4444-4444-8444-444444444444\",\"runId\":\"55555555-5555-4555-8555-555555555555\",\"attemptId\":\"66666666-6666-4666-8666-666666666666\",\"workerId\":\"77777777-7777-4777-8777-777777777777\",\"writerFence\":4},\"actions\":[\"command.execute\"],\"scopes\":[{\"tenantId\":\"11111111-1111-4111-8111-111111111111\",\"kind\":\"client\",\"resourceId\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\",\"policyRevision\":\"0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9\"}],\"issuedAt\":\"2026-10-18T06:02:00.000Z\",\"expiresAt\":\"2026-10-18T06:04:00.000Z\",\"policyRevision\":\"0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9\",\"budgets\":{\"maxTurns\":20,\"maxRuntimeSeconds\":900,\"maxCostMicrousd\":2000000,\"maxOutputBytes\":1048576}}",
+    "payload": {
+      "aud": "meri-gateway",
+      "capability": {
+        "actions": [
+          "command.execute"
+        ],
+        "audience": "meri-gateway",
+        "binding": {
+          "actorId": "22222222-2222-4222-8222-222222222222",
+          "attemptId": "66666666-6666-4666-8666-666666666666",
+          "conversationId": "44444444-4444-4444-8444-444444444444",
+          "runId": "55555555-5555-4555-8555-555555555555",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "workerId": "77777777-7777-4777-8777-777777777777",
+          "writerFence": 4
+        },
+        "budgets": {
+          "maxCostMicrousd": 2000000,
+          "maxOutputBytes": 1048576,
+          "maxRuntimeSeconds": 900,
+          "maxTurns": 20
+        },
+        "capabilityId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "expiresAt": "2026-10-18T06:04:00.000Z",
+        "issuedAt": "2026-10-18T06:02:00.000Z",
+        "issuer": "capiro-core:meri-execution:v1",
+        "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9",
+        "scopes": [
+          {
+            "kind": "client",
+            "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9",
+            "resourceId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            "tenantId": "11111111-1111-4111-8111-111111111111"
+          }
+        ]
+      },
+      "execution": {
+        "action": "task.create",
+        "allocationSha256": "8412724b4707d9dc1d027dcdfc748180d2422fbac905c379a2835b5666bcc8b0",
+        "approver": {
+          "actorId": "22222222-2222-4222-8222-222222222222",
+          "tenantId": "11111111-1111-4111-8111-111111111111"
+        },
+        "argumentsSha256": "5f2efa9a656bf2769d23756fe6a9367d2a146fc937b9e75c4f1ff95c918ccbcd",
+        "clientIds": [
+          "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+        ],
+        "commandSha256": "25b18acee2043281ab7f0b14f7b425697bfad53e280a95e1b6f079adca6acf34",
+        "decisionSha256": "e921c3c5d67bb3c825f932d97fcad77d942c74e71dcbbd24cb5f6f69e053a989",
+        "idempotencyKey": "intent-1",
+        "proposalId": "99999999-9999-4999-8999-999999999999",
+        "qualification": {
+          "attempt": 2,
+          "fence": 4,
+          "policyRevision": "0035f0545b30b7e8c8e30d7d2ee4c09248e1e35784663e322d0b6b52ad13d3e9",
+          "runId": "55555555-5555-4555-8555-555555555555",
+          "workerArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0123456789abcdef0123456789abcdef"
+        },
+        "requestId": "07310f71-2d8b-4c8a-b6ba-446ece1e7d3f",
+        "requestSha256": "61fc0baacf64eb61a311b7a5a9b018d42a9e8cfa1a3de961c4143d2904379f51",
+        "sourceBodySha256": "9bbe323665e271dc53d968243ccc1f2f53cb9f9b60b722b2140866772bb3963b"
+      },
+      "exp": 1792303440,
+      "iat": 1792303320,
+      "iss": "capiro-core:meri-execution:v1",
+      "jti": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "nbf": 1792303320
+    }
+  }
+}

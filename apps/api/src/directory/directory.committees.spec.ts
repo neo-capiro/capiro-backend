@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
+import { DirectoryContactMapper } from './directory-contact-mapper.js';
 import { DirectoryService } from './directory.service.js';
 import type { AppConfig } from '../config/config.schema.js';
 
@@ -245,10 +246,10 @@ describe('DirectoryService.buildCommitteeIndex', () => {
   });
 });
 
-describe('DirectoryService.primaryPhoto', () => {
+describe('DirectoryContactMapper.primaryPhoto', () => {
   test('prefers public directory, then public primary, then any public, else empty', () => {
-    const service = makeService();
-    const pick = (photos: unknown) => (service as any).primaryPhoto(photos) as string;
+    const mapper = new DirectoryContactMapper();
+    const pick = (photos: unknown) => (mapper as any).primaryPhoto(photos) as string;
 
     expect(
       pick([
@@ -268,7 +269,7 @@ describe('DirectoryService.primaryPhoto', () => {
   });
 });
 
-describe('DirectoryService staffer-coverage merge', () => {
+describe('DirectoryContactMapper staffer-coverage merge', () => {
   // staff 10: member-office position (member.member_id=500), NOT in staffer_roles.
   // staff 11: tagged in member 500's staffer_roles + staffer_issues.
   const MERGE_STAFF = [
@@ -313,16 +314,16 @@ describe('DirectoryService staffer-coverage merge', () => {
   };
 
   test('buildStaffIdsByMember collects current member-office staff', () => {
-    const service = makeService();
-    const map = (service as any).buildStaffIdsByMember(MERGE_STAFF) as Map<number, number[]>;
+    const mapper = new DirectoryContactMapper();
+    const map = (mapper as any).buildStaffIdsByMember(MERGE_STAFF) as Map<number, number[]>;
     expect(new Set(map.get(500))).toEqual(new Set([10, 11]));
   });
 
   test('buildMemberStaff merges position-linked staffers with tagged ones', () => {
-    const service = makeService();
-    const staffById = (service as any).buildStaffDetailsById(MERGE_STAFF);
-    const extra = (service as any).buildStaffIdsByMember(MERGE_STAFF).get(500) ?? [];
-    const staff = (service as any).buildMemberStaff(MEMBER_ROW, staffById, extra) as any[];
+    const mapper = new DirectoryContactMapper();
+    const staffById = (mapper as any).buildStaffDetailsById(MERGE_STAFF);
+    const extra = (mapper as any).buildStaffIdsByMember(MERGE_STAFF).get(500) ?? [];
+    const staff = (mapper as any).buildMemberStaff(MEMBER_ROW, staffById, extra) as any[];
 
     const ids = staff.map((s) => s.id).sort();
     expect(ids).toEqual(['staff-10', 'staff-11']);
@@ -337,15 +338,15 @@ describe('DirectoryService staffer-coverage merge', () => {
   });
 });
 
-describe('DirectoryService issue + class helpers', () => {
+describe('DirectoryContactMapper issue + class helpers', () => {
   test('buildTopIssues ranks issues by distinct staffer headcount', () => {
-    const service = makeService();
+    const mapper = new DirectoryContactMapper();
     const staff = [
       { issueAreas: ['Health', 'Energy'] },
       { issueAreas: ['Health'] },
       { issueAreas: ['Energy', 'Guns'] },
     ];
-    const top = (service as any).buildTopIssues(staff) as Array<{
+    const top = (mapper as any).buildTopIssues(staff) as Array<{
       issue: string;
       stafferCount: number;
     }>;
@@ -355,8 +356,8 @@ describe('DirectoryService issue + class helpers', () => {
   });
 
   test('buildCommitteeLeadershipLabels keeps only ranking roles', () => {
-    const service = makeService();
-    const labels = (service as any).buildCommitteeLeadershipLabels([
+    const mapper = new DirectoryContactMapper();
+    const labels = (mapper as any).buildCommitteeLeadershipLabels([
       { committee_office: { name: 'House Armed Services Committee' }, position: 'Chair' },
       { committee_office: { name: 'House Budget Committee' }, position: '' }, // plain membership
     ]) as string[];
@@ -364,10 +365,10 @@ describe('DirectoryService issue + class helpers', () => {
   });
 
   test('parseSenateClass only accepts 1/2/3', () => {
-    const service = makeService();
-    expect((service as any).parseSenateClass(2)).toBe(2);
-    expect((service as any).parseSenateClass('3')).toBe(3);
-    expect((service as any).parseSenateClass(0)).toBeNull();
-    expect((service as any).parseSenateClass(null)).toBeNull();
+    const mapper = new DirectoryContactMapper();
+    expect((mapper as any).parseSenateClass(2)).toBe(2);
+    expect((mapper as any).parseSenateClass('3')).toBe(3);
+    expect((mapper as any).parseSenateClass(0)).toBeNull();
+    expect((mapper as any).parseSenateClass(null)).toBeNull();
   });
 });

@@ -1,0 +1,19 @@
+# Signed selected-client memory proposal receiver source
+
+This source slice matches Meri draft PR172 `432006eb2b1d87af8c73e11d4222be2a5930952b`. It is based on Core integrated source `1f45da20fcbedcf5befb13d225428b8119443a68`. The successor wires an HTTP owner behind hard-off issuance and consumption gates; it issues no usable proposal credential.
+
+Meri sends one `POST /api/clio/tools/memory.list_own_proposals` with `Authorization: CapiroMeriRead`, the existing internal service secret, exact `JSON.stringify({input:{clientId,cursor,limit},metadata:null})` body, `x-meri-read-correlation` and the original reserved `callKey`. The request-local Core grant must come from the native read-token middleware, which verifies the signature, target, emitted body hash and canonical correlation hash, consumes exactly one ordinary tool JTI and checks the original `UNKNOWN` reservation under the run-facts budget lock. The source handler rechecks that grant and the original seven-field ADMITTED binding, selected-client subject, policy revision, normalized input SHA and emitted body SHA. It calls only the existing canonical `GovernedMemoryCandidateService.listOwnProposals` path, through `readTaskBoundMemoryProposalPage`; that producer checks the current client memory wall before and after the read, including empty and continuation pages.
+
+Before returning any page, the handler snapshots a bounded inert JSON DTO and validates the complete Meri 0.2 proposal result shape and semantics: exact keys, selected tenant/actor/client, pending-only rows, no approved-fact assertion, scope/client relation, restricted content, identity uniqueness, ordering, cursor progress and coverage. It then invokes the delegated pre-byte current-authority check and checks expiry again. This is a selected-client proposal read, not the historical raw `list_memory_proposals` model tool, and it does not grant approval authority or global absence.
+
+## Shared owner composition in the successor
+
+The `receiveSignedMemoryProposalPage` export in `apps/api/src/meri/memory-receiving/meri-memory-proposal-receiver.ts` takes `{ctx,raw,grant,authenticatedCorrelation,verifiedServiceIdentity,prisma,owner,releaseDelegatedRead,now?}`. The successor's `MeriController.executeTool` branches on `name === SIGNED_MEMORY_PROPOSAL_OPERATION.id` **before** the ordinary tool allowlist. It passes the request-local grant and correlation, verified service marker, `PrismaService`, injected `GovernedMemoryCandidateService` and pre-byte release closure under `withMeriToolRequestControl`. The branch returns 503 while the source gate is closed.
+
+The shared read-token owner recognizes **only** `memory.list_own_proposals@0.2.0` as this correlated read operation at its exact versioned path. Its source gate refuses issuance **before minting the sole ordinary tool token** and refuses a disabled target before JTI consumption. The pre-byte release transaction also rereads the original exact UNKNOWN reservation. The original ADMITTED set, callKey, argument SHA, tool-token ceiling and current read-delegation checks remain unchanged. There is no source alias to `list_memory_proposals`.
+
+Meri's real `memory-proposals` task composition separately requires a trusted durable `memoryContextPortsForTask` continuation store; PR172's CLI has no production port. An in-memory map or synthetic test store does not satisfy that gate. A focused local Nest HTTP route/raw-body mount test passed 2/2; current runtime image/config and proposal token/route readback are absent. This source slice does not authorize enabling the receiver.
+
+## Focused evidence
+
+The source receiver Jest suite passed 6/6 and a touched-file strict TypeScript check found zero diagnostics. No live SQL, AWS action, new credentials or grants, purge, model call or runtime activation was performed.

@@ -1,0 +1,29 @@
+PASS documented owner GRANT ALL default ACL includes app TRUNCATE
+PASS hardened full-default-ACL posture qualifies without inherited or SET-able D
+PASS real app session cannot SET ROLE hardened owner
+PASS effective app TRUNCATE denied engagement_plan_command_receipts
+PASS effective app TRUNCATE denied engagement_plan_revisions
+PASS effective app TRUNCATE denied engagement_plan_waves
+PASS effective app TRUNCATE denied engagement_plans
+PASS app denied wave leaf
+PASS app denied receipt leaf
+PASS app denied revision leaf
+PASS app denied plan cascade
+PASS app denied all four together
+PASS app denied client cascade
+PASS app denied tenant cascade
+PASS app denied wave cascade
+PASS app denied receipt cascade
+PASS app denied revision cascade
+PASS unsafe_owner_inheritance fails qualification precondition
+PASS unsafe_owner_inheritance native negative control proves direct REVOKE insufficient
+PASS unsafe_owner_set_only fails qualification precondition
+PASS unsafe_owner_set_only native negative control proves direct REVOKE insufficient
+PASS unsafe_parent_truncate_inheritance fails qualification precondition
+PASS unsafe_parent_truncate_inheritance native negative control proves direct REVOKE insufficient
+PASS unsafe_parent_truncate_set_only fails qualification precondition
+PASS unsafe_parent_truncate_set_only native negative control proves direct REVOKE insufficient
+PASS unsafe_public_truncate fails qualification precondition
+PASS unsafe_public_truncate native negative control proves direct REVOKE insufficient
+PASS negative controls cleaned; supported authority posture restored
+{"status":"hardened_posture_qualified_negative_profiles_refused","phase":"after","totalChecks":28,"passedChecks":28,"failedChecks":0,"migrationSha256":"40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a","hardenedAccepted":true,"negativeControls":5,"acceptedUnsafeProfiles":0,"report":"C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-plan-implementation\\docs\\engagement-manual-plans-20261015\\evidence\\migration-truncate-after-final.json"}

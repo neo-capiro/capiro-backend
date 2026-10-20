@@ -1,0 +1,13 @@
+{
+  "failedGate": "attempt0-type-receipt.json",
+  "diagnostics": 10,
+  "scope": "Unchanged hearing/tracker/editorial callers of Meriv2 generated declarations; no bill-dossier diagnostic. Full gatefailed, no passinference.",
+  "resolutionObservation": "Fresh Meriv2 declarations emitted outside worktree importzod/shared. The ownedruntime lacked its package dependency links; skipLibCheck hides missingimport errors inside declarations, callers lose inference.",
+  "fix": "Add only ownedruntime/node_modules symlink to ownedcachedpackageoverlay; same frozenconfig/schema/types/no sourcechange or diagnosticsuppression.",
+  "ownedFreshTypeInfoRetired": {
+    "path": "/tmp/bill-dossier-intel-type-20261013.tsbuildinfo",
+    "bytes": 648140,
+    "sha256": "25cd9288dd6df4c0012f3994e3f9073746da87e3b4d90719ca97534bf7a73afa"
+  },
+  "noNativeOrBorrowedMutation": true
+}

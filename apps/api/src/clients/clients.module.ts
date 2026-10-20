@@ -41,6 +41,7 @@ import { ClientOrderedOwnerService } from './client-ordered-owner.service.js';
 import { ClientTeamController } from './client-team.controller.js';
 import { ClientTeamService } from './client-team.service.js';
 import { ClientObjectivesModule } from './objectives/objectives.module.js';
+import { ObjectiveWorkModule } from './objectives/work/objective-work.module.js';
 import { InternalClientBrandingController } from './internal-client-branding.controller.js';
 import { RepresentationModule } from './representation.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
@@ -54,6 +55,7 @@ import { EvaluationModule } from '../evaluation/evaluation.module.js';
 import { CrmFillEvaluationRunner } from './crm-fill-evaluation.runner.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
+import { ApplicationAuthorityModule } from '../auth/application-authority.module.js';
 
 @Module({
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
@@ -64,7 +66,9 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
   // for FO projection (Phase C). Cycle risk verified none: TrackerModule only
   // imports IntelligenceModule + EngagementModule; FO module imports MemoryModule.
   imports: [
+    ApplicationAuthorityModule,
     ClientObjectivesModule,
+    ObjectiveWorkModule,
     EmbeddingsModule,
     IntelligenceModule,
     DirectoryModule,

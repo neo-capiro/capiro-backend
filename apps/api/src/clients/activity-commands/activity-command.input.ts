@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { BadRequestException } from '@nestjs/common';
 import { isISO8601 } from 'class-validator';
 import { z } from 'zod';
+import { activityDetailFields, activityDetailsInput } from '../client-activity-details.js';
 
 const uuid = z
   .string()
@@ -48,8 +49,23 @@ const activity = z
     occurredAt: instant.optional(),
     dueAt: instant.nullable().optional().default(null),
     personId: uuid.nullable().optional().default(null),
+    ...activityDetailFields,
   })
   .strict()
+  .refine(
+    (v) =>
+      activityDetailsInput.safeParse({
+        direction: v.direction,
+        counterparty: v.counterparty,
+        objectiveId: v.objectiveId,
+        objectiveVersion: v.objectiveVersion,
+      }).success,
+    'Invalid activity details',
+  )
+  .refine(
+    (v) => !v.direction || v.kind === 'request' || v.kind === 'commitment',
+    'Only commitments and requests carry an obligation direction',
+  )
   .refine(
     (v) => !v.dueAt || v.kind === 'request' || v.kind === 'commitment',
     'Only commitments and requests carry a due instant',

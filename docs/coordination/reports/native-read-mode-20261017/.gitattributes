@@ -1,0 +1,3 @@
+# Preserve raw focused-check evidence exactly; this directory is new.
+*.txt -text -whitespace
+*.json -text whitespace=cr-at-eol

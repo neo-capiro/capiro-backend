@@ -1,0 +1,77 @@
+{
+  "qualification": "Initial strict inert fixture mismatch only; no product failure and no Prisma/application/database execution",
+  "failed_case": "dispatcher-serve",
+  "exit": 98,
+  "cause": "Mock omitted the existing pure password-encoding node -e setup call before dispatcher case selection. Product source remained unchanged.",
+  "cases_completed_before_failure": [
+    "migrate-exit-0",
+    "migrate-exit-47",
+    "migrate-exit-63"
+  ],
+  "trace_records": {
+    "dispatcher-serve.calls.jsonl": [
+      {
+        "tool": "node",
+        "args": [
+          "-e",
+          "process.stdout.write(encodeURIComponent(process.argv[1]))",
+          "fixture"
+        ]
+      }
+    ],
+    "migrate-exit-63.calls.jsonl": [
+      {
+        "tool": "node",
+        "args": [
+          "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-yi7lwv8q/compose-fixture.js"
+        ]
+      },
+      {
+        "tool": "node",
+        "args": [
+          "./node_modules/prisma/build/index.js",
+          "migrate",
+          "deploy",
+          "--schema=./prisma/schema.prisma"
+        ]
+      }
+    ],
+    "migrate-exit-47.calls.jsonl": [
+      {
+        "tool": "node",
+        "args": [
+          "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-yi7lwv8q/compose-fixture.js"
+        ]
+      },
+      {
+        "tool": "node",
+        "args": [
+          "./node_modules/prisma/build/index.js",
+          "migrate",
+          "deploy",
+          "--schema=./prisma/schema.prisma"
+        ]
+      }
+    ],
+    "migrate-exit-0.calls.jsonl": [
+      {
+        "tool": "node",
+        "args": [
+          "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-yi7lwv8q/compose-fixture.js"
+        ]
+      },
+      {
+        "tool": "node",
+        "args": [
+          "./node_modules/prisma/build/index.js",
+          "migrate",
+          "deploy",
+          "--schema=./prisma/schema.prisma"
+        ]
+      }
+    ]
+  },
+  "outer_stderr": "AssertionError: ('dispatcher-serve', 98, '')",
+  "raw_child_stdout_retained": false,
+  "raw_child_stderr_observed": ""
+}

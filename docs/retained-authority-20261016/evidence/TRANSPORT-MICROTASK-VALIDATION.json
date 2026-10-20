@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "check": "materially corrected fixed HTTP transport; deferred IO cancellation checkpoint",
+  "sourceFiles": [
+    {
+      "path": "packages/shared/src/core-retained-authority-http.ts",
+      "sha256": "588f5cf878c08762b0c2ecc1b0b742d21eeb49bc30b653c6d35510315131a848"
+    },
+    {
+      "path": "packages/shared/src/core-retained-authority-http.spec.ts",
+      "sha256": "9f4dc2c7af788f1e816ad98cc6a3cbde1c07e2aa3ed0021530166708ea70e15b"
+    }
+  ],
+  "correctedBehavior": "lifetime.wait rechecks assertActive and original cutoff inside Promise.resolve().then callback immediately before starting fetch or reader IO",
+  "regression": "control.assertActive schedules one cancellation microtask on first entry; no fetch starts after cancellation: fetchCalls0 and typed408",
+  "result": {
+    "command": [
+      "C:/Program Files/nodejs/node.exe",
+      "--max-old-space-size=128",
+      "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/retained-transport-runtime/run-http-tests.cjs"
+    ],
+    "pid": 2632,
+    "primaryExit": 0,
+    "terminal": true,
+    "ownedChildrenCreated": 0,
+    "cases": 43,
+    "passed": 43,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 109.2041,
+    "maxRssBytes": 100397056,
+    "recordedV8TotalHeapLimitBytes": 335544320,
+    "oldSpaceFlagMiB": 128,
+    "stdout": "attempt-microtask.stdout.log",
+    "stdoutSha256": "7cafebb233d87fa4cd0731c51da0b80bae4de0dc5c250675d03455bb77f1201c",
+    "stderr": "attempt-microtask.stderr.log",
+    "runnerSha256": "8d96cc532d70a1ece32f2f39a71de1b290895f831f0655f6c0eaf76844995c38"
+  },
+  "supersededPositive": {
+    "receipt": "TRANSPORT-VALIDATION.json",
+    "sha256": "2848e11424c1d90c104c77c316ea5e99389f9804e9698af9258e6d249593067f",
+    "cases": 42,
+    "oldHttpSha256": "c1e08fcd473dd63be8710c6c0b4fb27cf015fa317df24ad1c1adc339df7f6e48",
+    "preservedUnchanged": true,
+    "applicability": "historical old-source result; no automatic carry to corrected source"
+  },
+  "semanticCheck": "new exact-source four-module strict check pending; earlier60c14 receipt remains bound to oldHTTPc1e08",
+  "limits": {
+    "sockets": false,
+    "database": false,
+    "provider": false,
+    "installation": false,
+    "jest": false,
+    "build": false,
+    "activation": false,
+    "realCredentials": false,
+    "syntheticEphemeralEd25519": true
+  }
+}

@@ -1,0 +1,14 @@
+Compiling complete packages/shared (39 configured roots)
+packages/shared: 0 diagnostics, 157 outputs
+Compiling complete packages/auth (7 configured roots)
+packages/auth: 0 diagnostics, 29 outputs
+Compiling complete packages/meriv2-core (149 configured roots)
+packages/meriv2-core: 0 diagnostics, 597 outputs
+Compiling complete packages/defense-contracts (13 configured roots)
+packages/defense-contracts: 0 diagnostics, 53 outputs
+Compiling complete packages/defense-domain (65 configured roots)
+packages/defense-domain: 0 diagnostics, 261 outputs
+Compiling complete packages/strategy-verifier (17 configured roots)
+packages/strategy-verifier: 0 diagnostics, 69 outputs
+Compiling complete apps/workspace (165 configured roots)
+apps/workspace: 0 diagnostics, 661 outputs

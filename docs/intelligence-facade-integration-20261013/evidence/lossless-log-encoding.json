@@ -1,0 +1,26 @@
+{
+  "rawCheckpoint": "5e36d576bad558fde8662b6616c907b2c0b2d8e8",
+  "converted": [
+    {
+      "rawPath": "docs/intelligence-facade-integration-20261013/evidence/attempt0-jest.log",
+      "envelope": "docs/intelligence-facade-integration-20261013/evidence/attempt0-jest.log.json",
+      "rawBlob": "75fe29da75fede6cfebe303f3f35a525ddb45acd"
+    },
+    {
+      "rawPath": "docs/intelligence-facade-integration-20261013/evidence/attempt1-jest.log",
+      "envelope": "docs/intelligence-facade-integration-20261013/evidence/attempt1-jest.log.json",
+      "rawBlob": "d7924d01f5a69af703cec73b5b2f368573c11518"
+    },
+    {
+      "rawPath": "docs/intelligence-facade-integration-20261013/evidence/attempt2-jest.log",
+      "envelope": "docs/intelligence-facade-integration-20261013/evidence/attempt2-jest.log.json",
+      "rawBlob": "8b44ea5011844df86ec2b3434696ab4db3040dbf"
+    },
+    {
+      "rawPath": "docs/intelligence-facade-integration-20261013/evidence/jest.log",
+      "envelope": "docs/intelligence-facade-integration-20261013/evidence/jest.log.json",
+      "rawBlob": "e4e08cec837f79196797286a40497f2cc60d9b1e"
+    }
+  ],
+  "noTrimmingOrHygieneExemption": true
+}

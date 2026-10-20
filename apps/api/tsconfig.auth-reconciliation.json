@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "dist/.tsbuildinfo.auth-reconciliation",
+    "noEmit": true
+  },
+  "include": [
+    "src/auth/clerk.service.ts",
+    "src/tenant/tenant-context.middleware.ts",
+    "src/auth/clerk-control-credential.spec.ts",
+    "src/tenant/tenant-context.meri-control.spec.ts",
+    "src/tenant/tenant-context.preview-native-read.spec.ts",
+    "src/tenant/tenant-context.preview-native-read.http.spec.ts",
+    "src/auth/application-authority.spec.ts",
+    "src/auth/application-membership.spec.ts"
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "result": "pass",
+  "publishedLayoutPR": "https://github.com/neo-capiro/capiro-backend/pull/10",
+  "publishedBaseHead": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "publishedBaseTree": "657902eb63067e1d44e02c908552dd7d93c85170",
+  "preservedCandidate": "0aac4d308410bb5485f544863e2d4e41baf0f73b",
+  "preservedCandidateTree": "1ce7d17eab310bd71f5cf78c505d92d98a19bd3a",
+  "ordinaryMergeHead": "e709a279703c751690c114633db37c460ea6115b",
+  "ordinaryMergeTree": "e9ba03103efe3d9fc996f9d7c7a5751536e11e86",
+  "ordinaryMergeParents": [
+    "0aac4d308410bb5485f544863e2d4e41baf0f73b",
+    "be12f4a2a2ecec43b5d02ea279d9448763415e24"
+  ],
+  "allIncomingChangesDocsOnly": true,
+  "relativeProductDelta": [
+    "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+    "scripts/cleanup-script-smoke/assistance-recipient-prune-syntax.test.mjs"
+  ],
+  "allTestedCompilerProductInputsUnchanged": [
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "blob": "d071939ac0f18deccab65794b9be20222c5887e8"
+    },
+    {
+      "path": "apps/api/src/intelligence/contractor-identity.ts",
+      "blob": "f34d6b8b89610f0456d3dc2eb548cc184694a568"
+    },
+    {
+      "path": "apps/api/src/intelligence/entity-resolution.service.ts",
+      "blob": "79ab9bbdb80db097685c056f4dc7cfd0bea11d1b"
+    },
+    {
+      "path": "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+      "blob": "ae45411410c7927a173bf622734091944f190be7"
+    }
+  ],
+  "allCompilerRuntimeConfigAndLockInputsUnchanged": [
+    {
+      "path": "apps/api/package.json",
+      "blob": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a"
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+    },
+    {
+      "path": "package.json",
+      "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58"
+    }
+  ],
+  "noQualificationRerunNeeded": "Every tested product/config/lock input remains exact; received changes are docs-only. Current finite seal also verifies source blobs.",
+  "independentSourceAcceptance": [
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "sha256": "a112d29f9e0de283d4e5588964f7efebb6e507f5eaf9fcf9bad7779888b99208"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.json",
+      "sha256": "5b23d17ed88f20569a5bd10031495aa2466f4e46c9c261ea818eed90b1c3f742"
+    }
+  ],
+  "noOperatorRuntimeDatabaseNativeAcceptance": true,
+  "independentUnionAcceptance": {
+    "path": "UNION-INDEPENDENT-REVIEW.json",
+    "sha256": "1dc8460189a9e341d61c277a0a9329e8a35d47f8256ed5e5728e61358a94a128"
+  }
+}

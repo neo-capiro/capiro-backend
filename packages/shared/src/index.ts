@@ -13,6 +13,29 @@ export * from './funding-opportunities-v2-detail.js';
 export * from './funding-opportunities-v2-workflow.js';
 export * from './meri-read-outcome.js';
 
+// Memory-review DTOs are type-only here. Import synchronous runtime parsers
+// from @capiro/shared/memory-review to keep the browser barrel lightweight.
+export type {
+  MemoryReviewApproveResponse,
+  MemoryReviewBlockedReason,
+  MemoryReviewCandidateKind,
+  MemoryReviewCapabilities,
+  MemoryReviewDetail,
+  MemoryReviewEligibleRole,
+  MemoryReviewIdentity,
+  MemoryReviewInboxCandidateKind,
+  MemoryReviewInboxItem,
+  MemoryReviewInboxPage,
+  MemoryReviewInboxView,
+  MemoryReviewNextAction,
+  MemoryReviewProposal,
+  MemoryReviewRejectRequest,
+  MemoryReviewRejectResponse,
+  MemoryReviewSection,
+  MemoryReviewStatus,
+  MemoryReviewTimelineItem,
+} from './memory-review.js';
+
 export const TENANT_ROLES = [
   'capiro_admin',
   'user_admin',
@@ -5761,5 +5784,17 @@ export * from './prospect-brief-source.js';
 export * from './workspace-saved-revision.js';
 
 export * from './client-objective-destination.js';
+export * from './objective-operational-resource.js';
+export * from './objective-plan-resource-authority.js';
+export * from './planner-resource-access.js';
+export * from './planner-resource-schedule.js';
 
 export * from './time.js';
+
+export {
+  classifyTrackerActionText,
+  selectTrackerMaterialEvents,
+  type TrackerActionChange,
+  type TrackerMaterialAction,
+  type TrackerMaterialEvent,
+} from './tracker-action-change.js';

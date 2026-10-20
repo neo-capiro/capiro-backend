@@ -1,0 +1,17 @@
+
+<--- Last few GCs --->
+
+[39992:000001F6817D6000]     1441 ms: Mark-Compact (reduce) 126.2 (130.9) -> 125.5 (128.6) MB, pooled: 0 MB, 18.65 / 0.00 ms  (+ 0.2 ms in 32 steps since start of marking, biggest step 0.1 ms, walltime since start of marking 27 ms) (average mu = 0.406, cu[39992:000001F6817D6000]     1466 ms: Mark-Compact (reduce) 126.5 (128.6) -> 125.4 (129.1) MB, pooled: 0 MB, 17.53 / 0.00 ms  (+ 0.0 ms in 15 steps since start of marking, biggest step 0.0 ms, walltime since start of marking 21 ms) (average mu = 0.364, cu
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7554350BF node::OnFatalError+1343
+ 2: 00007FF75405DD27 v8::Function::NewInstance+423
+ 3: 00007FF753E5E567 X509_STORE_get_lookup_certs+54423
+ 4: 00007FF753E5C206 X509_STORE_get_lookup_certs+45366
+ 5: 00007FF753E7688A X509_STORE_set_cleanup+5098
+ 6: 00007FF753E82D26 uv_timer_set_repeat+20694
+ 7: 00007FF753A53937 v8::CodeEvent::GetFunctionName+131959
+ 8: 00007FF755608E7A node::AsyncResource::CallbackScope::CallbackScope+752522
+ 9: 00007FF75555C6EC node::AsyncResource::CallbackScope::CallbackScope+46076
+10: 000001F69A344A34 

@@ -94,6 +94,9 @@ describe('LegiStormClient', () => {
       { page: 1, body: first },
       { page: 2, body: second },
     ]);
+    expect(result.records[0]).toMatchObject({
+      future_vendor_extension: { money_like_string: '100.00' },
+    });
     expect(calls).toHaveLength(2);
     const firstUrl = new URL(calls[0]!.url);
     const secondUrl = new URL(calls[1]!.url);

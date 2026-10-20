@@ -15,18 +15,26 @@ import {
   Injectable,
   Logger,
   NestMiddleware,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import {
   authDeniedEvent,
+  ROLE_RANK,
   TENANT_HEADER,
   type AuthDeniedReason,
   type TenantContext,
   type TenantRole,
 } from '@capiro/shared';
-import { ClerkService, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
+import { readCoreEd25519KeyConfig, readMeriExecutionIdentity } from '../auth/core-ed25519-key-config.js';
+import {
+  isMeriExecutionCapabilityPost,
+  isMeriRoutineUnattendedGrantPost,
+  markMeriExecutionRequest,
+} from '../auth/meri-execution-request.js';
+import { ClerkService, isWellFormedMeriControlCredentialClaims, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
 import { TenantContextStore } from './tenant-context.store.js';
@@ -35,6 +43,23 @@ import {
   type ApplicationAuthorityIdentityEvidence,
   type ApplicationAuthorityIdentityProof,
 } from '../auth/application-authority.js';
+import { isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
+import {
+  admitMeriReadToken,
+  isMeriReadDelegationServicePost,
+  isMeriReadTokenRequest,
+} from '../auth/read-delegation/read-delegation-request.js';
+import {
+  isSignedMemoryHelperPost, isSignedMemoryPagePost, isSignedMemoryProposalPost,
+  signedMemoryPageEnabled, signedMemoryProposalEnabled,
+} from '../auth/read-delegation/signed-memory-http-gate.js';
+import {
+  captureRetainedNativeAuthority,
+  requiresVerifiedRetainedNativeAuthority,
+  type RetainedNativeAuthorityCapture,
+  type RetainedNativeAuthorityCurrent,
+  type VerifiedRetainedNativeAuthority,
+} from '../auth/retained-native-authority.js';
 
 type SystemTx = Prisma.TransactionClient;
 type MembershipWithTenant = Prisma.TenantMembershipGetPayload<{ include: { tenant: true } }>;
@@ -52,6 +77,51 @@ interface ApplicationAuthorityRequestProvenance {
 // The existing owner shares only private, ephemeral provenance keyed by the
 // actual request object; there is no reusable/durable authorization receipt.
 const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
+const MERI_CONTROL_POST_PATHS = new Set([
+  '/clio/application-authority/identity',
+  '/clio/application-authority/context',
+  '/clio/application-authority/membership',
+]);
+
+/** A marked, sidless Meri control token has exactly three authority POST uses.
+ * Check both Express' parsed path and the original target: a rewritten or
+ * absolute-form target must never widen the credential's route authority. */
+function isMeriControlAuthorityPost(req: Request): boolean {
+  if (req.method !== 'POST') return false;
+  const parsed = req.path;
+  const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
+  const normalized = (path: string) => path.startsWith('/api/') ? path.slice(4) : path;
+  return parsed === original && MERI_CONTROL_POST_PATHS.has(normalized(parsed));
+}
+
+// Signed retained-read routes authenticate with a Core-issued Ed25519 envelope,
+// never a Clerk Bearer. Each fixed POST accepts exactly one scheme.
+const RETAINED_SIGNED_POSTS = new Map([
+  ['/clio/retained-reads/research-portfolio', 'CapiroRetained'],
+  ['/clio/retained-reads/research-portfolio-changes', 'CapiroRetained'],
+  ['/clio/application-authority/retained-florida-current', 'CapiroRetained'],
+  ['/clio/application-authority/retained-florida-native-current', 'CapiroRetainedAuthority'],
+]);
+
+/** Admits a signed retained POST past Bearer verification only while retained
+ * reads are enabled, when the parsed and original targets are the same exact
+ * fixed path, and when the Authorization scheme is the one that path accepts.
+ * No tenant context is created here: the controller verifies the pinned
+ * signature and freshly rechecks native and resource authority before any read,
+ * and refuses (503) when trust is not configured. */
+function isRetainedSignedPost(req: Request): boolean {
+  if (req.method !== 'POST') return false;
+  const parsed = req.path;
+  const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
+  if (parsed !== original) return false;
+  const scheme = RETAINED_SIGNED_POSTS.get(parsed.startsWith('/api/') ? parsed.slice(4) : parsed);
+  const header = req.headers.authorization;
+  if (!scheme || typeof header !== 'string') return false;
+  const space = header.indexOf(' ');
+  if (space <= 0 || header.slice(0, space) !== scheme || header.length === space + 1 ||
+      header.includes(' ', space + 1)) return false;
+  return typeof process !== 'undefined' && process.env.RETAINED_READS_ENABLED === 'true';
+}
 
 /**
  * Resolves the tenant context for an authenticated request.
@@ -89,10 +159,73 @@ export class TenantContextMiddleware implements NestMiddleware {
     const authorityPaths = [
       '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
       '/clio/application-authority/identity', '/clio/application-authority/context',
+      '/api/clio/application-authority/membership', '/clio/application-authority/membership',
+      '/api/clio/application-authority/retained-research-portfolio', '/clio/application-authority/retained-research-portfolio',
+      '/api/clio/application-authority/retained-research-portfolio-changes', '/clio/application-authority/retained-research-portfolio-changes',
+      '/api/clio/application-authority/retained-florida-budget', '/clio/application-authority/retained-florida-budget',
+      '/api/clio/application-authority/retained-research-portfolio-principal', '/clio/application-authority/retained-research-portfolio-principal',
+      '/api/clio/application-authority/retained-research-portfolio-changes-principal', '/clio/application-authority/retained-research-portfolio-changes-principal',
+      '/api/clio/application-authority/retained-florida-principal', '/clio/application-authority/retained-florida-principal',
+      '/api/clio/application-authority/retained-florida-native-current', '/clio/application-authority/retained-florida-native-current',
+      '/api/clio/application-authority/retained-florida-current', '/clio/application-authority/retained-florida-current',
+      '/api/clio/retained-reads/research-portfolio', '/clio/retained-reads/research-portfolio',
+      '/api/clio/retained-reads/research-portfolio-changes', '/clio/retained-reads/research-portfolio-changes',
     ];
     if ([req.path, (req.originalUrl ?? req.url ?? '').split('?')[0]].some(
-      (path) => path !== undefined && authorityPaths.includes(path),
+      // Express defaults accept case variants and one trailing slash. Cover
+      // those same handler spellings on pre-controller authentication denials.
+      (path) => path !== undefined && authorityPaths.includes(path.replace(/\/$/, '').toLowerCase()),
     )) res.setHeader('Cache-Control', 'no-store');
+    if (isRetainedSignedPost(req)) {
+      next();
+      return;
+    }
+    // Meri's approved-execution capability (D016 #9) on its single receiver
+    // route. Never a fallback for any other path or token type.
+    if (isMeriExecutionCapabilityPost(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      await this.useMeriExecutionCapability(req, next);
+      return;
+    }
+    // Meri's unattended routine firing grant (wire C, D016-A item 5): the
+    // service identity alone, no bearer and no tenant context; the controller
+    // requires the verified service identity and answers only from the
+    // owner's stored consent. Exact path and method only.
+    if (isMeriRoutineUnattendedGrantPost(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
+      return;
+    }
+    // Run-bound read delegation (RC1 option B, D016-A item 4). A
+    // `CapiroMeriRead` token is admitted ONLY on its own target (signature,
+    // exact path and body bytes, single-use jti, Meri run facts, member); it
+    // never falls through to Clerk verification or to another route. The
+    // bearer-less service POSTs (unattended create, tokens, revocations,
+    // consent narrowing) get no tenant context; their controller requires the
+    // verified service identity. Exact paths and method only.
+    if (isMeriReadTokenRequest(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      // One-use source tokens must refuse before ordinary admission consumes
+      // their JTI while the corresponding fixed receiver is held. The helper
+      // has a distinct signed type and is verified/consumed only by its fixed
+      // controller, never by admitMeriReadToken or Clerk provisioning.
+      if (isSignedMemoryHelperPost(req)) {
+        if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory helper unavailable');
+        next();
+        return;
+      }
+      if (isSignedMemoryPagePost(req) && !signedMemoryPageEnabled())
+        throw new ServiceUnavailableException('Passive memory page unavailable');
+      if (isSignedMemoryProposalPost(req) && !signedMemoryProposalEnabled())
+        throw new ServiceUnavailableException('Memory proposal page unavailable');
+      await this.useMeriReadDelegation(req, next);
+      return;
+    }
+    if (isMeriReadDelegationServicePost(req)) {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
+      return;
+    }
     // Belt-and-suspenders bypass for paths that authenticate via a different
     // channel than the Clerk session. The OAuth callback is reached via a
     // top-level browser redirect from Microsoft and authenticates via the
@@ -138,6 +271,19 @@ export class TenantContextMiddleware implements NestMiddleware {
       return;
     }
 
+    // The preview's native GETs must not pass through the ordinary provisioning,
+    // identity-rebind, membership self-heal or lastSeenAt write path. Resolve an
+    // existing native member only; the same request is checked again at release.
+    if (isPreviewNativeReadRoute(req)) {
+      const mode = previewNativeReadMode(process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true', req.headers.host);
+      if (mode !== 'ordinary') {
+        res.setHeader('Cache-Control', 'no-store');
+        if (mode === 'unavailable') throw new ServiceUnavailableException('Preview reads unavailable');
+        await this.usePreviewNativeRead(req, next);
+        return;
+      }
+    }
+
     // Step 1, verify Clerk JWT.
     const auth = req.headers.authorization;
     if (!auth || !auth.toLowerCase().startsWith('bearer ')) {
@@ -150,6 +296,18 @@ export class TenantContextMiddleware implements NestMiddleware {
       claims = await this.clerk.verifySessionToken(token);
     } catch {
       throw new UnauthorizedException('Invalid session token');
+    }
+    // A valid dedicated control template is not a general browser credential.
+    // Refuse it before ordinary tenant lookup, self-heal or lastSeenAt writes.
+    if (claims.meri_control_credential === true) {
+      if (!isMeriControlAuthorityPost(req) || !isWellFormedMeriControlCredentialClaims(claims)) {
+        throw new UnauthorizedException('Application authority unavailable');
+      }
+      // The ordinary context resolver can write during membership self-heal.
+      // Refuse a revoked control credential before that first local DB action.
+      // The authority owner checks online again after resolution, and on each
+      // later currentness read; this early proof is never cached for release.
+      await this.clerk.assertActiveMeriControlCredentialSession(claims);
     }
 
     // Step 2, gather every hint we have about which tenant is being requested.
@@ -410,6 +568,122 @@ export class TenantContextMiddleware implements NestMiddleware {
     this.store.run(ctx, () => next());
   }
 
+  /**
+   * Context for Meri's approved-execution capability on `create_task`. The
+   * capability is Core's own Ed25519 token (pinned key, exact header, RFC 8785
+   * payload, issuer, audience, time); its signed binding names the tenant and
+   * actor. Only an existing active member of an active tenant with at least
+   * `standard_user` is admitted: nothing is provisioned, repaired or written.
+   * The receiver re-verifies the whole capability and checks the current
+   * decision, membership, client scopes, ledger and body before any effect.
+   */
+  private async useMeriExecutionCapability(req: Request, next: NextFunction): Promise<void> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    let config: ReturnType<typeof readCoreEd25519KeyConfig>;
+    try {
+      config = readCoreEd25519KeyConfig(process.env, 'MERI_EXECUTION_SIGNER');
+    } catch {
+      config = null;
+    }
+    if (!config) throw new ServiceUnavailableException('Execution capabilities are not enabled');
+    const token = (req.headers.authorization ?? '').slice('Bearer '.length);
+    const identity = readMeriExecutionIdentity(token, config, Date.now());
+    if (!identity) throw new UnauthorizedException('Invalid execution capability');
+    if (req.header('x-capiro-impersonate-tenant') || req.header(TENANT_HEADER)) throw denied();
+    const selected = await this.prisma.withSystem(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: identity.actorId } });
+      const membership = await tx.tenantMembership.findFirst({
+        where: { tenantId: identity.tenantId, userId: identity.actorId, status: 'active' }, include: { tenant: true },
+      });
+      if (!user || !membership || membership.tenant.status !== 'active' || !Object.hasOwn(ROLE_RANK, membership.role) ||
+          ROLE_RANK[membership.role as TenantRole] < ROLE_RANK.standard_user) throw denied();
+      return { user, membership };
+    });
+    const ctx: TenantContext = {
+      tenantId: selected.membership.tenantId,
+      tenantSlug: selected.membership.tenant.slug,
+      userId: selected.user.id,
+      clerkUserId: selected.user.clerkUserId,
+      role: selected.membership.role as TenantRole,
+    };
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    markMeriExecutionRequest(req, { token, ...identity });
+    this.store.run(ctx, () => next());
+  }
+
+  /** A delegated read: the context comes from the delegation row and its
+   * existing active member. Nothing is provisioned, rebound or written besides
+   * the token's single-use consumption; impersonation and tenant-selection
+   * headers refuse. Every current check runs in one transaction. */
+  private async useMeriReadDelegation(req: Request, next: NextFunction): Promise<void> {
+    const ctx = await admitMeriReadToken(req, { prisma: this.prisma, env: process.env, nowMs: Date.now() });
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    this.store.run(ctx, () => next());
+  }
+
+  /** Read-only preview context. A missing local user/member is a denial, never a repair. */
+  private async usePreviewNativeRead(req: Request, next: NextFunction): Promise<void> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    const auth = req.headers.authorization;
+    if (!auth || !auth.toLowerCase().startsWith('bearer ')) throw new UnauthorizedException('Missing bearer token');
+    let claims: ClerkSessionClaims;
+    try {
+      claims = await this.clerk.verifySessionToken(auth.slice('bearer '.length).trim());
+    } catch {
+      throw new UnauthorizedException('Invalid session token');
+    }
+    if (claims.meri_control_credential === true ||
+        typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
+        typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
+        !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
+        (claims.exp ?? 0) * 1000 <= Date.now()) {
+      throw new UnauthorizedException('Application authority unavailable');
+    }
+    // This online sid/sub/exp check runs BEFORE even the first local DB read.
+    await this.clerk.assertActiveApplicationAuthoritySession(claims);
+    if (req.header('x-capiro-impersonate-tenant')) throw denied();
+    const requestedSlug = this.resolveRequestedTenantSlug(req);
+    const claimedTenantId = nonEmpty(claims.capiro_tenant_id);
+    const claimedTenantSlug = nonEmpty(claims.capiro_tenant_slug);
+    const claimedOrgId = nonEmpty(claims.org_id);
+    const selected = await this.prisma.withSystem(async (tx) => {
+      const user = await tx.user.findUnique({ where: { clerkUserId: claims.sub } });
+      if (!user || user.clerkUserId !== claims.sub) throw denied();
+      const memberships = await tx.tenantMembership.findMany({
+        where: { userId: user.id, status: 'active' }, include: { tenant: true },
+      });
+      const chosen = memberships.find((m) => claimedTenantId && m.tenantId === claimedTenantId) ??
+        memberships.find((m) => claimedOrgId && m.tenant.clerkOrgId === claimedOrgId) ??
+        memberships.find((m) => claimedTenantSlug && m.tenant.slug.toLowerCase() === claimedTenantSlug.toLowerCase()) ??
+        memberships.find((m) => requestedSlug && m.tenant.slug === requestedSlug) ??
+        (memberships.length === 1 && !claimedTenantId && !claimedOrgId && !claimedTenantSlug && !requestedSlug
+          ? memberships[0] : undefined);
+      if (!chosen || chosen.status !== 'active' || chosen.tenant.status !== 'active' ||
+          (claimedTenantId && chosen.tenantId !== claimedTenantId) ||
+          (claimedTenantSlug && chosen.tenant.slug.toLowerCase() !== claimedTenantSlug.toLowerCase()) ||
+          (claimedOrgId && chosen.tenant.clerkOrgId !== claimedOrgId) ||
+          (requestedSlug && chosen.tenant.slug !== requestedSlug)) throw denied();
+      return { user, chosen };
+    });
+    const ctx: TenantContext = {
+      tenantId: selected.chosen.tenantId,
+      tenantSlug: selected.chosen.tenant.slug,
+      userId: selected.user.id,
+      clerkUserId: selected.user.clerkUserId,
+      role: selected.chosen.role as TenantRole,
+    };
+    (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    applicationAuthorityRequests.set(req, {
+      context: ctx,
+      claims: { ...claims },
+      membershipId: selected.chosen.id,
+      membershipTenantId: selected.chosen.tenantId,
+      requestedSlug,
+      impersonationId: null,
+    });
+    this.store.run(ctx, () => next());
+  }
+
   /** A fresh online session read followed by read-only current local checks.
    * The original authentication pipeline can provision/update/audit; this
    * method cannot repair missing authority or choose a different membership. */
@@ -417,9 +691,36 @@ export class TenantContextMiddleware implements NestMiddleware {
     const denied = () => new ForbiddenException('Application authority unavailable');
     const provenance = applicationAuthorityRequests.get(req);
     if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
-    const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    const session = provenance.claims.meri_control_credential === true
+      ? (isMeriControlAuthorityPost(req)
+          ? await this.clerk.assertActiveMeriControlCredentialSession(provenance.claims)
+          : null)
+      : await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    if (!session) throw denied();
     const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
     return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
+  }
+
+  /** Core-only capture from an actual natively authenticated request/context pair. */
+  async captureRetainedNativeAuthority(req: Request, ctx: TenantContext): Promise<RetainedNativeAuthorityCapture> {
+    const provenance = applicationAuthorityRequests.get(req);
+    if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) {
+      throw new ForbiddenException('Application authority unavailable');
+    }
+    const evidence = await this.readApplicationAuthority(req, ctx);
+    return captureRetainedNativeAuthority(provenance, evidence);
+  }
+
+  /** Only the receiving signed-codec closure can supply this runtime proof.
+   * Every invocation makes a new online session call and uses the same local owner. */
+  async requiresVerifiedRetainedNativeAuthority(verified: VerifiedRetainedNativeAuthority): Promise<RetainedNativeAuthorityCurrent> {
+    return requiresVerifiedRetainedNativeAuthority(verified, async (provenance) => {
+      if (Date.now() >= verified.originalExpiresAtMs) throw new UnauthorizedException('Application authority unavailable');
+      this.clerk.assertRetainedApplicationAuthorityIssuer(provenance.claims.iss);
+      const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+      if (Date.now() >= verified.originalExpiresAtMs) throw new UnauthorizedException('Application authority unavailable');
+      return this.readCurrentApplicationAuthority(provenance, provenance.context, session);
+    });
   }
 
   private async readCurrentApplicationAuthority(

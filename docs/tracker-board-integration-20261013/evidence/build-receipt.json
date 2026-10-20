@@ -1,0 +1,22 @@
+{
+  "source": "1e00e41a36b3450d77148b6f55a7ca90c83a194f",
+  "tree": "df67628c3f22d5558af80a33dc2d047b51ff7b16",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-tracker-board-integration-20261013/docs/tracker-board-integration-20261013/network-fence.cjs",
+    "/workspace/capirov2/apps/intel-api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    ".tracker-board-receiving-build.tsconfig.json",
+    "--config",
+    ".tracker-board-receiving-nest-cli.json"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 14.473,
+  "logBytes": 0,
+  "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "actual Intel Nest CLI and production build config; owned output and incremental state; derived debug maps disabled; exact dossier-qualified types and runtimes reused; network fenced; no native/provider/App startup",
+  "inheritedCredentials": false,
+  "mapScope": "Derived sourceMap:false disables JavaScript maps only; inherited declarationMap emitted263 .d.ts.map files inventoried by names/sizes only. Production-map and nativeABI acceptance remain unqualified."
+}

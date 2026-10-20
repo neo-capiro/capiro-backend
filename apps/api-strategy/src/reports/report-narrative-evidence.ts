@@ -3,12 +3,10 @@ import {
   criticalNodes,
   dateRange,
   formatDate,
-  kindLabel,
   leadershipAgenda,
   roadmap,
-  statusLabel,
-  strategyTypeLabel,
 } from "./report-content.js";
+import { kindLabel, statusLabel, strategyTypeLabel } from "./report-labels.js";
 import type { ReportNarrativeEvidence } from "./report-narrative.types.js";
 import { buildTimelineModel, timelineHorizonLabel } from "./report-timeline.js";
 import type {

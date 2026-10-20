@@ -1,0 +1,325 @@
+{
+ "contract": "capiro.meri-artifact-authority.v1",
+ "status": "SYNTHETIC golden vector. Placeholders only: no credential, no real tenant, actor, conversation or client.",
+ "route": {
+  "method": "POST",
+  "path": "/api/clio/application-authority/artifact",
+  "successStatus": 200
+ },
+ "requestHeaders": {
+  "authorization": "Bearer <live action-session native bearer, RC1 option A>",
+  "x-internal-service-secret": "<Core INTERNAL_SERVICE_SECRET>",
+  "content-type": "application/json",
+  "accept": "application/json",
+  "accept-encoding": "identity"
+ },
+ "transport": {
+  "redirect": "error",
+  "credentials": "omit",
+  "cache": "no-store",
+  "maxRequestBytes": 1024,
+  "maxReceiptBytes": 4096,
+  "maxReceiptTtlMs": 60000
+ },
+ "intentOperations": {
+  "create": [
+   "artifact.generate"
+  ],
+  "revise": [
+   "artifact.revise"
+  ],
+  "inspect": [
+   "artifact.inspect"
+  ],
+  "download": [
+   "artifact.download"
+  ],
+  "preview": [
+   "artifact.download",
+   "artifact.inspect"
+  ],
+  "preview-publish": [
+   "artifact.download",
+   "artifact.inspect",
+   "artifact.preview-publish"
+  ]
+ },
+ "cases": [
+  {
+   "name": "create docx, no Core tenant ceiling",
+   "meriRequest": {
+    "intent": "create",
+    "body": {
+     "deliveryId": "synthetic-delivery-1",
+     "request": {
+      "operation": "create_word",
+      "format": "txt",
+      "title": "Synthetic",
+      "content": {
+       "text": "Synthetic document body"
+      }
+     }
+    }
+   },
+   "request": {
+    "contract": "capiro.meri-artifact-authority.v1",
+    "observationId": "00000000-0000-4000-8000-00000000e001",
+    "conversationId": "00000000-0000-4000-8000-00000000c001",
+    "clientId": "00000000-0000-4000-8000-00000000d001",
+    "intent": "create",
+    "requestSha256": "38b6a059abdad49d23e4172fac00081b8d3a9d28f1b1d2c542fcb31d2c91e646"
+   },
+   "requestJson": "{\"contract\":\"capiro.meri-artifact-authority.v1\",\"observationId\":\"00000000-0000-4000-8000-00000000e001\",\"conversationId\":\"00000000-0000-4000-8000-00000000c001\",\"clientId\":\"00000000-0000-4000-8000-00000000d001\",\"intent\":\"create\",\"requestSha256\":\"38b6a059abdad49d23e4172fac00081b8d3a9d28f1b1d2c542fcb31d2c91e646\"}",
+   "receipt": {
+    "contract": "capiro.meri-artifact-authority.v1",
+    "observationId": "00000000-0000-4000-8000-00000000e001",
+    "principal": {
+     "tenantId": "00000000-0000-4000-8000-00000000a001",
+     "actorId": "00000000-0000-4000-8000-00000000a002"
+    },
+    "identityRevision": "b4ccaf5002df651747cc46b342b8fc1bca0986982eb0ebe1dba202f675fb4f7b",
+    "conversationId": "00000000-0000-4000-8000-00000000c001",
+    "selectedClientId": "00000000-0000-4000-8000-00000000d001",
+    "contextRevision": "144df4ed0bccc0018b60b914a1d1c4df68bd536bd500932403187cc2d2c8a3e1",
+    "intent": "create",
+    "requestSha256": "38b6a059abdad49d23e4172fac00081b8d3a9d28f1b1d2c542fcb31d2c91e646",
+    "operations": [
+     "artifact.download",
+     "artifact.generate",
+     "artifact.inspect",
+     "artifact.preview-publish",
+     "artifact.revise"
+    ],
+    "limits": null,
+    "authorityRevision": "6fc53c105406e94ff37f0a74208cb993a41b10165085bc991e44bca2a7ea11f9",
+    "checkedAtMs": 1800000000000,
+    "expiresAtMs": 1800000060000
+   },
+   "meriClock": {
+    "startedAtMs": 1799999994960,
+    "observedAtMs": 1799999995015,
+    "localCheckedAtMs": 1799999995015,
+    "localExpiresAtMs": 1800000054960
+   }
+  },
+  {
+   "name": "download with a Core byte ceiling",
+   "meriRequest": {
+    "intent": "download",
+    "body": {
+     "versionId": "00000000-0000-4000-8000-00000000f001"
+    }
+   },
+   "request": {
+    "contract": "capiro.meri-artifact-authority.v1",
+    "observationId": "00000000-0000-4000-8000-00000000e002",
+    "conversationId": "00000000-0000-4000-8000-00000000c001",
+    "clientId": "00000000-0000-4000-8000-00000000d001",
+    "intent": "download",
+    "requestSha256": "4674e3686980b0160957eb4c0e07f633ae2670a776b80679adbc2ebb0abaff1f"
+   },
+   "requestJson": "{\"contract\":\"capiro.meri-artifact-authority.v1\",\"observationId\":\"00000000-0000-4000-8000-00000000e002\",\"conversationId\":\"00000000-0000-4000-8000-00000000c001\",\"clientId\":\"00000000-0000-4000-8000-00000000d001\",\"intent\":\"download\",\"requestSha256\":\"4674e3686980b0160957eb4c0e07f633ae2670a776b80679adbc2ebb0abaff1f\"}",
+   "receipt": {
+    "contract": "capiro.meri-artifact-authority.v1",
+    "observationId": "00000000-0000-4000-8000-00000000e002",
+    "principal": {
+     "tenantId": "00000000-0000-4000-8000-00000000a001",
+     "actorId": "00000000-0000-4000-8000-00000000a002"
+    },
+    "identityRevision": "b4ccaf5002df651747cc46b342b8fc1bca0986982eb0ebe1dba202f675fb4f7b",
+    "conversationId": "00000000-0000-4000-8000-00000000c001",
+    "selectedClientId": "00000000-0000-4000-8000-00000000d001",
+    "contextRevision": "144df4ed0bccc0018b60b914a1d1c4df68bd536bd500932403187cc2d2c8a3e1",
+    "intent": "download",
+    "requestSha256": "4674e3686980b0160957eb4c0e07f633ae2670a776b80679adbc2ebb0abaff1f",
+    "operations": [
+     "artifact.download",
+     "artifact.inspect"
+    ],
+    "limits": {
+     "maxArtifactBytes": 1048576
+    },
+    "authorityRevision": "f52c9e7af414d93c498832f0f93f51b528bb6510568b7ef2f4fb84f0532e86d4",
+    "checkedAtMs": 1800000001000,
+    "expiresAtMs": 1800000061000
+   },
+   "meriClock": {
+    "startedAtMs": 1799999995960,
+    "observedAtMs": 1799999996015,
+    "localCheckedAtMs": 1799999996015,
+    "localExpiresAtMs": 1800000055960
+   }
+  }
+ ],
+ "statusMapping": [
+  {
+   "status": 200,
+   "meri": "receipt (validated)"
+  },
+  {
+   "status": 400,
+   "meri": "ACCESS_DENIED"
+  },
+  {
+   "status": 401,
+   "meri": "SESSION_REFUSED"
+  },
+  {
+   "status": 403,
+   "meri": "ACCESS_DENIED"
+  },
+  {
+   "status": 404,
+   "meri": "UNAVAILABLE"
+  },
+  {
+   "status": 409,
+   "meri": "UNAVAILABLE"
+  },
+  {
+   "status": 429,
+   "meri": "UNAVAILABLE"
+  },
+  {
+   "status": 500,
+   "meri": "UNAVAILABLE"
+  },
+  {
+   "status": 503,
+   "meri": "UNAVAILABLE"
+  },
+  {
+   "status": "redirect, network error, timeout",
+   "meri": "UNAVAILABLE / DEADLINE"
+  }
+ ],
+ "receiptRefusals": [
+  {
+   "name": "replayed observationId",
+   "patch": {
+    "observationId": "00000000-0000-4000-8000-00000000e999"
+   }
+  },
+  {
+   "name": "other conversation",
+   "patch": {
+    "conversationId": "00000000-0000-4000-8000-00000000c002"
+   }
+  },
+  {
+   "name": "other client",
+   "patch": {
+    "selectedClientId": "00000000-0000-4000-8000-00000000d002"
+   }
+  },
+  {
+   "name": "other intent",
+   "patch": {
+    "intent": "download"
+   }
+  },
+  {
+   "name": "other request digest",
+   "patch": {
+    "requestSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+   }
+  },
+  {
+   "name": "operations miss the intent",
+   "patch": {
+    "operations": [
+     "artifact.inspect"
+    ]
+   }
+  },
+  {
+   "name": "operations unsorted",
+   "patch": {
+    "operations": [
+     "artifact.revise",
+     "artifact.generate"
+    ]
+   }
+  },
+  {
+   "name": "operations duplicate",
+   "patch": {
+    "operations": [
+     "artifact.generate",
+     "artifact.generate"
+    ]
+   }
+  },
+  {
+   "name": "unknown operation",
+   "patch": {
+    "operations": [
+     "artifact.delete",
+     "artifact.generate"
+    ]
+   }
+  },
+  {
+   "name": "lifetime above 60 s",
+   "patch": {
+    "expiresAtMs": 1800000060001
+   }
+  },
+  {
+   "name": "expired on Core clock",
+   "patch": {
+    "expiresAtMs": 1800000000000
+   }
+  },
+  {
+   "name": "non-uuid principal",
+   "patch": {
+    "principal": {
+     "tenantId": "tenant-a",
+     "actorId": "00000000-0000-4000-8000-00000000a002"
+    }
+   }
+  },
+  {
+   "name": "uppercase revision",
+   "patch": {
+    "contextRevision": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+   }
+  },
+  {
+   "name": "limits extra key",
+   "patch": {
+    "limits": {
+     "maxArtifactBytes": 1,
+     "maxVersions": 2
+    }
+   }
+  },
+  {
+   "name": "limits above 16 MiB",
+   "patch": {
+    "limits": {
+     "maxArtifactBytes": 16777217
+    }
+   }
+  },
+  {
+   "name": "extra receipt key",
+   "patch": {
+    "decision": "allowed"
+   }
+  },
+  {
+   "name": "missing receipt key",
+   "remove": "authorityRevision"
+  },
+  {
+   "name": "other contract",
+   "patch": {
+    "contract": "capiro.meri-artifact-authority.v0"
+   }
+  }
+ ],
+ "receiptRefusalsApplyTo": "cases[0]",
+ "refusalCode": "ACCESS_DENIED"
+}

@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -40,6 +41,7 @@ import {
   type SyntheticCandidateWithdrawalGuard,
 } from './synthetic-candidate-withdrawal.helpers.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
+import { clioMemorySlug } from './memory-clio-adapter.helpers.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
 export interface MemorySaveRequest {
@@ -135,6 +137,111 @@ export interface ProposeSaveMemoryResult {
 
 type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
 
+const CANDIDATE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** A W8 Meri personal submission: pending until its owner decides (never inline). */
+function isMeriPersonal(candidate: { scope: string; sourceType?: string | null }): boolean {
+  return candidate.scope === 'personal' && candidate.sourceType === 'meri';
+}
+
+export interface OwnPersonalCandidate {
+  id: string;
+  /** 'correction' candidates are decided at /memory/version-candidates/:id. */
+  kind: 'addition' | 'correction' | 'restore' | 'contradiction';
+  key: string;
+  value: string;
+  sourceType: string;
+  createdAt: string;
+}
+
+export interface OwnPersonalCandidatePage {
+  version: 1;
+  candidates: OwnPersonalCandidate[];
+  nextCursor: string | null;
+}
+
+export interface OwnPersonalCandidateStatus {
+  version: 1;
+  id: string;
+  /** Exact candidate state. A conflicted or duplicate version can still be approved. */
+  status: string;
+  /** Only a decided candidate can resolve an uncertain owner decision. */
+  terminal: boolean;
+  decidedAt: string | null;
+  committedMemoryId: string | null;
+  committedMemoryItemId: string | null;
+}
+
+interface OwnPersonalCursor {
+  createdAt: string;
+  id: string;
+  tenantId: string;
+  userId: string;
+}
+
+interface OwnPersonalCandidateRow {
+  id: string;
+  key: string;
+  value: string;
+  sourceType: string;
+  sourceKind: string;
+  createdAt: Date;
+  cursorCreatedAt: string;
+}
+
+const OWN_PERSONAL_CURSOR_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+const OWN_PERSONAL_TERMINAL_STATUSES = new Set([
+  'approved',
+  'rejected',
+  'auto_committed',
+  'withdrawn',
+  'superseded',
+]);
+
+function ownPersonalPageSize(value: unknown): number {
+  if (value === undefined || value === null || value === '') return 50;
+  if (
+    (typeof value !== 'number' && (typeof value !== 'string' || !/^[1-9]\d{0,2}$/.test(value))) ||
+    !Number.isInteger(Number(value)) ||
+    Number(value) < 1 ||
+    Number(value) > 100
+  ) {
+    throw new BadRequestException('Personal memory page size must be an integer from 1 to 100.');
+  }
+  return Number(value);
+}
+
+function ownPersonalCursor(value: unknown, ctx: CandidateActorContext): OwnPersonalCursor | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 1024) {
+    throw new BadRequestException('Personal memory cursor is invalid.');
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    const createdAt = parsed.createdAt;
+    const id = parsed.id;
+    if (
+      parsed.v !== 1 ||
+      parsed.tenantId !== ctx.tenantId ||
+      parsed.userId !== ctx.userId ||
+      typeof createdAt !== 'string' ||
+      !OWN_PERSONAL_CURSOR_TIME.test(createdAt) ||
+      Number.isNaN(Date.parse(createdAt)) ||
+      new Date(createdAt).toISOString().slice(0, 19) !== createdAt.slice(0, 19) ||
+      typeof id !== 'string' ||
+      !CANDIDATE_UUID.test(id)
+    ) {
+      throw new Error('Invalid cursor fields');
+    }
+    return { createdAt, id, tenantId: ctx.tenantId, userId: ctx.userId };
+  } catch {
+    throw new BadRequestException('Personal memory cursor is invalid.');
+  }
+}
+
 export interface SettingsMemoryCandidateInput {
   type: MemoryItemType;
   slug: string;
@@ -155,7 +262,10 @@ interface LockedCandidate {
   payload: unknown;
   proposedBy: string;
   scope: string;
+  clientId: string | null;
   sourceKind: string;
+  /** Governance source type; 'meri' marks W8 Meri memory review submissions. */
+  sourceType: string;
 }
 
 interface ActivatedCandidate {
@@ -311,6 +421,15 @@ export class MemoryCandidateService {
     if (record.scope === 'client' && !record.clientId) {
       throw new BadRequestException('Client-scope memory requires a clientId.');
     }
+    if (record.scope !== 'client' && record.clientId != null) {
+      throw new BadRequestException('Only client-scope memory may carry a clientId.');
+    }
+    if (record.scope === 'user_private' && record.ownerUserId !== proposedByUserId) {
+      throw new ForbiddenException('Personal memory owner must be the proposer.');
+    }
+    if (record.scope !== 'user_private' && record.ownerUserId !== null) {
+      throw new BadRequestException('Shared memory cannot have a personal owner.');
+    }
 
     const candidateConfidence =
       typeof record.confidence === 'number' && Number.isFinite(record.confidence)
@@ -378,17 +497,17 @@ export class MemoryCandidateService {
     });
 
     const result = await this.prisma.withTenantUser(tenantId, proposedByUserId, async (tx) => {
+      if (record.scope === 'client' &&
+          !(await clientMemoryAllowed(tx, tenantId, proposedByUserId, record.clientId!))) {
+        throw new NotFoundException('Client unavailable for memory proposal.');
+      }
       if (fixtureCandidateId !== undefined) {
         const membership = await tx.$queryRaw<Array<{ user_id: string }>>`
           SELECT user_id::text AS user_id FROM tenant_memberships
           WHERE tenant_id = ${tenantId}::uuid AND user_id = ${proposedByUserId}::uuid
             AND status = 'active' FOR SHARE
         `;
-        if (
-          membership.length !== 1 ||
-          (record.clientId &&
-            !(await clientMemoryAllowed(tx, tenantId, proposedByUserId, record.clientId)))
-        ) {
+        if (membership.length !== 1) {
           throw new ForbiddenException('Synthetic candidate actor or client is not authorized');
         }
       }
@@ -546,7 +665,28 @@ export class MemoryCandidateService {
         actorContext,
       );
       this.requireSharedApprovalPolicy(candidate, approverUserId, actorContext);
+      this.requireMeriPersonalOwner(candidate, approverUserId);
       const record = payloadToSaveRequest(candidate.payload);
+      const payloadScope = record.scope === 'user_private' ? 'personal' : record.scope;
+      if (candidate.scope !== payloadScope) {
+        throw new ForbiddenException('Memory candidate scope changed before approval.');
+      }
+      if ((candidate.clientId ?? null) !== (record.clientId ?? null)) {
+        throw new ForbiddenException('Memory candidate client changed before approval.');
+      }
+      if (record.scope === 'user_private' && record.ownerUserId !== candidate.proposedBy) {
+        throw new ForbiddenException('Personal memory owner must be the proposer.');
+      }
+      if (record.scope !== 'user_private' && record.ownerUserId !== null) {
+        throw new BadRequestException('Shared memory cannot have a personal owner.');
+      }
+      if (record.scope === 'client') {
+        if (!record.clientId ||
+            !(await clientMemoryAllowed(tx, tenantId, candidate.proposedBy, record.clientId)) ||
+            !(await clientMemoryAllowed(tx, tenantId, approverUserId, record.clientId))) {
+          throw new NotFoundException('Client unavailable for memory approval.');
+        }
+      }
       const governance = governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)
         ? buildCanonicalGovernance({
             record,
@@ -560,7 +700,11 @@ export class MemoryCandidateService {
       if (fixtureGuard && !governance) {
         throw new ForbiddenException('Synthetic memory requires canonical governed activation');
       }
-      const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance);
+      // A Meri addition never replaces a committed memory with the same key: that
+      // change must arrive as an immutable correction (dot #121 6246374007).
+      const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance, {
+        insertOnly: candidate.sourceType === 'meri',
+      });
       await this.markDecidedInTx(
         tx,
         tenantId,
@@ -597,7 +741,7 @@ export class MemoryCandidateService {
     actorContext?: CandidateActorContext,
   ): Promise<void> {
     await this.prisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
-      await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
+      const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
       await this.authorizeCandidateInTx(
         tx,
         tenantId,
@@ -606,8 +750,203 @@ export class MemoryCandidateService {
         'review',
         actorContext,
       );
+      this.requireMeriPersonalOwner(candidate, reviewerUserId);
       await this.markDecidedInTx(tx, tenantId, candidateId, 'rejected', reviewerUserId, null);
     });
+  }
+
+  /**
+   * The canonical policy lets only the private owner decide personal memory.
+   * Governed enforcement is still dark for most tenants, so for W8 Meri personal
+   * submissions (the only pending personal candidates that are never committed
+   * inline) the owner rule is applied always, independent of that switch.
+   */
+  private requireMeriPersonalOwner(
+    candidate: { proposedBy: string; scope: string; sourceType?: string | null },
+    deciderUserId: string,
+  ): void {
+    if (isMeriPersonal(candidate) && candidate.proposedBy !== deciderUserId) {
+      throw new ForbiddenException('Only the owner may decide their personal memory submission.');
+    }
+  }
+
+  /** The caller's own pending personal candidates, newest first. Legacy callers get the first 100. */
+  async listOwnPersonalPending(ctx: TenantContext): Promise<OwnPersonalCandidate[]> {
+    return (await this.pageOwnPersonalPending(ctx, { limit: 100 })).candidates;
+  }
+
+  /**
+   * Versioned owner inbox. Eligibility lives in SQL before LIMIT: a malformed
+   * payload or walled client must not consume a slot and hide a later candidate.
+   * The cursor preserves all six Postgres timestamp fractional digits; converting
+   * the key to a JS Date first would skip tied millisecond rows across pages.
+   */
+  async pageOwnPersonalPending(
+    ctx: TenantContext,
+    input: { limit?: unknown; cursor?: unknown; visibleClientIds?: readonly string[] } = {},
+  ): Promise<OwnPersonalCandidatePage> {
+    const limit = ownPersonalPageSize(input.limit);
+    const after = ownPersonalCursor(input.cursor, ctx);
+    // Only the preview's current native roster may narrow client-linked rows.
+    // Keep this in SQL before LIMIT so hidden rows cannot consume a page slot.
+    const previewRoster = input.visibleClientIds === undefined ? null : JSON.stringify(input.visibleClientIds);
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.$queryRaw<OwnPersonalCandidateRow[]>`
+        SELECT mc.id::text AS id,
+               mc.payload_jsonb->>'key' AS key,
+               mc.payload_jsonb->>'value' AS value,
+               mc.source_type AS "sourceType",
+               mc.source_kind AS "sourceKind",
+               mc.created_at AS "createdAt",
+               to_char(mc.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "cursorCreatedAt"
+        FROM memory_candidate mc
+        WHERE mc.tenant_id = ${ctx.tenantId}::uuid
+          AND mc.proposed_by = ${ctx.userId}::uuid
+          AND mc.scope = 'personal' AND mc.status = 'pending'
+          AND mc.payload_jsonb->>'ownerUserId' = ${ctx.userId}
+          AND mc.payload_jsonb->>'scope' = 'user_private'
+          AND jsonb_typeof(mc.payload_jsonb->'key') = 'string'
+          AND jsonb_typeof(mc.payload_jsonb->'value') = 'string'
+          AND (mc.payload_jsonb->>'clientId') IS NOT DISTINCT FROM mc.client_id::text
+          AND (${previewRoster}::jsonb IS NULL OR mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${previewRoster}::jsonb) AS preview_client(id)
+            WHERE preview_client.id = mc.client_id::text
+          ))
+          AND (mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM clients c
+            WHERE c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+              AND c.status::text = 'active'
+              AND (NOT c.memory_wall OR EXISTS (
+                SELECT 1 FROM client_memory_access a
+                WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
+                  AND a.user_id = ${ctx.userId}::uuid
+              ))
+          ))
+          AND (${after?.createdAt ?? null}::timestamptz IS NULL
+               OR (mc.created_at, mc.id) < (${after?.createdAt ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+        ORDER BY mc.created_at DESC, mc.id DESC
+        LIMIT ${limit + 1}
+      `,
+    );
+    const selected = rows.slice(0, limit);
+    const last = selected.at(-1);
+    return {
+      version: 1,
+      candidates: selected.map((row) => ({
+        id: row.id,
+        kind: row.sourceKind === 'memory_correction' ? 'correction'
+          : row.sourceKind === 'memory_restore' ? 'restore'
+          : row.sourceKind === 'memory_contradiction' ? 'contradiction' : 'addition',
+        key: row.key,
+        value: row.value,
+        sourceType: row.sourceType,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      nextCursor: rows.length > limit && last
+        ? Buffer.from(JSON.stringify({
+            v: 1, createdAt: last.cursorCreatedAt, id: last.id,
+            tenantId: ctx.tenantId, userId: ctx.userId,
+          }), 'utf8').toString('base64url')
+        : null,
+    };
+  }
+
+  /** Status for exactly one eligible personal candidate of this owner, including terminal history. */
+  async ownPersonalCandidateStatus(
+    ctx: TenantContext,
+    candidateId: string,
+    visibleClientIds?: readonly string[],
+  ): Promise<OwnPersonalCandidateStatus> {
+    const missing = () => new NotFoundException('No personal memory candidate of yours with that id.');
+    if (!CANDIDATE_UUID.test(candidateId)) throw missing();
+    const previewRoster = visibleClientIds === undefined ? null : JSON.stringify(visibleClientIds);
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.$queryRaw<Array<{
+        id: string;
+        status: string;
+        decidedAt: Date | null;
+        committedMemoryId: string | null;
+        committedMemoryItemId: string | null;
+      }>>`
+        SELECT mc.id::text AS id, mc.status,
+               mc.decided_at AS "decidedAt",
+               mc.committed_memory_id::text AS "committedMemoryId",
+               mc.committed_memory_item_id::text AS "committedMemoryItemId"
+        FROM memory_candidate mc
+        WHERE mc.id = ${candidateId}::uuid AND mc.tenant_id = ${ctx.tenantId}::uuid
+          AND mc.proposed_by = ${ctx.userId}::uuid AND mc.scope = 'personal'
+          AND mc.payload_jsonb->>'ownerUserId' = ${ctx.userId}
+          AND mc.payload_jsonb->>'scope' = 'user_private'
+          AND jsonb_typeof(mc.payload_jsonb->'key') = 'string'
+          AND jsonb_typeof(mc.payload_jsonb->'value') = 'string'
+          AND (mc.payload_jsonb->>'clientId') IS NOT DISTINCT FROM mc.client_id::text
+          AND (${previewRoster}::jsonb IS NULL OR mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${previewRoster}::jsonb) AS preview_client(id)
+            WHERE preview_client.id = mc.client_id::text
+          ))
+          AND (mc.client_id IS NULL OR EXISTS (
+            SELECT 1 FROM clients c
+            WHERE c.id = mc.client_id AND c.tenant_id = mc.tenant_id
+              AND c.status::text = 'active'
+              AND (NOT c.memory_wall OR EXISTS (
+                SELECT 1 FROM client_memory_access a
+                WHERE a.tenant_id = c.tenant_id AND a.client_id = c.id
+                  AND a.user_id = ${ctx.userId}::uuid
+              ))
+          ))
+        LIMIT 1
+      `,
+    );
+    const row = rows[0];
+    if (!row) throw missing();
+    return {
+      version: 1,
+      id: row.id,
+      status: row.status,
+      terminal: OWN_PERSONAL_TERMINAL_STATUSES.has(row.status),
+      decidedAt: row.decidedAt?.toISOString() ?? null,
+      committedMemoryId: row.committedMemoryId,
+      committedMemoryItemId: row.committedMemoryItemId,
+    };
+  }
+
+  /**
+   * Explicit owner decision for the caller's own personal-scope candidate
+   * (dot #121 6246374007). Shared scopes keep the admin review workflow; this
+   * path never decides a candidate the caller did not propose for themselves.
+   * Scope, proposer and owner are immutable on the row, so checking them before
+   * the locked approve/reject transaction leaves no race.
+   */
+  async decideOwnPersonalCandidate(
+    ctx: TenantContext,
+    candidateId: string,
+    decision: 'approve' | 'reject',
+  ): Promise<{ status: 'approved'; memoryId: string } | { status: 'rejected' }> {
+    const missing = () => new NotFoundException('No personal memory candidate of yours with that id.');
+    if (!CANDIDATE_UUID.test(candidateId)) throw missing();
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.$queryRaw<Array<{ proposedBy: string; scope: string; ownerUserId: string | null; sourceKind: string }>>`
+        SELECT proposed_by::text AS "proposedBy", scope, payload_jsonb->>'ownerUserId' AS "ownerUserId",
+               source_kind AS "sourceKind"
+        FROM memory_candidate
+        WHERE id = ${candidateId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+      `,
+    );
+    const row = rows[0];
+    if (!row || row.scope !== 'personal' || row.proposedBy !== ctx.userId || row.ownerUserId !== ctx.userId) {
+      throw missing();
+    }
+    // Immutable version candidates (a Meri correction among them) have their own
+    // database-guarded activation; the generic owner must never decide them.
+    if (['memory_correction', 'memory_restore', 'memory_contradiction'].includes(row.sourceKind)) {
+      throw new ConflictException('Decide this version candidate at /memory/version-candidates/:id/approve or /reject.');
+    }
+    if (decision === 'approve') {
+      const { memoryId } = await this.approve(ctx.tenantId, candidateId, ctx.userId, ctx);
+      return { status: 'approved', memoryId };
+    }
+    await this.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
+    return { status: 'rejected' };
   }
 
   /**
@@ -637,8 +976,11 @@ export class MemoryCandidateService {
         orderBy: { createdAt: 'asc' },
       });
       if (!viewerUserId) return rows;
+      // A Meri personal submission is its owner's alone: never in another
+      // viewer's review queue (its content is private memory).
+      const visible = rows.filter((r) => !isMeriPersonal(r) || r.proposedBy === viewerUserId);
       const denied = new Set(await fetchDeniedClientIds(tx, tenantId, viewerUserId));
-      return denied.size ? rows.filter((r) => !r.clientId || !denied.has(r.clientId)) : rows;
+      return denied.size ? visible.filter((r) => !r.clientId || !denied.has(r.clientId)) : visible;
     });
   }
 
@@ -652,7 +994,9 @@ export class MemoryCandidateService {
              payload_jsonb AS payload,
              proposed_by::text AS "proposedBy",
              scope,
-             source_kind AS "sourceKind"
+             client_id::text AS "clientId",
+             source_kind AS "sourceKind",
+             source_type AS "sourceType"
       FROM memory_candidate
       WHERE id = ${candidateId}::uuid
         AND tenant_id = ${tenantId}::uuid
@@ -789,7 +1133,10 @@ export class MemoryCandidateService {
     tenantId: string,
     record: MemorySaveRequest,
     governance: CanonicalGovernance | null = null,
+    options: { insertOnly?: boolean } = {},
   ): Promise<{ clioMemoryId: string; memoryItemId: string | null }> {
+    const keyTaken = () =>
+      new ConflictException('A memory with this key already exists; submit a correction instead.');
     const metadata = {
       tool: 'save_memory',
       createdBy: 'user-requested',
@@ -803,17 +1150,62 @@ export class MemoryCandidateService {
       ...(governance ? governedClioMetadata(governance) : {}),
     };
 
-    const findExisting = () =>
-      tx.clioMemory.findFirst({
-        where: {
-          tenantId,
-          scope: record.scope,
-          ownerUserId: record.ownerUserId,
-          clientId: record.clientId ?? null,
-          key: record.key,
-        },
-        select: { id: true },
-      });
+    // Serialize an existing-key decision with forget, hold changes, and other
+    // approvals. A plain findFirst followed by update could use a stale target.
+    const findExisting = async () => {
+      const rows = await tx.$queryRaw<Array<{ id: string; source: string }>>`
+        SELECT id::text AS id, source FROM clio_memory
+        WHERE tenant_id = ${tenantId}::uuid AND scope = ${record.scope}
+          AND owner_user_id IS NOT DISTINCT FROM ${record.ownerUserId}::uuid
+          AND client_id IS NOT DISTINCT FROM ${record.clientId ?? null}::uuid
+          AND key = ${record.key}
+        ORDER BY id LIMIT 2 FOR UPDATE
+      `;
+      if (rows.length > 1) throw keyTaken();
+      return rows[0] ?? null;
+    };
+    const assertMutablePersonalTarget = async (clioId: string) => {
+      const slug = clioMemorySlug(clioId);
+      type Target = {
+        id: string; type: string; slug: string; status: string; legalHold: boolean;
+        ownerUserId: string | null; clientId: string | null; governedStatus: string | null;
+      };
+      const targets = governance
+        ? await tx.$queryRaw<Target[]>`
+            SELECT mi.id::text AS id, mi.type, mi.slug, mi.status,
+                   mi.legal_hold AS "legalHold",
+                   mi.owner_user_id::text AS "ownerUserId",
+                   mi.client_id::text AS "clientId", mi.governed_status AS "governedStatus"
+            FROM memory_items mi
+            WHERE mi.tenant_id = ${tenantId}::uuid AND (
+              mi.slug = ${slug} OR EXISTS (
+                SELECT 1 FROM memory_candidate c
+                WHERE c.tenant_id = mi.tenant_id
+                  AND c.committed_memory_id = ${clioId}::uuid
+                  AND c.committed_memory_item_id = mi.id
+              )
+            )
+            FOR UPDATE OF mi
+          `
+        : await tx.$queryRaw<Target[]>`
+            SELECT id::text AS id, type, slug, status,
+                   legal_hold AS "legalHold", owner_user_id::text AS "ownerUserId",
+                   client_id::text AS "clientId", NULL::text AS "governedStatus"
+            FROM memory_items
+            WHERE tenant_id = ${tenantId}::uuid AND slug = ${slug}
+            FOR UPDATE
+          `;
+      const target = targets[0];
+      if (
+        targets.length !== 1 || !target || target.slug !== slug ||
+        target.type !== (governance?.canonicalType ?? 'note') ||
+        target.ownerUserId !== record.ownerUserId || target.clientId !== null ||
+        target.status !== 'active' || target.legalHold ||
+        (governance !== null && target.governedStatus !== 'active')
+      ) {
+        throw keyTaken();
+      }
+    };
     const updateExisting = (id: string) =>
       tx.clioMemory.update({
         where: { id },
@@ -828,6 +1220,12 @@ export class MemoryCandidateService {
     let id: string;
     const existing = await findExisting();
     if (existing) {
+      // Shared additions and Settings first versions never edit a keyed source.
+      // Corrections require the immutable version workflow; a pending addition
+      // has no source version pin to authorize replacement at approval time.
+      if (options.insertOnly || record.scope !== 'user_private' || record.canonicalItem ||
+          existing.source === 'settings_memory_editor') throw keyTaken();
+      await assertMutablePersonalTarget(existing.id);
       await updateExisting(existing.id);
       id = existing.id;
     } else {
@@ -849,10 +1247,9 @@ export class MemoryCandidateService {
         id = created.id;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          const raced = await findExisting();
-          if (!raced) throw err;
-          await updateExisting(raced.id);
-          id = raced.id;
+          // A concurrently created key is a new target with no approved pin.
+          // Abort this transaction rather than updating it after the race.
+          throw keyTaken();
         } else {
           throw err;
         }

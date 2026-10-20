@@ -1,0 +1,67 @@
+{
+  "frontend": {
+    "head": "7e170defb9442aa3ce0fd1d5b14060af831ce8d0",
+    "tree": "39f7b9735658e38381ef44361f7123c558e7a51f",
+    "strategyOperation": {
+      "key": "strategies.proposals",
+      "method": "GET",
+      "service": "strategy",
+      "path": "/agents/change-sets",
+      "registryBlob": "134cc85f069b74a66d277703d2573c9c26e621ed"
+    },
+    "gatewayBlob": "c7568c3954480eca4084d0e47de8379b974d596f",
+    "gatewayErrorsBlob": "038cb4db6ae7cbe96856108b8b196dd76261c7d7",
+    "configBlob": "5327375f16fc3fc74624ffc3a20b3dfb4fdee600",
+    "genericProxyBlob": "b8d530e4ad26e9a5b6afcb7d090218dd14507f34"
+  },
+  "backend": {
+    "candidate": "afee9c4251c4c21417916bc4a02007283b67543b",
+    "verifiedOldMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "strategyAppModuleBlob": "e97fded5a9eb26ba38493943898c4087ed16ce27",
+    "agentsModuleBlob": "a3be4aa176cf14241aca2af9d3072c17fc0f7135",
+    "agentsControllerCandidateBlob": "a71cdf5b242128d97a85af59fa439c454db98aff",
+    "agentsControllerOldMainBlob": "a71cdf5b242128d97a85af59fa439c454db98aff",
+    "changeSetsServiceBlob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+    "agenticGuardBlob": "af725688faa1ba292799b63df2016404b86cb38d",
+    "canonicalStrategyRoute": "GET /strategy-api/agents/change-sets",
+    "guards": [
+      "TenantGuard",
+      "StrategyPlannerGuard",
+      "AgenticGuard"
+    ],
+    "serviceTenantAuthority": "CurrentTenant server context → ChangeSetsService.list(tc.tenantId) → prisma.withTenant",
+    "canonicalObjectiveRoute": "GET /api/clients/:clientId/objectives",
+    "candidateObjectiveMounted": true,
+    "verifiedOldMainObjectiveControllerMissing": true,
+    "verifiedOldMainClientsModuleHasNoObjectiveImport": true,
+    "strategySchemaBlob": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25"
+  },
+  "diagnosticClassification": {
+    "missingStrategyBase": 503,
+    "ordinaryOwnerUnauthorized": 401,
+    "ordinaryOwnerForbiddenIncludingExistingAgenticOptIn": 403,
+    "ordinaryOwnerMissingRouteRecord": 404,
+    "ordinaryOwnerFailure": 500,
+    "owner502": {
+      "status": 502,
+      "message": "The service is unavailable. Please retry."
+    },
+    "jsonValidSuccessFailingRegisteredSchema": {
+      "status": 502,
+      "message": "The service returned an unexpected response."
+    },
+    "thrownFetchInvalidJsonOrBodyRead": {
+      "status": 502,
+      "message": "The service could not be reached. Please retry."
+    }
+  },
+  "nextExactFactsRequired": [
+    "Browser method/path/query and body of reported 502",
+    "Existing configured upstream service path and its trace",
+    "Actual serving backend release SHA"
+  ],
+  "noNewSourceDefectEstablished": true,
+  "ordinaryExistingAuthUnchanged": true,
+  "noLiveRequestsWritesOrProviderCalls": true,
+  "responseContractSourceFinding": "SpChangeSet status enum and required selected model fields match the frontend operation's declared response shape; stored ops are JSON and actual live payload still requires the serving trace."
+}

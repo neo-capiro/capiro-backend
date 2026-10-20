@@ -1,0 +1,1295 @@
+{
+  "schema": "original-cleanup-requirements-reconciliation/v1",
+  "scope": "All finite workstreams, controls and gate/evidence obligations in immutable Cleanup1\u20134, mapped to published cleanup source through both sibling PR2480/2481 and preserved backend-cleanup record versions; repeated gate/evidence clauses reference the same obligation groups. Historical target lists/counts remain original evidence, not current discovery.",
+  "originalRequirementsCommit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "publishedHeads": [
+    "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+    "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+  ],
+  "publishedDeltasAreSiblings": true,
+  "commonBase": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "inputProvenance": "INPUT-PROVENANCE.json",
+  "statusDefinitions": {
+    "satisfied_for_finite_slices": "The stated bounded source/qualification obligation is satisfied by the named published packet; no whole-plan or deployed acceptance follows.",
+    "partially_satisfied": "Specific current source/behavior instances are proved; broader listed adoption/inventory is unresolved.",
+    "source_prepared_acceptance_open": "Source/tooling/wiring exists, but complete authentic current execution/adoption acceptance is not established.",
+    "preserved_obligation": "Binding requirement or deliberate kept boundary remains; it is not counted as an unfinished defect or global waiver.",
+    "held": "Work/acceptance requires another owner, missing provenance/runtime evidence, original ADR, protected consumer/replacement, or authorization outside this slice.",
+    "open": "Full listed original requirement has not been established by examined published source and evidence."
+  },
+  "requirements": [
+    {
+      "id": "COMMON-1",
+      "plan": "1\u20134",
+      "section": "Re-validation R1\u2013R7; source inventories",
+      "requirement": "Re-derive symbols, callers, runners, scope and current counts; reconcile changed/missing anchors without restoring obsolete targets.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Latest finite packets re-derive admitted source, concrete callers and native identities. Historical graph/duplication counts remain stale; source parity does not establish an image build tree.",
+      "evidence": [
+        "ACCEPTANCE",
+        "PROVENANCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Repeat exact-source inventory for the whole tracker-board boundary; preserve siblings."
+    },
+    {
+      "id": "COMMON-2",
+      "plan": "1\u20134",
+      "section": "R5/R8; risks and rollback",
+      "requirement": "Keep ownership disjoint, preserve other authors and original/rebuild histories, claim scope and provide one-slice rollback.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Recovery bundles/tags/original assets and disjoint single commits are recorded. Rebuild-reserved cleanup4-progress is not a writable cleanup ledger.",
+      "evidence": [
+        "RETIREMENT",
+        "CLIENT_HISTORY",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Use a dedicated board branch/checkpoint; do not overwrite either published sibling or rebuild source."
+    },
+    {
+      "id": "COMMON-3",
+      "plan": "1\u20134",
+      "section": "Evidence and gate sections",
+      "requirement": "Preserve raw failures, source/coverage identities, before assets and exact receipts; never rewrite historical red/null evidence into green.",
+      "status": "satisfied_for_finite_slices",
+      "currentDisposition": "Both latest publications match their actual source and raw receipt hashes; failed expectation/type/download/guard versions remain preserved. This is not global acceptance.",
+      "evidence": [
+        "PROVENANCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": null
+    },
+    {
+      "id": "COMMON-4",
+      "plan": "1\u20134",
+      "section": "Historic targets and source truth",
+      "requirement": "Treat snapshot counts, graph paths and finding line positions as expectations; suspected findings need first-hand verification.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Generated ledger remains at a533ad1; 1559 open human rows are historical state, not verified current debt. The target board is re-read and byte-identical to Core and declared Intel.",
+      "evidence": [
+        "LEDGER",
+        "PROVENANCE"
+      ],
+      "nextSafeAction": "Inventory by source identities and full callable bodies."
+    },
+    {
+      "id": "COMMON-5",
+      "plan": "1\u20134",
+      "section": "Operating/recovery boundaries",
+      "requirement": "Keep API/operating docs, migration/incident/ADR history, executable plans, public contracts, unpublished Engagement report and separate rebuild work.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Exactly four Cleanup prose plans and two Client Intel prose plans were recoverably retired; obligations and operating inputs were retained.",
+      "evidence": [
+        "RETIREMENT",
+        "CLIENT_HISTORY",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No further retirement in a tracker extraction."
+    },
+    {
+      "id": "C1-1",
+      "plan": "1",
+      "section": "\u00a72 Step0; \u00a73; \u00a75.1",
+      "requirement": "Clean checkout/frozen dependencies, current per-package discovery, all failures and suite/runner/package scope recorded.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Latest slices have qualified frozen/local dependencies and native scopes. No current all-package CleanUp1 baseline/complete failure quarantine is established by these packets.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER",
+        "GATE_SOURCE"
+      ],
+      "nextSafeAction": "Use current locked native prerequisites for the board; retain global prerequisite limitation."
+    },
+    {
+      "id": "C1-2",
+      "plan": "1",
+      "section": "\u00a74; \u00a75.1; \u00a710",
+      "requirement": "Record existing red tests separately with owners and expiries; do not absorb product fixes or silently skip failures.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Scoped failed runs are retained and repaired only at owned new assets/erased typing boundaries. Global failure ownership/expiry inventory is not established.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Distinguish new fixture expectation mistakes from production findings; preserve every failed run."
+    },
+    {
+      "id": "C1-3",
+      "plan": "1",
+      "section": "\u00a75.2; \u00a710",
+      "requirement": "Native coverage scripts and honest summaries for API/web/workspace/onboard-web/Python; no added threshold and an authentic source-bound baseline.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Measurement/verification drivers and scripts exist. The configured docs/plans/cleanup1-coverage-baseline.json is absent at both heads; latest source-scoped measurements are not the historical floor.",
+      "evidence": [
+        "GATE_SOURCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Measure board BEFORE/AFTER with complete moved-source operands; keep absent-floor admission."
+    },
+    {
+      "id": "C1-4",
+      "plan": "1",
+      "section": "\u00a75.3.1\u20133; \u00a710",
+      "requirement": "PR CI runs API Jest, web Vitest and defense-api node tests under existing triggers.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Actual ci-pr source contains all three steps, with frontend in a retained sibling job. Trigger remains main; neither stacked/sibling PR proves these jobs executed.",
+      "evidence": [
+        "CI_SOURCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Keep source prerequisites/current consumers; report local native receipts separately from CI."
+    },
+    {
+      "id": "C1-5",
+      "plan": "1",
+      "section": "\u00a75.3.4\u20135; \u00a79\u201310",
+      "requirement": "Wire and execute four context/evaluation/learning/telemetry guards; dynamically discover test-bearing packages and avoid silent scope loss.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Gate config lists the four guards and package-discovering turbo graph. No complete current all-package/guard CI execution is established here.",
+      "evidence": [
+        "GATE_SOURCE"
+      ],
+      "nextSafeAction": "Use applicable scoped guards and retain the broader unexecuted gate."
+    },
+    {
+      "id": "C1-6",
+      "plan": "1",
+      "section": "\u00a76.1",
+      "requirement": "Discover currently untested duplicate/changed sites across all subjects; do not add tests per byte-identical helper copy.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Real original-source characterization is supplied for converted Intelligence and dossier boundaries. No regenerated repo-wide readiness/no-test ledger is shown.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER",
+        "LEDGER"
+      ],
+      "nextSafeAction": "Add meaningful independent board characterizations at real entrypoints, mocking I/O only."
+    },
+    {
+      "id": "C1-7",
+      "plan": "1",
+      "section": "\u00a76.2",
+      "requirement": "Dynamic script smoke: no-args/help, documented exit/usage, unset database config, no attempted DB/network, deadline and no open handle.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Fail-closed smoke emitter/verification source exists; complete current isolated native smoke evidence is a separate held lane, not established by app mocks.",
+      "evidence": [
+        "GATE_SOURCE",
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "Do not invoke scripts, databases or providers to satisfy this read-only/source slice."
+    },
+    {
+      "id": "C1-8",
+      "plan": "1",
+      "section": "\u00a76.3; \u00a77",
+      "requirement": "Python frozen uv/Python3.11 CI with ruff, strict mypy and pytest-cov before parser merges.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Parser workflow and Python gate commands are present. Latest app-specific packets neither execute Python nor establish its global prerequisite.",
+      "evidence": [
+        "GATE_SOURCE",
+        "CI_SOURCE"
+      ],
+      "nextSafeAction": "Keep Python untouched in board extraction."
+    },
+    {
+      "id": "C1-9",
+      "plan": "1",
+      "section": "\u00a78.1\u20132",
+      "requirement": "Auth-free deterministic Chromium visuals at three viewports: DPR/proxy/motion/locale/timezone/frozen clock/fonts/intercepted network/stubs/masks/sentinel.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Pinned visual/source-archive tooling exists, but source-scoped backend native tests do not establish these visual runs or all routes.",
+      "evidence": [
+        "VISUAL_SOURCE",
+        "GATE_SOURCE"
+      ],
+      "nextSafeAction": "Retain active frontend and visual inputs; no screenshot regeneration."
+    },
+    {
+      "id": "C1-10",
+      "plan": "1",
+      "section": "\u00a78.3\u20134",
+      "requirement": "Committed content-addressed screenshot/manifest provenance, regression-not-parity purpose, generated current routes and self-enforcing route coverage.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Active manifest and only three program_elements_coverage PNG paths are present. Source-bound validation/current whole-route acceptance cannot be inferred from their existence; preserved historical null provenance remains historical.",
+      "evidence": [
+        "VISUAL_SOURCE",
+        "CLIENT_HISTORY"
+      ],
+      "nextSafeAction": "Keep archive/source identity consumers and original PNGs untouched."
+    },
+    {
+      "id": "C1-11",
+      "plan": "1",
+      "section": "\u00a78.5; \u00a710",
+      "requirement": "Configured pixel threshold and three repeat runs at one source commit with zero diffs; update snapshots only in a separately justified product PR.",
+      "status": "held",
+      "currentDisposition": "No current full pinned visual comparison/flakiness packet is established by the two latest source qualifications. Backend source closure does not retire this obligation.",
+      "evidence": [
+        "VISUAL_SOURCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "A later authorized visual owner supplies real pinned evidence; board contracts remain stable."
+    },
+    {
+      "id": "C1-12",
+      "plan": "1",
+      "section": "\u00a78.6; \u00a713",
+      "requirement": "Do not consolidate/delete CDP scripts, duplicate source/test code or change product behavior inside the foundation phase.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Original phase separation and consumer protection remain; subsequent independently scoped structural slices do not claim CleanUp1 completion.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No unrelated CDP/frontend/product changes."
+    },
+    {
+      "id": "C1-13",
+      "plan": "1",
+      "section": "\u00a79\u201311",
+      "requirement": "Complete gate from clean frozen checkout: all current unit/type/guard/Python/visual lanes, raw logs, route mapping and failures; no test deletion/skip/baseline from failure.",
+      "status": "open",
+      "currentDisposition": "Gate implementation is present and fail-closed, but no complete authentic current gate:cleanup1 run or historical baseline is established. Per-slice native passes are finite acceptance only.",
+      "evidence": [
+        "GATE_SOURCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Continue authorized recoverable source work without claiming prerequisite/global gate green."
+    },
+    {
+      "id": "C2-1",
+      "plan": "2",
+      "section": "\u00a71; \u00a712",
+      "requirement": "Remove production duplicates, repoint tests to canonical source with names/data/assertions/order unchanged; preserve duplicate tests for CleanUp3.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Latest business assets and identities remain intact; four obsolete facade architecture predicates are explicitly mapped. New original-source expectation corrections are separate preserved BEFORE repairs.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Keep all retained board business cases; map only obsolete structural predicates."
+    },
+    {
+      "id": "C2-2",
+      "plan": "2",
+      "section": "\u00a72 R9; \u00a73\u20134.3",
+      "requirement": "Fresh generated eight-subject STRICT/LOOSE ledger, separate human stable-ID status, remaps/obsoletes, zero unresolved paths, counters and explicit blind spots.",
+      "status": "open",
+      "currentDisposition": "Both published heads retain a533ad1 inventory of1684 groups and historical1559 open status rows, with no claimed regenerated/current closure. SQL/shell/YAML/config/decorator/E2E blind spots remain.",
+      "evidence": [
+        "LEDGER"
+      ],
+      "nextSafeAction": "Re-derive only the intended boundary first; separate later global ledger qualification."
+    },
+    {
+      "id": "C2-3",
+      "plan": "2",
+      "section": "\u00a73; \u00a76",
+      "requirement": "Merge STRICT only with preserved literals; human review and characterized parameters for LOOSE or genuinely different versions.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Four identical keyword loops have a documented canonical consolidation and branch-denominator reconciliation; differing state/federal/funding behaviors remain distinct. No repo-wide equivalence closure is claimed.",
+      "evidence": [
+        "FINAL_INTELLIGENCE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Do not equate API and Intel tracker implementations merely by method name; pin original semantics."
+    },
+    {
+      "id": "C2-4",
+      "plan": "2",
+      "section": "\u00a73.2; \u00a711",
+      "requirement": "Keep deliberate defense runtime mirror; both sides including new files change in one commit and native parity gate passes; no cross-app import shortcut.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Mirror decommission still requires shadow/canary/rollback/decommission acceptance; no such retirement is established. It is not dead code.",
+      "evidence": [
+        "ACCEPTANCE",
+        "RETIREMENT"
+      ],
+      "nextSafeAction": "Board source is outside named mirrored subtrees; verify before introducing any shared move."
+    },
+    {
+      "id": "C2-5",
+      "plan": "2",
+      "section": "\u00a74.4",
+      "requirement": "Data-owned duplicate-helper ratchet exists before merge, wired same change, prevents new local declarations outside canonical modules.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "check-duplicate-helpers.mjs, its data and tests/root alias are present. Scoped guards do not establish zero global duplicate groups or actual main-only CI execution.",
+      "evidence": [
+        "GUARD_SOURCE"
+      ],
+      "nextSafeAction": "Extend concrete board ownership closure only if a new canonical helper requires it; no allowances to hide debt."
+    },
+    {
+      "id": "C2-6",
+      "plan": "2",
+      "section": "\u00a75 Wave1a",
+      "requirement": "Canonical CLI helpers/parameterized labels and per-helper repointing; reference/worker/mirror closure before old script deletion.",
+      "status": "open",
+      "currentDisposition": "Broad CLI-helper migration is not established by current backend-cleanup publications; original paths/copy counts are historical.",
+      "evidence": [
+        "LEDGER",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not touch script/operator families for a board read-model decomposition."
+    },
+    {
+      "id": "C2-7",
+      "plan": "2",
+      "section": "\u00a75 Wave1b",
+      "requirement": "Shared non-RDTE table kernel with same-commit mirrored ownership.",
+      "status": "held",
+      "currentDisposition": "No complete kernel-wave acceptance is established by these records; defense semantics and mirror ownership need their own decision/qualification.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Leave defense tree untouched."
+    },
+    {
+      "id": "C2-8",
+      "plan": "2",
+      "section": "\u00a75 Wave1c\u2013d",
+      "requirement": "Canonical guards/identity/context adapter leaf helpers; keep the Context Plane contract types-only and product adapters thin/distinct.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Selected canonical values and shared helpers exist in qualified owner slices; this is not all-helper adoption. Deliberate adapters and the types-only boundary are retained.",
+      "evidence": [
+        "ACCEPTANCE",
+        "FINAL_INTELLIGENCE"
+      ],
+      "nextSafeAction": "Prefer existing canonical bill/state/fit vocabulary in the board; no second helper policy."
+    },
+    {
+      "id": "C2-9",
+      "plan": "2",
+      "section": "\u00a75 Wave1e",
+      "requirement": "Service-level exact duplicates canonicalized; AES/flag/decimal variants reviewed, and real differences preserved or parameterized.",
+      "status": "open",
+      "currentDisposition": "Historical target lists do not prove any current duplicate; latest finite slices do not close this whole wave.",
+      "evidence": [
+        "LEDGER"
+      ],
+      "nextSafeAction": "Use source-level equivalence/consumer proof if a board helper appears duplicated."
+    },
+    {
+      "id": "C2-10",
+      "plan": "2",
+      "section": "\u00a75 Wave1f",
+      "requirement": "Defense projection/composer leaf extraction only until the fork ADR; preserve family money/rounding/schema decisions.",
+      "status": "held",
+      "currentDisposition": "Pipeline consolidation remains governed by the two-language ADR; source leaf work does not select a pipeline.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No defense pipeline or money-policy changes."
+    },
+    {
+      "id": "C2-11",
+      "plan": "2",
+      "section": "\u00a75 Wave1g",
+      "requirement": "Web helper canonicalization across pages/components/charts, with unchanged renders.",
+      "status": "held",
+      "currentDisposition": "Active frontend remains explicitly retained; backend source-only acceptance neither retires nor completes this original wave.",
+      "evidence": [
+        "ACCEPTANCE",
+        "CI_SOURCE"
+      ],
+      "nextSafeAction": "Keep frontend/Meri consumers unchanged."
+    },
+    {
+      "id": "C2-12",
+      "plan": "2",
+      "section": "\u00a75 Wave1h",
+      "requirement": "Root phase-script families parameterized after complete package/workflow references; retained evidence/automation inputs not deleted.",
+      "status": "open",
+      "currentDisposition": "Verification-scope source migrations exist but do not establish all phase-family deduplication or runtime automation closure.",
+      "evidence": [
+        "ACCEPTANCE",
+        "CI_SOURCE"
+      ],
+      "nextSafeAction": "No phase/operator script rewrites in board extraction."
+    },
+    {
+      "id": "C2-13",
+      "plan": "2",
+      "section": "\u00a76 Wave2",
+      "requirement": "Every LOOSE merge gets current diff/verdict plus independent parameterized behavior tests; test-area names remain for CleanUp3.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Current original-source characterization and canonical owner differences obey this principle locally; no blanket equivalence or waiver is recorded.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Preserve state/federal floors, source authority and cursor fallback quirks."
+    },
+    {
+      "id": "C2-14",
+      "plan": "2",
+      "section": "\u00a77 Wave3",
+      "requirement": "Parser helpers extend existing congressional_table kernel after green Python prerequisite; preserve fixture expectations and chamber distinctions.",
+      "status": "held",
+      "currentDisposition": "No latest finite parser merge/whole-Python acceptance; two-language fork decision remains separate.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No Python/parser edits."
+    },
+    {
+      "id": "C2-15",
+      "plan": "2",
+      "section": "\u00a78 Wave4",
+      "requirement": "Classify each CDP script as superseded/evidence/automation; replacements green before deletion; one shared client for kept scripts and full reference audit.",
+      "status": "held",
+      "currentDisposition": "Active frontend/evidence/automation consumers remain protected; no broad CDP retirement accepted.",
+      "evidence": [
+        "ACCEPTANCE",
+        "CLIENT_HISTORY"
+      ],
+      "nextSafeAction": "Do not treat script filename age or empty static imports as retirement proof."
+    },
+    {
+      "id": "C2-16",
+      "plan": "2",
+      "section": "\u00a79 Wave5",
+      "requirement": "Current tsconfig caller/extends/references closure before removal, full relevant typechecks; separately audit memory cycle and remaining CDP copies.",
+      "status": "open",
+      "currentDisposition": "Scoped strict API/Intel chains pass, but no complete config/cycle wave or all-package turbo typecheck is claimed.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Use actual Intel test config, including semantic checking of new test assets excluded from normal app compilation."
+    },
+    {
+      "id": "C2-17",
+      "plan": "2",
+      "section": "\u00a710",
+      "requirement": "One recorded ADR for both TS/Python RDTE/non-RDTE/chamber forks: N profiles versus separate pipelines/shared kernel.",
+      "status": "held",
+      "currentDisposition": "Original ADR decision remains explicitly open; it is not resolved by an unrelated owner extraction or stale similarity score.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Board decomposition needs no fork decision."
+    },
+    {
+      "id": "C2-18",
+      "plan": "2",
+      "section": "\u00a711",
+      "requirement": "Written kept/waived dispositions for product adapters, capability/Nest bounded contexts, chamber tests, migration basename histories and defense mirror.",
+      "status": "preserved_obligation",
+      "currentDisposition": "These are deliberate seams/history, not automatic duplicate deletion targets. Global per-stable-ID waiver closure remains open.",
+      "evidence": [
+        "ACCEPTANCE",
+        "RETIREMENT"
+      ],
+      "nextSafeAction": "Preserve guards, DTOs, repositories and canonical modules outside the owned service."
+    },
+    {
+      "id": "C2-19",
+      "plan": "2",
+      "section": "\u00a713\u201316",
+      "requirement": "Zero open production ledger rows or explicit waiver/obsolete; global name diff, unchanged visuals, native mirror/types/guards, per-package counts and coverage floor.",
+      "status": "open",
+      "currentDisposition": "No fresh global ledger or full multi-package/visual/Python gate exists in the examined acceptance. Source qualifications satisfy only their stated finite scopes.",
+      "evidence": [
+        "LEDGER",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Record exact board scope and reports; never report global duplicate exhaustion."
+    },
+    {
+      "id": "C3-1",
+      "plan": "3",
+      "section": "\u00a71\u20133",
+      "requirement": "Test-only consolidation from a regenerated test-area ledger; no production edits and no silent case/package loss.",
+      "status": "open",
+      "currentDisposition": "No repo-wide duplicate-test sweep is accepted; retained native case multisets remain exact in the latest structural source slices.",
+      "evidence": [
+        "LEDGER",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Retain all old board specs and runners."
+    },
+    {
+      "id": "C3-2",
+      "plan": "3",
+      "section": "\u00a74 WorkstreamA",
+      "requirement": "Per-helper exact fixture values/captured constants/drift parameters; repoint\u2192gate\u2192delete\u2192gate, separate ctx/browser clusters.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Independent typed fake-I/O fixtures are bounded; old cluster counts are not permission for a global fixture factory or deletion.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "New board fixtures mock I/O only; do not replace real domain algorithms."
+    },
+    {
+      "id": "C3-3",
+      "plan": "3",
+      "section": "\u00a75 WorkstreamB",
+      "requirement": "Reproduce every chamber/certification/Tango spec case with explicit rename/surviving twin before deleting a file; keep both if uncertain.",
+      "status": "held",
+      "currentDisposition": "No complete five-chamber consolidation; ADR/mirror/equivalence and explicit mappings remain required.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No duplicate-test removal in the board source task."
+    },
+    {
+      "id": "C3-4",
+      "plan": "3",
+      "section": "\u00a76 WorkstreamC",
+      "requirement": "Remove only proven test-local production copies/unused helpers after generated-case and name review; no blanket unused-export sweep.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Latest source-owner work does not claim this sweep; compiler diagnostics alone do not prove generated fixture reachability absent.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Keep unresolved test helpers at checkpoints."
+    },
+    {
+      "id": "C3-5",
+      "plan": "3",
+      "section": "\u00a77.1\u20132",
+      "requirement": "Five-runner runtime package discovery, uniform name dumps, added/removed/changed/scope accounting and multiplicity.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "dump/diff tools and proof fixtures are present; latest Jest scopes reconcile exact expanded identities. All-five-runner complete current execution is not established.",
+      "evidence": [
+        "NAME_SOURCE",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Board BEFORE/AFTER should use native expanded case names/multiplicity and explicit runner scope."
+    },
+    {
+      "id": "C3-6",
+      "plan": "3",
+      "section": "\u00a77.3\u20134",
+      "requirement": "Every removed name has an identical surviving twin in the same commit or explicit rename mapping; human ledger separate from generated state.",
+      "status": "satisfied_for_finite_slices",
+      "currentDisposition": "No business cases removed/renamed in latest packets. Facade preserves 12 architecture identities with 4 explicit obsolete predicate mappings; dossier preserves 95 old cases. Global test-name ledger remains open.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Map any structural guard migration; preserve initial repairs and all old case assertions."
+    },
+    {
+      "id": "C3-7",
+      "plan": "3",
+      "section": "\u00a78.1; \u00a79",
+      "requirement": "Coverage >= actual original baseline/CleanUp2 number per package without new thresholds.",
+      "status": "held",
+      "currentDisposition": "Historical configured floor absent; latest native branch/hit reconciliation proves finite behavior scope, not historical floor green.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER",
+        "GATE_SOURCE"
+      ],
+      "nextSafeAction": "Keep moved-source scope complete and explain denominator/gap changes honestly."
+    },
+    {
+      "id": "C3-8",
+      "plan": "3",
+      "section": "\u00a78.2\u20133; \u00a79",
+      "requirement": "Pinned visual comparison and full current route coverage remain green; baselines unchanged including additions, no update-snapshots.",
+      "status": "held",
+      "currentDisposition": "Backend native scopes do not establish whole frontend route/visual acceptance; current frontend remains active.",
+      "evidence": [
+        "VISUAL_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Leave visual baseline and archive rows unchanged."
+    },
+    {
+      "id": "C3-9",
+      "plan": "3",
+      "section": "\u00a78.4; \u00a79\u201313",
+      "requirement": "All duplicate and four bypass guards pass; only explicit waived groups remain; all runners/gates/counts/line deltas and no skip/only/todo.",
+      "status": "open",
+      "currentDisposition": "Source ratchets are present, finite slices preserve skips=0 and case counts, but old generated test/production debt and full gates are not closed.",
+      "evidence": [
+        "GUARD_SOURCE",
+        "LEDGER",
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "A new scoped guard must observe actual files/functions and concrete owner bodies."
+    },
+    {
+      "id": "C4-1",
+      "plan": "4",
+      "section": "\u00a71; \u00a73 R10\u2013R12",
+      "requirement": "Pin current decisions before structural conversion, declare every changed default/test, verify suspected findings, preserve deliberate ADR postures.",
+      "status": "satisfied_for_finite_slices",
+      "currentDisposition": "Original facade and dossier behavior is characterized before integration with exact defaults/receivers/order; no unreported product/default change is claimed. This does not settle all 125 review findings.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Characterize all original board decisions before owner integration; record any discovered production finding separately."
+    },
+    {
+      "id": "C4-2",
+      "plan": "4",
+      "section": "\u00a74 Wave0: defense mirror",
+      "requirement": "Decide compile versus move, and derive mirror provenance.",
+      "status": "held",
+      "currentDisposition": "Deliberate mirror remains preserved; source guard/packaging posture does not establish shadow/canary/rollback/decommission or build-used-tree acceptance.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No mirror retirement."
+    },
+    {
+      "id": "C4-3",
+      "plan": "4",
+      "section": "\u00a74 Wave0: parser extractors",
+      "requirement": "Decide real dispatch path versus test relocation.",
+      "status": "open",
+      "currentDisposition": "No complete current posture/dispatch acceptance is established in the scoped published cleanup records. Historical unreachable finding needs revalidation.",
+      "evidence": [
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "No stale-target deletion."
+    },
+    {
+      "id": "C4-4",
+      "plan": "4",
+      "section": "\u00a74 Wave0: parser orchestrator",
+      "requirement": "Decide workspace package/contracts/globbed checks while preserving documented isolation.",
+      "status": "held",
+      "currentDisposition": "Offline isolation is a deliberate ADR posture; no broad repackaging or native adoption inferred here.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Keep operator/evidence interface unchanged."
+    },
+    {
+      "id": "C4-5",
+      "plan": "4",
+      "section": "\u00a74 Wave0: Strategy eval",
+      "requirement": "Inject app draft path so evaluation grades the real app.",
+      "status": "open",
+      "currentDisposition": "Strategy time source preparation is recorded; complete app-path evaluation/grade acceptance is not established by latest app scopes.",
+      "evidence": [
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "No unrelated strategy/eval changes."
+    },
+    {
+      "id": "C4-6",
+      "plan": "4",
+      "section": "\u00a74 Wave0: Engagement ownership",
+      "requirement": "Record packaging/shadow-only ownership in registry/README.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Declared engagement component/source labels are recorded; source packaging alone does not promote runtime ownership or retire the Core implementation/report.",
+      "evidence": [
+        "BASELINE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Unpublished Engagement report remains untouched."
+    },
+    {
+      "id": "C4-7",
+      "plan": "4",
+      "section": "\u00a74 Wave1: internal HTTP",
+      "requirement": "One shared client used at every listed app/call site with explicit auth, URL/timeout/error/policy semantics.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Prepared shared/client source and bounded adoptions exist in older source packets; complete listed adoption/actual runtime and bypass-gate closure remain open. Security owns credential/deadline policy.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Keep board repositories/provider transport unchanged; no credentials or network-policy changes."
+    },
+    {
+      "id": "C4-8",
+      "plan": "4",
+      "section": "\u00a74 Wave1: feature flags",
+      "requirement": "Typed flag registry and generic guard adopted across listed apps, with enforced ownership.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Registry/ratchet source exists for bounded adoptions; no full four-mechanism consolidation or all-app acceptance is claimed.",
+      "evidence": [
+        "GUARD_SOURCE",
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "Preserve tracker_owner_intel and TenantGuard/TrackerOwnerGuard behavior."
+    },
+    {
+      "id": "C4-9",
+      "plan": "4",
+      "section": "\u00a74 Wave1: contract vocabulary",
+      "requirement": "Shared ViolationCode/DTO vocabulary used across listed app consumers.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Public types/exports are preserved through concrete owners; complete cross-app vocabulary adoption remains separate.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER",
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "Retain original board public module/type exports and DTO-derived feedback values."
+    },
+    {
+      "id": "C4-10",
+      "plan": "4",
+      "section": "\u00a74 Wave1: tenant data layer",
+      "requirement": "Scoped access/RLS/repository conventions adopted for tenant-owned data after security ownership adjudication.",
+      "status": "held",
+      "currentDisposition": "Finite native tests pin current scoped predicates/transactions with fake I/O; no real RLS/MVCC/Postgres acceptance or cross-app persistence rewrite is inferred.",
+      "evidence": [
+        "ACCEPTANCE",
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "Preserve exact tenant/client/user scopes and global catalog separation; no schema/security settings."
+    },
+    {
+      "id": "C4-11",
+      "plan": "4",
+      "section": "\u00a74 Wave1: entity/bill keys",
+      "requirement": "Canonical shared entity-resolution/bill-key module; every listed caller adopts.",
+      "status": "partially_satisfied",
+      "currentDisposition": "Canonical bill/state helpers are consumed by existing owners; whole entity-resolution adoption is not established by these records.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Use actual current state/federal key authorities; retain their distinctions."
+    },
+    {
+      "id": "C4-12",
+      "plan": "4",
+      "section": "\u00a74 Wave1: injectable clock/RNG",
+      "requirement": "Inject required time/random ports; prove in smallest app and migrate outward without big-bang conversion.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Bounded Strategy grounding/retry/fiscal conversion and same-change guard are recorded. 123 ambient samples at116 identities remain deliberately outside that source scope; full native/global adoption is open.",
+      "evidence": [
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "Frozen test clock does not authorize changing production time/env evaluation order."
+    },
+    {
+      "id": "C4-13",
+      "plan": "4",
+      "section": "\u00a74 Wave1: explicit context",
+      "requirement": "Replace ambient governed context with required parameters/request-scoped provider.",
+      "status": "open",
+      "currentDisposition": "No broad complete ALS removal is established; existing compatibility and tenant/public context source obligations remain.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Keep original board caller/receiver boundaries, user IDs and write order."
+    },
+    {
+      "id": "C4-W2-1",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item1",
+      "requirement": "Defense budget semantics conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "held",
+      "currentDisposition": "Two-language ADR and same-commit mirrors govern consolidation; no broad pipeline acceptance.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-2",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item2",
+      "requirement": "Intel/hearing provider registry conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "held",
+      "currentDisposition": "Host allowlist is security-owned; no membership/control changes are authorized by extraction.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-3",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item3",
+      "requirement": "Onboard task/cadence tables conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "held",
+      "currentDisposition": "Legal task transitions require security#26 ownership; structural tables cannot change policy independently.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-4",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item4",
+      "requirement": "Workspace product registry conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Bounded metadata preparation is preserved, but every current consumer/whole product-registry gate is not established.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-5",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item5",
+      "requirement": "Web nav/routes/Explorer conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "held",
+      "currentDisposition": "Active frontend is excluded from retirement and no full route/visual registry acceptance is claimed.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-6",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item6",
+      "requirement": "Strategy template registry conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Bounded template source preparation is preserved; complete runtime/governance adoption remains open.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-7",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item7",
+      "requirement": "Defense source catalogue conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Source vocabulary/guard preparation does not establish complete defense catalogue adoption or mirror runtime.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-8",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item8",
+      "requirement": "MeriV2 recipes conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "held",
+      "currentDisposition": "Active Meri remains retained; no whole recipe adoption/retirement is authorized here.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-W2-9",
+      "plan": "4",
+      "section": "\u00a74 Wave2 item9",
+      "requirement": "Tool dispatch/scoring weights conversion: pre-change characterization, canonical table/registry and same-change ownership ratchet.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Selected source dispatch/canonical loops exist, but all money/legal/scoring branch chains remain to be revalidated domain by domain.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "GUARD_SOURCE",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Do not couple unrelated registry migrations to tracker-board source ownership."
+    },
+    {
+      "id": "C4-14",
+      "plan": "4",
+      "section": "\u00a74 Wave3: twins",
+      "requirement": "Parameterize verified family/chamber, Hill Day/draft, legacy/vNext, rail repos, batch/async and Tango twins within owned semantics/ADR.",
+      "status": "open",
+      "currentDisposition": "Selected canonical leaves/loops are qualified, but no broad twin elimination follows. Similar method names are not equivalence evidence; active frontend/Meri remain retained.",
+      "evidence": [
+        "ACCEPTANCE",
+        "FINAL_INTELLIGENCE"
+      ],
+      "nextSafeAction": "Do not merge API/Intel tracker rails without first-hand authority and full decision evidence."
+    },
+    {
+      "id": "C4-15",
+      "plan": "4",
+      "section": "\u00a74 Wave3: Intelligence god",
+      "requirement": "Complete Intelligence facade split with original routing/DI/export/default/private compatibility and bounded owners.",
+      "status": "satisfied_for_finite_slices",
+      "currentDisposition": "PR2480 closes actual Root 365 nonblank/22-line ctor and eight new modules, retainsCore95 and prior51 owners; 1283/98 matched+7 guards, actual strict type/build. Full Intelligence Cleanup flag remains false.",
+      "evidence": [
+        "FACADE",
+        "PROVENANCE"
+      ],
+      "nextSafeAction": null
+    },
+    {
+      "id": "C4-16",
+      "plan": "4",
+      "section": "\u00a74 Wave3: Intel dossier god",
+      "requirement": "Complete Bill360 source ownership through original four route facade and concrete read-model helpers.",
+      "status": "satisfied_for_finite_slices",
+      "currentDisposition": "PR2481 closes317-nonblank facade/13 modules,16methods/49 moved helpers; reviewed unreferenced prettifyStatus retired at checkpoint.196/12 matched+5 guards and strict type/build; full Cleanup false.",
+      "evidence": [
+        "DOSSIER",
+        "PROVENANCE"
+      ],
+      "nextSafeAction": null
+    },
+    {
+      "id": "C4-17",
+      "plan": "4",
+      "section": "\u00a74 Wave3: remaining gods",
+      "requirement": "Engagement/meri-tools/workspace/intel/MeriV2/onboard/orchestrator gods split behind existing facades, capability per recoverable PR.",
+      "status": "open",
+      "currentDisposition": "Earlier API profile-fill and Intelligence family owner commits are published source. No claim that every current god is decomposed; active report/Meri/frontend source is excluded. Whole Intel tracker-board is a verified next bounded candidate.",
+      "evidence": [
+        "ACCEPTANCE",
+        "PROVENANCE"
+      ],
+      "nextSafeAction": "Own all 25 board methods plus8 named standalone helpers and public contracts; meaningful phases below 80, every resulting file below 400."
+    },
+    {
+      "id": "C4-18",
+      "plan": "4",
+      "section": "\u00a74 Wave4: determinism/ambient state",
+      "requirement": "Required generation/governed context and injectable grounding time; remove ambient state/monkey-patching only in declared owned scope.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Strategy source conversion is bounded. Current original facade late overrides, borrowed receivers and mutable state are positive compatibility consumers and remain characterized. They are not permission for silent API changes.",
+      "evidence": [
+        "CLOCK_PROGRESS",
+        "FACADE"
+      ],
+      "nextSafeAction": "Retain live callback/property lookup and receiver evaluation timing in the board extraction."
+    },
+    {
+      "id": "C4-19",
+      "plan": "4",
+      "section": "\u00a74 Wave5: config/flags/defaults",
+      "requirement": "One validated config per app, shared flag registry, no new raw env bypasses/repeated defaults; resolve live env mismatch with security owner.",
+      "status": "held",
+      "currentDisposition": "No full per-app env/flag consolidation; security/control ownership and actual live configuration acceptance remain separate. Module-time board env sampling is original behavior.",
+      "evidence": [
+        "ACCEPTANCE",
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "Preserve state fit floor/board cap env IIFE, constants and allocation order; no validation rewrite."
+    },
+    {
+      "id": "C4-20",
+      "plan": "4",
+      "section": "\u00a75.1",
+      "requirement": "Security owns IaC/admission/credential/deadline/RLS/task transition/env/SSRF controls; coordinate conflicts and avoid competing fixes.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Source-only cleanup does not adjudicate conflicting security reviews or mutate credentials/policies. SQL architectural seams preserve original safe bindings rather than claiming new security acceptance.",
+      "evidence": [
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "No TenantGuard/TrackerOwnerGuard/allowlist/RLS/secret changes."
+    },
+    {
+      "id": "C4-21",
+      "plan": "4",
+      "section": "\u00a75.2; \u00a76; \u00a79",
+      "requirement": "Respect other-plan owners, deliberate waivers and mirror decommission constraints; no invented exemptions for unresolved forks/history.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Original adapter/capability/migration/isolation/cache postures remain held; historical waivers do not grant new deletions.",
+      "evidence": [
+        "ACCEPTANCE",
+        "RETIREMENT"
+      ],
+      "nextSafeAction": "Keep unknown versions/checkpoints and neighboring canonical services."
+    },
+    {
+      "id": "C4-22",
+      "plan": "4",
+      "section": "\u00a77",
+      "requirement": "Every observable default change has original/new values, rationale, finding ID and a named test; otherwise preserve behavior.",
+      "status": "satisfied_for_finite_slices",
+      "currentDisposition": "Latest finite qualifications explicitly retain original facade defaults and algorithm decisions; no behavior/default change is claimed.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER"
+      ],
+      "nextSafeAction": "Do not fix odd numeric strings, malformed cursors, missing rows or evaluation timing incidentally."
+    },
+    {
+      "id": "C4-23",
+      "plan": "4",
+      "section": "\u00a78",
+      "requirement": "Each new HTTP/config/flag/tenant/registry seam gets data-owned anti-bypass ratchet wired in the same change.",
+      "status": "source_prepared_acceptance_open",
+      "currentDisposition": "Registry/duplicate/Strategy-time guards and tests exist; HTTP/config/flag/tenant exact named guards are absent at these heads and no complete all-seam runtime/CI closure is claimed. Concrete owner budget/hash guards qualify latest slices.",
+      "evidence": [
+        "GUARD_SOURCE",
+        "CI_SOURCE"
+      ],
+      "nextSafeAction": "Ship a concrete whole-board ownership guard without a generic registry/prototype framework."
+    },
+    {
+      "id": "C4-24",
+      "plan": "4",
+      "section": "\u00a710\u201311",
+      "requirement": "Full gate: prerequisite gates, all posture/seam/registry/default decisions, mirrors/names/visuals/coverage floor, non-increasing regenerated production ledger and raw evidence.",
+      "status": "open",
+      "currentDisposition": "Scoped characterizations/type/build/source ownership pass; full gate:cleanup4, authentic historical floor, all-wave/visual/Python/current-duplication and main-only CI execution remain unestablished.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER",
+        "GATE_SOURCE",
+        "LEDGER"
+      ],
+      "nextSafeAction": "State finite acceptance plainly; preserve all broader flags false."
+    },
+    {
+      "id": "C4-25",
+      "plan": "4",
+      "section": "\u00a712\u201314",
+      "requirement": "Independent reversible PR per seam/registry/god; preserve runtime behavior, original baselines, security ownership and rollback evidence.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Both latest qualified sibling source commits have before recovery tags and single-commit rollback. No main merge, deployment, provider or database execution belongs to this cleanup.",
+      "evidence": [
+        "FACADE",
+        "DOSSIER",
+        "ACCEPTANCE"
+      ],
+      "nextSafeAction": "Use independent before checkpoint, exact source/test/raw receipts and external review for board."
+    },
+    {
+      "id": "SCOPE-1",
+      "plan": "Acceptance",
+      "section": "Declared baseline and operating index",
+      "requirement": "Do not assume main equals production; keep nine configuration-bound revision labels distinct from image build-used trees and protected tag-only candidates.",
+      "status": "held",
+      "currentDisposition": "Declared source map admitsCore and Intel revisions; actual build trees remain UNVERIFIED and Clio/Onboard remain protected unknown tag-only sources.",
+      "evidence": [
+        "BASELINE",
+        "PROVENANCE"
+      ],
+      "nextSafeAction": "Use byte-exact admitted board source; make no production execution/deployment claim."
+    },
+    {
+      "id": "SCOPE-2",
+      "plan": "Acceptance",
+      "section": "Frontend retirement",
+      "requirement": "Before frontend/E2E retirement resolve images/assets/public URLs/manifests/CI/nested web verifiers/shared source-name-evidence/runtime/worker/API contracts and replacement acceptance.",
+      "status": "held",
+      "currentDisposition": "Florida portrait custody/importer ownership exists as a historical source packet. Active frontend/Meri and their positive consumers remain explicitly excluded; no replacement or retirement acceptance is established.",
+      "evidence": [
+        "PORTRAIT",
+        "ACCEPTANCE",
+        "CLIENT_HISTORY"
+      ],
+      "nextSafeAction": "Retain all frontend/Meri paths, PNG/manifest/evidence and public payloads."
+    },
+    {
+      "id": "SCOPE-3",
+      "plan": "Acceptance",
+      "section": "Source-bound proof continuity",
+      "requirement": "Changed HEAD/tree/tar needs fresh separately versioned source manifests/archive receipts; do not backfill historical null provenance or rewrite measured rows.",
+      "status": "preserved_obligation",
+      "currentDisposition": "Client Intel retirement explicitly preserves source/archive identity contracts and failed/null historical records. Current source scopes do not adopt unexecuted rebuild proofs as green.",
+      "evidence": [
+        "CLIENT_HISTORY",
+        "GATE_SOURCE"
+      ],
+      "nextSafeAction": "Keep archived requirements/evidence immutable; produce only new actual scoped evidence in the authorized lane."
+    },
+    {
+      "id": "SCOPE-4",
+      "plan": "Acceptance",
+      "section": "Migration recovery",
+      "requirement": "Preserve migration path/mode/blob histories and approved manual recovery entrypoints; no automatic migration-resolve at deployment/startup/schedule/replay.",
+      "status": "held",
+      "currentDisposition": "Manual recovery aliases and raw entrypoints remain source interfaces; no DB execution/runtime recovery authorization is inferred. Historical guard conflicts require their canonical owner.",
+      "evidence": [
+        "ACCEPTANCE",
+        "CLOCK_PROGRESS"
+      ],
+      "nextSafeAction": "No migration/deployment/credential/security/native operator actions."
+    }
+  ],
+  "requirementGroupCount": 84,
+  "coverageNote": "This is a finite clause/workstream reconciliation, not a rescore of all125 architecture-review findings or a replacement generated duplicate inventory. Sections containing risks, evidence and repeated gate checkboxes map to their owning obligation groups above. All named wave items and retained/excluded categories remain represented.",
+  "sourcePreparedGlobalTools": [
+    "gate:cleanup1 core/guards/python/e2e and measurement/verification scripts",
+    "API/web/defense CI source steps with main-only trigger",
+    "four architectural guard list",
+    "parser CI source",
+    "five-runner dump/diff proof tools",
+    "duplicate/registry/Strategy-time ratchets",
+    "pinned visual archive/source/route tooling"
+  ],
+  "globalAcceptance": {
+    "wholeCleanupComplete": false,
+    "fullIntelligenceCleanupAcceptanceComplete": false,
+    "historicalCoverageFloorEstablished": false,
+    "actualLiveImageBuildTreesEstablished": false,
+    "mainOnlyCiExecutionEstablishedByThesePackets": false,
+    "frontendMeriRetirementAccepted": false,
+    "databaseProviderNativeRuntimeAcceptanceEstablished": false,
+    "twoLanguagePipelineAdrDecided": false,
+    "allSubjectsDuplicateLedgerCurrentAndClosed": false
+  },
+  "nextBoundary": "NEXT-BACKEND-BOUNDARY.json",
+  "execution": {
+    "onlyNewEvidenceMdJsonWritten": true,
+    "repoRemotesDatabaseProvidersNativeWrites": false,
+    "nativeRunsPerformed": false,
+    "rawEvidenceOrOriginalRequirementsEdited": false
+  },
+  "supersedes": "REQUIREMENTS-RECONCILIATION.json (first draft preserved byte-exact)",
+  "priorDraftSHA256": "a31296be4fb8367971f5dd1797beb6c0b1bebcd23eeefda559acb9bcd0b4a5bf",
+  "sourceObservations": "SOURCE-OBSERVATIONS.json",
+  "evidenceIndex": {
+    "ACCEPTANCE": {
+      "path": "docs/backend-cleanup/ACCEPTANCE.md",
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ]
+    },
+    "PROVENANCE": {
+      "localFile": "INPUT-PROVENANCE.json"
+    },
+    "FACADE": {
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-QUALIFICATION.json",
+      "handover": "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-HANDOVER.md",
+      "at": "64a79469e5864b5e1b069a6ea7050cf7efb849bd"
+    },
+    "DOSSIER": {
+      "path": "docs/backend-cleanup/20261013/BILL-DOSSIER-QUALIFICATION.json",
+      "handover": "docs/backend-cleanup/20261013/BILL-DOSSIER-HANDOVER.md",
+      "at": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+    },
+    "FINAL_INTELLIGENCE": {
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-FINAL-QUALIFICATION.json",
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ]
+    },
+    "RETIREMENT": {
+      "paths": [
+        "docs/backend-cleanup/20261012/PLAN-RETIREMENT.json",
+        "docs/backend-cleanup/20261012/CLIENT-INTEL-PLAN-RETIREMENT.json",
+        "docs/backend-cleanup/20261012/README.md"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ]
+    },
+    "CLIENT_HISTORY": {
+      "path": "docs/backend-cleanup/20261012/CLIENT-INTEL-HISTORY.md",
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ]
+    },
+    "CLOCK_PROGRESS": {
+      "path": "docs/plans/cleanup4-progress.md",
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "disposition": "Existing rebuild-owner source preparation record; not edited/re-scored as a new acceptance result."
+    },
+    "BASELINE": {
+      "path": "docs/backend-cleanup/20261012/PRODUCTION-BASELINE.json",
+      "at": "2991b0108fdda3c0c37a9134950828e723d52c23"
+    },
+    "PORTRAIT": {
+      "path": "docs/backend-cleanup/20261012/PORTRAIT-OWNERSHIP.md",
+      "at": "08c79d9fd2edd6ff53ae86018029c730c062ce40",
+      "disposition": "Historical source asset custody; does not establish frontend or image retirement."
+    },
+    "GATE_SOURCE": {
+      "paths": [
+        "scripts/cleanup-gates/gate-config.mjs",
+        "scripts/cleanup-gates/coverage.mjs",
+        "package.json"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "localFile": "SOURCE-OBSERVATIONS.json"
+    },
+    "CI_SOURCE": {
+      "paths": [
+        ".github/workflows/ci-pr.yml",
+        ".github/workflows/defense-budget-parser-ci.yml"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "localFile": "SOURCE-OBSERVATIONS.json"
+    },
+    "GUARD_SOURCE": {
+      "paths": [
+        "scripts/check-duplicate-helpers.mjs",
+        "scripts/check-registry-ownership.mjs",
+        "package.json"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "localFile": "SOURCE-OBSERVATIONS.json"
+    },
+    "NAME_SOURCE": {
+      "paths": [
+        "scripts/dump-test-names.mjs",
+        "scripts/diff-test-names.mjs"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "localFile": "SOURCE-OBSERVATIONS.json"
+    },
+    "VISUAL_SOURCE": {
+      "paths": [
+        "apps/e2e/baselines/manifest.json",
+        "apps/e2e/baselines/source-manifest.json",
+        "apps/e2e/lib/source-identity.mjs",
+        "apps/e2e/scripts/guard-route-coverage.mjs"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "localFile": "SOURCE-OBSERVATIONS.json"
+    },
+    "LEDGER": {
+      "paths": [
+        "docs/plans/cleanup2-dup-inventory.json",
+        "docs/plans/cleanup2-dup-status.md"
+      ],
+      "at": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+      ],
+      "localFile": "SOURCE-OBSERVATIONS.json"
+    }
+  }
+}

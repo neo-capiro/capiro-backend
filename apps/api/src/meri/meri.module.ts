@@ -39,6 +39,7 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
+import { MeriMemoryHelperController } from './memory-receiving/meri-memory-helper.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
 import { MeriSourceService } from './meri-source.service.js';
 import { MeriSkillsController } from './meri-skills.controller.js';
@@ -61,13 +62,10 @@ import {
 import { MeriResearchService } from './meri-research.service.js';
 import { createGovernedMeriResearchService } from './governed-meri-research.factory.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
-import { MeriMcpService } from './meri-mcp.service.js';
-import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
-import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
-import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import { MeriFeatureFlagsModule } from '../common/meri-feature-flags.module.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -88,8 +86,11 @@ import { MeriJobLeaseSweeper } from './meri-job-lease-sweeper.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
+import { meriExecutionKeyConfigProvider } from './execution-capability/meri-execution-authority.js';
+import { MeriExecutionReceiverService } from './execution-capability/meri-execution-receiver.service.js';
 @Module({
   imports: [
+    MeriFeatureFlagsModule,
     ManagedMcpModule,
     EngagementModule,
     ClientDocumentsModule,
@@ -119,6 +120,8 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     DistrictNexusModule,
   ],
   controllers: [
+    // Register the fixed signed callback before tools/:name in this module.
+    MeriMemoryHelperController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -132,6 +135,10 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     MeriJobDeliverablesController,
   ],
   providers: [
+    // D016 #9: Meri approved-execution receiver on create_task (503 until the
+    // MERI_EXECUTION_SIGNER_* key configuration is present).
+    meriExecutionKeyConfigProvider,
+    MeriExecutionReceiverService,
     MeriClientFilingService,
     MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
@@ -190,7 +197,6 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     MeriJobLeaseSweeper,
     MeriFirmSkillsService,
     MeriProcedureRuntimeValidationService,
-    MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,
     {
@@ -267,6 +273,6 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     },
     MeriOtelLifecycleProvider,
   ],
-  exports: [MeriToolsService, MeriFeatureFlagsService],
+  exports: [MeriToolsService, MeriFeatureFlagsModule],
 })
 export class MeriModule {}

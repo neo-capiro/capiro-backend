@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "kind": "CENTRAL_SOURCE_ALLOCATION_RECORD",
+  "coordinatorThread": "01a0ff18-26cd-7609-beba-87726d0300c6",
+  "recordedAt": "2026-10-18T05:30:00Z",
+  "reservations": [
+    {
+      "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
+      "owner": "backend Objective confirmation intent",
+      "allocation": "preserved unchanged",
+      "source": "215d072def7d8449ac94559e4e1a44eabf513276",
+      "centralRecord": "23a1c35042f18ca1aae54841e340e06d6c2d815d"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015020000_client_objective_canonical_plans/migration.sql",
+      "owner": "backend Objective canonical reservation / transaction fence",
+      "workstream": "feat/objective-canonical-reservation",
+      "base": "8d4aa29decf86cb242f2f8de0faebe546d8b64ae",
+      "allocation": "coordinator authorized after central record and relevant remote head collision check",
+      "checks": [
+        {
+          "ref": "backend-import",
+          "sha": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "codex/backend-canonical-boundary-20261014",
+          "sha": "1f2655fe964cb2a01343d3bcb560de60fa5f69be",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "codex/backend-runtime-candidate-20261014",
+          "sha": "f4f9e1361d92ac0afadd67c1cae3f5faefa829ec",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "docs/objective-automation-reconciliation",
+          "sha": "23a1c35042f18ca1aae54841e340e06d6c2d815d",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "feat/objective-bound-strategy",
+          "sha": "f5f0c1d32c667654c322c8e4fc1085f5ffc5941f",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "feat/objective-confirmation-intent",
+          "sha": "215d072def7d8449ac94559e4e1a44eabf513276",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "feat/objective-planner-materialization",
+          "sha": "5d551a5ce4e88945e654a1d2c88983d76774aad1",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        },
+        {
+          "ref": "fix/final-backend-node22-bookworm",
+          "sha": "4945791dfc8e755a2abaddfa60cdcf670ee20712",
+          "migration404": true,
+          "canonicalModelAbsent": true
+        }
+      ],
+      "scope": [
+        "Core Prisma model and exact migration",
+        "private canonical reservation and requested-revision CAS",
+        "same-transaction confirm_ready wiring and focused tests"
+      ],
+      "excluded": [
+        "live migration execution",
+        "grant expansion or new service credentials",
+        "dispatcher activation",
+        "public contract freeze",
+        "Strategy/Planner output or applied-pointer writes",
+        "manual project/group restrictions"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281016010000_client_objective_workload_delegations/migration.sql",
+      "owner": "backend Objective workload delegation and Core operation replay",
+      "workstream": "feat/objective-retained-result-bridge",
+      "base": "e03f7cf2093066e7f0c3f7b10536a5d81ed7639b",
+      "allocation": "coordinator authorized source-only reservation after fresh central record and remote branch migration collision check",
+      "allocatedAt": "2026-10-16T18:03:15Z",
+      "checks": {
+        "remoteBranchHeads": 51,
+        "uniqueCoreMigrationTrees": 7,
+        "proposedPrefixPresent": false,
+        "latestObservedCoreMigration": "20281015050000_client_objective_work_reconsent",
+        "centralRecordBeforeAllocationSha": "fbbfde6ddf77bda120bd6709641904805abb38f6"
+      },
+      "scope": [
+        "disabled Core delegation bound to exact consent/action and generation job",
+        "Core issuer operation and caller-proof replay records",
+        "source-only transaction adapter and focused offline checks"
+      ],
+      "excluded": [
+        "live SQL execution or native transaction qualification",
+        "credential or key creation and production issuer activation",
+        "Strategy replay schema allocation",
+        "grant expansion or deployment"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281016020000_clio_conversation_bootstrap_receipts/migration.sql",
+      "owner": "Core first-chat idempotent conversation allocation",
+      "workstream": "feat/core-first-chat-bootstrap",
+      "base": "560e3068b67101b68d8675c55835bcc6521110f7",
+      "allocation": "task-owned source-only reservation after fresh remote migration collision check; separate from Objective PR42 slot",
+      "allocatedAt": "2026-10-16T18:10:26Z",
+      "checks": {
+        "remoteBranchHeads": 52,
+        "proposedPrefixPresent": false,
+        "latestObservedCoreMigration": "20281015050000_client_objective_work_reconsent"
+      },
+      "scope": [
+        "Core first-chat request receipt with tenant/actor/request uniqueness",
+        "Core conversation and receipt same-transaction insert",
+        "active owned conversation and current client memory-wall checks on every replay"
+      ],
+      "excluded": [
+        "live migration execution or native database qualification",
+        "Objective workload delegation and Strategy replay migrations",
+        "new credentials or deployment"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018010000_clio_meri_approval_decisions/migration.sql",
+      "owner": "Core P-INT-10 native approval decisions (Meri conversation write intents)",
+      "workstream": "fable/core-integration-20261018",
+      "base": "7dd72a0e5",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281017010000_client_objective_strategy_intake)",
+      "allocatedAt": "2026-10-18T05:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281017010000_client_objective_strategy_intake",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable per-(tenant, proposal) decision ledger with RLS",
+        "no Core foreign key to Meri conversation/run ids"
+      ],
+      "excluded": [
+        "live migration execution",
+        "grants on meri_commands.approval_metadata"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql",
+      "owner": "Core W8 Meri memory review submissions (Meri apps/control/memory/core-review.mjs)",
+      "workstream": "fable/core-integration-20261018",
+      "base": "b7c6e9cf",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018010000_clio_meri_approval_decisions)",
+      "allocatedAt": "2026-10-18T07:00:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018010000_clio_meri_approval_decisions",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable per-(tenant, candidate) submission ledger with RLS",
+        "stable reviewId for idempotent replay"
+      ],
+      "excluded": [
+        "live migration execution",
+        "memory_candidate or clio_memory schema changes"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018030000_clio_meri_routine_authority/migration.sql",
+      "owner": "Core item 5 DRAFT: Meri routine approvals (consent rows, unattended fence) and cancellation-proof issuance ledger",
+      "workstream": "fable/core-integration-20261018",
+      "base": "a7885e8e",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018020000_clio_meri_memory_submissions)",
+      "allocatedAt": "2026-10-18T07:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018020000_clio_meri_memory_submissions",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable routine approval consent rows with CHECK(unattended_enabled=false)",
+        "cancellation-proof issuance ledger (jti, claims digests)",
+        "RLS and insert-only grants"
+      ],
+      "excluded": [
+        "live migration execution",
+        "lifting the unattended fence",
+        "routine firing grants"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018040000_clio_meri_execution_authority/migration.sql",
+      "owner": "Core Meri approved-execution authority: capability issuance ledger and durable consumption (D016 #9)",
+      "workstream": "fable/core-integration-20261018",
+      "base": "5412c053",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018030000_clio_meri_routine_authority)",
+      "allocatedAt": "2026-10-18T08:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018030000_clio_meri_routine_authority",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "immutable capability issuance ledger with RLS",
+        "consumption ledger with a single CLAIMED->COMPLETED transition"
+      ],
+      "excluded": [
+        "live migration execution",
+        "decision revocation (not yet specified)"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018050000_clio_meri_routine_unattended/migration.sql",
+      "owner": "Core Meri unattended routine firing (D016-A item 5): lifts the approvals fence; consents, schedule revocations, firing-grant ledger",
+      "workstream": "fable/core-integration-20261018",
+      "base": "5eefddc0",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018040000_clio_meri_execution_authority)",
+      "allocatedAt": "2026-10-18T09:30:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018040000_clio_meri_execution_authority",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "drop clio_meri_routine_approvals_unattended_fence (packet only)",
+        "consents <= 30 days with RLS and insert-only grants",
+        "schedule revocations",
+        "firing-grant ledger"
+      ],
+      "excluded": [
+        "live migration execution"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql",
+      "owner": "Core run-bound read delegation (RC1 option B, D016-A item 4): consents, delegations, call slots and single-use read tokens",
+      "workstream": "fable/core-integration-20261018",
+      "base": "3ea1c077",
+      "allocation": "integration-lane source-only reservation after checking the merged migration directory (latest 20281018050000_clio_meri_routine_unattended)",
+      "allocatedAt": "2026-10-18T14:00:00Z",
+      "checks": {
+        "latestObservedCoreMigration": "20281018050000_clio_meri_routine_unattended",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "consents <= 30 days, attended delegations <= 30 min, occurrence delegations <= 15 min, tokens <= 60 s (CHECKs)",
+        "per-slot ceilings tool 1 / mode 7 / reference 7 / current 35 and reissues <= 8",
+        "RLS on all four tables; SELECT/INSERT plus column-level UPDATE for capiro_app; no DELETE"
+      ],
+      "excluded": [
+        "live migration execution",
+        "Meri's facts views (meri-greenfield read-delegation 0001) and their grants to capiro_app",
+        "expiry sweeping"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql",
+      "owner": "Core Institutional Memory client-scoped clio_memory key uniqueness",
+      "workstream": "codex/memory-client-unique-20261018",
+      "base": "96065aea7076fde961071ebce402b6b2a31ee60c",
+      "allocation": "centrally assigned source-only reservation after Core PR86 migration collision check",
+      "allocatedAt": "2026-10-18T13:11:00Z",
+      "checks": {
+        "CorePR86Head": "b40971b1f8de888687a8fb92fbdf4ff653fe10d3",
+        "latestObservedCoreMigration": "20281018060000_meri_read_delegation",
+        "proposedPrefixPresent": false
+      },
+      "scope": [
+        "preflight old firm index, client/firm row shape, and duplicate keys without data changes",
+        "partial unique index on tenant_id, client_id, key for client scope",
+        "narrow clio_memory_firm_key_uniq to firm scope while preserving user_private Prisma uniqueness"
+      ],
+      "excluded": [
+        "live migration execution",
+        "row deduplication or data deletion"
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql",
+      "owner": "Core Institutional Memory Meri submission receipt payload disposition",
+      "workstream": "codex/memory-receipt-forward-20261018",
+      "base": "f357bf477f9cf31e4d2ca5e165b89d203d02b6e8",
+      "allocation": "centrally assigned source-only forward migration after Core PR86 collision check; preserve original 020000 history from 5c105cfefe5a23a10a2d3f7c8eb0d148e9e0ef17",
+      "allocatedAt": "2026-10-18T13:26:57Z",
+      "checks": {
+        "CorePR86Head": "b40971b1f8de888687a8fb92fbdf4ff653fe10d3",
+        "latestObservedCoreMigration": "20281018080000_clio_memory_scope_unique",
+        "proposedPrefixPresent": false,
+        "original020000Sha256": "090b3140156c8cb40630101e6fd3b8bb5135a846a6d79528fa2fc4d523f0c2c5"
+      },
+      "scope": [
+        "held forward source for redundant candidate JSONB/check removal from immutable submission receipts",
+        "explicit fail-closed release guard pending applied checksum, table-shape, retention and hold readback",
+        "keep idempotency digest, proposer and stable review ID after candidate payload disposition"
+      ],
+      "excluded": [
+        "live migration execution",
+        "column drop or purge authorization",
+        "applied checksum reconciliation without target database evidence",
+        "canonical memory or memory_candidate deletion"
+      ]
+    }
+  ]
+}

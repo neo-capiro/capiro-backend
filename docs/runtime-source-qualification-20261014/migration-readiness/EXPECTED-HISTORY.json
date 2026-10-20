@@ -1,0 +1,513 @@
+{
+  "sourceHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+  "sourceTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+  "oldMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "backendImport": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "migrationSourceNamesOrBytesChanged": false,
+  "corePolicy": {
+    "yearOffset": 2,
+    "toleranceDays": 7,
+    "oldMainSourceFrontier": "20281008040000_federal_evidence_passage_search"
+  },
+  "fiveFailures": [
+    {
+      "name": "20261007010000_newsletter_outreach_format",
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.7925810185185,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261007020000_newsletter_review_email_delivery",
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.7509143518519,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261007030000_newsletter_invitation_email_delivery",
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.7092476851852,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261007040000_newsletter_account_invitations",
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "backend_source_introduction": "a247f7a02a9b94d95e9ee5a516b396202aea994b|2026-10-12T20:01:19Z",
+      "introduction_commit": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+      "introduction_author_date": "2026-10-12T20:01:19Z",
+      "offset_drift_days": -736.6675810185185,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    },
+    {
+      "name": "20261014050000_user_portfolio_layout",
+      "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+      "backend_source_introduction": "47213eb8924016f444c73c53cfbee47c0349a282|2026-10-14T03:47:19Z",
+      "introduction_commit": "47213eb8924016f444c73c53cfbee47c0349a282",
+      "introduction_author_date": "2026-10-14T03:47:19Z",
+      "offset_drift_days": -730.9495254629629,
+      "offset_valid": false,
+      "after_old_main_frontier": false,
+      "ledger_application_state": "UNKNOWN"
+    }
+  ],
+  "provenance": {
+    "newsletterFour": "Already present in c76 backend import; first-add ancestor a247f7a02a9b94d95e9ee5a516b396202aea994b.",
+    "layout": "Introduced in successor PR10, source commit47213eb8924016f444c73c53cfbee47c0349a282, absent c76.",
+    "pr17AndPr18": "No migration names or SQL changes."
+  },
+  "expected": [
+    {
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "blob": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+      "bytes": 2048,
+      "app": "api",
+      "name": "20261007010000_newsletter_outreach_format",
+      "sinceImport": false,
+      "slug": "newsletter_outreach_format",
+      "prisma522ChecksumVariants": [
+        "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+        "20e155263c32f39d49e5956c41e8af891aeb71b45c11b5d23e853074e51b7",
+        "7ec7f6d4dbdf9e718aafab4f6f6187161c85da7e0385e59e95965f23a50fccf6",
+        "7ec7f6d4dbdf9e718aafab4f6f6187161c85da7e385e59e95965f23a5fccf6"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "blob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+      "bytes": 1421,
+      "app": "api",
+      "name": "20261007020000_newsletter_review_email_delivery",
+      "sinceImport": false,
+      "slug": "newsletter_review_email_delivery",
+      "prisma522ChecksumVariants": [
+        "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+        "b1f4a2f56a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+        "ca590570056e13552d693cafc5e97b80d076b9fb90ec6801487730ad33c30a26",
+        "ca5957056e13552d693cafc5e97b80d076b9fb90ec681487730ad33c3a26"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "blob": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+      "bytes": 1289,
+      "app": "api",
+      "name": "20261007030000_newsletter_invitation_email_delivery",
+      "sinceImport": false,
+      "slug": "newsletter_invitation_email_delivery",
+      "prisma522ChecksumVariants": [
+        "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+        "27242c9b201631547a48cf3d951b77355bc54a9a4b56a2bc5341f6cec18f066",
+        "558cb08decf56507371672935e3f4b35c0b1a4f76cd86adf8e1aa9aabee10b47",
+        "558cb08decf5657371672935e3f4b35c0b1a4f76cd86adf8e1aa9aabee1b47"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "blob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+      "bytes": 1656,
+      "app": "api",
+      "name": "20261007040000_newsletter_account_invitations",
+      "sinceImport": false,
+      "slug": "newsletter_account_invitations",
+      "prisma522ChecksumVariants": [
+        "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+        "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d7",
+        "a95122d6b1ba8ca13af0646bc6b03e8a8faf67d4ecb81622cc0cca3486473326",
+        "a95122d6b1ba8ca13af0646bc6b03e8a8faf67d4ecb81622cccca3486473326"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+      "blob": "e3445102a7ff5f06021704cea272bbb559b8f03f",
+      "sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f",
+      "bytes": 2094,
+      "app": "api",
+      "name": "20261014050000_user_portfolio_layout",
+      "sinceImport": true,
+      "slug": "user_portfolio_layout",
+      "prisma522ChecksumVariants": [
+        "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f",
+        "7ccb4dbc851ddd33c9f6e198ea5b143891def95667effcd2f9d20f45fa86a22a",
+        "7ccb4dbc851ddd33c9f6e198ea5b143891def95667effcd2f9d2f45fa86a22a"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "blob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+      "bytes": 3398,
+      "app": "api",
+      "name": "20281011010000_client_objectives",
+      "sinceImport": false,
+      "slug": "client_objectives",
+      "prisma522ChecksumVariants": [
+        "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+        "cd6a1f8162b55b04325d7ef17fdabc23d1d28870fd1c6ce863789f70fca5e2",
+        "9372173047c2f4cc6e4b43c74f2a78978849c56ca5902d3dc178b00be5c4984e",
+        "9372173047c2f4cc6e4b43c74f2a78978849c56ca5902d3dc178b0be5c4984e"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+      "blob": "7048874032f7a8ed079ab0aafee4804b1c97943b",
+      "sha256": "fc3aeb539b0e75f2c1024346eb9b745ee185474e5ba4ed8ea3ff9a02da932f78",
+      "bytes": 593,
+      "app": "api",
+      "name": "20281011020000_portfolio_prospect_stages",
+      "sinceImport": false,
+      "slug": "portfolio_prospect_stages",
+      "prisma522ChecksumVariants": [
+        "fc3aeb539b0e75f2c1024346eb9b745ee185474e5ba4ed8ea3ff9a02da932f78",
+        "fc3aeb539be75f2c124346eb9b745ee185474e5ba4ed8ea3ff9a2da932f78",
+        "64bfa06d34943b5bc575e52510fa40dee9f6e1ad2c8a6eb4b5d0d26311a70ef6",
+        "64bfa06d34943b5bc575e52510fa40dee9f6e1ad2c8a6eb4b5d0d26311a7ef6"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+      "blob": "bd6a4ad9b077afb0ef7cf96df30438e4cf49f02f",
+      "sha256": "473e30271d7f851582a5c74e201ce40b7b7dcb411ca5597fda9088b4c341d20d",
+      "bytes": 1888,
+      "app": "api",
+      "name": "20281011030000_prospect_contacts",
+      "sinceImport": false,
+      "slug": "prospect_contacts",
+      "prisma522ChecksumVariants": [
+        "473e30271d7f851582a5c74e201ce40b7b7dcb411ca5597fda9088b4c341d20d",
+        "473e30271d7f851582a5c74e201ce4b7b7dcb411ca5597fda9088b4c341d2d",
+        "4b9d299c8c5868c3c1560666976981e9dd01522ce5cc6d9618dc2327f4d6ef26",
+        "4b9d299c8c5868c3c156666976981e9dd1522ce5cc6d9618dc2327f4d6ef26"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+      "blob": "4248a97787b6a6546f02b4e183141679338b7638",
+      "sha256": "4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892",
+      "bytes": 2731,
+      "app": "api",
+      "name": "20281012010000_client_activity_commands",
+      "sinceImport": false,
+      "slug": "client_activity_commands",
+      "prisma522ChecksumVariants": [
+        "4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892",
+        "4cd0fe832a878c4c979ed639937c3a32d29bde5492910bf7856916c656892",
+        "bc46b73db4036de57b34a77a3da5084dda77bcd2cdee5778ed9f5deea883579a",
+        "bc46b73db436de57b34a77a3da584dda77bcd2cdee5778ed9f5deea883579a"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "blob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3",
+      "sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4",
+      "bytes": 4172,
+      "app": "api",
+      "name": "20281012020000_client_ordered_owners",
+      "sinceImport": false,
+      "slug": "client_ordered_owners",
+      "prisma522ChecksumVariants": [
+        "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4",
+        "ae7f4d3dd629854f45af63b06fbb173cff22b3f5f0add9e65df5393f8c4",
+        "734c0cd8432c4b7194991fe993fd24fd3b6f9924316447f3f8389eef75f570fe",
+        "734ccd8432c4b7194991fe993fd24fd3b6f9924316447f3f8389eef75f570fe"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "blob": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc",
+      "sha256": "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052",
+      "bytes": 4017,
+      "app": "api",
+      "name": "20281012030000_prospect_resource_origin",
+      "sinceImport": false,
+      "slug": "prospect_resource_origin",
+      "prisma522ChecksumVariants": [
+        "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052",
+        "441a93ecd2c33bc8610e80aa13fbddf9e842da7c7d1bfd54037ada35f8052",
+        "02a946caa1ddfd13ed568e7c24eb70b0eab7f11b4bd35a39568382a88fcd7277",
+        "2a946caa1ddfd13ed568e7c24eb70b0eab7f11b4bd35a39568382a88fcd7277"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "blob": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5",
+      "bytes": 887,
+      "app": "api",
+      "name": "20281012060000_federal_register_effective_evidence",
+      "sinceImport": false,
+      "slug": "federal_register_effective_evidence",
+      "prisma522ChecksumVariants": [
+        "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5",
+        "8b6ca68bb4a7b56a553e3a4a7baf09eae5d58a70b2d1fd61c6fe318015f5",
+        "bcf0e82b5f1976918738649c356e90dd0715b0caa8036604438acd486b6999d0",
+        "bcf0e82b5f1976918738649c356e90dd715b0caa83664438acd486b6999d0"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "blob": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+      "bytes": 3625,
+      "app": "workspace",
+      "name": "20261006210000_workspace_newsletters",
+      "sinceImport": false,
+      "slug": "workspace_newsletters",
+      "prisma522ChecksumVariants": [
+        "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+        "2b94e84eb8912c001b746837b156806f2fcb2da5475d93b8ab95aa27f15",
+        "c68882189dd3f480bfb883c91b605c0d99fccc648b4d539b08456bef18ce5d5a",
+        "c68882189dd3f480bfb883c91b605cd99fccc648b4d539b8456bef18ce5d5a"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "blob": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+      "bytes": 1050,
+      "app": "workspace",
+      "name": "20261007020000_newsletter_review",
+      "sinceImport": false,
+      "slug": "newsletter_review",
+      "prisma522ChecksumVariants": [
+        "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+        "668a11dcc44d64d0391b2eb0bcafe58439b24e881d810306f8ae36b52d6",
+        "d294629b3074fec9912e10fab5df12c945f2e1c565d8a12b0a1717237fcf15ed",
+        "d294629b3074fec9912e10fab5df12c945f2e1c565d8a12ba1717237fcf15ed"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "blob": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+      "bytes": 435,
+      "app": "workspace",
+      "name": "20261007030000_newsletter_brand_kit",
+      "sinceImport": false,
+      "slug": "newsletter_brand_kit",
+      "prisma522ChecksumVariants": [
+        "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+        "efa87b12853b5fc9da4142cbd7534c593b75a55b0c24c2be09aa541bc27e85c",
+        "d46d189f99a3dd75b9f11060ca6ce5159c94d4f2368fd75d2872355a17b9dc8d"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "blob": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+      "bytes": 235,
+      "app": "workspace",
+      "name": "20261007040000_newsletter_asset_library_deletion",
+      "sinceImport": false,
+      "slug": "newsletter_asset_library_deletion",
+      "prisma522ChecksumVariants": [
+        "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+        "256490ed5730926a529f8016f1cfdc909979e52b8ccc53b428e577fca7c50",
+        "1c02d2d371c760e13cff70e5fed2edda437e96b562b937099457adef29cd26b6",
+        "1c2d2d371c760e13cff70e5fed2edda437e96b562b93799457adef29cd26b6"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "blob": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+      "bytes": 1135,
+      "app": "workspace",
+      "name": "20261007050000_newsletter_asset_folders",
+      "sinceImport": false,
+      "slug": "newsletter_asset_folders",
+      "prisma522ChecksumVariants": [
+        "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+        "f575f53b4d478aca841042d63a4e53ad50b96319a087784cdad577866b5fdce9"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "blob": "8a132af2d73079082d089c611e450005d6a5e090",
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+      "bytes": 1536,
+      "app": "workspace",
+      "name": "20261007060000_newsletter_image_revisions",
+      "sinceImport": false,
+      "slug": "newsletter_image_revisions",
+      "prisma522ChecksumVariants": [
+        "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+        "d7553bfed297caf6c80cb46add65ba1fe97af9cc178c95a7d4178cebf0718c",
+        "b3e140b1dbbff05b8a252a6c2666b427f34688ac09ede454d8943fb0328e5c9e",
+        "b3e140b1dbbff05b8a252a6c2666b427f34688ac9ede454d8943fb0328e5c9e"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "blob": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+      "bytes": 2074,
+      "app": "workspace",
+      "name": "20261007070000_newsletter_thread_email",
+      "sinceImport": false,
+      "slug": "newsletter_thread_email",
+      "prisma522ChecksumVariants": [
+        "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+        "af4e632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+        "fc611a31337597dc92127e726245365df2cce9311b108956128d9ee21fbd4b72"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "blob": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+      "bytes": 758,
+      "app": "workspace",
+      "name": "20261007080000_newsletter_author_access",
+      "sinceImport": false,
+      "slug": "newsletter_author_access",
+      "prisma522ChecksumVariants": [
+        "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+        "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd677f4439acbef2ea",
+        "e2f0d151442a9020634fc379bd701da5969f5dab51aacb139cdc1c4d1e18044c",
+        "e2f0d151442a9020634fc379bd701da5969f5dab51aacb139cdc1c4d1e1844c"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "blob": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+      "bytes": 1495,
+      "app": "workspace",
+      "name": "20261007090000_newsletter_email_invitations",
+      "sinceImport": false,
+      "slug": "newsletter_email_invitations",
+      "prisma522ChecksumVariants": [
+        "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+        "f33ed9f54c464c53c044be1e225c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+        "d00892082a43751774bee9995114a62c90c6955bc2132917e8a629e8b0a8531e",
+        "d089282a43751774bee9995114a62c90c6955bc2132917e8a629e8b0a8531e"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "blob": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+      "bytes": 139,
+      "app": "workspace",
+      "name": "20261007100000_newsletter_account_role",
+      "sinceImport": false,
+      "slug": "newsletter_account_role",
+      "prisma522ChecksumVariants": [
+        "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+        "2e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+        "8d3f9c66f902d8ca9d38835c5a09dd8d305c81881e11b1ed9633a7b1b642bbed",
+        "8d3f9c66f92d8ca9d38835c5a9dd8d305c81881e11b1ed9633a7b1b642bbed"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "blob": "e2bce04218c67151419d370777b7d22c8611c7b0",
+      "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788",
+      "bytes": 2192,
+      "app": "workspace",
+      "name": "20261012030000_prospect_resource_origin",
+      "sinceImport": false,
+      "slug": "prospect_resource_origin",
+      "prisma522ChecksumVariants": [
+        "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788",
+        "2ea8c04127567b1d1aaea936cc25f6c56714655b19655fa5faacb9420139788",
+        "a04e7e1235d260b1ea2d8d569167189365d664079cc8af896e493f90e84ad905",
+        "a04e7e1235d260b1ea2d8d569167189365d66479cc8af896e493f90e84ad95"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "blob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+      "bytes": 533,
+      "app": "workspace",
+      "name": "20261012040000_saved_version_immutability",
+      "sinceImport": false,
+      "slug": "saved_version_immutability",
+      "prisma522ChecksumVariants": [
+        "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+        "a0d85df4d7cc55e7e637593c8ad75688c85ff765ff8f4121cca7c716ed29c4",
+        "8ea13684ae298465cbb67e2c73647079aac6ca550b11e394d6cf3c95668f3cd1",
+        "8ea13684ae298465cbb67e2c73647079aac6ca55b11e394d6cf3c95668f3cd1"
+      ],
+      "lfSource": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261013090000_prospect_brief_workspace_copy/migration.sql",
+      "blob": "7922e4c7fe6ec2ff75bd9f9e90349c26abf91266",
+      "sha256": "01a8adc4a151fe29da5b68f4e55c9d6b3c37b2b22a5caa79f272020113f45d2a",
+      "bytes": 2453,
+      "app": "workspace",
+      "name": "20261013090000_prospect_brief_workspace_copy",
+      "sinceImport": false,
+      "slug": "prospect_brief_workspace_copy",
+      "prisma522ChecksumVariants": [
+        "01a8adc4a151fe29da5b68f4e55c9d6b3c37b2b22a5caa79f272020113f45d2a",
+        "1a8adc4a151fe29da5b68f4e55c9d6b3c37b2b22a5caa79f2722113f45d2a",
+        "2b820bdc86175be500243bba75e1497e3fccd0c23f6eacb962d87a7e7f20de8b",
+        "2b82bdc86175be50243bba75e1497e3fccd0c23f6eacb962d87a7e7f20de8b"
+      ],
+      "lfSource": true
+    }
+  ],
+  "checksumCompatibilitySource": "https://raw.githubusercontent.com/prisma/prisma-engines/5.22.0/schema-engine/connectors/schema-connector/src/checksum.rs",
+  "checksumVariantUse": "Read-only exact-content comparison with stock5.22 LF/CRLF and old unpadded hex representations; never change SQL/checksum/ledger. Different checksum or alternate name remains an owner HOLD, not automatic recovery.",
+  "decisionDefault": "HOLD: actual authoritative environment histories not supplied.",
+  "conditionalOnlyNeverAppliedAllocations": [
+    "20281014010000_newsletter_outreach_format",
+    "20281014020000_newsletter_review_email_delivery",
+    "20281014030000_newsletter_invitation_email_delivery",
+    "20281014040000_newsletter_account_invitations",
+    "20281014050000_user_portfolio_layout"
+  ],
+  "conditionalAllocationWarning": "NOT reserved/implemented. Only if complete authoritative current+historical environment evidence proves no prior attempts/effects anywhere, collision/frontier/tolerance check passes at actual change date, original heads/SQL bytes preserved. Any applied/unfinished/rolled-back/alias/mismatched checksum history holds global rename.",
+  "currentSourceAndFirstChatPinsPreserved": true,
+  "dockerAction": false,
+  "databaseAction": false,
+  "querySqlAuthored": true,
+  "querySqlExecuted": false,
+  "migrationSqlAuthoredOrChanged": false
+}

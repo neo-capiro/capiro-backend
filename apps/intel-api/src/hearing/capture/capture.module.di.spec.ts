@@ -23,9 +23,8 @@
  * This test compiles CaptureModule through the REAL Nest DI container. It fails
  * against the broken wiring (no `imports: [SourceDataModule]`) and passes once
  * SourceDataModule is imported. PrismaService is stubbed so the graph compiles
- * without a live DB, and DEEPGRAM_API_KEY is set so the async
- * FfmpegDeepgramCaptureRuntime credential factory resolves — the objective is
- * real Nest dependency resolution, not provider business logic.
+ * without a live DB. Optional capture credentials must remain unresolved during
+ * API construction; actual capture resolves them through the same runtime port.
  */
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -35,26 +34,14 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { SourceDataRepository } from '../../sourcedata/source-data.repository.js';
 import { StreamResolverService } from '../stream-resolver.service.js';
 import { CaptureModule } from './capture.module.js';
+import { PublicCaptureCredentialsAdapter } from './public-capture-credentials.adapter.js';
 
 describe('CaptureModule (Nest DI graph)', () => {
-  const prevDeepgram = process.env.DEEPGRAM_API_KEY;
-
-  beforeAll(() => {
-    // FfmpegDeepgramCaptureRuntime's async factory calls credentials.resolve(),
-    // which throws without this. Not real credential resolution — just enough
-    // to let the DI graph compile.
-    process.env.DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY ?? 'test-di-only';
-  });
-
-  afterAll(() => {
-    if (prevDeepgram === undefined) delete process.env.DEEPGRAM_API_KEY;
-    else process.env.DEEPGRAM_API_KEY = prevDeepgram;
-  });
-
   it('resolves StreamResolverService with its SourceDataRepository dependency', async () => {
+    const resolveCredentials = jest.fn().mockRejectedValue(new Error('Capture unavailable'));
     const moduleRef = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({ isGlobal: true, cache: true }),
+        ConfigModule.forRoot({ isGlobal: true, cache: true, ignoreEnvFile: true }),
         PrismaModule,
         CaptureModule,
       ],
@@ -62,6 +49,8 @@ describe('CaptureModule (Nest DI graph)', () => {
       // Stub the DB client so the graph compiles without a live connection.
       .overrideProvider(PrismaService)
       .useValue({ $queryRawUnsafe: async () => [], $executeRawUnsafe: async () => 0 })
+      .overrideProvider(PublicCaptureCredentialsAdapter)
+      .useValue({ resolve: resolveCredentials })
       .compile();
 
     // The exact provider that failed at Fargate boot.
@@ -71,6 +60,7 @@ describe('CaptureModule (Nest DI graph)', () => {
     // Its previously-unresolvable cross-module dependency must now resolve.
     const source = moduleRef.get(SourceDataRepository, { strict: false });
     expect(source).toBeInstanceOf(SourceDataRepository);
+    expect(resolveCredentials).not.toHaveBeenCalled();
 
     await moduleRef.close();
   });

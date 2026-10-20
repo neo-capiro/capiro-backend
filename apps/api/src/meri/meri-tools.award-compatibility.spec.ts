@@ -46,6 +46,7 @@ import type { TenantContext } from '@capiro/shared';
 import { FederalMarketService } from '../federal-spending/federal-market.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { withMeriReadObservation } from './meri-funding-read-observation.js';
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as TenantContext;
 
@@ -200,5 +201,34 @@ describe('legacy award tool delegates to Federal Market without changing its pub
         },
       ],
     });
+  });
+
+  it.each(['off', 'shadow', 'enforce'] as const)('consumes observed %s before querying and retains it across the owner await', async mode => {
+    const nativeCtx = { ...ctx, tenantId: '17b63099-bc0f-4ac5-b596-496161e9481e' };
+    Object.assign(process.env, { MERI_EVIDENCE_ACCURACY_MODE: mode, MERI_EVIDENCE_ACCURACY_TENANTS: nativeCtx.tenantId, MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' });
+    const { service, ownerRead, row } = harness();
+    ownerRead.mockImplementationOnce(async () => {
+      process.env.MERI_EVIDENCE_ACCURACY_MODE = mode === 'enforce' ? 'off' : 'enforce';
+      return { data: [row], total: 1 } as never;
+    });
+    const result = await withMeriReadObservation({ operationId: 'search_federal_awards', evidenceAccuracyMode: mode }, () =>
+      service.execute(nativeCtx, 'search_federal_awards', {}));
+    expect(Object.hasOwn((result as any).data[0], 'dates')).toBe(mode === 'enforce');
+    expect((service as any).logger.warn).toHaveBeenCalledTimes(mode === 'shadow' ? 1 : 0);
+  });
+
+  it('refuses a changed current mode before reading global awards', async () => {
+    const { service, ownerRead } = harness();
+    await expect(withMeriReadObservation({ operationId: 'search_federal_awards', evidenceAccuracyMode: 'enforce' }, () =>
+      service.execute(ctx, 'search_federal_awards', {}))).rejects.toThrow('Current read mode changed');
+    expect(ownerRead).not.toHaveBeenCalled();
+  });
+
+  it('preserves late legacy sampling when native mode changes while awards are loading', async () => {
+    const nativeCtx = { ...ctx, tenantId: '17b63099-bc0f-4ac5-b596-496161e9481e' };
+    Object.assign(process.env, { MERI_EVIDENCE_ACCURACY_TENANTS: nativeCtx.tenantId, MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' });
+    const { service, ownerRead, row } = harness();
+    ownerRead.mockImplementationOnce(async () => { process.env.MERI_EVIDENCE_ACCURACY_MODE = 'enforce'; return { data: [row], total: 1 } as never; });
+    expect(await service.execute(nativeCtx, 'search_federal_awards', {})).toMatchObject({ data: [{ dates: expect.any(Object) }] });
   });
 });

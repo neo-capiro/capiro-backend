@@ -1,0 +1,275 @@
+{
+  "inspectedAtUtc": "2026-10-16T02:53:54.605Z",
+  "nodeVersion": "v24.19.0",
+  "heapArgument": [
+    "--max-old-space-size=128"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3",
+  "testsExecuted": false,
+  "configPath": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\jest.config.cjs",
+  "configSha256": "876145c567caa3718be47764e921999bca4a36247f902f35079eb70cd72c15bf",
+  "sameConfigAsFailedAttempt": true,
+  "failedInvocation": {
+    "projectPaths": [
+      "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority"
+    ],
+    "effective": {
+      "global": {
+        "rootDir": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority",
+        "maxWorkers": 1,
+        "runTestsByPath": true
+      },
+      "projects": [
+        {
+          "rootDir": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority",
+          "transform": [
+            [
+              "\\.[jt]sx?$",
+              "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\workspace\\node_modules\\.pnpm\\babel-jest@29.7.0_@babel+core@7.29.0\\node_modules\\babel-jest\\build\\index.js",
+              {}
+            ]
+          ],
+          "setupFiles": [],
+          "setupFilesAfterEnv": [],
+          "testEnvironment": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\workspace\\node_modules\\.pnpm\\jest-environment-node@29.7.0\\node_modules\\jest-environment-node\\build\\index.js",
+          "testMatch": [
+            "**/__tests__/**/*.[jt]s?(x)",
+            "**/?(*.)+(spec|test).[tj]s?(x)"
+          ],
+          "moduleNameMapper": [],
+          "moduleDirectories": [
+            "node_modules"
+          ]
+        }
+      ]
+    }
+  },
+  "correctedInvocation": {
+    "projectPaths": [
+      "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\current-authority-runtime\\jest.config.cjs"
+    ],
+    "effective": {
+      "global": {
+        "rootDir": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority",
+        "maxWorkers": 1,
+        "runTestsByPath": true
+      },
+      "projects": [
+        {
+          "rootDir": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority",
+          "transform": [
+            [
+              "^.+\\.ts$",
+              "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\workspace\\node_modules\\.pnpm\\ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y\\node_modules\\ts-jest\\dist\\index.js",
+              {
+                "isolatedModules": true,
+                "diagnostics": true,
+                "tsconfig": {
+                  "target": "ES2022",
+                  "module": "CommonJS",
+                  "moduleResolution": "Node",
+                  "experimentalDecorators": true,
+                  "emitDecoratorMetadata": true,
+                  "esModuleInterop": true,
+                  "strict": true,
+                  "skipLibCheck": true
+                }
+              }
+            ]
+          ],
+          "setupFiles": [],
+          "setupFilesAfterEnv": [],
+          "testEnvironment": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\workspace\\node_modules\\.pnpm\\jest-environment-node@29.7.0\\node_modules\\jest-environment-node\\build\\index.js",
+          "testMatch": [
+            "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-current-authority/apps/api/src/auth/application-membership.spec.ts",
+            "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-current-authority/apps/api/src/auth/application-authority.module.spec.ts",
+            "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-current-authority/apps/api/src/auth/application-authority.spec.ts",
+            "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/backend-current-authority/apps/api/src/auth/application-authority-boundary.spec.ts"
+          ],
+          "moduleNameMapper": [
+            [
+              "^(\\.{1,2}/.*)\\.js$",
+              "$1"
+            ],
+            [
+              "^#crypto$",
+              "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\workspace\\node_modules\\.pnpm\\@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2\\node_modules\\@clerk\\backend\\dist\\runtime\\node\\crypto.js"
+            ],
+            [
+              "^@capiro/shared$",
+              "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-current-authority\\packages\\shared\\src\\index.ts"
+            ]
+          ],
+          "moduleDirectories": [
+            "node_modules",
+            "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/implementation-runtime/workspace/apps/api/node_modules",
+            "C:/Users/neoma/Documents/Codex/2026-10-15/task-3/implementation-runtime/workspace/node_modules"
+          ]
+        }
+      ]
+    }
+  },
+  "jestConfigImplementation": {
+    "file": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\implementation-runtime\\workspace\\node_modules\\.pnpm\\jest-config@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23___4fqcah5zwoosasyblutyurlffi\\node_modules\\jest-config\\build\\index.js",
+    "sha256": "e22fa526632cd362a6ddc8b11bf500dee8c10dac91ca07293d69ba5911d8aa8e",
+    "evidence": [
+      {
+        "first": 135,
+        "last": 173,
+        "lines": [
+          "async function readConfig(",
+          "  argv,",
+          "  packageRootOrConfig,",
+          "  // Whether it needs to look into `--config` arg passed to CLI.",
+          "  // It only used to read initial config. If the initial config contains",
+          "  // `project` property, we don't want to read `--config` value and rather",
+          "  // read individual configs for every project.",
+          "  skipArgvConfigOption,",
+          "  parentConfigDirname,",
+          "  projectIndex = Infinity,",
+          "  skipMultipleConfigError = false",
+          ") {",
+          "  const {config: initialOptions, configPath} = await readInitialOptions(",
+          "    argv.config,",
+          "    {",
+          "      packageRootOrConfig,",
+          "      parentConfigDirname,",
+          "      readFromCwd: skipArgvConfigOption,",
+          "      skipMultipleConfigError",
+          "    }",
+          "  );",
+          "  const packageRoot =",
+          "    typeof packageRootOrConfig === 'string'",
+          "      ? path().resolve(packageRootOrConfig)",
+          "      : undefined;",
+          "  const {options, hasDeprecationWarnings} = await (0, _normalize.default)(",
+          "    initialOptions,",
+          "    argv,",
+          "    configPath,",
+          "    projectIndex,",
+          "    skipArgvConfigOption && !(packageRoot === parentConfigDirname)",
+          "  );",
+          "  const {globalConfig, projectConfig} = groupOptions(options);",
+          "  return {",
+          "    configPath,",
+          "    globalConfig,",
+          "    hasDeprecationWarnings,",
+          "    projectConfig",
+          "  };"
+        ]
+      },
+      {
+        "first": 366,
+        "last": 405,
+        "lines": [
+          "  if ((0, _utils.isJSONString)(config)) {",
+          "    try {",
+          "      // A JSON string was passed to `--config` argument and we can parse it",
+          "      // and use as is.",
+          "      const initialOptions = JSON.parse(config);",
+          "      // NOTE: we might need to resolve this dir to an absolute path in the future",
+          "      initialOptions.rootDir = initialOptions.rootDir || packageRootOrConfig;",
+          "      return {",
+          "        config: initialOptions,",
+          "        configPath: null",
+          "      };",
+          "    } catch {",
+          "      throw new Error(",
+          "        'There was an error while parsing the `--config` argument as a JSON string.'",
+          "      );",
+          "    }",
+          "  }",
+          "  if (!readFromCwd && typeof config == 'string') {",
+          "    // A string passed to `--config`, which is either a direct path to the config",
+          "    // or a path to directory containing `package.json`, `jest.config.js` or `jest.config.ts`",
+          "    const configPath = (0, _resolveConfigPath.default)(",
+          "      config,",
+          "      process.cwd(),",
+          "      skipMultipleConfigError",
+          "    );",
+          "    return {",
+          "      config: await (0, _readConfigFileAndSetRootDir.default)(configPath),",
+          "      configPath",
+          "    };",
+          "  }",
+          "  // Otherwise just try to find config in the current rootDir.",
+          "  const configPath = (0, _resolveConfigPath.default)(",
+          "    packageRootOrConfig,",
+          "    process.cwd(),",
+          "    skipMultipleConfigError",
+          "  );",
+          "  return {",
+          "    config: await (0, _readConfigFileAndSetRootDir.default)(configPath),",
+          "    configPath",
+          "  };"
+        ]
+      },
+      {
+        "first": 417,
+        "last": 475,
+        "lines": [
+          "async function readConfigs(argv, projectPaths) {",
+          "  let globalConfig;",
+          "  let hasDeprecationWarnings;",
+          "  let configs = [];",
+          "  let projects = projectPaths;",
+          "  let configPath;",
+          "  if (projectPaths.length === 1) {",
+          "    const parsedConfig = await readConfig(argv, projects[0]);",
+          "    configPath = parsedConfig.configPath;",
+          "    hasDeprecationWarnings = parsedConfig.hasDeprecationWarnings;",
+          "    globalConfig = parsedConfig.globalConfig;",
+          "    configs = [parsedConfig.projectConfig];",
+          "    if (globalConfig.projects && globalConfig.projects.length) {",
+          "      // Even though we had one project in CLI args, there might be more",
+          "      // projects defined in the config.",
+          "      // In other words, if this was a single project,",
+          "      // and its config has `projects` settings, use that value instead.",
+          "      projects = globalConfig.projects;",
+          "    }",
+          "  }",
+          "  if (projects.length > 0) {",
+          "    const cwd =",
+          "      process.platform === 'win32'",
+          "        ? (0, _jestUtil().tryRealpath)(process.cwd())",
+          "        : process.cwd();",
+          "    const projectIsCwd = projects[0] === cwd;",
+          "    const parsedConfigs = await Promise.all(",
+          "      projects",
+          "        .filter(root => {",
+          "          // Ignore globbed files that cannot be `require`d.",
+          "          if (",
+          "            typeof root === 'string' &&",
+          "            fs().existsSync(root) &&",
+          "            !fs().lstatSync(root).isDirectory() &&",
+          "            !constants.JEST_CONFIG_EXT_ORDER.some(ext => root.endsWith(ext))",
+          "          ) {",
+          "            return false;",
+          "          }",
+          "          return true;",
+          "        })",
+          "        .map((root, projectIndex) => {",
+          "          const projectIsTheOnlyProject =",
+          "            projectIndex === 0 && projects.length === 1;",
+          "          const skipArgvConfigOption = !(",
+          "            projectIsTheOnlyProject && projectIsCwd",
+          "          );",
+          "          return readConfig(",
+          "            argv,",
+          "            root,",
+          "            skipArgvConfigOption,",
+          "            configPath ? path().dirname(configPath) : cwd,",
+          "            projectIndex,",
+          "            // we wanna skip the warning if this is the \"main\" project",
+          "            projectIsCwd",
+          "          );",
+          "        })",
+          "    );",
+          "    ensureNoDuplicateConfigs(parsedConfigs, projects);",
+          "    configs = parsedConfigs.map(({projectConfig}) => projectConfig);"
+        ]
+      }
+    ]
+  },
+  "cause": "Jest29 readConfigs rereads non-cwd project paths with skipArgvConfigOption=true. Passing sourceRoot as the project causes its discovered config to replace the explicit argv config project settings; the effective transform became default babel-jest. Passing the actual standalone config file as the sole project path retains ts-jest."
+}

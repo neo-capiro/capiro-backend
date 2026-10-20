@@ -1,0 +1,1257 @@
+{
+  "schema": "cleanup-next-boundary-input-provenance/v1",
+  "originalPlans": [
+    {
+      "commit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "docs/plans/CleanUp1.md",
+      "blob": "88928d6b4d93c48c668be648f0e9b5b79daa50ff",
+      "sha256": "dded1ec8bd8f1727aa229ab4fbf04756c622c44731e8a2fb7b74fef7c31c754f",
+      "bytes": 25161,
+      "jsonTopLevelKeys": null
+    },
+    {
+      "commit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "docs/plans/CleanUp2.md",
+      "blob": "686ea3240d252dc144523c64604173891ba89015",
+      "sha256": "020c69304d63eefed205487d41bd35e857e401ef591640c7e1a9c55f1818d2f9",
+      "bytes": 37818,
+      "jsonTopLevelKeys": null
+    },
+    {
+      "commit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "docs/plans/CleanUp3.md",
+      "blob": "92cbcaa2d1ab5bd88d69edc865724447703931ad",
+      "sha256": "99eaf8382a6be3324a75f9bc0b750f140a335a1c6ab446f14a6ec501c26e3b63",
+      "bytes": 18321,
+      "jsonTopLevelKeys": null
+    },
+    {
+      "commit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "docs/plans/CleanUp4.md",
+      "blob": "5719b93387d7f3c45b58d413c8cd09ed50ff9058",
+      "sha256": "eccda8048174bf51100be10dd6cda0c0ee94062fb47b3890e21915a6d89bf130",
+      "bytes": 24876,
+      "jsonTopLevelKeys": null
+    }
+  ],
+  "publishedHeads": [
+    "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+    "b17fb898f667a6fb17e2e565a2e77f4a903e96cc"
+  ],
+  "headParents": {
+    "64a79469e5864b5e1b069a6ea7050cf7efb849bd": [
+      "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+    ],
+    "b17fb898f667a6fb17e2e565a2e77f4a903e96cc": [
+      "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+    ]
+  },
+  "commonBase": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "publishedDeltasAreSiblings": true,
+  "historicalBackendCleanupDocumentVersions": [
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261012/CLIENT-INTEL-HISTORY.md",
+      "blob": "7e8a2d31e62c64e0658e14820cb94ec21ac7e8ca",
+      "sha256": "e7cf376e631a56e9ea77b5ffa0661760a35d34e8d98f3301772cff1c4743dc1f",
+      "bytes": 6440,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566",
+        "39093acbdf3e603f477b4e6e76e79e01f4e2beec"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261012/CLIENT-INTEL-PLAN-RETIREMENT.json",
+      "blob": "72f64a48effb64ce3665475203f4bf5fea190586",
+      "sha256": "b7cc10800f3d455365fe9666307a29409e55bf49dc2a75414d216049589a5efa",
+      "bytes": 14175,
+      "jsonTopLevelKeys": [
+        "schema",
+        "scope",
+        "replacement",
+        "originalRequirementsCommit",
+        "preRetirementCheckpoint",
+        "retiredPaths",
+        "retainedClientIntelDocs",
+        "sourceObservationScope",
+        "consumerAudit",
+        "requirementsRetention",
+        "sourceArchiveQualification",
+        "protectionRules",
+        "verification",
+        "independentReview"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566",
+        "39093acbdf3e603f477b4e6e76e79e01f4e2beec"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261012/NEXT-SLICE-OWNERSHIP.json",
+      "blob": "e28f41395204ef99eb8893ff0351015c0fa877d1",
+      "sha256": "a61aa1e3c9dbf23cc0d4c53574be50c1e2cffb2ac78972737f297ff8117f914e",
+      "bytes": 3915,
+      "jsonTopLevelKeys": [
+        "candidates",
+        "schema",
+        "scope"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566",
+        "39093acbdf3e603f477b4e6e76e79e01f4e2beec",
+        "bd9e44b2589abec03ef87a7c1715c3b3edb4874d"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261012/PLAN-RETIREMENT.json",
+      "blob": "b7dfca8025247026eec39d33ca3606115dbdbb7a",
+      "sha256": "29c109701781886a0bf8b3490b3493b8f1f64fc38ceaba110059cab77024834e",
+      "bytes": 5476,
+      "jsonTopLevelKeys": [
+        "candidateSupplement",
+        "decision",
+        "declaredRevisions",
+        "nativeVerification",
+        "replacement",
+        "retiredPaths",
+        "schema",
+        "scope",
+        "sourceAudit"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566",
+        "39093acbdf3e603f477b4e6e76e79e01f4e2beec",
+        "bd9e44b2589abec03ef87a7c1715c3b3edb4874d"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261012/README.md",
+      "blob": "1e7143ae8558b0fb7028ceac62090310305b5c3f",
+      "sha256": "607854e6f914d2b71d199247c6fec288390f830b9d487dfd26b9169e632fa10a",
+      "bytes": 2259,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566",
+        "39093acbdf3e603f477b4e6e76e79e01f4e2beec"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/BILL-DOSSIER-HANDOVER.md",
+      "blob": "6cdd132553fdb2711cc0acb0e5d4197cabbca1f1",
+      "sha256": "fde8008b6cdc8b664bd1e413bf7b45f9307dc4fa91490eef55a9642bb1393d99",
+      "bytes": 5405,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json",
+      "blob": "28671318a64c34de9b75d6eb692ba6e3144f169f",
+      "sha256": "6877fc39cdc1999d14e87ef6e6ccc99a913621bf1362426e28490375b6c6c32b",
+      "bytes": 55357,
+      "jsonTopLevelKeys": [
+        "acceptedApiSourceBaseline",
+        "admittedCore",
+        "sourceInventorySHA256",
+        "reservationSHA256",
+        "recommendedWholeCapability",
+        "comparison",
+        "limitation",
+        "implementationInThisSlice",
+        "actualImageBuildUsedTreesEstablished",
+        "existingRegressionTests",
+        "relatedSourceVerifier"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT.md",
+      "blob": "b53e1c49156783df75fc02cad39d7b96f9c34b20",
+      "sha256": "08b09a4c7147e5e0725d4ba4eb8b14b551b25e3454fb71cf85679428d2740fa4",
+      "bytes": 7655,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/BILL-DOSSIER-QUALIFICATION.json",
+      "blob": "889110a02682d76db759b9f964b36200cc295474",
+      "sha256": "0e1f7b7929c6ef3fb4132adb189c3dfddffb5c2fdb1b4104409b687cea914156",
+      "bytes": 16338,
+      "jsonTopLevelKeys": [
+        "baseCommit",
+        "baseTree",
+        "admittedCore",
+        "declaredIntelRevision",
+        "recoveryBeforeTag",
+        "sourceOnly",
+        "billDossierOwnershipAcceptanceComplete",
+        "fullCleanupAcceptanceComplete",
+        "facade",
+        "originalHelpers",
+        "canonicalDefaultOwnership",
+        "runtimeComparison",
+        "coverage",
+        "sourceFiles",
+        "testAssets",
+        "gates",
+        "failureDisposition",
+        "evidenceDirectory",
+        "evidence",
+        "externalAcceptance",
+        "rawReports"
+      ],
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-COMPONENT-STATUS.json",
+      "blob": "9dbd393bf6a7fcdfd2698c729ae1568e9528f310",
+      "sha256": "b8783503ad545ca6d1db80f5c196275eaded0d02c1da7ad3594e642d78477b36",
+      "bytes": 18076,
+      "jsonTopLevelKeys": [
+        "acceptedApiBaseline",
+        "admittedCore",
+        "hashDomain",
+        "originalRemainingInventory",
+        "familyOwnership",
+        "remainingNamedMethodFamilies",
+        "namedMethodFamilyOwnershipPrepared",
+        "nativeQualificationRecordedInHandover",
+        "facade",
+        "newOwnerModules",
+        "fullIntelligenceCleanupAcceptanceComplete",
+        "wholeCleanupComplete",
+        "actualImageBuildUsedTreesEstablished",
+        "broaderRetirementAcceptanceEstablished",
+        "activeProductExclusions",
+        "nextSubstantialCapability",
+        "qualificationRecord"
+      ],
+      "alsoObservedAt": [
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-FINAL-QUALIFICATION.json",
+      "blob": "adbeacfaa150dcf968a4c846edf98b877ea32524",
+      "sha256": "47c256930b042185e11a6d2f6a9105aaf9526c911b8d05551a14aae44db62e41",
+      "bytes": 57756,
+      "jsonTopLevelKeys": [
+        "acceptedApiBaseline",
+        "admittedCore",
+        "originalRootSHA256",
+        "finalRootSHA256",
+        "finalProductionAndArchitecturePins",
+        "finalNewTestPins",
+        "bodyEquivalence",
+        "retainedSource",
+        "testAccounting",
+        "keywordLoopConsolidation",
+        "nativeReceipts",
+        "emittedVerification",
+        "strictGateRepair",
+        "evidencePins",
+        "beforeRecoveryTag",
+        "remainingNamedMethodFamilies",
+        "fullIntelligenceCleanupAcceptanceComplete",
+        "actualImageBuildUsedTreesEstablished",
+        "mainOnlyCiExecutionEstablished",
+        "broaderRetirementAcceptanceEstablished",
+        "wholeCleanupComplete",
+        "mainMerged",
+        "deployed",
+        "databaseExecuted",
+        "providersExecuted",
+        "activeProductExclusions",
+        "sourceOnly",
+        "emittedFacadeCountLabelDisposition"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-HANDOVER.md",
+      "blob": "37ad1bd93eb983c0478f694f892133175a30850a",
+      "sha256": "4984ca2a6adf7c34961feb2bc2c570bb87a804e2e652b97cfa0f656747128462",
+      "bytes": 7204,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-REMAINING-4970927F.json",
+      "blob": "55d56ebd07629d4bbaaff9f500182754f00a3e06",
+      "sha256": "2c0a20d4c2d9742d53896b2e5f5b825a4cfebafabb47f3a6724de9f11d188b04",
+      "bytes": 16250,
+      "jsonTopLevelKeys": [
+        "baseline",
+        "stagedTree",
+        "rootSHA256",
+        "rootPhysicalLines",
+        "rootNonblankLines",
+        "closedCompleteFamilies",
+        "remainingCompleteFamilies",
+        "wholeCleanupComplete",
+        "scope"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-REMAINING-AFTER-CLIENT.json",
+      "blob": "27606763f4f6128e3e7d837e33c36b6bc36c4a5d",
+      "sha256": "06e43e24c05a5b4a6ab2430d8c760f97ae413d0565198a29b5a2946335643975",
+      "bytes": 8372,
+      "jsonTopLevelKeys": [
+        "acceptedApiBaseline",
+        "precedingInventory",
+        "precedingInventorySHA256",
+        "hashDomain",
+        "sourceRootSHA256",
+        "rootPhysicalLines",
+        "rootNonblankLines",
+        "closedCompleteFamiliesSincePrior",
+        "remainingCompleteFamilies",
+        "wholeCleanupComplete",
+        "scope"
+      ],
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c"
+      ]
+    },
+    {
+      "commit": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "path": "docs/backend-cleanup/ACCEPTANCE.md",
+      "blob": "9896bb6b2cf7010c6b3ebc14f574af480d986c7d",
+      "sha256": "281efef634097c7b48b0f033c15255c6df6b81e37b4c721475902b14cfb3792e",
+      "bytes": 8393,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": [
+        "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+        "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+        "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+        "5b993d910ef62f5393154bfa9bb6817a73de1566",
+        "39093acbdf3e603f477b4e6e76e79e01f4e2beec",
+        "bd9e44b2589abec03ef87a7c1715c3b3edb4874d"
+      ]
+    },
+    {
+      "commit": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-COMPONENT-STATUS.json",
+      "blob": "bdabdbf2e06a332b973be066eb5d5ba00e4eb0f8",
+      "sha256": "f22b4a344ed1eb32a407a7d65d8c8b923df291efbd333f3df79cb660d53b0f21",
+      "bytes": 18308,
+      "jsonTopLevelKeys": [
+        "acceptedApiBaseline",
+        "admittedCore",
+        "hashDomain",
+        "originalRemainingInventory",
+        "familyOwnership",
+        "remainingNamedMethodFamilies",
+        "namedMethodFamilyOwnershipPrepared",
+        "nativeQualificationRecordedInHandover",
+        "facade",
+        "newOwnerModules",
+        "fullIntelligenceCleanupAcceptanceComplete",
+        "wholeCleanupComplete",
+        "actualImageBuildUsedTreesEstablished",
+        "broaderRetirementAcceptanceEstablished",
+        "activeProductExclusions",
+        "nextSubstantialCapability",
+        "qualificationRecord",
+        "facadeStructuralAcceptancePrepared",
+        "facadeAcceptanceComplete",
+        "cleanupFactoryDisposition",
+        "currentFacadeQualificationRecord",
+        "facadeSourceBaseline"
+      ],
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-HANDOVER.md",
+      "blob": "2798a58efea4b8a71d0ca9488b5e26ce11e704d7",
+      "sha256": "24bb89ff11d83e0ed2cd017be89cc249a8f2a542f888883eec8f1651d29b2b80",
+      "bytes": 4047,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-QUALIFICATION.json",
+      "blob": "2805916c6dd246459a7cce7575378de3325859e9",
+      "sha256": "9331394dbfec0142f7b4dd601ba22a16ffd685e35f8fee1097a7ad79740785d2",
+      "bytes": 9112,
+      "jsonTopLevelKeys": [
+        "baseCommit",
+        "baseTree",
+        "recoveryBeforeTag",
+        "sourceOnly",
+        "facadeAcceptanceComplete",
+        "fullIntelligenceCleanupAcceptanceComplete",
+        "runtimeComparison",
+        "coverage",
+        "sourceFiles",
+        "gates",
+        "finalErasedFormattingDisposition",
+        "evidenceDirectory",
+        "evidence",
+        "externalAcceptance"
+      ],
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-HANDOVER.md",
+      "blob": "118229a502491e95e1469b938719ff2b5250bfb9",
+      "sha256": "72d71f23da1b3e3ca3d116d207bb220ef4dca3efd3adcb8f3ccb59f9027e2828",
+      "bytes": 5185,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "5b993d910ef62f5393154bfa9bb6817a73de1566",
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-HANDOVER.md",
+      "blob": "78c5a6da038872b735a1bd88a0470c3f1b07c5f1",
+      "sha256": "71f7435d8eb853439638bce9113f4e3b81a3038e0d5c769f39e8087031b2161c",
+      "bytes": 2935,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": []
+    },
+    {
+      "commit": "2991b0108fdda3c0c37a9134950828e723d52c23",
+      "path": "docs/backend-cleanup/20261012/PRESERVATION.json",
+      "blob": "bac094dc16de8d8883b497d7fa26ca2f35464190",
+      "sha256": "5362c72bc57ec3c4ef77ac3427ecde64acb2ae2c9a2bc863b87e067f4bd83128",
+      "bytes": 406530,
+      "jsonTopLevelKeys": [
+        "baseline",
+        "paths",
+        "schema",
+        "scope",
+        "statistics"
+      ],
+      "alsoObservedAt": [
+        "bd9e44b2589abec03ef87a7c1715c3b3edb4874d",
+        "08c79d9fd2edd6ff53ae86018029c730c062ce40"
+      ]
+    },
+    {
+      "commit": "2991b0108fdda3c0c37a9134950828e723d52c23",
+      "path": "docs/backend-cleanup/20261012/PRESERVED-VARIANTS.json",
+      "blob": "d8046c88feacb21a40b349463e5d16ae239c3c8a",
+      "sha256": "f76f3c6bed5592462ef5d6ff73ffe71969e4998a060ff6ea61b7bed2cb9d8cb5",
+      "bytes": 1064517,
+      "jsonTopLevelKeys": [
+        "components",
+        "packageSourceTreeVariants",
+        "paths",
+        "publicExports",
+        "schema",
+        "scope",
+        "selectionMethod"
+      ],
+      "alsoObservedAt": [
+        "bd9e44b2589abec03ef87a7c1715c3b3edb4874d",
+        "08c79d9fd2edd6ff53ae86018029c730c062ce40"
+      ]
+    },
+    {
+      "commit": "2991b0108fdda3c0c37a9134950828e723d52c23",
+      "path": "docs/backend-cleanup/20261012/PRODUCTION-BASELINE.json",
+      "blob": "c06e1a0f7f131b5d49e4e4c0129e67bb87c364b4",
+      "sha256": "bf42d207abc453dbb0989a2c16afd86b4bfbab3a76c876fe064f182967839eaa",
+      "bytes": 13009,
+      "jsonTopLevelKeys": [
+        "asOf",
+        "authority",
+        "components",
+        "evidence",
+        "limitations",
+        "observedEcsWindowUtc",
+        "recovery",
+        "registryWindowUtc",
+        "schema",
+        "scope",
+        "startingRevision",
+        "startingTree",
+        "statistics"
+      ],
+      "alsoObservedAt": [
+        "bd9e44b2589abec03ef87a7c1715c3b3edb4874d",
+        "08c79d9fd2edd6ff53ae86018029c730c062ce40"
+      ]
+    },
+    {
+      "commit": "bd9e44b2589abec03ef87a7c1715c3b3edb4874d",
+      "path": "docs/backend-cleanup/20261012/PORTRAIT-OWNERSHIP.md",
+      "blob": "730114dbd628b4706a23e21eb399e0809804c184",
+      "sha256": "88a4a6c16f4f2da650c635c0ccb5eeff99556aa89a7e4fc456f38be1bc1893cf",
+      "bytes": 2505,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": [
+        "08c79d9fd2edd6ff53ae86018029c730c062ce40"
+      ]
+    },
+    {
+      "commit": "bd9e44b2589abec03ef87a7c1715c3b3edb4874d",
+      "path": "docs/backend-cleanup/20261012/PORTRAIT-PROOF.json",
+      "blob": "59e19678ca1d13d682db89bdc61984e8ef1175ce",
+      "sha256": "0543e4df56150d3a3e95664af1478d8a2c8ae067f8eb80611adbf58cebdd318c",
+      "bytes": 53362,
+      "jsonTopLevelKeys": [
+        "declared_core_baseline",
+        "directory_manifest_sha256",
+        "files",
+        "legacy_source_manifest_sha256",
+        "portrait_bytes",
+        "portrait_count",
+        "proofReceipts",
+        "schema",
+        "source_portrait_tree_git_object",
+        "validation"
+      ],
+      "alsoObservedAt": [
+        "08c79d9fd2edd6ff53ae86018029c730c062ce40"
+      ]
+    },
+    {
+      "commit": "bd9e44b2589abec03ef87a7c1715c3b3edb4874d",
+      "path": "docs/backend-cleanup/20261012/README.md",
+      "blob": "e1f45e55756cdc177760710dd55683edbf5a8716",
+      "sha256": "2b1ae518acb0ba07f4d373c1fe196adc95f1acda9801a6b17c097061302cff3a",
+      "bytes": 4127,
+      "jsonTopLevelKeys": null,
+      "alsoObservedAt": []
+    }
+  ],
+  "historicalDocumentVersionCount": 26,
+  "distinctHistoricalDocumentPaths": 22,
+  "verifiedLatestFinitePublications": [
+    {
+      "head": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "publicationPath": "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-QUALIFICATION.json",
+      "runtimeComparison": {
+        "beforeCases": 1283,
+        "afterCases": 1283,
+        "suitesPerPhase": 98,
+        "distinctFileNameKeysPerPhase": 1281,
+        "sameMultiset": true,
+        "newCompatibilityCases": 18,
+        "retainedCases": 1265,
+        "skips": 0,
+        "supplementalOwnershipCases": 7,
+        "totalAfterExecutions": 1290,
+        "totalAfterSuites": 99,
+        "retainedArchitectureIdentities": 12,
+        "changedObsoleteArchitectureBodies": 4,
+        "businessAssetsUnchanged": true
+      },
+      "coverage": {
+        "beforeBranches": {
+          "covered": 1142,
+          "total": 1352
+        },
+        "afterBranches": {
+          "covered": 1142,
+          "total": 1352
+        },
+        "branchSiteShapesAndHitsEqual": 806,
+        "uncoveredStatements": 315,
+        "uncoveredFunctions": 75,
+        "uncoveredBranches": 210,
+        "statementDenominatorAddition": 33,
+        "functionDenominatorAddition": 14,
+        "additionExplanation": "Covered composition structure; moved source-budget included explicitly; no business coverage gain",
+        "originalUncoveredDistrictSpendCallbackRemainsUncovered": true,
+        "historicalFloorEstablished": false
+      },
+      "sourcePins": [
+        {
+          "path": "apps/api/src/intelligence/intelligence.service.ts",
+          "expectedSHA256": "c2ef4949243c3a500d43c3203dbf29b8cfb04d34e1942172d02b38432eb0f79d",
+          "actualSHA256": "c2ef4949243c3a500d43c3203dbf29b8cfb04d34e1942172d02b38432eb0f79d",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-client-composition.ts",
+          "expectedSHA256": "e11376de4c0cbd506205d9c6c8f2fba3d38fbefb7e38d3ab640960dc14a4f65c",
+          "actualSHA256": "e11376de4c0cbd506205d9c6c8f2fba3d38fbefb7e38d3ab640960dc14a4f65c",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-contracts.ts",
+          "expectedSHA256": "ec136f18ebe9268016b50910a6d8cf8996063d6230491208611cbf9a79de40d3",
+          "actualSHA256": "ec136f18ebe9268016b50910a6d8cf8996063d6230491208611cbf9a79de40d3",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-final-composition.ts",
+          "expectedSHA256": "4ab0b89c16f24103700ca46b8cfbf01d3faac4ea92383136287744f34cd2bd83",
+          "actualSHA256": "4ab0b89c16f24103700ca46b8cfbf01d3faac4ea92383136287744f34cd2bd83",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-owners.ts",
+          "expectedSHA256": "026422844730cc9b30c7857ab5ce205313ce31b64d46588b5a97177ba668dd57",
+          "actualSHA256": "026422844730cc9b30c7857ab5ce205313ce31b64d46588b5a97177ba668dd57",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-policy-values.ts",
+          "expectedSHA256": "bf26efed881215ba82277734bef215d3dbc6d2158c5fa9ce51585f925fd6a318",
+          "actualSHA256": "bf26efed881215ba82277734bef215d3dbc6d2158c5fa9ce51585f925fd6a318",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-profile-composition.ts",
+          "expectedSHA256": "8ea477d7febbdcf49b2d6171a5a567ab7ad08e947982e3f7af638f9c1a0665af",
+          "actualSHA256": "8ea477d7febbdcf49b2d6171a5a567ab7ad08e947982e3f7af638f9c1a0665af",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-facade-supporting-composition.ts",
+          "expectedSHA256": "d0aee501fd724184525c9a90feb4c9b68d37eb2513c7b4b59ae9cec2c23cf511",
+          "actualSHA256": "d0aee501fd724184525c9a90feb4c9b68d37eb2513c7b4b59ae9cec2c23cf511",
+          "matches": true
+        },
+        {
+          "path": "apps/api/src/intelligence/intelligence-profile-source-budget.ts",
+          "expectedSHA256": "8095b71b8f6fc6a73231ee92d2dbeef5f8bb7615447dacd9080e72c357076285",
+          "actualSHA256": "8095b71b8f6fc6a73231ee92d2dbeef5f8bb7615447dacd9080e72c357076285",
+          "matches": true
+        }
+      ],
+      "evidencePins": [
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/BEFORE.json",
+          "expectedSHA256": "b7050279f0e7d3a4fc40fe4f9caff8f57f521bc7826b57049d92b19c3649580d",
+          "actualSHA256": "b7050279f0e7d3a4fc40fe4f9caff8f57f521bc7826b57049d92b19c3649580d",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/INTEGRATED-SOURCE-v3.json",
+          "expectedSHA256": "8e9e37f2b2619682234e024b579d1941243b5a47721b62fbfec86a5274584762",
+          "actualSHA256": "8e9e37f2b2619682234e024b579d1941243b5a47721b62fbfec86a5274584762",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/ARCHITECTURE-TRANSITION.json",
+          "expectedSHA256": "3bd7b3c839a24dcc5165306dc575e723516bdaebab17f61726fe2c7409559121",
+          "actualSHA256": "3bd7b3c839a24dcc5165306dc575e723516bdaebab17f61726fe2c7409559121",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/IMPORT-HYGIENE-EMIT-PROOF.json",
+          "expectedSHA256": "cb04db9a9eae706ca0e62d7722bf46c903db5851b5172675e5b49ce0d23363ee",
+          "actualSHA256": "cb04db9a9eae706ca0e62d7722bf46c903db5851b5172675e5b49ce0d23363ee",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/ERASED-GENERIC-FORMAT-PROOF.json",
+          "expectedSHA256": "08de5248ebf4f9fed9cbc83e8b7e7978d8f450a652d8f239ecd16ffb9c8b438e",
+          "actualSHA256": "08de5248ebf4f9fed9cbc83e8b7e7978d8f450a652d8f239ecd16ffb9c8b438e",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/STATIC-PRODUCTION-BUDGETS-v2.json",
+          "expectedSHA256": "8049f100ed60fd828df6f51c23a026e084d459776c52d8ee220dc09c0b2dc7d0",
+          "actualSHA256": "8049f100ed60fd828df6f51c23a026e084d459776c52d8ee220dc09c0b2dc7d0",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/FORMAT-RESULT-v2.json",
+          "expectedSHA256": "276e2a86cd303285c3ef7bce9f9103dd0f2bdb2c5daa6f1c0744a272072be79d",
+          "actualSHA256": "276e2a86cd303285c3ef7bce9f9103dd0f2bdb2c5daa6f1c0744a272072be79d",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/EMITTED-SYNTAX.json",
+          "expectedSHA256": "d733f2296c4d5e0892bb2102788d0ea1b48af346e1294ac8d6852a677441d957",
+          "actualSHA256": "d733f2296c4d5e0892bb2102788d0ea1b48af346e1294ac8d6852a677441d957",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/CASE-COVERAGE-RECONCILIATION.json",
+          "expectedSHA256": "4a2acce5f84a678298005093b34dfd59e1ae94a0a73c917746fbe9cef6a39af7",
+          "actualSHA256": "4a2acce5f84a678298005093b34dfd59e1ae94a0a73c917746fbe9cef6a39af7",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/INDEPENDENT-REVIEW-INTEGRATED-v2.json",
+          "expectedSHA256": "6c5ac4272d9981a29dc9d70a4df143f5fd1bfe62e95b2dc51523d16123168e17",
+          "actualSHA256": "6c5ac4272d9981a29dc9d70a4df143f5fd1bfe62e95b2dc51523d16123168e17",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/INDEPENDENT-REVIEW-TEST-COVERAGE.json",
+          "expectedSHA256": "52442649ed1d1291af750006e6346f0dc04b959be55d582f2379ddd98713f374",
+          "actualSHA256": "52442649ed1d1291af750006e6346f0dc04b959be55d582f2379ddd98713f374",
+          "matches": true
+        }
+      ],
+      "gatePins": [
+        {
+          "gate": "BEFORE-characterization",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/BEFORE-characterization.json",
+          "receiptSHA256": "21a734e9605ec4074c3679a3906f8a9367f24e069af68707803a61c2e4ab6e0f",
+          "exitCode": 0,
+          "durationSeconds": 94.697
+        },
+        {
+          "gate": "AFTER-characterization",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/AFTER-characterization.json",
+          "receiptSHA256": "7958aee86cfada5cf1f8d07848f9bd942cf664b8eb4270161ddd61840dd34c21",
+          "exitCode": 0,
+          "durationSeconds": 92.237
+        },
+        {
+          "gate": "AFTER-ownership-guards",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/AFTER-ownership-guards.json",
+          "receiptSHA256": "570179cfc21b6b815f6eb55e5a68443b3b0795dc896243c1e577f455771805aa",
+          "exitCode": 0,
+          "durationSeconds": 5.144
+        },
+        {
+          "gate": "api-typecheck-cold",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/api-typecheck-cold.json",
+          "receiptSHA256": "6837b2de0afd1136b3ff804f8a7d39fec195bc925dd143eee7a861d53d646e81",
+          "exitCode": 0,
+          "durationSeconds": 227.167
+        },
+        {
+          "gate": "api-build",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/api-build.json",
+          "receiptSHA256": "bc0e130dce78688717d0e86e8b7910a6c6e1c8d7d115479c50cd0231cfcdbbfd",
+          "exitCode": 0,
+          "durationSeconds": 58.63
+        },
+        {
+          "gate": "AFTER-ownership-guards-final",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/AFTER-ownership-guards-final.json",
+          "receiptSHA256": "707128486bcfd78e88289cd305254c770ce856b37d832798ef5e7dbfdbc2ec6f",
+          "exitCode": 0,
+          "durationSeconds": 4.072
+        }
+      ],
+      "externalAcceptance": {
+        "actualLiveImageBuildTreesEstablished": false,
+        "mainOnlyCiExecutionEstablished": false,
+        "databaseExecuted": false,
+        "providersExecuted": false,
+        "deploymentPerformed": false,
+        "frontendRetirementAccepted": false
+      }
+    },
+    {
+      "head": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "publicationPath": "docs/backend-cleanup/20261013/BILL-DOSSIER-QUALIFICATION.json",
+      "runtimeComparison": {
+        "beforeCases": 196,
+        "afterCases": 196,
+        "suitesPerPhase": 12,
+        "distinctFileNameKeysPerPhase": 196,
+        "sameMultiset": true,
+        "retainedOriginalCases": 95,
+        "newCharacterizationCases": 101,
+        "skips": 0,
+        "supplementalOwnershipCases": 5,
+        "totalAfterExecutions": 201,
+        "totalAfterSuites": 13,
+        "allSixOriginalSuitesByteExact": true,
+        "runtimeMocks": "Actual service/read-model helpers with explicit fake repository and tenant I/O"
+      },
+      "coverage": {
+        "before": {
+          "lines": {
+            "total": 418,
+            "covered": 398,
+            "skipped": 0,
+            "pct": 95.21
+          },
+          "statements": {
+            "total": 480,
+            "covered": 453,
+            "skipped": 0,
+            "pct": 94.37
+          },
+          "functions": {
+            "total": 112,
+            "covered": 110,
+            "skipped": 0,
+            "pct": 98.21
+          },
+          "branches": {
+            "total": 672,
+            "covered": 554,
+            "skipped": 0,
+            "pct": 82.44
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "after": {
+          "lines": {
+            "total": 560,
+            "covered": 542,
+            "skipped": 0,
+            "pct": 96.78
+          },
+          "statements": {
+            "total": 623,
+            "covered": 598,
+            "skipped": 0,
+            "pct": 95.98
+          },
+          "functions": {
+            "total": 150,
+            "covered": 150,
+            "skipped": 0,
+            "pct": 100
+          },
+          "branches": {
+            "total": 672,
+            "covered": 554,
+            "skipped": 0,
+            "pct": 82.44
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "businessBranchCoveredAndTotalUnchanged": true,
+        "uncoveredBeforeStatements": 27,
+        "uncoveredAfterStatements": 25,
+        "uncoveredBeforeFunctions": 2,
+        "uncoveredAfterFunctions": 0,
+        "removedUncoveredDispositions": "Only retired prettifyStatus and its map callback; covered totals change with composition/projection instrumentation",
+        "newInternalDuplicateDefaultsRemovedWithOriginalRootDefaultsUnchanged": 2,
+        "historicalFloorEstablished": false,
+        "completeSourceBranchShapeAndHitMultisetsMatch": true,
+        "all49MovedHelperCallCountsMatch": true
+      },
+      "sourcePins": [
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier.service.ts",
+          "expectedSHA256": "c4b41dc008c930f13ff2140e2e248e02d5ee578b3048a350b55d26c765b3069f",
+          "actualSHA256": "c4b41dc008c930f13ff2140e2e248e02d5ee578b3048a350b55d26c765b3069f",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-actions.ts",
+          "expectedSHA256": "028bc4801596bbde3b60f2d37d7e60f3dafaa02f92ca1a770deb5e46cde2c613",
+          "actualSHA256": "028bc4801596bbde3b60f2d37d7e60f3dafaa02f92ca1a770deb5e46cde2c613",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-client-context.ts",
+          "expectedSHA256": "f2873d4cec37e54ad0b40f4f38f7f42bfb2d503375cf1a843bb520d0a47a44fe",
+          "actualSHA256": "f2873d4cec37e54ad0b40f4f38f7f42bfb2d503375cf1a843bb520d0a47a44fe",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-federal.ts",
+          "expectedSHA256": "fa0b043d933a3332007b5eace893b898756420d00932e196ea540a1dafb09f34",
+          "actualSHA256": "fa0b043d933a3332007b5eace893b898756420d00932e196ea540a1dafb09f34",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-comparisons.ts",
+          "expectedSHA256": "c2a119a810e753d8fd58625c5cdd2afc09073446ec5f2c207f66955b080db05b",
+          "actualSHA256": "c2a119a810e753d8fd58625c5cdd2afc09073446ec5f2c207f66955b080db05b",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-empty.ts",
+          "expectedSHA256": "0f821adca7f84f6614e7d64476b42f9a556c5eaced52938eeb5c33dd2c578734",
+          "actualSHA256": "0f821adca7f84f6614e7d64476b42f9a556c5eaced52938eeb5c33dd2c578734",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-format.ts",
+          "expectedSHA256": "36c38571a130bfedae18123f1185d3e17ebad239da56356746f5e01dfeedb518",
+          "actualSHA256": "36c38571a130bfedae18123f1185d3e17ebad239da56356746f5e01dfeedb518",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-projections.ts",
+          "expectedSHA256": "c1ee2ba029865e661f76bc647a22b80da47c66186f198d9b62da57ac624f20b0",
+          "actualSHA256": "c1ee2ba029865e661f76bc647a22b80da47c66186f198d9b62da57ac624f20b0",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding.constants.ts",
+          "expectedSHA256": "877c3b218cc042c3fa14beb8baddbd905f5d50c1317ad7013c1e576971de558e",
+          "actualSHA256": "877c3b218cc042c3fa14beb8baddbd905f5d50c1317ad7013c1e576971de558e",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding.ts",
+          "expectedSHA256": "20860eb2b40828c66082bf63b26a53ea544f441eb71950bf9192bf32dabf8fb6",
+          "actualSHA256": "20860eb2b40828c66082bf63b26a53ea544f441eb71950bf9192bf32dabf8fb6",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-kpis.ts",
+          "expectedSHA256": "0a3cb14f5a528ede6d0d705d962c80c14bbe4fd23395cb33a395d10696f8c0ac",
+          "actualSHA256": "0a3cb14f5a528ede6d0d705d962c80c14bbe4fd23395cb33a395d10696f8c0ac",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-presentation.ts",
+          "expectedSHA256": "6211e1303098596dae61b6a3b6fb9af6f4f8bdcc31fe339e5e5f37b386d4102f",
+          "actualSHA256": "6211e1303098596dae61b6a3b6fb9af6f4f8bdcc31fe339e5e5f37b386d4102f",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-state.ts",
+          "expectedSHA256": "54eab1f79390ee04c696a9e2bb6f5aef808ca5196d9e8ad99dc76e9449ecd084",
+          "actualSHA256": "54eab1f79390ee04c696a9e2bb6f5aef808ca5196d9e8ad99dc76e9449ecd084",
+          "matches": true
+        },
+        {
+          "path": "apps/intel-api/src/bill-dossier/bill-dossier-vote-status.ts",
+          "expectedSHA256": "51381837f6e2f4bc9b1db84618c7029035c0c62a1d198897ce80dcd67cad3fd2",
+          "actualSHA256": "51381837f6e2f4bc9b1db84618c7029035c0c62a1d198897ce80dcd67cad3fd2",
+          "matches": true
+        }
+      ],
+      "evidencePins": [
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/BEFORE.json",
+          "expectedSHA256": "ba75e64757a5453fa4d7fcfeb631c2262162c1e86e56789b5fb71e7ca042bbf3",
+          "actualSHA256": "ba75e64757a5453fa4d7fcfeb631c2262162c1e86e56789b5fb71e7ca042bbf3",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/INTEGRATED-SOURCE-v2.json",
+          "expectedSHA256": "0d4d9833c015cba76b7488cc877fca5de2702117ff074e5be09feb30f9a4f043",
+          "actualSHA256": "0d4d9833c015cba76b7488cc877fca5de2702117ff074e5be09feb30f9a4f043",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/INDEPENDENT-REVIEW-PREINTEGRATION.md",
+          "expectedSHA256": "d653ac469a163d112b571781c9fac47d7c00b6984029db37e9cf9d510c45116b",
+          "actualSHA256": "d653ac469a163d112b571781c9fac47d7c00b6984029db37e9cf9d510c45116b",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/INDEPENDENT-REVIEW-BODY-PROOF-v2.json",
+          "expectedSHA256": "ba888cd154e92fd4451d97276184f1be1a1107cf60670ef6a1c96eb1077123af",
+          "actualSHA256": "ba888cd154e92fd4451d97276184f1be1a1107cf60670ef6a1c96eb1077123af",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/INDEPENDENT-REVIEW-PRETTIFY-RETIREMENT.json",
+          "expectedSHA256": "1da0f28b718535098980969cfcde93234edd633a9cd92ce908a4b856d094f6a6",
+          "actualSHA256": "1da0f28b718535098980969cfcde93234edd633a9cd92ce908a4b856d094f6a6",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/INDEPENDENT-REVIEW-TEST-COVERAGE.json",
+          "expectedSHA256": "cd23f866ee46df37d0e32446d0822f1c294dbd4d710b5bdfab87dfdd46d1b500",
+          "actualSHA256": "cd23f866ee46df37d0e32446d0822f1c294dbd4d710b5bdfab87dfdd46d1b500",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/BASELINE-EXPECTATION-REPAIR.json",
+          "expectedSHA256": "0e87c176c77ef0d1cd5fe2451329c5d9fa228535884c05038d9750f334fb8b9e",
+          "actualSHA256": "0e87c176c77ef0d1cd5fe2451329c5d9fa228535884c05038d9750f334fb8b9e",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/STRICT-TEST-TYPE-REPAIR.json",
+          "expectedSHA256": "e896b915b40b137e02e6f15617fc8debfb55dafcd1d95ee49688b9d58bc1d1aa",
+          "actualSHA256": "e896b915b40b137e02e6f15617fc8debfb55dafcd1d95ee49688b9d58bc1d1aa",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/STRICT-TEST-FORMAT-PROOF.json",
+          "expectedSHA256": "bb4d3424c901724d501dbd8f3346e49b726c12bd65882b4be97ecdadd7e91ea6",
+          "actualSHA256": "bb4d3424c901724d501dbd8f3346e49b726c12bd65882b4be97ecdadd7e91ea6",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/OWNERSHIP-GUARD-WHITESPACE-REPAIR.json",
+          "expectedSHA256": "1f35716e281cd927a6bf3ca43ad8df5254deb6f0acbd95f2fcc60f94b8830fdf",
+          "actualSHA256": "1f35716e281cd927a6bf3ca43ad8df5254deb6f0acbd95f2fcc60f94b8830fdf",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/STATIC-PRODUCTION-BUDGETS-v2.json",
+          "expectedSHA256": "98e346a7f2c1447f54595f266d0f6ab6e974349dab356e9396d84d126f577b2b",
+          "actualSHA256": "98e346a7f2c1447f54595f266d0f6ab6e974349dab356e9396d84d126f577b2b",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/FORMAT-RESULT-v4.json",
+          "expectedSHA256": "2b3e51e43f0a8c0707de8782e4c6297b27c38d600ebf2eb9c8476201f7f40968",
+          "actualSHA256": "2b3e51e43f0a8c0707de8782e4c6297b27c38d600ebf2eb9c8476201f7f40968",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/EMITTED-SYNTAX.json",
+          "expectedSHA256": "26ca189eca453a8a719b1ed700e1f3672b96255053ebb9c0ca2f0753818ed7e8",
+          "actualSHA256": "26ca189eca453a8a719b1ed700e1f3672b96255053ebb9c0ca2f0753818ed7e8",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/DEPENDENCY-PROVENANCE.json",
+          "expectedSHA256": "56dac5087b93979a5f9905d001a3912a7d1d3a59949f9c79cf061aa41f9c0a67",
+          "actualSHA256": "56dac5087b93979a5f9905d001a3912a7d1d3a59949f9c79cf061aa41f9c0a67",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/PRISMA-CLI-ENGINE-PREPARATION.json",
+          "expectedSHA256": "f1f4ee4619dbc5be5944f6a79267d47ecbf63a0a9bcb757adc245e0e9a50fa77",
+          "actualSHA256": "f1f4ee4619dbc5be5944f6a79267d47ecbf63a0a9bcb757adc245e0e9a50fa77",
+          "matches": true
+        },
+        {
+          "path": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/CASE-COVERAGE-RECONCILIATION.json",
+          "expectedSHA256": "cdfa065ede42fae983e11bbe5021dbf8d070f5a562c63186b13981afaa1b7908",
+          "actualSHA256": "cdfa065ede42fae983e11bbe5021dbf8d070f5a562c63186b13981afaa1b7908",
+          "matches": true
+        }
+      ],
+      "gatePins": [
+        {
+          "gate": "BEFORE-characterization-v2",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/BEFORE-characterization-v2.json",
+          "receiptSHA256": "dca51a8e81ba0c1bdf5999b462dfe399fdefddcd1265db040e4cf9ff91226786",
+          "exitCode": 0,
+          "durationSeconds": 9.373
+        },
+        {
+          "gate": "AFTER-characterization-final",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/AFTER-characterization-final.json",
+          "receiptSHA256": "6bad2aaf1976b61ce5204ebed49e42ebbb3269336150d4c72a094ee7f8bf68cc",
+          "exitCode": 0,
+          "durationSeconds": 9.218
+        },
+        {
+          "gate": "AFTER-ownership-guards-final",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/AFTER-ownership-guards-final.json",
+          "receiptSHA256": "05fcbed896d022bbafd9da0dac56136c5058fc2d8655ce7898f45bbb6d77f24f",
+          "exitCode": 0,
+          "durationSeconds": 3.136
+        },
+        {
+          "gate": "intel-typecheck-cold",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/intel-typecheck-cold.json",
+          "receiptSHA256": "419a1197b725d9255992c2a104ccada61f35a902de77654be76024af6ec477ad",
+          "exitCode": 0,
+          "durationSeconds": 12.111
+        },
+        {
+          "gate": "intel-typecheck-final",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/intel-typecheck-final.json",
+          "receiptSHA256": "71f7ec5e1db9b88f14357ce4850d1e2d21ad4586c0c85efd4d46d5b9cb3a1d7b",
+          "exitCode": 0,
+          "durationSeconds": 10.164
+        },
+        {
+          "gate": "intel-build-final",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/intel-build-final.json",
+          "receiptSHA256": "c55f4795757c78f1219f9cd5a3194ed6724eefdea75379b9df00227c180e806b",
+          "exitCode": 0,
+          "durationSeconds": 12.106
+        },
+        {
+          "gate": "intel-typecheck-new-tests-guard-final",
+          "receiptPath": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/intel-typecheck-new-tests-guard-final.json",
+          "receiptSHA256": "b3c3dc7568cce6bc0b901ed4b1f2637b67ff6d1593ee14ab89507efa597235d9",
+          "exitCode": 0,
+          "durationSeconds": 3.934
+        }
+      ],
+      "externalAcceptance": {
+        "actualLiveImageBuildTreesEstablished": false,
+        "mainOnlyCiExecutionEstablished": false,
+        "databaseExecuted": false,
+        "providersExecuted": false,
+        "deploymentPerformed": false,
+        "frontendRetirementAccepted": false
+      }
+    }
+  ],
+  "declaredComponentSourceMap": [
+    {
+      "component": "core-api",
+      "ownedAppRoot": "apps/api",
+      "commit": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "gitTree": "ce817706a72b7f096cf3e112f28ec355153e5653",
+      "imageDigest": "sha256:0a2ea000b74b164f0080ee84f61554f59784d2caecb0f97bae59ac3eb44474c0",
+      "observedDefinition": "capiro-dev-api:650",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "memory-review",
+      "ownedAppRoot": "apps/api",
+      "commit": "32a4320d0386f5608e0bf59af3671c91e665c100",
+      "gitTree": "d178fa163becb30e14f122d4f0952092b0ba4050",
+      "imageDigest": "sha256:460efb52ac5adb83b4e66d234988416c72969cc0cb767fc8b64259cfc02daa7d",
+      "observedDefinition": "capiro-dev-api-memory-review-dispatch:5",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "legiwatch-api-89",
+      "ownedAppRoot": "apps/api",
+      "commit": "d6fef85b726e6c7f4c5c674f82a47602894a64f9",
+      "gitTree": "a0649de62fb61606409da81665fd9470b9d58ac6",
+      "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "observedDefinition": "capiro-dev-legiwatch-phase9-api:89",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "legiwatch-api-104",
+      "ownedAppRoot": "apps/api",
+      "commit": "41aead03cd5ad9fec8abecb45e6c12569b0ea08e",
+      "gitTree": "614d76d4663909788b24b94bf44dfc33ad34b714",
+      "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+      "observedDefinition": "capiro-dev-legiwatch-phase9-api:104",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "api-strategy",
+      "ownedAppRoot": "apps/api-strategy",
+      "commit": "e04b01744570134e9b1f0316b2fa377e89057505",
+      "gitTree": "5bb3720197d80342358335103eb94a61ad89a8ad",
+      "imageDigest": "sha256:027267918c32dd34380d9a7f01e419ae4c58bbb4a3d9fe48980737e0d108d7c8",
+      "observedDefinition": "capiro-dev-api-strategy:57",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "engagement-api",
+      "ownedAppRoot": "apps/engagement-api",
+      "commit": "192cca3a1386eb2ceb370e01f6041e338709ab24",
+      "gitTree": "5b899d3e35253493b7f8ea9b193279a0d76b0645",
+      "imageDigest": "sha256:e23a4a9d79d625649d24a9d9e54f843d110669e50c0a341cf72f5aa71f14c441",
+      "observedDefinition": "capiro-dev-engagement-api:155",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "intel-api",
+      "ownedAppRoot": "apps/intel-api",
+      "commit": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "gitTree": "7edcc860a022dc11a51d3126938e281dc77ef6f8",
+      "imageDigest": "sha256:8723f93700481b3cd34566dacbe0ef3253e8e2948901b5ca6dd84333d877be7e",
+      "observedDefinition": "capiro-dev-intel-api:72",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "meriv2-orchestrator",
+      "ownedAppRoot": "apps/meriv2-orchestrator",
+      "commit": "5d97ebc64dc9d2c99ea9fca5e1b409f16d3196bf",
+      "gitTree": "6b4cf748e2b5464a9d92dad494a21327925cfc19",
+      "imageDigest": "sha256:2090a53669b45c0891e787c23a224ce5c9f0aa066ee310a9885e36cd06b65d69",
+      "observedDefinition": "capiro-dev-meriv2-orchestrator:175",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "workspace",
+      "ownedAppRoot": "apps/workspace",
+      "commit": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+      "gitTree": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+      "imageDigest": "sha256:480b340234929d4b0dbf65c1849952e3a613c557f88d0635c15c18837a75dd4c",
+      "observedDefinition": "capiro-dev-workspace:48",
+      "sourceAdmission": "DECLARED_CONFIG_BOUND",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "clio-tag-only",
+      "ownedAppRoot": "apps/clio-sandbox",
+      "commit": "c16f3d4e8f199cc41911a332881a5a7a71d4ef43",
+      "gitTree": "82a599208b141b5b90db23f45777b58d4cf20e7a",
+      "imageDigest": "sha256:986cbc7946918cfa0082458bdf9142ecf73dab22a25437525a8bd406f1786c89",
+      "observedDefinition": "capiro-dev-clio-sandbox:3",
+      "sourceAdmission": "PROTECTED_TAG_ONLY_UNKNOWN",
+      "actualBuildTree": "UNVERIFIED"
+    },
+    {
+      "component": "onboard-tag-only",
+      "ownedAppRoot": "apps/onboard-api",
+      "commit": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965",
+      "gitTree": "698b9a8a8ca3f4645d4ef1e37f9452b89f3ed190",
+      "imageDigest": "sha256:a05b7d67495ca77325f8dbe33957701ae2dbecd5d987d7aa70178aabcd6402b6",
+      "observedDefinition": "capiro-dev-onboard-api:5",
+      "sourceAdmission": "PROTECTED_TAG_ONLY_UNKNOWN",
+      "actualBuildTree": "UNVERIFIED"
+    }
+  ],
+  "actualLiveImageBuildTreesEstablished": false,
+  "nextBoardSource": {
+    "path": "apps/intel-api/src/tracker/tracker-board.service.ts",
+    "publishedSourceHead": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+    "sourceBlob": "1242e6f5b0c780f2cf679db08b3934827fb36b7e",
+    "sha256": "9f2b5865eb53534109773649f96f17162442b44c1d0f3ceda1337bffae6fe343",
+    "nonblankLines": 1736,
+    "physicalLines": 1811,
+    "exactCoreAndDeclaredIntel": true
+  },
+  "execution": {
+    "nativeRunsPerformed": false,
+    "databaseProvidersExecuted": false,
+    "repositoryWrites": false,
+    "remoteActions": false,
+    "evidenceOnly": true
+  }
+}

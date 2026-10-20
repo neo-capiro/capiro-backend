@@ -34,6 +34,26 @@ export const configSchema = z.object({
   CLERK_SECRET_KEY: z.string().min(1, 'CLERK_SECRET_KEY is required'),
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1, 'CLERK_WEBHOOK_SIGNING_SECRET is required'),
   CLERK_JWT_ISSUER: z.string().url().optional(),
+  // Only the separately pinned first-chat Core task opts into native GETs.
+  // Exact strings prevent a typo from silently opening ordinary read policy.
+  PREVIEW_NATIVE_GETS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Deployment profile. 'first-chat-preview' (the held preview Core task only)
+  // requires an exact, non-empty MERI_TOOL_ALLOWLIST at startup; every other
+  // deployment keeps 'standard' and its existing tool behavior.
+  CORE_DEPLOYMENT_PROFILE: z.enum(['standard', 'first-chat-preview']).default('standard'),
+  // Retained-read trust pins (server-only; see @capiro/shared/core-retained-trust).
+  // Absent or 'false' keeps every retained route at 503. 'true' requires every
+  // pin below and fails startup if any is missing or invalid.
+  RETAINED_READS_ENABLED: z.enum(['true', 'false']).optional(),
+  RETAINED_TRUST_ISSUER: z.string().optional(),
+  RETAINED_CORE_ORIGIN: z.string().optional(),
+  RETAINED_INTEL_ORIGIN: z.string().optional(),
+  RETAINED_PRINCIPAL_KEY_ID: z.string().optional(),
+  RETAINED_PRINCIPAL_PRIVATE_KEY_PEM: z.string().optional(),
+  RETAINED_PRINCIPAL_PUBLIC_KEY_PEM: z.string().optional(),
+  RETAINED_PROBE_KEY_ID: z.string().optional(),
+  RETAINED_PROBE_PRIVATE_KEY_PEM: z.string().optional(),
+  RETAINED_PROBE_PUBLIC_KEY_PEM: z.string().optional(),
 
   WEB_ORIGIN: z.string().optional(),
 
@@ -763,10 +783,49 @@ export const configSchema = z.object({
   // Gate-bypass hardening for POST /api/clio/tools/:name and internal proposal
   // creation. Staging/production ALWAYS enforce the shared secret; this switch
   // controls explicit observe-only behavior in development/test only.
+  // Exact comma-separated tool names POST /api/clio/tools/:name may execute.
+  // Unset = every registered tool (unchanged). See meri/meri-tool-allowlist.ts.
+  MERI_TOOL_ALLOWLIST: z
+    .string()
+    .regex(/^[a-z][a-z0-9_]{1,63}(,[a-z][a-z0-9_]{1,63})*$/)
+    .optional(),
+  // Reserved A8 actions.query transport stays unavailable until the Meri
+  // one-use delegated-token adapter and independent deployment readback exist.
+  MERI_ACTION_QUERY_ALIAS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   MERI_TOOLS_REQUIRE_SERVICE_SECRET: z
     .string()
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // D016 #9 Core Ed25519 KMS signers (auth/core-ed25519-kms-config.ts): all
+  // four per purpose or none. Read from process.env by that module, which
+  // validates them and disables only its own routes (503) when partial/invalid.
+  MERI_EXECUTION_SIGNER_ISSUER: z.string().optional(),
+  MERI_EXECUTION_SIGNER_KID: z.string().optional(),
+  MERI_EXECUTION_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_EXECUTION_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_ISSUER: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_KID: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_ROUTINE_CANCEL_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_ISSUER: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_KID: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_ROUTINE_FIRE_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  // RC1 option B read token signer (D016-A item 4), same four-key shape; absent = read delegation 503.
+  MERI_READ_DELEGATION_SIGNER_ISSUER: z.string().optional(),
+  MERI_READ_DELEGATION_SIGNER_KID: z.string().optional(),
+  MERI_READ_DELEGATION_SIGNER_KMS_KEY_ARN: z.string().optional(),
+  MERI_READ_DELEGATION_SIGNER_PUBLIC_KEY_X: z.string().optional(),
+  // D016-A 3 configured routine maxima (wire A ceilings; create/update answers 503 without them).
+  MERI_ROUTINE_MAX_COST_MICROUSD: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_ROUTINE_MAX_RUNTIME_SECONDS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_ROUTINE_RETRY_LIMIT: z.string().regex(/^(0|[1-9][0-9]{0,3})$/).optional(),
+  // D016-A 3 configured platform maxima for execution capabilities (optional,
+  // positive integers; budgets always come from the authenticated allocation).
+  MERI_EXECUTION_MAX_TURNS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_EXECUTION_MAX_RUNTIME_SECONDS: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_EXECUTION_MAX_COST_MICROUSD: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
+  MERI_EXECUTION_MAX_OUTPUT_BYTES: z.string().regex(/^[1-9][0-9]{0,15}$/).optional(),
   // Dark rollout gate for the new API/orchestrator/web proposal contract. The
   // insecure legacy browser routes are disabled regardless of this value.
   MERIV2_ACTION_PROPOSALS_ENABLED: z
@@ -1223,6 +1282,14 @@ export type AppConfig = z.infer<typeof configSchema>;
  */
 export function validateConfig(raw: Record<string, unknown>): AppConfig {
   const parsed = configSchema.parse(raw);
+  // The preview listener forwards any syntactically valid tool name, so the
+  // preview profile must never fall back to 'every registered tool'.
+  if (parsed.CORE_DEPLOYMENT_PROFILE === 'first-chat-preview' && !parsed.MERI_TOOL_ALLOWLIST) {
+    throw new Error(
+      'CORE_DEPLOYMENT_PROFILE=first-chat-preview requires an exact, non-empty MERI_TOOL_ALLOWLIST. ' +
+        'Refusing to start with every registered tool reachable.',
+    );
+  }
   if (parsed.NODE_ENV !== 'test' && !parsed.CLERK_JWT_ISSUER) {
     throw new Error(
       'CLERK_JWT_ISSUER is required outside tests — set it in the ECS task definition ' +

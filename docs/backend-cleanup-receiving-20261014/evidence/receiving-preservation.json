@@ -1,0 +1,437 @@
+{
+  "base": "6efe59f24b4a711b7991bae4b2a255c667cbbf00",
+  "base_tree": "5e1812b853811f793b30fe7de0e956f65c28f056",
+  "donor": "04137babe95e1a3f9627703239d1b5c4992f0b2b",
+  "merge": "9546d45d2fdf11995e57fee2ebd824d4eaabf3a1",
+  "merge_tree": "2ebd65c35e6a3af1f4c87779c8d043f75ef7da2a",
+  "parents": [
+    "6efe59f24b4a711b7991bae4b2a255c667cbbf00",
+    "04137babe95e1a3f9627703239d1b5c4992f0b2b"
+  ],
+  "pr2490_already_received_no_duplicate": true,
+  "ordinary_merge_conflicts": 0,
+  "exact_donor_paths": [
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-compiled.ts",
+      "tree_entry": "100644 blob a3fde4d44755bad1cc7f636ea05a1bcf3f5bca21"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-input.ts",
+      "tree_entry": "100644 blob 8fe0c8fb8e7eb4401455482a2d770fcc6d164549"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-preferences.ts",
+      "tree_entry": "100644 blob fc75f6497fddc9a5ef5d336a0976da7a7bd732e5"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-read.ts",
+      "tree_entry": "100644 blob 2f694e32bff77c7165c93a398b36a3133ec20879"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-reconcile-finish.ts",
+      "tree_entry": "100644 blob dd869bc6b23380c393aa467ba3a9548210cfe13a"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-reconcile-head.ts",
+      "tree_entry": "100644 blob 8461c97a6faa5289d121d0dda94a55fb456b1324"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-reconcile-topics.ts",
+      "tree_entry": "100644 blob dc42ed108f38fbb87983f6bff7f01989256e120a"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist-write.ts",
+      "tree_entry": "100644 blob ff8d90d9018b9e4ea55b4a9529460ca30d247f34"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist.contracts.ts",
+      "tree_entry": "100644 blob 1d5e3563af07ccf2a2cb9fbdaee68f2adf40609e"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-watchlist.service.ts",
+      "tree_entry": "100644 blob adc59c05b329678e248e5dcf8b744a89d572f5a2"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership-guard/decomposition.ts",
+      "tree_entry": "100644 blob 3313ae7f8fc9ded4824173e71803ea064c84fcc7"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership-guard/pins.ts",
+      "tree_entry": "100644 blob 925305f9244d833eff32eb747b508a41f2fdcc5b"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership-guard/semantic.ts",
+      "tree_entry": "100644 blob aeb1e9cafd0cd6e7bc301e5690e767da44437b63"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/io.ts",
+      "tree_entry": "100644 blob a56848125e5cdf5add1243b4582e30fb8b1bd05a"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/literals.ts",
+      "tree_entry": "100644 blob 3a7f27e0aa2e5e8f7549aee772fbfe0697ea439a"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/prefs-io.ts",
+      "tree_entry": "100644 blob c70da8f1e500e6f2a4cc2061a722ff13a1504a9a"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/read-io.ts",
+      "tree_entry": "100644 blob ac3c02214e132db16960a78d63d20661fa3f99e1"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/write-case.ts",
+      "tree_entry": "100644 blob fc640636ddbeb06ea1695dc645307835adff1f54"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-watchlist-ownership/write-io.ts",
+      "tree_entry": "100644 blob a47ac5abdb480d367a2da0e2741173f4b7fdbaf1"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership.contract.spec.ts",
+      "tree_entry": "100644 blob 78c90f5ec0d36a4730a01753e5be6da465d3f014"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-compile.spec.ts",
+      "tree_entry": "100644 blob d621832c9d47f2ab448c1320bf39e6d8eaf11733"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-failures.spec.ts",
+      "tree_entry": "100644 blob c79d993a970067e59355b0fddd5f26d640101b2c"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-prefs.spec.ts",
+      "tree_entry": "100644 blob 3b7308a8ab2257dc3c987b02bd5618cee89728d3"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-read.spec.ts",
+      "tree_entry": "100644 blob e9c68020c572d1f980fff83b02fbdc1b6760621a"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-receivers.spec.ts",
+      "tree_entry": "100644 blob dfe804ec73e0b9b287ae2d4901fc9b752f830e41"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership-write.spec.ts",
+      "tree_entry": "100644 blob 9550b2d03b506870c992329d136dd673b984af36"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-watchlist-ownership.contract.spec.ts",
+      "tree_entry": "100644 blob f3b757e81b82dc07bb50056f0140272024f546ab"
+    },
+    {
+      "path": "apps/intel-api/tsconfig.tracker-watchlist-ownership.json",
+      "tree_entry": "100644 blob 840ac7c8c7e42ce013123740f3fa0bbd5f4ddbbf"
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/TRACKER-WATCHLIST-HANDOVER.md",
+      "tree_entry": "100644 blob cdb73e04997e70860d1c7b6c74df4efa7e730871"
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/TRACKER-WATCHLIST-QUALIFICATION.json",
+      "tree_entry": "100644 blob ef24f676319910b33765e7f8c114e4031e45250a"
+    }
+  ],
+  "unrelated_base_entries_preserved": 27268,
+  "quarantine_exact_entries": [
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/dependabot.yml.disabled",
+      "tree_entry": "100644 blob 1e4b3c8ccc9a90fe4dee310bceec8973b1f21185"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/api-image.yml.disabled",
+      "tree_entry": "100644 blob ac2d2f4621aeae4b00c9026f4b10a046b0e34536"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/api-strategy-image.yml.disabled",
+      "tree_entry": "100644 blob 4ca4b18ea7d87d3d08d1b11976d779578cbfcd9a"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/architecture-guards.yml.disabled",
+      "tree_entry": "100644 blob 9cda09b23b68388ba4b537895355dd1668abd4d1"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/backend-cleanup-preservation.yml.disabled",
+      "tree_entry": "100644 blob 923e171a34ee488bf0ee977257296985b6518375"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/ci-pr.yml.disabled",
+      "tree_entry": "100644 blob 2890d40278d4987b8cced7333397d435a3902da4"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/cleanup1-gate.yml.disabled",
+      "tree_entry": "100644 blob 257206a891b0ccf4a9d9fa5c32c9d283609c757b"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/client-profile-qa.yml.disabled",
+      "tree_entry": "100644 blob 7c6d51855615781861df3b65703513279b449d16"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/clio-evals.yml.disabled",
+      "tree_entry": "100644 blob 7416bbd0fc52318aa48c02d1fef745c3f2fc8316"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/context-plane-architecture-guard.yml.disabled",
+      "tree_entry": "100644 blob 137350415fc38a2d7628668544a2107411ad9492"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/defense-budget-parser-ci.yml.disabled",
+      "tree_entry": "100644 blob 152f0076e1051a7196f5115378e4bf128edec317"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/deploy-all.yml.disabled",
+      "tree_entry": "100644 blob 42e183bf45bef81811795050c544992fa6110185"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/district-nexus-release3-ci.yml.disabled",
+      "tree_entry": "100644 blob 8cb207e19e5ebfebe1cd9e4b0c6e1f50ebf124cc"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/engagement-api-image.yml.disabled",
+      "tree_entry": "100644 blob f7f3f46e7296a507d5cbce1cf9df03b04fa5069d"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/engagement-phase3.yml.disabled",
+      "tree_entry": "100644 blob e865477fb72405d15b86896ea74e8fa9e3d9903a"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/engagement-trust-boundary.yml.disabled",
+      "tree_entry": "100644 blob 4c368bc77f372a8bd50e36d863debf65064c66bd"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/federal-market-ci.yml.disabled",
+      "tree_entry": "100644 blob 715cac57874b21184a50f2d7a699f18e62e6524a"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/funding-opportunities-ci.yml.disabled",
+      "tree_entry": "100644 blob 7a5439c38d79a5ff66112b2385164d41be601878"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/grounding-nightly.yml.disabled",
+      "tree_entry": "100644 blob 331af149f2f8a2b562b35e37173c75d23719f40b"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/intel-api-image.yml.disabled",
+      "tree_entry": "100644 blob 1ef836e16e70470a1e7bb2b48c947bf22c176420"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase10-ci.yml.disabled",
+      "tree_entry": "100644 blob eb4f88b56be6a3e208547c930cb6a54c12dc233c"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase11-ci.yml.disabled",
+      "tree_entry": "100644 blob 6a325c9f5337b14db56d5721a5bf1d17eb510a45"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase12-ci.yml.disabled",
+      "tree_entry": "100644 blob 7f99862988f8e7f495ac69b6eb9d9b4347681c8e"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase13-ci.yml.disabled",
+      "tree_entry": "100644 blob 78084272c0ee49a6c71c3632d30d40047aed0f27"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase14-ci.yml.disabled",
+      "tree_entry": "100644 blob c03ee1f44ba6912971f6dea1ba9c25fb3ce57e6b"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase15-ci.yml.disabled",
+      "tree_entry": "100644 blob c9cf5d351c19869e40456b12a630797dbb67537f"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase16-ci.yml.disabled",
+      "tree_entry": "100644 blob b924494c49ddd2faf7b3e878fe86e83b3672bd75"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase17-ci.yml.disabled",
+      "tree_entry": "100644 blob 18465b22786035e81057623f1dcd8c7d0af38844"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase18-ci.yml.disabled",
+      "tree_entry": "100644 blob 09585cbcebf757fed893f9624725663be7f1da07"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase5-ci.yml.disabled",
+      "tree_entry": "100644 blob a948caf0f46875bcd267ca031cd4b6631b70dcc0"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase8-ci.yml.disabled",
+      "tree_entry": "100644 blob 9d78d1c932c6e41997ce24cfb556d3e70d28a271"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase9-ci.yml.disabled",
+      "tree_entry": "100644 blob 25cdfe5710c05b90f0c49a61160cdaf1a3ffbf0a"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-plane-ci.yml.disabled",
+      "tree_entry": "100644 blob 5b13d5228e5a7d1590034786b69b9aabd6ed6bc5"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/legiwatch-ci.yml.disabled",
+      "tree_entry": "100644 blob 4358c8ec84329705d13418fc9201e024f84c2868"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/legiwatch-deploy-verify.yml.disabled",
+      "tree_entry": "100644 blob 29bebc4411d6441a5fde1722c0349cf60de8b832"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/marketing-image.yml.disabled",
+      "tree_entry": "100644 blob 853b3dcd78500cef31c516aff980b2e7755c18aa"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/memory-governance-ci.yml.disabled",
+      "tree_entry": "100644 blob 37dc46e1708b4a92aea4936cfde5d35cffcca7e0"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/memory-postgres-qualification.yml.disabled",
+      "tree_entry": "100644 blob a833e91d3d969780e4bd38ceca67e20fb78353cd"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meri-connectors-verify.yml.disabled",
+      "tree_entry": "100644 blob b89cb005b0a7aa44ee91b491e468f9f3abd36872"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-evals.yml.disabled",
+      "tree_entry": "100644 blob 856faaba82a71ca6d34a2fe7b3ac983511d8794f"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-orchestrator-image.yml.disabled",
+      "tree_entry": "100644 blob 595bfac9545408c5f9dce0c4ae41cd47d70334fd"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-parity.yml.disabled",
+      "tree_entry": "100644 blob eef4667537145cff416a37577db46bdcb9346cee"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase17-ci.yml.disabled",
+      "tree_entry": "100644 blob c047a43c5cd17c4f6d88ed19158121a467b93346"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase18-database-rehearsal.yml.disabled",
+      "tree_entry": "100644 blob 8b5c297b6d5d21e5a0734cb3e84f11615a7819f6"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase19-browser-acceptance.yml.disabled",
+      "tree_entry": "100644 blob e1fb689053713c8ae1bcb6fca58c6bb60b682b93"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase20-control-system.yml.disabled",
+      "tree_entry": "100644 blob 7ab2ee2bb8ca4a0b26160153798652236792dd5f"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv3-canary-ci.yml.disabled",
+      "tree_entry": "100644 blob 68214732a6dd3be34f132937c301b5992cb15c20"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv3-visual-analysis-ci.yml.disabled",
+      "tree_entry": "100644 blob 11ac68e84920243dcb66a81fb4571e3d39b22c20"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/oidc-verify.yml.disabled",
+      "tree_entry": "100644 blob 3c35ad8d9d91e07f5130945f47562c28a470f34f"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/onboard-api-image.yml.disabled",
+      "tree_entry": "100644 blob cf755c2ee75e0b5bd89f14b8538286a65c6c339f"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-evals.yml.disabled",
+      "tree_entry": "100644 blob b3fc760180fd73f5a9cfd5f78dea3dc526a5c6cf"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-p1-preflight.yml.disabled",
+      "tree_entry": "100644 blob 6d4a53bddff92600cdc583fe0680dae6e8ccdb09"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-p4.yml.disabled",
+      "tree_entry": "100644 blob a66f326822b7ee5a449a79f25f67e5be8edf09e9"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase2.yml.disabled",
+      "tree_entry": "100644 blob 635dff844390f9b386bd9ca430a7b3d154a2f4c4"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase3-provider-contract.yml.disabled",
+      "tree_entry": "100644 blob 41f277ba1a5d10387d91d4acd61ff6d00ec30071"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase3.yml.disabled",
+      "tree_entry": "100644 blob 9a7fd9e74a9a466d1ee8f717883b0b654b4fd429"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase4-6-combined.yml.disabled",
+      "tree_entry": "100644 blob ac9812c8c37777e11dde629dd99940fa18a98c2b"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase4-6-final.yml.disabled",
+      "tree_entry": "100644 blob ec3c7c73d0fa27eea6020bc408b655e8b38040d6"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase6-final.yml.disabled",
+      "tree_entry": "100644 blob e19723dbe34d8b0105a124606490f3d5b36a6385"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase6.yml.disabled",
+      "tree_entry": "100644 blob bedc0a5bce4e8b012bd8c42c479204ab0c2c454f"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session10-schedule-control-plane.yml.disabled",
+      "tree_entry": "100644 blob da165c32e80cf9ba292272d3c98e71c75a57de19"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session11-product-integration.yml.disabled",
+      "tree_entry": "100644 blob 77570cae01487866bb8f1b814c8f45555e610615"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session2-boundary.yml.disabled",
+      "tree_entry": "100644 blob b64acdc28510b70858e0dcfec37602e8adf28fdc"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session4-runtime.yml.disabled",
+      "tree_entry": "100644 blob 5868d3444d84d2c0558c6be25c7d1bd0eeb3a790"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session5-nvidia-benchmark.yml.disabled",
+      "tree_entry": "100644 blob d4823bce2fb52e7d0cbc48e4b2a36e6a6431e200"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session6-federal-funding.yml.disabled",
+      "tree_entry": "100644 blob a12ec804e4bdb48aa7749a9b4fecafa5f4af04be"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session7-lifecycle-watcher.yml.disabled",
+      "tree_entry": "100644 blob d845790e3e764b0a52cb60c0cb81321ff4f828f8"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session8-live-source-discovery.yml.disabled",
+      "tree_entry": "100644 blob de7cf2615edd0d2b98b8dfed967f6a549666c127"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session9-provider-runtime.yml.disabled",
+      "tree_entry": "100644 blob bf5739a290aa4bcbf0dfa49ddecf6145b1ace423"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/sandbox-image.yml.disabled",
+      "tree_entry": "100644 blob c53b8fc3609cede130b66655d9252004f5f9d9a6"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/web-image.yml.disabled",
+      "tree_entry": "100644 blob 9bd6e3337eeb42896fc269b1a482dfe7ee0bfcab"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/web-vnext-deploy.yml.disabled",
+      "tree_entry": "100644 blob 9ced045a91e953b77b1af106443215aaf3bea1f1"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/web-vnext-foundation.yml.disabled",
+      "tree_entry": "100644 blob ab540c63f6c442a1836f59a105d85991010971c4"
+    },
+    {
+      "path": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/workspace-image.yml.disabled",
+      "tree_entry": "100644 blob d80f1447ff8fbd88c853adcf5a34e60ae0a3cb38"
+    }
+  ],
+  "active_automation": 0,
+  "repository_AGENTS_files": [],
+  "preview_pr2_pr3_not_received_or_modified": true
+}

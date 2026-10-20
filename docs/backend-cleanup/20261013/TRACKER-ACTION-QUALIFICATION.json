@@ -1,0 +1,1056 @@
+{
+  "schema": "tracker-action-canonical-qualification/v1",
+  "base": "1ecd4b71b3243a38585a11cba6535bd7384d668b",
+  "baseTree": "0bc843bbf8667fe7a5914c058d1f64daf1eff775",
+  "branch": "codex/backend-tracker-action-canonical-20261013",
+  "sourceOnly": true,
+  "productionBaseline": {
+    "admittedCoreSource": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "declaredIntelSource": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "originalRootsByteExactToDeclaredSources": true,
+    "actualLiveImageBuildUsedTree": "UNESTABLISHED",
+    "mainUsedAsProductionAssumption": false,
+    "originalSourcePins": [
+      {
+        "path": "apps/api/src/tracker/tracker-change-detector.service.ts",
+        "sha256": "b94692d35c1a94ec000de39958336ed3ad67c0e05818529c79fc7fc983ed6c79",
+        "blob": "ca160f632997381a5311079ea6a7c824651ebe00"
+      },
+      {
+        "path": "apps/intel-api/src/tracker/change-detector.util.ts",
+        "sha256": "7318994c9e93e9f6507fc3d547d54af63b8c5bbaa6dccdb0341f453797f7c1aa",
+        "blob": "47a3f016016fb7a20c154b40249cc565f677b4c0"
+      },
+      {
+        "path": "packages/shared/src/index.ts",
+        "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+        "blob": "39ed5db53cf9599b72f9ddf1885568441b873217"
+      }
+    ],
+    "consumerClosure": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-20261013/consumers/SELECTED-CONSUMER-CLOSURE.json",
+      "sha256": "7679ecc12c52cb38f42b6d7ff879caca9bd99afc3c99185b39c31015f26c5d58"
+    },
+    "consumerManifest": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-20261013/consumers/MANIFEST.json",
+      "sha256": "e0e87c5c9309d0564d6c2ee5696e17ad57d2b38123b7bf94c1e7441f3d5b29f6"
+    },
+    "ranking": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/next-boundary-from-tracker-20261013/ranking/RANKED-NEXT-BOUNDARIES-v2.json",
+      "sha256": "d446642f255b129fe78ea5027c6795723c30fb2409e6ffcf58cdc8f7c07a6c37"
+    }
+  },
+  "ownership": {
+    "originalAlgorithms": ["classifyChange", "selectMaterialEvents"],
+    "originalImplementationBodies": 4,
+    "canonicalImplementationAlgorithms": 2,
+    "compatibilityFunctionDeclarations": 4,
+    "canonicalModule": "packages/shared/src/tracker-action-change.ts",
+    "newRuntimeBarrelExports": ["classifyTrackerActionText", "selectTrackerMaterialEvents"],
+    "newTypeBarrelExports": [
+      "TrackerActionChange",
+      "TrackerMaterialAction",
+      "TrackerMaterialEvent"
+    ],
+    "originalBarrelEntireBytePrefixPreserved": true,
+    "apiOriginalClassSevenMethodsLoggerFiveDependencyConstructorByteExact": true,
+    "originalPublicSignaturesAndArityPreserved": [1, 2],
+    "intelUnselectedPoliciesTypesMapsCommentsPreserved": true,
+    "intelHeaderCanonicalOwnershipParagraphOnlyUpdated": true,
+    "allRegexAndResultLiteralsAndOrderPreserved": true,
+    "selectorActionDateGetterIdentitySortingMergeDedupChamberAndOmissionPreserved": true,
+    "canonicalModuleNonblankLines": 182,
+    "canonicalModulePhysicalLines": 189,
+    "largestCompleteCanonicalFunctionPhysicalLines": 63,
+    "apiRemainingNonblankLines": 749,
+    "intelUtilityRemainingNonblankLines": 389,
+    "sharedBarrelRemainingNonblankLines": 5419,
+    "wholeApiServiceOrSharedGodDecompositionClaimed": false,
+    "packageLockBuildDeploymentAndCiConfigurationChanges": false
+  },
+  "productionAssets": [
+    {
+      "path": "apps/api/src/tracker/tracker-change-detector.service.ts",
+      "sha256": "9c96bd0e65289798c44b69ced2b8cd4293b50d0ed1e4f0638e3da79f14e1fb07"
+    },
+    {
+      "path": "apps/intel-api/src/tracker/change-detector.util.ts",
+      "sha256": "6c73fdd39846dc3711a084cd86fb6788e4255a001522e7fb46534774878a7973"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "sha256": "a286141bd28d4f6344ccff273cefdbe501866960990a0b8deb688c0c65e02087"
+    },
+    {
+      "path": "packages/shared/src/tracker-action-change.ts",
+      "sha256": "046744bd7341883b20c677f65d87c45756f5bfc3ef878dc489496674ac319e34"
+    }
+  ],
+  "testAndConfigAssets": [
+    {
+      "path": "apps/api/src/tracker/fixtures/tracker-action-ownership/literals.ts",
+      "sha256": "a9f34b739d418f310982ff380ba571248c8d1542e3015130a9c1bfbfa5c3cc80"
+    },
+    {
+      "path": "apps/api/src/tracker/fixtures/tracker-action-guard/semantic.ts",
+      "sha256": "b0bed09b6e0b36e186593b72c1a6ac16b503914686cd713ecca36822b5483305"
+    },
+    {
+      "path": "apps/api/src/tracker/tracker-action-ownership.spec.ts",
+      "sha256": "aae68e940987425062f153bbc7f56ad83d8538a710a86360777f91bc400a877f"
+    },
+    {
+      "path": "apps/api/src/tracker/tracker-action-worker-ownership.spec.ts",
+      "sha256": "1ce05b068796f4ecee9083dbdb2bdc337069e3cb30df487d4f06a4b02c38fc6e"
+    },
+    {
+      "path": "apps/api/src/tracker/tracker-action-ownership.contract.spec.ts",
+      "sha256": "45dcb58d56845a60e819306752cb17395f0b9e05b9f4e435a47679bc33322c06"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-action-ownership.spec.ts",
+      "sha256": "7bec709bce850aaba7bf50a96420c5ce2408bf4da7b1bf36e7fa89d59ac0f7bc"
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership.contract.spec.ts",
+      "sha256": "1f463ddaee63e632cd7dbd4e4722f3b38de45dbbc4e4d4e518d9be4339197d6d"
+    },
+    {
+      "path": "apps/api/tsconfig.tracker-action-ownership.json",
+      "sha256": "2ab521bb784249c72061f9a0c3aae916e7e7474a5ef21900b7e4c72aca2a6265"
+    },
+    {
+      "path": "apps/intel-api/tsconfig.tracker-action-ownership.json",
+      "sha256": "662daecbd97bc43232cb3e52e2699028d3788adc34bb1a3210aa27cd72efe3f1"
+    },
+    {
+      "path": "apps/intel-api/tsconfig.tracker-board-ownership.json",
+      "sha256": "e438b9f0e878037ab57a4fa57546aaa69142ab3a6f9991464b40a0b6e7584b3e"
+    }
+  ],
+  "retainedTestAssets": [
+    {
+      "path": "apps/api/src/tracker/tracker-change-detector.spec.ts",
+      "sha256": "89e6e2d68b1c3ce3b7d06657cec2c98834028df42c8aec6cfe285c2440ea9b3c",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/change-detector.spec.ts",
+      "sha256": "f4d2cd68e90ec060d794152b5a9a870d7abad63caecb02289015b9eead52a3f0",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/src/tracker/change-detector.util.spec.ts",
+      "sha256": "767ec66073837f75fe649159351821e31cd7da45d60ceed613b4e29489128323",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/src/tracker/federal-bill-change-detector.spec.ts",
+      "sha256": "d96fd6b29782bcbd3f14802b0662f7051f12f6c83772ae546d2128ff7c60d2e3",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/src/tracker/state-bill-change-detector.spec.ts",
+      "sha256": "5001bb361dafa7742b37a9c28174f6e105a0101a1f8a5e61f97fdcab588fb03b",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/change-detector-tone-map.spec.ts",
+      "sha256": "929aaa62b2ea856881b8013f846fed1414411d0d6ebe72fecfe59ff5d58588c0",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/parity.spec.ts",
+      "sha256": "149fb533951c85f524a2e26ae25ea0ae0e5572cd62159df927750dab1eda8d83",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/alert-scorer.spec.ts",
+      "sha256": "3d980e25e3a118c1636f7be31dad11574fe9a28534bcc8302d960f34493904c2",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/normalize-evidence.spec.ts",
+      "sha256": "de82ac18abd7569b2458d497a38e6488d357ff0782dde7e50305009055d5d4e8",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/task-runner.spec.ts",
+      "sha256": "5f7b2aa853b93dc5d7decc4bfb60a22904faddde7172f5dea0c01ad86d71c35b",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/new-match-detector.spec.ts",
+      "sha256": "711846970909a129e2b362c3559503511165d7a01ae31e3d1506ef76f1d0f8a8",
+      "byteExactToBase": true
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-highfit.spec.ts",
+      "sha256": "db442cfb1fe0d4f82433e44837b0d2cb10a9ef1e248f4683f312cd1228b2022b",
+      "byteExactToBase": true
+    }
+  ],
+  "behavior": {
+    "beforeAfterCases": 262,
+    "beforeAfterSuites": 15,
+    "originalRetainedCases": 164,
+    "newCharacterizationCases": 98,
+    "skippedCases": 0,
+    "sameExpandedNamesStatusesMultiplicity": true,
+    "realApiDetectionCycleCharacterizedWithInertIo": true,
+    "newCanonicalOwnerGuards": 8,
+    "retainedTrackerOwnershipGuards": 8,
+    "afterCasesIncludingGuards": 278,
+    "afterSuitesIncludingGuards": 17,
+    "retainedGuardFirstSevenCaseBodiesByteExact": true,
+    "retainedGuardAllEightExpandedIdentitiesPreserved": true,
+    "retainedFixedAssetsByteExact": 39,
+    "changedUtilityNarrowSemanticDisposition": true,
+    "tenDriftMutationsRejected": true,
+    "resultPackets": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/BEFORE-api-results.json",
+        "sha256": "3c0a48da832a562b368e8fe00aae2c8a09662c013319d52361ab0f9604141428",
+        "passedTests": 67,
+        "passedSuites": 3,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/BEFORE-intel-api-results.json",
+        "sha256": "45bce6b376b48bf5d7cd61464bb5c8f22c80f36418ed9ea2ec7f1527a9e5016d",
+        "passedTests": 195,
+        "passedSuites": 12,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-results.json",
+        "sha256": "f2db832a5e86292ed78a286ba08ecee2c273ae6c59c13c606c1c4ccd72f9e626",
+        "passedTests": 67,
+        "passedSuites": 3,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-api-results.json",
+        "sha256": "6c7d168f1cb6013738afb2e6aeac7f585725c0993a92771855b511be251c4260",
+        "passedTests": 195,
+        "passedSuites": 12,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-results-v4.json",
+        "sha256": "9fa6a779eb66a7d6daf1a6cd956f88ab14a266a8e0440a7a41beb22e753bfe40",
+        "passedTests": 67,
+        "passedSuites": 3,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-api-results-v4.json",
+        "sha256": "af67010d4e6bd9f2dea4ce653337301479a96946facff1feed96205d15373be0",
+        "passedTests": 195,
+        "passedSuites": 12,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-guard-results.json",
+        "sha256": "88190af27122ce46b812857b855e18df22737064eaf3f60d12a17b435ace6d09",
+        "passedTests": 8,
+        "passedSuites": 1,
+        "skippedTests": 0
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-guard-results.json",
+        "sha256": "615f4561fa11814d81a72306ebc85f76e44e6da2db4989e8ccb8446f13c34278",
+        "passedTests": 8,
+        "passedSuites": 1,
+        "skippedTests": 0
+      }
+    ]
+  },
+  "coverage": {
+    "acceptedFiniteTransfer": true,
+    "selectedOriginalProbesPerRail": {
+      "decisions": 26,
+      "locatedArms": 37,
+      "executableStatements": 43,
+      "originalFunctionsIncludingCallbacks": 4,
+      "allSourceBoundShapesAndHitVectorsMatch": true
+    },
+    "unselectedOriginalConfigComparisons": {
+      "api": {
+        "decisions": 102,
+        "arms": 193,
+        "functions": 37,
+        "allMatch": true
+      },
+      "intel-api": {
+        "decisions": 23,
+        "arms": 42,
+        "functions": 10,
+        "allMatch": true
+      }
+    },
+    "originalProbeUnion": {
+      "decisions": 177,
+      "arms": 309,
+      "functions": 55,
+      "selectedExecutableStatements": 86,
+      "wholeOriginalProbeUnionEstablishedAcrossSeparateFinitePackets": true,
+      "singleAfterReportDenominatorIdentityClaimed": false
+    },
+    "addedPhaseProbesPerRail": {
+      "decisions": 1,
+      "arms": 2,
+      "statements": ["classifier dispatch return", "high-priority phase null return"],
+      "functions": 2,
+      "allExercised": true,
+      "apiPhaseCounts": [95, 62],
+      "intelPhaseCounts": [112, 69]
+    },
+    "supplementalInstrumentationDifferences": {
+      "api": {
+        "missingOriginalConfigGeneratedMetadataDecisions": 10,
+        "missingOriginalConfigGeneratedMetadataArms": 20,
+        "remaining92LocatedAppDecisionVectorsMatch": true,
+        "all37FunctionCountsMatch": true,
+        "originalConfigAfterEvidenceAlreadyPreservesAll102DecisionVectors": true,
+        "specificOriginalIDs": [
+          "118",
+          "119",
+          "120",
+          "121",
+          "122",
+          "123",
+          "124",
+          "125",
+          "126",
+          "127"
+        ]
+      },
+      "intel-api": {
+        "additionalUnmappedImplicitElseArms": 15,
+        "allRecordedAndCovered": true,
+        "all23RemainingAppDecisionsAndTenFunctionsMatch": true
+      }
+    },
+    "singleAfterDenominatorIdentityClaimed": false,
+    "coveragePercentageGainClaimed": false,
+    "historicalCoverageFloor": "UNESTABLISHED",
+    "measuredArtifact": "own-worktree packages/shared/dist/tracker-action-change.js",
+    "actualSharedEmitSha256": "fb205612edc6df8f133c2a6e83cae7f527cbdba6f054f3cba01d04e210dab783",
+    "actualSharedMapSha256": "ff4a8bc47ecc5048e8a8c81cac77321f0941cb6ca58ae8f732ebcbbeb35a39d2",
+    "originalConfigUnselectedPackets": ["AFTER-api-results.json", "AFTER-intel-api-results.json"],
+    "supplementalCanonicalPackets": [
+      "AFTER-api-results-v4.json",
+      "AFTER-intel-api-results-v4.json"
+    ],
+    "finalTransfer": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-review/CASE-COVERAGE-FINAL-v2.json",
+      "sha256": "085ba92bd5b5786ce71d08209ccfc7c59ddc159f968f2f028e5ad1d241f2f1d3"
+    },
+    "interpretation": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-review/CASE-COVERAGE-INTERPRETATION-v2.json",
+      "sha256": "0a2db00b5f4d3bb1a7764633b1afc87f9af07277dc78f47e3719b3ab3872ef7b"
+    },
+    "sharedBuildBinding": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-review/SHARED-BUILD-SOURCE-BINDING.json",
+      "sha256": "faec9e90c1bef47bd17b24e27eda3262c9a23faedc5131c688edd59f421ebd7f"
+    },
+    "independentReview": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/COVERAGE-TRANSFER-INDEPENDENT-REVIEW.json",
+      "sha256": "9c55f1fc5df6d9be41aca67a364a96c458f3a5dc0f71acabf21f6d349aaafcb6"
+    }
+  },
+  "qualification": {
+    "nativeReceipts": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/dependency-install-offline.json",
+        "sha256": "b4840de3c10caf77abe9c2f9ff0b1f129cb8676764b7ae2f8a2173432d4701ea",
+        "name": "dependency-install-offline",
+        "exitCode": 0,
+        "durationSeconds": 4.336,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "install",
+          "--offline",
+          "--frozen-lockfile",
+          "--ignore-scripts",
+          "--store-dir",
+          "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/pnpm-store",
+          "--filter",
+          "@capiro/api...",
+          "--filter",
+          "@capiro/intel-api..."
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/api-prisma-generate-offline.json",
+        "sha256": "41fe33ccbaa0ea5d0ef10648ee79a37d9dce584a72afb03c5148da7f0197ceb0",
+        "name": "api-prisma-generate-offline",
+        "exitCode": 0,
+        "durationSeconds": 13.082,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "exec",
+          "prisma",
+          "generate",
+          "--schema",
+          "prisma/schema.prisma"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/intel-prisma-generate-offline.json",
+        "sha256": "9dd522530d1795eff93861da414e2d6ea474ff986429d5c7111b8e3b2d6204cb",
+        "name": "intel-prisma-generate-offline",
+        "exitCode": 0,
+        "durationSeconds": 1.576,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "prisma",
+          "generate",
+          "--schema",
+          "prisma/schema.prisma"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/shared-build-before.json",
+        "sha256": "8f65ea52a087be484e34dd40bf38d4c6d1497aee095500a6d6fc53596173fe6b",
+        "name": "shared-build-before",
+        "exitCode": 0,
+        "durationSeconds": 2.221,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "packages/shared",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/meriv2-core-build-before.json",
+        "sha256": "47d0629845c4042e4d46dc8464b97eed2f40597e003afca34f80473892ce922d",
+        "name": "meriv2-core-build-before",
+        "exitCode": 0,
+        "durationSeconds": 6.076,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "packages/meriv2-core",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/shared-build-after.json",
+        "sha256": "4c2f39f50c4222b4c92500a0fa555eaa8c4186ee664eb84ca8bef1936a5d9efa",
+        "name": "shared-build-after",
+        "exitCode": 0,
+        "durationSeconds": 1.769,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "packages/shared",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/defense-contracts-build-prerequisite.json",
+        "sha256": "4a5d05883a2451586123cf6f72e5374aa3d68bd900b45dd526e8a89638990631",
+        "name": "defense-contracts-build-prerequisite",
+        "exitCode": 0,
+        "durationSeconds": 0.967,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "packages/defense-contracts",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/defense-domain-build-prerequisite.json",
+        "sha256": "d2a61fdb4d4ea13063e69b995b09d80ac3edd43af60300fc62ed4557266ee09d",
+        "name": "defense-domain-build-prerequisite",
+        "exitCode": 0,
+        "durationSeconds": 2.533,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "packages/defense-domain",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/shared-typecheck-final.json",
+        "sha256": "12faa7fe32165a9a2fa83e3ff5fc034b5ea2b56668db18e4e8302b89128cd972",
+        "name": "shared-typecheck-final",
+        "exitCode": 0,
+        "durationSeconds": 0.97,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "packages/shared",
+          "run",
+          "typecheck"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/BEFORE-api-characterization.json",
+        "sha256": "ec6d2f4f798e48283d9f02be1ecb84b8cb48fd97231f33dab98d5e420bb548f6",
+        "name": "BEFORE-api-characterization",
+        "exitCode": 0,
+        "durationSeconds": 5.385,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker-change-detector.spec.ts",
+          "src/tracker/tracker-action-ownership.spec.ts",
+          "src/tracker/tracker-action-worker-ownership.spec.ts",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/tracker-change-detector.service.ts",
+          "--collectCoverageFrom=../../packages/shared/dist/tracker-action-change.js",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-before-api",
+          "--coverageReporters=json",
+          "--coverageReporters=json-summary",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/BEFORE-api-results.json"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/BEFORE-intel-api-characterization.json",
+        "sha256": "c8c9d7fad016fb7cbb59f5ee89b53a8afb5d62c3912e5cbc067baf2a6895a784",
+        "name": "BEFORE-intel-api-characterization",
+        "exitCode": 0,
+        "durationSeconds": 9.276,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/change-detector.spec.ts",
+          "src/tracker/change-detector.util.spec.ts",
+          "src/tracker/federal-bill-change-detector.spec.ts",
+          "src/tracker/state-bill-change-detector.spec.ts",
+          "test/change-detector-tone-map.spec.ts",
+          "test/parity.spec.ts",
+          "test/alert-scorer.spec.ts",
+          "test/normalize-evidence.spec.ts",
+          "test/task-runner.spec.ts",
+          "test/new-match-detector.spec.ts",
+          "test/tracker-board-highfit.spec.ts",
+          "test/tracker-action-ownership.spec.ts",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/change-detector.util.ts",
+          "--collectCoverageFrom=../../packages/shared/dist/tracker-action-change.js",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-before-intel-api",
+          "--coverageReporters=json",
+          "--coverageReporters=json-summary",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/BEFORE-intel-api-results.json"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-characterization.json",
+        "sha256": "1fe724cb7a1586374493b4b51ae0f95ce0cd3979c461524c0ce116bb72f0a5ed",
+        "name": "AFTER-api-characterization",
+        "exitCode": 0,
+        "durationSeconds": 4.958,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker-change-detector.spec.ts",
+          "src/tracker/tracker-action-ownership.spec.ts",
+          "src/tracker/tracker-action-worker-ownership.spec.ts",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/tracker-change-detector.service.ts",
+          "--collectCoverageFrom=../../packages/shared/dist/tracker-action-change.js",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-after-api",
+          "--coverageReporters=json",
+          "--coverageReporters=json-summary",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-results.json"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-api-characterization.json",
+        "sha256": "6b62dd2119d397ec1cfea0713b0c8593ebfaa23f9f27e70847c04b94bf2939ca",
+        "name": "AFTER-intel-api-characterization",
+        "exitCode": 0,
+        "durationSeconds": 8.904,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/change-detector.spec.ts",
+          "src/tracker/change-detector.util.spec.ts",
+          "src/tracker/federal-bill-change-detector.spec.ts",
+          "src/tracker/state-bill-change-detector.spec.ts",
+          "test/change-detector-tone-map.spec.ts",
+          "test/parity.spec.ts",
+          "test/alert-scorer.spec.ts",
+          "test/normalize-evidence.spec.ts",
+          "test/task-runner.spec.ts",
+          "test/new-match-detector.spec.ts",
+          "test/tracker-board-highfit.spec.ts",
+          "test/tracker-action-ownership.spec.ts",
+          "--coverage",
+          "--collectCoverageFrom=src/tracker/change-detector.util.ts",
+          "--collectCoverageFrom=../../packages/shared/dist/tracker-action-change.js",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-after-intel-api",
+          "--coverageReporters=json",
+          "--coverageReporters=json-summary",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-api-results.json"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-characterization-v4.json",
+        "sha256": "1fcb254279b4c8f0034dbeba9c0d0498a9743f88ea43e52a9c6ceb7677eb1fd6",
+        "name": "AFTER-api-characterization-v4",
+        "exitCode": 0,
+        "durationSeconds": 5.582,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker-change-detector.spec.ts",
+          "src/tracker/tracker-action-ownership.spec.ts",
+          "src/tracker/tracker-action-worker-ownership.spec.ts",
+          "--coverage",
+          "--collectCoverageFrom=apps/api/src/tracker/tracker-change-detector.service.ts",
+          "--collectCoverageFrom=packages/shared/dist/tracker-action-change.js",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-after-api-v4",
+          "--coverageReporters=json",
+          "--coverageReporters=json-summary",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-results-v4.json",
+          "--config",
+          "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-api-v4.config.cjs"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-api-characterization-v4.json",
+        "sha256": "8ecffaec4e8628a13ada59d4940e3128293fed4d1670fea87fb15451b096ae6c",
+        "name": "AFTER-intel-api-characterization-v4",
+        "exitCode": 0,
+        "durationSeconds": 10.849,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/change-detector.spec.ts",
+          "src/tracker/change-detector.util.spec.ts",
+          "src/tracker/federal-bill-change-detector.spec.ts",
+          "src/tracker/state-bill-change-detector.spec.ts",
+          "test/change-detector-tone-map.spec.ts",
+          "test/parity.spec.ts",
+          "test/alert-scorer.spec.ts",
+          "test/normalize-evidence.spec.ts",
+          "test/task-runner.spec.ts",
+          "test/new-match-detector.spec.ts",
+          "test/tracker-board-highfit.spec.ts",
+          "test/tracker-action-ownership.spec.ts",
+          "--coverage",
+          "--collectCoverageFrom=apps/intel-api/src/tracker/change-detector.util.ts",
+          "--collectCoverageFrom=packages/shared/dist/tracker-action-change.js",
+          "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-after-intel-api-v4",
+          "--coverageReporters=json",
+          "--coverageReporters=json-summary",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-api-results-v4.json",
+          "--config",
+          "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/coverage-intel-api-v4.config.cjs"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-ownership-guards.json",
+        "sha256": "1db712f9f86324f210ecb87dc8e9a99957b333ecbfc56679a2f9e925bb036300",
+        "name": "AFTER-api-ownership-guards",
+        "exitCode": 0,
+        "durationSeconds": 3.385,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "src/tracker/tracker-action-ownership.contract.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-guard-results.json"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-tracker-guards.json",
+        "sha256": "86482f4501c539a531e3b3afd793c12d16dfc348f92743b2f3e304c678164b5f",
+        "name": "AFTER-intel-tracker-guards",
+        "exitCode": 0,
+        "durationSeconds": 2.315,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "test",
+          "--runInBand",
+          "--runTestsByPath",
+          "test/tracker-board-ownership.contract.spec.ts",
+          "--json",
+          "--outputFile=/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-intel-guard-results.json"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/api-typecheck-full-final-v2.json",
+        "sha256": "137c12bc49e7acee595ddcadff36519b5659b29437b179afd48b129150e5dd3c",
+        "name": "api-typecheck-full-final-v2",
+        "exitCode": 0,
+        "durationSeconds": 225.742,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "run",
+          "typecheck"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/api-build-final.json",
+        "sha256": "e8e30959625df86ed18f87737cd05018f3b6d8fa508d5ab3eb5d3356e98ea4c3",
+        "name": "api-build-final",
+        "exitCode": 0,
+        "durationSeconds": 64.451,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/intel-typecheck-full-final.json",
+        "sha256": "5908d131fd3db7572bbbdf0176a680b02586f5b5b31eb647431d59b307f15f60",
+        "name": "intel-typecheck-full-final",
+        "exitCode": 0,
+        "durationSeconds": 9.803,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "typecheck"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/intel-build-final.json",
+        "sha256": "244b64e2edf6ea3d3a40779085367ea66c9e524c23dcf744d73e32b4a9676c7e",
+        "name": "intel-build-final",
+        "exitCode": 0,
+        "durationSeconds": 11.592,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "run",
+          "build"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/api-new-fixture-semantic-final.json",
+        "sha256": "0b906f2ab909a3692b92fe135732658fe747da4932c245bd9cd820b19dcba629",
+        "name": "api-new-fixture-semantic-final",
+        "exitCode": 0,
+        "durationSeconds": 11.243,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/api",
+          "exec",
+          "tsc",
+          "-p",
+          "tsconfig.tracker-action-ownership.json",
+          "--noEmit"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/intel-new-fixture-semantic-final.json",
+        "sha256": "7bd16431ab869eb35fdc289af4e305d0da2c5320a8056ad7749d22f33332f833",
+        "name": "intel-new-fixture-semantic-final",
+        "exitCode": 0,
+        "durationSeconds": 1.068,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "tsc",
+          "-p",
+          "tsconfig.tracker-action-ownership.json",
+          "--noEmit"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/intel-retained-tracker-semantic-final.json",
+        "sha256": "5bd16184161a77fbd4823fec2b01236d94b882bbc7920b6402bd4206c9559fb0",
+        "name": "intel-retained-tracker-semantic-final",
+        "exitCode": 0,
+        "durationSeconds": 2.979,
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+          "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+          "-C",
+          "apps/intel-api",
+          "exec",
+          "tsc",
+          "-p",
+          "tsconfig.tracker-board-ownership.json",
+          "--noEmit"
+        ],
+        "sourceHead": "1ecd4b71b3243a38585a11cba6535bd7384d668b"
+      }
+    ],
+    "fullApiScriptCompilerAndSafetyChainPassed": true,
+    "fullIntelTypecheckPassed": true,
+    "bothNestBuildsPassed": true,
+    "sharedTypecheckPassed": true,
+    "allThreeStrictFixtureConfigsPassed": true,
+    "ownedNewAndMigratedTsBudgetsPassed": true,
+    "apiFormattingScope": "new import and two compatibility declarations only; inherited original class formatter debt preserved",
+    "testOnlyConfigRootDir": "../..",
+    "retainedTrackerConfigOnlyChangedRootDir": true,
+    "ownLockedOfflineScriptsDisabledDependencies": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/DEPENDENCY-PROVENANCE.json",
+      "sha256": "40ba34a8e552f7d281415b8d248fed130bf33ec078506096742a4b1130e4de83"
+    },
+    "matchedEnginePreparation": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/OFFLINE-ENGINE-PREPARATION.json",
+      "sha256": "83131f378d4c8b2a5bd117c067dc35a13ec416d1e193263c3d8bf585a8ae64ca"
+    },
+    "generatedReuseRejectedBeforeCopy": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/GENERATED-CLIENT-REUSE-REJECTION.json",
+      "sha256": "1807625b9e05fa3c77eb7600b7c6b62987bbe4ed47472d291269fd7b966308cf"
+    },
+    "ownOriginalSchemaGeneration": true,
+    "dummyOfflineDatabaseUrlNotExecuted": true,
+    "inheritedProviderCredentials": false,
+    "nodeSocketDnsFenceUsed": true,
+    "osNetworkSandboxClaimed": false,
+    "staticSourceReview": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/static-final/STATIC-QUALIFICATION-v2.json",
+      "sha256": "492b59545b23013c3fd3826ac79ec887fdbb8bded59c4a2d2958faa45f63169a"
+    },
+    "actualEmittedSyntaxArityDiAndDeclarationReview": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/static-final/EMITTED-QUALIFICATION-v2.json",
+      "sha256": "210d46089ea399d963e6263d424713e1d494f595c5e0cef56862309e8586535e"
+    },
+    "fourActualEmissionsSyntaxCheckedWithoutRuntimeImports": true,
+    "apiEmittedFiveDiTokensPreserved": true,
+    "apiBuildDeclaresNoDeclarationEmit": true,
+    "nativePacketIndependentReview": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/NATIVE-PACKET-INDEPENDENT-REVIEW.json",
+      "sha256": "4f0062ecaf6f5391ee68dd210fffa65ced9851951e9e83cc070e19c8f1e7a913"
+    }
+  },
+  "erasedTypeRepairs": {
+    "annotations": 6,
+    "eachRail": 3,
+    "alwaysThrowGettersOnly": true,
+    "testBodiesInputsAssertionsAndCaseNamesPreserved": true,
+    "commonJsAndEsNextOutputByteIdentical": true,
+    "acceptedNativePacketRemainsApplicable": true,
+    "typedPins": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/characterization/AUTHOR-CHARACTERIZATION-TYPED-PINS-v2.json",
+      "sha256": "56764677f0030681096532f8a125c3e215f045980ae4906b511ae6875349264e"
+    },
+    "apiRepair": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/characterization/typing-repair-getters-v1/REPAIR.json",
+      "sha256": "d1a3fa0b465f9b90c02d55ce7f2ee29bc1b19bdf18d3ce72aa928a885432a8ac"
+    },
+    "intelRepair": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/characterization/typing-repair-intel-getters-v1/REPAIR.json",
+      "sha256": "2cbc34ed0d94f9b16460c7dd1d668f100466549a4e0f109a4eb9cabd95ed6cf1"
+    },
+    "independentApi": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/TYPING-ERASURE-INDEPENDENT-REVIEW.json",
+      "sha256": "7d043758a2d61eecb3b630e3a62935501b03578d5b9639ce09b3b7f2338a6496"
+    },
+    "independentIntel": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/TYPING-ERASURE-INTEL-INDEPENDENT-REVIEW.json",
+      "sha256": "109dce717f15ad64af91ed6e4bfb9da493a0b050b21b42ae70f8b088d2f27dae"
+    }
+  },
+  "independentSourceReviews": [
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/PRIVATE-SOURCE-REVIEW.json",
+      "sha256": "fc8da5edcbd9d06f560306da47785a32373d278041e73169ca0863c146814c64"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/PRIVATE-ADAPTER-REVIEW-v2.json",
+      "sha256": "a332fdba06c30e11493dcb656d472d0388fdcfe5078f61216b78203e15b02d16"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/ACTUAL-INTEGRATION-REVIEW.json",
+      "sha256": "c69248a1317b076823ac17607aa5d4cda0b22fd8f3ad61f351343a21f79adef0"
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/review/GUARD-MIGRATION-INDEPENDENT-REVIEW-v2.json",
+      "sha256": "ddfc68caa625c6d38eb46fcc8363cab67e5fc47f9d516ae5c79555da4e3bb48e"
+    }
+  ],
+  "recovery": {
+    "beforeTag": "backend-cleanup-tracker-action-before-20261013",
+    "beforeBundleSha256": "48aacb301a1d172bbd06671f291b7be5dce9e90840804c0e1c1ba2b3b3425a4e",
+    "beforeBundleRequires": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+    "beforeBundleVerified": true,
+    "readonlyOriginalAssetsPreserved": true,
+    "rollback": "revert the one source draft commit to restore PR2485",
+    "earlierDraftsAndFailedEvidencePreserved": true,
+    "failedNativeReceipts": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/api-typecheck-full-final.json",
+        "sha256": "4a1d4d086c890e7b7c2a67acf96be66d202b48d7550a3fb66b22a0290f00f818"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/AFTER-api-characterization-v3.json",
+        "sha256": "a27c093daa4235a9ab46de6472c5236809978c011aebf95f284d802fc3ebcfe4"
+      }
+    ],
+    "initialCoverageReportsMissingSharedPreserved": true,
+    "supplementalInstrumentationCorrections": [
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/COVERAGE-INSTRUMENTATION-CORRECTION.json",
+        "sha256": "c42ab23f7ccadd4bf42b455a9dc085f18ed89489a03558a1a8cded9864197a63"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/COVERAGE-INSTRUMENTATION-CORRECTION-v3.json",
+        "sha256": "749202061a1d7138e22ed5ef66a1f6afa69ade5f65700f8ad0f9e81410a67c99"
+      },
+      {
+        "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/COVERAGE-INSTRUMENTATION-CORRECTION-v4.json",
+        "sha256": "3a25b959c9a13cc17003e92e5431a75ef3c254e206cfecd13d47b26667a79b39"
+      }
+    ],
+    "frozenNativeRaw": {
+      "path": "/workspace/backend-cleanup-recovery-20261012/tracker-action-1ecd4b71-20261013/FROZEN-NATIVE-RAW.json",
+      "sha256": "15c1bdd0e861b84c7403c788730fb647ccce35e7116014a3215f8ebf4b358fe1"
+    }
+  },
+  "closeout": {
+    "map": "CLEANUP-CLOSEOUT-MAP.json",
+    "originalGroups": 84,
+    "finiteQualified": 6,
+    "bindingPreservation": 15,
+    "implementationPrimary": 18,
+    "blockedOrAcceptancePrimary": 45,
+    "remaining": 63,
+    "finiteWorkstreams": 15,
+    "thisSliceResolvesAlgorithmInstances": 2,
+    "wholeOriginalGroupsCompletedByThisSlice": 0,
+    "blockedPrimarySubtotals": {
+      "executionOrProvenance": 15,
+      "aggregateGates": 3,
+      "ownerSecurityAdrProtectedScope": 27
+    }
+  },
+  "preservation": {
+    "legacyFrontendMeriSourcesRetained": true,
+    "migrationAndIncidentHistoryRetained": true,
+    "unpublishedEngagementRetained": true,
+    "originalAndRebuildBranchesUntouched": true,
+    "defenseAndPeMirrorsUnchanged": true,
+    "noDatabaseProviderAwsCredentialsOrSecurityMutation": true,
+    "noRepositoryCreationOrRemoteChange": true,
+    "noMainMergeOrDeployment": true
+  },
+  "acceptance": {
+    "finiteSourceQualification": true,
+    "actualPrCiExecution": false,
+    "mainOnlyCiTriggerPreserved": true,
+    "stackTargetedDraftDoesNotProveCiExecution": true,
+    "frontendOrLegacyRetirement": false,
+    "replacementAcceptance": false,
+    "allPackageFoundation": false,
+    "historicalCoverageFloor": false,
+    "composedCleanupRelease": false,
+    "originalGlobalCleanupAccepted": false,
+    "intelligencePr2480IsNonInheritedSibling": true
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "originalFilename": "hygiene-attempt-1.raw",
+  "bytes": 131,
+  "sha256": "2297df22fa78657c7e8fe2e00c58ebbae727abfab86f12eaad39f285bbd11f43",
+  "encoding": "base64",
+  "data": "eyJzZWFsZWRQYXlsb2FkcyI6MzgsImxvc3NsZXNzUmF3T2JzZXJ2YXRpb25zIjoxMH0KZG9jcy9iYWNrZW5kLWRpcmVjdG9yeS1vYmplY3RpdmUtMjAyNjEwMTQvSEFORE9GRi5tZDo3NzogbmV3IGJsYW5rIGxpbmUgYXQgRU9GLgo=",
+  "exitCode": 2,
+  "command": "node seal-packet.cjs && git add packet && git diff --cached --check && source hygiene; cached diff stopped on HANDOFF extra EOF before source gate ran"
+}

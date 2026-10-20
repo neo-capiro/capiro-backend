@@ -1,0 +1,630 @@
+{
+  "frontendRef": "7e170defb9442aa3ce0fd1d5b14060af831ce8d0",
+  "backendRef": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "backendTree": "03d6508d021825621f921aa37a5da6d235bb63e0",
+  "oldMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "node": "v24.19.0",
+  "typescript": "5.9.3",
+  "zod": "4.6.5",
+  "classValidator": "0.15.1",
+  "scope": "Selected actual canonical owner create/list/headOf methods and DTO decorators; actual pure Watcher emitter/helper declarations; exact frontend response schema with real Zod; synthetic in-memory transactions/JSON serialization only. Not full DI/HTTP/guards/provider/native/database acceptance. No customer/live payload fetched; no auth/source/ref change.",
+  "sourceFingerprints": [
+    {
+      "repository": "frontend",
+      "key": "contracts",
+      "path": "apps/web/src/shared/capiro/contracts.ts",
+      "gitBlob": "c1ee3a85403436220bd8907e79aaa02345c53208",
+      "bytes": 4985,
+      "sha256": "78ec4209d45f9e309ba6ba34b992950bf26ddf5f8318a6e0995d08194d500afb"
+    },
+    {
+      "repository": "frontend",
+      "key": "schemas",
+      "path": "apps/web/src/shared/capiro/operations/strategies-schemas.ts",
+      "gitBlob": "a6644db394a171f08cb1955b62148ab5d5bcf2fd",
+      "bytes": 4468,
+      "sha256": "f85e43981b0401dde164e1cb32462d2ddf58d8f4678928549523eebb80ec2f3c"
+    },
+    {
+      "repository": "frontend",
+      "key": "agents",
+      "path": "apps/web/src/shared/capiro/operations/strategies-agents.ts",
+      "gitBlob": "134cc85f069b74a66d277703d2573c9c26e621ed",
+      "bytes": 11701,
+      "sha256": "b7810563690397e620f1b83e97441885f738e2ad77f54a2988fa77f1f166b819"
+    },
+    {
+      "repository": "backend",
+      "key": "service",
+      "path": "apps/api-strategy/src/agents/change-sets.service.ts",
+      "gitBlob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+      "bytes": 23779,
+      "sha256": "f565821dbfb4b26b8b0f3bb3542dc51caa5dfdb153a7908836b2c047749e786f"
+    },
+    {
+      "repository": "backend",
+      "key": "dto",
+      "path": "apps/api-strategy/src/agents/dto/agents.dto.ts",
+      "gitBlob": "545da21e7e4fb7ee94426c26fb055ee8d12021ba",
+      "bytes": 8043,
+      "sha256": "eb3f7d0e0675e5ff30d04e0495b7be9f427a530da34ac3686796fa60edd47dba"
+    },
+    {
+      "repository": "backend",
+      "key": "checks",
+      "path": "apps/api-strategy/src/agents/watcher-checks.ts",
+      "gitBlob": "5ece49213c2ab7e8339879639f2eee65fe0e83b6",
+      "bytes": 23356,
+      "sha256": "ff0d33101d28db5667383f98d05cb5d6adc7120e221c6c2a2d28dab5c51161e1"
+    },
+    {
+      "repository": "backend",
+      "key": "health",
+      "path": "packages/strategy-verifier/src/plan-health.ts",
+      "gitBlob": "80a0c8b91b3bd4b8a7a07a9a853b5be67af134c0",
+      "bytes": 4425,
+      "sha256": "da8f3fdff052a5c49ae9186fedb65cb49cf08e892179e2ed1d3f2c071be46fc3"
+    },
+    {
+      "repository": "backend",
+      "key": "verify",
+      "path": "packages/strategy-verifier/src/verify.ts",
+      "gitBlob": "a264b60eaa18e18faa55199e20e8d7f82f9466d1",
+      "bytes": 17713,
+      "sha256": "5d324784ae211528fc7d0ac91a64aaa0ea0f9ba3a11955de09fe7c1a9366c8d6"
+    }
+  ],
+  "pinnedSchema": {
+    "gitBlob": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25",
+    "bytes": 43139,
+    "sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+    "statuses": [
+      "proposed",
+      "approved",
+      "rejected",
+      "applied",
+      "undone",
+      "stale",
+      "superseded"
+    ],
+    "risks": [
+      "low",
+      "medium",
+      "high",
+      "critical"
+    ]
+  },
+  "methodSelection": [
+    "constructor",
+    "headOf",
+    "create",
+    "list"
+  ],
+  "watcherSelection": [
+    "checkOverdue",
+    "checkDependencySlippage"
+  ],
+  "cases": [
+    {
+      "name": "Prisma model Date objects serialize to string JSON with nullable fields",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum proposed/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum proposed/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum proposed/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum proposed/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum approved/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum approved/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum approved/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum approved/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum rejected/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum rejected/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum rejected/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum rejected/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum applied/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum applied/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum applied/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum applied/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum undone/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum undone/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum undone/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum undone/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum stale/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum stale/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum stale/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum stale/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum superseded/low",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum superseded/medium",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum superseded/high",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "pinned enum superseded/critical",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "model nullable field populated approvedAt",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "model nullable field populated appliedAt",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "model nullable field populated appliedVersionId",
+      "classification": "canonical-model",
+      "pass": true,
+      "accepted": true
+    },
+    {
+      "name": "legal PlanEdit syntax 0",
+      "classification": "declared-planedit",
+      "pass": true,
+      "accepted": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true
+    },
+    {
+      "name": "legal PlanEdit syntax 1",
+      "classification": "declared-planedit",
+      "pass": true,
+      "accepted": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true
+    },
+    {
+      "name": "legal PlanEdit syntax 2",
+      "classification": "declared-planedit",
+      "pass": true,
+      "accepted": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true
+    },
+    {
+      "name": "legal PlanEdit syntax 3",
+      "classification": "declared-planedit",
+      "pass": true,
+      "accepted": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true
+    },
+    {
+      "name": "legal PlanEdit syntax 4",
+      "classification": "declared-planedit",
+      "pass": true,
+      "accepted": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true
+    },
+    {
+      "name": "legal PlanEdit syntax 5",
+      "classification": "declared-planedit",
+      "pass": true,
+      "accepted": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true
+    },
+    {
+      "name": "actual overdue retime",
+      "classification": "actual-watcher-emitter",
+      "pass": true,
+      "accepted": true,
+      "emittedOps": 1
+    },
+    {
+      "name": "actual dependency range retime",
+      "classification": "actual-watcher-emitter",
+      "pass": true,
+      "accepted": true,
+      "emittedOps": 1
+    },
+    {
+      "name": "actual dependency point retime",
+      "classification": "actual-watcher-emitter",
+      "pass": true,
+      "accepted": true,
+      "emittedOps": 1
+    },
+    {
+      "name": "DTO-admitted opaque ops null operation",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0
+          ],
+          "code": "invalid_type",
+          "expected": "object"
+        }
+      ]
+    },
+    {
+      "name": "DTO-admitted opaque ops scalar operation",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0
+          ],
+          "code": "invalid_type",
+          "expected": "object"
+        }
+      ]
+    },
+    {
+      "name": "DTO-admitted opaque ops unknown discriminator",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0,
+            "op"
+          ],
+          "code": "invalid_value",
+          "expected": null
+        }
+      ]
+    },
+    {
+      "name": "DTO-admitted opaque ops null title",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0,
+            "title"
+          ],
+          "code": "invalid_type",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "name": "DTO-admitted opaque ops null startsOn",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0,
+            "startsOn"
+          ],
+          "code": "invalid_type",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "name": "DTO-admitted opaque ops numeric nodeId",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0,
+            "nodeId"
+          ],
+          "code": "invalid_type",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "name": "DTO-admitted opaque ops null source ref",
+      "classification": "specified-admission-read-gap-live-field-unknown",
+      "pass": true,
+      "dtoAccepted": true,
+      "ownerPersistedUnchanged": true,
+      "listIsArray": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops",
+            0,
+            "sources",
+            0,
+            "ref"
+          ],
+          "code": "invalid_type",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "name": "hypothetical noncanonical row ops JSON null",
+      "classification": "hypothetical-not-known-live",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "ops"
+          ],
+          "code": "invalid_type",
+          "expected": "array"
+        }
+      ]
+    },
+    {
+      "name": "hypothetical noncanonical row summary null",
+      "classification": "hypothetical-not-known-live",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "summary"
+          ],
+          "code": "invalid_type",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "name": "hypothetical noncanonical row status alternate enum",
+      "classification": "hypothetical-not-known-live",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "status"
+          ],
+          "code": "invalid_value",
+          "expected": null
+        }
+      ]
+    },
+    {
+      "name": "hypothetical noncanonical row risk alternate enum",
+      "classification": "hypothetical-not-known-live",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "risk"
+          ],
+          "code": "invalid_value",
+          "expected": null
+        }
+      ]
+    },
+    {
+      "name": "hypothetical noncanonical row missing nullable approvedAt",
+      "classification": "hypothetical-not-known-live",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "approvedAt"
+          ],
+          "code": "invalid_type",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "name": "hypothetical noncanonical row invalid id",
+      "classification": "hypothetical-not-known-live",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [
+            0,
+            "id"
+          ],
+          "code": "invalid_format",
+          "expected": null
+        }
+      ]
+    },
+    {
+      "name": "hypothetical object envelope rejected",
+      "classification": "hypothetical-not-canonical-list",
+      "pass": true,
+      "frontendAccepted": false,
+      "issues": [
+        {
+          "path": [],
+          "code": "invalid_type",
+          "expected": "array"
+        }
+      ]
+    }
+  ],
+  "passed": 55,
+  "failed": 0,
+  "skipped": 0,
+  "conclusion": "Pinned model serialization, enums, declared PlanEdit syntax and actual Watcher emissions are compatible. Normal CreateChangeSetDto admission intentionally lacks deep ops validation, canonical create/list preserve that JSON, and the frontend read parser rejects those demonstrated opaque invalid ops. The actual live failing issue path remains unknown; no attribution or parser relaxation follows."
+}

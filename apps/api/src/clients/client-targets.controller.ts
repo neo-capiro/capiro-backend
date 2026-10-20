@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ClientTargetsService } from './client-targets.service.js';
+import { ObjectiveDestinationQueryDto } from './objectives/objective-destination.js';
 
 class AddTargetDto {
   // Widened to 128: OpenStates state-legislator ids ("ocd-person/<uuid>") are
@@ -51,6 +52,17 @@ export class ClientTargetsController {
   @Get()
   listTargets(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.listTargets(ctx, clientId);
+  }
+
+  @Get(':targetId/objective-destination')
+  @Header('Cache-Control', 'private, no-store')
+  objectiveDestination(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Param('targetId', ParseUUIDPipe) targetId: string,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.service.objectiveDestination(ctx, clientId, targetId, query);
   }
 
   @Post()

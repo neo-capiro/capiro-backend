@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { ObjectiveGenerationContextService } from './objective-generation-context.service.js';
 import {
   StrategyContextPlaneService,
   type StrategyArtifactKind,
@@ -7,6 +8,10 @@ import {
 } from './strategy-context-plane.service.js';
 
 interface CompileStrategyContextBody {
+  objective?: { objectiveId: string; objectiveVersion: number };
+  objectiveTypedContext?: boolean;
+  generationRequestId?: string;
+  generationType?: string;
   tenantId?: string;
   clerkUserId?: string;
   clientId?: string;
@@ -27,10 +32,20 @@ interface CompileStrategyContextBody {
 @Controller('internal/strategy/context')
 @UseGuards(InternalServiceGuard)
 export class InternalStrategyContextController {
-  constructor(private readonly strategyContext: StrategyContextPlaneService) {}
+  constructor(private readonly strategyContext: StrategyContextPlaneService,
+    private readonly objectiveContext?: ObjectiveGenerationContextService) {}
+
+  @Post('objective-check')
+  async objectiveCheck(@Body() body: CompileStrategyContextBody) {
+    validateObjective(body);
+    if (!body.objective || !this.objectiveContext) throw new BadRequestException('Objective selector required');
+    return this.strategyContext.checkObjective({ ...body, mode: 'draft',
+      tenantId: required(body.tenantId, 'tenantId'), clerkUserId: required(body.clerkUserId, 'clerkUserId'), clientId: required(body.clientId, 'clientId') });
+  }
 
   @Post('compile')
   async compile(@Body() body: CompileStrategyContextBody) {
+    validateObjective(body);
     const mode = body.mode;
     if (mode !== 'draft' && mode !== 'assistant' && mode !== 'document') {
       throw new BadRequestException('Unsupported Strategy context mode');
@@ -53,8 +68,28 @@ export class InternalStrategyContextController {
       nodeId: stringOrNull(body.nodeId),
       traceId: stringOrNull(body.traceId),
       artifactKind,
+      ...(body.objective ? { objective: body.objective, generationRequestId: body.generationRequestId, generationType: body.generationType,
+        ...(body.objectiveTypedContext === true ? { objectiveTypedContext: true } : {}) } : {}),
     });
   }
+}
+
+function validateObjective(body: CompileStrategyContextBody) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('Invalid Strategy context request');
+  if (body.objectiveTypedContext !== undefined && typeof body.objectiveTypedContext !== 'boolean' ||
+      body.objectiveTypedContext === true && !body.objective)
+    throw new BadRequestException('Invalid Objective typed context request');
+  if (!body.objective && body.generationRequestId == null && body.generationType == null) return;
+  const allowed = ['tenantId','clerkUserId','clientId','mode','query','strategyId','nodeId','traceId','artifactKind','objective','objectiveTypedContext','generationRequestId','generationType'];
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const selector = body.objective;
+  if (Object.keys(body).some(k => !allowed.includes(k)) || !selector ||
+      Object.keys(selector).sort().join(',') !== 'objectiveId,objectiveVersion' ||
+      body.mode !== 'draft' || body.strategyId != null || body.nodeId != null || body.artifactKind != null ||
+      ![body.tenantId, body.clientId, body.generationRequestId, selector.objectiveId].every(v => typeof v === 'string' && uuid.test(v)) ||
+      !Number.isInteger(selector.objectiveVersion) || selector.objectiveVersion < 1 || selector.objectiveVersion > 2147483647 ||
+      !['appropriations','authorization','regulatory','coalition','procurement','earmark','amendment'].includes(body.generationType ?? ''))
+    throw new BadRequestException('Invalid Objective context request');
 }
 
 function required(value: unknown, field: string): string {

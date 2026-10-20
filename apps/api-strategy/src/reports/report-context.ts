@@ -190,7 +190,6 @@ function contextMetadata(document: ReportContextDocumentInput): {
   authority: string | null;
   confidentiality: string | null;
   asOf: string | null;
-  sourceOfTruth: boolean | null;
 } {
   const stored = asRecord(document.frontmatter);
   const parsed = parseFrontmatter(document.content).frontmatter;
@@ -199,10 +198,6 @@ function contextMetadata(document: ReportContextDocumentInput): {
     authority: stringValue(source?.authority),
     confidentiality: stringValue(source?.confidentiality),
     asOf: dateValue(source?.as_of),
-    sourceOfTruth:
-      typeof source?.source_of_truth === "boolean"
-        ? source.source_of_truth
-        : null,
   };
 }
 

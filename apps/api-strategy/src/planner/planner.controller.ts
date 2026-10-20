@@ -23,12 +23,35 @@ import { ObjectiveDestinationQueryDto } from '../strategy/objective-destination.
 import { PlannerContextGuard } from './planner-context.guard.js';
 import { PlannerFormUploadInterceptor } from './planner-form-upload.js';
 import type { PlannerFormUpload } from './planner-files.js';
+import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 
 /** Work Planner has its own project ACLs; it does not inherit the PPBE rollout flag. */
 @Controller('planner')
 @UseGuards(TenantGuard, PlannerContextGuard)
 export class PlannerController {
   constructor(private readonly planner: PlannerService) {}
+  @Post('strategy-materializations')
+  @UseGuards(StrategyPlannerGuard)
+  @Header('Cache-Control', 'private, no-store')
+  prepareStrategyPlan(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+    @Req() req: Request,
+  ) {
+    requirePlannerCommandScope(ctx, req.headers);
+    return this.planner.prepareStrategyPlan(ctx, dto);
+  }
+  @Get('strategy-materializations/:requestId')
+  @UseGuards(StrategyPlannerGuard)
+  @Header('Cache-Control', 'private, no-store')
+  strategyMaterialization(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('requestId') requestId: string,
+    @Req() req: Request,
+  ) {
+    requirePlannerCommandScope(ctx, req.headers);
+    return this.planner.strategyMaterialization(ctx, requestId);
+  }
   @Get('bootstrap') bootstrap(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.bootstrap(ctx);
   }

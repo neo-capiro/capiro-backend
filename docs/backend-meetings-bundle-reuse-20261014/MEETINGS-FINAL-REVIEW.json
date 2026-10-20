@@ -1,0 +1,260 @@
+{
+  "decision": "ACCEPTED_FOR_ROOT_AUTHORIZED_DRAFT_PUBLICATION_ON_PR11_BASE",
+  "candidateHead": "47b37ed145d8a92675c5e823c072744e49790a92",
+  "candidateTree": "cfa6c28fd830ab6c5b5b71f2018ab8166fba450f",
+  "sourceHead": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+  "sourceTree": "6f5086f584c9915f4fd417b09c7545eb6e0f70a7",
+  "publishingBase": "cc0cfaafe6f83c544b47c6e01559f29dc0953b84",
+  "ordinaryUnion": {
+    "state": "EXACT_GIT_UNION_AND_FROZEN_PACKET_CHECKPOINT; awaiting author authoritative finalpin/docs seal",
+    "head": "f5a3e50721660edef92d89a3f23ec3e6a5b7381b",
+    "tree": "fc761b61b5bfc6ace3ad7e4fb4147ac14a3e4474",
+    "parents": [
+      "02776c5d1eb4b55fe5a49d78c2c522b02f53e277",
+      "cc0cfaafe6f83c544b47c6e01559f29dc0953b84"
+    ],
+    "mergeBase": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+    "parent1DeltaPaths": [
+      "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "docs/backend-meetings-bundle-reuse-20261014/CASE-COMPARISON.json",
+      "docs/backend-meetings-bundle-reuse-20261014/HANDOFF.md",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-SOURCE-ACCEPTANCE.md",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-SOURCE-CHECKPOINT.json",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-STRICT-REVIEW.json",
+      "docs/backend-meetings-bundle-reuse-20261014/SHA256-INDEX.json",
+      "docs/backend-meetings-bundle-reuse-20261014/SOURCE-RECEIPT.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-baseline-hydration.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-red-hydration.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-expanded-red-hydration.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/07-types-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/07-types-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/07-types-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/09-unstarted-sandbox-failure.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/10-types-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/10-types-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/10-types-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/ENVIRONMENT-CAPACITY-CUSTODY.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/check-types.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/focused.jest.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/prepare-source.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/run-focused.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/run-types.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/seal.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/source-refusal-preload.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/typescript-transformer.cjs"
+    ],
+    "parent2DeltaPaths": [
+      "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+      "docs/backend-prune-script-syntax-20261014/DISCOVERY-FAILURES.json",
+      "docs/backend-prune-script-syntax-20261014/DONOR-SOURCE.lossless.json",
+      "docs/backend-prune-script-syntax-20261014/EXPECTED-DELTA.json",
+      "docs/backend-prune-script-syntax-20261014/HANDOFF.md",
+      "docs/backend-prune-script-syntax-20261014/INDEPENDENT-REVIEW.json",
+      "docs/backend-prune-script-syntax-20261014/INDEPENDENT-REVIEW.md",
+      "docs/backend-prune-script-syntax-20261014/MERGE-RECEIPT.json",
+      "docs/backend-prune-script-syntax-20261014/SHA256-INDEX.json",
+      "docs/backend-prune-script-syntax-20261014/SOURCE-RECEIPT.json",
+      "docs/backend-prune-script-syntax-20261014/SQL-BYTE-PROOF.json",
+      "docs/backend-prune-script-syntax-20261014/UNION-INDEPENDENT-REVIEW.json",
+      "docs/backend-prune-script-syntax-20261014/check-strict-operator.cjs",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-regressions-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-regressions-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-strict-compile-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-strict-compile-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-original-syntax-regressions-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-original-syntax-regressions-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-published-base-hygiene-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-published-base-hygiene-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-source-hygiene-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-source-hygiene-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/run-check.py",
+      "docs/backend-prune-script-syntax-20261014/seal-packet.mjs",
+      "scripts/cleanup-script-smoke/assistance-recipient-prune-syntax.test.mjs"
+    ],
+    "overlapPaths": [],
+    "exactModeTypeBlobUnion": true,
+    "trackedTreeEntries": 27749,
+    "indexedPayloadsVerified": 53,
+    "losslessStreamsVerified": [
+      "evidence/01-stderr.lossless.json",
+      "evidence/01-stdout.lossless.json",
+      "evidence/02-stderr.lossless.json",
+      "evidence/02-stdout.lossless.json",
+      "evidence/03-stderr.lossless.json",
+      "evidence/03-stdout.lossless.json",
+      "evidence/04-stderr.lossless.json",
+      "evidence/04-stdout.lossless.json",
+      "evidence/05-stderr.lossless.json",
+      "evidence/05-stdout.lossless.json",
+      "evidence/06-stderr.lossless.json",
+      "evidence/06-stdout.lossless.json",
+      "evidence/07-types-stderr.lossless.json",
+      "evidence/07-types-stdout.lossless.json",
+      "evidence/08-stderr.lossless.json",
+      "evidence/08-stdout.lossless.json",
+      "evidence/10-types-stderr.lossless.json",
+      "evidence/10-types-stdout.lossless.json"
+    ],
+    "reviewNotesExact": true,
+    "all342PassingStrictSourceInputsUnchanged": true,
+    "allReceivedPr11PathsExact": true,
+    "limits": "Read-only Git/evidence verification only; no source/ref edits or test/runtime/compiler runs. Previously accepted synthetic/narrow-type qualification carries unchanged inputs only; no native/live acceptance."
+  },
+  "finalDocsOnlyFollowupFromUnion": [
+    "HANDOFF.md",
+    "MERGE-RECEIPT.json",
+    "SHA256-INDEX.json",
+    "evidence/seal.cjs"
+  ],
+  "factualDocsCorrection": {
+    "priorHead": "d68ec36b3cc155901ed620b13e1d3f9628a20bbb",
+    "changedPaths": [
+      "docs/backend-meetings-bundle-reuse-20261014/HANDOFF.md",
+      "docs/backend-meetings-bundle-reuse-20261014/SHA256-INDEX.json"
+    ],
+    "onlyHandoffPhraseChanged": true
+  },
+  "verifiedPacketPayloads": 54,
+  "losslessObservations": [
+    {
+      "path": "evidence/01-stderr.lossless.json",
+      "bytes": 951,
+      "sha256": "84d41d99ac2b042f1a84f6a22f7324bc9b15f2fcac87beeefd3b785e92762a3c"
+    },
+    {
+      "path": "evidence/01-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-stderr.lossless.json",
+      "bytes": 11475,
+      "sha256": "d03e63f86a60a3ce34104a31c6c0c5a3b9aff2e5707a486071a3f4c9bbab201c"
+    },
+    {
+      "path": "evidence/02-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/03-stderr.lossless.json",
+      "bytes": 2466,
+      "sha256": "86609e19b3add351f5a183b0618ad3212a64dc8d780b47b0907ab9726c57f719"
+    },
+    {
+      "path": "evidence/03-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/04-stderr.lossless.json",
+      "bytes": 23597,
+      "sha256": "e2a5931c3dee5d15d8ca064999e75caaf641a65ce2d146d1e7530e748f71fc89"
+    },
+    {
+      "path": "evidence/04-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/05-stderr.lossless.json",
+      "bytes": 27619,
+      "sha256": "12322f76f3e6d5f841a06a5810f026af15fc5884102b832f62e801b82c0181b9"
+    },
+    {
+      "path": "evidence/05-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/06-stderr.lossless.json",
+      "bytes": 2999,
+      "sha256": "08f815d2ee96b88ec1d6f59595d60d3d17cd478ab6569598a8421f26a6abead8"
+    },
+    {
+      "path": "evidence/06-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/07-types-stderr.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/07-types-stdout.lossless.json",
+      "bytes": 575325,
+      "sha256": "5fa52a7c4cfefbede0b113b860a13834f38d62e80c0fd14e4ca731db96cbb5a8"
+    },
+    {
+      "path": "evidence/08-stderr.lossless.json",
+      "bytes": 3015,
+      "sha256": "319f0c95339188f3176abb2e2276e3c7cc26ab4af5deb93cad7c87320d64f889"
+    },
+    {
+      "path": "evidence/08-stdout.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/10-types-stderr.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/10-types-stdout.lossless.json",
+      "bytes": 572626,
+      "sha256": "7d2f02437646dc4584c00ba1c90884901b6d0de083de37a5793a626ab6d65cb0"
+    }
+  ],
+  "allReviewNotesExact": true,
+  "all342StrictGitSourceInputsAnd4ConfigsUnchanged": true,
+  "all1740CachedDeclarationsRecheckedUnchanged": true,
+  "allHistoricalCheckSourceAndPublishedHeadsAncestors": true,
+  "matchingQualification": {
+    "jestAttempt": "08",
+    "pass": 28,
+    "all7OriginalIdentitiesRetained": true,
+    "expandedRed15Fail13PassSame28Identities": true,
+    "strictAttempt": "10",
+    "sources": 2082,
+    "diagnostics": 0
+  },
+  "limits": [
+    "Source/synthetic actual-factory/context-service composition and narrow strict closure only",
+    "No compiler/test/owner/provider execution by reviewer",
+    "Same-actor/client parallel mode fixture only; no live cross-tenant qualification",
+    "Client mismatch is existing canonical public AI owner, no added raw-token client check",
+    "NativePostgres/RLS/liveprovider/authsession/generatedschema/deployedimage/runtime-retirement remain unqualified"
+  ],
+  "rootAuthorization": "Root explicitly authorized draft publication after independent source/finalpacket/ordinary-union acceptance; no mainmerge/deployment"
+}

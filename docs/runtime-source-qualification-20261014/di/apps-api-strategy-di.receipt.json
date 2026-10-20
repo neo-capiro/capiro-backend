@@ -1,0 +1,19 @@
+{
+  "owner": "apps/api-strategy",
+  "exitCode": 0,
+  "seconds": 1.693,
+  "runnerSha256": "67c5bb75e99a40516b0ab4d8808fd36b79514ca66e95d6980b7ab129b83342e2",
+  "raw": {
+    "apps-api-strategy-di.stdout": {
+      "bytes": 290,
+      "sha256": "f8d54f83d0e4248b0cdacfc8b41d40664625ec679d9501a8d31a38228075bb23"
+    },
+    "apps-api-strategy-di.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "databasePortStrictMock": true,
+  "nodeKey": "node20",
+  "applicationInitRequested": false
+}

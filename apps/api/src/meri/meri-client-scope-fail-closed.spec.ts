@@ -82,6 +82,17 @@ describe('Session client scope — the chat tool loop enforces, it does not defa
     expect(text).toContain('if (conversation.clientId && !isBridged) {');
   });
 
+  it('binds clientless memory tools and checks the current wall before dispatching a client save', () => {
+    const binding = text.indexOf('bindUnscopedMemoryTool(t.name, parsedInput)');
+    const wall = text.indexOf('clientMemorySaveWallRefusal(');
+    const dispatch = text.indexOf('preparedTools.push({', binding);
+    expect(binding).toBeGreaterThan(-1);
+    expect(wall).toBeGreaterThan(binding);
+    expect(dispatch).toBeGreaterThan(wall);
+    expect(text.slice(binding, dispatch)).toContain('if (bound.refusal) scopeViolation = bound.refusal;');
+    expect(text.slice(wall, dispatch)).toContain('clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)');
+  });
+
   it('resolves an exact client NAME for this session rather than refusing it', () => {
     // find_contacts documents a name in clientId; a name that IS this session's
     // client must resolve, not cost the user a refusal round-trip.
@@ -191,11 +202,13 @@ describe('Session client scope — governed memory retrieval keeps the firm-wide
   const text = read('../retrieval/adapters/institutional-knowledge-retrieval.adapter.ts');
 
   it('reads firm-wide memory plus the scoped client, and no other client', () => {
-    expect(text).toContain(
+    const eligibility = read('../retrieval/adapters/governed-memory-eligibility.helpers.ts');
+    expect(text).toContain('canonicalMemoryEligibilitySql');
+    expect(eligibility).toContain(
       'AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))',
     );
     // Re-checked in JS after the query, so a predicate edit alone cannot leak.
-    expect(text).toContain('(!row.clientId || allowedClientIds.includes(row.clientId)) &&');
+    expect(eligibility).toContain('(!row.clientId || allowedClientIds.includes(row.clientId)) &&');
   });
 
   it('refuses the read outright rather than widening when the scope is not allowed', () => {

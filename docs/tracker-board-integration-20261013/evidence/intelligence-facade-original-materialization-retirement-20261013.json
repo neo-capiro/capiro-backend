@@ -1,0 +1,21 @@
+{
+  "sourceHeadPreserved": "13a1007ff6cdddc4ac01b0294fbcf099161d88fc",
+  "publishedHead": "10ce63e7b3d4350070e311f1304297c46986bd87",
+  "publishedTree": "5c9179b7655b5a18358a0982287159b65b6419cf",
+  "ownedOriginalSourceMaterializationRetired": [
+    {
+      "path": "/tmp/capirov2-intelligence-facade-integration-20261013/apps",
+      "files": 2657,
+      "bytes": 30126043,
+      "source": "exact tracked materialization of preserved13a review head; qualification complete; product bodies available in Git"
+    },
+    {
+      "path": "/tmp/capirov2-intelligence-facade-integration-20261013/packages",
+      "files": 344,
+      "bytes": 2880354,
+      "source": "exact tracked materialization of preserved13a review head; qualification complete; product bodies available in Git"
+    }
+  ],
+  "originalGitIndexLimitation": "Workspacefilesystem0free prevents updating the original sparse index; retired checkout intentionally shows missing materialization, not a committed product deletion. Published clone/index/source commit remain clean. No borrowed directory, cache, branch or Git object was removed.",
+  "originalUntrackedPacketPreserved": true
+}

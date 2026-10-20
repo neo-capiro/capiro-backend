@@ -1,0 +1,54 @@
+[31m[Nest] 1104654  - [39m10/14/2026, 3:37:07 AM [31m  ERROR[39m [38;5;3m[ExceptionHandler] [39m[31mNest can't resolve dependencies of the NewsletterAccountProvider (ClerkService, ?). Please make sure that the argument TenantAdminService at index [1] is available in the WorkspaceCollabModule context.
+
+Potential solutions:
+- Is WorkspaceCollabModule a valid NestJS module?
+- If TenantAdminService is a provider, is it part of the current WorkspaceCollabModule?
+- If TenantAdminService is exported from a separate @Module, is that module imported within WorkspaceCollabModule?
+  @Module({
+    imports: [ /* the Module containing TenantAdminService */ ]
+  })
+[39m
+Error: Nest can't resolve dependencies of the NewsletterAccountProvider (ClerkService, ?). Please make sure that the argument TenantAdminService at index [1] is available in the WorkspaceCollabModule context.
+
+Potential solutions:
+- Is WorkspaceCollabModule a valid NestJS module?
+- If TenantAdminService is a provider, is it part of the current WorkspaceCollabModule?
+- If TenantAdminService is exported from a separate @Module, is that module imported within WorkspaceCollabModule?
+  @Module({
+    imports: [ /* the Module containing TenantAdminService */ ]
+  })
+
+    at Injector.lookupComponentInParentModules (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/injector.js:262:19)
+    at async Injector.resolveComponentInstance (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/injector.js:215:33)
+    at async resolveParam (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/injector.js:129:38)
+    at async Promise.all (index 1)
+    at async Injector.resolveConstructorParams (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/injector.js:144:27)
+    at async Injector.loadInstance (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/injector.js:70:13)
+    at async Injector.loadProvider (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/injector.js:98:9)
+    at async /workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/instance-loader.js:56:13
+    at async Promise.all (index 7)
+    at async InstanceLoader.createInstancesOfProviders (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+    at async /workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/instance-loader.js:40:13
+    at async Promise.all (index 78)
+    at async InstanceLoader.createInstances (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+    at async InstanceLoader.createInstancesOfDependencies (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+    at async /workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/nest-factory.js:108:17
+    at async ExceptionsZone.asyncRun (/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/errors/exceptions-zone.js:22:13)
+/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs:51
+  throw new Error(`SOURCE_ONLY_IO_DENIED:${edge}`);
+        ^
+
+Error: SOURCE_ONLY_IO_DENIED:sensitive-file-read
+    at deny (/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs:51:9)
+    at owner.<computed> (/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs:87:94)
+    at readFile (/workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:268:30)
+    at loadSharedConfigFiles (/workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:287:9)
+    at /workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:378:51
+    at /workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:56:39
+    at async coalesceProvider (/workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:82:24)
+    at async /workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:94:28
+    at async /workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:699:55
+    at async coalesceProvider (/workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:82:24)
+    at async /workspace/capirov2/node_modules/.pnpm/@smithy+core@3.35.0/node_modules/@smithy/core/dist-cjs/submodules/config/index.js:94:28
+
+Node.js v24.19.0

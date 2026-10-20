@@ -1,0 +1,82 @@
+{
+  "implementationHead": "e6d027c1faca5a4338aa5b748aba82bbe7477f3b",
+  "implementationTree": "8ac0144e81a838c1ae7a9bea83d40eae11193197",
+  "compilerReceipt": "attempt07-full.receipt.json",
+  "compilerStdoutSha256": "8975a2902fbf84727aa0be18fd30d2c22b30465767743ecbef031d673fc2a2ac",
+  "qualifiedConfiguredPrograms": [
+    "packages/shared",
+    "packages/auth",
+    "packages/meriv2-core",
+    "packages/defense-contracts",
+    "packages/defense-domain",
+    "packages/strategy-verifier",
+    "apps/api",
+    "apps/api-strategy",
+    "apps/intel-api"
+  ],
+  "heldConfiguredProgram": {
+    "owner": "apps/workspace",
+    "diagnostics": [
+      {
+        "code": 2307,
+        "file": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+        "line": 2,
+        "message": "Cannot find module 'htmlparser2' or its corresponding type declarations."
+      },
+      {
+        "code": 7006,
+        "file": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+        "line": 10,
+        "message": "Parameter 'text' implicitly has an 'any' type."
+      },
+      {
+        "code": 7006,
+        "file": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+        "line": 32,
+        "message": "Parameter 'name' implicitly has an 'any' type."
+      },
+      {
+        "code": 7006,
+        "file": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+        "line": 32,
+        "message": "Parameter 'attrs' implicitly has an 'any' type."
+      },
+      {
+        "code": 7006,
+        "file": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+        "line": 41,
+        "message": "Parameter 'text' implicitly has an 'any' type."
+      },
+      {
+        "code": 7006,
+        "file": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+        "line": 44,
+        "message": "Parameter 'name' implicitly has an 'any' type."
+      }
+    ],
+    "reason": "Declared pinned htmlparser2@8.0.2 is absent from the installed cache; no substitution/install/type shim performed."
+  },
+  "sourceFilesConsumed": 2920,
+  "sourceManifestSha256": "d07e005c129b3b04a8790d404b03526651fa5a3de95d2e9f64898328357b19ca",
+  "cachedFilesConsumed": 3821,
+  "cachedManifestSha256": "62e4636cbdf9fd34ee65fe73485a7c2dab1bc742d73a3412e2d20e6223b09efd",
+  "runnerSha256": "e11aea2a1db9bf040fa99640569ef2d2f79ad1325d2f18b7a7bc60348dff5509",
+  "authorCaptureFixture": "capture-candidate02.receipt.json",
+  "authorCapturePassed": 7,
+  "nativeDbProviderAwsOperation": false,
+  "fullServeImageBrowserAccepted": false,
+  "sourceFixes": [
+    "Workspace image Node22.23.3 alignment and pruned import probe",
+    "Intel optional capture credential resolution deferred inside existing runtime port.run"
+  ],
+  "unchangedAuthorization": "Existing Clerk/tenant/membership/ACL and worker/fencing/billing owners",
+  "remainingRealServeDependencies": [
+    "Matching generated clients/native engines/schema and admitted existing DB/roles",
+    "Normal image build and pruned boot including declared dependencies",
+    "Existing Core background owner and configured flags, ordinary origins and Clerk bindings",
+    "Runtime identity/tenant/owned frontend test flow; no live write run"
+  ],
+  "independentCaptureFixture": "INDEPENDENT-capture02.receipt.json",
+  "independentCapturePassed": 7,
+  "independentCaptureStdoutSha256": "a5e2997b662032f1a35f0a0cb80440a6c5c33225284aa02f299f840e0a82fbc6"
+}

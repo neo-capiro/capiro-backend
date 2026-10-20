@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "host": "first-chat-preview.app-dev.capiro.ai",
+  "note": "Shared by infra/cdk/lib/preview/first-chat-core.ts and the offline first-match model. Compact Core POST 1, GET 2 and host-only guard 3 precede the native-operations POST 3 packet. Native memory owner POST routes require a separate readback-verified listener priority ahead of the same retained guard; no shared listener priority or unused slot is assumed.",
+  "priorities": {
+    "post": 1,
+    "get": 2,
+    "guard": 3
+  },
+  "packet": {
+    "nativeOps": 3,
+    "memoryPost": "readback",
+    "guard": "readback"
+  },
+  "post": [
+    "^/api/clio/application-authority/(identity|context|membership|read-mode-observation|retained-florida-(budget|principal))$",
+    "^/api/clio/application-authority/retained-(research-portfolio(-changes)?(-principal)?|florida-(native-)?current)$",
+    "^/api/clio/(conversations/bootstrap|clients/check-ref|retained-reads/research-portfolio(-changes)?|tools/[a-z][a-z0-9_]{1,63})$"
+  ],
+  "get": [
+    "^/api/(me|clients)$",
+    "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    "^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$"
+  ],
+  "memoryGet": [
+    "^/api/(me|clients|memory/(candidates/mine(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/status)?|owner/items))$",
+    "^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    "^/api/research-portfolios/[0-9a-f-]{36}(/(changes|reviews|annual-review|snapshots/[0-9a-f-]{36}))?$"
+  ],
+  "nativeOps": [
+    "^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$",
+    "^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$",
+    "^/api/clio/application-authority/read-delegation(s|-consents)(/[0-9a-f-]{36}/(tokens|current|revocations|state))?$"
+  ],
+  "memoryPost": [
+    "^/api/memory/candidates/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/owner-decision$",
+    "^/api/memory/version-candidates/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|reject)$",
+    "^/api/memory/items/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/review-correction$"
+  ]
+}

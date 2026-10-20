@@ -1,0 +1,11 @@
+# Independent ordinary receiving acceptance
+
+Accepted combined product source `078c55f805de8599cc413917ef90b7e20f040942`, tree `e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a`. The ordinary ordered merge parents are accepted layout `484dc0af7adc41103b189f262113bebfce10074c` and published prospect `7239a4a4ace420492d8aace6c85e55773865be38`. Their merge base is private PR8 `afff08b0342985e3a8050a5fb4cd843741a720a5`; both tested source freezes and their original parent histories remain ancestors.
+
+Independently verified every tracked mode/type/object tuple: the combined 27,648-path tree equals the exact ordinary parent union, with 89 layout delta paths plus 55 prospect delta paths, zero overlap and zero resolution edits. All eleven layout product/spec and six prospect product/spec paths are exact. All 27,504 base paths outside that union remain exact. No source, executable mode, shared runtime, auth rule or protected body changed during receiving. These counts verify the finite receiving union rather than add retirement candidates.
+
+Reviewed supplied combined attempts 20/21: both bind this exact commit, both exit zero, and all eighteen source/schema hashes equal committed Git and are unchanged before/after checks. All 110 case identities, multiplicities and passing statuses equal accepted layout attempt 18; strict/noUnchecked/noEmit types pass. Independently decoded/hash-verified the four lossless combined outputs. No reviewer test rerun, source/ref edit, native PostgreSQL/RLS/SSI/pool/provider/migration or runtime/deployment operation.
+
+The earlier layout/prospect source acceptances and their explicit limits continue to apply. Authorized full-status catalog binding, generic no-leak churn failure, conditional durable GET reconciliation, exact CAS and no uncertain-commit replay remain unchanged. This review adds no auth guardrail, reader role or preview-specific tenant protection. Schema/cache/source checks are not native database or generated-client acceptance. Root retains draft publication and receiving ownership; final docs/index follow-up must remain docs only.
+
+Machine-readable independent evidence: `COMBINED-UNION-REVIEW.json` and `COMBINED-CHECK-REVIEW.json`. All three finite retirement candidates remain held; no new scope was audited.

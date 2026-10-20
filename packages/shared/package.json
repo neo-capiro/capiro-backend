@@ -6,11 +6,22 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
+      "core-retained-read-request": ["dist/core-retained-read-request.d.ts"],
+      "core-retained-authority-probe": ["dist/core-retained-authority-probe.d.ts"],
+      "core-retained-authority-http": ["dist/core-retained-authority-http.d.ts"],
+      "core-retained-principal": [
+        "dist/core-retained-principal.d.ts"
+      ],
+      "core-retained-jcs": ["dist/core-retained-jcs.d.ts"],
+      "core-retained-trust": ["dist/core-retained-trust.d.ts"],
       "ai-model-policy": [
         "dist/ai-model-policy.d.ts"
       ],
       "client-registration-integrity": [
         "dist/client-registration-integrity.d.ts"
+      ],
+      "memory-review": [
+        "dist/memory-review.d.ts"
       ],
       "money": [
         "dist/money.d.ts"
@@ -38,10 +49,52 @@
       ],
       "newsletter-render": [
         "dist/newsletter-render.d.ts"
+      ],
+      "objective-strategy-intake": [
+        "dist/objective-strategy-intake.d.ts"
+      ],
+      "objective-planner-owner-codec": [
+        "dist/objective-planner-owner-codec.d.ts"
       ]
     }
   },
   "exports": {
+    "./core-retained-read-request": {
+      "types": "./dist/core-retained-read-request.d.ts",
+      "require": "./dist/core-retained-read-request.js",
+      "import": "./dist/core-retained-read-request.js",
+      "default": "./dist/core-retained-read-request.js"
+    },
+    "./core-retained-authority-probe": {
+      "types": "./dist/core-retained-authority-probe.d.ts",
+      "require": "./dist/core-retained-authority-probe.js",
+      "import": "./dist/core-retained-authority-probe.js",
+      "default": "./dist/core-retained-authority-probe.js"
+    },
+    "./core-retained-authority-http": {
+      "types": "./dist/core-retained-authority-http.d.ts",
+      "require": "./dist/core-retained-authority-http.js",
+      "import": "./dist/core-retained-authority-http.js",
+      "default": "./dist/core-retained-authority-http.js"
+    },
+    "./core-retained-principal": {
+      "types": "./dist/core-retained-principal.d.ts",
+      "require": "./dist/core-retained-principal.js",
+      "import": "./dist/core-retained-principal.js",
+      "default": "./dist/core-retained-principal.js"
+    },
+    "./core-retained-jcs": {
+      "types": "./dist/core-retained-jcs.d.ts",
+      "require": "./dist/core-retained-jcs.js",
+      "import": "./dist/core-retained-jcs.js",
+      "default": "./dist/core-retained-jcs.js"
+    },
+    "./core-retained-trust": {
+      "types": "./dist/core-retained-trust.d.ts",
+      "require": "./dist/core-retained-trust.js",
+      "import": "./dist/core-retained-trust.js",
+      "default": "./dist/core-retained-trust.js"
+    },
     "./ai-model-policy": {
       "types": "./dist/ai-model-policy.d.ts",
       "require": "./dist/ai-model-policy.js",
@@ -53,6 +106,12 @@
       "require": "./dist/client-registration-integrity.js",
       "import": "./dist/client-registration-integrity.js",
       "default": "./dist/client-registration-integrity.js"
+    },
+    "./memory-review": {
+      "types": "./dist/memory-review.d.ts",
+      "require": "./dist/memory-review.js",
+      "import": "./dist/memory-review.js",
+      "default": "./dist/memory-review.js"
     },
     ".": {
       "types": "./dist/index.d.ts",
@@ -113,6 +172,18 @@
       "require": "./dist/newsletter-render.js",
       "import": "./dist/newsletter-render.js",
       "default": "./dist/newsletter-render.js"
+    },
+    "./objective-strategy-intake": {
+      "types": "./dist/objective-strategy-intake.d.ts",
+      "require": "./dist/objective-strategy-intake.js",
+      "import": "./dist/objective-strategy-intake.js",
+      "default": "./dist/objective-strategy-intake.js"
+    },
+    "./objective-planner-owner-codec": {
+      "types": "./dist/objective-planner-owner-codec.d.ts",
+      "require": "./dist/objective-planner-owner-codec.js",
+      "import": "./dist/objective-planner-owner-codec.js",
+      "default": "./dist/objective-planner-owner-codec.js"
     }
   },
   "scripts": {
@@ -122,6 +193,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@types/node": "^20.16.10",
     "typescript": "^5.5.4"
   }
 }

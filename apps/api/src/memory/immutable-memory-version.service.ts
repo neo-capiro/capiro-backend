@@ -1,13 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
@@ -15,6 +16,7 @@ import { embedMemoryItem } from './memory-embedding-lifecycle.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
+import { governedRecallEligibilitySql } from './memory-recall-suppression.helpers.js';
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { payloadToSaveRequest } from './memory-candidate.service.js';
@@ -67,6 +69,10 @@ interface ItemRow {
   memory_scope: string;
   legal_hold: boolean;
   conflict_group_id: string | null;
+  /** Exact UTC microsecond token used by the owner correction picker. */
+  updatedAt?: string;
+  /** Same canonical eligibility predicate as the owner item picker. */
+  ownerReviewEligible?: boolean;
 }
 
 interface CandidateRow {
@@ -202,6 +208,121 @@ export class ImmutableMemoryVersionService {
     const body = (newContent ?? '').trim();
     if (!body) throw new BadRequestException('newContent is required.');
     return this.proposeOrActivate(ctx, itemId, 'contradiction', body);
+  }
+
+  /**
+   * W8 Meri corrections (dot #121 6246374007): always a PENDING version
+   * candidate under the caller's own candidate id, for every scope. Unlike
+   * proposeCorrection, a private correction is never activated inline. The
+   * source checks are the ones proposeOrActivate applies (controlling version,
+   * legal hold, canonical read and propose/edit authority). `hooks.verify`
+   * runs under the source row lock before anything is written (an exact
+   * target pin); `hooks.record` runs after the insert in the same transaction,
+   * so a receiving ledger row commits atomically with the candidate.
+   */
+  async proposeReviewOnlyCorrection(
+    ctx: TenantContext,
+    input: {
+      candidateId: string;
+      sourceItemId: string;
+      newContent: string;
+      provenance?: Record<string, unknown>;
+    },
+    hooks: {
+      verify?: (tx: Prisma.TransactionClient) => Promise<void>;
+      record?: (tx: Prisma.TransactionClient) => Promise<void>;
+    } = {},
+  ): Promise<{ candidateId: string }> {
+    return this.proposeReviewOnlyCorrectionInTx(ctx, input, hooks);
+  }
+
+  /**
+   * Native owner review always proposes a new version. In particular, a private
+   * correction must not take the older proposeCorrection path, which can
+   * activate private memory in the same request. The optional picker token is
+   * compared while the source row is locked, at PostgreSQL microsecond precision.
+   */
+  async proposeOwnerReviewCorrection(
+    ctx: TenantContext,
+    sourceItemId: string,
+    newContent: string,
+    expectedUpdatedAt?: string,
+  ): Promise<{ status: 'pending_review'; candidateId: string; activeItemUnchanged: true }> {
+    if (
+      expectedUpdatedAt !== undefined &&
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(expectedUpdatedAt)
+    ) {
+      throw new BadRequestException('expectedUpdatedAt must be the owner item updatedAt token.');
+    }
+    const { candidateId } = await this.proposeReviewOnlyCorrectionInTx(
+      ctx,
+      { candidateId: randomUUID(), sourceItemId, newContent },
+      {},
+      { expectedUpdatedAt },
+    );
+    return { status: 'pending_review', candidateId, activeItemUnchanged: true };
+  }
+
+  private async proposeReviewOnlyCorrectionInTx(
+    ctx: TenantContext,
+    input: {
+      candidateId: string;
+      sourceItemId: string;
+      newContent: string;
+      provenance?: Record<string, unknown>;
+    },
+    hooks: {
+      verify?: (tx: Prisma.TransactionClient) => Promise<void>;
+      record?: (tx: Prisma.TransactionClient) => Promise<void>;
+    },
+    ownerReview?: { expectedUpdatedAt?: string },
+  ): Promise<{ candidateId: string }> {
+    this.requireLifecycle();
+    const body = (input.newContent ?? '').trim();
+    if (!body) throw new BadRequestException('newContent is required.');
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const source = await this.loadItem(tx, ctx.tenantId, input.sourceItemId);
+      if (!source) throw new NotFoundException('Memory item not found.');
+      if (ownerReview) {
+        // This UI owns private corrections only. A shared version needs a
+        // separate review authority and must not become self-approved here.
+        if (
+          source.memory_scope !== 'user_private' ||
+          source.visibility !== 'user' ||
+          source.owner_user_id !== ctx.userId
+        ) {
+          throw new NotFoundException('Memory item not found.');
+        }
+        if (
+          ownerReview.expectedUpdatedAt !== undefined &&
+          source.updatedAt !== ownerReview.expectedUpdatedAt
+        ) {
+          throw new ConflictException('Memory item changed; reload the current version.');
+        }
+        if (!source.ownerReviewEligible) {
+          throw new ConflictException('Memory item is no longer a current controlling version.');
+        }
+      }
+      await hooks.verify?.(tx);
+      if (!isControlling(source)) {
+        throw new ConflictException('Correct the current controlling memory version.');
+      }
+      if (source.legal_hold) throw new ConflictException('Memory operation denied: legal_hold');
+      await this.authorizeSource(tx, ctx, source, 'correction');
+      const sections = [{ key: 'memory', heading: 'Memory', owner: 'human' as const, body }];
+      const candidateId = await this.insertCandidate(tx, {
+        ctx,
+        source,
+        targetId: source.id,
+        kind: 'correction',
+        sections,
+        proposedText: textFromSections(sections),
+        candidateId: input.candidateId,
+        provenance: input.provenance,
+      });
+      await hooks.record?.(tx);
+      return { candidateId };
+    });
   }
 
   async proposeRestore(ctx: TenantContext, itemId: string): Promise<MemoryVersionResult> {
@@ -746,6 +867,7 @@ export class ImmutableMemoryVersionService {
   ): Promise<void> {
     const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, source.id);
     if (!subject) throw new NotFoundException('Memory item not found.');
+    await this.requireClientMutationAccessInTx(tx, ctx, source.client_id);
     const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
     if (!read.allowed) throw new ForbiddenException(`Memory operation denied: ${read.reason}`);
 
@@ -765,9 +887,44 @@ export class ImmutableMemoryVersionService {
   ): Promise<void> {
     const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
     if (!subject) throw new NotFoundException('Memory candidate not found.');
+    await this.requireClientMutationAccessInTx(tx, ctx, subject.clientId);
     const decision = await this.authorization.evaluateInTx(tx, ctx, subject, operation);
     if (!decision.allowed)
       throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+  }
+
+  private async requireClientMutationAccessInTx(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientId: string | null,
+  ): Promise<void> {
+    if (!clientId) return;
+    // The general private-owner authorization branch does not consume its
+    // ethical-wall/client-status facts. A client-linked private item or
+    // candidate still needs both gates before a version decision. These row
+    // locks prevent a concurrent archive or wall-grant revocation from
+    // overtaking the decision transaction.
+    const clients = await tx.$queryRaw<Array<{ status: string; memory_wall: boolean }>>`
+      SELECT status, memory_wall FROM clients
+      WHERE tenant_id = ${ctx.tenantId}::uuid AND id = ${clientId}::uuid
+      FOR SHARE
+    `;
+    const client = clients[0];
+    if (!client || client.status !== 'active') {
+      throw new ForbiddenException('Memory operation denied: archived_client');
+    }
+    if (client.memory_wall) {
+      const grants = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id::text AS id FROM client_memory_access
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND client_id = ${clientId}::uuid
+          AND user_id = ${ctx.userId}::uuid
+        FOR SHARE
+      `;
+      if (grants.length === 0) {
+        throw new ForbiddenException('Memory operation denied: ethical_wall');
+      }
+    }
   }
 
   private async insertCandidate(
@@ -779,9 +936,13 @@ export class ImmutableMemoryVersionService {
       kind: MemoryVersionKind;
       sections: VersionSection[];
       proposedText: string;
+      /** Caller-owned id (W8 Meri candidate id); default a fresh UUID. */
+      candidateId?: string;
+      /** Extra provenance merged under `meri` (W8 receiving identity). */
+      provenance?: Record<string, unknown>;
     },
   ): Promise<string> {
-    const id = randomUUID();
+    const id = input.candidateId ?? randomUUID();
     const scope = scopeFor(input.source);
     const payload: VersionPayload = {
       key: input.source.title,
@@ -789,7 +950,9 @@ export class ImmutableMemoryVersionService {
       source: VERSION_SOURCE_KIND[input.kind],
       scope,
       ownerUserId: scope === 'user_private' ? input.source.owner_user_id : null,
-      clientId: scope === 'client' ? input.source.client_id : null,
+      // A private owner item can still be tied to a client. Keep that client
+      // wall in both the candidate column and its immutable payload.
+      clientId: scope === 'firm' ? null : input.source.client_id,
       canonicalItem: {
         type: input.source.type,
         slug: immutableMemoryVersionSlug(input.source.slug, id),
@@ -816,7 +979,7 @@ export class ImmutableMemoryVersionService {
         ${id}::uuid, ${input.ctx.tenantId}::uuid, ${input.ctx.userId}::uuid,
         ${VERSION_SOURCE_KIND[input.kind]}, ${legacyScope}, ${input.source.client_id}::uuid,
         ${JSON.stringify(payload)}::jsonb,
-        ${JSON.stringify({ kind: input.kind, sourceItemId: input.source.id })}::jsonb,
+        ${JSON.stringify({ kind: input.kind, sourceItemId: input.source.id, ...(input.provenance ? { meri: input.provenance } : {}) })}::jsonb,
         'pending', ${input.source.memory_class}, ${scope}, 'pending_review',
         'user_message', ${input.source.id}, ${VERSION_SOURCE_KIND[input.kind]}, ${hash},
         ${`candidate:${id}`}, ${input.ctx.userId}::uuid, now(), now(),
@@ -831,7 +994,7 @@ export class ImmutableMemoryVersionService {
       clientId: input.source.client_id,
       toStatus: 'pending_review',
       reasonCode: 'submitted_for_review',
-      reason: `Shared memory ${input.kind} submitted for administrator review.`,
+      reason: `Memory ${input.kind} submitted for review.`,
       sourceType: 'user_message',
       sourceId: input.source.id,
       metadata: {
@@ -867,14 +1030,16 @@ export class ImmutableMemoryVersionService {
     itemId: string,
   ): Promise<ItemRow | null> {
     const rows = await tx.$queryRaw<Array<ItemRow>>`
-      SELECT id::text AS id, tenant_id::text AS tenant_id,
-             client_id::text AS client_id, owner_user_id::text AS owner_user_id,
+      SELECT mi.id::text AS id, mi.tenant_id::text AS tenant_id,
+             mi.client_id::text AS client_id, mi.owner_user_id::text AS owner_user_id,
              type, visibility, slug, title, sections_jsonb, status, governed_status,
              memory_class, memory_scope, legal_hold,
-             conflict_group_id::text AS conflict_group_id
-      FROM memory_items
-      WHERE id = ${itemId}::uuid AND tenant_id = ${tenantId}::uuid
-      FOR UPDATE
+             conflict_group_id::text AS conflict_group_id,
+             to_char(mi.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "updatedAt",
+             ${Prisma.raw(governedRecallEligibilitySql('mi'))} AS "ownerReviewEligible"
+      FROM memory_items mi
+      WHERE mi.id = ${itemId}::uuid AND mi.tenant_id = ${tenantId}::uuid
+      FOR UPDATE OF mi
     `;
     return rows[0] ?? null;
   }
@@ -1167,14 +1332,16 @@ export class ImmutableMemoryVersionService {
       sourceContent: { title: input.title, sections: input.sections },
       text: `${input.title}: ${input.body}`,
       bypassRls: true,
-    }).then(() => undefined).catch((error: unknown) => {
-      if (requireSettlement) {
-        throw new Error('Synthetic memory correction embedding did not settle after approval');
-      }
-      this.logger.warn(
-        `immutable memory embed failed; projection recovery remains available: ${(error as Error).message}`,
-      );
-    });
+    })
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        if (requireSettlement) {
+          throw new Error('Synthetic memory correction embedding did not settle after approval');
+        }
+        this.logger.warn(
+          `immutable memory embed failed; projection recovery remains available: ${(error as Error).message}`,
+        );
+      });
   }
 }
 
@@ -1249,8 +1416,9 @@ function textFromSections(sections: readonly VersionSection[]): string {
 }
 
 function scopeFor(item: ItemRow): VersionPayload['scope'] {
+  if (item.memory_scope === 'user_private') return 'user_private';
   if (item.memory_scope === 'client' || item.client_id) return 'client';
-  if (item.memory_scope === 'user_private' || item.owner_user_id) return 'user_private';
+  if (item.owner_user_id) return 'user_private';
   return 'firm';
 }
 

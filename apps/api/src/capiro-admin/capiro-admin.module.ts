@@ -7,7 +7,7 @@ import { ProgramElementModule } from '../program-element/program-element.module.
 import { AcquisitionPersonnelModule } from '../acquisition-personnel/acquisition-personnel.module.js';
 import { AiUsageModule } from '../ai-usage/ai-usage.module.js';
 import { BillingModule } from '../billing/billing.module.js';
-import { MeriModule } from '../meri/meri.module.js';
+import { MeriFeatureFlagsModule } from '../common/meri-feature-flags.module.js';
 
 @Module({
   imports: [
@@ -15,9 +15,9 @@ import { MeriModule } from '../meri/meri.module.js';
     AcquisitionPersonnelModule,
     AiUsageModule,
     BillingModule,
-    // MeriModule exports the single MeriFeatureFlagsService cache instance, so
+    // Shared flag owner exports the single MeriFeatureFlagsService cache, so
     // both V2 and V3 admin flips invalidate the exact gate the hot path reads.
-    MeriModule,
+    MeriFeatureFlagsModule,
   ],
   controllers: [CapiroAdminController, MeriV3AdminController],
   providers: [CapiroAdminService, MeriV3AdminService],

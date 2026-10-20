@@ -134,6 +134,7 @@ enum BillingStatus {
 }
 
 model Tenant {
+  engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
 
@@ -235,9 +236,16 @@ model Tenant {
   outreachJobs                       OutreachJob[]
   outreachJobItems                   OutreachJobItem[]
   clioConversations                  ClioConversation[]
+  clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
+  clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
+  clioMeriMemorySubmissions          ClioMeriMemorySubmission[]
+  clioMeriRoutineApprovals           ClioMeriRoutineApproval[]
+  clioMeriRoutineConsents            ClioMeriRoutineConsent[]
+  clioMeriRoutineConsentRevocations  ClioMeriRoutineConsentRevocation[]
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
+  userPortfolioLayouts               UserPortfolioLayout[]
   clioMessages                       ClioMessage[]
   clioArtifacts                      ClioArtifact[]
   clioNotes                          ClioNote[]
@@ -622,6 +630,7 @@ model User {
   meriSavedPrompts                 MeriSavedPrompt[]
   meriWorkspaces                   MeriWorkspace[]
   meriVnextPreferences             MeriVnextPreference[]
+  userPortfolioLayouts             UserPortfolioLayout[]
   clioMessages                     ClioMessage[]                  @relation("ClioMessageUser")
   clioArtifacts                    ClioArtifact[]                 @relation("ClioArtifactUser")
   clioNotes                        ClioNote[]                     @relation("ClioNoteUser")
@@ -650,6 +659,23 @@ model User {
 
   @@map("users")
   researchPortfolioClientFilingJobs ResearchPortfolioClientFilingJob[]
+}
+
+/// User-owned Portfolio presentation only; catalog IDs confer no resource authority.
+/// Absence is virtual version zero. SQL owns bounded/unique UUID-array checks.
+model UserPortfolioLayout {
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  clientOrder String[] @map("client_order") @db.Uuid
+  version     Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId], map: "user_portfolio_layouts_pkey")
+  @@map("user_portfolio_layouts")
 }
 
 model TenantMembership {
@@ -846,6 +872,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  engagementPlans EngagementPlan[]
   notetakerPreferences      ClientNotetakerPreference[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                        String                      @id @default(uuid()) @db.Uuid
@@ -1054,6 +1081,7 @@ model ClientObjective {
   tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client            Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
   revisions         ClientObjectiveRevision[]
+  operationalState  ClientObjectiveOperationalState?
 
   @@unique([tenantId, clientId, id], map: "client_objectives_scope_key")
   @@unique([tenantId, clientId, clientRequestId], map: "client_objectives_request_key")
@@ -1072,9 +1100,122 @@ model ClientObjectiveRevision {
   snapshot    Json
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   objective   ClientObjective @relation(fields: [tenantId, clientId, objectiveId], references: [tenantId, clientId, id], onDelete: Cascade)
+  workIntents ClientObjectiveWorkIntent[]
+  operationalLinks ClientObjectiveResourceLink[]
+  operationalReceipts ClientObjectiveOperationalReceipt[]
 
   @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
+  @@unique([tenantId, clientId, objectiveId, id, version], map: "client_objective_revisions_intent_scope_key")
   @@map("client_objective_revisions")
+}
+
+/// Inert confirmation intent. No dispatcher or workload authority is attached.
+/// SQL constrains the initial pending state and owns tenant RLS/grants.
+model ClientObjectiveWorkIntent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  clientId            String   @map("client_id") @db.Uuid
+  objectiveId         String   @map("objective_id") @db.Uuid
+  objectiveRevisionId String   @map("objective_revision_id") @db.Uuid
+  objectiveVersion    Int      @map("objective_version")
+  actorUserId         String   @map("actor_user_id") @db.Uuid
+  purpose             String   @db.VarChar(40)
+  snapshotHash        String   @map("snapshot_hash") @db.Char(64)
+  state               String   @default("pending") @db.VarChar(24)
+  blockedReason       String   @default("runtime_authority_unconnected") @map("blocked_reason") @db.VarChar(48)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  revision            ClientObjectiveRevision @relation(fields: [tenantId, clientId, objectiveId, objectiveRevisionId, objectiveVersion], references: [tenantId, clientId, objectiveId, id, version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_work_intents_revision_fk")
+  canonicalPlans      ClientObjectiveCanonicalPlan[]
+
+  @@unique([tenantId, clientId, objectiveId, objectiveRevisionId, purpose], map: "client_objective_work_intents_purpose_key")
+  @@unique([tenantId, clientId, objectiveId, id, objectiveRevisionId, objectiveVersion, snapshotHash], map: "client_objective_work_intents_canonical_scope_key")
+  @@map("client_objective_work_intents")
+}
+
+/// Private reservations only; no Strategy/project row or applied pointer is implied.
+/// Initial epoch is SQL-constrained to 1; replacement is not allocated here.
+model ClientObjectiveCanonicalPlan {
+  id                           String   @id @default(uuid()) @db.Uuid
+  tenantId                     String   @map("tenant_id") @db.Uuid
+  clientId                     String   @map("client_id") @db.Uuid
+  objectiveId                  String   @map("objective_id") @db.Uuid
+  canonicalStrategyId          String   @unique @map("canonical_strategy_id") @db.Uuid
+  canonicalProjectId           String   @unique @map("canonical_project_id") @db.Uuid
+  bindingVersion               Int      @default(1) @map("binding_version")
+  epoch                        Int      @default(1)
+  requestedIntentId            String   @map("requested_intent_id") @db.Uuid
+  requestedObjectiveRevisionId String   @map("requested_objective_revision_id") @db.Uuid
+  requestedObjectiveVersion    Int      @map("requested_objective_version")
+  requestedSnapshotHash        String   @map("requested_snapshot_hash") @db.Char(64)
+  createdAt                    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  requestedIntent              ClientObjectiveWorkIntent @relation(fields: [tenantId, clientId, objectiveId, requestedIntentId, requestedObjectiveRevisionId, requestedObjectiveVersion, requestedSnapshotHash], references: [tenantId, clientId, objectiveId, id, objectiveRevisionId, objectiveVersion, snapshotHash], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_canonical_plans_intent_fk")
+
+  @@unique([tenantId, clientId, objectiveId], map: "client_objective_canonical_plans_objective_key")
+  @@map("client_objective_canonical_plans")
+}
+
+/// Manual associations do not grant source authority or change Objective readiness.
+model ClientObjectiveOperationalState {
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  version Int @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  objective ClientObjective @relation(fields: [tenantId,clientId,objectiveId], references: [tenantId,clientId,id], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_operational_states_objective_fk")
+
+  @@id([tenantId,clientId,objectiveId])
+  @@map("client_objective_operational_states")
+}
+
+/// SQL freezes identity/annotations and permits only a one-way unlink tombstone.
+model ClientObjectiveResourceLink {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  linkedRevisionId String @map("linked_revision_id") @db.Uuid
+  linkedObjectiveVersion Int @map("linked_objective_version")
+  resourceKind String @map("resource_kind") @db.VarChar(32)
+  resourceId String @map("resource_id") @db.Uuid
+  cycles Json @default("[]")
+  linkedByUserId String @map("linked_by_user_id") @db.Uuid
+  linkedAt DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+  removedAt DateTime? @map("removed_at") @db.Timestamptz(6)
+  removedByUserId String? @map("removed_by_user_id") @db.Uuid
+  removedRequestId String? @map("removed_request_id") @db.Uuid
+  revision ClientObjectiveRevision @relation(fields: [tenantId,clientId,objectiveId,linkedRevisionId,linkedObjectiveVersion], references: [tenantId,clientId,objectiveId,id,version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_resource_links_revision_fk")
+  receipts ClientObjectiveOperationalReceipt[]
+
+  @@unique([tenantId,clientId,objectiveId,id,linkedRevisionId,linkedObjectiveVersion], map: "client_objective_resource_links_receipt_key")
+  @@index([tenantId,clientId,objectiveId,removedAt,id], map: "client_objective_resource_links_list_idx")
+  @@map("client_objective_resource_links")
+}
+
+/// Insert-only command result, actor/request scoped; SQL also freezes updates.
+model ClientObjectiveOperationalReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  objectiveId String @map("objective_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  command Json
+  associationId String @map("association_id") @db.Uuid
+  commandRevisionId String @map("command_revision_id") @db.Uuid
+  commandObjectiveVersion Int @map("command_objective_version")
+  linkedRevisionId String @map("linked_revision_id") @db.Uuid
+  linkedObjectiveVersion Int @map("linked_objective_version")
+  action String @db.VarChar(8)
+  outcome String @db.VarChar(12)
+  resultSetVersion Int @map("result_set_version")
+  committedAt DateTime @default(dbgenerated("clock_timestamp()")) @map("committed_at") @db.Timestamptz(6)
+  revision ClientObjectiveRevision @relation(fields: [tenantId,clientId,objectiveId,commandRevisionId,commandObjectiveVersion], references: [tenantId,clientId,objectiveId,id,version], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_operational_receipts_revision_fk")
+  association ClientObjectiveResourceLink @relation(fields: [tenantId,clientId,objectiveId,associationId,linkedRevisionId,linkedObjectiveVersion], references: [tenantId,clientId,objectiveId,id,linkedRevisionId,linkedObjectiveVersion], onDelete: Cascade, onUpdate: NoAction, map: "client_objective_operational_receipts_link_fk")
+
+  @@unique([tenantId,clientId,objectiveId,actorUserId,requestId], map: "client_objective_operational_receipts_request_key")
+  @@map("client_objective_operational_receipts")
 }
 
 /// Canonical Primary–Quaternary assignments. SQL owns the deferred Primary
@@ -2136,11 +2277,355 @@ model ClioConversation {
   messages  ClioMessage[]
   artifacts ClioArtifact[]
   notes     ClioNote[]
+  bootstrapReceipt ClioConversationBootstrapReceipt?
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
   @@index([tenantId, userId, workspaceId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_workspace_updated_idx")
   @@map("clio_conversations")
+}
+
+/// Durable first-chat intent key. The optional conversation link is cleared on
+/// hard deletion so an old requestId can never allocate a replacement chat.
+model ClioConversationBootstrapReceipt {
+  tenantId       String    @map("tenant_id") @db.Uuid
+  actorUserId    String    @map("actor_user_id") @db.Uuid
+  requestId      String    @map("request_id") @db.Uuid
+  clientId       String    @map("client_id") @db.Uuid
+  conversationId String?   @unique(map: "clio_bootstrap_receipts_conversation_key") @map("conversation_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_bootstrap_receipts_tenant_fkey")
+  conversation ClioConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull, map: "clio_bootstrap_receipts_conversation_fkey")
+
+  @@id([tenantId, actorUserId, requestId], map: "clio_bootstrap_receipts_pkey")
+  @@map("clio_conversation_bootstrap_receipts")
+}
+
+/// P-INT-10 native approval decisions for Meri conversation write intents.
+/// Immutable and idempotent per (tenant, proposal): a repeat answers the stored
+/// decision. Conversation/run ids are Meri identifiers, not Core foreign keys.
+model ClioMeriApprovalDecision {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  proposalId         String   @map("proposal_id") @db.Uuid
+  commandSha256      String   @map("command_sha256") @db.Char(64)
+  decision           String   @db.VarChar(8)
+  decidedAt          DateTime @map("decided_at") @db.Timestamptz(3)
+  expiresAt          DateTime @map("expires_at") @db.Timestamptz(3)
+  approverUserId     String   @map("approver_user_id") @db.Uuid
+  policyRevision     String   @map("policy_revision") @db.VarChar(128)
+  bindingActorUserId String   @map("binding_actor_user_id") @db.Uuid
+  conversationId     String   @map("conversation_id") @db.Uuid
+  runId              String   @map("run_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_approval_decisions_tenant_fkey")
+  executionIssuances ClioMeriExecutionIssuance[]
+  revocation         ClioMeriApprovalRevocation?
+
+  @@id([tenantId, proposalId], map: "clio_meri_approval_decisions_pkey")
+  @@map("clio_meri_approval_decisions")
+}
+
+/// W8 Meri memory review submissions (Meri `apps/control/memory/core-review.mjs`).
+/// Content-free immutable receipt; the deletable pending memory_candidate row
+/// owns the payload and shares candidateId.
+model ClioMeriMemorySubmission {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  candidateId     String   @map("candidate_id") @db.Uuid
+  candidateSha256 String   @map("candidate_sha256") @db.Char(64)
+  proposerUserId  String   @map("proposer_user_id") @db.Uuid
+  reviewId        String   @unique(map: "clio_meri_memory_submissions_review_id_key") @map("review_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_memory_submissions_tenant_fkey")
+
+  @@id([tenantId, candidateId], map: "clio_meri_memory_submissions_pkey")
+  @@map("clio_meri_memory_submissions")
+}
+
+/// DRAFT item 5: the routine owner's approval of one exact schedules-0.2 intent
+/// (consent row). `unattendedEnabled` is DB-fenced to false. Immutable.
+model ClioMeriRoutineApproval {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  intentId          String   @map("intent_id") @db.Uuid
+  ownerUserId       String   @map("owner_user_id") @db.Uuid
+  scheduleId        String   @map("schedule_id") @db.Uuid
+  operation         String   @db.VarChar(32)
+  intentSha256      String   @map("intent_sha256") @db.Char(64)
+  decisionSha256    String   @map("decision_sha256") @db.Char(64)
+  policyRevision    String   @map("policy_revision") @db.VarChar(128)
+  decidedAt         DateTime @map("decided_at") @db.Timestamptz(3)
+  decisionExpiresAt DateTime @map("decision_expires_at") @db.Timestamptz(3)
+  unattendedEnabled Boolean  @default(false) @map("unattended_enabled")
+  recordedAt        DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_routine_approvals_tenant_fkey")
+  cancelProofs ClioMeriRoutineCancelProof[]
+
+  @@id([tenantId, intentId], map: "clio_meri_routine_approvals_pkey")
+  @@unique([tenantId, intentId, intentSha256], map: "clio_meri_routine_approvals_intent_key")
+  @@map("clio_meri_routine_approvals")
+}
+
+/// D016-A item 5: the routine owner's signed-in consent to unattended firing
+/// of one exact schedule intent (<= 30 days; renewed only by another approval).
+model ClioMeriRoutineConsent {
+  consentId        String   @id(map: "clio_meri_routine_consents_pkey") @map("consent_id") @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  ownerUserId      String   @map("owner_user_id") @db.Uuid
+  scheduleId       String   @map("schedule_id") @db.Uuid
+  intentId         String   @map("intent_id") @db.Uuid
+  generation       Int
+  intentSha256     String   @map("intent_sha256") @db.Char(64)
+  projectionSha256 String   @map("projection_sha256") @db.Char(64)
+  decisionSha256   String   @map("decision_sha256") @db.Char(64)
+  scopes           Json
+  limits           Json
+  policyRevision   String   @map("policy_revision") @db.VarChar(128)
+  issuedAt         DateTime @map("issued_at") @db.Timestamptz(3)
+  expiresAt        DateTime @map("expires_at") @db.Timestamptz(3)
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_routine_consents_tenant_fkey")
+  fireGrants ClioMeriRoutineFireGrant[]
+
+  @@unique([tenantId, intentId, decisionSha256], map: "clio_meri_routine_consents_decision_key")
+  @@index([tenantId, scheduleId, generation, intentSha256, projectionSha256, issuedAt], map: "clio_meri_routine_consents_lookup_idx")
+  @@map("clio_meri_routine_consents")
+}
+
+/// D016-A item 5: an attended pause or delete ends every earlier consent for the schedule.
+model ClioMeriRoutineConsentRevocation {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  intentId        String   @map("intent_id") @db.Uuid
+  scheduleId      String   @map("schedule_id") @db.Uuid
+  revokedByUserId String   @map("revoked_by_user_id") @db.Uuid
+  reason          String   @db.VarChar(16)
+  revokedAt       DateTime @map("revoked_at") @db.Timestamptz(3)
+  recordedAt      DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_meri_routine_consent_revocations_tenant_fkey")
+
+  @@id([tenantId, intentId], map: "clio_meri_routine_consent_revocations_pkey")
+  @@index([tenantId, scheduleId, revokedAt], map: "clio_meri_routine_consent_revocations_schedule_idx")
+  @@map("clio_meri_routine_consent_revocations")
+}
+
+/// D016-A item 5: one row per unattended firing grant (wire C), written before signing.
+model ClioMeriRoutineFireGrant {
+  jti           String   @id(map: "clio_meri_routine_fire_grants_pkey") @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  consentId     String   @map("consent_id") @db.Uuid
+  scheduleId    String   @map("schedule_id") @db.Uuid
+  generation    Int
+  occurrenceKey String   @map("occurrence_key") @db.Char(64)
+  phase         String   @db.VarChar(32)
+  signerIssuer  String   @map("signer_issuer") @db.VarChar(256)
+  signerKeyId   String   @map("signer_key_id") @db.VarChar(64)
+  iatSeconds    BigInt   @map("iat_seconds")
+  expSeconds    BigInt   @map("exp_seconds")
+  recordedAt    DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  consent ClioMeriRoutineConsent @relation(fields: [consentId], references: [consentId], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_routine_fire_grants_consent_fkey")
+
+  @@map("clio_meri_routine_fire_grants")
+}
+
+/// Run-bound read delegation, RC1 option B (migration 20281018060000, reserved).
+/// The SQL migration owns RLS, the column-level grants, the mode/expiry CHECKs
+/// (attended <= 30 min, unattended <= 15 min, consent <= 30 days, token <= 60 s),
+/// the per-slot ceilings and the partial unique indexes noted below.
+model MeriReadDelegationConsent {
+  id                       String   @id(map: "meri_read_delegation_consents_pkey") @db.Uuid
+  tenantId                 String   @map("tenant_id") @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  clientId                 String   @map("client_id") @db.Uuid
+  scheduleId               String   @map("schedule_id") @db.Uuid
+  scheduleProjectionSha256 String   @map("schedule_projection_sha256") @db.Char(64)
+  operationsDigest         String   @map("operations_digest") @db.Char(64)
+  policyRevision           String   @map("policy_revision") @db.Char(64)
+  state                    String
+  supersedes               String?  @db.Uuid
+  createdAt                DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  expiresAt                DateTime @map("expires_at") @db.Timestamptz(6)
+
+  superseded   MeriReadDelegationConsent?  @relation("MeriReadConsentSupersedes", fields: [supersedes], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegation_consents_supersedes_fkey")
+  supersededBy MeriReadDelegationConsent[] @relation("MeriReadConsentSupersedes")
+  delegations  MeriReadDelegation[]
+
+  // SQL-owned partial unique index meri_read_consent_active: (tenant_id, schedule_id) WHERE state = 'active'.
+  @@map("meri_read_delegation_consents")
+}
+
+model MeriReadDelegation {
+  id               String   @id(map: "meri_read_delegations_pkey") @db.Uuid
+  idempotencyKey   String   @map("idempotency_key") @db.Char(64)
+  mode             String
+  tenantId         String   @map("tenant_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  membershipId     String   @map("membership_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  runId            String   @map("run_id") @db.Uuid
+  attemptId        String   @map("attempt_id") @db.Uuid
+  writerFence      Int      @map("writer_fence")
+  budgetAttempt    Int      @map("budget_attempt")
+  budgetFence      Int      @map("budget_fence")
+  budgetPolicyRev  String   @map("budget_policy_revision") @db.Char(64)
+  allocationSha256 String   @map("allocation_sha256") @db.Char(64)
+  operationsDigest String   @map("operations_digest") @db.Char(64)
+  policyRevision   String   @map("policy_revision") @db.Char(64)
+  consentId        String?  @map("consent_id") @db.Uuid
+  occurrenceKey    String?  @map("occurrence_key") @db.Char(64)
+  revision         Int      @default(1)
+  state            String
+  supersedes       String?  @db.Uuid
+  revokedReason    String?  @map("revoked_reason")
+  issuedAt         DateTime @default(dbgenerated("clock_timestamp()")) @map("issued_at") @db.Timestamptz(6)
+  expiresAt        DateTime @map("expires_at") @db.Timestamptz(6)
+
+  consent      MeriReadDelegationConsent? @relation(fields: [consentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegations_consent_fkey")
+  superseded   MeriReadDelegation?        @relation("MeriReadDelegationSupersedes", fields: [supersedes], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegations_supersedes_fkey")
+  supersededBy MeriReadDelegation[]       @relation("MeriReadDelegationSupersedes")
+  slots        MeriReadDelegationSlot[]
+  tokens       MeriReadToken[]
+
+  @@index([tenantId, runId], map: "meri_read_delegations_run_idx")
+  // SQL-owned partial unique index meri_read_delegation_idem: (idempotency_key) WHERE state = 'active'.
+  // SQL-owned partial unique index meri_read_delegation_occurrence: (tenant_id, occurrence_key) WHERE occurrence_key IS NOT NULL.
+  @@map("meri_read_delegations")
+}
+
+model MeriReadDelegationSlot {
+  runId           String   @map("run_id") @db.Uuid
+  callKey         String   @map("call_key") @db.VarChar(128)
+  tenantId        String   @map("tenant_id") @db.Uuid
+  delegationId    String   @map("delegation_id") @db.Uuid
+  toolTokens      Int      @default(0) @map("tool_tokens") @db.SmallInt
+  modeTokens      Int      @default(0) @map("mode_tokens") @db.SmallInt
+  referenceTokens Int      @default(0) @map("reference_tokens") @db.SmallInt
+  currentTokens   Int      @default(0) @map("current_tokens") @db.SmallInt
+  reissues        Int      @default(0) @db.SmallInt
+  openedAt        DateTime @default(dbgenerated("clock_timestamp()")) @map("opened_at") @db.Timestamptz(6)
+
+  delegation MeriReadDelegation @relation(fields: [delegationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_delegation_slots_delegation_fkey")
+  tokens     MeriReadToken[]
+
+  @@id([runId, callKey], map: "meri_read_delegation_slots_pkey")
+  @@map("meri_read_delegation_slots")
+}
+
+model MeriReadToken {
+  jti           String    @id(map: "meri_read_tokens_pkey") @db.Uuid
+  tokenSha256   String    @unique(map: "meri_read_tokens_token_sha256_key") @map("token_sha256") @db.Char(64)
+  tenantId      String    @map("tenant_id") @db.Uuid
+  delegationId  String    @map("delegation_id") @db.Uuid
+  runId         String    @map("run_id") @db.Uuid
+  callKey       String    @map("call_key") @db.VarChar(128)
+  kind          String
+  targetMethod  String    @map("target_method")
+  targetPath    String    @map("target_path")
+  bodySha256    String    @map("body_sha256") @db.Char(64)
+  argumentsSha  String?   @map("arguments_sha256") @db.Char(64)
+  requestDigest String    @map("request_digest") @db.Char(64)
+  issuedAt      DateTime  @default(dbgenerated("clock_timestamp()")) @map("issued_at") @db.Timestamptz(6)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
+  supersededAt  DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  delegation MeriReadDelegation     @relation(fields: [delegationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_tokens_delegation_fkey")
+  slot       MeriReadDelegationSlot @relation(fields: [runId, callKey], references: [runId, callKey], onDelete: NoAction, onUpdate: NoAction, map: "meri_read_tokens_slot_fkey")
+
+  @@index([runId, callKey, kind, requestDigest], map: "meri_read_tokens_retry_idx")
+  // SQL-owned partial index meri_read_tokens_expiry: (expires_at) WHERE consumed_at IS NULL AND superseded_at IS NULL.
+  @@map("meri_read_tokens")
+}
+
+/// DRAFT item 5: issuance ledger of routine cancellation proofs (claims and
+/// digests only, never the token). Immutable; never released for reuse.
+model ClioMeriRoutineCancelProof {
+  jti           String   @id(map: "clio_meri_routine_cancel_proofs_pkey") @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  intentId      String   @map("intent_id") @db.Uuid
+  intentSha256  String   @map("intent_sha256") @db.Char(64)
+  targetsSha256 String   @map("targets_sha256") @db.Char(64)
+  runsSha256    String   @map("runs_sha256") @db.Char(64)
+  signerIssuer  String   @map("signer_issuer") @db.VarChar(256)
+  signerKeyId   String   @map("signer_key_id") @db.VarChar(64)
+  iatSeconds    BigInt   @map("iat_seconds")
+  expSeconds    BigInt   @map("exp_seconds")
+  recordedAt    DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  approval ClioMeriRoutineApproval @relation(fields: [tenantId, intentId, intentSha256], references: [tenantId, intentId, intentSha256], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_routine_cancel_proofs_approval_fkey")
+
+  @@index([tenantId, intentId], map: "clio_meri_routine_cancel_proofs_intent_idx")
+  @@map("clio_meri_routine_cancel_proofs")
+}
+
+/// Meri approval decision revocation: an append-only fact; the decision stays immutable.
+model ClioMeriApprovalRevocation {
+  tenantId         String   @map("tenant_id") @db.Uuid
+  proposalId       String   @map("proposal_id") @db.Uuid
+  commandSha256    String   @map("command_sha256") @db.Char(64)
+  revokedByUserId  String   @map("revoked_by_user_id") @db.Uuid
+  reason           String   @db.VarChar(32)
+  revokedAt        DateTime @default(now()) @map("revoked_at") @db.Timestamptz(6)
+
+  decision ClioMeriApprovalDecision @relation(fields: [tenantId, proposalId], references: [tenantId, proposalId], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_approval_revocations_decision_fkey")
+
+  @@id([tenantId, proposalId], map: "clio_meri_approval_revocations_pkey")
+  @@map("clio_meri_approval_revocations")
+}
+
+/// Meri approved-execution issuance ledger (D016 #9): one row per capability.
+model ClioMeriExecutionIssuance {
+  jti              String   @id(map: "clio_meri_execution_issuances_pkey") @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  proposalId       String   @map("proposal_id") @db.Uuid
+  runId            String   @map("run_id") @db.Uuid
+  attemptId        String   @map("attempt_id") @db.Uuid
+  requestId        String   @map("request_id") @db.Uuid
+  requestSha256    String   @map("request_sha256") @db.Char(64)
+  commandSha256    String   @map("command_sha256") @db.Char(64)
+  decisionSha256   String   @map("decision_sha256") @db.Char(64)
+  argumentsSha256  String   @map("arguments_sha256") @db.Char(64)
+  idempotencyKey   String   @map("idempotency_key") @db.VarChar(128)
+  executorBinding  Json     @map("executor_binding")
+  budgets          Json
+  allocationSha256 String   @map("allocation_sha256") @db.Char(64)
+  qualification    Json
+  signerIssuer     String   @map("signer_issuer") @db.VarChar(256)
+  signerKeyId      String   @map("signer_key_id") @db.VarChar(64)
+  iatSeconds       BigInt   @map("iat_seconds")
+  expSeconds       BigInt   @map("exp_seconds")
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  decision     ClioMeriApprovalDecision       @relation(fields: [tenantId, proposalId], references: [tenantId, proposalId], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_issuances_decision_fkey")
+  consumptions ClioMeriExecutionConsumption[]
+
+  @@index([tenantId, proposalId, runId, attemptId, iatSeconds], map: "clio_meri_execution_issuances_attempt_idx")
+  @@map("clio_meri_execution_issuances")
+}
+
+/// Meri approved-execution consumption: one durable effect identity per
+/// (tenant, proposal, idempotency key); CLAIMED -> COMPLETED once.
+model ClioMeriExecutionConsumption {
+  tenantId        String    @map("tenant_id") @db.Uuid
+  proposalId      String    @map("proposal_id") @db.Uuid
+  idempotencyKey  String    @map("idempotency_key") @db.VarChar(128)
+  commandSha256   String    @map("command_sha256") @db.Char(64)
+  argumentsSha256 String    @map("arguments_sha256") @db.Char(64)
+  jti             String    @db.Uuid
+  state           String    @default("CLAIMED") @db.VarChar(9)
+  result          Json?
+  claimedAt       DateTime  @default(now()) @map("claimed_at") @db.Timestamptz(6)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  issuance ClioMeriExecutionIssuance @relation(fields: [jti], references: [jti], onDelete: NoAction, onUpdate: NoAction, map: "clio_meri_execution_consumptions_jti_fkey")
+
+  @@id([tenantId, proposalId, idempotencyKey], map: "clio_meri_execution_consumptions_pkey")
+  @@map("clio_meri_execution_consumptions")
 }
 
 /// User-owned reusable instructions for the Meri vNext workspace.
@@ -2390,11 +2875,10 @@ model ClioMemory {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // Firm-scope rows (owner_user_id IS NULL) are additionally guarded by a
-  // PARTIAL unique index `clio_memory_firm_key_uniq` (tenant_id, scope, key)
-  // WHERE owner_user_id IS NULL, created raw in migration 20260705120000 because
-  // Prisma cannot express partial indexes. Do NOT let `prisma migrate dev`
-  // reconcile it away. The @@unique below still enforces the user_private case.
+  // Raw partial indexes guard firm keys (tenant_id, scope, key) and client keys
+  // (tenant_id, client_id, key) separately since 20281018080000. Prisma cannot
+  // express them; do NOT let `prisma migrate dev` reconcile them away. The
+  // @@unique below still enforces the user_private owner-key case.
   @@unique([tenantId, scope, ownerUserId, key], map: "clio_memory_tenant_scope_owner_key_uniq")
   @@index([tenantId, scope, ownerUserId, updatedAt(sort: Desc)], map: "clio_memory_scope_owner_updated_idx")
   @@index([tenantId, scope, updatedAt(sort: Desc)], map: "clio_memory_scope_updated_idx")
@@ -16762,4 +17246,226 @@ model NewsletterInvitationEmailDelivery {
   @@index([tenantId, createdAt])
   @@index([status, updatedAt])
   @@map("newsletter_invitation_email_deliveries")
+}
+
+
+/// Source-only Objective workload delegation. Existing consent/control tables
+/// are SQL-owned and intentionally have no Prisma model or relation here.
+/// Migration 20281016010000 enforces the exact composite consent FK and a
+/// database CHECK that keeps every delegation disabled until a later review.
+model ClientObjectiveWorkloadDelegation {
+  delegationRef                String    @id @default(dbgenerated("gen_random_uuid()")) @map("delegation_ref") @db.Uuid
+  tenantId                     String    @map("tenant_id") @db.Uuid
+  clientId                     String    @map("client_id") @db.Uuid
+  objectiveId                  String    @map("objective_id") @db.Uuid
+  workAction                   String    @map("work_action") @db.VarChar(40)
+  controlId                    String    @map("control_id") @db.Uuid
+  consentId                    String    @map("consent_id") @db.Uuid
+  controlVersion               Int       @map("control_version")
+  generationJobId              String    @unique(map: "objective_workload_delegations_job_key") @map("generation_job_id") @db.Uuid
+  generationRequestId          String    @map("generation_request_id") @db.Uuid
+  generationRequestFingerprint String   @map("generation_request_fingerprint") @db.Char(64)
+  jobRequestKey                String    @map("job_request_key") @db.Text
+  clerkUserId                  String    @map("clerk_user_id") @db.VarChar(128)
+  serviceSubject               String    @map("service_subject") @db.VarChar(128)
+  audience                     String    @db.VarChar(128)
+  policyRevision               String    @map("policy_revision") @db.Char(64)
+  issuedAt                     DateTime  @default(dbgenerated("clock_timestamp()")) @map("issued_at") @db.Timestamptz(6)
+  absoluteExpiresAt            DateTime  @map("absolute_expires_at") @db.Timestamptz(6)
+  authorityVersion             Int       @default(1) @map("authority_version")
+  enabled                      Boolean   @default(false)
+  cancelledAt                  DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, consentId, generationRequestId], map: "objective_workload_delegations_consent_request_key")
+  @@unique([tenantId, clientId, objectiveId, workAction, controlId, consentId, generationJobId, delegationRef], map: "objective_workload_delegations_issuance_scope_key")
+  @@index([tenantId, clientId, objectiveId, controlId, consentId], map: "objective_workload_delegations_scope_idx")
+  @@map("client_objective_workload_delegations")
+}
+
+/// Immutable operation result. Denied decisions may precede tenant resolution;
+/// those NULL-tenant receipts require a separately reviewed system writer.
+/// They survive consent-linked issuance deletion to preserve replay identity.
+/// SQL owns the partial unique mutating-phase fence on tenant, job and phase.
+model ClientObjectiveWorkloadIssueDecision {
+  operationId           String   @id @map("operation_id") @db.Uuid
+  callerIssuer          String   @map("caller_issuer") @db.VarChar(128)
+  callerSubject         String   @map("caller_subject") @db.VarChar(128)
+  issuanceRequestSha256 String   @map("issuance_request_sha256") @db.Char(64)
+  decision              String   @db.VarChar(6)
+  tenantId              String?  @map("resolved_tenant_id") @db.Uuid
+  generationJobId        String?  @map("generation_job_id") @db.Uuid
+  phase                  String?  @db.VarChar(32)
+  decidedAt             DateTime @default(dbgenerated("clock_timestamp()")) @map("decided_at") @db.Timestamptz(6)
+
+  @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision], map: "objective_workload_issue_decisions_proof_key")
+  @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision, tenantId], map: "objective_workload_issue_decisions_issuance_key")
+  @@unique([operationId, decision, tenantId], map: "objective_workload_issue_decisions_delivery_key")
+  @@unique([operationId, callerIssuer, callerSubject, issuanceRequestSha256, decision, tenantId, generationJobId, phase], map: "objective_workload_issue_decisions_claim_key")
+  @@map("client_objective_workload_issue_decisions")
+}
+
+/// Immutable saved JWT claim tuple for Core operation-level issuance replay.
+/// SQL owns the composite delegation FK, fixed phase/routes and raw-body hash
+/// checks; the issuer still has to recheck current database authority.
+model ClientObjectiveWorkloadIssuance {
+  operationId            String   @id @map("operation_id") @db.Uuid
+  decision               String   @default("issued") @db.VarChar(6)
+  tenantId               String   @map("tenant_id") @db.Uuid
+  clientId               String   @map("client_id") @db.Uuid
+  objectiveId            String   @map("objective_id") @db.Uuid
+  workAction             String   @map("work_action") @db.VarChar(40)
+  controlId              String   @map("control_id") @db.Uuid
+  consentId              String   @map("consent_id") @db.Uuid
+  generationJobId        String   @map("generation_job_id") @db.Uuid
+  delegationRef          String   @map("delegation_ref") @db.Uuid
+  callerIssuer           String   @map("caller_issuer") @db.VarChar(128)
+  callerSubject          String   @map("caller_subject") @db.VarChar(128)
+  issuanceRequestSha256  String   @map("issuance_request_sha256") @db.Char(64)
+  authorizationJti       String   @unique(map: "objective_workload_issuances_jti_key") @map("authorization_jti") @db.Uuid
+  tokenIssuer            String   @map("token_issuer") @db.VarChar(128)
+  tokenSubject           String   @map("token_subject") @db.VarChar(128)
+  tokenAudience          String   @map("token_audience") @db.VarChar(128)
+  signerKeyId            String   @map("signer_key_id") @db.VarChar(64)
+  phase                  String   @db.VarChar(32)
+  targetMethod           String   @map("target_method") @db.VarChar(4)
+  targetPath             String   @map("target_path") @db.VarChar(256)
+  targetQuery            String   @default("") @map("target_query") @db.VarChar(1)
+  targetBodySha256       String   @map("target_body_sha256") @db.Char(64)
+  attemptId              String?  @map("attempt_id") @db.Uuid
+  runId                  String?  @map("run_id") @db.Uuid
+  acceptedBindingSha256  String?  @map("accepted_binding_sha256") @db.Char(64)
+  sourceSha256           String?  @map("source_sha256") @db.Char(64)
+  iatSeconds             BigInt   @map("iat_seconds")
+  nbfSeconds             BigInt   @map("nbf_seconds")
+  expSeconds             BigInt   @map("exp_seconds")
+  recordedAt             DateTime @default(dbgenerated("clock_timestamp()")) @map("recorded_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, operationId, callerIssuer, callerSubject, issuanceRequestSha256], map: "objective_workload_issuances_proof_scope_key")
+  @@index([tenantId, generationJobId, recordedAt], map: "objective_workload_issuances_job_idx")
+  @@map("client_objective_workload_issuances")
+}
+
+/// Durable post-claim signing state. CLAIMED is treated as UNKNOWN on replay;
+/// only ISSUED with the original token digest permits an exact current replay.
+/// This table references the permanent decision, not the consent-linked
+/// issuance, so hard deletion preserves its JTI and uncertain-delivery fence.
+model ClientObjectiveWorkloadDelivery {
+  operationId      String    @id @map("operation_id") @db.Uuid
+  decision         String    @default("issued") @db.VarChar(6)
+  tenantId         String    @map("tenant_id") @db.Uuid
+  authorizationJti String    @unique(map: "objective_workload_deliveries_jti_key") @map("authorization_jti") @db.Uuid
+  state            String    @default("claimed") @db.VarChar(7)
+  tokenSha256      String?   @map("token_sha256") @db.Char(64)
+  claimedAt        DateTime  @default(dbgenerated("clock_timestamp()")) @map("claimed_at") @db.Timestamptz(6)
+  finalizedAt      DateTime? @map("finalized_at") @db.Timestamptz(6)
+
+  @@map("client_objective_workload_deliveries")
+}
+
+/// Every verified proof use binds the exact operation and request. A later
+/// proof may be denied while the original operation decision remains issued.
+/// NULL-tenant denial rows need a future narrowly authorized system writer.
+model ClientObjectiveWorkloadProofUse {
+  tenantId            String?  @map("tenant_id") @db.Uuid
+  callerIssuer        String   @map("caller_issuer") @db.VarChar(128)
+  callerSubject       String   @map("caller_subject") @db.VarChar(128)
+  callerKeyId         String   @map("caller_key_id") @db.VarChar(64)
+  proofJti            String   @map("proof_jti") @db.Uuid
+  operationId         String   @map("operation_id") @db.Uuid
+  operationDecision   String   @map("operation_decision") @db.VarChar(6)
+  proofOutcome        String   @map("proof_outcome") @db.VarChar(6)
+  proofRequestSha256  String   @map("proof_request_sha256") @db.Char(64)
+  proofIatSeconds     BigInt   @map("proof_iat_seconds")
+  proofNbfSeconds     BigInt   @map("proof_nbf_seconds")
+  proofExpSeconds     BigInt   @map("proof_exp_seconds")
+  usedAt              DateTime @default(dbgenerated("clock_timestamp()")) @map("used_at") @db.Timestamptz(6)
+
+  @@id([callerIssuer, proofJti], map: "objective_workload_proof_uses_pkey")
+  @@index([callerIssuer, operationId], map: "objective_workload_proof_uses_operation_idx")
+  @@map("client_objective_workload_proof_uses")
+}
+
+/// Non-Meri manual Engagement aggregate. SQL owns structural JSON constraints,
+/// immutable identities and append-only history. Authorization stays in Core.
+model EngagementPlan {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  clientId            String    @map("client_id") @db.Uuid
+  title               String    @db.VarChar(200)
+  lifecycle           String    @default("draft") @db.VarChar(16)
+  version             Int       @default(1)
+  officeReferences    Json      @default("[]") @map("office_references") @db.JsonB
+  objectiveBinding    Json?     @map("objective_binding") @db.JsonB
+  reviewedPlanVersion Int?      @map("reviewed_plan_version")
+  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewDueAt         DateTime? @map("review_due_at") @db.Timestamptz(6)
+  reviewedByUserId    String?   @map("reviewed_by_user_id") @db.Uuid
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plans_tenant_fk")
+  client              Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plans_client_fk")
+  waves               EngagementPlanWave[]
+  commandReceipts     EngagementPlanCommandReceipt[]
+  revisions           EngagementPlanRevision[]
+
+  @@unique([tenantId, clientId, id], map: "engagement_plans_scope_key")
+  @@index([tenantId, clientId, lifecycle, createdAt], map: "engagement_plans_list_idx")
+  @@map("engagement_plans")
+}
+
+/// No separate wave version: every wave command advances its parent plan.
+/// Office IDs are historical snapshots, intentionally without target FKs.
+model EngagementPlanWave {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  planId          String    @map("plan_id") @db.Uuid
+  title           String    @db.VarChar(200)
+  position        Int
+  formatLabel     String?   @map("format_label") @db.VarChar(120)
+  window          Json?     @db.JsonB
+  officeTargetIds String[]  @default([]) @map("office_target_ids") @db.Uuid
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  plan            EngagementPlan @relation(fields: [tenantId, clientId, planId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plan_waves_plan_fk")
+
+  @@index([tenantId, clientId, planId, archivedAt, position, id], map: "engagement_plan_waves_list_idx")
+  @@map("engagement_plan_waves")
+}
+
+/// Immutable original command result; retry never returns a later aggregate.
+model EngagementPlanCommandReceipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  planId      String   @map("plan_id") @db.Uuid
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  command     String   @db.VarChar(32)
+  requestId   String   @map("request_id") @db.Uuid
+  requestHash String   @map("request_hash") @db.Char(64)
+  receipt     Json     @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan        EngagementPlan @relation(fields: [tenantId, clientId, planId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plan_command_receipts_plan_fk")
+
+  @@unique([tenantId, clientId, actorUserId, command, requestId], map: "engagement_plan_command_receipts_request_key")
+  @@index([tenantId, clientId, planId], map: "engagement_plan_command_receipts_plan_idx")
+  @@map("engagement_plan_command_receipts")
+}
+
+model EngagementPlanRevision {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  planId      String   @map("plan_id") @db.Uuid
+  version     Int
+  operation   String   @db.VarChar(32)
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  snapshot    Json     @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan        EngagementPlan @relation(fields: [tenantId, clientId, planId], references: [tenantId, clientId, id], onDelete: Cascade, onUpdate: NoAction, map: "engagement_plan_revisions_plan_fk")
+
+  @@unique([tenantId, planId, version], map: "engagement_plan_revisions_version_key")
+  @@map("engagement_plan_revisions")
 }

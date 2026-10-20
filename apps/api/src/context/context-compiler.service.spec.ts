@@ -8,8 +8,8 @@ import type { PrismaService } from '../prisma/prisma.service.js';
  *   1. a request WITH a userId rides withTenantUser (both GUCs — the 1C
  *      owner-aware RLS policy hides private user-voice rows otherwise);
  *   2. a request WITHOUT a userId rides withTenant;
- *   3. the steering query NEVER filters on status (the compiler must see
- *      superseded/revoked rows to record them as exclusions);
+ *   3. the steering query withholds inactive and Clio-derived rows before a
+ *      v1 packet can render or persist them, even with lifecycle enforcement off;
  *   4. the packet trace lands in context_packet with the compiler's packetId
  *      and the item/exclusion counts, and a trace failure never rejects
  *      compile().
@@ -34,10 +34,17 @@ describe('ContextCompilerService (apps/api adapter)', () => {
     sections: [{ owner: 'human', heading: 'Where', body: 'Gone.' }],
   };
 
-  function makePrisma(rows: unknown[] = [FIRM_ROW, REVOKED_ROW]) {
+  function makePrisma(rows: unknown[] = [FIRM_ROW, REVOKED_ROW], governedColumnsAvailable = false) {
     const packetCreates: Array<{ data: Record<string, unknown> }> = [];
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue(rows),
+      $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
+      $queryRaw: jest.fn(async (sql: { strings?: string[] } | TemplateStringsArray) =>
+        (Array.isArray(sql) ? sql : ((sql as { strings?: string[] }).strings ?? []))
+          .join('?')
+          .includes('pg_catalog.pg_attribute')
+          ? [{ ready: governedColumnsAvailable }]
+          : rows,
+      ),
       contextPacket: {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => {
           packetCreates.push(args);
@@ -84,7 +91,7 @@ describe('ContextCompilerService (apps/api adapter)', () => {
     expect(prisma.withTenant).toHaveBeenCalled();
   });
 
-  it('the steering query carries no status filter (governance is compiler-side)', async () => {
+  it('off-mode v1 query withholds Clio rows before packet persistence on the old schema', async () => {
     const { prisma, tx } = makePrisma();
     const service = new ContextCompilerService(prisma);
     await service.compile({
@@ -95,10 +102,54 @@ describe('ContextCompilerService (apps/api adapter)', () => {
     });
 
     // Prisma.sql produces { strings, values }; assert on the SQL text.
-    const arg = (tx.$queryRaw as jest.Mock).mock.calls[0]![0] as { strings?: string[] };
+    const arg = (tx.$queryRaw as jest.Mock).mock.calls.find(([sql]) =>
+      (sql as { strings?: string[] }).strings?.join('?').includes('FROM memory_items'),
+    )?.[0] as { strings?: string[] };
     const sql = (arg.strings ?? []).join('?');
     expect(sql).toContain('FROM memory_items');
-    expect(sql).not.toMatch(/status\s*=/i);
+    expect(sql).toContain("status = 'active'");
+    expect(sql).toContain("slug NOT LIKE 'clio:%'");
+    expect(sql).not.toContain('governed_status');
+  });
+
+  it('off-mode v1 query applies effective dates and terminal suppression when migrated', async () => {
+    const { prisma, tx } = makePrisma([FIRM_ROW], true);
+    const service = new ContextCompilerService(prisma);
+    await service.compile({
+      tenantId: 't1',
+      userId: 'u1',
+      surface: 'chat',
+      layers: ['firm-identity'],
+    });
+    const arg = (tx.$queryRaw as jest.Mock).mock.calls.find(([query]) =>
+      (query as { strings?: string[] }).strings?.join('?').includes('FROM memory_items'),
+    )?.[0] as { strings?: string[] };
+    const sql = (arg.strings ?? []).join('?');
+    expect(sql).toContain("governed_status IN ('active', 'stale')");
+    expect(sql).toContain('effective_from <= now()');
+    expect(sql).toContain('controlling_item_id = id');
+  });
+
+  it('requires exact owner shape and the selected client wall for steering', async () => {
+    const { prisma, tx } = makePrisma([FIRM_ROW]);
+    const service = new ContextCompilerService(prisma);
+    await service.compile({
+      tenantId: 't1',
+      userId: 'u1',
+      clientId: 'c1',
+      surface: 'chat',
+      layers: ['firm-identity', 'user-voice', 'client-steering'],
+    });
+    const arg = (tx.$queryRaw as jest.Mock).mock.calls.find(([query]) =>
+      (query as { strings?: string[] }).strings?.join('?').includes('FROM memory_items'),
+    )?.[0] as { strings?: string[] };
+    const sql = (arg.strings ?? []).join('?');
+    expect(sql).toContain('WHERE tenant_id = ?::uuid AND (');
+    expect((arg as { values?: unknown[] }).values).toContain('t1');
+    expect(sql).toContain("slug = 'firm'\n              AND visibility = 'tenant' AND owner_user_id IS NULL AND client_id IS NULL");
+    expect(sql).toContain("AND visibility = 'user' AND owner_user_id = ?::uuid");
+    expect(sql).toContain('AND (client_id IS NULL OR (?');
+    expect(sql).toContain("AND visibility = 'tenant' AND owner_user_id IS NULL");
   });
 
   it('persists the trace with packetId + counts, and revoked rows land as exclusions', async () => {
@@ -183,7 +234,9 @@ describe('ContextCompilerService (apps/api adapter)', () => {
         surface: 'outreach',
         layers: ['firm-identity', 'user-voice'],
       });
-      const arg = (tx.$queryRaw as jest.Mock).mock.calls[0]![0] as { strings?: string[] };
+      const arg = (tx.$queryRaw as jest.Mock).mock.calls.find(([query]) =>
+        (query as { strings?: string[] }).strings?.join('?').includes('FROM memory_items'),
+      )?.[0] as { strings?: string[] };
       const sql = (arg.strings ?? []).join('?');
       // Semantic rank first (Firm Soul before Firm Compass), then authority
       // recency, and finally (type, slug, id) — which is total, so `id` breaks any

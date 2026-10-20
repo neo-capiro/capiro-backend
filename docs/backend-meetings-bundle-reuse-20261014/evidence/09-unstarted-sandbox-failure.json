@@ -1,0 +1,10 @@
+{
+  "attempt": "09-types",
+  "sourceHead": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+  "sourceTree": "6f5086f584c9915f4fd417b09c7545eb6e0f70a7",
+  "requestedCommand": "node docs/backend-meetings-bundle-reuse-20261014/evidence/run-types.cjs 09",
+  "toolExitCode": 101,
+  "executionStarted": false,
+  "rawToolOutput": "\nthread 'main' (1168312) panicked at linux-sandbox/src/linux_run_main.rs:994:25:\nfailed to register synthetic bubblewrap mount target /workspace/.git: No space left on device (os error 28)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+  "qualification": "Environment startup failure before Node/typecheck execution; not an acceptance result. No escalation, bypass, common temporary-file cleanup or blind retry."
+}

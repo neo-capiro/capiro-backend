@@ -94,3 +94,7 @@ apps/web/artifacts/hillday-visual/
 # and the prepared corpus are materialised locally, never committed.
 .session7-lifecycle/
 .session8-discovery/
+
+# Rebuildable Session 5 provider requests. Keep the source PDFs, request
+# manifests, rendered pages, and frozen corpus evidence in Git.
+.session5-live/materialized/

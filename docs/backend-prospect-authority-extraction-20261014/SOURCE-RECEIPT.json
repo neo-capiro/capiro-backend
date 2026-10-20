@@ -1,0 +1,51 @@
+{
+  "baseHead": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+  "baseTree": "403c6f22ce6602f98e3bc45943b81684eeb716fb",
+  "sourceHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+  "sourceTree": "baf1fc9349a0823add4873bc1840b745bf62e920",
+  "sourceDelta": [
+    {
+      "path": "apps/api/src/auth/application-authority-boundary.spec.ts",
+      "blob": "5d87349306fafeb5ad97b0227f450d9dd8085ab4",
+      "bytes": 5025,
+      "sha256": "48752673b936aa2fd147e198b392da0cb4a2fcb650c053507c74178236ef0aef"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "blob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f",
+      "bytes": 3597,
+      "sha256": "34509c16b1c7fdf9fb2bf0c0d8f1e9fabb0990c081084daea645db5f104652d1"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "blob": "3d3098133ce80973079de1a65c4a43be7d7ffbc3",
+      "bytes": 28721,
+      "sha256": "3e1d8a501484675e0b5e332f36638544f547d9c76d0b90299a6725621b426325"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+      "blob": "f28e58850550e9d097ae1fb0a2831f448a21a29a",
+      "bytes": 2213,
+      "sha256": "035d8f5e91fb7e55d2ea4249d421d458a15b8ddd7da80b8495b08d34d9a7253d"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada",
+      "bytes": 1633,
+      "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "blob": "721ecf1c9fb2bbb7a467436901aa925cebb5a9cc",
+      "bytes": 2550,
+      "sha256": "96c71c73f3637b4902e52d2277b84423ec05ed463e9c76544e6d1e2b03610fee"
+    }
+  ],
+  "productionPathCount": 3,
+  "testPathCount": 3,
+  "noSchemaMigrationPackageLockAuthPolicyRuntimeRetirement": true,
+  "preservedIntermediateSourceHeads": [
+    "bbedaa45673c28018e6c7d13f4a5f4d7c30389e5",
+    "c1ccc2ec49991bda6cb3c815108396cac38071aa"
+  ]
+}

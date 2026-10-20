@@ -3,6 +3,7 @@
 # exec `/bin/sh\r` which fails with "No such file or directory".
 *.sh        text eol=lf
 Dockerfile  text eol=lf
+apps/api/Dockerfile.alpine-qualification text eol=lf
 *.Dockerfile text eol=lf
 # entrypoint-dispatcher.inc is a POSIX shell script run as `/bin/sh <file>`, so
 # it needs the same protection as *.sh despite the extension.
@@ -14,6 +15,7 @@ Dockerfile  text eol=lf
 *.cjs       text eol=lf
 *.mjs       text eol=lf
 *.md        text eol=lf
+infra/deploy/first-chat-core-preview.buildspec.yml text eol=lf
 
 # Binary fixtures/assets — never apply text/EOL normalization (would corrupt them).
 *.pdf       binary

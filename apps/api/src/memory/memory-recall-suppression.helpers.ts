@@ -3,6 +3,7 @@ import {
   governedRecallSuppressionSql,
   TERMINAL_GOVERNED_STATUSES,
 } from '@capiro/meriv2-core';
+import type { Prisma } from '@prisma/client';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 
 /**
@@ -13,39 +14,63 @@ import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.he
  * call sites keep a single local import.
  */
 export { governedRecallEligibilitySql, governedRecallSuppressionSql, TERMINAL_GOVERNED_STATUSES };
-const SAFE_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-/**
- * Suppression predicate for a `clio_memory` read.
- *
- * clio_memory has NO governed_status column — and no status column at all — so
- * terminal state is unrepresentable there, yet clio IS the DEFAULT recall backing
- * (MEMORY_RECALL_SOURCE defaults to 'clio'). The only governed handle is the
- * memory_items projection written by MemoryIngestService.projectClioMemory, keyed
- * `type='note', slug='clio:'||id`, which the existing
- * memory_items_tenant_type_slug_unique index serves — so this adds no index.
- *
- * HONEST LIMITATION: projectClioMemory is best-effort and never throws. A clio row
- * with NO projection has nothing to suppress and therefore still recalls. This
- * predicate fails OPEN on the highest-traffic recall path; it is a real narrowing,
- * not a guarantee. Suppression today still also relies on physically deleting the
- * clio row (the forget/correct verbs and the cleanup outbox).
- */
-export function governedClioSuppressionSql(enabled: boolean, alias = 'clio_memory'): string {
-  if (!enabled) return '';
-  if (!SAFE_ALIAS.test(alias)) {
-    throw new Error(`governedClioSuppressionSql: unsafe alias ${JSON.stringify(alias)}`);
-  }
-  return `\n           AND NOT EXISTS (
-             SELECT 1 FROM memory_items mi_sup
-             WHERE mi_sup.tenant_id = ${alias}.tenant_id
-               AND mi_sup.type = 'note'
-               AND mi_sup.slug = 'clio:' || ${alias}.id::text
-               AND NOT ${governedRecallEligibilitySql('mi_sup')}
-           )`;
-}
 
 /** Reads the process switch once, so call sites stay one-liners. */
 export function governedRecallSuppressionEnabled(): boolean {
   return governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE);
+}
+
+/**
+ * The lifecycle migration has not been applied everywhere. Probe the columns
+ * inside the caller's read transaction rather than assuming the process switch
+ * describes the database. A failed probe is an error, never permission to read.
+ */
+export async function governedRecallColumnsAvailableInTx(
+  tx: Pick<Prisma.TransactionClient, '$queryRaw'>,
+): Promise<boolean> {
+  const rows = await tx.$queryRaw<Array<{ ready: boolean }>>`
+    SELECT COUNT(*) = 5 AS ready
+    FROM pg_catalog.pg_attribute
+    WHERE attrelid = to_regclass('memory_items')
+      AND attname = ANY(ARRAY[
+        'governed_status', 'conflict_status', 'controlling_item_id',
+        'effective_from', 'valid_until'
+      ]::text[])
+      AND attnum > 0 AND NOT attisdropped
+  `;
+  return rows.length === 1 && rows[0]?.ready === true;
+}
+
+/**
+ * Content readers also run while lifecycle enforcement is dark. Legacy files
+ * remain available, but a Clio projection or a row bearing governed state
+ * cannot bypass approval, terminal state, conflict, or effective dates. When
+ * the migration is absent, Clio projections are withheld; the SQL emitted in
+ * that case references only pre-migration columns.
+ */
+export function currentMemoryReadSql(columnsAvailable: boolean, alias = ''): string {
+  // The shared predicate validates SQL identifiers, even in the legacy branch.
+  const governed = governedRecallEligibilitySql(alias);
+  const prefix = alias ? `${alias}.` : '';
+  const legacy = `${prefix}status = 'active'
+    AND (${prefix}expires_at IS NULL OR ${prefix}expires_at > now())`;
+  if (!columnsAvailable) {
+    return `AND ${legacy} AND ${prefix}slug NOT LIKE 'clio:%'`;
+  }
+  return `AND ${legacy} AND (
+    (${prefix}governed_status IS NULL
+      AND ${prefix}slug NOT LIKE 'clio:%'
+      AND (${prefix}effective_from IS NULL OR ${prefix}effective_from <= now())
+      AND (${prefix}valid_until IS NULL OR ${prefix}valid_until > now())
+      AND ${prefix}controlling_item_id IS NULL
+      AND COALESCE(${prefix}conflict_status, 'none') NOT IN ('open', 'controlling'))
+    OR ${governed}
+  )`;
+}
+
+export async function currentMemoryReadSqlInTx(
+  tx: Pick<Prisma.TransactionClient, '$queryRaw'>,
+  alias = '',
+): Promise<string> {
+  return currentMemoryReadSql(await governedRecallColumnsAvailableInTx(tx), alias);
 }

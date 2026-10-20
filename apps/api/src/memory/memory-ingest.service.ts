@@ -15,6 +15,7 @@ import type { IngestContext, MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { normalize } from '../embeddings/embedder.js';
 import { embedMemoryItem, memoryEmbeddingEligibilitySql } from './memory-embedding-lifecycle.js';
+import { governedRecallColumnsAvailableInTx } from './memory-recall-suppression.helpers.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 
 /** Build the text we embed for a memory item: title + human-authored section bodies
@@ -116,6 +117,20 @@ export class MemoryIngestService {
       }
 
       // ---- Phase B: ClioMemory unification ----
+      // Exact candidate activations already own a canonical memory_item, which
+      // may have a Settings slug rather than clio:<id>. Reprojecting their Clio
+      // source here would create a second active item or overwrite a revoked
+      // item's status from old source metadata. The exact outbox owns them.
+      const exactLinked = await this.prisma.withSystem(
+        (tx) => tx.$queryRaw<Array<{ clioMemoryId: string }>>`
+          SELECT DISTINCT committed_memory_id::text AS "clioMemoryId"
+          FROM memory_candidate
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND committed_memory_id IS NOT NULL
+            AND committed_memory_item_id IS NOT NULL
+        `,
+      );
+      const exactLinkedIds = new Set(exactLinked.map((row) => row.clioMemoryId));
       const memories = await this.prisma.withSystem(
         (tx) =>
           tx.$queryRaw<ClioMemoryRow[]>`
@@ -127,6 +142,10 @@ export class MemoryIngestService {
       `,
       );
       for (const m of memories) {
+        // Governance metadata is written in the SAME transaction as the
+        // canonical item. It closes the race where an activation commits after
+        // the linked-ID snapshot above but before this Clio scan.
+        if (hasCanonicalOwner(m) || exactLinkedIds.has(m.id)) continue;
         const row: ClioMemoryRow = {
           ...m,
           createdAt: new Date(m.createdAt as unknown as string).toISOString(),
@@ -320,8 +339,9 @@ export class MemoryIngestService {
       // aborts), so one bad row can't strand the rest. ----
       try {
         const items = await this.prisma.withSystem(
-          (tx) =>
-            tx.$queryRaw<
+          async (tx) => {
+            const memoryColumnsAvailable = await governedRecallColumnsAvailableInTx(tx);
+            return tx.$queryRaw<
               Array<{
                 id: string;
                 client_id: string | null;
@@ -334,8 +354,9 @@ export class MemoryIngestService {
             >`
           SELECT id, client_id, owner_user_id, type, title, slug, sections_jsonb AS sections
           FROM memory_items mi WHERE mi.tenant_id = ${ctx.tenantId}::uuid
-            AND ${Prisma.raw(memoryEmbeddingEligibilitySql())}
-        `,
+            AND ${Prisma.raw(memoryEmbeddingEligibilitySql(memoryColumnsAvailable))}
+        `;
+          },
         );
         for (const it of items) {
           const sections = Array.isArray(it.sections)
@@ -443,6 +464,17 @@ export class MemoryIngestService {
       );
       const m = rows[0];
       if (!m) return; // row was deleted/never existed — nothing to project
+      if (hasCanonicalOwner(m)) return;
+      const exactLinked = await this.prisma.withSystem(
+        (tx) => tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id::text AS id FROM memory_candidate
+          WHERE tenant_id = ${tenantId}::uuid
+            AND committed_memory_id = ${clioMemoryId}::uuid
+            AND committed_memory_item_id IS NOT NULL
+          LIMIT 1
+        `,
+      );
+      if (exactLinked.length) return; // Strict projector owns the linked item.
       const row: ClioMemoryRow = {
         ...m,
         createdAt: new Date(m.createdAt as unknown as string).toISOString(),
@@ -470,36 +502,81 @@ export class MemoryIngestService {
   }
 
   /**
-   * Write-through removal for a DELETED ClioMemory row (Gap 6). Removes the
-   * projected memory_item (its memory_edges cascade via FK) and its
-   * context_embeddings row (which has no cascade). Non-fatal; never throws.
+   * Write-through removal for a DELETED ClioMemory row (Gap 6). The producer
+   * captures the exact projection id before deleting Clio's source: a governed
+   * projection can be a playbook, client-compass, or user-profile, and a
+   * linked canonical item may have its own slug. This fast path only accepts a
+   * derived projection already revoked by the source transaction; it retains
+   * the tombstone for audit and removes its semantic embedding. The two-argument
+   * form is retained only for legacy note projections at the Clio-derived slug.
+   *
+   * A failed removal must reject so forgetMemory leaves its durable revoke job
+   * pending. memory_edges cascade from the item; embeddings do not.
    */
-  async removeClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
+  async removeClioMemory(
+    tenantId: string,
+    clioMemoryId: string,
+    projectionId?: string | null,
+  ): Promise<void> {
     try {
+      if (projectionId === null) return; // No projection existed at source deletion.
       const slug = clioMemorySlug(clioMemoryId);
       await this.prisma.withSystem(async (tx) => {
-        const rows = await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id FROM memory_items
-          WHERE tenant_id = ${tenantId}::uuid AND type = 'note' AND slug = ${slug}
-          LIMIT 1
-          FOR UPDATE
-        `;
-        const itemId = rows[0]?.id;
-        if (!itemId) return;
+        const rows = projectionId === undefined
+          ? await tx.$queryRaw<Array<{ id: string; tenantId: string; slug: string; status: string; legalHold: boolean }>>`
+              SELECT id::text AS id, tenant_id::text AS "tenantId", slug,
+                     status, legal_hold AS "legalHold"
+              FROM memory_items
+              WHERE tenant_id = ${tenantId}::uuid AND type = 'note' AND slug = ${slug}
+              LIMIT 1 FOR UPDATE
+            `
+          : await tx.$queryRaw<Array<{ id: string; tenantId: string; slug: string; status: string; legalHold: boolean }>>`
+              SELECT id::text AS id, tenant_id::text AS "tenantId", slug,
+                     status, legal_hold AS "legalHold"
+              FROM memory_items
+              WHERE id = ${projectionId}::uuid FOR UPDATE
+            `;
+        const item = rows[0];
+        if (!item) return; // Already removed by another cleanup owner.
+        if (item.tenantId !== tenantId || item.slug !== slug) {
+          throw new Error('memory_projection_target_mismatch');
+        }
+        if (item.legalHold) throw new Error('memory_projection_legal_hold');
+        if (projectionId !== undefined && item.status !== 'revoked') {
+          throw new Error('memory_projection_not_revoked');
+        }
         // context_embeddings.source_id is the memory_item id as text; no FK cascade.
         await tx.$executeRaw`
           DELETE FROM context_embeddings
-          WHERE source_type = 'memory_item' AND source_id = ${itemId}
+          WHERE tenant_id = ${tenantId}::uuid AND source_type = 'memory_item'
+            AND source_id = ${item.id}
         `;
+        if (projectionId !== undefined) return; // Retain the revoked canonical tombstone.
+        // Legacy two-argument callers did not revoke the item transactionally.
         // memory_edges cascade via memory_items_src_fk ON DELETE CASCADE.
-        await tx.$executeRaw`DELETE FROM memory_items WHERE id = ${itemId}::uuid`;
+        const deleted = await tx.$executeRaw`
+          DELETE FROM memory_items
+          WHERE id = ${item.id}::uuid AND tenant_id = ${tenantId}::uuid
+            AND legal_hold = false
+        `;
+        if (deleted !== 1) throw new Error('memory_projection_exact_delete_failed');
       });
     } catch (err) {
       this.logger.warn(
-        `removeClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`,
+        `removeClioMemory ${clioMemoryId} failed: ${(err as Error).message}`,
       );
+      throw err;
     }
   }
+}
+
+function hasCanonicalOwner(row: Pick<ClioMemoryRow, 'key' | 'source' | 'metadata'>): boolean {
+  // An existing Settings Clio row can be upgraded after a backfill scan but
+  // before upsertSystem. Its source is stable across both snapshots, so never
+  // create a derived Clio item for this catalog-owned source.
+  if (row.source === 'settings_memory_editor' || row.key.startsWith('settings-file:')) return true;
+  const governance = row.metadata?.governance;
+  return governance !== null && typeof governance === 'object' && !Array.isArray(governance);
 }
 
 /** Pull unique email domains from a participants JSON array (best-effort). */

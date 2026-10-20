@@ -1,0 +1,281 @@
+{
+  "qualification": "10 inert shell dispatch cases plus 3 POSIX syntax checks; strict owned Node/tsx mocks; no Prisma/application/provider/SQL/database execution",
+  "source_base": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "source_scope": "exact authorized four-file retired-seed cleanup; not a committed/serving release claim",
+  "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-corrected-eo0gl20w",
+  "inputs": [
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "bytes": 16346,
+      "sha256": "a16c4ebffbb10da7a18a6a38f2f67bd35f39a875fdf4411b7015c395bb26e98d"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-legacy.sh",
+      "bytes": 645,
+      "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "bytes": 76955,
+      "sha256": "1651d7fac414eff859be16039fbce6117782a4611d19894f9e32097dda86e420"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "bytes": 11489,
+      "sha256": "6adf558fa9419f267f1ce61ec78c6183dac118ca30944e921e803b2177be247d"
+    }
+  ],
+  "cases": [
+    {
+      "label": "migrate-exit-0",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint.sh",
+        "migrate"
+      ],
+      "exit": 0,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-corrected-eo0gl20w/compose-fixture.js"
+          ]
+        },
+        {
+          "tool": "node",
+          "args": [
+            "./node_modules/prisma/build/index.js",
+            "migrate",
+            "deploy",
+            "--schema=./prisma/schema.prisma"
+          ]
+        }
+      ],
+      "stdout": "Running prisma migrate deploy (failed migration history is never auto-resolved)\n",
+      "stderr": ""
+    },
+    {
+      "label": "migrate-exit-47",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint.sh",
+        "migrate"
+      ],
+      "exit": 47,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-corrected-eo0gl20w/compose-fixture.js"
+          ]
+        },
+        {
+          "tool": "node",
+          "args": [
+            "./node_modules/prisma/build/index.js",
+            "migrate",
+            "deploy",
+            "--schema=./prisma/schema.prisma"
+          ]
+        }
+      ],
+      "stdout": "Running prisma migrate deploy (failed migration history is never auto-resolved)\n",
+      "stderr": ""
+    },
+    {
+      "label": "migrate-exit-63",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint.sh",
+        "migrate"
+      ],
+      "exit": 63,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/inert-core-dispatch-corrected-eo0gl20w/compose-fixture.js"
+          ]
+        },
+        {
+          "tool": "node",
+          "args": [
+            "./node_modules/prisma/build/index.js",
+            "migrate",
+            "deploy",
+            "--schema=./prisma/schema.prisma"
+          ]
+        }
+      ],
+      "stdout": "Running prisma migrate deploy (failed migration history is never auto-resolved)\n",
+      "stderr": ""
+    },
+    {
+      "label": "dispatcher-serve",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint-dispatcher.inc",
+        "serve"
+      ],
+      "exit": 0,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "-e",
+            "process.stdout.write(encodeURIComponent(process.argv[1]))",
+            "fixture"
+          ]
+        },
+        {
+          "tool": "node",
+          "args": [
+            "dist/main.js"
+          ]
+        }
+      ],
+      "stdout": "Starting Capiro API\n",
+      "stderr": ""
+    },
+    {
+      "label": "dispatcher-default",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "exit": 0,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "-e",
+            "process.stdout.write(encodeURIComponent(process.argv[1]))",
+            "fixture"
+          ]
+        },
+        {
+          "tool": "node",
+          "args": [
+            "dist/main.js"
+          ]
+        }
+      ],
+      "stdout": "Starting Capiro API\n",
+      "stderr": ""
+    },
+    {
+      "label": "retired-seed-refused",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint-dispatcher.inc",
+        "seed-workflows"
+      ],
+      "exit": 1,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "-e",
+            "process.stdout.write(encodeURIComponent(process.argv[1]))",
+            "fixture"
+          ]
+        }
+      ],
+      "stdout": "",
+      "stderr": "Unknown command: seed-workflows (expected: serve | migrate | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | drain-memory-cleanup-outbox | drain-mailbox-knowledge | dispatch-memory-review-notifications | backfill-memory-governance | diag-memory-governance | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | backfill-intel-article-encoding | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | discover-hearings | enrich-committee-hearings | detect-committee-site-updates | probe-committee-sources | reconcile-hearing-archives | audit-hearing-coverage | legiwatch-phase9-job | legiwatch-phase9-operator | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | backfill-assistance-awards-bulk | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-sam-opportunities | sync-sam-opportunities-all-federal | rematch-sam-opportunities | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | emit-district-nexus-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | report-bizdev-jev-shadow | sync-bls | sync-bea | sync-census | sync-district-economic-acs | sync-district-economic-cbp | sync-district-economic-lodes | sync-gsa-frpp | sync-tango-subawards | sync-grants | enrich-grant-details | generate-grant-opportunity-candidates | process-funding-opportunity-lifecycle | backfill-sam-opportunity-fields | backfill-funding-mapping-review | repair-set-aside-certifications | match-contractor-identifiers | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | ingest-defense-budget | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-pe-trust | audit-llamaparse-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all | repair-facility-district-codes | repair-cpf-cds-existing-geography | drain-pe-change-outbox | backfill-pe-observation-keys | dedupe-pe-observations | triage-pe-reconciliation | report-pe-attribution-gaps | repair-pe-thousands-as-millions | attach-pe-legacy-documents | reconcile-tango-webhook-alerts | process-tango-events | diag-funding-opportunities-makegov | diag-tango-webhook-contract | diag-tango-dibbs-sbir-ingestion | funding-execution-certification | funding-execution-source-adapter)\n"
+    },
+    {
+      "label": "legacy-migrate-refused",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint-legacy.sh",
+        "migrate"
+      ],
+      "exit": 64,
+      "calls": [],
+      "stdout": "",
+      "stderr": "Refusing legacy migrate dispatch: use /usr/local/bin/entrypoint.sh migrate; automatic migration-history mutation is disabled.\n"
+    },
+    {
+      "label": "dispatcher-migrate-refused",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint-dispatcher.inc",
+        "migrate"
+      ],
+      "exit": 64,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "-e",
+            "process.stdout.write(encodeURIComponent(process.argv[1]))",
+            "fixture"
+          ]
+        }
+      ],
+      "stdout": "",
+      "stderr": "Refusing legacy migrate dispatch: use /usr/local/bin/entrypoint.sh migrate; automatic migration-history mutation is disabled.\n"
+    },
+    {
+      "label": "preserved-clio-task-dispatch",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint-dispatcher.inc",
+        "run-clio-scheduled-tasks"
+      ],
+      "exit": 0,
+      "calls": [
+        {
+          "tool": "node",
+          "args": [
+            "-e",
+            "process.stdout.write(encodeURIComponent(process.argv[1]))",
+            "fixture"
+          ]
+        },
+        {
+          "tool": "tsx",
+          "args": [
+            "scripts/run-clio-scheduled-tasks.ts"
+          ]
+        }
+      ],
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "operator-recovery-missing-name",
+      "command": [
+        "/bin/sh",
+        "/dev/shm/capiro-runtime-candidate-20261014/worktree/apps/api/scripts/entrypoint.sh",
+        "migrate-resolve-applied"
+      ],
+      "exit": 1,
+      "calls": [],
+      "stdout": "",
+      "stderr": "Usage: migrate-resolve-applied <migration_name>\n"
+    }
+  ],
+  "syntax": [
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-legacy.sh",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "exit": 0
+}

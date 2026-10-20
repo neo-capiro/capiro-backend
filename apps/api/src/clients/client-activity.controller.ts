@@ -1,5 +1,26 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsIn, IsISO8601, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -12,6 +33,25 @@ import {
 } from './client-activity.service.js';
 
 class CreateActivityDto {
+  @IsOptional()
+  @IsIn(['we_owe', 'they_owe'])
+  direction?: 'we_owe' | 'they_owe' | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  counterparty?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  objectiveId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  objectiveVersion?: number | null;
+
   // Only recordable kinds are accepted: meetings, documents and outreach are
   // written by the features that own them.
   @IsIn(RECORDABLE_KINDS)
@@ -89,7 +129,9 @@ export class ClientActivityController {
     const requested = (kinds ?? '')
       .split(',')
       .map((value) => value.trim())
-      .filter((value): value is ActivityKind => (ACTIVITY_KINDS as readonly string[]).includes(value));
+      .filter((value): value is ActivityKind =>
+        (ACTIVITY_KINDS as readonly string[]).includes(value),
+      );
     return this.service.list(ctx, clientId, {
       ...(requested.length ? { kinds: requested } : {}),
       ...(limit ? { limit: Number(limit) } : {}),

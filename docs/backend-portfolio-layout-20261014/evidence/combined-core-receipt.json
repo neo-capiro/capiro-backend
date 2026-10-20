@@ -1,0 +1,59 @@
+{
+  "sourceHead": "078c55f805de8599cc413917ef90b7e20f040942",
+  "sourceTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "harness": {
+    "path": "docs/backend-core-source-startup-20261014/check-core-startup.cjs",
+    "blob": "826d2a669e5863c3e7cc12f8e51f3d2df2d50f79",
+    "sha256": "f88bf444101f64d83633ec4c2465b47ef10740544ba0758bf5673786b3814a34"
+  },
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs",
+    "--source-head=078c55f805de8599cc413917ef90b7e20f040942",
+    "--source-tree=e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a"
+  ],
+  "exitCode": 0,
+  "signal": null,
+  "sourceSchemaSha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+  "cachedPrismaSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "schemaQualification": "The authored schema is intentionally newer than the unchanged cached Prisma namespace. No generation, migration, database or RLS execution. Layout uses raw SQL; graph initialization proves source/DI registration only.",
+  "checks": [
+    {
+      "name": "combined exact source head and tree",
+      "passed": true
+    },
+    {
+      "name": "real Core module qualification pass",
+      "passed": true
+    },
+    {
+      "name": "registered GET /api/me/portfolio-layout",
+      "passed": false
+    },
+    {
+      "name": "registered PUT /api/me/portfolio-layout",
+      "passed": false
+    },
+    {
+      "name": "registered real layout controller source loaded",
+      "passed": true
+    },
+    {
+      "name": "registered existing UsersModule source loaded",
+      "passed": true
+    },
+    {
+      "name": "no unexpected denied I/O or asynchronous errors",
+      "passed": true
+    }
+  ],
+  "result": "held",
+  "summary": {
+    "loadedSources": 1616,
+    "modules": 89,
+    "routes": 1170,
+    "coreChecks": 28,
+    "expectedSdkPrewarmDenials": 4
+  },
+  "qualification": "Actual source business graph; non-listening synthetic inert I/O fixture. Transpile/runtime only; no full strict types, native database/RLS, provider or image acceptance."
+}

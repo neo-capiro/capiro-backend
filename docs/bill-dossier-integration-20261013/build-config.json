@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/tmp/bill-dossier-intel-build-20261013",
+    "tsBuildInfoFile": "/tmp/bill-dossier-intel-build-20261013.tsbuildinfo",
+    "sourceMap": false
+  }
+}

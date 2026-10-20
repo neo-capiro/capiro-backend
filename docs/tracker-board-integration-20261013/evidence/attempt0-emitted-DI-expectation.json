@@ -1,0 +1,8 @@
+{
+  "observation": "The first post-build static verifier expected a ClientWatchlistService import from memory and failed its assertion after all twelve syntax checks; actual Tracker source and output use TrackerWatchlistService as the third constructor parameter.",
+  "actualDI": "PrismaService, SourceDataRepository, TrackerWatchlistService, StateSourceDataRepository",
+  "correction": "Compared literal actual constructor/imports and ordered emitted metadata; no source or build changes.",
+  "buildExit": 0,
+  "firstVerifierExit": 1,
+  "nativeOrRuntimeAcceptance": false
+}

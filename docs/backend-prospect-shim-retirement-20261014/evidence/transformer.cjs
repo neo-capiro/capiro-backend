@@ -1,0 +1,2 @@
+const ts = require(require.resolve('typescript', {paths:['/workspace/capiro-backend-cleanup-receiving-20261014/apps/api']}));
+module.exports={process(source,filename){return {code:ts.transpileModule(source,{fileName:filename,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,experimentalDecorators:true,emitDecoratorMetadata:false,esModuleInterop:true,useDefineForClassFields:false}}).outputText}}};

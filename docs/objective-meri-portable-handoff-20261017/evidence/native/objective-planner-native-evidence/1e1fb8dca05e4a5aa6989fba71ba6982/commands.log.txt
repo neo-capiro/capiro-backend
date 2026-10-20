@@ -1,0 +1,53 @@
+
+EXEC node.exe exit=0
+v22.23.3
+
+EXEC node.exe exit=0
+
+EXEC node.exe exit=0
+
+EXEC node.exe exit=0
+PASS apps/api-strategy/test/objective-planner-continuation.db.int-spec.ts (11.402 s)
+PASS apps/api-strategy/test/objective-planner-native-fixture.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       12 skipped, 6 passed, 18 total
+Snapshots:   0 total
+Time:        12.306 s
+Ran all test suites within paths "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-native-fixture.spec.ts", "C:\Users\Administrator\Documents\Codex\2026-10-16\task-5\objective-native-b8\apps\api-strategy\test\objective-planner-continuation.db.int-spec.ts".
+
+EXEC postgres.exe exit=0
+postgres (PostgreSQL) 16.15
+
+EXEC initdb.exe exit=0
+The files belonging to this database system will be owned by user "Administrator".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory C:/Users/Administrator/Documents/Codex/2026-10-16/task-5/objective-native-b8/.objective-planner-native/postgres-data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... windows
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    ^"C^:^\Program^ Files^\PostgreSQL^\16^\bin^\pg^_ctl^" -D ^"C^:^\Users^\Administrator^\Documents^\Codex^\2026^-10^-16^\task^-5^\objective^-native^-b8^\^.objective^-planner^-native^\postgres^-data^" -l logfile start
+
+
+EXEC pg_ctl.exe exit=0
+waiting for server to start.... done
+server started
+
+EXEC psql.exe exit=2
+psql: error: connection to server at "127.0.0.1", port 56455 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?

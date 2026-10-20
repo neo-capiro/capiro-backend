@@ -1,0 +1,9 @@
+{
+  "sourceHead": "53dc10fad8eb9f2bfc77b0ddc28a7c6f29a06fc0",
+  "command": "node docs/backend-directory-objective-20261014/evidence/run-check.cjs 08 jest",
+  "exitCode": 101,
+  "runnerLaunched": false,
+  "failure": "linux sandbox failed before process launch: failed to register synthetic bubblewrap mount target /workspace/.git: No space left on device (os error 28)",
+  "retryBasis": "Harmless df execution succeeded, but /tmp capacity remained0 and a write-capable sandbox launch still failed",
+  "qualification": "No Jest result for this failed launch; no more retries until ordinary temporary storage capacity recovers; no bypass/escalation/common cleanup"
+}

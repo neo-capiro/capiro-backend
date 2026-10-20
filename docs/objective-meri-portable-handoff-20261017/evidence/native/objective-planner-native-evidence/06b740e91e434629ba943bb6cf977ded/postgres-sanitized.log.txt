@@ -1,0 +1,11 @@
+2026-10-17 01:16:30.046 UTC [8660] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-17 01:16:30.046 UTC [8660] LOG:  listening on IPv4 address "127.0.0.1", port 56455
+2026-10-17 01:16:30.105 UTC [8636] LOG:  database system was shut down at 2026-10-17 01:16:27 UTC
+2026-10-17 01:16:30.143 UTC [8660] LOG:  database system is ready to accept connections
+2026-10-17 01:16:41.466 UTC [8660] LOG:  received fast shutdown request
+2026-10-17 01:16:41.472 UTC [8660] LOG:  aborting any active transactions
+2026-10-17 01:16:41.477 UTC [8660] LOG:  background worker "logical replication launcher" (PID 12452) exited with exit code 1
+2026-10-17 01:16:41.746 UTC [16500] LOG:  shutting down
+2026-10-17 01:16:41.752 UTC [16500] LOG:  checkpoint starting: shutdown immediate
+2026-10-17 01:16:42.273 UTC [16500] LOG:  checkpoint complete: wrote 589 buffers (28.8%); 0 WAL file(s) added, 0 removed, 4 recycled; write=0.037 s, sync=0.462 s, total=0.527 s; sync files=618, longest=0.023 s, average=0.001 s; distance=4287 kB, estimate=4287 kB; lsn=0/AA7F98, redo lsn=0/AA7F98
+2026-10-17 01:16:42.508 UTC [8660] LOG:  database system is shut down

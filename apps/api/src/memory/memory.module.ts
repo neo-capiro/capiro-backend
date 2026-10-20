@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { TenantModule } from '../tenant/tenant.module.js';
+import { ApplicationAuthorityModule } from '../auth/application-authority.module.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { GovernedMemoryStoreService } from './governed-memory-store.service.js';
 import { LineageAwareMemoryStoreService } from './lineage-aware-memory-store.service.js';
@@ -44,12 +45,14 @@ import { MemoryReviewInboxController } from './memory-review-inbox.controller.js
 import { MemoryReviewSummaryController } from './memory-review-summary.controller.js';
 import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
+import { MemoryOwnerItemsController } from './memory-owner-items.controller.js';
+import { MemoryOwnerItemsService } from './memory-owner-items.service.js';
 import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
 /** Institutional Memory module. */
 @Module({
-  imports: [PrismaModule, TenantModule, KnowledgeModule],
+  imports: [PrismaModule, TenantModule, KnowledgeModule, ApplicationAuthorityModule],
   controllers: [
     MemoryController,
     MemoryReviewController,
@@ -57,6 +60,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryReviewSummaryController,
     MemoryProposalController,
     MemoryVersionController,
+    MemoryOwnerItemsController,
     MemoryGovernanceController,
     InternalMemoryController,
   ],
@@ -65,6 +69,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     { provide: GovernedMemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     { provide: MemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     ImmutableMemoryVersionService,
+    MemoryOwnerItemsService,
     MemoryFkLoader,
     StrictMemoryProjectorService,
     GovernedMemoryIngestService,

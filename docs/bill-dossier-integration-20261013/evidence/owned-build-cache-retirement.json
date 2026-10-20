@@ -1,0 +1,19 @@
+{
+  "ownedBuildRetired": true,
+  "ownedTypeInfosRetired": [
+    {
+      "path": "/tmp/bill-dossier-intel-build-20261013.tsbuildinfo",
+      "bytes": 629956,
+      "sha256": "cf92b9e4b451a3adc79df01b1292ddd4d948b073411a42e8a0b09aa236e74118"
+    },
+    {
+      "path": "/tmp/bill-dossier-intel-type-20261013.tsbuildinfo",
+      "bytes": 651747,
+      "sha256": "0dc37ae139639ef41744f49ff66d24d3a26d26f4165932427e64664621a9e939"
+    }
+  ],
+  "ownedPassingCacheRetired": true,
+  "ownedPassingCacheFiles": 318,
+  "temporaryOwnedConfigsRemoved": true,
+  "borrowedTargetsModified": false
+}

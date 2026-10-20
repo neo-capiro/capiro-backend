@@ -1,0 +1,2397 @@
+{
+  "classification": "Actual package build failed2 due missing@capiro/shared/Node typings in isolatedclone; manyderiveddiagnostics, no sourcefix.",
+  "recovery": "Cloneownedcachedpackage-overlay symlinks toactualreadonlytargets, replaceonlyowned@capiro/shared withfreshqualifiedShared",
+  "partialOwnedEmitRetired": [
+    {
+      "path": "alerts/alert.d.ts",
+      "bytes": 524
+    },
+    {
+      "path": "alerts/alert.d.ts.map",
+      "bytes": 336
+    },
+    {
+      "path": "alerts/alert.js",
+      "bytes": 1082
+    },
+    {
+      "path": "alerts/alert.js.map",
+      "bytes": 295
+    },
+    {
+      "path": "assurance/checks.d.ts",
+      "bytes": 3344
+    },
+    {
+      "path": "assurance/checks.d.ts.map",
+      "bytes": 2934
+    },
+    {
+      "path": "assurance/checks.js",
+      "bytes": 14871
+    },
+    {
+      "path": "assurance/checks.js.map",
+      "bytes": 12982
+    },
+    {
+      "path": "assurance/claim-ledger.d.ts",
+      "bytes": 4060
+    },
+    {
+      "path": "assurance/claim-ledger.d.ts.map",
+      "bytes": 2897
+    },
+    {
+      "path": "assurance/claim-ledger.js",
+      "bytes": 11475
+    },
+    {
+      "path": "assurance/claim-ledger.js.map",
+      "bytes": 11520
+    },
+    {
+      "path": "assurance/control-metrics.d.ts",
+      "bytes": 2830
+    },
+    {
+      "path": "assurance/control-metrics.d.ts.map",
+      "bytes": 1668
+    },
+    {
+      "path": "assurance/control-metrics.js",
+      "bytes": 5427
+    },
+    {
+      "path": "assurance/control-metrics.js.map",
+      "bytes": 4060
+    },
+    {
+      "path": "assurance/deterministic-evaluation.d.ts",
+      "bytes": 1325
+    },
+    {
+      "path": "assurance/deterministic-evaluation.d.ts.map",
+      "bytes": 1021
+    },
+    {
+      "path": "assurance/deterministic-evaluation.js",
+      "bytes": 2084
+    },
+    {
+      "path": "assurance/deterministic-evaluation.js.map",
+      "bytes": 1780
+    },
+    {
+      "path": "assurance/envelope.d.ts",
+      "bytes": 3378
+    },
+    {
+      "path": "assurance/envelope.d.ts.map",
+      "bytes": 2972
+    },
+    {
+      "path": "assurance/envelope.js",
+      "bytes": 6114
+    },
+    {
+      "path": "assurance/envelope.js.map",
+      "bytes": 6160
+    },
+    {
+      "path": "assurance/eval-gate.d.ts",
+      "bytes": 2773
+    },
+    {
+      "path": "assurance/eval-gate.d.ts.map",
+      "bytes": 2424
+    },
+    {
+      "path": "assurance/eval-gate.js",
+      "bytes": 7089
+    },
+    {
+      "path": "assurance/eval-gate.js.map",
+      "bytes": 7358
+    },
+    {
+      "path": "assurance/evidence-dates.d.ts",
+      "bytes": 953
+    },
+    {
+      "path": "assurance/evidence-dates.d.ts.map",
+      "bytes": 806
+    },
+    {
+      "path": "assurance/evidence-dates.js",
+      "bytes": 2354
+    },
+    {
+      "path": "assurance/evidence-dates.js.map",
+      "bytes": 2246
+    },
+    {
+      "path": "assurance/evidence-plan.d.ts",
+      "bytes": 2478
+    },
+    {
+      "path": "assurance/evidence-plan.d.ts.map",
+      "bytes": 1747
+    },
+    {
+      "path": "assurance/evidence-plan.js",
+      "bytes": 22358
+    },
+    {
+      "path": "assurance/evidence-plan.js.map",
+      "bytes": 11097
+    },
+    {
+      "path": "assurance/evidence-profile-control.d.ts",
+      "bytes": 1197
+    },
+    {
+      "path": "assurance/evidence-profile-control.d.ts.map",
+      "bytes": 1037
+    },
+    {
+      "path": "assurance/evidence-profile-control.js",
+      "bytes": 1408
+    },
+    {
+      "path": "assurance/evidence-profile-control.js.map",
+      "bytes": 1000
+    },
+    {
+      "path": "assurance/exact-comparison.d.ts",
+      "bytes": 942
+    },
+    {
+      "path": "assurance/exact-comparison.d.ts.map",
+      "bytes": 1025
+    },
+    {
+      "path": "assurance/exact-comparison.js",
+      "bytes": 6032
+    },
+    {
+      "path": "assurance/exact-comparison.js.map",
+      "bytes": 6571
+    },
+    {
+      "path": "assurance/feedback-fixtures.d.ts",
+      "bytes": 4054
+    },
+    {
+      "path": "assurance/feedback-fixtures.d.ts.map",
+      "bytes": 2355
+    },
+    {
+      "path": "assurance/feedback-fixtures.js",
+      "bytes": 6341
+    },
+    {
+      "path": "assurance/feedback-fixtures.js.map",
+      "bytes": 4443
+    },
+    {
+      "path": "assurance/freshness.d.ts",
+      "bytes": 1244
+    },
+    {
+      "path": "assurance/freshness.d.ts.map",
+      "bytes": 1033
+    },
+    {
+      "path": "assurance/freshness.js",
+      "bytes": 6024
+    },
+    {
+      "path": "assurance/freshness.js.map",
+      "bytes": 4539
+    },
+    {
+      "path": "assurance/generation.d.ts",
+      "bytes": 294
+    },
+    {
+      "path": "assurance/generation.d.ts.map",
+      "bytes": 368
+    },
+    {
+      "path": "assurance/generation.js",
+      "bytes": 1193
+    },
+    {
+      "path": "assurance/generation.js.map",
+      "bytes": 310
+    },
+    {
+      "path": "assurance/index.d.ts",
+      "bytes": 781
+    },
+    {
+      "path": "assurance/index.d.ts.map",
+      "bytes": 674
+    },
+    {
+      "path": "assurance/index.js",
+      "bytes": 1932
+    },
+    {
+      "path": "assurance/index.js.map",
+      "bytes": 482
+    },
+    {
+      "path": "assurance/observability.d.ts",
+      "bytes": 1523
+    },
+    {
+      "path": "assurance/observability.d.ts.map",
+      "bytes": 1162
+    },
+    {
+      "path": "assurance/observability.js",
+      "bytes": 2193
+    },
+    {
+      "path": "assurance/observability.js.map",
+      "bytes": 1919
+    },
+    {
+      "path": "assurance/operating-frame.d.ts",
+      "bytes": 2097
+    },
+    {
+      "path": "assurance/operating-frame.d.ts.map",
+      "bytes": 1849
+    },
+    {
+      "path": "assurance/operating-frame.js",
+      "bytes": 12506
+    },
+    {
+      "path": "assurance/operating-frame.js.map",
+      "bytes": 10914
+    },
+    {
+      "path": "assurance/policy-pack.d.ts",
+      "bytes": 7095
+    },
+    {
+      "path": "assurance/policy-pack.d.ts.map",
+      "bytes": 4479
+    },
+    {
+      "path": "assurance/policy-pack.js",
+      "bytes": 21533
+    },
+    {
+      "path": "assurance/policy-pack.js.map",
+      "bytes": 15638
+    },
+    {
+      "path": "assurance/prompt-block.d.ts",
+      "bytes": 642
+    },
+    {
+      "path": "assurance/prompt-block.d.ts.map",
+      "bytes": 461
+    },
+    {
+      "path": "assurance/prompt-block.js",
+      "bytes": 5440
+    },
+    {
+      "path": "assurance/prompt-block.js.map",
+      "bytes": 1843
+    },
+    {
+      "path": "assurance/recommendation.d.ts",
+      "bytes": 1569
+    },
+    {
+      "path": "assurance/recommendation.d.ts.map",
+      "bytes": 1461
+    },
+    {
+      "path": "assurance/recommendation.js",
+      "bytes": 3443
+    },
+    {
+      "path": "assurance/recommendation.js.map",
+      "bytes": 2805
+    },
+    {
+      "path": "assurance/request-scope.d.ts",
+      "bytes": 648
+    },
+    {
+      "path": "assurance/request-scope.d.ts.map",
+      "bytes": 503
+    },
+    {
+      "path": "assurance/request-scope.js",
+      "bytes": 1033
+    },
+    {
+      "path": "assurance/request-scope.js.map",
+      "bytes": 666
+    },
+    {
+      "path": "assurance/risk-gate.d.ts",
+      "bytes": 3366
+    },
+    {
+      "path": "assurance/risk-gate.d.ts.map",
+      "bytes": 2276
+    },
+    {
+      "path": "assurance/risk-gate.js",
+      "bytes": 9627
+    },
+    {
+      "path": "assurance/risk-gate.js.map",
+      "bytes": 7152
+    },
+    {
+      "path": "assurance/rollout.d.ts",
+      "bytes": 1500
+    },
+    {
+      "path": "assurance/rollout.d.ts.map",
+      "bytes": 968
+    },
+    {
+      "path": "assurance/rollout.js",
+      "bytes": 2597
+    },
+    {
+      "path": "assurance/rollout.js.map",
+      "bytes": 2096
+    },
+    {
+      "path": "assurance/tool-ledger-adapter.d.ts",
+      "bytes": 4170
+    },
+    {
+      "path": "assurance/tool-ledger-adapter.d.ts.map",
+      "bytes": 3030
+    },
+    {
+      "path": "assurance/tool-ledger-adapter.js",
+      "bytes": 30319
+    },
+    {
+      "path": "assurance/tool-ledger-adapter.js.map",
+      "bytes": 21918
+    },
+    {
+      "path": "canary/canary-report.d.ts",
+      "bytes": 9267
+    },
+    {
+      "path": "canary/canary-report.d.ts.map",
+      "bytes": 1348
+    },
+    {
+      "path": "canary/canary-report.js",
+      "bytes": 16871
+    },
+    {
+      "path": "canary/canary-report.js.map",
+      "bytes": 16900
+    },
+    {
+      "path": "canary/limits.d.ts",
+      "bytes": 1318
+    },
+    {
+      "path": "canary/limits.d.ts.map",
+      "bytes": 371
+    },
+    {
+      "path": "canary/limits.js",
+      "bytes": 1129
+    },
+    {
+      "path": "canary/limits.js.map",
+      "bytes": 634
+    },
+    {
+      "path": "compliance/action-approval.d.ts",
+      "bytes": 4170
+    },
+    {
+      "path": "compliance/action-approval.d.ts.map",
+      "bytes": 1516
+    },
+    {
+      "path": "compliance/action-approval.js",
+      "bytes": 4834
+    },
+    {
+      "path": "compliance/action-approval.js.map",
+      "bytes": 2507
+    },
+    {
+      "path": "compliance/approval-gate.d.ts",
+      "bytes": 5091
+    },
+    {
+      "path": "compliance/approval-gate.d.ts.map",
+      "bytes": 2051
+    },
+    {
+      "path": "compliance/approval-gate.js",
+      "bytes": 4395
+    },
+    {
+      "path": "compliance/approval-gate.js.map",
+      "bytes": 2342
+    },
+    {
+      "path": "compliance/compliance-rules.d.ts",
+      "bytes": 6237
+    },
+    {
+      "path": "compliance/compliance-rules.d.ts.map",
+      "bytes": 1423
+    },
+    {
+      "path": "compliance/compliance-rules.js",
+      "bytes": 8978
+    },
+    {
+      "path": "compliance/compliance-rules.js.map",
+      "bytes": 3744
+    },
+    {
+      "path": "context/capture-evidence-receipt.d.ts",
+      "bytes": 9080
+    },
+    {
+      "path": "context/capture-evidence-receipt.d.ts.map",
+      "bytes": 7223
+    },
+    {
+      "path": "context/capture-evidence-receipt.js",
+      "bytes": 20823
+    },
+    {
+      "path": "context/capture-evidence-receipt.js.map",
+      "bytes": 17965
+    },
+    {
+      "path": "context/case12-setup-binding.d.ts",
+      "bytes": 861
+    },
+    {
+      "path": "context/case12-setup-binding.d.ts.map",
+      "bytes": 787
+    },
+    {
+      "path": "context/case12-setup-binding.js",
+      "bytes": 2066
+    },
+    {
+      "path": "context/case12-setup-binding.js.map",
+      "bytes": 1942
+    },
+    {
+      "path": "context/compiler.d.ts",
+      "bytes": 1611
+    },
+    {
+      "path": "context/compiler.d.ts.map",
+      "bytes": 1180
+    },
+    {
+      "path": "context/compiler.js",
+      "bytes": 28940
+    },
+    {
+      "path": "context/compiler.js.map",
+      "bytes": 26188
+    },
+    {
+      "path": "context/context-release-switch.d.ts",
+      "bytes": 2612
+    },
+    {
+      "path": "context/context-release-switch.d.ts.map",
+      "bytes": 1362
+    },
+    {
+      "path": "context/context-release-switch.js",
+      "bytes": 4357
+    },
+    {
+      "path": "context/context-release-switch.js.map",
+      "bytes": 2572
+    },
+    {
+      "path": "context/context-rollout.d.ts",
+      "bytes": 2072
+    },
+    {
+      "path": "context/context-rollout.d.ts.map",
+      "bytes": 1609
+    },
+    {
+      "path": "context/context-rollout.js",
+      "bytes": 12651
+    },
+    {
+      "path": "context/context-rollout.js.map",
+      "bytes": 11275
+    },
+    {
+      "path": "context/contract.d.ts",
+      "bytes": 10817
+    },
+    {
+      "path": "context/contract.d.ts.map",
+      "bytes": 8625
+    },
+    {
+      "path": "context/contract.js",
+      "bytes": 1360
+    },
+    {
+      "path": "context/contract.js.map",
+      "bytes": 1196
+    },
+    {
+      "path": "context/coverage-aware-packet.d.ts",
+      "bytes": 4219
+    },
+    {
+      "path": "context/coverage-aware-packet.d.ts.map",
+      "bytes": 3094
+    },
+    {
+      "path": "context/coverage-aware-packet.js",
+      "bytes": 7399
+    },
+    {
+      "path": "context/coverage-aware-packet.js.map",
+      "bytes": 6389
+    },
+    {
+      "path": "context/governed-artifact-capture.d.ts",
+      "bytes": 2597
+    },
+    {
+      "path": "context/governed-artifact-capture.d.ts.map",
+      "bytes": 1338
+    },
+    {
+      "path": "context/governed-artifact-capture.js",
+      "bytes": 9178
+    },
+    {
+      "path": "context/governed-artifact-capture.js.map",
+      "bytes": 8030
+    },
+    {
+      "path": "context/governed-columns.d.ts",
+      "bytes": 3591
+    },
+    {
+      "path": "context/governed-columns.d.ts.map",
+      "bytes": 322
+    },
+    {
+      "path": "context/governed-columns.js",
+      "bytes": 3635
+    },
+    {
+      "path": "context/governed-columns.js.map",
+      "bytes": 348
+    },
+    {
+      "path": "context/governed-evidence-auth.d.ts",
+      "bytes": 1527
+    },
+    {
+      "path": "context/governed-evidence-auth.d.ts.map",
+      "bytes": 1154
+    },
+    {
+      "path": "context/governed-evidence-auth.js",
+      "bytes": 5363
+    },
+    {
+      "path": "context/governed-evidence-auth.js.map",
+      "bytes": 4436
+    },
+    {
+      "path": "context/layers.d.ts",
+      "bytes": 3891
+    },
+    {
+      "path": "context/layers.d.ts.map",
+      "bytes": 1472
+    },
+    {
+      "path": "context/layers.js",
+      "bytes": 3196
+    },
+    {
+      "path": "context/layers.js.map",
+      "bytes": 2254
+    },
+    {
+      "path": "context/memory-capture-source.d.ts",
+      "bytes": 2009
+    },
+    {
+      "path": "context/memory-capture-source.d.ts.map",
+      "bytes": 1579
+    },
+    {
+      "path": "context/memory-capture-source.js",
+      "bytes": 8208
+    },
+    {
+      "path": "context/memory-capture-source.js.map",
+      "bytes": 8277
+    },
+    {
+      "path": "context/meri-explicit-subject.d.ts",
+      "bytes": 621
+    },
+    {
+      "path": "context/meri-explicit-subject.d.ts.map",
+      "bytes": 379
+    },
+    {
+      "path": "context/meri-explicit-subject.js",
+      "bytes": 6579
+    },
+    {
+      "path": "context/meri-explicit-subject.js.map",
+      "bytes": 3427
+    },
+    {
+      "path": "context/operation-enforcement.d.ts",
+      "bytes": 3167
+    },
+    {
+      "path": "context/operation-enforcement.d.ts.map",
+      "bytes": 1835
+    },
+    {
+      "path": "context/operation-enforcement.js",
+      "bytes": 5543
+    },
+    {
+      "path": "context/operation-enforcement.js.map",
+      "bytes": 4035
+    },
+    {
+      "path": "context/research-plan-execution.d.ts",
+      "bytes": 1404
+    },
+    {
+      "path": "context/research-plan-execution.d.ts.map",
+      "bytes": 944
+    },
+    {
+      "path": "context/research-plan-execution.js",
+      "bytes": 4657
+    },
+    {
+      "path": "context/research-plan-execution.js.map",
+      "bytes": 4361
+    },
+    {
+      "path": "context/server-readonly-capture.d.ts",
+      "bytes": 4226
+    },
+    {
+      "path": "context/server-readonly-capture.d.ts.map",
+      "bytes": 3165
+    },
+    {
+      "path": "context/server-readonly-capture.js",
+      "bytes": 6151
+    },
+    {
+      "path": "context/server-readonly-capture.js.map",
+      "bytes": 4907
+    },
+    {
+      "path": "context/surface-policy.d.ts",
+      "bytes": 1994
+    },
+    {
+      "path": "context/surface-policy.d.ts.map",
+      "bytes": 1364
+    },
+    {
+      "path": "context/surface-policy.js",
+      "bytes": 7866
+    },
+    {
+      "path": "context/surface-policy.js.map",
+      "bytes": 5929
+    },
+    {
+      "path": "context/synthetic-read-budget.d.ts",
+      "bytes": 787
+    },
+    {
+      "path": "context/synthetic-read-budget.d.ts.map",
+      "bytes": 822
+    },
+    {
+      "path": "context/synthetic-read-budget.js",
+      "bytes": 1368
+    },
+    {
+      "path": "context/synthetic-read-budget.js.map",
+      "bytes": 1111
+    },
+    {
+      "path": "context/token-budget.d.ts",
+      "bytes": 1537
+    },
+    {
+      "path": "context/token-budget.d.ts.map",
+      "bytes": 544
+    },
+    {
+      "path": "context/token-budget.js",
+      "bytes": 2239
+    },
+    {
+      "path": "context/token-budget.js.map",
+      "bytes": 1224
+    },
+    {
+      "path": "context/truthful-compiler.d.ts",
+      "bytes": 1777
+    },
+    {
+      "path": "context/truthful-compiler.d.ts.map",
+      "bytes": 1062
+    },
+    {
+      "path": "context/truthful-compiler.js",
+      "bytes": 5062
+    },
+    {
+      "path": "context/truthful-compiler.js.map",
+      "bytes": 3749
+    },
+    {
+      "path": "domain/domain-primer.d.ts",
+      "bytes": 1175
+    },
+    {
+      "path": "domain/domain-primer.d.ts.map",
+      "bytes": 455
+    },
+    {
+      "path": "domain/domain-primer.js",
+      "bytes": 4958
+    },
+    {
+      "path": "domain/domain-primer.js.map",
+      "bytes": 715
+    },
+    {
+      "path": "domain/government-affairs-output.d.ts",
+      "bytes": 964
+    },
+    {
+      "path": "domain/government-affairs-output.d.ts.map",
+      "bytes": 633
+    },
+    {
+      "path": "domain/government-affairs-output.js",
+      "bytes": 10056
+    },
+    {
+      "path": "domain/government-affairs-output.js.map",
+      "bytes": 1517
+    },
+    {
+      "path": "evaluation/contract.d.ts",
+      "bytes": 10891
+    },
+    {
+      "path": "evaluation/contract.d.ts.map",
+      "bytes": 4603
+    },
+    {
+      "path": "evaluation/contract.js",
+      "bytes": 10939
+    },
+    {
+      "path": "evaluation/contract.js.map",
+      "bytes": 5182
+    },
+    {
+      "path": "grounding/auditor.d.ts",
+      "bytes": 17633
+    },
+    {
+      "path": "grounding/auditor.d.ts.map",
+      "bytes": 3558
+    },
+    {
+      "path": "grounding/auditor.js",
+      "bytes": 55484
+    },
+    {
+      "path": "grounding/auditor.js.map",
+      "bytes": 32121
+    },
+    {
+      "path": "grounding/claim-gate.d.ts",
+      "bytes": 2438
+    },
+    {
+      "path": "grounding/claim-gate.d.ts.map",
+      "bytes": 867
+    },
+    {
+      "path": "grounding/claim-gate.js",
+      "bytes": 9833
+    },
+    {
+      "path": "grounding/claim-gate.js.map",
+      "bytes": 7867
+    },
+    {
+      "path": "grounding/claim-inventory.d.ts",
+      "bytes": 1378
+    },
+    {
+      "path": "grounding/claim-inventory.d.ts.map",
+      "bytes": 1213
+    },
+    {
+      "path": "grounding/claim-inventory.js",
+      "bytes": 8868
+    },
+    {
+      "path": "grounding/claim-inventory.js.map",
+      "bytes": 7988
+    },
+    {
+      "path": "grounding/claim-map.d.ts",
+      "bytes": 1740
+    },
+    {
+      "path": "grounding/claim-map.d.ts.map",
+      "bytes": 1059
+    },
+    {
+      "path": "grounding/claim-map.js",
+      "bytes": 851
+    },
+    {
+      "path": "grounding/claim-map.js.map",
+      "bytes": 887
+    },
+    {
+      "path": "grounding/evidence.d.ts",
+      "bytes": 8908
+    },
+    {
+      "path": "grounding/evidence.d.ts.map",
+      "bytes": 4842
+    },
+    {
+      "path": "grounding/evidence.js",
+      "bytes": 14142
+    },
+    {
+      "path": "grounding/evidence.js.map",
+      "bytes": 8589
+    },
+    {
+      "path": "grounding/exact-source.d.ts",
+      "bytes": 2139
+    },
+    {
+      "path": "grounding/exact-source.d.ts.map",
+      "bytes": 1766
+    },
+    {
+      "path": "grounding/exact-source.js",
+      "bytes": 6270
+    },
+    {
+      "path": "grounding/exact-source.js.map",
+      "bytes": 6265
+    },
+    {
+      "path": "grounding/grounded-json.d.ts",
+      "bytes": 5254
+    },
+    {
+      "path": "grounding/grounded-json.d.ts.map",
+      "bytes": 1957
+    },
+    {
+      "path": "grounding/grounded-json.js",
+      "bytes": 6997
+    },
+    {
+      "path": "grounding/grounded-json.js.map",
+      "bytes": 4327
+    },
+    {
+      "path": "grounding/match-label-extractor.d.ts",
+      "bytes": 318
+    },
+    {
+      "path": "grounding/match-label-extractor.d.ts.map",
+      "bytes": 440
+    },
+    {
+      "path": "grounding/match-label-extractor.js",
+      "bytes": 1851
+    },
+    {
+      "path": "grounding/match-label-extractor.js.map",
+      "bytes": 1998
+    },
+    {
+      "path": "grounding/match-label.d.ts",
+      "bytes": 1490
+    },
+    {
+      "path": "grounding/match-label.d.ts.map",
+      "bytes": 1148
+    },
+    {
+      "path": "grounding/match-label.js",
+      "bytes": 5376
+    },
+    {
+      "path": "grounding/match-label.js.map",
+      "bytes": 4526
+    },
+    {
+      "path": "grounding/skeptic-audit.d.ts",
+      "bytes": 4204
+    },
+    {
+      "path": "grounding/skeptic-audit.d.ts.map",
+      "bytes": 1404
+    },
+    {
+      "path": "grounding/skeptic-audit.js",
+      "bytes": 8394
+    },
+    {
+      "path": "grounding/skeptic-audit.js.map",
+      "bytes": 5449
+    },
+    {
+      "path": "grounding/skeptic.d.ts",
+      "bytes": 4465
+    },
+    {
+      "path": "grounding/skeptic.d.ts.map",
+      "bytes": 1574
+    },
+    {
+      "path": "grounding/skeptic.js",
+      "bytes": 6664
+    },
+    {
+      "path": "grounding/skeptic.js.map",
+      "bytes": 3200
+    },
+    {
+      "path": "grounding/status-provenance.d.ts",
+      "bytes": 1922
+    },
+    {
+      "path": "grounding/status-provenance.d.ts.map",
+      "bytes": 1364
+    },
+    {
+      "path": "grounding/status-provenance.js",
+      "bytes": 7954
+    },
+    {
+      "path": "grounding/status-provenance.js.map",
+      "bytes": 7286
+    },
+    {
+      "path": "ids/canonical-ids.d.ts",
+      "bytes": 618
+    },
+    {
+      "path": "ids/canonical-ids.d.ts.map",
+      "bytes": 584
+    },
+    {
+      "path": "ids/canonical-ids.js",
+      "bytes": 2734
+    },
+    {
+      "path": "ids/canonical-ids.js.map",
+      "bytes": 882
+    },
+    {
+      "path": "index.d.ts",
+      "bytes": 3955
+    },
+    {
+      "path": "index.d.ts.map",
+      "bytes": 2253
+    },
+    {
+      "path": "index.js",
+      "bytes": 7032
+    },
+    {
+      "path": "index.js.map",
+      "bytes": 1437
+    },
+    {
+      "path": "intent/action-intent.d.ts",
+      "bytes": 669
+    },
+    {
+      "path": "intent/action-intent.d.ts.map",
+      "bytes": 568
+    },
+    {
+      "path": "intent/action-intent.js",
+      "bytes": 7054
+    },
+    {
+      "path": "intent/action-intent.js.map",
+      "bytes": 4227
+    },
+    {
+      "path": "intent/intent-router.d.ts",
+      "bytes": 1642
+    },
+    {
+      "path": "intent/intent-router.d.ts.map",
+      "bytes": 680
+    },
+    {
+      "path": "intent/intent-router.js",
+      "bytes": 3933
+    },
+    {
+      "path": "intent/intent-router.js.map",
+      "bytes": 1929
+    },
+    {
+      "path": "jev/bd-claim-question.d.ts",
+      "bytes": 3481
+    },
+    {
+      "path": "jev/bd-claim-question.d.ts.map",
+      "bytes": 1353
+    },
+    {
+      "path": "jev/bd-claim-question.js",
+      "bytes": 8092
+    },
+    {
+      "path": "jev/bd-claim-question.js.map",
+      "bytes": 4332
+    },
+    {
+      "path": "jev/bd-entity-question.d.ts",
+      "bytes": 1408
+    },
+    {
+      "path": "jev/bd-entity-question.d.ts.map",
+      "bytes": 961
+    },
+    {
+      "path": "jev/bd-entity-question.js",
+      "bytes": 4953
+    },
+    {
+      "path": "jev/bd-entity-question.js.map",
+      "bytes": 3071
+    },
+    {
+      "path": "jev/bd-fixture-schema.d.ts",
+      "bytes": 2746
+    },
+    {
+      "path": "jev/bd-fixture-schema.d.ts.map",
+      "bytes": 1450
+    },
+    {
+      "path": "jev/bd-fixture-schema.js",
+      "bytes": 14617
+    },
+    {
+      "path": "jev/bd-fixture-schema.js.map",
+      "bytes": 11735
+    },
+    {
+      "path": "jev/bd-signal-question.d.ts",
+      "bytes": 2023
+    },
+    {
+      "path": "jev/bd-signal-question.d.ts.map",
+      "bytes": 1183
+    },
+    {
+      "path": "jev/bd-signal-question.js",
+      "bytes": 5765
+    },
+    {
+      "path": "jev/bd-signal-question.js.map",
+      "bytes": 3117
+    },
+    {
+      "path": "jev/calibrated-cascade.d.ts",
+      "bytes": 2023
+    },
+    {
+      "path": "jev/calibrated-cascade.d.ts.map",
+      "bytes": 1686
+    },
+    {
+      "path": "jev/calibrated-cascade.js",
+      "bytes": 6545
+    },
+    {
+      "path": "jev/calibrated-cascade.js.map",
+      "bytes": 6357
+    },
+    {
+      "path": "jev/claim-support-question.d.ts",
+      "bytes": 345
+    },
+    {
+      "path": "jev/claim-support-question.d.ts.map",
+      "bytes": 401
+    },
+    {
+      "path": "jev/claim-support-question.js",
+      "bytes": 2294
+    },
+    {
+      "path": "jev/claim-support-question.js.map",
+      "bytes": 1228
+    },
+    {
+      "path": "jev/client-fit-provider.d.ts",
+      "bytes": 1480
+    },
+    {
+      "path": "jev/client-fit-provider.d.ts.map",
+      "bytes": 1449
+    },
+    {
+      "path": "jev/client-fit-provider.js",
+      "bytes": 4053
+    },
+    {
+      "path": "jev/client-fit-provider.js.map",
+      "bytes": 3118
+    },
+    {
+      "path": "jev/client-fit-question.d.ts",
+      "bytes": 777
+    },
+    {
+      "path": "jev/client-fit-question.d.ts.map",
+      "bytes": 665
+    },
+    {
+      "path": "jev/client-fit-question.js",
+      "bytes": 4420
+    },
+    {
+      "path": "jev/client-fit-question.js.map",
+      "bytes": 1614
+    },
+    {
+      "path": "jev/decision-cache.d.ts",
+      "bytes": 2267
+    },
+    {
+      "path": "jev/decision-cache.d.ts.map",
+      "bytes": 2194
+    },
+    {
+      "path": "jev/decision-cache.js",
+      "bytes": 3335
+    },
+    {
+      "path": "jev/decision-cache.js.map",
+      "bytes": 3125
+    },
+    {
+      "path": "jev/decision-contract.d.ts",
+      "bytes": 5054
+    },
+    {
+      "path": "jev/decision-contract.d.ts.map",
+      "bytes": 4030
+    },
+    {
+      "path": "jev/decision-contract.js",
+      "bytes": 4258
+    },
+    {
+      "path": "jev/decision-contract.js.map",
+      "bytes": 4278
+    },
+    {
+      "path": "jev/evaluation/bd-task-gate.d.ts",
+      "bytes": 3644
+    },
+    {
+      "path": "jev/evaluation/bd-task-gate.d.ts.map",
+      "bytes": 1770
+    },
+    {
+      "path": "jev/evaluation/bd-task-gate.js",
+      "bytes": 18591
+    },
+    {
+      "path": "jev/evaluation/bd-task-gate.js.map",
+      "bytes": 15307
+    },
+    {
+      "path": "jev/evaluation/calibration.d.ts",
+      "bytes": 1119
+    },
+    {
+      "path": "jev/evaluation/calibration.d.ts.map",
+      "bytes": 730
+    },
+    {
+      "path": "jev/evaluation/calibration.js",
+      "bytes": 2314
+    },
+    {
+      "path": "jev/evaluation/calibration.js.map",
+      "bytes": 2729
+    },
+    {
+      "path": "jev/evaluation/package9-economics.d.ts",
+      "bytes": 1167
+    },
+    {
+      "path": "jev/evaluation/package9-economics.d.ts.map",
+      "bytes": 499
+    },
+    {
+      "path": "jev/evaluation/package9-economics.js",
+      "bytes": 6795
+    },
+    {
+      "path": "jev/evaluation/package9-economics.js.map",
+      "bytes": 7047
+    },
+    {
+      "path": "jev/evaluation/shadow-events.d.ts",
+      "bytes": 1419
+    },
+    {
+      "path": "jev/evaluation/shadow-events.d.ts.map",
+      "bytes": 1405
+    },
+    {
+      "path": "jev/evaluation/shadow-events.js",
+      "bytes": 7128
+    },
+    {
+      "path": "jev/evaluation/shadow-events.js.map",
+      "bytes": 7261
+    },
+    {
+      "path": "jev/evaluation/shadow-report.d.ts",
+      "bytes": 3778
+    },
+    {
+      "path": "jev/evaluation/shadow-report.d.ts.map",
+      "bytes": 1175
+    },
+    {
+      "path": "jev/evaluation/shadow-report.js",
+      "bytes": 10826
+    },
+    {
+      "path": "jev/evaluation/shadow-report.js.map",
+      "bytes": 11903
+    },
+    {
+      "path": "jev/evaluation/task-paired-evaluation.d.ts",
+      "bytes": 3633
+    },
+    {
+      "path": "jev/evaluation/task-paired-evaluation.d.ts.map",
+      "bytes": 1238
+    },
+    {
+      "path": "jev/evaluation/task-paired-evaluation.js",
+      "bytes": 5030
+    },
+    {
+      "path": "jev/evaluation/task-paired-evaluation.js.map",
+      "bytes": 5228
+    },
+    {
+      "path": "jev/evidence-envelope.d.ts",
+      "bytes": 2115
+    },
+    {
+      "path": "jev/evidence-envelope.d.ts.map",
+      "bytes": 2050
+    },
+    {
+      "path": "jev/evidence-envelope.js",
+      "bytes": 7890
+    },
+    {
+      "path": "jev/evidence-envelope.js.map",
+      "bytes": 7703
+    },
+    {
+      "path": "jev/evidence-selection-question.d.ts",
+      "bytes": 928
+    },
+    {
+      "path": "jev/evidence-selection-question.d.ts.map",
+      "bytes": 778
+    },
+    {
+      "path": "jev/evidence-selection-question.js",
+      "bytes": 3595
+    },
+    {
+      "path": "jev/evidence-selection-question.js.map",
+      "bytes": 2373
+    },
+    {
+      "path": "jev/fixture-schema.d.ts",
+      "bytes": 288
+    },
+    {
+      "path": "jev/fixture-schema.d.ts.map",
+      "bytes": 409
+    },
+    {
+      "path": "jev/fixture-schema.js",
+      "bytes": 1982
+    },
+    {
+      "path": "jev/fixture-schema.js.map",
+      "bytes": 1942
+    },
+    {
+      "path": "jev/index.d.ts",
+      "bytes": 1390
+    },
+    {
+      "path": "jev/index.d.ts.map",
+      "bytes": 931
+    },
+    {
+      "path": "jev/index.js",
+      "bytes": 2739
+    },
+    {
+      "path": "jev/index.js.map",
+      "bytes": 619
+    },
+    {
+      "path": "jev/jev-client.d.ts",
+      "bytes": 2901
+    },
+    {
+      "path": "jev/jev-client.d.ts.map",
+      "bytes": 2275
+    },
+    {
+      "path": "jev/jev-client.js",
+      "bytes": 14139
+    },
+    {
+      "path": "jev/jev-client.js.map",
+      "bytes": 12294
+    },
+    {
+      "path": "jev/jev-config.d.ts",
+      "bytes": 1491
+    },
+    {
+      "path": "jev/jev-config.d.ts.map",
+      "bytes": 1224
+    },
+    {
+      "path": "jev/jev-config.js",
+      "bytes": 3108
+    },
+    {
+      "path": "jev/jev-config.js.map",
+      "bytes": 2863
+    },
+    {
+      "path": "jev/jev-decision-provider.d.ts",
+      "bytes": 407
+    },
+    {
+      "path": "jev/jev-decision-provider.d.ts.map",
+      "bytes": 492
+    },
+    {
+      "path": "jev/jev-decision-provider.js",
+      "bytes": 3689
+    },
+    {
+      "path": "jev/jev-decision-provider.js.map",
+      "bytes": 2866
+    },
+    {
+      "path": "jev/mention-scope-question.d.ts",
+      "bytes": 659
+    },
+    {
+      "path": "jev/mention-scope-question.d.ts.map",
+      "bytes": 612
+    },
+    {
+      "path": "jev/mention-scope-question.js",
+      "bytes": 3386
+    },
+    {
+      "path": "jev/mention-scope-question.js.map",
+      "bytes": 2057
+    },
+    {
+      "path": "jev/program-identity-question.d.ts",
+      "bytes": 742
+    },
+    {
+      "path": "jev/program-identity-question.d.ts.map",
+      "bytes": 689
+    },
+    {
+      "path": "jev/program-identity-question.js",
+      "bytes": 3318
+    },
+    {
+      "path": "jev/program-identity-question.js.map",
+      "bytes": 2153
+    },
+    {
+      "path": "jev/replay/paired-evaluation.d.ts",
+      "bytes": 2352
+    },
+    {
+      "path": "jev/replay/paired-evaluation.d.ts.map",
+      "bytes": 1269
+    },
+    {
+      "path": "jev/replay/paired-evaluation.js",
+      "bytes": 4201
+    },
+    {
+      "path": "jev/replay/paired-evaluation.js.map",
+      "bytes": 4163
+    },
+    {
+      "path": "jev/replay/recorded-decision-store.d.ts",
+      "bytes": 805
+    },
+    {
+      "path": "jev/replay/recorded-decision-store.d.ts.map",
+      "bytes": 954
+    },
+    {
+      "path": "jev/replay/recorded-decision-store.js",
+      "bytes": 3194
+    },
+    {
+      "path": "jev/replay/recorded-decision-store.js.map",
+      "bytes": 3363
+    },
+    {
+      "path": "jev/replay/recording-decision-provider.d.ts",
+      "bytes": 499
+    },
+    {
+      "path": "jev/replay/recording-decision-provider.d.ts.map",
+      "bytes": 641
+    },
+    {
+      "path": "jev/replay/recording-decision-provider.js",
+      "bytes": 1712
+    },
+    {
+      "path": "jev/replay/recording-decision-provider.js.map",
+      "bytes": 1333
+    },
+    {
+      "path": "jev/replay/replay-decision-provider.d.ts",
+      "bytes": 345
+    },
+    {
+      "path": "jev/replay/replay-decision-provider.d.ts.map",
+      "bytes": 464
+    },
+    {
+      "path": "jev/replay/replay-decision-provider.js",
+      "bytes": 3145
+    },
+    {
+      "path": "jev/replay/replay-decision-provider.js.map",
+      "bytes": 2045
+    },
+    {
+      "path": "jev/skeptic-adapter.d.ts",
+      "bytes": 999
+    },
+    {
+      "path": "jev/skeptic-adapter.d.ts.map",
+      "bytes": 795
+    },
+    {
+      "path": "jev/skeptic-adapter.js",
+      "bytes": 2269
+    },
+    {
+      "path": "jev/skeptic-adapter.js.map",
+      "bytes": 1946
+    },
+    {
+      "path": "jev/status-selection-question.d.ts",
+      "bytes": 749
+    },
+    {
+      "path": "jev/status-selection-question.d.ts.map",
+      "bytes": 711
+    },
+    {
+      "path": "jev/status-selection-question.js",
+      "bytes": 1988
+    },
+    {
+      "path": "jev/status-selection-question.js.map",
+      "bytes": 1382
+    },
+    {
+      "path": "jev/task-choice-provider.d.ts",
+      "bytes": 1320
+    },
+    {
+      "path": "jev/task-choice-provider.d.ts.map",
+      "bytes": 1416
+    },
+    {
+      "path": "jev/task-choice-provider.js",
+      "bytes": 10226
+    },
+    {
+      "path": "jev/task-choice-provider.js.map",
+      "bytes": 8676
+    },
+    {
+      "path": "jev/task-evaluation-fixture.d.ts",
+      "bytes": 223
+    },
+    {
+      "path": "jev/task-evaluation-fixture.d.ts.map",
+      "bytes": 358
+    },
+    {
+      "path": "jev/task-evaluation-fixture.js",
+      "bytes": 5000
+    },
+    {
+      "path": "jev/task-evaluation-fixture.js.map",
+      "bytes": 4272
+    },
+    {
+      "path": "jev/task-registry.d.ts",
+      "bytes": 3523
+    },
+    {
+      "path": "jev/task-registry.d.ts.map",
+      "bytes": 2892
+    },
+    {
+      "path": "jev/task-registry.js",
+      "bytes": 26279
+    },
+    {
+      "path": "jev/task-registry.js.map",
+      "bytes": 15996
+    },
+    {
+      "path": "learning/candidate-contract.d.ts",
+      "bytes": 4942
+    },
+    {
+      "path": "learning/candidate-contract.d.ts.map",
+      "bytes": 1580
+    },
+    {
+      "path": "learning/candidate-contract.js",
+      "bytes": 5941
+    },
+    {
+      "path": "learning/candidate-contract.js.map",
+      "bytes": 3003
+    },
+    {
+      "path": "learning/conflict-contract.d.ts",
+      "bytes": 4252
+    },
+    {
+      "path": "learning/conflict-contract.d.ts.map",
+      "bytes": 808
+    },
+    {
+      "path": "learning/conflict-contract.js",
+      "bytes": 5045
+    },
+    {
+      "path": "learning/conflict-contract.js.map",
+      "bytes": 1376
+    },
+    {
+      "path": "learning/contract.d.ts",
+      "bytes": 8491
+    },
+    {
+      "path": "learning/contract.d.ts.map",
+      "bytes": 2550
+    },
+    {
+      "path": "learning/contract.js",
+      "bytes": 8806
+    },
+    {
+      "path": "learning/contract.js.map",
+      "bytes": 2186
+    },
+    {
+      "path": "learning/rollout.d.ts",
+      "bytes": 2022
+    },
+    {
+      "path": "learning/rollout.d.ts.map",
+      "bytes": 376
+    },
+    {
+      "path": "learning/rollout.js",
+      "bytes": 2613
+    },
+    {
+      "path": "learning/rollout.js.map",
+      "bytes": 882
+    },
+    {
+      "path": "llm/llm-client.d.ts",
+      "bytes": 12622
+    },
+    {
+      "path": "llm/llm-client.d.ts.map",
+      "bytes": 5801
+    },
+    {
+      "path": "llm/llm-client.js",
+      "bytes": 27829
+    },
+    {
+      "path": "llm/llm-client.js.map",
+      "bytes": 20234
+    },
+    {
+      "path": "llm/openai-responses-adapter.d.ts",
+      "bytes": 515
+    },
+    {
+      "path": "llm/openai-responses-adapter.d.ts.map",
+      "bytes": 532
+    },
+    {
+      "path": "llm/openai-responses-adapter.js",
+      "bytes": 4233
+    },
+    {
+      "path": "llm/openai-responses-adapter.js.map",
+      "bytes": 4401
+    },
+    {
+      "path": "memory/governance-rollout.d.ts",
+      "bytes": 824
+    },
+    {
+      "path": "memory/governance-rollout.d.ts.map",
+      "bytes": 571
+    },
+    {
+      "path": "memory/governance-rollout.js",
+      "bytes": 1615
+    },
+    {
+      "path": "memory/governance-rollout.js.map",
+      "bytes": 1150
+    },
+    {
+      "path": "memory/governance.d.ts",
+      "bytes": 11146
+    },
+    {
+      "path": "memory/governance.d.ts.map",
+      "bytes": 6482
+    },
+    {
+      "path": "memory/governance.js",
+      "bytes": 19774
+    },
+    {
+      "path": "memory/governance.js.map",
+      "bytes": 13663
+    },
+    {
+      "path": "observability/meri-joined-telemetry.d.ts",
+      "bytes": 6552
+    },
+    {
+      "path": "observability/meri-joined-telemetry.d.ts.map",
+      "bytes": 6158
+    },
+    {
+      "path": "observability/meri-joined-telemetry.js",
+      "bytes": 14170
+    },
+    {
+      "path": "observability/meri-joined-telemetry.js.map",
+      "bytes": 14242
+    },
+    {
+      "path": "observability/meri-otel.d.ts",
+      "bytes": 1278
+    },
+    {
+      "path": "observability/meri-otel.d.ts.map",
+      "bytes": 1176
+    },
+    {
+      "path": "observability/meri-otel.js",
+      "bytes": 10971
+    },
+    {
+      "path": "observability/meri-otel.js.map",
+      "bytes": 9025
+    },
+    {
+      "path": "quality-telemetry/contract.d.ts",
+      "bytes": 6058
+    },
+    {
+      "path": "quality-telemetry/contract.d.ts.map",
+      "bytes": 2710
+    },
+    {
+      "path": "quality-telemetry/contract.js",
+      "bytes": 7626
+    },
+    {
+      "path": "quality-telemetry/contract.js.map",
+      "bytes": 2627
+    },
+    {
+      "path": "registry/in-editor-tools.d.ts",
+      "bytes": 1386
+    },
+    {
+      "path": "registry/in-editor-tools.d.ts.map",
+      "bytes": 418
+    },
+    {
+      "path": "registry/in-editor-tools.js",
+      "bytes": 4899
+    },
+    {
+      "path": "registry/in-editor-tools.js.map",
+      "bytes": 2171
+    },
+    {
+      "path": "registry/tool-execution-control.d.ts",
+      "bytes": 391
+    },
+    {
+      "path": "registry/tool-execution-control.d.ts.map",
+      "bytes": 394
+    },
+    {
+      "path": "registry/tool-execution-control.js",
+      "bytes": 530
+    },
+    {
+      "path": "registry/tool-execution-control.js.map",
+      "bytes": 560
+    },
+    {
+      "path": "registry/tool-execution-metadata.d.ts",
+      "bytes": 1035
+    },
+    {
+      "path": "registry/tool-execution-metadata.d.ts.map",
+      "bytes": 854
+    },
+    {
+      "path": "registry/tool-execution-metadata.js",
+      "bytes": 5089
+    },
+    {
+      "path": "registry/tool-execution-metadata.js.map",
+      "bytes": 3845
+    },
+    {
+      "path": "registry/tool-registry.d.ts",
+      "bytes": 988
+    },
+    {
+      "path": "registry/tool-registry.d.ts.map",
+      "bytes": 1052
+    },
+    {
+      "path": "registry/tool-registry.js",
+      "bytes": 2420
+    },
+    {
+      "path": "registry/tool-registry.js.map",
+      "bytes": 2157
+    },
+    {
+      "path": "registry/types.d.ts",
+      "bytes": 10151
+    },
+    {
+      "path": "registry/types.d.ts.map",
+      "bytes": 7675
+    },
+    {
+      "path": "registry/types.js",
+      "bytes": 1590
+    },
+    {
+      "path": "registry/types.js.map",
+      "bytes": 1127
+    },
+    {
+      "path": "repair/assemble.d.ts",
+      "bytes": 593
+    },
+    {
+      "path": "repair/assemble.d.ts.map",
+      "bytes": 622
+    },
+    {
+      "path": "repair/assemble.js",
+      "bytes": 2297
+    },
+    {
+      "path": "repair/assemble.js.map",
+      "bytes": 2055
+    },
+    {
+      "path": "repair/index.d.ts",
+      "bytes": 235
+    },
+    {
+      "path": "repair/index.d.ts.map",
+      "bytes": 328
+    },
+    {
+      "path": "repair/index.js",
+      "bytes": 1116
+    },
+    {
+      "path": "repair/index.js.map",
+      "bytes": 284
+    },
+    {
+      "path": "repair/plan-remedy.d.ts",
+      "bytes": 595
+    },
+    {
+      "path": "repair/plan-remedy.d.ts.map",
+      "bytes": 625
+    },
+    {
+      "path": "repair/plan-remedy.js",
+      "bytes": 5451
+    },
+    {
+      "path": "repair/plan-remedy.js.map",
+      "bytes": 5131
+    },
+    {
+      "path": "repair/recheck.d.ts",
+      "bytes": 1073
+    },
+    {
+      "path": "repair/recheck.d.ts.map",
+      "bytes": 1001
+    },
+    {
+      "path": "repair/recheck.js",
+      "bytes": 5148
+    },
+    {
+      "path": "repair/recheck.js.map",
+      "bytes": 4572
+    },
+    {
+      "path": "repair/revise.d.ts",
+      "bytes": 1528
+    },
+    {
+      "path": "repair/revise.d.ts.map",
+      "bytes": 1311
+    },
+    {
+      "path": "repair/revise.js",
+      "bytes": 2252
+    },
+    {
+      "path": "repair/revise.js.map",
+      "bytes": 2331
+    },
+    {
+      "path": "repair/run-repair.d.ts",
+      "bytes": 578
+    },
+    {
+      "path": "repair/run-repair.d.ts.map",
+      "bytes": 416
+    },
+    {
+      "path": "repair/run-repair.js",
+      "bytes": 20271
+    },
+    {
+      "path": "repair/run-repair.js.map",
+      "bytes": 19026
+    },
+    {
+      "path": "repair/tool-executor.d.ts",
+      "bytes": 1400
+    },
+    {
+      "path": "repair/tool-executor.d.ts.map",
+      "bytes": 1268
+    },
+    {
+      "path": "repair/tool-executor.js",
+      "bytes": 2188
+    },
+    {
+      "path": "repair/tool-executor.js.map",
+      "bytes": 1968
+    },
+    {
+      "path": "repair/types.d.ts",
+      "bytes": 7261
+    },
+    {
+      "path": "repair/types.d.ts.map",
+      "bytes": 5323
+    },
+    {
+      "path": "repair/types.js",
+      "bytes": 110
+    },
+    {
+      "path": "repair/types.js.map",
+      "bytes": 179
+    },
+    {
+      "path": "rollout/auto-correction.d.ts",
+      "bytes": 988
+    },
+    {
+      "path": "rollout/auto-correction.d.ts.map",
+      "bytes": 787
+    },
+    {
+      "path": "rollout/auto-correction.js",
+      "bytes": 1870
+    },
+    {
+      "path": "rollout/auto-correction.js.map",
+      "bytes": 1386
+    },
+    {
+      "path": "rollout/capability-rollout.d.ts",
+      "bytes": 951
+    },
+    {
+      "path": "rollout/capability-rollout.d.ts.map",
+      "bytes": 893
+    },
+    {
+      "path": "rollout/capability-rollout.js",
+      "bytes": 2953
+    },
+    {
+      "path": "rollout/capability-rollout.js.map",
+      "bytes": 3405
+    },
+    {
+      "path": "rollout/claim-assessment.d.ts",
+      "bytes": 543
+    },
+    {
+      "path": "rollout/claim-assessment.d.ts.map",
+      "bytes": 500
+    },
+    {
+      "path": "rollout/claim-assessment.js",
+      "bytes": 685
+    },
+    {
+      "path": "rollout/claim-assessment.js.map",
+      "bytes": 448
+    },
+    {
+      "path": "rollout/coverage-retrieval.d.ts",
+      "bytes": 619
+    },
+    {
+      "path": "rollout/coverage-retrieval.d.ts.map",
+      "bytes": 570
+    },
+    {
+      "path": "rollout/coverage-retrieval.js",
+      "bytes": 869
+    },
+    {
+      "path": "rollout/coverage-retrieval.js.map",
+      "bytes": 566
+    },
+    {
+      "path": "rollout/evidence-accuracy.d.ts",
+      "bytes": 635
+    },
+    {
+      "path": "rollout/evidence-accuracy.d.ts.map",
+      "bytes": 603
+    },
+    {
+      "path": "rollout/evidence-accuracy.js",
+      "bytes": 896
+    },
+    {
+      "path": "rollout/evidence-accuracy.js.map",
+      "bytes": 621
+    },
+    {
+      "path": "rollout/evidence-profiles.d.ts",
+      "bytes": 614
+    },
+    {
+      "path": "rollout/evidence-profiles.d.ts.map",
+      "bytes": 568
+    },
+    {
+      "path": "rollout/evidence-profiles.js",
+      "bytes": 857
+    },
+    {
+      "path": "rollout/evidence-profiles.js.map",
+      "bytes": 564
+    },
+    {
+      "path": "rollout/jev-cache.d.ts",
+      "bytes": 574
+    },
+    {
+      "path": "rollout/jev-cache.d.ts.map",
+      "bytes": 551
+    },
+    {
+      "path": "rollout/jev-cache.js",
+      "bytes": 733
+    },
+    {
+      "path": "rollout/jev-cache.js.map",
+      "bytes": 546
+    },
+    {
+      "path": "rollout/match-label.d.ts",
+      "bytes": 689
+    },
+    {
+      "path": "rollout/match-label.d.ts.map",
+      "bytes": 566
+    },
+    {
+      "path": "rollout/match-label.js",
+      "bytes": 862
+    },
+    {
+      "path": "rollout/match-label.js.map",
+      "bytes": 561
+    },
+    {
+      "path": "rollout/passage-selection.d.ts",
+      "bytes": 614
+    },
+    {
+      "path": "rollout/passage-selection.d.ts.map",
+      "bytes": 568
+    },
+    {
+      "path": "rollout/passage-selection.js",
+      "bytes": 857
+    },
+    {
+      "path": "rollout/passage-selection.js.map",
+      "bytes": 564
+    },
+    {
+      "path": "rollout/status-provenance.d.ts",
+      "bytes": 794
+    },
+    {
+      "path": "rollout/status-provenance.d.ts.map",
+      "bytes": 580
+    },
+    {
+      "path": "rollout/status-provenance.js",
+      "bytes": 1037
+    },
+    {
+      "path": "rollout/status-provenance.js.map",
+      "bytes": 576
+    },
+    {
+      "path": "rollout/tokens.d.ts",
+      "bytes": 115
+    },
+    {
+      "path": "rollout/tokens.d.ts.map",
+      "bytes": 253
+    },
+    {
+      "path": "rollout/tokens.js",
+      "bytes": 349
+    },
+    {
+      "path": "rollout/tokens.js.map",
+      "bytes": 457
+    },
+    {
+      "path": "scoping/scoping-wrapper.d.ts",
+      "bytes": 1144
+    },
+    {
+      "path": "scoping/scoping-wrapper.d.ts.map",
+      "bytes": 706
+    },
+    {
+      "path": "scoping/scoping-wrapper.js",
+      "bytes": 1712
+    },
+    {
+      "path": "scoping/scoping-wrapper.js.map",
+      "bytes": 1259
+    },
+    {
+      "path": "security/tool-result-wrap.d.ts",
+      "bytes": 2032
+    },
+    {
+      "path": "security/tool-result-wrap.d.ts.map",
+      "bytes": 433
+    },
+    {
+      "path": "security/tool-result-wrap.js",
+      "bytes": 5042
+    },
+    {
+      "path": "security/tool-result-wrap.js.map",
+      "bytes": 2209
+    },
+    {
+      "path": "tools/client/get-client-context.d.ts",
+      "bytes": 1821
+    },
+    {
+      "path": "tools/client/get-client-context.d.ts.map",
+      "bytes": 1105
+    },
+    {
+      "path": "tools/client/get-client-context.js",
+      "bytes": 1936
+    },
+    {
+      "path": "tools/client/get-client-context.js.map",
+      "bytes": 1141
+    },
+    {
+      "path": "tools/delegated/delegated-tool.d.ts",
+      "bytes": 2365
+    },
+    {
+      "path": "tools/delegated/delegated-tool.d.ts.map",
+      "bytes": 1022
+    },
+    {
+      "path": "tools/delegated/delegated-tool.js",
+      "bytes": 1274
+    },
+    {
+      "path": "tools/delegated/delegated-tool.js.map",
+      "bytes": 949
+    },
+    {
+      "path": "tools/hearing/generate-editorial-brief.d.ts",
+      "bytes": 575
+    },
+    {
+      "path": "tools/hearing/generate-editorial-brief.d.ts.map",
+      "bytes": 685
+    },
+    {
+      "path": "tools/hearing/generate-editorial-brief.js",
+      "bytes": 5834
+    },
+    {
+      "path": "tools/hearing/generate-editorial-brief.js.map",
+      "bytes": 3938
+    },
+    {
+      "path": "tools/hearing/generate-post-hearing-summary.d.ts",
+      "bytes": 6143
+    },
+    {
+      "path": "tools/hearing/generate-post-hearing-summary.d.ts.map",
+      "bytes": 3262
+    },
+    {
+      "path": "tools/hearing/generate-post-hearing-summary.js",
+      "bytes": 46857
+    },
+    {
+      "path": "tools/hearing/generate-post-hearing-summary.js.map",
+      "bytes": 21961
+    },
+    {
+      "path": "tools/hearing/generate-published-record-brief.d.ts",
+      "bytes": 3781
+    },
+    {
+      "path": "tools/hearing/generate-published-record-brief.d.ts.map",
+      "bytes": 865
+    },
+    {
+      "path": "tools/hearing/generate-published-record-brief.js",
+      "bytes": 11356
+    },
+    {
+      "path": "tools/hearing/generate-published-record-brief.js.map",
+      "bytes": 8054
+    },
+    {
+      "path": "tools/hearing/tag-live-policy-mentions.d.ts",
+      "bytes": 1895
+    },
+    {
+      "path": "tools/hearing/tag-live-policy-mentions.d.ts.map",
+      "bytes": 1605
+    },
+    {
+      "path": "tools/hearing/tag-live-policy-mentions.js",
+      "bytes": 5199
+    },
+    {
+      "path": "tools/hearing/tag-live-policy-mentions.js.map",
+      "bytes": 4386
+    },
+    {
+      "path": "verifier/confidence.d.ts",
+      "bytes": 843
+    },
+    {
+      "path": "verifier/confidence.d.ts.map",
+      "bytes": 433
+    },
+    {
+      "path": "verifier/confidence.js",
+      "bytes": 1175
+    },
+    {
+      "path": "verifier/confidence.js.map",
+      "bytes": 664
+    },
+    {
+      "path": "verifier/grounding-sources.d.ts",
+      "bytes": 1464
+    },
+    {
+      "path": "verifier/grounding-sources.d.ts.map",
+      "bytes": 362
+    },
+    {
+      "path": "verifier/grounding-sources.js",
+      "bytes": 3585
+    },
+    {
+      "path": "verifier/grounding-sources.js.map",
+      "bytes": 2631
+    },
+    {
+      "path": "verifier/pe-structural.d.ts",
+      "bytes": 4119
+    },
+    {
+      "path": "verifier/pe-structural.d.ts.map",
+      "bytes": 1519
+    },
+    {
+      "path": "verifier/pe-structural.js",
+      "bytes": 7713
+    },
+    {
+      "path": "verifier/pe-structural.js.map",
+      "bytes": 4204
+    },
+    {
+      "path": "verifier/verifier-claims.d.ts",
+      "bytes": 1913
+    },
+    {
+      "path": "verifier/verifier-claims.d.ts.map",
+      "bytes": 751
+    },
+    {
+      "path": "verifier/verifier-claims.js",
+      "bytes": 3000
+    },
+    {
+      "path": "verifier/verifier-claims.js.map",
+      "bytes": 2181
+    }
+  ],
+  "ownedBuildInfoRetired": {
+    "path": "/tmp/bill-dossier-meriv2-core-20261013.tsbuildinfo",
+    "bytes": 89834,
+    "sha256": "5338dd2c4370655d87bead3d5e2ad3bdc74a5bdac662f62d4866b421dbe95177"
+  },
+  "borrowedTargetsModified": false,
+  "installOrNetworkOperation": false
+}

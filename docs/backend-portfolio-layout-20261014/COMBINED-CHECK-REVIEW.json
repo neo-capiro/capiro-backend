@@ -1,0 +1,27 @@
+{
+  "result": "combined_supplied_check_receipts_pass",
+  "mergedHead": "078c55f805de8599cc413917ef90b7e20f040942",
+  "mergedTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "receipts": [
+    {
+      "file": "20-jest-receipt.json",
+      "sourceHead": "078c55f805de8599cc413917ef90b7e20f040942",
+      "exitCode": 0,
+      "sourceBindingCount": 18,
+      "allGitHashesMatch": true,
+      "receiptSha256": "fbb9caadfb7f1b36ab8fc3b57846a1175f757d08932dc45f75473744cbeb7b43"
+    },
+    {
+      "file": "21-types-receipt.json",
+      "sourceHead": "078c55f805de8599cc413917ef90b7e20f040942",
+      "exitCode": 0,
+      "sourceBindingCount": 18,
+      "allGitHashesMatch": true,
+      "receiptSha256": "8c08b85be0631dcb43bab83f28e24be77f3f685d7f8df6880c5e179f9410af0d"
+    }
+  ],
+  "all110SourceCaseIdentitiesMultiplicityAndPassedStatusExact": true,
+  "losslessRawOutputsVerified": 4,
+  "scope": "Read-only review of supplied combined source/synthetic checks; no reviewer rerun or native/database/provider/fullCore/deployment acceptance",
+  "remaining": "Await final frozen docs candidate to bind index and confirm docs-only follow-up."
+}

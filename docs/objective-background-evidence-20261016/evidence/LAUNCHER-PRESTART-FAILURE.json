@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "toolChunk": "6904a5",
+  "exitCode": 1,
+  "phase": "process-start-before-child-exists",
+  "cause": "Get-Command returned three Node paths; the launcher assigned the array to one FileName",
+  "childStarted": false,
+  "testsRun": false,
+  "cleanup": "No child PID was created; launcher exited",
+  "correction": "Select exactly the first resolved Node Application path",
+  "resourceFailure": false
+}

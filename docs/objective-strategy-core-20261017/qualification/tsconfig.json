@@ -1,0 +1,24 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "isolatedModules": true,
+    "incremental": false,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node", "jest"],
+    "typeRoots": ["../../../apps/api/node_modules/@types"]
+  },
+  "files": [
+    "../../../apps/api/src/auth/workload-authority/objective-workload-admission-ingress.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-admission-source.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-issuance-prisma.spec.ts",
+    "../../../apps/api/src/auth/workload-authority/objective-workload-issuance.spec.ts"
+  ]
+}

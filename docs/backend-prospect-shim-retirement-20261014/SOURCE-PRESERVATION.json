@@ -1,0 +1,78 @@
+{
+  "result": "pass",
+  "base": "917fed9be648dc4abfd6770e0e391ce2e3fe3928",
+  "source": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "paths": [
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "delta": "one named import moved; all other bytes exact",
+      "blob": "8878d515849c36ce037a9fc8591e46bbb06e65b2"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "delta": "one named import moved; all other bytes exact",
+      "blob": "87b8d9b925fd76e48f3acd6970da9dfb22278713"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "delta": "one named import moved; all other bytes exact",
+      "blob": "63264170abf3b562676bff372d8ba291490a005a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.ts",
+      "delta": "import path only",
+      "blob": "e87c4f22bb0e53741de5ad8f63a5419f589b3d0e"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "delta": "one unused reexport and its comment retired; both function bodies exact",
+      "blob": "9d63db1b742ab2df74da4dcab7d01050a534547f"
+    }
+  ],
+  "changedSpec": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+  "preserved": [
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "blob": "2cb7e71ff5929a6a78a97d60d27668409633572d"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.module.ts",
+      "blob": "b6adf48dd731894ef3ac6358e3de54962ba53124"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "blob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "blob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "blob": "60fbbc8a1de21962a95af60842d25087f58a612d"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "blob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "blob": "7442633d11bf53191f25cf36faa32c3798e1186b"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "blob": "6b867553bed4ffd1376279414ce4fa892bb896e7"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "blob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+    }
+  ],
+  "canonicalAuthorizationSha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94",
+  "qualification": "Exact source-byte and blob preservation; one named shim export retired. No runtime/module/store/auth-policy retirement or native/live claim."
+}

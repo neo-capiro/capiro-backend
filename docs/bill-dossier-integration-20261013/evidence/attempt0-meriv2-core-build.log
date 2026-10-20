@@ -1,0 +1,267 @@
+packages/meriv2-core/src/alerts/alert.ts(16,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/claim-ledger.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/control-metrics.ts(148,5): error TS2584: Cannot find name 'console'. Do you need to change your target library? Try changing the 'lib' compiler option to include 'dom'.
+packages/meriv2-core/src/assurance/control-metrics.ts(178,17): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/control-metrics.ts(178,44): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/control-metrics.ts(178,58): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/envelope.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/eval-gate.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/evidence-dates.ts(1,35): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/exact-comparison.ts(1,43): error TS2307: Cannot find module '@capiro/shared/funding-claim' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/exact-comparison.ts(27,19): error TS2571: Object is of type 'unknown'.
+packages/meriv2-core/src/assurance/exact-comparison.ts(27,33): error TS2571: Object is of type 'unknown'.
+packages/meriv2-core/src/assurance/exact-comparison.ts(102,45): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+packages/meriv2-core/src/assurance/feedback-fixtures.ts(1,40): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/freshness.ts(1,51): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/operating-frame.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/policy-pack.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/policy-pack.ts(2,43): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/request-scope.ts(1,35): error TS2307: Cannot find module 'node:async_hooks' or its corresponding type declarations.
+packages/meriv2-core/src/assurance/risk-gate.ts(43,43): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/risk-gate.ts(44,37): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/risk-gate.ts(79,39): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/risk-gate.ts(80,43): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/assurance/tool-ledger-adapter.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/canary/canary-report.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/canary/canary-report.ts(2,30): error TS2307: Cannot find module 'node:fs' or its corresponding type declarations.
+packages/meriv2-core/src/canary/canary-report.ts(3,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/compliance/action-approval.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/compliance/approval-gate.ts(19,31): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/compliance/approval-gate.ts(24,31): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/compliance/approval-gate.ts(25,79): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/compliance/compliance-rules.ts(1,31): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/context/capture-evidence-receipt.ts(37,57): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/capture-evidence-receipt.ts(674,20): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/compiler.ts(2,40): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/context-rollout.ts(1,40): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/coverage-aware-packet.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/governed-artifact-capture.ts(1,57): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/governed-artifact-capture.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/context/governed-artifact-capture.ts(130,10): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/governed-artifact-capture.ts(150,22): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/governed-artifact-capture.ts(159,34): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/governed-evidence-auth.ts(2,45): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/governed-evidence-auth.ts(88,34): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/memory-capture-source.ts(2,57): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/memory-capture-source.ts(72,10): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/memory-capture-source.ts(92,34): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/memory-capture-source.ts(106,7): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/memory-capture-source.ts(270,35): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/memory-capture-source.ts(271,10): error TS2304: Cannot find name 'structuredClone'.
+packages/meriv2-core/src/context/research-plan-execution.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/server-readonly-capture.ts(1,45): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/context/server-readonly-capture.ts(169,10): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/server-readonly-capture.ts(189,7): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/context/server-readonly-capture.ts(235,20): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/domain/domain-primer.ts(33,37): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/domain/domain-primer.ts(49,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/evaluation/contract.ts(193,26): error TS2580: Cannot find name 'require'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/evaluation/contract.ts(193,66): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/auditor.ts(59,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/auditor.ts(198,23): error TS7006: Parameter 'token' implicitly has an 'any' type.
+packages/meriv2-core/src/grounding/auditor.ts(632,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/grounding/auditor.ts(685,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/grounding/auditor.ts(761,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/grounding/auditor.ts(815,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/grounding/claim-inventory.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/claim-inventory.ts(2,35): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/evidence.ts(18,34): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/grounded-json.ts(1,24): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/grounded-json.ts(219,13): error TS7006: Parameter 'i' implicitly has an 'any' type.
+packages/meriv2-core/src/ids/canonical-ids.ts(12,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/ids/canonical-ids.ts(17,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/ids/canonical-ids.ts(31,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/ids/canonical-ids.ts(37,17): error TS7006: Parameter 'v' implicitly has an 'any' type.
+packages/meriv2-core/src/ids/canonical-ids.ts(38,14): error TS7006: Parameter 'v' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-claim-question.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/bd-claim-question.ts(165,42): error TS7006: Parameter 'check' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-entity-question.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(113,10): error TS7006: Parameter 'ids' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(120,16): error TS7006: Parameter 'v' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(307,17): error TS7006: Parameter 'caseItem' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(307,27): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(373,17): error TS7006: Parameter 'fixture' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(373,26): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(374,46): error TS7006: Parameter 'caseItem' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-signal-question.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(44,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(188,11): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(193,53): error TS2304: Cannot find name 'DOMException'.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(195,54): error TS2304: Cannot find name 'DOMException'.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(197,57): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(200,32): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/jev/calibrated-cascade.ts(206,11): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/jev/decision-cache.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/jev/decision-contract.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/jev/decision-contract.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/decision-contract.ts(232,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(140,14): error TS7006: Parameter 'source' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(174,24): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Readonly<Record<"client_fit" | "claim_support" | "citation_support" | "passage_relevance" | "conflict_detection" | "status_selection" | "program_identity" | "mention_scope" | "evidence_selection" | "bd_entity" | "bd_signal" | "bd_claim", JevTaskRegistration>>'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(216,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(217,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(225,41): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(235,29): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(235,62): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(237,36): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(247,43): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(249,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(264,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(276,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(286,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(312,58): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(314,57): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(315,21): error TS2538: Type 'unknown' cannot be used as an index type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(371,25): error TS18046: 'minimum' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(381,25): error TS18046: 'minimum' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(398,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(400,6): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(400,11): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(404,6): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(404,11): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(454,55): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(471,49): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(45,17): error TS7006: Parameter 'data' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(45,23): error TS7006: Parameter 'context' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(47,25): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(47,31): error TS7006: Parameter 'index' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(84,6): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(88,34): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(92,29): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(96,29): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(100,39): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(101,24): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(103,41): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(104,47): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(105,42): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(108,19): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(108,41): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(108,69): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(1,30): error TS2307: Cannot find module 'node:fs' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(156,16): error TS7006: Parameter 'row' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(191,8): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/shadow-report.ts(262,66): error TS2345: Argument of type 'JoinedShadowRow' is not assignable to parameter of type '{ conversationId: string | null; turnId: string | null; }'.
+  Type 'JoinedShadowRow' is missing the following properties from type '{ conversationId: string | null; turnId: string | null; }': conversationId, turnId
+packages/meriv2-core/src/jev/evidence-envelope.ts(1,35): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/jev/fixture-schema.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/jev-client.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/jev-client.ts(50,42): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+packages/meriv2-core/src/jev/jev-client.ts(68,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/jev/jev-client.ts(174,27): error TS18046: 'total' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(174,35): error TS18046: 'value' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(177,76): error TS18046: 'levelSum' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(196,83): error TS18046: 'total' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(196,91): error TS18046: 'value' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(197,82): error TS18046: 'sum' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(205,33): error TS2304: Cannot find name 'Response'.
+packages/meriv2-core/src/jev/jev-client.ts(235,11): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/jev/jev-client.ts(240,34): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/jev/jev-client.ts(242,32): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/jev/jev-client.ts(256,15): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/jev/jev-client.ts(261,39): error TS2304: Cannot find name 'Response'.
+packages/meriv2-core/src/jev/jev-client.ts(264,23): error TS2304: Cannot find name 'TextDecoder'.
+packages/meriv2-core/src/jev/jev-client.ts(295,53): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+packages/meriv2-core/src/jev/jev-client.ts(309,11): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/jev/jev-client.ts(328,32): error TS2304: Cannot find name 'AbortController'.
+packages/meriv2-core/src/jev/jev-client.ts(331,25): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/jev/jev-client.ts(378,11): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/jev/replay/recorded-decision-store.ts(9,8): error TS2307: Cannot find module 'node:fs' or its corresponding type declarations.
+packages/meriv2-core/src/jev/replay/recorded-decision-store.ts(10,25): error TS2307: Cannot find module 'node:path' or its corresponding type declarations.
+packages/meriv2-core/src/jev/replay/recorded-decision-store.ts(11,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(73,17): error TS7006: Parameter 'fixture' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(73,26): error TS7006: Parameter 'context' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(74,28): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(74,34): error TS7006: Parameter 'index' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(75,28): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Readonly<Record<"client_fit" | "claim_support" | "citation_support" | "passage_relevance" | "conflict_detection" | "status_selection" | "program_identity" | "mention_scope" | "evidence_selection" | "bd_entity" | "bd_signal" | "bd_claim", JevTaskRegistration>>'.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(77,43): error TS7006: Parameter 'value' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(87,12): error TS7006: Parameter 'outcome' implicitly has an 'any' type.
+packages/meriv2-core/src/learning/rollout.ts(38,36): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/llm/llm-client.ts(2,67): error TS2307: Cannot find module '@capiro/shared/ai-model-policy' or its corresponding type declarations.
+packages/meriv2-core/src/llm/llm-client.ts(3,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/llm/llm-client.ts(156,22): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/llm-client.ts(163,38): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/llm-client.ts(169,40): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/llm-client.ts(178,28): error TS2304: Cannot find name 'AbortController'.
+packages/meriv2-core/src/llm/llm-client.ts(179,19): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(204,7): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(219,28): error TS2304: Cannot find name 'AbortController'.
+packages/meriv2-core/src/llm/llm-client.ts(224,19): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(284,7): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(292,22): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/llm-client.ts(322,38): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/llm-client.ts(328,40): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/llm-client.ts(337,28): error TS2304: Cannot find name 'AbortController'.
+packages/meriv2-core/src/llm/llm-client.ts(338,19): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(364,7): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(384,28): error TS2304: Cannot find name 'AbortController'.
+packages/meriv2-core/src/llm/llm-client.ts(389,19): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(428,7): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(447,14): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/llm/llm-client.ts(453,28): error TS2304: Cannot find name 'AbortController'.
+packages/meriv2-core/src/llm/llm-client.ts(455,19): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/llm/llm-client.ts(487,7): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/llm/openai-responses-adapter.ts(5,8): error TS2307: Cannot find module '@capiro/shared/ai-model-policy' or its corresponding type declarations.
+packages/meriv2-core/src/llm/openai-responses-adapter.ts(11,21): error TS2304: Cannot find name 'fetch'.
+packages/meriv2-core/src/llm/openai-responses-adapter.ts(12,12): error TS2304: Cannot find name 'RequestInit'.
+packages/meriv2-core/src/llm/openai-responses-adapter.ts(13,12): error TS2304: Cannot find name 'Response'.
+packages/meriv2-core/src/llm/openai-responses-adapter.ts(23,14): error TS2304: Cannot find name 'Response'.
+packages/meriv2-core/src/memory/governance-rollout.ts(12,36): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/memory/governance-rollout.ts(23,36): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/observability/meri-joined-telemetry.ts(1,53): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/observability/meri-joined-telemetry.ts(463,7): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+packages/meriv2-core/src/observability/meri-otel.ts(1,35): error TS2307: Cannot find module 'node:async_hooks' or its corresponding type declarations.
+packages/meriv2-core/src/observability/meri-otel.ts(10,8): error TS2307: Cannot find module '@opentelemetry/api' or its corresponding type declarations.
+packages/meriv2-core/src/observability/meri-otel.ts(16,8): error TS2307: Cannot find module '@opentelemetry/sdk-trace' or its corresponding type declarations.
+packages/meriv2-core/src/observability/meri-otel.ts(17,40): error TS2307: Cannot find module '@opentelemetry/resources' or its corresponding type declarations.
+packages/meriv2-core/src/observability/meri-otel.ts(18,35): error TS2307: Cannot find module '@opentelemetry/exporter-trace-otlp-http' or its corresponding type declarations.
+packages/meriv2-core/src/observability/meri-otel.ts(185,32): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/observability/meri-otel.ts(192,17): error TS2304: Cannot find name 'setTimeout'.
+packages/meriv2-core/src/observability/meri-otel.ts(196,16): error TS2304: Cannot find name 'clearTimeout'.
+packages/meriv2-core/src/observability/meri-otel.ts(215,30): error TS2304: Cannot find name 'URL'.
+packages/meriv2-core/src/registry/tool-execution-control.ts(3,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/registry/tool-execution-control.ts(10,40): error TS2304: Cannot find name 'DOMException'.
+packages/meriv2-core/src/registry/tool-execution-control.ts(13,15): error TS2304: Cannot find name 'DOMException'.
+packages/meriv2-core/src/registry/tool-execution-metadata.ts(1,31): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/registry/types.ts(2,40): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/registry/types.ts(3,47): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+packages/meriv2-core/src/repair/plan-remedy.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/repair/recheck.ts(16,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/revise.ts(21,23): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/revise.ts(31,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/revise.ts(86,34): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/tool-executor.ts(1,28): error TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.
+packages/meriv2-core/src/repair/tool-executor.ts(6,53): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/tool-executor.ts(31,25): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/tool-executor.ts(52,25): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/tool-executor.ts(68,25): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/repair/types.ts(223,12): error TS2304: Cannot find name 'AbortSignal'.
+packages/meriv2-core/src/tools/client/get-client-context.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/delegated/delegated-tool.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(99,44): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(101,14): error TS7006: Parameter 's' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(104,24): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(105,51): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(718,45): error TS7006: Parameter 'claim' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(720,58): error TS7006: Parameter 'i' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(738,31): error TS7006: Parameter 'claim' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(750,37): error TS7006: Parameter 'id' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(876,63): error TS7006: Parameter 'dev' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(878,56): error TS7006: Parameter 'i' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(36,17): error TS7006: Parameter 'value' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(181,58): error TS7006: Parameter 'o' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(189,40): error TS7006: Parameter 'ref' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(191,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(194,24): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(194,61): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(199,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(209,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(213,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/tag-live-policy-mentions.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/verifier/pe-structural.ts(24,36): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.

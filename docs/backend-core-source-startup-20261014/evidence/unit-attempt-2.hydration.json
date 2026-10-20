@@ -1,0 +1,106 @@
+{
+  "head": "de6d6e1abeb1c8e4c4ed3bcb30bde3a8ac48975d",
+  "qualification": "Focused unit runtime imports only; exact source hydration, no compile/native/database/provider run",
+  "rows": [
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "blob": "7722c72b9c43b300af4105c81b8d27c9f6790f27",
+      "sha256": "13d353f967bd709909a6d679f8101efd46527ae6323f19fe02bd024e3af6a5fc"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "blob": "deb7617b866343c70a0349f681e032f27d1f2acf",
+      "sha256": "bd0ca8e16a8cdb0f4165e5a0cc896cb039c64a28308793cfa3be52c2af437936"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-job-runtime.ts",
+      "blob": "8fb9843b7c2a259b42ecdc512c41400cbf43044e",
+      "sha256": "bbc47da24f0a9a08a93fd653f0cf263396330f04e95930674b1f491ae0520b24"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-runtime.ts",
+      "blob": "b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae",
+      "sha256": "ae6903f125af905dddee99c805c2e92656ef6242810ce1bd1e15d703a31cced5"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "blob": "5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653",
+      "sha256": "4c886e6c9ac051c1c0458c9b3b1e0ab621833cf7cc692e38e885f6c3b081f817"
+    },
+    {
+      "path": "apps/api/src/lobby-intel/lobby-intel.service.ts",
+      "blob": "ce4a20108c050db19c64d39df55b4ba9def0d3dc",
+      "sha256": "edfb5602f3209631b9605e657a1e9dfef89622f3ce934942dbc4186743b83e4b"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "blob": "677810b805210533034bf268a6c26014311cda1d",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-spending.service.ts",
+      "blob": "a432d29147985ffa965eed67c6fbdd2970f5fb03",
+      "sha256": "58c1457d235a0207705d5de674fd030f44755c2720a156c8dc1c9b4aadb12776"
+    },
+    {
+      "path": "apps/api/src/engagement/ai-credential-resolver.service.ts",
+      "blob": "58a4d3f9aece3bdfb974c0c4fdd4516dee85c5da",
+      "sha256": "9054ccd4860c39089afe0734f097df35dada3add50042c12aa543f973e0db152"
+    },
+    {
+      "path": "apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
+      "blob": "6860b45680419c26a2287fef2ba415c04886d946",
+      "sha256": "cebdbc57107909d42997add8216c57970bec161ad4d3b788bd875c922a09ca9f"
+    },
+    {
+      "path": "apps/api/src/common/secret-crypto.ts",
+      "blob": "9837d44ab17ab5e3b7192d3f52797d5d89f11216",
+      "sha256": "6d351c2d7765294081a4d2b917d252fb9f8ba03f2c73a83bd9c982acfde4531d"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "blob": "c8ca62c522c1dd10e9c3876182c79421f4cf9ca4",
+      "sha256": "89874c258aa2680637262d649ebc26b03d047fb0bce9cc67fa29bb9bef5e2036"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-prompt/prompt-spec-v2.ts",
+      "blob": "3929816f803801098da80c31ea58827fcdf904b9",
+      "sha256": "01009c5f6a7c4bc9365c91d17419d9d1e406b570b86097af4e0144342b3d1eaf"
+    },
+    {
+      "path": "apps/api/src/engagement/llm-completion.service.ts",
+      "blob": "dbe7343eda3fb5dae848bf20b06b9b5342932cd4",
+      "sha256": "78ce34b4b5271fd6a7dbd19300470fa5403eaf5c6ef542d24d97ff33c5b1adaf"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/reasoning-effort.ts",
+      "blob": "88f21284cbf2b21af0838c96e0a1ba5b48fe9d6a",
+      "sha256": "856c70924aedefa1cdc4f3e961525e6c21bcfe8fef0b9c5508943e2ab0519f54"
+    },
+    {
+      "path": "apps/api/src/context/context-stage-timer.service.ts",
+      "blob": "2fe9b20b9a88aa4d7e5f1b4c56102b126131c4fd",
+      "sha256": "4813ed4086ec8a05c6e60df3371a56691b27a8908d4157962d3aef778ffad714"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-policy.ts",
+      "blob": "3b4ca28656bde24010c0b3e2b69f89cfb29b131a",
+      "sha256": "ffaca859ce7a8b767fbd9147676c675e4cb70d1e51fa16114f9cfef13cdb2054"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-comprehensive.ts",
+      "blob": "30519b8feb6305d8bb8c208ed3db5ed5e7f2a53c",
+      "sha256": "9559563e18ba101a9cd8ca2ad272befcf076b8e3c937322b508a4126919d5b12"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-grounding.ts",
+      "blob": "9525e781f9f7840b304654fa54a57e4ced10bc08",
+      "sha256": "aaa0d17e67b67d03320b536ea1fb96b4c82b24fe0d77a7f22e61f786d83a88d0"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-rewrite-verifier.ts",
+      "blob": "6b4c99f6886161e1f2161e8ab03211febb4ec8c5",
+      "sha256": "a7e1f86f28ff585d7f311a381cff010e9116922c0815cffaf39cd91e3a374085"
+    }
+  ]
+}

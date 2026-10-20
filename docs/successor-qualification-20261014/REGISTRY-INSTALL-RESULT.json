@@ -1,0 +1,40 @@
+{
+  "source": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "sourceLockSha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+  "sourceLockBytes": 728135,
+  "isolatedLockSha256": "33dd57a7b1eda756f4d4c7a5a30bb8c82de0d7611e080ba2a5b81c10d178b5b8",
+  "isolatedLockBytes": 1660,
+  "isolatedManifestSha256": "07b52640ed51cb8af9c2efcc49c32bcf53e3848297cad9a2d2c296d27f4ec3c5",
+  "installer": "pnpm11.25.0 already installed; repo packageManager remains pnpm@9.12.0 unchanged",
+  "cwd": "/tmp/capiro-pinned-parser-install-20261014",
+  "command": "pnpm install --frozen-lockfile --ignore-scripts --ignore-workspace --registry=https://registry.npmjs.org --store-dir=/tmp/capiro-pinned-parser-install-20261014/store --reporter=append-only --network-concurrency=1 --fetch-retries=0 --fetch-timeout=30000",
+  "graph": [
+    "dom-serializer@2.0.0",
+    "domelementtype@2.3.0",
+    "domhandler@5.0.3",
+    "domutils@3.2.2",
+    "entities@4.5.0",
+    "htmlparser2@8.0.2"
+  ],
+  "normalFrozenLockChecksPassed": "Lockfile passes supply-chain policies (6 entries in318ms); lockfile up to date, resolution skipped",
+  "attempt01": "Installer completed, but stdout gzip/receipt writing failed with OSError [Errno28] No space left on device. Original child output was not successfully persisted; no child success/error claim is made for this attempt. Tool traceback remains preserved.",
+  "attempt02ExitCode": 1,
+  "attempt02Error": "[ERR_PNPM_ENOSPC] Failed to add tarball from \"https://registry.npmjs.org/htmlparser2/-/htmlparser2-8.0.2.tgz\" to store: ENOSPC: no space left on device, write",
+  "attempt02ToolSessions": [
+    22640
+  ],
+  "attempt02FullOutput": "Preserved in original tool execution transcript; exact relevant excerpts in REGISTRY-INSTALL.md. No invented byte hash for tool-transcript excerpts.",
+  "networkPermissionDenialObserved": false,
+  "installationSucceeded": false,
+  "sourceDependencyVersionsIntegrityChanged": false,
+  "checksWeakened": false,
+  "failedStateArchive": "parser-install-failed-state.tar.gz",
+  "failedStateArchiveBytes": 14481,
+  "failedStateArchiveSha256": "341cf65a831734f6e7dad787ce115cc659446a75bb3821dea5fb942a18a567bb",
+  "failedStateArchivedFiles": 11,
+  "allArchivedFileHashesComparedWithOriginals": true,
+  "originalSourceSharedCachesRefsCredentialsUnchanged": true,
+  "remainingEnvironmentRequirement": "Writable working directory/package store with enough free disk for the six pinned packages and pnpm bookkeeping, plus existing qualification toolchain/generated declarations. The tested runtime reported ENOSPC, not a need for registry/auth/network changes. Provision100MiB working headroom as a practical margin; not a measured minimum package footprint.",
+  "packageStoreSqliteBookkeeping": true,
+  "applicationDatabaseAccess": false
+}

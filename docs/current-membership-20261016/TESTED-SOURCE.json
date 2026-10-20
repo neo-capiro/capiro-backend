@@ -1,0 +1,79 @@
+{
+  "base": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "runtimeRecordedHead": "567a95db943bafc2c7aeba2646518534a6ebfd0e",
+  "sourceSetSha256": "8df09fd015f0fab593bc79bc34d2bfb9dddc9e37d3f529875910ae28818ceab9",
+  "files": [
+    {
+      "path": "apps/api/src/auth/application-authority.module.spec.ts",
+      "sha256": "aff3e70651d6177e18c9664a66b41fc34d22432933b58a01ec26ee784e4dca0f",
+      "gitBlob": "24884fbe302f6d6fbc0539e87bb2db95f80d0a27"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.module.ts",
+      "sha256": "a9a450297f1c37b5f6c3164e3fa370542172470f843c43017457ce9f8f51b1f3",
+      "gitBlob": "03b7291daccabf9bc8410f57b714885ae3c1ad42"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership-request.ts",
+      "sha256": "f1ff3779a9817dc0fee330f1a8eb67faeea971f8e4e1a18109936377324ff340",
+      "gitBlob": "9159adae3cfb2d6349a53f43e9ababf57d533f4d"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.controller.ts",
+      "sha256": "81b4e23fe2a5596cf4daaacf0fcc08af747ca58aa17e8853500c25e3a4553386",
+      "gitBlob": "ace4b6a766d0b212dbcce98fd2fd0d48ae219b15"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.service.ts",
+      "sha256": "874d53647757576239b2d71d63a6ddebcd6eddcf24ce6458bf1893ef4922faef",
+      "gitBlob": "616365127574e7e0b463271ffbec3b14d4f25607"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.spec.ts",
+      "sha256": "bec1df467a89583de93a5907350ddb6dd7a0b31dea4f65c982614291aaac4593",
+      "gitBlob": "4ff1b4c4947876c92b59fcb1cc4a27b068635c1c"
+    },
+    {
+      "path": "apps/api/src/auth/application-membership.ts",
+      "sha256": "c40054c008e5d710be904cbd285e39aad3d5bc7623bb3c05cf08690e6857f0c6",
+      "gitBlob": "cae3aefa67db160eaecbbb299a4ca920d6435bf6"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "sha256": "c94ceeb0687fa09c3673aa1a97022439d15d4686e4e7b80f580231092350b294",
+      "gitBlob": "cc6767ef767044ce896e188c17dd9b0b267ccc95"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "80511693576467e56004fd7147f3c79c23f9ad79f9cc543c88a381489b40c907",
+      "gitBlob": "a6bc147057cd465ed68b5b10e6e98c0d18497ad0"
+    }
+  ],
+  "result": {
+    "passed": 71,
+    "total": 71,
+    "suites": 2,
+    "runtimeErrors": 0,
+    "primaryExit": 0,
+    "cleanupExit": 0,
+    "ownedProcessRemains": false
+  },
+  "receipt": [
+    {
+      "path": "evidence/focused-attempt4.receipt.json",
+      "originalRuntimeSha256": "1b5b769ac30d44f68febec3138dfe72407fe8795b1d724e12efaf299088cbae7",
+      "publishedGitBlobSha256": "1b5b769ac30d44f68febec3138dfe72407fe8795b1d724e12efaf299088cbae7"
+    },
+    {
+      "path": "evidence/focused-attempt4.result.json",
+      "originalRuntimeSha256": "c4d793ea2efec573f080f5b13d2332460c6420c85cd64cd211d4647ad2d576af",
+      "publishedGitBlobSha256": "c4d793ea2efec573f080f5b13d2332460c6420c85cd64cd211d4647ad2d576af"
+    },
+    {
+      "path": "evidence/focused-attempt4.stage.json",
+      "originalRuntimeSha256": "6bffb3f4a36eaccda279ff5ed388ecd6b6c3c408f7a988ffd82a89536afd6e97",
+      "publishedGitBlobSha256": "7497c8ff340b7202e6127fbd1b5e59e458ac83b1a8df25b102f36ac27dc4eeb9"
+    }
+  ],
+  "limit": "Exact staged source equals tested before/after bytes. No broad build, semantic typing, live or integrated authority acceptance."
+}

@@ -1,0 +1,22 @@
+{
+  "source_head": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "specs": [
+    "apps/api/src/intelligence/alert-memo/alert-memo-citations.spec.ts",
+    "apps/api/src/intelligence/alert-memo/alert-memo-held-gate.spec.ts",
+    "apps/api/src/intelligence/alert-memo/alert-memo-program-element.spec.ts",
+    "apps/api/src/intelligence/alert-memo/alert-memo-templates.spec.ts",
+    "apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts",
+    "apps/api/src/intelligence/alert-memo/district-brief.service.spec.ts",
+    "apps/api/src/intelligence/alert-memo/entailment-gate.spec.ts",
+    "apps/api/src/intelligence/alert-memo/governed-alert-deliverables.factory.spec.ts",
+    "apps/api/src/intelligence/alert-memo/governed-alert-deliverables.phase22.spec.ts",
+    "apps/api/src/intelligence/alert-memo/legiwatch-context-plane-architecture.contract.spec.ts",
+    "apps/api/src/intelligence/alert-memo/memo-sections-characterization.spec.ts",
+    "apps/api/src/intelligence/alert-memo/memo-sections-ownership.contract.spec.ts",
+    "apps/api/src/reviews/reviews-di-cycle.spec.ts"
+  ],
+  "expected_donor_cases": 161,
+  "expected_suites": 13,
+  "protected_reporting_opaque_token": true,
+  "full_application_graph_qualified": false
+}

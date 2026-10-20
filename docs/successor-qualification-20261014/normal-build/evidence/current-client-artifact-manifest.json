@@ -1,0 +1,515 @@
+{
+  "ref": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "tree": "37e0e1c9c8b7986593ff677dbac15d21d3384ac8",
+  "source": {
+    "files": 7378,
+    "bytes": 126787369,
+    "manifest_sha256": "39573dbce761c6d56db515015934b07f04b2fb93f76f9c1b2040b49516364c1a",
+    "archive_sha256": "a5bb430e25b0711a9011497eace54713094b375fdc4450e470da380ef213e2e7",
+    "AGENTS": []
+  },
+  "ordinary_builds": {
+    "packages/shared": "packages-shared-normal-build",
+    "packages/auth": "packages-auth-normal-build",
+    "packages/meriv2-core": "packages-meriv2-core-normal-build",
+    "packages/defense-contracts": "packages-defense-contracts-normal-build",
+    "packages/defense-domain": "packages-defense-domain-normal-build",
+    "packages/strategy-verifier": "packages-strategy-verifier-normal-build",
+    "apps/api": "apps-api-normal-build-serial",
+    "apps/workspace": "apps-workspace-normal-build-corrected-inputs",
+    "apps/api-strategy": "apps-api-strategy-normal-build-corrected-inputs",
+    "apps/intel-api": "apps-intel-api-normal-build"
+  },
+  "normal_historical_receipt_blob": "837f0496a5a698530248b014454cfc1cd4f9ee29",
+  "normal_historical_manifest_blob": "d887026198bd3bfd676e7832fdba5989dd0ee351",
+  "generation_receipt_blob": "0dbfc69c88486ad4e68976e8f63eecdc3037c398",
+  "current_schema_generation": {
+    "schemas": [
+      {
+        "owner": "api",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/api/prisma/schema.prisma",
+        "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+        "generators": [
+          "generator client {\n  provider        = \"prisma-client-js\"\n  previewFeatures = [\"postgresqlExtensions\"]\n  // Bookworm slim runtime is OpenSSL 3.x on linux-arm64. `native` covers the\n  // build host, the explicit target covers cross-arch builds (e.g. building\n  // the ARM64 image from an x86 dev machine via buildx).\n  binaryTargets   = [\"native\", \"linux-arm64-openssl-3.0.x\"]\n}"
+        ]
+      },
+      {
+        "owner": "workspace",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/workspace/prisma/schema.prisma",
+        "sha256": "5b42bad2611ae694120746d8f60902d62752f90bac4c65a50f4dae79e798e094",
+        "generators": [
+          "generator client {\n  provider        = \"prisma-client-js\"\n  // Custom output isolates the engine's client from apps/api's @prisma/client\n  // in the shared pnpm monorepo. Import via `../generated/prisma-client`.\n  output          = \"../generated/prisma-client\"\n  previewFeatures = [\"postgresqlExtensions\"]\n  // Bookworm slim runtime is OpenSSL 3.x on linux-arm64. `native` covers the\n  // build host; the explicit target covers cross-arch buildx builds.\n  binaryTargets   = [\"native\", \"linux-arm64-openssl-3.0.x\"]\n}"
+        ]
+      },
+      {
+        "owner": "api-strategy",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/api-strategy/prisma/schema.prisma",
+        "sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+        "generators": [
+          "generator client {\n  provider = \"prisma-client-js\"\n  // Custom output isolates this engine's client from apps/api's @prisma/client\n  // in the shared pnpm monorepo. Import via `../generated/prisma-client`.\n  // Prisma.dmmf read by the tenant-scope hook MUST come from this client, not\n  // from @prisma/client, or the tenant-scoped model set reflects the wrong schema.\n  output          = \"../generated/prisma-client\"\n  previewFeatures = [\"postgresqlExtensions\"]\n  // Bookworm slim runtime is OpenSSL 3.x on linux-arm64. `native` covers the\n  // build host; the explicit target covers cross-arch buildx builds.\n  binaryTargets   = [\"native\", \"linux-arm64-openssl-3.0.x\"]\n}"
+        ]
+      },
+      {
+        "owner": "intel-api",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/intel-api/prisma/schema.prisma",
+        "sha256": "751cdd4b7cc4f6b59598452327917b6f48639ec104473366b104ef0c2a1c0b74",
+        "generators": [
+          "generator client {\n  provider        = \"prisma-client-js\"\n  // Custom output isolates the intel client from apps/api's @prisma/client in\n  // the shared pnpm monorepo. Import via `../generated/prisma-client`.\n  output          = \"../generated/prisma-client\"\n  previewFeatures = [\"postgresqlExtensions\"]\n  binaryTargets   = [\"native\", \"linux-arm64-openssl-3.0.x\"]\n}"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "name": "prisma",
+        "version": "5.22.0",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/prisma",
+        "file_count": 98,
+        "bytes": 41101963,
+        "manifest_sha256": "724f6487788f86426ad6cd13fd8ab9924c67c557cf4d041ee0d755c6847f9d3b",
+        "dependencies": {
+          "@prisma/engines": "5.22.0"
+        }
+      },
+      {
+        "name": "@prisma/client",
+        "version": "5.22.0",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/client",
+        "file_count": 44,
+        "bytes": 8382591,
+        "manifest_sha256": "d0ce079e943b1be802d7b4b4b22d70b81cb142ce809a36b4f243ef464b1f7081",
+        "dependencies": {}
+      },
+      {
+        "name": "@prisma/engines",
+        "version": "5.22.0",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/engines",
+        "file_count": 12,
+        "bytes": 35058938,
+        "manifest_sha256": "35fc65e680573500bc3d899c5c6228a32434c6d681b21ab4280ea6582a93c1cd",
+        "dependencies": {
+          "@prisma/engines-version": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+          "@prisma/debug": "5.22.0",
+          "@prisma/fetch-engine": "5.22.0",
+          "@prisma/get-platform": "5.22.0"
+        }
+      },
+      {
+        "name": "@prisma/fetch-engine",
+        "version": "5.22.0",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/@prisma+fetch-engine@5.22.0/node_modules/@prisma/fetch-engine",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/fetch-engine",
+        "file_count": 40,
+        "bytes": 924939,
+        "manifest_sha256": "4bdd09dbf47bcc753fdb71eed3b59d9ad69ee16fe9f381af892ba7734dd0f27e",
+        "dependencies": {
+          "@prisma/engines-version": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+          "@prisma/debug": "5.22.0",
+          "@prisma/get-platform": "5.22.0"
+        }
+      },
+      {
+        "name": "@prisma/get-platform",
+        "version": "5.22.0",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/@prisma+get-platform@5.22.0/node_modules/@prisma/get-platform",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/get-platform",
+        "file_count": 35,
+        "bytes": 614273,
+        "manifest_sha256": "98d62a93f5a7d17c008d7e4a958c92a5bb131cd42c3b47d605379a54a546eff1",
+        "dependencies": {
+          "@prisma/debug": "5.22.0"
+        }
+      },
+      {
+        "name": "@prisma/debug",
+        "version": "5.22.0",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/@prisma+debug@5.22.0/node_modules/@prisma/debug",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/debug",
+        "file_count": 7,
+        "bytes": 24752,
+        "manifest_sha256": "1e6493b70392f2ba1cb183c305a1386fb365df109665b39ca95f2a6c25590a03",
+        "dependencies": {}
+      },
+      {
+        "name": "@prisma/engines-version",
+        "version": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+        "cached_path": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines-version@5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2/node_modules/@prisma/engines-version",
+        "owned_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/engines-version",
+        "file_count": 5,
+        "bytes": 12691,
+        "manifest_sha256": "05407532e3f7480eb25b0e0d673b00bd96a207eae971ca62bb3427bf67dd4422",
+        "dependencies": {}
+      }
+    ],
+    "outputs": [
+      {
+        "owner": "api",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/.prisma/client",
+        "file_count": 13,
+        "bytes": 94270623,
+        "manifest_sha256": "57405659bb816b60862f3dd692fc751028a2d8098152875c0723084d59601603",
+        "generated_schema_sha256": "319ce1894c3128c984b18bc530b0732cd22fb9e06367e8335778b862990ac453",
+        "input_schema_sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+        "model_count": 465,
+        "has_UserPortfolioLayout": true,
+        "engine_files": [
+          {
+            "name": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+            "bytes": 14149792,
+            "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+          },
+          {
+            "name": "libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      },
+      {
+        "owner": "workspace",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/workspace/generated/prisma-client",
+        "file_count": 21,
+        "bytes": 34238237,
+        "manifest_sha256": "f89d61f1170c3020267fab5e58a83d7080e700a92548ad1601f15319f7bf3d75",
+        "generated_schema_sha256": "6887887ff05acd98f3835ebf268bf74dbbc0f076d60b35113389e253210224c3",
+        "input_schema_sha256": "5b42bad2611ae694120746d8f60902d62752f90bac4c65a50f4dae79e798e094",
+        "model_count": 37,
+        "has_UserPortfolioLayout": false,
+        "engine_files": [
+          {
+            "name": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+            "bytes": 14149792,
+            "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+          },
+          {
+            "name": "libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      },
+      {
+        "owner": "api-strategy",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/api-strategy/generated/prisma-client",
+        "file_count": 21,
+        "bytes": 33716165,
+        "manifest_sha256": "077ffc6b968d4902ab44a6f534b874822c1eebf9c046632d09adce2579ba0c9f",
+        "generated_schema_sha256": "5570a856f9e90f26b3676489eb528457c053d4841ed14433ef483d7fa380af96",
+        "input_schema_sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+        "model_count": 30,
+        "has_UserPortfolioLayout": false,
+        "engine_files": [
+          {
+            "name": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+            "bytes": 14149792,
+            "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+          },
+          {
+            "name": "libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      },
+      {
+        "owner": "intel-api",
+        "path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/intel-api/generated/prisma-client",
+        "file_count": 21,
+        "bytes": 35106434,
+        "manifest_sha256": "35a1a89ddd291815b14903705c0c06caf7cd7988fa51b6009cdc948b1bd4ff98",
+        "generated_schema_sha256": "9bc5e267bc420e2207d4e88b29f1e066b455f12bb708ad5d9bb7fd78ab356515",
+        "input_schema_sha256": "751cdd4b7cc4f6b59598452327917b6f48639ec104473366b104ef0c2a1c0b74",
+        "model_count": 50,
+        "has_UserPortfolioLayout": false,
+        "engine_files": [
+          {
+            "name": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+            "bytes": 14149792,
+            "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+          },
+          {
+            "name": "libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "owner": "api",
+        "command": [
+          "node",
+          "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/prisma/build/index.js",
+          "generate",
+          "--schema",
+          "prisma/schema.prisma"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/api",
+        "exit_code": 0,
+        "seconds": 14.369,
+        "stdout_sha256": "fb859270f66adfb34b6612ac1875504582018926245d026002b0f43fd0bd1e1a",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "owner": "workspace",
+        "command": [
+          "node",
+          "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/prisma/build/index.js",
+          "generate",
+          "--schema",
+          "prisma/schema.prisma"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/workspace",
+        "exit_code": 0,
+        "seconds": 2.515,
+        "stdout_sha256": "789d8be4d685cc3c6c5576a45961d6eddd812b5e354dd0c0ac25410de99d92e9",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "owner": "api-strategy",
+        "command": [
+          "node",
+          "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/prisma/build/index.js",
+          "generate",
+          "--schema",
+          "prisma/schema.prisma"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/api-strategy",
+        "exit_code": 0,
+        "seconds": 1.403,
+        "stdout_sha256": "5b2cde1d9b0e1145d6d07ef1b59a6e92c2787600f1593904c645dafc463c3f69",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "owner": "intel-api",
+        "command": [
+          "node",
+          "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/prisma/build/index.js",
+          "generate",
+          "--schema",
+          "prisma/schema.prisma"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/intel-api",
+        "exit_code": 0,
+        "seconds": 1.682,
+        "stdout_sha256": "c7b3400e46a1a9da09a40b4a5039b745bb0320156dabc23e586a5f0a798fd33c",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "fresh_core_workspace_requalification": {
+    "ref": "afee9c4251c4c21417916bc4a02007283b67543b",
+    "tree": "37e0e1c9c8b7986593ff677dbac15d21d3384ac8",
+    "commands": [
+      {
+        "name": "apps-api-normal-build-fresh-client",
+        "command": [
+          "node",
+          "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+          "build"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/api",
+        "exit_code": 0,
+        "seconds": 105.595,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "environment": "sanitized build withno inheritedcredentials; serial"
+      },
+      {
+        "name": "apps-api-main-syntax-fresh-client",
+        "command": [
+          "node",
+          "--check",
+          "dist/main.js"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/api",
+        "exit_code": 0,
+        "seconds": 0.054,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "environment": "sanitized build withno inheritedcredentials; serial"
+      },
+      {
+        "name": "apps-workspace-normal-build-fresh-client",
+        "command": [
+          "node",
+          "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/workspace/node_modules/@nestjs/cli/bin/nest.js",
+          "build"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/workspace",
+        "exit_code": 0,
+        "seconds": 11.015,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "environment": "sanitized build withno inheritedcredentials; serial"
+      },
+      {
+        "name": "apps-workspace-main-syntax-fresh-client",
+        "command": [
+          "node",
+          "--check",
+          "dist/main.js"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/workspace",
+        "exit_code": 0,
+        "seconds": 0.081,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "environment": "sanitized build withno inheritedcredentials; serial"
+      },
+      {
+        "name": "workspace-docker-pruned-import-fresh-client",
+        "command": [
+          "node",
+          "-e",
+          "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/versions/versions.service.js');"
+        ],
+        "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/workspace",
+        "exit_code": 0,
+        "seconds": 0.331,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "environment": "sanitized build withno inheritedcredentials; serial"
+      }
+    ],
+    "inputs": [
+      {
+        "owner": "api",
+        "historical_index_dts_sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6",
+        "fresh_index_dts_sha256": "130a2683191cab5bbc40b36c70822e9564d3a2d1c3aac8506de5fea55aee4a57",
+        "declarations_identical": false,
+        "fresh_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/.prisma/client"
+      },
+      {
+        "owner": "workspace",
+        "historical_index_dts_sha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9",
+        "fresh_index_dts_sha256": "f915e46cda315151c2c1bd204baf852f1ab01d2d8927f4ba5274a371f54d78c4",
+        "declarations_identical": false,
+        "fresh_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/workspace/generated/prisma-client"
+      },
+      {
+        "owner": "api-strategy",
+        "historical_index_dts_sha256": "7a3db48e9c885af825bf9f5af2a3e7ed2a58fdd50a89f2a1ca9f8d6323d3ae8f",
+        "fresh_index_dts_sha256": "7a3db48e9c885af825bf9f5af2a3e7ed2a58fdd50a89f2a1ca9f8d6323d3ae8f",
+        "declarations_identical": true,
+        "fresh_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/api-strategy/generated/prisma-client"
+      },
+      {
+        "owner": "intel-api",
+        "historical_index_dts_sha256": "7011e9c999f109b4cbc018ad964a1e475e443323bec15d28ed7ea935098e959b",
+        "fresh_index_dts_sha256": "7011e9c999f109b4cbc018ad964a1e475e443323bec15d28ed7ea935098e959b",
+        "declarations_identical": true,
+        "fresh_path": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/apps/intel-api/generated/prisma-client"
+      }
+    ],
+    "artifacts": [
+      {
+        "owner": "api",
+        "files": 3997,
+        "bytes": 37774212,
+        "manifest_sha256": "7542c8b62cc83874724b3ce1ecf7f1c47c64833ed12d7f460ea42def1a566d75",
+        "main_exists": true
+      },
+      {
+        "owner": "workspace",
+        "files": 661,
+        "bytes": 3291949,
+        "manifest_sha256": "ccac7d0aa63b1f5c5fbbc4ee0ca01fc6fba34578b45e8d7314eff907f077c007",
+        "main_exists": true
+      }
+    ],
+    "limits": [
+      "Only Core/Workspace normal builds repeated because stockcurrent clients change their declarations",
+      "Strategy/Intel declaration byte equality retains prior ordinarybuild acceptance",
+      "No source/options/version changes,service bootstrap,nativePostgres,DB/migration orprovider/AWS actions"
+    ],
+    "core_fresh_client_package": "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/client-generation/node_modules/@prisma/client",
+    "complete": true
+  },
+  "retained_strategy_intel_declarations": [
+    {
+      "owner": "api-strategy",
+      "all_declaration_files_identical": true,
+      "file_count": 6,
+      "manifest_sha256": "eb0c4139fb9f5fad2dc36c56e26b09c20dba3202429ac6d856d9212173b56aa9",
+      "files": [
+        [
+          "default.d.ts",
+          "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        ],
+        [
+          "edge.d.ts",
+          "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+        ],
+        [
+          "index.d.ts",
+          "7a3db48e9c885af825bf9f5af2a3e7ed2a58fdd50a89f2a1ca9f8d6323d3ae8f"
+        ],
+        [
+          "runtime/index-browser.d.ts",
+          "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+        ],
+        [
+          "runtime/library.d.ts",
+          "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+        ],
+        [
+          "wasm.d.ts",
+          "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        ]
+      ]
+    },
+    {
+      "owner": "intel-api",
+      "all_declaration_files_identical": true,
+      "file_count": 6,
+      "manifest_sha256": "39fb966b5af36ba78289d2f0c44f34a2c67ff6356120e6e8e63c5f8877ffdbfe",
+      "files": [
+        [
+          "default.d.ts",
+          "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        ],
+        [
+          "edge.d.ts",
+          "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+        ],
+        [
+          "index.d.ts",
+          "7011e9c999f109b4cbc018ad964a1e475e443323bec15d28ed7ea935098e959b"
+        ],
+        [
+          "runtime/index-browser.d.ts",
+          "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+        ],
+        [
+          "runtime/library.d.ts",
+          "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+        ],
+        [
+          "wasm.d.ts",
+          "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        ]
+      ]
+    }
+  ],
+  "acceptance": "All6 supportpackage and4 ordinaryNest builds pass atafee. All4 stockPrisma5.22 clients generated fromexactpublishedschemas withowned unmodified toolcopies. FreshCore+WS ordinaryNest+main syntax+WSprunedVersions/sanitizeimport pass; allStrategy/Intel declarationfiles byte-identical topreviousacceptedbuildinputs. No source/config/options/dependencyversion changes required.",
+  "remaining_limits": [
+    "No production-container/Node22or20 platform qualification; build toolchain Node24.19.0,TypeScript5.9.3,Nest10.4.9,pnpm11.25.0 withrepoDocker pnpm9.12.0 unchanged",
+    "No service init/listen/fullAppModuleDI/nativePostgres/RLS/DBroles/schemahistory/HTTP/browser/liveowned-account acceptance",
+    "Ordinary existing auth/login/tenant permissions unchanged; no previewauthlayer ornewidentity/privilege",
+    "No customer writes,migrations/DBqueries,provider/paidcalls,AWS/security/network changes; protectedunpublishedEngagement head unhydrated"
+  ]
+}

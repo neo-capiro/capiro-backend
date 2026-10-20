@@ -1,0 +1,1029 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:data-search:0.2.0",
+  "title": "Meri private search_capiro_data selector and result contract candidate 0.2.0",
+  "description": "Source-only private candidate for the canonical selected intent search_capiro_data. It records the frozen tool-boundary input grammar and the frozen RetrievalResponse result envelope. It is NOT registered in catalog.json, NOT exported by the public 0.1 package, NOT a handler, gateway, source adapter or authorization, and it establishes no runtime parity, freshness or tenant access. Validation of this document grants nothing.",
+  "$defs": {
+    "DataSearchDomain": {
+      "type": "string",
+      "description": "The frozen 18-domain retrieval vocabulary (retrieval-v2.types.ts RETRIEVAL_DOMAINS). Order is the frozen declaration order and is asserted literally by the contract test.",
+      "enum": [
+        "clients",
+        "contacts",
+        "mail",
+        "meetings",
+        "tasks",
+        "monday",
+        "action_recommendations",
+        "outreach",
+        "strategies_work",
+        "program_elements",
+        "legiwatch_bills",
+        "hearings",
+        "grants",
+        "contracts_opportunities",
+        "federal_awards",
+        "directory",
+        "district_nexus",
+        "institutional_knowledge"
+      ]
+    },
+    "DataSearchQueryClass": {
+      "type": "string",
+      "description": "The seven query classes selectable through this tool (MERI_DATA_QUERY_CLASSES, meri-data-search.helpers.ts L6-8). Deliberately smaller than RetrievalQueryClass: relationship_history, temporal_state and portfolio_scan are reachable at the retrieval layer but are not selectable here.",
+      "enum": [
+        "lookup",
+        "semantic_recall",
+        "comparison",
+        "entity_history",
+        "change_detection",
+        "exhaustive_search",
+        "federal_market_analysis"
+      ]
+    },
+    "RetrievalQueryClass": {
+      "type": "string",
+      "description": "The ten-class retrieval vocabulary (RETRIEVAL_QUERY_CLASSES, retrieval-v2.types.ts L4-15). This is the type of the RESULT field observability.queryClass, so a result may legitimately report a class that the tool cannot select.",
+      "enum": [
+        "lookup",
+        "semantic_recall",
+        "entity_history",
+        "relationship_history",
+        "temporal_state",
+        "change_detection",
+        "portfolio_scan",
+        "exhaustive_search",
+        "comparison",
+        "federal_market_analysis"
+      ]
+    },
+    "RetrievalSourceStatus": {
+      "type": "string",
+      "description": "retrieval-v2.types.ts L69-70.",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "unauthorized",
+        "unsupported",
+        "error"
+      ]
+    },
+    "RetrievalAuthority": {
+      "type": "string",
+      "description": "retrieval-v2.types.ts L72-73. Recorded as a reported value only; it is not proof of source authority.",
+      "enum": [
+        "tenant_system_of_record",
+        "public_system_of_record",
+        "knowledge_plane"
+      ]
+    },
+    "RetrievalScoringSignal": {
+      "type": "string",
+      "description": "retrieval-v2.types.ts L281-290.",
+      "enum": [
+        "lexical_exactness",
+        "semantic_similarity",
+        "entity_match_confidence",
+        "source_authority",
+        "freshness",
+        "graph_relationship_relevance",
+        "client_relevance",
+        "temporal_validity"
+      ]
+    },
+    "RetrievalScoringSignalClass": {
+      "type": "string",
+      "description": "retrieval-v2.types.ts L294-295.",
+      "enum": [
+        "relevance",
+        "confidence",
+        "authority",
+        "freshness",
+        "validity"
+      ]
+    },
+    "KnowledgeJsonValue": {
+      "description": "knowledge.types.ts L2-6. Recursive JSON value.",
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KnowledgeJsonValue"
+          }
+        },
+        {
+          "$ref": "#/$defs/KnowledgeJsonObject"
+        }
+      ]
+    },
+    "KnowledgeJsonObject": {
+      "description": "knowledge.types.ts L7. The frozen type of RetrievalRecord.payload and RetrievalRecord.provenance. No per-domain payload field set is declared anywhere in the frozen read set, so this contract deliberately does not constrain payload contents.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/KnowledgeJsonValue"
+      }
+    },
+    "KnowledgeRef": {
+      "description": "knowledge.types.ts L9-15. The frozen type of RetrievalRecord.entityRef.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/KnowledgeJsonObject"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "DataSearchInstant": {
+      "type": "string",
+      "description": "The frozen window-boundary grammar: ISO-8601 with an explicit timezone, at most 64 characters (meri-data-search.helpers.ts L22-30). The frozen regular expression is pinned literally instead of the looser RFC3339 'date-time' format, which accepts unbounded fractional seconds and no 64-character bound.",
+      "maxLength": 64,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "DataSearchCursors": {
+      "type": "object",
+      "description": "Per-domain opaque continuation cursors (meri-data-search.helpers.ts L58-70). Cursor CONTENT is opaque and is defined nowhere in the frozen read set; this contract only bounds the key domain and the non-empty <=8192 character string. The additional invariant that every key must be one of the REQUESTED domains is not expressible in JSON Schema and is enforced by data-search-validation.mjs.",
+      "propertyNames": {
+        "$ref": "#/$defs/DataSearchDomain"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      }
+    },
+    "DataSearchWindow": {
+      "type": "object",
+      "description": "Both-or-neither bounded window selector (meri-data-search.helpers.ts L71-75). The strictly-after relation is enforced by data-search-validation.mjs. No shared definition is reused: common.schema.json NormalizedWindow is basis-driven and requires a timezone/weekStartsOn that the frozen selector does not carry.",
+      "properties": {
+        "startInclusive": {
+          "$ref": "#/$defs/DataSearchInstant"
+        },
+        "endExclusive": {
+          "$ref": "#/$defs/DataSearchInstant"
+        }
+      },
+      "required": [
+        "startInclusive",
+        "endExclusive"
+      ],
+      "additionalProperties": false
+    },
+    "DataSearchInput": {
+      "type": "object",
+      "description": "Normalized tool selector for search_capiro_data, after the frozen parseCapiroDataSearchInput defaults and de-duplication have been applied. clientId is a SELECTOR, never authority: searchToolData recomputes the security envelope server-side and rejects a clientId outside it. Unknown properties are refused here, which is deliberately STRICTER than both the frozen parser (which ignores extra keys) and the advertised tool schema (whose outer object is open).",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Trimmed request text. The frozen parser bounds the RAW string to 4000 characters before trimming; the module re-applies that raw bound and this schema bounds the normalized value.",
+          "maxLength": 4000
+        },
+        "domains": {
+          "type": "array",
+          "description": "De-duplicated requested domains in first-seen order. The frozen parser accepts up to 18 raw entries including duplicates and then de-duplicates.",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          },
+          "minItems": 1,
+          "maxItems": 18,
+          "uniqueItems": true
+        },
+        "queryClass": {
+          "$ref": "#/$defs/DataSearchQueryClass"
+        },
+        "pageSize": {
+          "type": "integer",
+          "description": "Bounded page selector. The frozen parser requires a JavaScript number and refuses numeric strings; that refusal is preserved.",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "clientId": {
+          "description": "Optional client selector. Canonical UUID only; the frozen parser's case-insensitive hex pattern is pinned literally rather than the ajv-formats uuid format, which also accepts an 'urn:uuid:' prefix. A valid value still grants nothing.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CanonicalUuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memoryItemId": {
+          "description": "Optional exact memory item selector, admitted only under the conditional rule below. Undeclared in the advertised tool schema and accepted only by the frozen parser.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CanonicalUuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cursors": {
+          "$ref": "#/$defs/DataSearchCursors"
+        },
+        "window": {
+          "description": "Null when neither boundary was supplied. Both-or-neither is enforced by the module and by the schema shape.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataSearchWindow"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "query",
+        "domains",
+        "queryClass",
+        "pageSize",
+        "clientId",
+        "memoryItemId",
+        "cursors",
+        "window"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "description": "Conditional memoryItemId rule (meri-data-search.helpers.ts L52-57): a present memoryItemId requires exactly one requested domain, that domain to be institutional_knowledge, and queryClass lookup or semantic_recall.",
+          "if": {
+            "properties": {
+              "memoryItemId": {
+                "$ref": "#/$defs/CanonicalUuid"
+              }
+            },
+            "required": [
+              "memoryItemId"
+            ]
+          },
+          "then": {
+            "properties": {
+              "domains": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                  "const": "institutional_knowledge"
+                }
+              },
+              "queryClass": {
+                "enum": [
+                  "lookup",
+                  "semantic_recall"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CanonicalUuid": {
+      "type": "string",
+      "description": "The frozen canonical UUID grammar: hex-8-4-4-4-12, case-insensitive (meri-data-search.helpers.ts L49-53). Pinned literally; ajv-formats 'uuid' is looser.",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "RetrievalRecordSignals": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L176-183. Provider-neutral ranking hints only: not evidence, coverage proof, source authority or factual confidence.",
+      "properties": {
+        "lexicalExactness": {
+          "type": "number"
+        },
+        "semanticSimilarity": {
+          "type": "number"
+        },
+        "entityMatchConfidence": {
+          "type": "number"
+        },
+        "graphRelationshipRelevance": {
+          "type": "number"
+        },
+        "clientRelevance": {
+          "type": "number"
+        },
+        "temporalValidity": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RetrievalRecord": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L185-195. Only the declared envelope is modelled; payload and provenance stay open KnowledgeJsonObject values because the frozen read set declares no per-domain record field set. Date-typed members are modelled as JSON date-time strings because the frozen interface states a Date type, not a wire encoding.",
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/DataSearchDomain"
+        },
+        "recordId": {
+          "type": "string",
+          "description": "No length bound is provable from the frozen source, so none is invented."
+        },
+        "entityRef": {
+          "$ref": "#/$defs/KnowledgeRef"
+        },
+        "canonicalEntityIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "occurredAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updatedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "payload": {
+          "$ref": "#/$defs/KnowledgeJsonObject"
+        },
+        "provenance": {
+          "$ref": "#/$defs/KnowledgeJsonObject"
+        },
+        "retrievalSignals": {
+          "$ref": "#/$defs/RetrievalRecordSignals"
+        }
+      },
+      "required": [
+        "domain",
+        "recordId",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalSourceCoverage": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L223-239. Every adapter must state coverage explicitly; returned=0 never implies completeness.",
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/DataSearchDomain"
+        },
+        "sourceStatus": {
+          "$ref": "#/$defs/RetrievalSourceStatus"
+        },
+        "total": {
+          "type": "number"
+        },
+        "returned": {
+          "type": "number"
+        },
+        "recordsEvaluated": {
+          "type": "number"
+        },
+        "requestedEntityCount": {
+          "type": "number"
+        },
+        "searchedEntityCount": {
+          "type": "number"
+        },
+        "pagesRead": {
+          "type": "number"
+        },
+        "hasMore": {
+          "type": "boolean"
+        },
+        "nextCursor": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "paginationComplete": {
+          "type": "boolean"
+        },
+        "coverageComplete": {
+          "type": "boolean"
+        },
+        "lastSyncAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stopReason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain",
+        "sourceStatus",
+        "returned",
+        "recordsEvaluated",
+        "requestedEntityCount",
+        "searchedEntityCount",
+        "pagesRead",
+        "hasMore",
+        "truncated",
+        "paginationComplete",
+        "coverageComplete",
+        "stopReason"
+      ],
+      "additionalProperties": false
+    },
+    "CoverageManifest": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L241-253. This is the frozen result coverage envelope and is deliberately NOT the 0.2.0 retrieval.schema.json Coverage definition, which carries a different field set (sourcesRequested/enumeration/enumerableTotal/historySupport).",
+      "properties": {
+        "requestedDomains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          }
+        },
+        "searchedDomains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          }
+        },
+        "requestedEntityCount": {
+          "type": "number"
+        },
+        "searchedEntityCount": {
+          "type": "number"
+        },
+        "recordsEvaluated": {
+          "type": "number"
+        },
+        "recordsReturned": {
+          "type": "number"
+        },
+        "paginationComplete": {
+          "type": "boolean"
+        },
+        "unavailableSources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetrievalSourceCoverage"
+          }
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "stopReason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestedDomains",
+        "searchedDomains",
+        "requestedEntityCount",
+        "searchedEntityCount",
+        "recordsEvaluated",
+        "recordsReturned",
+        "paginationComplete",
+        "unavailableSources",
+        "sources",
+        "complete",
+        "stopReason"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalRerankingScore": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L258-264. Score trace only.",
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/DataSearchDomain"
+        },
+        "recordId": {
+          "type": "string"
+        },
+        "originalRank": {
+          "type": "number"
+        },
+        "finalRank": {
+          "type": "number"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "domain",
+        "recordId",
+        "originalRank",
+        "finalRank",
+        "score"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalRerankingObservability": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L266-279.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "disabled",
+            "skipped",
+            "applied",
+            "fallback"
+          ]
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidateCount": {
+          "type": "number"
+        },
+        "rerankedCount": {
+          "type": "number"
+        },
+        "durationMs": {
+          "type": "number"
+        },
+        "scores": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetrievalRerankingScore"
+          }
+        },
+        "fallbackReason": {
+          "type": "string"
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "promptTokens": {
+              "type": "number"
+            },
+            "totalTokens": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "status",
+        "provider",
+        "model",
+        "candidateCount",
+        "rerankedCount",
+        "durationMs",
+        "scores"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalScoringComponent": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L297-305. Native value establishes ordinal rank only.",
+      "properties": {
+        "signal": {
+          "$ref": "#/$defs/RetrievalScoringSignal"
+        },
+        "signalClass": {
+          "$ref": "#/$defs/RetrievalScoringSignalClass"
+        },
+        "rawValue": {
+          "type": "number"
+        },
+        "signalRank": {
+          "type": "number"
+        },
+        "contribution": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "signal",
+        "signalClass",
+        "rawValue",
+        "signalRank",
+        "contribution"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalScoringScore": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L307-319. Retrieval-priority score only, never factual confidence.",
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/DataSearchDomain"
+        },
+        "recordId": {
+          "type": "string"
+        },
+        "baselineRank": {
+          "type": "number"
+        },
+        "currentRank": {
+          "type": "number"
+        },
+        "proposedRank": {
+          "type": "number"
+        },
+        "fusedScore": {
+          "type": "number"
+        },
+        "sourceAuthority": {
+          "$ref": "#/$defs/RetrievalAuthority"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetrievalScoringComponent"
+          }
+        }
+      },
+      "required": [
+        "domain",
+        "recordId",
+        "baselineRank",
+        "currentRank",
+        "proposedRank",
+        "fusedScore",
+        "sourceAuthority",
+        "components"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalScoringObservability": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L321-330.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "disabled",
+            "shadow",
+            "applied"
+          ]
+        },
+        "algorithm": {
+          "const": "rrf"
+        },
+        "rrfK": {
+          "type": "number"
+        },
+        "candidateCount": {
+          "type": "number"
+        },
+        "scoredCount": {
+          "type": "number"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "signalsUsed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetrievalScoringSignal"
+          }
+        },
+        "scores": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetrievalScoringScore"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "algorithm",
+        "rrfK",
+        "candidateCount",
+        "scoredCount",
+        "applied",
+        "signalsUsed",
+        "scores"
+      ],
+      "additionalProperties": false
+    },
+    "RetrievalObservability": {
+      "type": "object",
+      "description": "retrieval-v2.types.ts L332-347. queryClass is the TEN-class retrieval vocabulary, not the seven tool-selectable classes. reranking and scoring are optional.",
+      "properties": {
+        "queryClass": {
+          "$ref": "#/$defs/RetrievalQueryClass"
+        },
+        "requestedDomains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          }
+        },
+        "queriedDatasets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          }
+        },
+        "requestedEntityCount": {
+          "type": "number"
+        },
+        "queriedEntityCount": {
+          "type": "number"
+        },
+        "pagesByDomain": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/DataSearchDomain"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "sourceHealth": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/DataSearchDomain"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/RetrievalSourceStatus"
+          }
+        },
+        "freshnessByDomain": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/DataSearchDomain"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "coverageComplete": {
+          "type": "boolean"
+        },
+        "stopReason": {
+          "type": "string"
+        },
+        "reranking": {
+          "$ref": "#/$defs/RetrievalRerankingObservability"
+        },
+        "scoring": {
+          "$ref": "#/$defs/RetrievalScoringObservability"
+        }
+      },
+      "required": [
+        "queryClass",
+        "requestedDomains",
+        "queriedDatasets",
+        "requestedEntityCount",
+        "queriedEntityCount",
+        "pagesByDomain",
+        "sourceHealth",
+        "freshnessByDomain",
+        "coverageComplete",
+        "stopReason"
+      ],
+      "additionalProperties": false
+    },
+    "SearchCapiroDataResult": {
+      "type": "object",
+      "description": "The frozen tool envelope: searchCapiroData destructures coverage out of the RetrievalResponse and returns { tool, coverage, ...data }, so the result is exactly tool + records + observability + coverage. No operation, binding, subject, window, status, reasonCode or negativeAssertion envelope is added, because the frozen RetrievalResponse declares none.",
+      "properties": {
+        "tool": {
+          "const": "search_capiro_data"
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RetrievalRecord"
+          }
+        },
+        "observability": {
+          "$ref": "#/$defs/RetrievalObservability"
+        },
+        "coverage": {
+          "$ref": "#/$defs/CoverageManifest"
+        }
+      },
+      "required": [
+        "tool",
+        "records",
+        "observability",
+        "coverage"
+      ],
+      "additionalProperties": false
+    },
+    "DataSearchRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSearchDomain"
+          },
+          "minItems": 1,
+          "maxItems": 18
+        },
+        "queryClass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataSearchQueryClass"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pageSize": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clientId": {
+          "$ref": "#/$defs/CanonicalUuid"
+        },
+        "memoryItemId": {
+          "$ref": "#/$defs/CanonicalUuid"
+        },
+        "cursors": {
+          "type": "object",
+          "properties": {
+            "clients": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "contacts": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "mail": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "meetings": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "tasks": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "monday": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "action_recommendations": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "outreach": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "strategies_work": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "program_elements": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "legiwatch_bills": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "hearings": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "grants": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "contracts_opportunities": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "federal_awards": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "directory": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "district_nexus": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "institutional_knowledge": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          "additionalProperties": false
+        },
+        "windowStart": {
+          "$ref": "#/$defs/DataSearchInstant"
+        },
+        "windowEnd": {
+          "$ref": "#/$defs/DataSearchInstant"
+        }
+      },
+      "required": [
+        "query",
+        "domains"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

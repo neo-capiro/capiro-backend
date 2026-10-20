@@ -10,7 +10,6 @@ import {
   hasRequiredMemberIdentity,
   hasRequiredOfficeIdentity,
   hasRequiredStaffIdentity,
-  retainVendorRecord,
 } from './legistorm-types.js';
 
 const memberRecord = memberPage[0]!;
@@ -92,15 +91,6 @@ describe('LegiStorm source contract', () => {
       staffId: 800001,
       officeId: 970001,
     });
-  });
-
-  test('retains unknown nested fields and money-like strings without coercion', () => {
-    const retained = retainVendorRecord(memberRecord);
-    expect(retained).toEqual(memberRecord);
-    expect(retained).toBe(memberRecord);
-    expect(
-      (retained.future_vendor_extension as { money_like_string: unknown }).money_like_string,
-    ).toBe('100.00');
   });
 
   test('represents retired IDs as positive numeric identifiers', () => {

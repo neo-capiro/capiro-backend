@@ -1,0 +1,17 @@
+{
+  "chosenMinimumRepositoryTip": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "tipTree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+  "existingAdmittedImageSource": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "checkedFamilies": [
+    "apps",
+    "packages",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "modeBlobDifferences": [],
+  "minimumSourceAlreadyQualified": true,
+  "cleanupReceivingBranchIsPrerequisite": false,
+  "actualImageDigestsStartupOrNativeAcceptanceSupplied": false
+}

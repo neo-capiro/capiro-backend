@@ -1,0 +1,14 @@
+2026-10-17 02:44:37.282 UTC [18236] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-17 02:44:37.283 UTC [18236] LOG:  listening on IPv4 address "127.0.0.1", port 56455
+2026-10-17 02:44:37.344 UTC [27288] LOG:  database system was shut down at 2026-10-17 02:44:34 UTC
+2026-10-17 02:44:37.388 UTC [18236] LOG:  database system is ready to accept connections
+2026-10-17 02:45:07.009 UTC [16880] LOG:  checkpoint starting: time
+2026-10-17 02:45:11.786 UTC [4684] ERROR:  new row for relation "client_objective_workload_delegations" violates check constraint "client_objective_workload_delegations_enabled_check"
+2026-10-17 02:45:12.190 UTC [18236] LOG:  received fast shutdown request
+2026-10-17 02:45:12.195 UTC [18236] LOG:  aborting any active transactions
+2026-10-17 02:45:12.200 UTC [18236] LOG:  background worker "logical replication launcher" (PID 10248) exited with exit code 1
+2026-10-17 02:45:13.174 UTC [16880] LOG:  checkpoint complete: wrote 841 buffers (41.1%); 0 WAL file(s) added, 0 removed, 5 recycled; write=5.595 s, sync=0.544 s, total=6.165 s; sync files=631, longest=0.008 s, average=0.001 s; distance=5284 kB, estimate=5284 kB; lsn=0/C2BE30, redo lsn=0/BA1468
+2026-10-17 02:45:13.183 UTC [16880] LOG:  shutting down
+2026-10-17 02:45:13.189 UTC [16880] LOG:  checkpoint starting: shutdown immediate
+2026-10-17 02:45:13.264 UTC [16880] LOG:  checkpoint complete: wrote 43 buffers (2.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.020 s, sync=0.039 s, total=0.082 s; sync files=19, longest=0.004 s, average=0.003 s; distance=554 kB, estimate=4811 kB; lsn=0/C2BEA8, redo lsn=0/C2BEA8
+2026-10-17 02:45:13.300 UTC [18236] LOG:  database system is shut down

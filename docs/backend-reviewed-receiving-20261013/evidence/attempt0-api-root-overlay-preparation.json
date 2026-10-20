@@ -1,0 +1,5 @@
+{
+  "observation": "Preparation incorrectly assumed cached root node_modules has @capiro/shared; assertion stopped before any API type/test/build execution. Existing API overlay already bound fresh Shared correctly.",
+  "correction": "Created owned root @capiro scope and explicit fresh Shared symlink for cross-app fixtures, plus owned Shared dist symlink for actual Jest mapper.",
+  "borrowedTargetsModified": false
+}

@@ -1,0 +1,99 @@
+{
+  "source": "1e00e41a36b3450d77148b6f55a7ca90c83a194f",
+  "tree": "df67628c3f22d5558af80a33dc2d047b51ff7b16",
+  "twelveActualChangedProductionSyntaxChecks": [
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-commands.ts",
+      "path": "tracker/tracker-board-commands.js",
+      "bytes": 11346,
+      "sha256": "d213f5764e8dbdfdc9cbdf249166c1c7c30e47d32c48ec97ec3482b56c42ec62",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-cursors.ts",
+      "path": "tracker/tracker-board-cursors.js",
+      "bytes": 1183,
+      "sha256": "b439160fb5848740da7979db52d6b03b95c3a2b4b48d694e287aebe8e75ff05f",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-presentation.ts",
+      "path": "tracker/tracker-board-presentation.js",
+      "bytes": 2677,
+      "sha256": "18c5c7829bacf59b5a29b260df0b9cb91b01738f6c66189bfcc1e634c1cbeb17",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-queries.ts",
+      "path": "tracker/tracker-board-queries.js",
+      "bytes": 6148,
+      "sha256": "1f6ac66f1db906248f9d3e4f37be2954ce983fd4137a851686427027c7aae0f4",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-read.contracts.ts",
+      "path": "tracker/tracker-board-read.contracts.js",
+      "bytes": 77,
+      "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-recommendations.ts",
+      "path": "tracker/tracker-board-recommendations.js",
+      "bytes": 8500,
+      "sha256": "969c906cb797dcee75519f893ec792c9316ba60af93e1cb44285ed887a0f0ce6",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-state-support.ts",
+      "path": "tracker/tracker-board-state-support.js",
+      "bytes": 10754,
+      "sha256": "6152034366582379a1e2862c5524834efe991148275a4e3fc76668790d8442ad",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board-topics.ts",
+      "path": "tracker/tracker-board-topics.js",
+      "bytes": 7373,
+      "sha256": "9be0392aeec52a97f7c15b859a2fac7460e54594ba97fb05a22cfd3adc4d7b13",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board.contracts.ts",
+      "path": "tracker/tracker-board.contracts.js",
+      "bytes": 77,
+      "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-board.service.ts",
+      "path": "tracker/tracker-board.service.js",
+      "bytes": 10236,
+      "sha256": "a58b20dfa20d07cc5911fff2b82306bff7878539f33235f55f45a30a9f618772",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-client-board-read.ts",
+      "path": "tracker/tracker-client-board-read.js",
+      "bytes": 9158,
+      "sha256": "4d7e8155da31adb162ba1db92b5e476cc9bf9ab7aaa65f845506b7a3bd9b58da",
+      "syntaxExit": 0
+    },
+    {
+      "source": "apps/intel-api/src/tracker/tracker-tenant-board-read.ts",
+      "path": "tracker/tracker-tenant-board-read.js",
+      "bytes": 9932,
+      "sha256": "be5bf1369571ac6b94990ca3345677b2c84e987443abfbc74d102d4b4b280507",
+      "syntaxExit": 0
+    }
+  ],
+  "actualEmittedDIMetadata": "design:paramtypes\", [prisma_service_js_1.PrismaService,\n        source_data_repository_js_1.SourceDataRepository,\n        tracker_watchlist_service_js_1.TrackerWatchlistService,\n        state_source_data_repository_js_1.StateSourceDataRepository])\n], TrackerBoardService);\n",
+  "actualSourceConstructor": "constructor(\n    private readonly prisma: PrismaService,\n    private readonly repo: SourceDataRepository,\n    private readonly watchlists: TrackerWatchlistService,\n    private readonly stateRepo: StateSourceDataRepository,\n  ) {}",
+  "inspection": "Static changed actual emitted JS syntax/DI only; unrelated emitted bodies and declaration maps not read; no application/bootstrap/client construction/native acceptance",
+  "allEmittedFiles": 789,
+  "emittedBytes": 3981242,
+  "javaScriptDebugMapsDisabled": true,
+  "inheritedDeclarationMapFiles": 263,
+  "productionMapsQualified": false,
+  "nativeABIQualified": false
+}

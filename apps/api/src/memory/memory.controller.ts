@@ -10,6 +10,8 @@ import {
   Post,
   Put,
   Query,
+  Req,
+  Res,
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +21,8 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import type { TenantContext } from '@capiro/shared';
+import type { Request, Response } from 'express';
+import { PreviewNativeReadService } from '../auth/preview-native-read.service.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryPurgeService } from './memory-purge.service.js';
 import { daysOverdue } from './memory-staleness.helpers.js';
@@ -90,6 +94,7 @@ export class MemoryController {
     private readonly grants: MemoryAccessGrantService,
     private readonly conflicts: MemoryConflictService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly preview: PreviewNativeReadService,
   ) {}
 
   /** Section catalog (help text + examples + interview questions source). */
@@ -327,6 +332,51 @@ export class MemoryController {
     return { ok: true };
   }
 
+  /** The caller's paged, owner-only pending personal candidates. */
+  @Get('candidates/mine')
+  async listOwnCandidates(
+    @CurrentTenant() ctx: TenantContext,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    if (this.preview.mode(req, res)) {
+      return this.preview.run(req, res, ctx, (visibleClientIds) =>
+        this.candidates.pageOwnPersonalPending(ctx, { limit, cursor, visibleClientIds }));
+    }
+    return this.candidates.pageOwnPersonalPending(ctx, { limit, cursor });
+  }
+
+  /** Exact owner-only status lets a client reconcile an uncertain decision response. */
+  @Get('candidates/mine/:id/status')
+  async ownCandidateStatus(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (this.preview.mode(req, res)) {
+      return this.preview.run(req, res, ctx, (visibleClientIds) =>
+        this.candidates.ownPersonalCandidateStatus(ctx, id, visibleClientIds));
+    }
+    return this.candidates.ownPersonalCandidateStatus(ctx, id);
+  }
+
+  /** Owner decision on the caller's own personal-scope candidate only. */
+  @Post('candidates/:id/owner-decision')
+  async decideOwnCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const decision = (body as { decision?: unknown } | null)?.decision;
+    if (decision !== 'approve' && decision !== 'reject') {
+      throw new BadRequestException('decision must be "approve" or "reject".');
+    }
+    return this.candidates.decideOwnPersonalCandidate(ctx, id, decision);
+  }
+
   // ── Governed memory grants (memory_access_grant) ──────────────────────────
   //
   // MemoryAuthorizationService has READ this table since Phase 3, but nothing
@@ -498,6 +548,8 @@ export class MemoryController {
    * MEMORY_PURGE_ENABLED (503 while off). Dry-run by default (counts only);
    * an actual delete requires body.dryRun===false AND body.confirm to equal the
    * client's exact name (fat-finger guard). Legal-held rows are never deleted.
+   * Execution also returns 503 unless the Meri submission receipt matches the
+   * content-free schema; dry-run reports receiptPayloadDispositionHold.
    */
   @Post('purge/client/:clientId')
   @Roles('user_admin')

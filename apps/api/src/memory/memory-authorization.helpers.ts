@@ -1,20 +1,16 @@
-import type { TenantRole } from '@capiro/shared';
-import type { GovernedMemoryScope, GovernedMemoryStatus, MemoryClass } from '@capiro/meriv2-core';
 import { memoryGovernanceSelectedForCurrentTenant } from './memory-governance-tenant-scope.js';
-import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 
-export const MEMORY_PERMISSIONS = [
-  'propose',
-  'review',
-  'approve',
-  'edit',
-  'confirm',
-  'mark_stale',
-  'revoke',
-  'resolve_conflict',
-] as const;
-export type MemoryPermission = (typeof MEMORY_PERMISSIONS)[number];
-export type MemoryOperation = 'read' | 'export' | MemoryPermission;
+export {
+  MEMORY_PERMISSIONS,
+  evaluateGovernedMemoryAuthorization,
+} from './memory-authorization.policy.js';
+export type {
+  MemoryPermission,
+  MemoryOperation,
+  MemoryAuthorizationSubject,
+  MemoryAuthorizationFacts,
+  MemoryAuthorizationDecision,
+} from './memory-authorization.policy.js';
 
 /**
  * Arms governed-memory authority enforcement only for an authenticated tenant
@@ -32,155 +28,4 @@ export function governedMemoryEnforcementEnabled(raw: string | undefined): boole
       .toLowerCase() === 'enforce' &&
     memoryGovernanceSelectedForCurrentTenant(process.env.MEMORY_GOVERNANCE_TENANTS)
   );
-}
-
-export interface MemoryAuthorizationSubject {
-  memoryClass: MemoryClass;
-  scope: GovernedMemoryScope;
-  ownerUserId?: string | null;
-  clientId?: string | null;
-  status?: GovernedMemoryStatus | string | null;
-  legalHold?: boolean | null;
-  /** Candidate subjects only: who proposed the pending change. */
-  proposedByUserId?: string | null;
-}
-
-export interface MemoryAuthorizationFacts {
-  userId: string;
-  role: TenantRole;
-  operation: MemoryOperation;
-  subject: MemoryAuthorizationSubject;
-  ethicalWallAllowed: boolean;
-  clientStatus?: string | null;
-  grantPermissions?: readonly string[];
-  impersonating?: boolean;
-  actorRole?: TenantRole | null;
-}
-
-export type MemoryAuthorizationDecision =
-  | { allowed: true; basis: 'owner' | 'tenant_read' | 'admin' | 'explicit_grant' }
-  | {
-      allowed: false;
-      reason:
-        | 'revoked_or_terminal'
-        | 'not_owner'
-        | 'ethical_wall'
-        | 'wrong_client_scope'
-        | 'archived_client'
-        | 'missing_grant'
-        | 'admin_required'
-        | 'legal_hold'
-        | 'self_review'
-        | 'unsupported_operation';
-    };
-
-function isTerminal(status: string | null | undefined): boolean {
-  return ['revoked', 'superseded', 'rejected', 'expired'].includes(status ?? '');
-}
-
-function isDestructive(operation: MemoryOperation): boolean {
-  return ['edit', 'revoke'].includes(operation);
-}
-
-/**
- * Standard users may not review their own shared-memory proposal. Active
- * administrators are an explicit exception: product policy allows any
- * user_admin or capiro_admin to decide a review, including one they proposed.
- * Ethical-wall, client-status, and active-membership checks still apply.
- */
-function isDisallowedSelfReview(
-  facts: MemoryAuthorizationFacts,
-  effectiveRole: TenantRole,
-): boolean {
-  if (facts.operation !== 'approve' && facts.operation !== 'review') return false;
-  if (isMemoryReviewAdminRole(effectiveRole)) return false;
-  const proposer = facts.subject.proposedByUserId;
-  return Boolean(proposer) && proposer === facts.userId;
-}
-
-/**
- * One class-specific policy. Read/propose visibility is separate from mutation
- * authority. A proposal never changes the active record and always enters review,
- * so a user who can read a shared memory may suggest a correction without gaining
- * edit/approve/revoke rights. Admins are never an ethical-wall bypass.
- */
-export function evaluateGovernedMemoryAuthorization(
-  facts: MemoryAuthorizationFacts,
-): MemoryAuthorizationDecision {
-  const { operation, subject } = facts;
-  const effectiveRole = facts.impersonating ? (facts.actorRole ?? facts.role) : facts.role;
-  const admin = isMemoryReviewAdminRole(effectiveRole);
-  const readOnly = operation === 'read' || operation === 'export';
-
-  if (isTerminal(subject.status) && !readOnly) {
-    return { allowed: false, reason: 'revoked_or_terminal' };
-  }
-  if (subject.legalHold && isDestructive(operation)) {
-    return { allowed: false, reason: 'legal_hold' };
-  }
-
-  if (subject.scope === 'user_private' || subject.memoryClass === 'user_preference') {
-    if (subject.ownerUserId !== facts.userId) return { allowed: false, reason: 'not_owner' };
-    if (
-      readOnly ||
-      ['propose', 'review', 'approve', 'edit', 'confirm', 'mark_stale', 'revoke'].includes(
-        operation,
-      )
-    ) {
-      return { allowed: true, basis: 'owner' };
-    }
-    return { allowed: false, reason: 'unsupported_operation' };
-  }
-
-  if (subject.scope === 'client' || subject.memoryClass === 'client_steering') {
-    if (!subject.clientId) return { allowed: false, reason: 'wrong_client_scope' };
-    if (!facts.ethicalWallAllowed) return { allowed: false, reason: 'ethical_wall' };
-    if (!readOnly && facts.clientStatus && facts.clientStatus !== 'active') {
-      return { allowed: false, reason: 'archived_client' };
-    }
-    if (readOnly || operation === 'propose') {
-      return { allowed: true, basis: 'tenant_read' };
-    }
-    if (isDisallowedSelfReview(facts, effectiveRole)) {
-      return { allowed: false, reason: 'self_review' };
-    }
-    const grants = new Set(facts.grantPermissions ?? []);
-    if (grants.has(operation)) return { allowed: true, basis: 'explicit_grant' };
-    // 'review' (which covers both rejecting and requesting changes on a
-    // candidate — see MemoryCandidateReviewService) is deliberately implied
-    // by holding 'approve': every real grant this product creates offers
-    // 'approve' and 'review' as independently-checkable boxes, and an admin
-    // granting "this person can decide this client's proposals" naturally
-    // reaches for 'approve' alone. Without this, a grant of ['approve'] lets
-    // someone commit a candidate to active memory but 403s the strictly
-    // lower-risk act of turning it down — candidates become undecidable
-    // rather than merely under-permissioned (Phase 27 post-launch P0, found
-    // live in the Phase 27G canary: two candidates stuck exactly this way).
-    // The reverse is NOT implied: holding only 'review' never grants
-    // 'approve'.
-    if (operation === 'review' && grants.has('approve')) {
-      return { allowed: true, basis: 'explicit_grant' };
-    }
-    if (admin) return { allowed: true, basis: 'admin' };
-    return { allowed: false, reason: 'missing_grant' };
-  }
-
-  if (subject.scope === 'firm' || subject.memoryClass === 'institutional_authoritative') {
-    if (readOnly || operation === 'propose') return { allowed: true, basis: 'tenant_read' };
-    if (isDisallowedSelfReview(facts, effectiveRole)) {
-      return { allowed: false, reason: 'self_review' };
-    }
-    if (admin) return { allowed: true, basis: 'admin' };
-    return { allowed: false, reason: 'admin_required' };
-  }
-
-  if (subject.memoryClass === 'episodic_working') {
-    if (subject.ownerUserId === facts.userId) return { allowed: true, basis: 'owner' };
-    if (readOnly) return { allowed: false, reason: 'not_owner' };
-    const grants = new Set(facts.grantPermissions ?? []);
-    if (grants.has(operation)) return { allowed: true, basis: 'explicit_grant' };
-    return { allowed: false, reason: 'missing_grant' };
-  }
-
-  return { allowed: false, reason: 'unsupported_operation' };
 }

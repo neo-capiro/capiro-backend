@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+  "source": "working-diff-pinned-separately",
+  "admission": {
+    "observedAt": "2026-10-16T02:44:21Z",
+    "availableVirtualBytes": 3319373824,
+    "source": "Shipping relay of existing approved normal sample; no new security probe",
+    "observedNotPeakGuarantee": true,
+    "stage": "one128MiB120s-source-stripped-process"
+  },
+  "node": "C:\\Program Files\\nodejs\\node.exe",
+  "arguments": [
+    "--max-old-space-size=128",
+    "--require",
+    "C:\\Users\\neoma\\Documents\\Codex\\2026-10-14\\task-6\\objective-background-evidence-evidence\\offline-source-guard.cjs",
+    "--experimental-strip-types",
+    "--test",
+    "--test-isolation=none",
+    "--test-concurrency=1",
+    "apps/api/test/objective-generation-background.focused.test.mjs"
+  ],
+  "environmentNames": [
+    "SystemRoot",
+    "WINDIR",
+    "PATH",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "NO_COLOR",
+    "NODE_ENV"
+  ],
+  "pid": 13240,
+  "startedAt": "2026-10-16T02:51:40.1588397Z",
+  "completedAt": "2026-10-16T02:51:40.3585945Z",
+  "elapsedSeconds": 0.1871813,
+  "exitCode": 0,
+  "timedOut": false,
+  "ownedProcessExited": true,
+  "outputWithin4MiB": true,
+  "compiler": false,
+  "database": false,
+  "provider": false,
+  "childrenAllowed": false
+}

@@ -1,0 +1,33 @@
+{
+  "source": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+  "tree": "4d33f74730f47bbae00f84d513b62a9ecfff25b1",
+  "base": "0f1e663d5c23ed3f6f02bde801da8f5bb3f8ccba",
+  "exactDonor": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+  "exactDonorPaths": [
+    "apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts",
+    "apps/api/src/intelligence/intelligence-facade-client-composition.ts",
+    "apps/api/src/intelligence/intelligence-facade-compatibility-policies.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-facade-compatibility-ports.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-facade-compatibility-receivers.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-facade-compatibility-surface.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-facade-contracts.ts",
+    "apps/api/src/intelligence/intelligence-facade-final-composition.ts",
+    "apps/api/src/intelligence/intelligence-facade-owners.ts",
+    "apps/api/src/intelligence/intelligence-facade-ownership.contract.spec.ts",
+    "apps/api/src/intelligence/intelligence-facade-policy-values.ts",
+    "apps/api/src/intelligence/intelligence-facade-profile-composition.ts",
+    "apps/api/src/intelligence/intelligence-facade-supporting-composition.ts",
+    "apps/api/src/intelligence/intelligence-final-ownership.contract.spec.ts",
+    "apps/api/src/intelligence/intelligence-profile-source-budget.ts",
+    "apps/api/src/intelligence/intelligence-supporting-ownership.contract.spec.ts",
+    "apps/api/src/intelligence/intelligence.service.ts",
+    "apps/api/test/fixtures/intelligence-facade-compatibility.ts",
+    "docs/backend-cleanup/20261013/INTELLIGENCE-COMPONENT-STATUS.json",
+    "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-HANDOVER.md",
+    "docs/backend-cleanup/20261013/INTELLIGENCE-FACADE-QUALIFICATION.json"
+  ],
+  "unrelatedBaseEntriesExact": 26947,
+  "PR2481Overlap": [],
+  "nativeAuthorityPreviewObjectiveNewsletterEffectiveDateSharedSchemaWorkflows": "mode/blob exact",
+  "protectedReportingComparison": "mode/blob metadata only"
+}

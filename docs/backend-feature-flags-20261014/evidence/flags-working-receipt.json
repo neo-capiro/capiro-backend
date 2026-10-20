@@ -1,0 +1,37 @@
+{
+  "label": "flags-working",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "../../docs/backend-feature-flags-20261014/source-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/meri/meri-feature-flags.service.spec.ts",
+    "src/meri/meri-feature-flags.matrix.spec.ts",
+    "src/meri/meri-quick-action-flags.spec.ts",
+    "src/common/meri-mobile-flags.spec.ts",
+    "src/common/meri-feature-flags.module.spec.ts",
+    "--json",
+    "--outputFile",
+    "../../docs/backend-feature-flags-20261014/evidence/flags-working-results.json"
+  ],
+  "head": "1f2655fe964cb2a01343d3bcb560de60fa5f69be",
+  "tree": "31f1b4992140bca0b2414f912251e9326a601c87",
+  "exitCode": 1,
+  "seconds": 6.269,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-boundary-successor-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-boundary-successor-20261014/.qualification-cache/authority-tmp"
+  },
+  "outputSha256": "8d079da36b1c74bbe6e6bf9b6b5ff66bb3dde5ffc53e3670d4c20e06d8e65c07",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": " M apps/api/src/capiro-admin/capiro-admin.module.ts\n M apps/api/src/meri/meri.module.ts\n M apps/api/src/mobile/meri-mobile.module.ts\n?? apps/api/src/common/meri-feature-flags.module.spec.ts\n?? apps/api/src/common/meri-feature-flags.module.ts\n",
+  "sourceStatusAfter": " M apps/api/src/capiro-admin/capiro-admin.module.ts\n M apps/api/src/meri/meri.module.ts\n M apps/api/src/mobile/meri-mobile.module.ts\n?? apps/api/src/common/meri-feature-flags.module.spec.ts\n?? apps/api/src/common/meri-feature-flags.module.ts\n",
+  "exactCommittedSource": false
+}

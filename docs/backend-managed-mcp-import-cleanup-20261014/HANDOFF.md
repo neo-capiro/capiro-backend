@@ -1,0 +1,49 @@
+# Managed connector dead imports and next qualification
+
+Base is published private PR14 `a6d4ee9d5029994925d20815b3dae0f1e7b410e3` / tree `2ad1e5cbfa6ef0ef5507b49593c02a685e23cdd8`. Source is `35ab679e64c19921e09251ba6913d4122d8d85ac` / tree `63d9d1713b2f2282ae0a401c772fd9850a559508`.
+
+Only `apps/api/src/meri/meri.module.ts` changes: three unused value imports for MeriMcpService, MeriMcpOAuthService and MeriManagedMcpService are removed. Each has zero identifier references outside its import. The existing ManagedMcpModule remains imported and still provides/exports all three canonical services. Their bodies, controllers, provider registration, scopes, permissions, credentials and shared consumers remain untouched.
+
+The actual API compiler options emit identical 17,749-byte JavaScript before/after, SHA256 `d29113f97152acc52891327599ece189ef1eab04188a977a160554d34017ad9f`. Both pass Node syntax checking; source maps differ because source positions changed. This is dead source-import cleanup, not retirement of a running process or removal of a runtime import that TypeScript retained. No new behavioral tests or full Core rerun are justified by this byte-identical output. Exact script/config/source receipts are in EQUIVALENCE.json. Single-file transpile is not whole-graph semantic typing, DI boot, native ABI/Postgres/RLS or deployed acceptance.
+
+MeriModule's registered chat/dispatch providers and controllers remain active dependencies. The earlier finite holds on meriv2-orchestrator, clio-sandbox and Engagement API remain: Workspace/Meri transports and exclusive Outreach routes still use them. Do not delete these processes, shared task/services or protected reporting on the strength of this cleanup. Published EngagementService stays blob `6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82`; unpublished protected `e01e3b72aa0e26f4d2a9ad65533da1d561920aca` is not read or hydrated.
+
+## Smallest resource choices and recommendation
+
+The primary reconciled ledger797e3a, PR2400 `6c26ac2dad3756a61b6733329dea7ce3c9138ece` Remaining Contracts and frontend receiving request98c6ee explicitly leave these source choices open. The questions were presented again with concrete recommendations; no answer or preselected option is treated as a decision.
+
+| Question | Recommendation and existing owner | Alternative's missing contract |
+| --- | --- | --- |
+| Should Objective Context Files open an exact saved Workspace revision or current Portfolio attachment metadata? | Start with the existing eligible manual client Workspace saved revision. Reuse `GET /workspace-api/drafts/:draftId/versions/:versionId/objective-destination`, WORKSPACE_API_BASE_URL, `workspace_saved_revision`, version UUID/resourceId plus draftId and full canonical snapshotHash/hashFormat. Current source/draft collaborator/client wall and Objective revision are resolved together. Eligibility remains staging-compatible manual content, saved/current canonical client agreement, no prospect/source-action origin and existing literal-content bounds; it is not all Workspace files. | Portfolio attachment needs a current metadata-only Objective observation in existing ClientFiles/attachment ownership. Attachment UUID, folder/ACL, lifecycle, server digest and lineage differ from an immutable version. No universal sourceVersion, signed URL, S3 read, copy, association writer or new file store can be inferred. |
+| Should Objective Calendar open a Planner start/due occurrence or one existing client Meeting? | Start with a current Planner occurrence. Reuse `GET /strategy-api/planner/tasks/:id/objective-destination`, STRATEGY_API_BASE_URL, `planner_task`, task UUID/current destinationVersion and returned dates/timezone. Frontend selects `planner:<UUID>:start` or `:due`, preserves existing coincident collapse to due, treats date-only values as civil and timed values with the returned source IANA zone, and reopens after fresh resolution. No new endpoint/occurrence model is needed. | Meeting needs a bounded observation in its canonical owner, retaining current updatedAt, instant/nullable-zone semantics, privacy/share rights and existing explicit/inferred client association. Public hearing/rule identity or date/view/range state alone grants no Objective/client association. No agenda or global-date association is invented. |
+
+For either existing recommended subset, backend implementation is already present; remaining exact UI receipt/admission/reopen composition belongs to frontend. Every open/reload/history/retry/session/client replacement resolves again, with no unbound fallback after failure. Only an explicitly selected alternative justifies its missing backend contract. No source selection is inferred from elapsed time.
+
+## Minimal successor native qualification, prepared only
+
+These are owner steps and evidence requirements, not commands executed here. They reuse existing normal permissions and canonical owners. No AWS, schema/migration, database or live HTTP execution occurs in this source lane.
+
+1. Pin the exact selected source/tree, compiled Core/Workspace/Strategy entrypoint and process mount, package/native ABI and generated Prisma/schema fingerprint. Use only an already admitted matching native artifact. Existing cached declarations, WASM and source init checks do not prove that fingerprint. The ordinary Prisma download failure stays a blocker; no alternate host, checksum disabling or bypass.
+2. Against the owner's existing admitted fixture, read back the already-applied schema, immutable-version triggers/privileges and ordinary role/grant/RLS state for the selected contracts. Record missing prerequisites rather than running migrations, widening grants or creating a new authority model. Core Objective persistence, Workspace saved-version immutability and Layout source migrations keep their original owners.
+3. Qualify only the changed/selected canonical seams with the existing native fixture suite: current membership/Clerk/native mapping/client wall/resource ACL, denied/foreign/moved/deleted scope, stale Objective and resource versions, lock/revocation/cascade ordering, immutable revision SELECT privileges, replay and infrastructure propagation. Keep fixture setup and any writes with its admitted owner; no customer seeding, provider sends, uploads or paid models. This import cleanup introduces no new concurrency scenario and requires no new native case.
+4. Verify source/image/origin/entrypoint and the actual normal authenticated owned flow before HTTP acceptance. Core's existing identity/context POST contracts, GET /api/me nested user/tenant and raw-array client catalog remain the PR14 routing contract. Existing background/provider bootstrap hooks need admitted fixture bindings before full Core init; a narrow module check cannot be relabeled full Core/native acceptance. Unsupported additive private routes stay specifically unavailable, with no page-wide fixture fallback.
+
+Meri's canonical database journal/admission/grants/fence/budget/Temporal/task transport and supported SDK launch remain Meri/runtime-owned. Parent reports PR36 preview has removed demo Meri content; real chat runtime integration and authenticated Portfolio browser provenance are still pending. This source candidate neither deploys a successor nor treats that preview as the private backend.
+
+## One dependency/overlap matrix and retained attempts
+
+| Scope | Disposition |
+| --- | --- |
+| PR14 → this source35ab | One module file, three dead import lines. Emitted JavaScript is identical; all other production tree tuples remain their original values. |
+| ManagedMcpModule and shared connector services | Existing owner/import/provider/export path retained exactly. No new module/service/store or OAuth/auth change. |
+| Files/Calendar | Existing Workspace/Planner contract recommendations; resource selection remains pending, so no guessed endpoint/model. |
+| PR12 Meetings, PR13 Directory, Layout/task/Engagement | Retained source and evidence; no overlapping source edits. Protected unpublished reporting body/ref untouched. |
+| Native/preview/Meri runtime | Qualification steps only. No actual native/deployment/live/data claim. |
+
+Initial transpile attempts used a relative filename against the actual absolute API rootDir and produced6059; attempt01's empty stdout and attempt02's precise stderr/script remain preserved. Using the actual absolute source filename corrected only the qualification harness, not compiler policy or product source. Attempt03 then passed both outputs/syntax with unchanged source. Limited workspace capacity required small exact Git-tree updates on the isolated private branch; its mutable index was reconstructed. The first plain read-tree temporarily omitted sparse skip flags; corrected sparse reconstruction restored source status. Existing materialized exact files were not overwritten, and all source/evidence/Git objects and original heads remain retained. No other worktree or borrowed dependencies were cleaned.
+
+## Final independent acceptance
+
+The frozen packet `0e35baeb687b24ffc7d261ac259be0da0e1f1637` / tree `eb5a751594a57ad880faa73a276e449928379b05` was independently accepted for authorized draft publication on PR14, with no actionable findings. The exact final acceptance and review records are appended unchanged. This append changes only documentation and the derived hash index; product source and recorded check evidence remain source35ab. Native/live qualification and resource selection remain pending as described above.
+
+To preserve all objects within limited workspace capacity, only this isolated clone's loose object store was relocated intact to `/tmp/capiro-backend-managed-mcp-import-cleanup-20261014-objects`, with every file hash verified before and after and a local symlink preserving ordinary Git access. Its borrowed alternates, original/new candidate heads, source and evidence remain intact. No other worktree/store was removed.

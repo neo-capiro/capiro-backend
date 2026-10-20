@@ -1,0 +1,3046 @@
+{
+  "schemaVersion": 1,
+  "kind": "frozen-source-producer-and-context-mapping; no source admission or implementation",
+  "ledger": {
+    "commit": "fb708d231c7273f86b1462c72a72e70ccc36a3d6",
+    "path": "docs/coordination/ledgers/scope-ledger.json",
+    "gitBlob": "1546e9566cb0719261ca660bd5402732f65146e7",
+    "input": "MISSING-READS.json"
+  },
+  "backend": {
+    "commit": "b525032222515d636b0dae2d46e40c7c3d8b5528",
+    "tree": "16723770a8e111fc66bcf70d36ff32ab71eb9928",
+    "verification": "All producer references are pinned to the stated immutable commit/tree; checkout state is not source authority."
+  },
+  "assignedFamilies": [
+    "public-data",
+    "public-domain-query",
+    "disclosures",
+    "federal-market",
+    "sam-opportunities",
+    "funding-opportunities",
+    "certification-status",
+    "client-registry"
+  ],
+  "operationCount": 20,
+  "common": {
+    "nativeToolTransport": {
+      "method": "POST",
+      "path": "/api/clio/tools/:name",
+      "status": 200,
+      "notRetainedSourceRoute": true,
+      "authority": "Native middleware attaches canonical CurrentTenant; class RolesGuard/standard_user plus ToolServiceSecretGuard. No user credential is delegated by this mapping.",
+      "citations": [
+        "s001",
+        "s002",
+        "s003",
+        "s004",
+        "s005",
+        "s006"
+      ]
+    },
+    "nativeReadPayloadAdmission": {
+      "finding": "executeFromAuthenticatedUser normalizes tool name then uses objectInput for reads; advertised JSON schemas do not imply closed receiving-body enforcement. Each producer has its own parsing/clamps/refusals.",
+      "citations": [
+        "s007"
+      ]
+    },
+    "conversationScope": {
+      "finding": "Native chat loop fills omitted clientId from current conversation and rejects differing clientId for nonbridged tools; this is a chat owner behavior, not proof the generic tools route or a future retained adapter has trusted conversation binding.",
+      "citations": [
+        "s008"
+      ]
+    },
+    "retainedGap": {
+      "finding": "Frozen retained codec union has only three other operations; this mapping allocates no new path, key, credential, body authority, issuer, operation union, persistent trust or native bypass.",
+      "citations": [
+        "s009"
+      ]
+    },
+    "fundingClockGap": {
+      "finding": "Explicit adapter asOf is not enough to pin lifecycle/source-health clocks in current canonical v2 SQL or generatedAt.",
+      "citations": [
+        "s010",
+        "s011",
+        "s012",
+        "s013"
+      ]
+    },
+    "adapterMissingGaps": [
+      "The fb708 ledger records adapter-missing with no admitted source adapter for this operation; an existing native producer is not retained-family admission.",
+      "No operation in this slice is in the frozen Core retained-principal operation union (only research-portfolio, changes and Florida budget). No new fixed route, closed receiving schema or retained current-facts receipt is asserted here.",
+      "Trusted operation/task/run/conversation/context capture and current native authorization still require an agreed retained adapter boundary. Do not forward the native user bearer or actor+service-secret as delegated authority."
+    ],
+    "fundingCurrentAuthority": {
+      "scope": "MeriOpportunityToolsAdapter gate checks master + Meri-v2 feature, minimum standard_user, UUID clientId, current readVisibleClientIds allow-list; profile ACTIVE/nonarchived and memoryWall require explicit clientMemoryAccess grant. Detail and search independently recheck source enablement/current visible profile.",
+      "citations": [
+        "s014",
+        "s015",
+        "s016",
+        "s017"
+      ]
+    }
+  },
+  "minimalOwnerActions": [
+    "Agree exact per-operation closed request/response/context wire and trusted capture before adding any retained route; current route names here are inventory only.",
+    "Prefer existing standalone LdaIntel/FederalMarket/Funding adapter/compiler producers. Private legacy public-data/disclosure/certification/client-registry presenters need an explicitly allocated bounded seam or source-owner extraction; no Meri implementation edits were made.",
+    "Reuse current funding feature/role/source/wall helpers. Resolve the market/client-registry per-actor visibility seam explicitly; membership alone is not asserted sufficient.",
+    "Coordinate explicit owner clock/locale/rollout-mode capture where noted. Do not replace accepted deadline, source freshness, matching, eligibility, global award or forecast policies.",
+    "Use cited existing tests as source evidence, then add separately allocated retained-adapter admission/current-facts/cutoff tests after wire agreement; no tests were run here."
+  ],
+  "operations": [
+    {
+      "operation": "get_certification_status",
+      "family": "certification-status",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "comparisonLocale"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s018"
+      ],
+      "producer": {
+        "symbol": "MeriToolsService.getCertificationStatus (private) -> fetchFedrampProducts",
+        "citations": [
+          "s019",
+          "s020"
+        ]
+      },
+      "input": {
+        "required": [
+          "program=fedramp",
+          "query:string nonempty after trim"
+        ],
+        "optional": [],
+        "validation": "program equality check and trim/required query; native read does not run closed-schema validation",
+        "citations": [
+          "s021",
+          "s022"
+        ]
+      },
+      "dto": {
+        "description": "Three current variants: found=false complete-dataset miss; found=true/ambiguous=true candidates; found=true/ambiguous=false record. Product candidates capped10; candidateCount remains full matching count.",
+        "fields": [
+          "tool",
+          "program",
+          "found",
+          "searchedEntireDataset",
+          "evidenceOfAbsence?",
+          "note?",
+          "sourceUrl?",
+          "observedAt?",
+          "ambiguous?",
+          "candidateCount?",
+          "candidates?",
+          "record?"
+        ],
+        "citations": [
+          "s023",
+          "s024"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Authenticated standard-user native tool, global official FedRAMP dataset; no client/tenant row scope inside producer.",
+        "facts": "Official status/impact/source URL and observedAt from fetched complete marketplace records. This producer performs live network I/O.",
+        "citations": [
+          "s025",
+          "s026"
+        ]
+      },
+      "requiredContext": [
+        {
+          "key": "comparisonLocale",
+          "owner": "getCertificationStatus name/id matching uses no-argument String.toLocaleLowerCase()",
+          "status": "No explicit locale parameter or trusted captured locale at this producer; host locale dependence is real.",
+          "citations": [
+            "s027"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s028",
+          "description": "Ambiguity/cap, complete miss and exact product-id provenance",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s029",
+          "description": "Source-shape failure and bounded transient retry behavior",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Private legacy handler has no independently injectable bounded read seam. Locale capture/normalization policy must be coordinated; do not silently replace locale semantics. No provider/network call was performed in this audit."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Live bounded public FedRAMP HTTP fetch"
+    },
+    {
+      "operation": "search_lda_filings",
+      "family": "disclosures",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s030"
+      ],
+      "producer": {
+        "symbol": "private searchLdaFilings -> LdaIntelService.getFilings",
+        "citations": [
+          "s031",
+          "s032"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/lda-intel/filings",
+        "citations": [
+          "s033"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "clientName (query alias) <=200",
+          "registrantName (registrant alias) <=200",
+          "issueCode (issue alias) <=120",
+          "year converted Number when truthy",
+          "limit1..50 default15",
+          "page1..100 default1"
+        ],
+        "validation": "optionalString/clampInt; tool aliases exceed advertised schema. LDA producer has its own page>=1/limit<=100 bound.",
+        "citations": [
+          "s034",
+          "s035",
+          "s036"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "tool",
+          "generatedAt",
+          "data[]",
+          "total",
+          "page",
+          "limit"
+        ],
+        "rowFields": [
+          "filingUuid",
+          "filingType",
+          "filingYear",
+          "filingPeriod",
+          "income:number|null",
+          "expenses:number|null",
+          "dtPosted",
+          "registrantId",
+          "registrantName",
+          "clientId (LDA registry identity)",
+          "clientName",
+          "clientState",
+          "issueCodes"
+        ],
+        "citations": [
+          "s037",
+          "s038"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Global LDA filing catalog; clientName/LDA clientId are public registry identities, not Core client authorization.",
+        "citations": [
+          "s039"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s040",
+          "description": "Registration inventory only; not producer DTO/authority qualification",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Reusable LdaIntelService already exists; native tool normalization differs from route producer defaults. Exact future closed normalization must be preserved deliberately, not inferred from advertised schema. No focused LDA producer contract test was established by this narrow inspection."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "query_global_data",
+      "family": "public-domain-query",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "defaultAsOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s041"
+      ],
+      "producer": {
+        "symbol": "private queryGlobalData -> parseQuerySpecInput/compileQuerySpec -> AnalyticsDbService.run",
+        "citations": [
+          "s042",
+          "s043",
+          "s044"
+        ]
+      },
+      "input": {
+        "required": [
+          "dataset",
+          "select1..12"
+        ],
+        "optional": [
+          "filters",
+          "groupBy",
+          "orderBy<=3",
+          "limit (dataset cap/default)",
+          "asOfDate only where dataset supports it"
+        ],
+        "validation": "Registry/compiler owns dataset/field/operator/aggregation/filter/select/order validation and parameterized SQL. Advertised JSON schema is not the final authority.",
+        "citations": [
+          "s045",
+          "s046",
+          "s047"
+        ]
+      },
+      "dto": {
+        "description": "Success includes compiled SQL and bounded normalized rows; expected compiler/query failures become ok:false error payloads rather than universally throwing.",
+        "fields": [
+          "tool",
+          "generatedAt",
+          "dataset?",
+          "sql?",
+          "rowCount?",
+          "rows?",
+          "truncated?:true",
+          "note?",
+          "ok?:false",
+          "error?"
+        ],
+        "citations": [
+          "s048"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Only registry-allowlisted global no-tenant fact tables; tenant/user used for analytics audit log, not row filtering.",
+        "sideEffects": "Best-effort MeriAnalyticsQueryLog.create audit write on success/failure is already part of this nominal read.",
+        "citations": [
+          "s049",
+          "s050"
+        ]
+      },
+      "requiredContext": [
+        {
+          "key": "defaultAsOf",
+          "owner": "compileQuerySpec default for asOf-capable lda_registrations",
+          "status": "Compiler defaults omitted asOfDate with new Date(); explicit asOfDate is supported only on asOf-capable datasets. No separate defaultAsOf capture parameter.",
+          "citations": [
+            "s051"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s052",
+          "description": "Allowlist validation, bounded limit, aggregation/filter safety",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s053",
+          "description": "Default/explicit asOfDate and unsupported/invalid rejection",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s054",
+          "description": "Existing analytics DB service tests; not executed",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Reuse compiler and bounded analytics reader, not arbitrary model SQL. The retained context owner must capture defaultAsOf and apply it only on declared asOf datasets without silently enabling unsupported historical reads. Keep audit-write semantics explicit."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_sec_filings",
+      "family": "disclosures",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s055"
+      ],
+      "producer": {
+        "symbol": "MeriToolsService.searchSecFilings (private), Prisma secFiling",
+        "citations": [
+          "s056"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "query/companyName<=240",
+          "formType<=20",
+          "cik<=20",
+          "limit1..50 default20"
+        ],
+        "validation": "optionalString/clampInt, fixed Prisma predicates; reads do not get closed schema validation",
+        "citations": [
+          "s057",
+          "s058"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "tool",
+          "generatedAt",
+          "total",
+          "data[]"
+        ],
+        "rowFields": [
+          "id",
+          "cik",
+          "companyName",
+          "formType",
+          "accessionNumber",
+          "filingDate",
+          "description summarized300",
+          "url"
+        ],
+        "citations": [
+          "s056"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Global synchronized public fact table through withSystem; no Core client identity authorization is claimed.",
+        "citations": [
+          "s056"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s059",
+          "description": "Tool registration inventory only",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Only a private legacy query/presenter was established, not a separate canonical bounded producer/DTO contract. Source timestamps and field nullability must remain as actual catalog facts; generatedAt is not source currency. No focused producer behavior test established in this narrow read."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_fara_registrations",
+      "family": "disclosures",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s060"
+      ],
+      "producer": {
+        "symbol": "MeriToolsService.searchFaraRegistrations (private), Prisma faraRegistration",
+        "citations": [
+          "s061"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "query<=240",
+          "registrantName/registrant<=240",
+          "foreignPrincipal<=240",
+          "country<=120",
+          "status<=20",
+          "limit1..50 default20"
+        ],
+        "validation": "optionalString/clampInt, fixed Prisma predicates; reads do not get closed schema validation",
+        "citations": [
+          "s062",
+          "s063"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "tool",
+          "generatedAt",
+          "total",
+          "data[]"
+        ],
+        "rowFields": [
+          "id",
+          "registrationNumber",
+          "registrantName",
+          "foreignPrincipal",
+          "country",
+          "status",
+          "registrationDate",
+          "description summarized300"
+        ],
+        "citations": [
+          "s061"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Global synchronized public fact table through withSystem; no Core client identity authorization is claimed.",
+        "citations": [
+          "s061"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s064",
+          "description": "Tool registration inventory only",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Only a private legacy query/presenter was established, not a separate canonical bounded producer/DTO contract. Source timestamps and field nullability must remain as actual catalog facts; generatedAt is not source currency. No focused producer behavior test established in this narrow read.",
+        "FARA registry documentation explicitly says enrichment fields can be null/unknown; a missing foreign principal/country is not absence (global-dataset-registry.ts:213-223)."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_federal_grants",
+      "family": "public-data",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s065"
+      ],
+      "producer": {
+        "symbol": "private searchFederalGrants -> global federalGrant table + canonical deadline helpers",
+        "citations": [
+          "s066"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "query<=240",
+          "agency<=240",
+          "status<=30",
+          "limit1..50 default20"
+        ],
+        "validation": "optionalString/clampInt; status filters stored sync-time status, not derived deadlineStatus",
+        "citations": [
+          "s067",
+          "s068"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "tool",
+          "generatedAt",
+          "asOf",
+          "total",
+          "data[]"
+        ],
+        "rowFields": [
+          "id",
+          "title summarized240",
+          "agency",
+          "subAgency",
+          "opportunityNumber",
+          "category",
+          "awardCeiling",
+          "awardFloor",
+          "estimatedFunding",
+          "openDate",
+          "closeDate",
+          "deadlineStatus=open|closed|unknown",
+          "deadline? (enforce only)",
+          "syncedStatus",
+          "eligibility",
+          "url"
+        ],
+        "citations": [
+          "s069"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Global federalGrant rows withSystem; current tenant selects evidence rollout mode, not client catalog filtering.",
+        "citations": [
+          "s070"
+        ]
+      },
+      "requiredContext": [
+        {
+          "key": "evidenceAccuracyMode",
+          "owner": "resolveEvidenceAccuracyModeForTenant(ctx.tenantId,chat)",
+          "status": "Derived from current server rollout env through @capiro/meriv2-core, no caller-controlled mode.",
+          "citations": [
+            "s071",
+            "s072"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s073",
+          "description": "Off/enforce payload and generated-asOf-derived deadline facts",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Current handler captures its own new Date and ET day (5315-17); no injected asOf seam. Ledger lists only evidenceAccuracyMode but this real clock dependency must be accounted for in a deterministic retained read. Do not replace stored status predicate with new policy."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_federal_awards",
+      "family": "public-data",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "evidenceAccuracyMode"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s074"
+      ],
+      "producer": {
+        "symbol": "private searchFederalAwards -> FederalMarketService.listLegacyGlobalContracts",
+        "citations": [
+          "s075",
+          "s076"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "query<=240",
+          "agency<=240",
+          "peCode<=16",
+          "page1..10000 default1 (number or strict decimal string)",
+          "limit1..50 default20"
+        ],
+        "validation": "Invalid page throws400; missing configured canonical reader throws404.",
+        "citations": [
+          "s077",
+          "s078"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "tool",
+          "generatedAt",
+          "total",
+          "page",
+          "pageSize",
+          "hasMore",
+          "nextPage:number|null",
+          "paginationLimitReached",
+          "data[]"
+        ],
+        "rowFields": [
+          "id",
+          "contractorName",
+          "awardingAgency",
+          "awardingSubTier",
+          "amount:number|null",
+          "description summarized240",
+          "peCode",
+          "recipientState",
+          "popCongressionalDistrict",
+          "actionDate",
+          "piid",
+          "latestActionDate",
+          "baseAwardSignedDate",
+          "sourceLastModifiedDate",
+          "popStartDate",
+          "popEndDate",
+          "lastSyncedAt",
+          "enforce-only canonical date projection"
+        ],
+        "citations": [
+          "s079"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Deliberately global compatibility rail. Conversation client must not silently narrow this public-data tool; existing service comment explicitly requires global semantics.",
+        "citations": [
+          "s076"
+        ]
+      },
+      "requiredContext": [
+        {
+          "key": "evidenceAccuracyMode",
+          "owner": "resolveEvidenceAccuracyModeForTenant(ctx.tenantId,chat); serializeFederalAwardDates",
+          "status": "Current server rollout mode controls off/shadow/enforce date output. No retained capture input exists.",
+          "citations": [
+            "s080",
+            "s071"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s081",
+          "description": "Pagination defaults/bounds/missing reader/date semantics remain compatible",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Canonical legacy reader already exists; do not substitute client-scoped listContracts or change the data shape into FederalMarketPage. Private presentation and current rollout-mode capture still need an agreed retained seam."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "query_economic_data",
+      "family": "public-data",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s082"
+      ],
+      "producer": {
+        "symbol": "private queryEconomicData -> censusDistrict | blsSeries/dataPoints | beaData",
+        "citations": [
+          "s083"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "source census(default)|bls|bea",
+          "state<=2 uppercased for census",
+          "district<=10",
+          "limit1..50 default20",
+          "BLS runtime-only seriesId<=60/query<=240",
+          "BEA runtime-only datasetName/dataset<=60/query<=240/year:Number"
+        ],
+        "validation": "Source switch lowercases; unknown source returns error payload. BLS/BEA runtime inputs exceed the advertised source/state/district/limit schema.",
+        "citations": [
+          "s084",
+          "s083"
+        ]
+      },
+      "dto": {
+        "description": "source-discriminated response; census includes demographics, BLS includes most recent12 datapoints per series, BEA includes dataset/table/period/value/units; unknown source returns tool+error.",
+        "fields": [
+          "tool",
+          "source?",
+          "generatedAt?",
+          "data?",
+          "error?"
+        ],
+        "citations": [
+          "s085",
+          "s086",
+          "s087"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Global stored economic facts through withSystem; source default is census, not inferred client geography.",
+        "citations": [
+          "s088",
+          "s089",
+          "s090"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s091",
+          "description": "Registration inventory only",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "No separately reusable canonical economic DTO service established here; closed future inputs must explicitly settle schema/runtime BLS/BEA aliases instead of dropping them silently. No focused producer test established by this narrow read."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_sam_opportunities",
+      "family": "sam-opportunities",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "asOf",
+        "evidenceAccuracyMode",
+        "sourceStatusAsOf",
+        "sourceHealthAsOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s092"
+      ],
+      "producer": {
+        "symbol": "private searchSamOpportunities -> ProgramElementReadService.listSamOpportunities + MeriOpportunityToolsAdapter.readSamSourceFreshness",
+        "citations": [
+          "s093",
+          "s094",
+          "s095"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "query<=240",
+          "naics<=12 prefix",
+          "includeInactive:boolean (default false)",
+          "limit1..50 default20"
+        ],
+        "validation": "optionalString/optionalBoolean/clampInt; active-only default remains stored catalog filter",
+        "citations": [
+          "s096",
+          "s097"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "tool",
+          "generatedAt",
+          "total",
+          "sourceFreshness[]",
+          "sourceStatus=healthy|unknown|degraded",
+          "sourceReason:string|null",
+          "notes[]",
+          "results[]"
+        ],
+        "rowFields": [
+          "id",
+          "noticeId",
+          "solicitationNumber",
+          "title",
+          "noticeType",
+          "agency",
+          "office",
+          "pscCode",
+          "naicsCode",
+          "postedDate",
+          "responseDeadline",
+          "description summarized300",
+          "sourceUrl",
+          "active",
+          "deadline? (enforce)"
+        ],
+        "citations": [
+          "s098",
+          "s099",
+          "s100"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "Global SAM catalog, plus tenant-enabled source-health rail. A successful catalog query does not establish current coverage. Source-health failure represented unavailable/unknown; catalog failure propagates.",
+        "citations": [
+          "s101",
+          "s102",
+          "s103"
+        ]
+      },
+      "requiredContext": [
+        {
+          "key": "asOf",
+          "owner": "searchSamOpportunities local new Date (generatedAt/deadlines)",
+          "status": "Not an explicit parameter",
+          "citations": [
+            "s104"
+          ]
+        },
+        {
+          "key": "evidenceAccuracyMode",
+          "owner": "server tenant chat rollout resolver",
+          "status": "Current env-derived mode",
+          "citations": [
+            "s105"
+          ]
+        },
+        {
+          "key": "sourceStatusAsOf",
+          "owner": "searchSamOpportunities sourceReason stale comparison",
+          "status": "Date.now() vs source.lastSyncedAt; >=48 hours is existing owner policy",
+          "citations": [
+            "s106"
+          ]
+        },
+        {
+          "key": "sourceHealthAsOf",
+          "owner": "readSamSourceFreshness and canonical v2 SQL health",
+          "status": "Date.now()-derived hoursSinceLastSuccess and source staleness; no explicit clock input",
+          "citations": [
+            "s107",
+            "s011"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s108",
+          "description": "Filters, off/enforce deadline output and stale/unknown source honesty",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s109",
+          "description": "Catalog failure propagates, not fabricated zero matches",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Four required context keys map to distinct current owners/clocks, not interchangeable generatedAt. Need reviewed capture/injection seams across presenter and source-health, not a model-supplied timestamp. Do not treat synchronized empty results as no federal opportunity."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "lookup_client_registry",
+      "family": "client-registry",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s110"
+      ],
+      "producer": {
+        "symbol": "private lookupClientRegistry -> tenant client + global ldaClient exact/near reads",
+        "citations": [
+          "s111"
+        ]
+      },
+      "input": {
+        "required": [
+          "name:trimmed required string<=300"
+        ],
+        "optional": [],
+        "validation": "requiredString; near candidates take5; exact equals read is independent of capped contains results",
+        "citations": [
+          "s112",
+          "s113"
+        ]
+      },
+      "dto": {
+        "fields": [
+          "existingClient:{id,name,website}|null",
+          "ldaExactMatch:LdaPick|null",
+          "ldaCandidates:LdaPick[]",
+          "guidance:string"
+        ],
+        "rowFields": [
+          "ldaClientId:number",
+          "name",
+          "state",
+          "description summarized200|null",
+          "totalFilings",
+          "latestFilingYear"
+        ],
+        "citations": [
+          "s114"
+        ]
+      },
+      "currentAuthority": {
+        "scope": "existingClient comes from tenant/name/not-archived query; public LDA exact and near reads use withSystem. No readVisibleClientIds or current wall-grant check occurs in this handler.",
+        "citations": [
+          "s115"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s116",
+          "description": "Existing client, exact, near and clean-miss registry outcomes",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Returning same-tenant existingClient identity/website is business data; tenant membership alone must not be asserted sufficient current retained authority. Current owner must explicitly settle/reuse client-visibility policy before exposure; do not silently add a new assignment model or permit writes from guidance. No standalone public registry-only vs private existing-client split is defined."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_funding_opportunities",
+      "family": "funding-opportunities",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "asOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s117"
+      ],
+      "producer": {
+        "symbol": "MeriOpportunityToolsAdapter.searchFundingOpportunities",
+        "citations": [
+          "s118",
+          "s119"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/intelligence/opportunities/v2/search",
+        "note": "Existing native analogue, not a retained source route and not necessarily byte-equivalent to the tool DTO.",
+        "citations": [
+          "s120"
+        ]
+      },
+      "input": {
+        "required": [
+          "clientId:UUID"
+        ],
+        "optional": [
+          "source:grants_gov|sam_gov",
+          "query<=500",
+          "page1..100000 default1",
+          "pageSize1..5 default5",
+          "activeState active(default)|closed|all"
+        ],
+        "validation": "Actual adapter gates/normalizes bounds and returns typed envelope refusal states; native generic read schema is not closed.",
+        "citations": [
+          "s121",
+          "s118"
+        ]
+      },
+      "dto": {
+        "shape": "MeriToolEnvelope<OpportunitySearch>",
+        "envelope": "tool,state,explanation,asOf,data:T|null,truncated?:{collection,kept,total}[]; available/disabled/denied/not_found/unsupported_source/invalid_request",
+        "citations": [
+          "s122",
+          "s123"
+        ]
+      },
+      "currentAuthority": "common.fundingCurrentAuthority",
+      "requiredContext": [
+        {
+          "key": "asOf",
+          "owner": "searchFundingOpportunities(actor,input,asOf:Date=new Date())",
+          "status": "Explicit producer parameter exists, but current Meri dispatch omits it. It anchors envelope/deadline/requirement/composer facts; does not freeze all underlying catalog clocks.",
+          "citations": [
+            "s118",
+            "s117"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s124",
+          "description": "Master/Meri flag, role, malformed id and current client-wall denials",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s125",
+          "description": "Missing/unsupported/denied distinctions, separate relevance/eligibility/human decisions",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s126",
+          "description": "Explicit asOf-derived off/enforce deadline facts",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Tool explicitly searches matched client results and legacy projection of only grants_gov/sam_gov. It is not interchangeable with native Browse/all or the v2 response. Search coverage/totalIsCapped/hasMore/emptyReason/freshness must survive.",
+        "Passing adapter asOf is not end-to-end deterministic context: canonical v2 SQL uses CURRENT_DATE/CURRENT_TIMESTAMP for lifecycle/pursuable (search.sql:378-423) and health uses Date.now (725); search/detail generatedAt also read current clock. These are existing owner seams requiring coordinated capture, not a policy rewrite."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "get_funding_opportunity_requirements",
+      "family": "funding-opportunities",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "asOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s127"
+      ],
+      "producer": {
+        "symbol": "MeriOpportunityToolsAdapter.getFundingOpportunityRequirements",
+        "citations": [
+          "s128",
+          "s119"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/intelligence/opportunities/:source/:id/requirements",
+        "note": "Existing native analogue, not a retained source route and not necessarily byte-equivalent to the tool DTO.",
+        "citations": [
+          "s129"
+        ]
+      },
+      "input": {
+        "required": [
+          "clientId:UUID",
+          "source=sam_gov",
+          "sourceRecordId:SAM UUID"
+        ],
+        "optional": [
+          "offset0..1000000 default0",
+          "limit1..25 default10"
+        ],
+        "validation": "Actual adapter gates/normalizes bounds and returns typed envelope refusal states; native generic read schema is not closed.",
+        "citations": [
+          "s130",
+          "s128"
+        ]
+      },
+      "dto": {
+        "shape": "MeriToolEnvelope<RequirementsResponse>",
+        "envelope": "tool,state,explanation,asOf,data:T|null,truncated?:{collection,kept,total}[]; available/disabled/denied/not_found/unsupported_source/invalid_request",
+        "citations": [
+          "s122",
+          "s131",
+          "s132"
+        ]
+      },
+      "currentAuthority": "common.fundingCurrentAuthority",
+      "requiredContext": [
+        {
+          "key": "asOf",
+          "owner": "getFundingOpportunityRequirements(actor,input,asOf:Date=new Date())",
+          "status": "Explicit producer parameter exists, but current Meri dispatch omits it. It anchors envelope/deadline/requirement/composer facts; does not freeze all underlying catalog clocks.",
+          "citations": [
+            "s128",
+            "s127"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s124",
+          "description": "Master/Meri flag, role, malformed id and current client-wall denials",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s125",
+          "description": "Missing/unsupported/denied distinctions, separate relevance/eligibility/human decisions",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s126",
+          "description": "Explicit asOf-derived off/enforce deadline facts",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Additional documents feature must be enabled. Requirements include tenant review status and source coverage; missing/unread documents do not mean no mandatory conditions.",
+        "Passing adapter asOf is not end-to-end deterministic context: canonical v2 SQL uses CURRENT_DATE/CURRENT_TIMESTAMP for lifecycle/pursuable (search.sql:378-423) and health uses Date.now (725); search/detail generatedAt also read current clock. These are existing owner seams requiring coordinated capture, not a policy rewrite."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "get_funding_opportunity",
+      "family": "funding-opportunities",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "asOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s133"
+      ],
+      "producer": {
+        "symbol": "MeriOpportunityToolsAdapter.getFundingOpportunity",
+        "citations": [
+          "s134",
+          "s119"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/intelligence/opportunities/v2/detail/:source/:sourceRecordId",
+        "note": "Existing native analogue, not a retained source route and not necessarily byte-equivalent to the tool DTO.",
+        "citations": [
+          "s135"
+        ]
+      },
+      "input": {
+        "required": [
+          "clientId:UUID",
+          "source:grants_gov|sam_gov",
+          "sourceRecordId:source-owned identity"
+        ],
+        "optional": [
+          "summaryOffset0..100000000",
+          "summaryLimit1..12000"
+        ],
+        "validation": "Actual adapter gates/normalizes bounds and returns typed envelope refusal states; native generic read schema is not closed.",
+        "citations": [
+          "s136",
+          "s134"
+        ]
+      },
+      "dto": {
+        "shape": "MeriToolEnvelope<OpportunityFacts>",
+        "envelope": "tool,state,explanation,asOf,data:T|null,truncated?:{collection,kept,total}[]; available/disabled/denied/not_found/unsupported_source/invalid_request",
+        "citations": [
+          "s122",
+          "s137"
+        ]
+      },
+      "currentAuthority": "common.fundingCurrentAuthority",
+      "requiredContext": [
+        {
+          "key": "asOf",
+          "owner": "getFundingOpportunity(actor,input,asOf:Date=new Date())",
+          "status": "Explicit producer parameter exists, but current Meri dispatch omits it. It anchors envelope/deadline/requirement/composer facts; does not freeze all underlying catalog clocks.",
+          "citations": [
+            "s134",
+            "s133"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s124",
+          "description": "Master/Meri flag, role, malformed id and current client-wall denials",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s125",
+          "description": "Missing/unsupported/denied distinctions, separate relevance/eligibility/human decisions",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s126",
+          "description": "Explicit asOf-derived off/enforce deadline facts",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "Canonical detail is projected through v2RecordToFundingOpportunity + toFacts; preserving summaryRead continuation and nullable source/date/profile fields is required. The tool DTO differs from native v2 detail.",
+        "Passing adapter asOf is not end-to-end deterministic context: canonical v2 SQL uses CURRENT_DATE/CURRENT_TIMESTAMP for lifecycle/pursuable (search.sql:378-423) and health uses Date.now (725); search/detail generatedAt also read current clock. These are existing owner seams requiring coordinated capture, not a policy rewrite."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "get_opportunity_client_context",
+      "family": "funding-opportunities",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "asOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s138"
+      ],
+      "producer": {
+        "symbol": "MeriOpportunityToolsAdapter.getOpportunityClientContext",
+        "citations": [
+          "s139",
+          "s119"
+        ]
+      },
+      "input": {
+        "required": [
+          "clientId:UUID"
+        ],
+        "optional": [],
+        "validation": "Actual adapter gates/normalizes bounds and returns typed envelope refusal states; native generic read schema is not closed.",
+        "citations": [
+          "s140",
+          "s139"
+        ]
+      },
+      "dto": {
+        "shape": "MeriToolEnvelope<ClientContext>",
+        "envelope": "tool,state,explanation,asOf,data:T|null,truncated?:{collection,kept,total}[]; available/disabled/denied/not_found/unsupported_source/invalid_request",
+        "citations": [
+          "s122",
+          "s141"
+        ]
+      },
+      "currentAuthority": "common.fundingCurrentAuthority",
+      "requiredContext": [
+        {
+          "key": "asOf",
+          "owner": "getOpportunityClientContext(actor,input,asOf:Date=new Date())",
+          "status": "Explicit producer parameter exists, but current Meri dispatch omits it. It anchors envelope/deadline/requirement/composer facts; does not freeze all underlying catalog clocks.",
+          "citations": [
+            "s139",
+            "s138"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s124",
+          "description": "Master/Meri flag, role, malformed id and current client-wall denials",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s125",
+          "description": "Missing/unsupported/denied distinctions, separate relevance/eligibility/human decisions",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s126",
+          "description": "Explicit asOf-derived off/enforce deadline facts",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "No exact dedicated native HTTP counterpart was established: the actual tool composes a matched first-page active search, then topGrants/topContracts and profile gaps; do not invent a new client-context route.",
+        "Passing adapter asOf is not end-to-end deterministic context: canonical v2 SQL uses CURRENT_DATE/CURRENT_TIMESTAMP for lifecycle/pursuable (search.sql:378-423) and health uses Date.now (725); search/detail generatedAt also read current clock. These are existing owner seams requiring coordinated capture, not a policy rewrite."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "get_opportunity_government_landscape",
+      "family": "funding-opportunities",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [
+        "asOf"
+      ],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s142"
+      ],
+      "producer": {
+        "symbol": "MeriOpportunityToolsAdapter.getOpportunityGovernmentLandscape",
+        "citations": [
+          "s143",
+          "s119"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/intelligence/opportunities/:source/:id/landscape",
+        "note": "Existing native analogue, not a retained source route and not necessarily byte-equivalent to the tool DTO.",
+        "citations": [
+          "s144"
+        ]
+      },
+      "input": {
+        "required": [
+          "clientId:UUID",
+          "source=sam_gov",
+          "sourceRecordId:SAM identity"
+        ],
+        "optional": [],
+        "validation": "Actual adapter gates/normalizes bounds and returns typed envelope refusal states; native generic read schema is not closed.",
+        "citations": [
+          "s145",
+          "s143"
+        ]
+      },
+      "dto": {
+        "shape": "MeriToolEnvelope<LandscapeView>",
+        "envelope": "tool,state,explanation,asOf,data:T|null,truncated?:{collection,kept,total}[]; available/disabled/denied/not_found/unsupported_source/invalid_request",
+        "citations": [
+          "s122",
+          "s146"
+        ]
+      },
+      "currentAuthority": "common.fundingCurrentAuthority",
+      "requiredContext": [
+        {
+          "key": "asOf",
+          "owner": "getOpportunityGovernmentLandscape(actor,input,asOf:Date=new Date())",
+          "status": "Explicit producer parameter exists, but current Meri dispatch omits it. It anchors envelope/deadline/requirement/composer facts; does not freeze all underlying catalog clocks.",
+          "citations": [
+            "s143",
+            "s142"
+          ]
+        }
+      ],
+      "existingTests": [
+        {
+          "citation": "s124",
+          "description": "Master/Meri flag, role, malformed id and current client-wall denials",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s125",
+          "description": "Missing/unsupported/denied distinctions, separate relevance/eligibility/human decisions",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s126",
+          "description": "Explicit asOf-derived off/enforce deadline facts",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "GovernmentLandscapeService owns composition/current denied packet. Unsupported non-SAM source is explicit; do not turn denied into empty. HTTP landscape has its own additional flag; direct tool gate/composer must be preserved as written.",
+        "Passing adapter asOf is not end-to-end deterministic context: canonical v2 SQL uses CURRENT_DATE/CURRENT_TIMESTAMP for lifecycle/pursuable (search.sql:378-423) and health uses Date.now (725); search/detail generatedAt also read current clock. These are existing owner seams requiring coordinated capture, not a policy rewrite."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_federal_contract_awards",
+      "family": "federal-market",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s147",
+        "s148"
+      ],
+      "producer": {
+        "symbol": "listContracts",
+        "citations": [
+          "s149"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/federal-spending/market/contracts",
+        "citations": [
+          "s150"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "clientId",
+          "query",
+          "agency",
+          "state",
+          "district",
+          "fiscalYear1900..2200",
+          "page1..10000 default1",
+          "limit1..25 default10",
+          "recipient",
+          "dateFrom",
+          "dateTo"
+        ],
+        "validation": "Tool objectInput/trim helpers; strict page/limit/fiscal-year/state/district checks, vehicle fiscalYear explicitly rejected. Generic unknown fields are not rejected. Native HTTP query DTO has different q/pageSize/max100 vocabulary.",
+        "citations": [
+          "s151",
+          "s152",
+          "s153"
+        ]
+      },
+      "dto": {
+        "shape": "FederalMarketPage<source row> + hasMore,nextPage:number|null,paginationLimitReached,tool/generatedAt",
+        "citations": [
+          "s154",
+          "s155",
+          "s148"
+        ],
+        "note": "source/asOf:null|string/sourceUpdatedAt describe synchronized fact currency; generatedAt alone is not source currency."
+      },
+      "currentAuthority": {
+        "scope": "Optional Core client scope uses current tenant active nonarchived client and confirmed reviewed rollUpAwards mappings/UEI/name identity rails; absent client is global public catalog.",
+        "citations": [
+          "s156",
+          "s157",
+          "s158"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s159",
+          "description": "Current operation dispatch/bounds/scoping contract",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s160",
+          "description": "Reviewed identity rail exclusivity; not a retained current-authority receipt",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "The proxy owns these five tool operations; they do not dispatch through the private legacy registry in MeriToolsService. Reuse FederalSpendingModule services rather than importing a duplicate obsolete implementation.",
+        "Market clientScope takes tenantId/clientId, not actorId; VISIBLE_CLIENT_FILTER checks nonarchived/ACTIVE, and the body does not query clientMemoryAccess. Do not label this a verified per-actor ethical-wall decision. Coordinate the retained current client-authority boundary without silently changing native market policy.",
+        "Although this ledger row requires no context keys, current tool output still varies with tenant evidenceAccuracyMode for serializeFederalAwardDates (215-231). Do not infer an empty context means there are no server dependencies."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_federal_subawards",
+      "family": "federal-market",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s147",
+        "s161"
+      ],
+      "producer": {
+        "symbol": "listSubawards",
+        "citations": [
+          "s162"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/federal-spending/market/subawards",
+        "citations": [
+          "s150"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "clientId",
+          "query",
+          "agency",
+          "state",
+          "district",
+          "fiscalYear1900..2200",
+          "page1..10000 default1",
+          "limit1..25 default10",
+          "recipient",
+          "dateFrom",
+          "dateTo"
+        ],
+        "validation": "Tool objectInput/trim helpers; strict page/limit/fiscal-year/state/district checks, vehicle fiscalYear explicitly rejected. Generic unknown fields are not rejected. Native HTTP query DTO has different q/pageSize/max100 vocabulary.",
+        "citations": [
+          "s151",
+          "s152",
+          "s153"
+        ]
+      },
+      "dto": {
+        "shape": "FederalMarketPage<source row> + hasMore,nextPage:number|null,paginationLimitReached,tool/generatedAt",
+        "citations": [
+          "s154",
+          "s163",
+          "s161"
+        ],
+        "note": "source/asOf:null|string/sourceUpdatedAt describe synchronized fact currency; generatedAt alone is not source currency."
+      },
+      "currentAuthority": {
+        "scope": "Optional Core client scope uses current tenant active nonarchived client and confirmed reviewed rollUpAwards mappings/UEI/name identity rails; absent client is global public catalog.",
+        "citations": [
+          "s156",
+          "s157",
+          "s158"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s164",
+          "description": "Current operation dispatch/bounds/scoping contract",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s160",
+          "description": "Reviewed identity rail exclusivity; not a retained current-authority receipt",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "The proxy owns these five tool operations; they do not dispatch through the private legacy registry in MeriToolsService. Reuse FederalSpendingModule services rather than importing a duplicate obsolete implementation.",
+        "Market clientScope takes tenantId/clientId, not actorId; VISIBLE_CLIENT_FILTER checks nonarchived/ACTIVE, and the body does not query clientMemoryAccess. Do not label this a verified per-actor ethical-wall decision. Coordinate the retained current client-authority boundary without silently changing native market policy."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_contract_vehicles",
+      "family": "federal-market",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s147",
+        "s165"
+      ],
+      "producer": {
+        "symbol": "listVehicles",
+        "citations": [
+          "s166"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/federal-spending/market/vehicles",
+        "citations": [
+          "s150"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "clientId",
+          "query",
+          "agency",
+          "state",
+          "district",
+          "page1..10000 default1",
+          "limit1..25 default10"
+        ],
+        "validation": "Tool objectInput/trim helpers; strict page/limit/fiscal-year/state/district checks, vehicle fiscalYear explicitly rejected. Generic unknown fields are not rejected. Native HTTP query DTO has different q/pageSize/max100 vocabulary.",
+        "citations": [
+          "s151",
+          "s152",
+          "s153"
+        ]
+      },
+      "dto": {
+        "shape": "FederalMarketPage<source row> + hasMore,nextPage:number|null,paginationLimitReached,tool/generatedAt",
+        "citations": [
+          "s154",
+          "s167",
+          "s165"
+        ],
+        "note": "source/asOf:null|string/sourceUpdatedAt describe synchronized fact currency; generatedAt alone is not source currency."
+      },
+      "currentAuthority": {
+        "scope": "Optional Core client scope selects tenant clientRelevantVehicle rows; otherwise global vehicle catalog.",
+        "citations": [
+          "s156",
+          "s157",
+          "s158",
+          "s168"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s169",
+          "description": "Current operation dispatch/bounds/scoping contract",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s160",
+          "description": "Reviewed identity rail exclusivity; not a retained current-authority receipt",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "The proxy owns these five tool operations; they do not dispatch through the private legacy registry in MeriToolsService. Reuse FederalSpendingModule services rather than importing a duplicate obsolete implementation.",
+        "Market clientScope takes tenantId/clientId, not actorId; VISIBLE_CLIENT_FILTER checks nonarchived/ACTIVE, and the body does not query clientMemoryAccess. Do not label this a verified per-actor ethical-wall decision. Coordinate the retained current client-authority boundary without silently changing native market policy."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "search_procurement_forecasts",
+      "family": "federal-market",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s147",
+        "s158"
+      ],
+      "producer": {
+        "symbol": "listForecasts",
+        "citations": [
+          "s170"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/federal-spending/market/forecasts",
+        "citations": [
+          "s150"
+        ]
+      },
+      "input": {
+        "required": [],
+        "optional": [
+          "clientId",
+          "query",
+          "agency",
+          "state",
+          "district",
+          "fiscalYear1900..2200",
+          "page1..10000 default1",
+          "limit1..25 default10"
+        ],
+        "validation": "Tool objectInput/trim helpers; strict page/limit/fiscal-year/state/district checks, vehicle fiscalYear explicitly rejected. Generic unknown fields are not rejected. Native HTTP query DTO has different q/pageSize/max100 vocabulary.",
+        "citations": [
+          "s151",
+          "s152",
+          "s153"
+        ]
+      },
+      "dto": {
+        "shape": "FederalMarketPage<source row> + hasMore,nextPage:number|null,paginationLimitReached,tool/generatedAt",
+        "citations": [
+          "s154",
+          "s171",
+          "s158"
+        ],
+        "note": "source/asOf:null|string/sourceUpdatedAt describe synchronized fact currency; generatedAt alone is not source currency."
+      },
+      "currentAuthority": {
+        "scope": "Global public forecast catalog: tool and HTTP intentionally discard clientId instead of manufacturing a client match.",
+        "citations": [
+          "s156",
+          "s157",
+          "s158"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s172",
+          "description": "Current operation dispatch/bounds/scoping contract",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s160",
+          "description": "Reviewed identity rail exclusivity; not a retained current-authority receipt",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "The proxy owns these five tool operations; they do not dispatch through the private legacy registry in MeriToolsService. Reuse FederalSpendingModule services rather than importing a duplicate obsolete implementation.",
+        "Do not add client matching or narrow global forecasts based on conversation client."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    },
+    {
+      "operation": "get_district_federal_market",
+      "family": "federal-market",
+      "ledgerState": "adapter-missing",
+      "ledgerRequiredContextKeys": [],
+      "nativeToolTransport": "common.nativeToolTransport",
+      "dispatch": [
+        "s147",
+        "s173"
+      ],
+      "producer": {
+        "symbol": "FederalMarketGeographyService.geography",
+        "citations": [
+          "s174",
+          "s175"
+        ]
+      },
+      "nativeBusinessRoute": {
+        "method": "GET",
+        "path": "/api/federal-spending/market/geography",
+        "citations": [
+          "s150"
+        ]
+      },
+      "input": {
+        "required": [
+          "state",
+          "district"
+        ],
+        "optional": [
+          "clientId",
+          "agency"
+        ],
+        "validation": "Tool objectInput/trim helpers; strict page/limit/fiscal-year/state/district checks, vehicle fiscalYear explicitly rejected. Generic unknown fields are not rejected. Native HTTP query DTO has different q/pageSize/max100 vocabulary.",
+        "citations": [
+          "s151",
+          "s152",
+          "s153"
+        ]
+      },
+      "dto": {
+        "shape": "FederalMarketGeographyResponse + tool/generatedAt",
+        "citations": [
+          "s154",
+          "s176",
+          "s173"
+        ],
+        "note": "Independent warnings/availability preserve failed versus empty rails; future opportunities never contribute awarded dollars."
+      },
+      "currentAuthority": {
+        "scope": "Optional Core client scope uses current tenant active nonarchived client and confirmed reviewed rollUpAwards mappings/UEI/name identity rails; absent client is global public catalog.",
+        "citations": [
+          "s156",
+          "s157",
+          "s158"
+        ]
+      },
+      "requiredContext": [],
+      "existingTests": [
+        {
+          "citation": "s177",
+          "description": "Current operation dispatch/bounds/scoping contract",
+          "execution": "not-run; inspected existing source only"
+        },
+        {
+          "citation": "s160",
+          "description": "Reviewed identity rail exclusivity; not a retained current-authority receipt",
+          "execution": "not-run; inspected existing source only"
+        }
+      ],
+      "gaps": [
+        "The proxy owns these five tool operations; they do not dispatch through the private legacy registry in MeriToolsService. Reuse FederalSpendingModule services rather than importing a duplicate obsolete implementation.",
+        "Market clientScope takes tenantId/clientId, not actorId; VISIBLE_CLIENT_FILTER checks nonarchived/ACTIVE, and the body does not query clientMemoryAccess. Do not label this a verified per-actor ethical-wall decision. Coordinate the retained current client-authority boundary without silently changing native market policy.",
+        "Future-signal ranking/date derivation has current-clock dependencies in its canonical composer/helpers. No injected retained asOf context contract was established for this operation."
+      ],
+      "commonGapReference": "common.adapterMissingGaps",
+      "readExecution": "Stored catalog/DB read; no live provider HTTP established in this path"
+    }
+  ],
+  "limits": {
+    "productionEdits": false,
+    "frontendEdits": false,
+    "testExecution": false,
+    "heavyProcesses": false,
+    "networkProviderDatabaseCalls": false,
+    "sourceReadOnly": true,
+    "dtoMeaning": "Current producer output descriptions and types, not a proposed closed wire; unknown/optional/inherited/native date types are not silently narrowed."
+  },
+  "priorityInventory": [
+    {
+      "tier": 1,
+      "operations": [
+        "search_lda_filings",
+        "search_sec_filings",
+        "search_fara_registrations",
+        "query_economic_data"
+      ],
+      "reason": "Stored global facts; LDA has standalone producer. Private presenter/closed-input seams still need allocation. generatedAt is not source currency."
+    },
+    {
+      "tier": 2,
+      "operations": [
+        "search_federal_awards",
+        "query_global_data"
+      ],
+      "reason": "Standalone global market/allowlisted analytics readers; preserve rollout-date mode, defaultAsOf and analytics audit write."
+    },
+    {
+      "tier": 3,
+      "operations": [
+        "search_federal_contract_awards",
+        "search_federal_subawards",
+        "search_contract_vehicles",
+        "search_procurement_forecasts",
+        "get_district_federal_market",
+        "lookup_client_registry"
+      ],
+      "reason": "Optional private client/identity facts need agreed current actor-wall boundary. Forecasts intentionally remain global."
+    },
+    {
+      "tier": 4,
+      "operations": [
+        "search_sam_opportunities",
+        "search_funding_opportunities",
+        "get_funding_opportunity_requirements",
+        "get_funding_opportunity",
+        "get_opportunity_client_context",
+        "get_opportunity_government_landscape"
+      ],
+      "reason": "Local stored readers, not live provider calls here. Feature/source/wall/matching, tenant document reviews and multiple current clocks make capture more coupled."
+    },
+    {
+      "tier": 5,
+      "operations": [
+        "get_certification_status"
+      ],
+      "reason": "Live public FedRAMP fetch, completeness/provenance, retry/timeout and locale matching need separate bounded provider/locale capture. No fetch performed."
+    }
+  ],
+  "sourceVerification": {
+    "method": "git show/grep immutable ref; one git cat-file batch verifies target blobs and citation line bounds",
+    "sourceFiles": {
+      "apps/api/src/bootstrap/configure-api-http-app.ts": {
+        "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+        "lineCount": 191
+      },
+      "apps/api/src/app.module.ts": {
+        "gitBlob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+        "lineCount": 186
+      },
+      "apps/api/src/tenant/tenant-context.middleware.ts": {
+        "gitBlob": "e21dfb6f5f9e473b6fda7ebe35a6e07006a46c42",
+        "lineCount": 685
+      },
+      "apps/api/src/meri/meri.controller.ts": {
+        "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+        "lineCount": 1372
+      },
+      "apps/api/src/meri/tool-service-secret.guard.ts": {
+        "gitBlob": "0c51c7a5da122fcff2f2b5c4cef8b9c92765c35c",
+        "lineCount": 65
+      },
+      "apps/api/src/meri/meri-tools.service.ts": {
+        "gitBlob": "32a7a744ba9ab812337baaf6093a37540864333b",
+        "lineCount": 10424
+      },
+      "apps/api/src/meri/meri.service.ts": {
+        "gitBlob": "8878d515849c36ce037a9fc8591e46bbb06e65b2",
+        "lineCount": 6899
+      },
+      "packages/shared/src/core-retained-principal.ts": {
+        "gitBlob": "d6d634b20d09520b870c653a9930f7b5a186c9d6",
+        "lineCount": 287
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-v2-search.sql.ts": {
+        "gitBlob": "2f902b103d9bf533e1dd98070513c7b2b735830c",
+        "lineCount": 728
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts": {
+        "gitBlob": "58f26631019a716b01894829a192b910b65db566",
+        "lineCount": 362
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-v2-detail.service.ts": {
+        "gitBlob": "d13173ebb65f5bcb3d147e9aef8382757130b9ae",
+        "lineCount": 395
+      },
+      "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts": {
+        "gitBlob": "ce2ec030bbadc55e102d9fb54384b1c592c4ff5f",
+        "lineCount": 1276
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-access.ts": {
+        "gitBlob": "7c0c09cd467d6a4eb7d24ae8f3b3c06f6da78e5f",
+        "lineCount": 39
+      },
+      "apps/api/src/external/fedramp/fedramp.client.ts": {
+        "gitBlob": "9e4fa28f86eead98d14c8b4f4458d8ac94a55098",
+        "lineCount": 124
+      },
+      "apps/api/src/meri/meri-certification-status-tool.spec.ts": {
+        "gitBlob": "f125d2f3c61f64637291b267dfb184c70c07b34b",
+        "lineCount": 65
+      },
+      "apps/api/src/external/fedramp/fedramp.client.spec.ts": {
+        "gitBlob": "8da723f21fc59e8262912b13fb053621d80bf688",
+        "lineCount": 70
+      },
+      "apps/api/src/lda-intel/lda-intel.service.ts": {
+        "gitBlob": "aa3948d594a1d422994ee64381c7bd476637e364",
+        "lineCount": 792
+      },
+      "apps/api/src/lda-intel/lda-intel.controller.ts": {
+        "gitBlob": "f38f806bb78ca867c01cc1d29c7b06f34125d555",
+        "lineCount": 325
+      },
+      "apps/api/src/meri/meri-tools.registration.spec.ts": {
+        "gitBlob": "4e79ee826a4d39d3b4e4c684a20ee29cc5ceae60",
+        "lineCount": 1042
+      },
+      "apps/api/src/meri/analytics/query-spec-compiler.ts": {
+        "gitBlob": "09f725aafc574122a5e3c1472172b428ce8f7990",
+        "lineCount": 457
+      },
+      "apps/api/src/meri/analytics/analytics-db.service.ts": {
+        "gitBlob": "9837cc5bcbc3c6bdb716c762243bd02758a5e5e5",
+        "lineCount": 125
+      },
+      "apps/api/src/meri/analytics/global-dataset-registry.ts": {
+        "gitBlob": "806b994acd7b368bc5f686d786a39f1f7e0cd556",
+        "lineCount": 346
+      },
+      "apps/api/src/meri/analytics/query-spec-compiler.spec.ts": {
+        "gitBlob": "524a5833bae8d4e3de4f3d35859f3224cd86d8e3",
+        "lineCount": 257
+      },
+      "apps/api/src/meri/analytics/analytics-db.service.spec.ts": {
+        "gitBlob": "576ece9a017df85e3a67e01fe7c957d1ccc5770c",
+        "lineCount": 84
+      },
+      "apps/api/src/common/meri-evidence-accuracy-flags.ts": {
+        "gitBlob": "85da1c54f1ea81e505bed6e97ca9ac697234b8cb",
+        "lineCount": 33
+      },
+      "apps/api/src/meri/meri-tools.federal-grants-deadline.spec.ts": {
+        "gitBlob": "b1bf4839e785d85d1bdf70c91e9706c4106e76ee",
+        "lineCount": 57
+      },
+      "apps/api/src/federal-spending/federal-market.service.ts": {
+        "gitBlob": "b3cdb456644eda3ff7e318f2c883931a27a29000",
+        "lineCount": 954
+      },
+      "apps/api/src/meri/meri-tools.award-compatibility.spec.ts": {
+        "gitBlob": "07833534a1f70806141be8f945c3fb5c76d012bc",
+        "lineCount": 205
+      },
+      "apps/api/src/program-element/program-element-read.service.ts": {
+        "gitBlob": "8e0dad9d17be67d5d73ae32a791ecbf94fe9bc9c",
+        "lineCount": 2817
+      },
+      "packages/shared/src/funding-opportunities-v2.ts": {
+        "gitBlob": "5bb5d2a100fe0e312092e0b69c65314abfe8ffa4",
+        "lineCount": 465
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-source-access.ts": {
+        "gitBlob": "606cfacb3874ce0b5d2b3cb6593f85077fb6b3da",
+        "lineCount": 51
+      },
+      "apps/api/src/meri/meri-tools.firmdata.spec.ts": {
+        "gitBlob": "cb845b2c9111a86af7c787fb28a59ea3f9e91666",
+        "lineCount": 2264
+      },
+      "apps/api/src/meri/meri-tools.create-client.spec.ts": {
+        "gitBlob": "2e69bb733da25a7864703f08aaead809d18396d9",
+        "lineCount": 244
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-v2-search.controller.ts": {
+        "gitBlob": "6fa675aee765664867a2805ddd74782cf3c33220",
+        "lineCount": 37
+      },
+      "apps/api/src/funding-opportunities/meri-opportunity-tools.spec.ts": {
+        "gitBlob": "570afaa0082bff88711226eeddaceb5ada4d569a",
+        "lineCount": 1261
+      },
+      "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.deadlines.spec.ts": {
+        "gitBlob": "686fa0c5547458ddba02225177392d01be726661",
+        "lineCount": 75
+      },
+      "apps/api/src/funding-opportunities/funding-opportunities.controller.ts": {
+        "gitBlob": "0e830a524c6d3cc4fde84ed5b9c5e1b0f9094357",
+        "lineCount": 691
+      },
+      "apps/api/src/funding-opportunities/requirements/opportunity-requirement.service.ts": {
+        "gitBlob": "5d049d2d89a974fa805752ac54e6bd4a1250c44d",
+        "lineCount": 357
+      },
+      "apps/api/src/funding-opportunities/funding-opportunity-v2-detail.controller.ts": {
+        "gitBlob": "d12d96df7e94749027bd3770d4df77324fa9788a",
+        "lineCount": 69
+      },
+      "apps/api/src/meri/governed-meri-tools.proxy.ts": {
+        "gitBlob": "88c7c163a62959ea3b631b2116e3db3f8cca3e1b",
+        "lineCount": 205
+      },
+      "apps/api/src/federal-spending/federal-market-meri-tools.service.ts": {
+        "gitBlob": "7c5b09c86ca519996d63cecb8c95d7b54bad5c6b",
+        "lineCount": 274
+      },
+      "apps/api/src/federal-spending/federal-market.controller.ts": {
+        "gitBlob": "92a3c0ffad394e9b69c62330eda01c0f168495f4",
+        "lineCount": 127
+      },
+      "apps/api/src/federal-spending/federal-market.types.ts": {
+        "gitBlob": "33a7e55c09cc5c524bea85fc85eb749883279c18",
+        "lineCount": 174
+      },
+      "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts": {
+        "gitBlob": "4b1bc884418b893f0cb909bd28176c510de63804",
+        "lineCount": 305
+      },
+      "apps/api/src/federal-spending/federal-market.service.spec.ts": {
+        "gitBlob": "dd86a1050f013ff267564c9991820782ad03cb57",
+        "lineCount": 348
+      },
+      "apps/api/src/federal-spending/federal-market-geography.service.ts": {
+        "gitBlob": "88cc4e7ac4264d7d0d40f2878c7c01a1a8ec6a5c",
+        "lineCount": 209
+      }
+    }
+  },
+  "citationFormat": "Citation IDs resolve to exact immutable path/line/source link in citationCatalog. Producer DTO inventory is not a proposed receiving schema.",
+  "citationCatalog": {
+    "s001": {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "line": 81,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/bootstrap/configure-api-http-app.ts#L81"
+    },
+    "s002": {
+      "path": "apps/api/src/app.module.ts",
+      "line": 150,
+      "endLine": 153,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/app.module.ts#L150-L153"
+    },
+    "s003": {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "line": 419,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/tenant/tenant-context.middleware.ts#L419"
+    },
+    "s004": {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "line": 310,
+      "endLine": 312,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts#L310-L312"
+    },
+    "s005": {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "line": 510,
+      "endLine": 554,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.controller.ts#L510-L554"
+    },
+    "s006": {
+      "path": "apps/api/src/meri/tool-service-secret.guard.ts",
+      "line": 26,
+      "endLine": 61,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/tool-service-secret.guard.ts#L26-L61"
+    },
+    "s007": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2467,
+      "endLine": 2478,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2467-L2478"
+    },
+    "s008": {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "line": 2045,
+      "endLine": 2087,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri.service.ts#L2045-L2087"
+    },
+    "s009": {
+      "path": "packages/shared/src/core-retained-principal.ts",
+      "line": 16,
+      "endLine": 18,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/core-retained-principal.ts#L16-L18"
+    },
+    "s010": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.sql.ts",
+      "line": 378,
+      "endLine": 423,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-search.sql.ts#L378-L423"
+    },
+    "s011": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.sql.ts",
+      "line": 725,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-search.sql.ts#L725"
+    },
+    "s012": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts",
+      "line": 246,
+      "endLine": 264,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts#L246-L264"
+    },
+    "s013": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-detail.service.ts",
+      "line": 183,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-detail.service.ts#L183"
+    },
+    "s014": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 228,
+      "endLine": 296,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L228-L296"
+    },
+    "s015": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-access.ts",
+      "line": 21,
+      "endLine": 37,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-access.ts#L21-L37"
+    },
+    "s016": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts",
+      "line": 191,
+      "endLine": 205,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts#L191-L205"
+    },
+    "s017": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-detail.service.ts",
+      "line": 126,
+      "endLine": 154,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-detail.service.ts#L126-L154"
+    },
+    "s018": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2645,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2645"
+    },
+    "s019": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 3774,
+      "endLine": 3825,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3774-L3825"
+    },
+    "s020": {
+      "path": "apps/api/src/external/fedramp/fedramp.client.ts",
+      "line": 111,
+      "endLine": 122,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/external/fedramp/fedramp.client.ts#L111-L122"
+    },
+    "s021": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1173,
+      "endLine": 1179,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1173-L1179"
+    },
+    "s022": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 3774,
+      "endLine": 3778,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3774-L3778"
+    },
+    "s023": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 3788,
+      "endLine": 3825,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3788-L3825"
+    },
+    "s024": {
+      "path": "apps/api/src/external/fedramp/fedramp.client.ts",
+      "line": 12,
+      "endLine": 22,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/external/fedramp/fedramp.client.ts#L12-L22"
+    },
+    "s025": {
+      "path": "apps/api/src/external/fedramp/fedramp.client.ts",
+      "line": 55,
+      "endLine": 89,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/external/fedramp/fedramp.client.ts#L55-L89"
+    },
+    "s026": {
+      "path": "apps/api/src/external/fedramp/fedramp.client.ts",
+      "line": 93,
+      "endLine": 122,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/external/fedramp/fedramp.client.ts#L93-L122"
+    },
+    "s027": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 3778,
+      "endLine": 3786,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L3778-L3786"
+    },
+    "s028": {
+      "path": "apps/api/src/meri/meri-certification-status-tool.spec.ts",
+      "line": 31,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-certification-status-tool.spec.ts#L31"
+    },
+    "s029": {
+      "path": "apps/api/src/external/fedramp/fedramp.client.spec.ts",
+      "line": 44,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/external/fedramp/fedramp.client.spec.ts#L44"
+    },
+    "s030": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2649,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2649"
+    },
+    "s031": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4662,
+      "endLine": 4686,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4662-L4686"
+    },
+    "s032": {
+      "path": "apps/api/src/lda-intel/lda-intel.service.ts",
+      "line": 152,
+      "endLine": 199,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.service.ts#L152-L199"
+    },
+    "s033": {
+      "path": "apps/api/src/lda-intel/lda-intel.controller.ts",
+      "line": 183,
+      "endLine": 204,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.controller.ts#L183-L204"
+    },
+    "s034": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1204,
+      "endLine": 1211,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1204-L1211"
+    },
+    "s035": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4662,
+      "endLine": 4671,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4662-L4671"
+    },
+    "s036": {
+      "path": "apps/api/src/lda-intel/lda-intel.service.ts",
+      "line": 152,
+      "endLine": 163,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.service.ts#L152-L163"
+    },
+    "s037": {
+      "path": "apps/api/src/lda-intel/lda-intel.service.ts",
+      "line": 171,
+      "endLine": 199,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.service.ts#L171-L199"
+    },
+    "s038": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4682,
+      "endLine": 4686,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4682-L4686"
+    },
+    "s039": {
+      "path": "apps/api/src/lda-intel/lda-intel.service.ts",
+      "line": 157,
+      "endLine": 187,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/lda-intel/lda-intel.service.ts#L157-L187"
+    },
+    "s040": {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "line": 151,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts#L151"
+    },
+    "s041": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2651,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2651"
+    },
+    "s042": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4703,
+      "endLine": 4754,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4703-L4754"
+    },
+    "s043": {
+      "path": "apps/api/src/meri/analytics/query-spec-compiler.ts",
+      "line": 194,
+      "endLine": 305,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/query-spec-compiler.ts#L194-L305"
+    },
+    "s044": {
+      "path": "apps/api/src/meri/analytics/analytics-db.service.ts",
+      "line": 105,
+      "endLine": 122,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/analytics-db.service.ts#L105-L122"
+    },
+    "s045": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1213,
+      "endLine": 1265,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1213-L1265"
+    },
+    "s046": {
+      "path": "apps/api/src/meri/analytics/query-spec-compiler.ts",
+      "line": 264,
+      "endLine": 305,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/query-spec-compiler.ts#L264-L305"
+    },
+    "s047": {
+      "path": "apps/api/src/meri/analytics/query-spec-compiler.ts",
+      "line": 443,
+      "endLine": 450,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/query-spec-compiler.ts#L443-L450"
+    },
+    "s048": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4710,
+      "endLine": 4753,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4710-L4753"
+    },
+    "s049": {
+      "path": "apps/api/src/meri/analytics/global-dataset-registry.ts",
+      "line": 1,
+      "endLine": 15,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/global-dataset-registry.ts#L1-L15"
+    },
+    "s050": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4757,
+      "endLine": 4784,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4757-L4784"
+    },
+    "s051": {
+      "path": "apps/api/src/meri/analytics/query-spec-compiler.ts",
+      "line": 287,
+      "endLine": 305,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/query-spec-compiler.ts#L287-L305"
+    },
+    "s052": {
+      "path": "apps/api/src/meri/analytics/query-spec-compiler.spec.ts",
+      "line": 4,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/query-spec-compiler.spec.ts#L4"
+    },
+    "s053": {
+      "path": "apps/api/src/meri/analytics/query-spec-compiler.spec.ts",
+      "line": 66,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/query-spec-compiler.spec.ts#L66"
+    },
+    "s054": {
+      "path": "apps/api/src/meri/analytics/analytics-db.service.spec.ts",
+      "line": 1,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/analytics/analytics-db.service.spec.ts#L1"
+    },
+    "s055": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2652,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2652"
+    },
+    "s056": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4789,
+      "endLine": 4825,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4789-L4825"
+    },
+    "s057": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1266,
+      "endLine": 1271,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1266-L1271"
+    },
+    "s058": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4789,
+      "endLine": 4797,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4789-L4797"
+    },
+    "s059": {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "line": 157,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts#L157"
+    },
+    "s060": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2653,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2653"
+    },
+    "s061": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4828,
+      "endLine": 4876,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4828-L4876"
+    },
+    "s062": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1272,
+      "endLine": 1279,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1272-L1279"
+    },
+    "s063": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4828,
+      "endLine": 4836,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4828-L4836"
+    },
+    "s064": {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "line": 158,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts#L158"
+    },
+    "s065": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2654,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2654"
+    },
+    "s066": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 5280,
+      "endLine": 5365,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5280-L5365"
+    },
+    "s067": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1280,
+      "endLine": 1285,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1280-L1285"
+    },
+    "s068": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 5280,
+      "endLine": 5295,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5280-L5295"
+    },
+    "s069": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 5325,
+      "endLine": 5365,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5325-L5365"
+    },
+    "s070": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 5297,
+      "endLine": 5318,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5297-L5318"
+    },
+    "s071": {
+      "path": "apps/api/src/common/meri-evidence-accuracy-flags.ts",
+      "line": 13,
+      "endLine": 19,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/common/meri-evidence-accuracy-flags.ts#L13-L19"
+    },
+    "s072": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 5318,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L5318"
+    },
+    "s073": {
+      "path": "apps/api/src/meri/meri-tools.federal-grants-deadline.spec.ts",
+      "line": 41,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.federal-grants-deadline.spec.ts#L41"
+    },
+    "s074": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2655,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2655"
+    },
+    "s075": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4879,
+      "endLine": 4947,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4879-L4947"
+    },
+    "s076": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 153,
+      "endLine": 182,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L153-L182"
+    },
+    "s077": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1286,
+      "endLine": 1292,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1286-L1292"
+    },
+    "s078": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4879,
+      "endLine": 4901,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4879-L4901"
+    },
+    "s079": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4914,
+      "endLine": 4947,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4914-L4947"
+    },
+    "s080": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 4905,
+      "endLine": 4945,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L4905-L4945"
+    },
+    "s081": {
+      "path": "apps/api/src/meri/meri-tools.award-compatibility.spec.ts",
+      "line": 134,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.award-compatibility.spec.ts#L134"
+    },
+    "s082": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2668,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2668"
+    },
+    "s083": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6411,
+      "endLine": 6536,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6411-L6536"
+    },
+    "s084": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1394,
+      "endLine": 1399,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1394-L1399"
+    },
+    "s085": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6431,
+      "endLine": 6449,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6431-L6449"
+    },
+    "s086": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6478,
+      "endLine": 6493,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6478-L6493"
+    },
+    "s087": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6515,
+      "endLine": 6535,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6515-L6535"
+    },
+    "s088": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6423,
+      "endLine": 6429,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6423-L6429"
+    },
+    "s089": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6465,
+      "endLine": 6476,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6465-L6476"
+    },
+    "s090": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 6507,
+      "endLine": 6513,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L6507-L6513"
+    },
+    "s091": {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "line": 175,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.registration.spec.ts#L175"
+    },
+    "s092": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2737,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2737"
+    },
+    "s093": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8450,
+      "endLine": 8529,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8450-L8529"
+    },
+    "s094": {
+      "path": "apps/api/src/program-element/program-element-read.service.ts",
+      "line": 2686,
+      "endLine": 2732,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L2686-L2732"
+    },
+    "s095": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 204,
+      "endLine": 215,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L204-L215"
+    },
+    "s096": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1782,
+      "endLine": 1790,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1782-L1790"
+    },
+    "s097": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8450,
+      "endLine": 8461,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8450-L8461"
+    },
+    "s098": {
+      "path": "apps/api/src/program-element/program-element-read.service.ts",
+      "line": 2712,
+      "endLine": 2732,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/program-element/program-element-read.service.ts#L2712-L2732"
+    },
+    "s099": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8494,
+      "endLine": 8529,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8494-L8529"
+    },
+    "s100": {
+      "path": "packages/shared/src/funding-opportunities-v2.ts",
+      "line": 151,
+      "endLine": 175,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/packages/shared/src/funding-opportunities-v2.ts#L151-L175"
+    },
+    "s101": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8463,
+      "endLine": 8507,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8463-L8507"
+    },
+    "s102": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts",
+      "line": 251,
+      "endLine": 264,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-search.service.ts#L251-L264"
+    },
+    "s103": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-source-access.ts",
+      "line": 11,
+      "endLine": 39,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-source-access.ts#L11-L39"
+    },
+    "s104": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8492,
+      "endLine": 8523,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8492-L8523"
+    },
+    "s105": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8493,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8493"
+    },
+    "s106": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8470,
+      "endLine": 8483,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8470-L8483"
+    },
+    "s107": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 205,
+      "endLine": 215,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L205-L215"
+    },
+    "s108": {
+      "path": "apps/api/src/meri/meri-tools.firmdata.spec.ts",
+      "line": 877,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.firmdata.spec.ts#L877"
+    },
+    "s109": {
+      "path": "apps/api/src/meri/meri-tools.firmdata.spec.ts",
+      "line": 998,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.firmdata.spec.ts#L998"
+    },
+    "s110": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2742,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2742"
+    },
+    "s111": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8970,
+      "endLine": 9018,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8970-L9018"
+    },
+    "s112": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 1877,
+      "endLine": 1882,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L1877-L1882"
+    },
+    "s113": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8970,
+      "endLine": 8995,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8970-L8995"
+    },
+    "s114": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8972,
+      "endLine": 9018,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8972-L9018"
+    },
+    "s115": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 8972,
+      "endLine": 8995,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L8972-L8995"
+    },
+    "s116": {
+      "path": "apps/api/src/meri/meri-tools.create-client.spec.ts",
+      "line": 81,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.create-client.spec.ts#L81"
+    },
+    "s117": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2747,
+      "endLine": 2755,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2747-L2755"
+    },
+    "s118": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 302,
+      "endLine": 381,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L302-L381"
+    },
+    "s119": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 838,
+      "endLine": 852,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L838-L852"
+    },
+    "s120": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.controller.ts",
+      "line": 12,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-search.controller.ts#L12"
+    },
+    "s121": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2039,
+      "endLine": 2049,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2039-L2049"
+    },
+    "s122": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 122,
+      "endLine": 145,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L122-L145"
+    },
+    "s123": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 939,
+      "endLine": 954,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L939-L954"
+    },
+    "s124": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.spec.ts",
+      "line": 365,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.spec.ts#L365"
+    },
+    "s125": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.spec.ts",
+      "line": 590,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.spec.ts#L590"
+    },
+    "s126": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.deadlines.spec.ts",
+      "line": 40,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.deadlines.spec.ts#L40"
+    },
+    "s127": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2757,
+      "endLine": 2764,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2757-L2764"
+    },
+    "s128": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 384,
+      "endLine": 452,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L384-L452"
+    },
+    "s129": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunities.controller.ts",
+      "line": 374,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunities.controller.ts#L374"
+    },
+    "s130": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2050,
+      "endLine": 2059,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2050-L2059"
+    },
+    "s131": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 132,
+      "endLine": 145,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L132-L145"
+    },
+    "s132": {
+      "path": "apps/api/src/funding-opportunities/requirements/opportunity-requirement.service.ts",
+      "line": 41,
+      "endLine": 73,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/requirements/opportunity-requirement.service.ts#L41-L73"
+    },
+    "s133": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2766,
+      "endLine": 2773,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2766-L2773"
+    },
+    "s134": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 455,
+      "endLine": 496,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L455-L496"
+    },
+    "s135": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-detail.controller.ts",
+      "line": 39,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunity-v2-detail.controller.ts#L39"
+    },
+    "s136": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2060,
+      "endLine": 2071,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2060-L2071"
+    },
+    "s137": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 858,
+      "endLine": 936,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L858-L936"
+    },
+    "s138": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2782,
+      "endLine": 2785,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2782-L2785"
+    },
+    "s139": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 559,
+      "endLine": 620,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L559-L620"
+    },
+    "s140": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2080,
+      "endLine": 2080,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2080-L2080"
+    },
+    "s141": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 979,
+      "endLine": 989,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L979-L989"
+    },
+    "s142": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2787,
+      "endLine": 2792,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2787-L2792"
+    },
+    "s143": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 625,
+      "endLine": 689,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L625-L689"
+    },
+    "s144": {
+      "path": "apps/api/src/funding-opportunities/funding-opportunities.controller.ts",
+      "line": 398,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/funding-opportunities.controller.ts#L398"
+    },
+    "s145": {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "line": 2081,
+      "endLine": 2088,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/meri-tools.service.ts#L2081-L2088"
+    },
+    "s146": {
+      "path": "apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts",
+      "line": 991,
+      "endLine": 996,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts#L991-L996"
+    },
+    "s147": {
+      "path": "apps/api/src/meri/governed-meri-tools.proxy.ts",
+      "line": 175,
+      "endLine": 198,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/meri/governed-meri-tools.proxy.ts#L175-L198"
+    },
+    "s148": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 215,
+      "endLine": 234,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L215-L234"
+    },
+    "s149": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 185,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L185"
+    },
+    "s150": {
+      "path": "apps/api/src/federal-spending/federal-market.controller.ts",
+      "line": 89,
+      "endLine": 126,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.controller.ts#L89-L126"
+    },
+    "s151": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 22,
+      "endLine": 99,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L22-L99"
+    },
+    "s152": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 101,
+      "endLine": 185,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L101-L185"
+    },
+    "s153": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 207,
+      "endLine": 213,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L207-L213"
+    },
+    "s154": {
+      "path": "apps/api/src/federal-spending/federal-market.types.ts",
+      "line": 24,
+      "endLine": 32,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.types.ts#L24-L32"
+    },
+    "s155": {
+      "path": "apps/api/src/federal-spending/federal-market.types.ts",
+      "line": 34,
+      "endLine": 53,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.types.ts#L34-L53"
+    },
+    "s156": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 31,
+      "endLine": 32,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L31-L32"
+    },
+    "s157": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 604,
+      "endLine": 650,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L604-L650"
+    },
+    "s158": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 249,
+      "endLine": 259,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L249-L259"
+    },
+    "s159": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+      "line": 193,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts#L193"
+    },
+    "s160": {
+      "path": "apps/api/src/federal-spending/federal-market.service.spec.ts",
+      "line": 201,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.spec.ts#L201"
+    },
+    "s161": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 235,
+      "endLine": 241,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L235-L241"
+    },
+    "s162": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 267,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L267"
+    },
+    "s163": {
+      "path": "apps/api/src/federal-spending/federal-market.types.ts",
+      "line": 55,
+      "endLine": 76,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.types.ts#L55-L76"
+    },
+    "s164": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+      "line": 182,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts#L182"
+    },
+    "s165": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 242,
+      "endLine": 248,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L242-L248"
+    },
+    "s166": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 348,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L348"
+    },
+    "s167": {
+      "path": "apps/api/src/federal-spending/federal-market.types.ts",
+      "line": 78,
+      "endLine": 96,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.types.ts#L78-L96"
+    },
+    "s168": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 348,
+      "endLine": 379,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L348-L379"
+    },
+    "s169": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+      "line": 48,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts#L48"
+    },
+    "s170": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 456,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L456"
+    },
+    "s171": {
+      "path": "apps/api/src/federal-spending/federal-market.types.ts",
+      "line": 98,
+      "endLine": 122,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.types.ts#L98-L122"
+    },
+    "s172": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+      "line": 217,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts#L217"
+    },
+    "s173": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+      "line": 260,
+      "endLine": 268,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.ts#L260-L268"
+    },
+    "s174": {
+      "path": "apps/api/src/federal-spending/federal-market.service.ts",
+      "line": 549,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.service.ts#L549"
+    },
+    "s175": {
+      "path": "apps/api/src/federal-spending/federal-market-geography.service.ts",
+      "line": 54,
+      "endLine": 145,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-geography.service.ts#L54-L145"
+    },
+    "s176": {
+      "path": "apps/api/src/federal-spending/federal-market.types.ts",
+      "line": 157,
+      "endLine": 173,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market.types.ts#L157-L173"
+    },
+    "s177": {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+      "line": 270,
+      "url": "https://github.com/neo-capiro/capiro-backend/blob/b525032222515d636b0dae2d46e40c7c3d8b5528/apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts#L270"
+    }
+  }
+}

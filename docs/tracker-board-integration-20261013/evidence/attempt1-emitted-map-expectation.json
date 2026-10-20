@@ -1,0 +1,8 @@
+{
+  "observation": "Second static verifier passed literal ordered DI assertions, then asserted absence of every .map and failed; the derived sourceMap:false suppresses JS debug maps only. Existing declarationMap remains inherited and emits .d.ts.map metadata.",
+  "correction": "Keep actual build configuration and generated files unchanged; inventory declaration-map names/sizes without body inspection; assert no JS source maps only.",
+  "verifierExit": 1,
+  "buildExit": 0,
+  "productionMapsQualified": false,
+  "nativeABIQualified": false
+}

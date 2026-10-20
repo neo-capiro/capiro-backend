@@ -1,0 +1,29 @@
+{
+  "verdict": "ACCEPT_AUTHORIZED_DRAFT_PUBLICATION",
+  "packetHead": "0e35baeb687b24ffc7d261ac259be0da0e1f1637",
+  "packetTree": "eb5a751594a57ad880faa73a276e449928379b05",
+  "sourceHead": "35ab679e64c19921e09251ba6913d4122d8d85ac",
+  "sourceTree": "63d9d1713b2f2282ae0a401c772fd9850a559508",
+  "basePublishedPR14": "a6d4ee9d5029994925d20815b3dae0f1e7b410e3",
+  "findings": [],
+  "verifiedPacket": {
+    "payloadCount": 15,
+    "payloadBytes": 40633,
+    "sha256IndexSha256": "a32e1563e953f3c5abd2878cebf574a56b93797e9dc091435744ed242967d724",
+    "closedManifest": true,
+    "allManifestHashesAndSizesMatch": true,
+    "allWorktreePayloadBytesMatchCommittedPacket": true,
+    "fourIndependentReviewCopiesExact": true,
+    "handoffExactReviewedBytes": true,
+    "trackedWorktreeClean": true,
+    "acceptedSourceBlobUnchanged": "a17e94efba349979236ed1dbada4be4c17cf8f02",
+    "publishedEngagementMetadataUnchanged": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+  },
+  "followupAllowed": "Append these exact final review records, a truthful publication summary, and derived manifest only; no production/source/check evidence changes. Such append does not require checks rerun.",
+  "scope": "Dead import cleanup only; accepted existing shared ownership, Files/Calendar recommendations with choices pending, and prepared native steps.",
+  "limits": [
+    "No independent compiler/test rerun. Manifest and Git byte/metadata comparisons are read-only packet verification.",
+    "No source/ref edit, protected unpublished Engagement read/hydration, native Prisma/Postgres/RLS, database/schema/AWS, live HTTP/provider, privilege/credential or deployment operation.",
+    "No full Core/native/runtime retirement or deployed acceptance. Source-map fingerprints differ; emitted JavaScript equivalence remains the recorded bounded check."
+  ]
+}

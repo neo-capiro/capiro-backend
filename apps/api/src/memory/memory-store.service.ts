@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -22,8 +23,9 @@ import {
 } from './memory-wall.helpers.js';
 import { evaluateMemoryMutation } from './memory-mutation-auth.js';
 import {
-  governedRecallSuppressionEnabled,
-  governedRecallSuppressionSql,
+  currentMemoryReadSql,
+  currentMemoryReadSqlInTx,
+  governedRecallColumnsAvailableInTx,
 } from './memory-recall-suppression.helpers.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 import {
@@ -183,6 +185,7 @@ export class MemoryStoreService {
       // Ethical wall: items of walled clients this user is not granted are
       // excluded (fail-closed; empty denied set appends no SQL).
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      const currentMemorySql = await currentMemoryReadSqlInTx(tx);
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
@@ -190,14 +193,14 @@ export class MemoryStoreService {
           ${filter?.type ? Prisma.sql`AND type = ${filter.type}` : Prisma.empty}
           -- private items are visible only to their owner (app-level filter,
           -- kept as defense-in-depth alongside the 1C DB-level RLS predicate)
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND ((visibility = 'tenant' AND owner_user_id IS NULL)
+               OR (visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid))
           -- a forgotten item stops recall immediately (1D)
           AND status != 'revoked'
           -- G2 ephemeral: expired working memory never reaches recall
           AND (expires_at IS NULL OR expires_at > now())
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
-          -- Phase 3 governed suppression (dark by default; empty string when off)
-          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
+          ${Prisma.raw(currentMemorySql)}
         ORDER BY type, slug
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -218,10 +221,12 @@ export class MemoryStoreService {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       // Ethical wall (fail-closed) — same exclusion as listForCurrentTenant.
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      const currentMemorySql = await currentMemoryReadSqlInTx(tx);
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND ((visibility = 'tenant' AND owner_user_id IS NULL)
+               OR (visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid))
           AND status = 'active'
           AND (expires_at IS NULL OR expires_at > now())
           AND review_cadence_days IS NOT NULL
@@ -229,7 +234,7 @@ export class MemoryStoreService {
           AND COALESCE(last_confirmed_at, created_at)
               + (review_cadence_days * INTERVAL '1 day') < now()
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
-          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
+          ${Prisma.raw(currentMemorySql)}
         ORDER BY COALESCE(last_confirmed_at, created_at) ASC
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -273,14 +278,16 @@ export class MemoryStoreService {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       // Ethical wall (fail-closed): a walled client's item reads as absent.
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      const currentMemorySql = await currentMemoryReadSqlInTx(tx);
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${type} AND slug = ${slug}
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND ((visibility = 'tenant' AND owner_user_id IS NULL)
+               OR (visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid))
           AND status != 'revoked'
           AND (expires_at IS NULL OR expires_at > now())
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
-          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
+          ${Prisma.raw(currentMemorySql)}
         LIMIT 1
       `;
       const row = rows[0];
@@ -308,6 +315,7 @@ export class MemoryStoreService {
       // Ethical wall: a walled client's items — and every wikilink edge rooted
       // at them — are excluded from this user's graph inputs (fail-closed).
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      const currentMemorySql = await currentMemoryReadSqlInTx(tx);
       const edges = await tx.$queryRaw<
         Array<{
           tenant_id: string;
@@ -322,11 +330,12 @@ export class MemoryStoreService {
       >`
         SELECT id, type, slug, title FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND ((visibility = 'tenant' AND owner_user_id IS NULL)
+               OR (visibility = 'user' AND owner_user_id = ${ctx.userId}::uuid))
           AND status != 'revoked'
           AND (expires_at IS NULL OR expires_at > now())
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
-          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
+          ${Prisma.raw(currentMemorySql)}
       `;
       // Keep only edges whose source item survived the visibility + wall
       // filters — a dangling edge would otherwise leak a walled relationship
@@ -358,7 +367,7 @@ export class MemoryStoreService {
   async upsertSystem(
     item: MemoryItem,
     ctx?: IngestContext,
-    opts?: { timeoutMs?: number },
+    opts?: { timeoutMs?: number; expectedExistingId?: string | null },
   ): Promise<string> {
     // Phase 6: governed-ingestion provenance. When an ingest pass supplies a
     // context, stamp the run id + timestamp + review_state; absent ⇒ NULL/'auto'
@@ -371,11 +380,27 @@ export class MemoryStoreService {
     const memoryScope =
       item.memoryScope ??
       (item.clientId ? 'client' : item.visibility === 'user' ? 'user_private' : 'firm');
-    return this.prisma.withSystem(async (tx) => {
-      // Distinguish a new projection from a refresh without relying on PostgreSQL
-      // MVCC internals. The conflict path returns the existing canonical ID.
-      const insertedId = randomUUID();
-      const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    return this.prisma.withSystem(
+      async (tx) => {
+        // Distinguish a new projection from a refresh without relying on PostgreSQL
+        // MVCC internals. The conflict path returns the existing canonical ID.
+        const insertedId = randomUUID();
+        // Only the interactive Settings save pins the item it read. The conflict
+        // predicate runs under the same row lock as the UPDATE, so a terminal or
+        // future-effective row cannot be overwritten after a concurrent decision.
+        const conflictGuard =
+          opts?.expectedExistingId === undefined
+            ? Prisma.empty
+            : opts.expectedExistingId === null
+              ? Prisma.sql`WHERE FALSE`
+              : Prisma.sql`WHERE memory_items.id = ${opts.expectedExistingId}::uuid
+                ${Prisma.raw(
+                  currentMemoryReadSql(
+                    await governedRecallColumnsAvailableInTx(tx),
+                    'memory_items',
+                  ),
+                )}`;
+        const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_items (
           id, tenant_id, client_id, owner_user_id, type, visibility, memory_scope, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
@@ -454,19 +479,27 @@ export class MemoryStoreService {
             ELSE memory_items.review_state
           END,
           updated_at = now()
+        ${conflictGuard}
         RETURNING id
       `;
-      const row = rows[0];
-      if (!row) {
-        throw new Error('memory_items upsert returned no row');
-      }
-      const id = row.id;
-      if (id === insertedId && hasAuthoritativeProjectionGovernance(item)) {
-        await this.restoreProjectionGovernanceInTx(tx, id, item);
-      }
-      await this.deriveEdges(tx, item, id);
-      return id;
-    }, opts);
+        const row = rows[0];
+        if (!row) {
+          if (opts?.expectedExistingId !== undefined) {
+            throw new ConflictException(
+              'Memory changed before the Settings save. Reload its current version.',
+            );
+          }
+          throw new Error('memory_items upsert returned no row');
+        }
+        const id = row.id;
+        if (id === insertedId && hasAuthoritativeProjectionGovernance(item)) {
+          await this.restoreProjectionGovernanceInTx(tx, id, item);
+        }
+        await this.deriveEdges(tx, item, id);
+        return id;
+      },
+      { timeoutMs: opts?.timeoutMs },
+    );
   }
 
   /**
@@ -639,7 +672,10 @@ export class MemoryStoreService {
     // headroom under Prisma pool pressure, which has intermittently turned a
     // slow-but-legitimate save into an outright failure (503). Give it more
     // room to wait out a transient pool stall rather than aborting the write.
-    await this.upsertSystem(item, undefined, { timeoutMs: 15_000 });
+    await this.upsertSystem(item, undefined, {
+      timeoutMs: 15_000,
+      expectedExistingId: existing?.id ?? null,
+    });
     return { ...item, updatedAt: new Date().toISOString() };
   }
 

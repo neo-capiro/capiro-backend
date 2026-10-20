@@ -4,7 +4,8 @@ import { ConfigService } from "@nestjs/config";
 import { StrategyAiCredentialResolver } from "../meri/strategy-ai-credential.resolver.js";
 import { StrategyOrchestratorClient } from "../meri/strategy-orchestrator.client.js";
 import type { StrategyReportNarrativeResponse } from "../meri/meri.types.js";
-import { formatDate, strategyTypeLabel } from "./report-content.js";
+import { formatDate } from "./report-content.js";
+import { strategyTypeLabel } from "./report-labels.js";
 import { buildNarrativeEvidence } from "./report-narrative-evidence.js";
 import { verifyReportNarrative } from "./report-narrative-verifier.js";
 import {

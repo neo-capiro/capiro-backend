@@ -7,19 +7,15 @@ import {
 } from '../embeddings/embedder.js';
 import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';
 import {
-  governedRecallEligibilitySql,
-  governedRecallSuppressionEnabled,
-  TERMINAL_GOVERNED_STATUSES,
+  currentMemoryReadSql,
+  governedRecallColumnsAvailableInTx,
 } from './memory-recall-suppression.helpers.js';
 
 /** Real-time source eligibility for a derived index; legal hold does not prohibit reads. */
-export function memoryEmbeddingEligibilitySql(): string {
-  return `mi.status = 'active'
-    AND (mi.visibility = 'tenant' OR (mi.visibility = 'user' AND mi.owner_user_id IS NOT NULL))
-    AND COALESCE(mi.governed_status, '') NOT IN (${TERMINAL_GOVERNED_STATUSES.map((s) => `'${s}'`).join(',')})
-    AND (mi.expires_at IS NULL OR mi.expires_at > clock_timestamp())
-    AND (mi.valid_until IS NULL OR mi.valid_until > clock_timestamp())
-    ${governedRecallSuppressionEnabled() ? `AND ${governedRecallEligibilitySql('mi')}` : ''}`;
+export function memoryEmbeddingEligibilitySql(columnsAvailable: boolean): string {
+  return `((mi.visibility = 'tenant' AND mi.owner_user_id IS NULL)
+      OR (mi.visibility = 'user' AND mi.owner_user_id IS NOT NULL))
+    ${currentMemoryReadSql(columnsAvailable, 'mi')}`;
 }
 
 type MemoryEmbeddingArgs = Omit<EmbedAndUpsertArgs, 'sourceType' | 'beforeWrite' | 'tenantId'> & {
@@ -37,6 +33,7 @@ export async function embedMemoryItem(
   provider?: EmbeddingProvider,
 ): Promise<EmbedOutcome> {
   const { sourceContent, ...embedding } = args;
+  const columnsAvailable = await prisma.withSystem((tx) => governedRecallColumnsAvailableInTx(tx));
   const readSource = (lock: boolean) => `
     SELECT mi.xmin::text AS version
     FROM memory_items mi
@@ -44,7 +41,7 @@ export async function embedMemoryItem(
       AND mi.client_id IS NOT DISTINCT FROM $3::uuid
       AND mi.owner_user_id IS NOT DISTINCT FROM $4::uuid
       AND mi.title = $5 AND mi.sections_jsonb = $6::jsonb
-      AND ${memoryEmbeddingEligibilitySql()}
+      AND ${memoryEmbeddingEligibilitySql(columnsAvailable)}
     ${lock ? 'FOR UPDATE OF mi' : ''}`;
   const parameters = [
     args.tenantId,

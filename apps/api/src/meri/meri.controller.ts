@@ -5,12 +5,14 @@ import {
   Delete,
   Get,
   HttpCode,
-  Header,
   Logger,
   Param,
   Patch,
   Post,
   NotFoundException,
+  Optional,
+  ForbiddenException,
+  ServiceUnavailableException,
   UnprocessableEntityException,
   Query,
   Req,
@@ -41,13 +43,19 @@ import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
-import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { ToolServiceSecretGuard, hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
+import { assertMeriToolAllowed } from './meri-tool-allowlist.js';
+import {
+  ACTION_QUERY_OWNER, ACTION_QUERY_OPERATION,
+  admitActionQueryAlias, assertActionQueryAliasResult,
+} from './meri-action-query-alias.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MERI_JOB_KINDS, type MeriJobKind } from './meri-job.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
@@ -58,8 +66,37 @@ import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { meriExecutionRequestOf } from '../auth/meri-execution-request.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  MERI_DELEGATED_READ_TOOLS, assertDelegatedToolSelectors, schemaClientSelectors, sha256Hex,
+} from '../auth/read-delegation/read-delegation.contract.js';
+import {
+  assertMeriReadDelegationReleasable, isMeriReadTokenRequest, meriReadDelegationOf, meriRetainedCorrelationOf,
+  type MeriReadDelegationGrant,
+} from '../auth/read-delegation/read-delegation-request.js';
+import { signedMemoryPageEnabled, signedMemoryProposalEnabled } from '../auth/read-delegation/signed-memory-http-gate.js';
+import { createCoreKmsSigner, readCoreEd25519KeyConfig } from '../auth/core-ed25519-kms-config.js';
+import { readTaskBoundPassiveMemoryPage } from './memory-receiving/meri-memory-signed-page-source.js';
+import { issueMemoryPageProof } from './memory-receiving/meri-memory-proof-issuer.js';
+import { MEMORY_PAGE_PROOF_HEADER } from './memory-receiving/meri-memory-page-proof.js';
+import {
+  receiveSignedMemoryProposalPage, SIGNED_MEMORY_PROPOSAL_OPERATION,
+} from './memory-receiving/meri-memory-proposal-receiver.js';
+import {
+  assertRetainedSourceV02Admission, RETAINED_SOURCE_V02_OPERATIONS,
+} from './retained-source-v02/admission.js';
+import { readRetainedSourceV02 } from './retained-source-v02/receiver.js';
+import {
+  MeriExecutionReceiverService,
+  assertOrdinaryToolPathAllowed,
+} from './execution-capability/meri-execution-receiver.service.js';
 import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
+import {
+  admitMeriReadObservation,
+  withMeriReadObservation,
+} from './meri-funding-read-observation.js';
 import {
   admitMeriResearchPortfolioToolTransport,
   withMeriResearchPortfolioToolTurnScope,
@@ -96,6 +133,17 @@ class CreateMeriConversationDto {
   @IsString()
   @Length(1, 160)
   title?: string;
+}
+
+class BootstrapMeriConversationDto {
+  @IsIn([1])
+  schemaVersion!: 1;
+
+  @IsUUID()
+  requestId!: string;
+
+  @IsUUID()
+  clientId!: string;
 }
 
 class SendMeriMessageDto {
@@ -326,27 +374,14 @@ export class MeriController {
     private readonly approvals: MeriApprovalService,
     private readonly complianceAudit: MeriComplianceAuditService,
     private readonly claimWriter: MeriClaimWriterService,
+    @Optional() private readonly executionReceiver?: MeriExecutionReceiverService,
+    @Optional() private readonly readDelegationPrisma?: PrismaService,
+    @Optional() private readonly memoryCandidateOwner?: GovernedMemoryCandidateService,
   ) {}
 
   @Get('status')
   status(@CurrentTenant() ctx: TenantContext) {
     return this.service.status(ctx);
-  }
-
-  @Post('application-authority/identity')
-  @HttpCode(200)
-  @Header('Cache-Control', 'no-store')
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  applicationAuthorityIdentity(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.service.applicationAuthorityIdentity(ctx, req, body);
-  }
-
-  @Post('application-authority/context')
-  @HttpCode(200)
-  @Header('Cache-Control', 'no-store')
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  applicationAuthorityContext(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    return this.service.applicationAuthorityContext(ctx, req, body);
   }
 
   @Get('conversations')
@@ -357,6 +392,17 @@ export class MeriController {
   @Post('conversations')
   createConversation(@CurrentTenant() ctx: TenantContext, @Body() body: CreateMeriConversationDto) {
     return this.service.createConversation(ctx, body);
+  }
+
+  // One Core-owned conversation per authenticated New Chat intent. Keep this
+  // literal route ahead of the parameterized conversation routes.
+  @Post('conversations/bootstrap')
+  @HttpCode(200)
+  bootstrapConversation(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: BootstrapMeriConversationDto,
+  ) {
+    return this.service.bootstrapConversation(ctx, body);
   }
 
   // History search (F2). Declared before `conversations/:id` so the literal
@@ -534,7 +580,108 @@ export class MeriController {
     @Param('name') name: string,
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
+    @Res({ passthrough: true }) res?: Response,
   ) {
+    // PR172's dotted alias has its own signed, correlated receiver and must
+    // never fall through to the ordinary model-facing tool allowlist.
+    if (name === SIGNED_MEMORY_PROPOSAL_OPERATION.id) {
+      if (!signedMemoryProposalEnabled())
+        throw new ServiceUnavailableException('Reserved memory proposal read unavailable');
+      const prisma = this.readDelegationPrisma;
+      const owner = this.memoryCandidateOwner;
+      if (!prisma || !owner)
+        throw new ServiceUnavailableException('Reserved memory proposal read unavailable');
+      return withMeriToolRequestControl(req, () => receiveSignedMemoryProposalPage({
+        ctx, raw: body, grant: meriReadDelegationOf(req),
+        authenticatedCorrelation: meriRetainedCorrelationOf(req),
+        verifiedServiceIdentity: hasVerifiedToolServiceIdentity(req),
+        prisma, owner,
+        releaseDelegatedRead: () => this.releaseDelegatedRead(req),
+      }));
+    }
+    // PR172 keeps the 0.2 JSON page unchanged and carries its opaque signed
+    // proof in a separate response header. This source route stays unavailable
+    // until the Meri wire, helper table and runtime role/readback are qualified.
+    if (name === 'search_memory' && isMeriReadTokenRequest(req)) {
+      if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory page unavailable');
+      const grant = meriReadDelegationOf(req);
+      if (!grant || grant.kind !== 'tool' || grant.operation?.id !== 'search_memory' ||
+          grant.operation.version !== '0.2.0' || !hasVerifiedToolServiceIdentity(req) ||
+          !this.readDelegationPrisma || !res) throw new ForbiddenException('Passive memory page refused');
+      let config: ReturnType<typeof readCoreEd25519KeyConfig>;
+      try { config = readCoreEd25519KeyConfig(process.env, 'MERI_READ_DELEGATION_SIGNER'); }
+      catch { config = null; }
+      if (!config) throw new ServiceUnavailableException('Passive memory page unavailable');
+      const page = await withMeriToolRequestControl(req, () => readTaskBoundPassiveMemoryPage(
+        ctx, body, grant, meriRetainedCorrelationOf(req), this.tools, () => this.releaseDelegatedRead(req),
+      ));
+      const signed = await issueMemoryPageProof(this.readDelegationPrisma, createCoreKmsSigner(config),
+        req, page, grant, { enabled: true });
+      res.setHeader(MEMORY_PAGE_PROOF_HEADER, signed.pageProof);
+      return signed.result;
+    }
+    // A dynamic tool route must never turn the fixed child callback into an
+    // ordinary model-facing tool if module registration order changes.
+    if (name === 'search_memory_eligibility')
+      throw new ServiceUnavailableException('Passive memory helper unavailable');
+    // The retained 0.2 source route has a separate, exact task-bound read
+    // admission. Never pass its names to the model-facing tool dispatcher.
+    if (RETAINED_SOURCE_V02_OPERATIONS.has(name)) {
+      const grant = meriReadDelegationOf(req);
+      if (!grant || grant.operation?.id !== name ||
+          grant.tenantId !== ctx.tenantId || grant.actorId !== ctx.userId ||
+          !hasVerifiedToolServiceIdentity(req)) {
+        throw new ForbiddenException('Retained source read refused');
+      }
+      const admitted = assertRetainedSourceV02Admission(
+        grant, body, meriRetainedCorrelationOf(req), { nowMs: Date.now() },
+      );
+      const result = await withMeriToolRequestControl(
+        req, () => readRetainedSourceV02(admitted, ctx, this.tools),
+      );
+      await this.releaseDelegatedRead(req);
+      return result;
+    }
+    if (name === ACTION_QUERY_OPERATION.id) {
+      // The reserved A8 source remains unavailable until Meri PR171's
+      // one-use transport and this receiver are installed and read back.
+      if (process.env.MERI_ACTION_QUERY_ALIAS_ENABLED !== 'true') {
+        throw new ServiceUnavailableException('Reserved action read unavailable');
+      }
+      const admitted = admitActionQueryAlias(
+        ctx, body, meriReadDelegationOf(req), hasVerifiedToolServiceIdentity(req),
+        meriRetainedCorrelationOf(req), Date.now(),
+      );
+      // Keep the existing canonical owner under its deployment allowlist.
+      // Never add the dotted source operation to model schemas or that list.
+      assertMeriToolAllowed(ACTION_QUERY_OWNER);
+      if (this.tools.isSideEffecting(ACTION_QUERY_OWNER)) {
+        throw new ForbiddenException('Reserved action read refused');
+      }
+      const result = await withMeriToolRequestControl(
+        req, () => this.tools.executeFromAuthenticatedUser(ctx, ACTION_QUERY_OWNER, admitted.ownerBody),
+      );
+      assertActionQueryAliasResult(result, admitted.grant.clientId);
+      await this.releaseDelegatedRead(req);
+      return result;
+    }
+    assertMeriToolAllowed(name);
+    // Meri's approved-execution capability (D016 #9), admitted by the tenant
+    // middleware on create_task only: the receiver runs every current check and
+    // writes the task with its durable effect identity in one transaction. No
+    // other admission applies.
+    const approvedExecution = meriExecutionRequestOf(req);
+    if (approvedExecution) {
+      if (!this.executionReceiver) throw new ServiceUnavailableException('Execution capabilities are not enabled');
+      return this.executionReceiver.receive(req, ctx, name, body, approvedExecution);
+    }
+    assertOrdinaryToolPathAllowed(name);
+    // RC1 option B: a `CapiroMeriRead` tool token the tenant middleware admitted
+    // on exactly this path and body. Read names only; every selector names the
+    // delegated client/conversation; checked again before the result is released.
+    const delegatedRead = meriReadDelegationOf(req);
+    if (delegatedRead) this.admitDelegatedReadTool(ctx, name, body, req, delegatedRead);
+    const admittedRead = admitMeriReadObservation(name, body, req);
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
       name,
@@ -564,11 +711,16 @@ export class MeriController {
                 admittedRp.scope
                   ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
                   : execute();
+              const executeObservedRead = () =>
+                admittedRead
+                  ? withMeriReadObservation(admittedRead, executeRp)
+                  : executeRp();
               return admittedAttachment.scope
-                ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
-                : executeRp();
+                ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeObservedRead)
+                : executeObservedRead();
             },
           );
+          if (delegatedRead) await this.releaseDelegatedRead(req);
           emitMeriApiTelemetry({
             name: 'meri.api.tool.finalized',
             boundary: 'api_tool',
@@ -616,8 +768,36 @@ export class MeriController {
   // so without this a doomed update_client_profile still renders as a clean
   // "pending approval" card and only fails after the user clicks it.
   @Post('clients/check-ref')
-  checkClientRef(@CurrentTenant() ctx: TenantContext, @Body() body: { ref?: string }) {
-    return this.tools.checkClientRef(ctx, typeof body?.ref === 'string' ? body.ref : '');
+  async checkClientRef(@CurrentTenant() ctx: TenantContext, @Body() body: { ref?: string }, @Req() req: Request) {
+    const delegated = meriReadDelegationOf(req);
+    if (!delegated) return this.tools.checkClientRef(ctx, typeof body?.ref === 'string' ? body.ref : '');
+    // RC1 option B `reference` token: the ref's hash is bound, and a result
+    // naming any client but the delegated one is refused and never released.
+    if (delegated.kind !== 'reference' || !body || typeof body !== 'object' || Object.keys(body).length !== 1 ||
+        typeof body.ref !== 'string' || sha256Hex(Buffer.from(body.ref, 'utf8')) !== delegated.referenceSha256) {
+      throw new ForbiddenException('Read delegation refused');
+    }
+    const result = await this.tools.checkClientRef(ctx, body.ref);
+    if (result.ok && result.clientId !== delegated.clientId) throw new ForbiddenException('Read delegation refused');
+    await this.releaseDelegatedRead(req);
+    return result.ok ? { ok: true as const, clientId: result.clientId } : result;
+  }
+
+  /** Contract §3 `tool` target checks, before dispatch. */
+  private admitDelegatedReadTool(
+    ctx: TenantContext, name: string, body: Record<string, unknown>, req: Request, grant: MeriReadDelegationGrant,
+  ): void {
+    if (grant.kind !== 'tool' || grant.operation?.id !== name || !MERI_DELEGATED_READ_TOOLS.has(name) ||
+        this.tools.isSideEffecting(name) || !hasVerifiedToolServiceIdentity(req)) {
+      throw new ForbiddenException('Read delegation refused');
+    }
+    const schema = this.tools.anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' }).find((tool) => tool.name === name);
+    assertDelegatedToolSelectors(body, grant, schemaClientSelectors(schema?.input_schema));
+  }
+
+  private async releaseDelegatedRead(req: Request): Promise<void> {
+    if (!this.readDelegationPrisma) throw new ServiceUnavailableException('Read delegation unavailable');
+    await assertMeriReadDelegationReleasable(this.readDelegationPrisma, req);
   }
 
   @Post('approvals/check')
@@ -932,10 +1112,8 @@ export class MeriController {
   }
 
   /**
-   * Propose a correction to a memory the caller is not authorized to edit
-   * (Phase 2 Step 9). Deliberately NOT role-gated: the whole point is that a
-   * standard user can raise a correction on firm/client memory. It only ever
-   * creates a PENDING candidate for admin review — never a direct write.
+   * Legacy key-only correction route. The service checks source visibility and
+   * returns a canonical version-review conflict without writing a candidate.
    */
   @Post('memory/:id/suggest-correction')
   async suggestMemoryCorrection(

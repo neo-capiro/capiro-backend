@@ -1,0 +1,28 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16", "moduleResolution": "Node16", "experimentalDecorators": true,
+    "emitDecoratorMetadata": true, "useDefineForClassFields": false, "isolatedModules": true,
+    "incremental": false, "noEmit": true, "declaration": false, "declarationMap": false,
+    "sourceMap": false, "baseUrl": "../../..", "types": ["node", "jest"],
+    "typeRoots": ["../../../apps/api/node_modules/@types"],
+    "paths": {
+      "@capiro/shared": ["packages/shared/src/index.ts"],
+      "@capiro/shared/objective-planner-owner-codec": ["packages/shared/src/objective-planner-owner-codec.ts"],
+      "@capiro/shared/objective-strategy-intake": ["packages/shared/src/objective-strategy-intake.ts"]
+    }
+  },
+  "files": [
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-selection.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-selection-prisma.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-work-owner.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-work-owner.router.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-planner-work-owner.mount.spec.ts",
+    "../../../apps/api/src/clients/objectives/work/objective-strategy-job-reservation.spec.ts",
+    "../../../apps/api-strategy/src/meri/objective-canonical-reservation.spec.ts",
+    "../../../apps/api-strategy/src/meri/draft-job-worker.service.spec.ts",
+    "../../../apps/api-strategy/src/meri/draft-job.service.spec.ts",
+    "../../../apps/api-strategy/src/meri/objective-generation.spec.ts",
+    "../../../apps/api-strategy/test/objective-strategy-intake.native.int-spec.ts"
+  ]
+}

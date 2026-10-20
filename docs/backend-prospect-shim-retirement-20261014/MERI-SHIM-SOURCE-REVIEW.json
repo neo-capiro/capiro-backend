@@ -1,0 +1,152 @@
+{
+  "decision": "SOURCE_REVIEW_ACCEPTED_PENDING_FOCUSED_QUALIFICATION_AND_PACKET; shim retirement only",
+  "baseHead": "917fed9be648dc4abfd6770e0e391ce2e3fe3928",
+  "baseTree": "f93cc79dd69ae8897cfdf3904b09207060685df4",
+  "sourceHead": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "sourceParent": "917fed9be648dc4abfd6770e0e391ce2e3fe3928",
+  "changedPaths": [
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+      "mode": "100644",
+      "blob": "a82a9e595f15aca29d1ae6641b59eaecb064ff78",
+      "sha256": "edd4d441b39af3e9803ca9252945520562bbc63397602c1b4187a314f66eabfb"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.ts",
+      "mode": "100644",
+      "blob": "e87c4f22bb0e53741de5ad8f63a5419f589b3d0e",
+      "sha256": "7959dec95e9e323a58a7f9218add0aa432d2ad0368ef15aafe631b9af7134d80"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "mode": "100644",
+      "blob": "63264170abf3b562676bff372d8ba291490a005a",
+      "sha256": "10a872f4dfc94ac96420c1e1ac0471881f9b5aa7610285980a2943ec4ba0b7d6"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "mode": "100644",
+      "blob": "9d63db1b742ab2df74da4dcab7d01050a534547f",
+      "sha256": "6b080e96aa03d724cf3c078203a1859c09ec87ee69e226a0d38238de928614fa"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "mode": "100644",
+      "blob": "8878d515849c36ce037a9fc8591e46bbb06e65b2",
+      "sha256": "1de375a7617352f862acc367ee68b34ef783376ddbad5acacaa0c8486a6e04af"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "mode": "100644",
+      "blob": "87b8d9b925fd76e48f3acd6970da9dfb22278713",
+      "sha256": "f62f295aef58ecae2966eecf6aa6e8574521526aa796b8a01b1fea80b0393f84"
+    }
+  ],
+  "exactImportOnlyProofs": [
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "exactOnlyImportRewire": true
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "exactOnlyImportRewire": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "exactOnlyImportRewire": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.ts",
+      "exactOnlyImportRewire": true
+    }
+  ],
+  "retainedDirectiveReceiptFunctionTextSha256": "5b61d61e933f07a58c65a8fc1e75eec0960b04ecd94efc976ac68f0f3db721f1",
+  "canonicalAuthorizationFunctionTextSha256": "e72df48ccec7299b9152fb7b08f35125b1313656a74a0645be216558a1413d5b",
+  "unchangedOwnersModulesContracts": [
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada",
+      "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "2cb7e71ff5929a6a78a97d60d27668409633572d",
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f",
+      "sha256": "34509c16b1c7fdf9fb2bf0c0d8f1e9fabb0990c081084daea645db5f104652d1"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "5533892976eea02e3e3409ce615a8ed67b1271d0",
+      "sha256": "a6cdcba8fd85584e86baa6c6b2182240fa557db822173e60241d2a0a39a807ba"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7442633d11bf53191f25cf36faa32c3798e1186b",
+      "sha256": "c3af3f37bfd918998bdd310c7bef1d2baa84fcad10405bab04e98fedf45532e8"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "69316e07f4520832dba31bdd6b4da01ba645697e",
+      "sha256": "60c0a0ee627851c4359359a510bee4281bea8b56e89b35e97ae46d5741eca61a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-turn-scope.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "1e8bafb0035d64f8a7cc7f0b01c74ea7e26d3b6e",
+      "sha256": "c35868440894a65b19eb58a33ca80615b9ebc4a3701fb6483217ae100423784e"
+    },
+    {
+      "path": "apps/api/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a",
+      "sha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+      "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12"
+    }
+  ],
+  "actualConsumerEvidenceAtCandidate": "85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/auth/application-authority.controller.ts:10:import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/auth/application-authority.controller.ts:56:          const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata);\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/auth/application-authority.spec.ts:321:      authorizeMeriProspectScope: async (_owner: unknown, _ctx: unknown, metadata: any) => { events.push('prospect'); return metadata.prospect ?? null; },\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts:3:import { authorizeMeriProspectScope } from './bizdev-meri-scope.authorization.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts:37:    const pending = authorizeMeriProspectScope(service, ctx, metadata);\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts:48:    await expect(authorizeMeriProspectScope(service, ctx, { bizdevProspectScope: scope })).rejects.toBe(error);\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/business-development/bizdev-meri-scope.authorization.ts:18:export async function authorizeMeriProspectScope(\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-bizdev-tools.service.ts:24:import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-bizdev-tools.service.ts:38: *    `authorizeMeriProspectScope` \u2014 a missing/changed scope fails closed;\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-bizdev-tools.service.ts:181:    const scope = await authorizeMeriProspectScope(\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:11:import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:46:describe('authorizeMeriProspectScope \u2014 key-presence fail-closed matrix', () => {\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:50:      authorizeMeriProspectScope(svc, ctx, null),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:53:      authorizeMeriProspectScope(svc, ctx, { brand: 'Meri', runtime: 'Hermes' }),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:56:      authorizeMeriProspectScope(svc, ctx, 'not-an-object'),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:63:      authorizeMeriProspectScope(undefined, ctx, { brand: 'Meri' }),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:70:    await expect(authorizeMeriProspectScope(svc, ctx, metadata)).rejects.toBeInstanceOf(\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:87:      authorizeMeriProspectScope(svc, ctx, { [MERI_PROSPECT_SCOPE_METADATA_KEY]: value }),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:93:      authorizeMeriProspectScope(undefined, ctx, {\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:103:      authorizeMeriProspectScope(svc, ctx, { [MERI_PROSPECT_SCOPE_METADATA_KEY]: scope }),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:116:      authorizeMeriProspectScope(svc, ctx, { [MERI_PROSPECT_SCOPE_METADATA_KEY]: validScope() }),\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri.service.ts:57:import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri.service.ts:991:    const prospectScope = await authorizeMeriProspectScope(\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meriv3-proxy.service.ts:6:import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meriv3-proxy.service.ts:289:    const prospectScope = await authorizeMeriProspectScope(\n",
+  "actualHelperPathConsumersAtCandidate": "85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/auth/application-authority-boundary.spec.ts:62:  it.each(['../meri/meri-prospect-scope.helpers.js', '../meri/meri.module.js', '../meri/meri.service.js', '../engagement/engagement.service.js', '../context/context.module.js'])\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts:2:import * as dispatchHelpers from '../meri/meri-prospect-scope.helpers.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri-prospect-scope.helpers.spec.ts:10:} from './meri-prospect-scope.helpers.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meri.service.ts:56:} from './meri-prospect-scope.helpers.js';\n85d582c35a9971538a709225ebaf0e0a762073c6:apps/api/src/meri/meriv3-proxy.service.ts:5:} from './meri-prospect-scope.helpers.js';\n",
+  "testDisposition": {
+    "helpersSpec": "Only authorizer import moves, all existing assertions/bodies unchanged",
+    "canonicalSpec": "Preserves describe and2original owner forwarding/error cases; intentionally replaces1obsolete alias identity assertion with realhelper export surface and directive/receipt controls"
+  },
+  "publicContract": "API package private, no exports/main/types entry; no HTTP/SDK payload/role/authority transport change. Existing directive/receipt exportedfunctions and bodies stay. No observed tracked active crossrepo frontend/meri-greenfield imports; one archival frontend implementation-matrix reference not a caller. Protected Engagement excluded, unseen external consumers not claimed absent.",
+  "qualificationPlan": [
+    "Source-only exact six-path/threecaller body proof, retained helper/canonical owner/module/persistence schemas and allactive runtime paths",
+    "Focused before/after real canonical authorization/helper surface cases, current nativeTools owner-port refusal and scopedforwarding cases with fake IO only",
+    "Baseline expanded test identities retained except exact obsolete alias-identity case explicitly recorded as replaced; no assertion all originals retained",
+    "Actual compiler options narrowstrict contract/helper/safe owner closure plus parse/transpile of complete3changedcaller sources and exactimportbinding evidence; do not read protectedEngagement or load heavygraph",
+    "Any safe existing authority import boundary checks retain no runtime authDomain->Meri edge; canonicalSpec test-only namespace import is not production wiring",
+    "No new fullCore/wholeAPI/nativeDB/live provider/session qualification inferred; no provider/paid/customer/DB/migration/security/networkchange"
+  ],
+  "reviewExecution": "Read-only exactGit/source/evidence only; no tests/compiler/runtime/source/ref edits; root remains only product writer",
+  "lookupNote": "One optional old-packet path discovery returned no match, corrected via bounded exactGit docs path search; no test/source failure or blocked operation.",
+  "hashInputFormats": {
+    "canonicalAuthorizationFunctionTextSha256": "Raw UTF8 substring from export async function authorizeMeriProspectScope through file EOF including trailing whitespace; use unchanged full-file Git blob as primary identity proof",
+    "retainedDirectiveReceiptFunctionTextSha256": "Raw UTF8 substring from export function prospectScopeDirective through helper file EOF, including both exported bodies and intervening comments/whitespace"
+  }
+}

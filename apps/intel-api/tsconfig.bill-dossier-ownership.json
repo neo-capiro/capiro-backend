@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "incremental": false,
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "test/bill-dossier-ownership-*.spec.ts",
+    "test/bill-dossier-ownership.contract.spec.ts",
+    "test/fixtures/bill-dossier-ownership/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

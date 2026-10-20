@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-16T03:09:15.160Z",
+  "kind": "VM fixture Date constructor reproduction; no Jest",
+  "heapMiB": 64,
+  "proof": {
+    "originalDateValid": true,
+    "structuredCloneDateValid": false,
+    "structuredCloneRetainsGetTime": true,
+    "rebasedDateValid": true,
+    "rebasedValueUnchanged": true,
+    "rebasedInvalidStillInvalid": true
+  },
+  "productionChangeRequired": false
+}

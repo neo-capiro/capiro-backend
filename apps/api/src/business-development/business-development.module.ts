@@ -17,7 +17,7 @@ import {
   BIZDEV_JEV_SERVICE,
 } from './bizdev-jev.service.js';
 import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
-import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
+import { BizDevMeriScopeModule } from './bizdev-meri-scope.module.js';
 import { BizDevWatchService } from './bizdev-watch.service.js';
 import { BusinessDevelopmentWatchFlagGuard } from './bizdev-watch.flag.guard.js';
 import { BizDevPdlModule } from './bizdev-pdl.module.js';
@@ -45,7 +45,7 @@ import { ProspectContactsModule } from './prospect-contacts/prospect-contacts.mo
  * exposed; the trace table is service-internal.
  */
 @Module({
-  imports: [ClientsModule, IntelligenceModule, VendorReferenceModule, BizDevPdlModule, ProspectContactsModule],
+  imports: [ClientsModule, IntelligenceModule, VendorReferenceModule, BizDevPdlModule, ProspectContactsModule, BizDevMeriScopeModule],
   controllers: [BusinessDevelopmentController],
   providers: [
     BusinessDevelopmentService,
@@ -60,9 +60,6 @@ import { ProspectContactsModule } from './prospect-contacts/prospect-contacts.mo
     BizDevJevService,
     { provide: BIZDEV_JEV_SERVICE, useExisting: BizDevJevService },
     { provide: BIZDEV_JEV_REVIEW_HOOK, useExisting: BizDevJevService },
-    // Phase 4 server-only slice: bounded Meri prospect-conversation scope
-    // resolution (exported for MeriModule; BD must never import Meri).
-    BizDevMeriScopeService,
     // Phase 5: HTTP watch lifecycle + alert inbox (DB-only evaluator lives in
     // bizdev-watch-runner.ts, invoked exclusively by the scheduled verb).
     BizDevWatchService,
@@ -77,7 +74,7 @@ import { ProspectContactsModule } from './prospect-contacts/prospect-contacts.mo
     BusinessDevelopmentBriefFlagGuard,
     BusinessDevelopmentClaimValidationFlagGuard,
     BizDevJevService,
-    BizDevMeriScopeService,
+    BizDevMeriScopeModule,
     BizDevWatchService,
     BusinessDevelopmentWatchFlagGuard,
   ],

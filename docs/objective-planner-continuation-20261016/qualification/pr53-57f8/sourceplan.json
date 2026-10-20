@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 1,
+  "kind": "NOT_EXECUTED_SOURCE_PLAN",
+  "sourceHead": "57f8c8047a73df6d4a73351a98a5239f38240a24",
+  "workspaceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-5\\objective-flow-native",
+  "postgresVersion": "16.15",
+  "pgBinaryRoot": "C:\\Program Files\\PostgreSQL\\16\\bin",
+  "host": "127.0.0.1",
+  "port": 56455,
+  "database": "planner_qa",
+  "clusterRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-5\\objective-flow-native\\.objective-planner-native",
+  "dataDirectory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-5\\objective-flow-native\\.objective-planner-native\\postgres-data",
+  "ddlOwner": "capiro_planner_fixture_owner",
+  "runtimeRole": "capiro_app",
+  "clusterByteLimit": 419430400,
+  "minimumFreeBefore": 2147483648,
+  "minimumFreeDuring": 1610612736,
+  "installedSqlExtensions": [
+    "uuid-ossp",
+    "citext",
+    "pg_trgm"
+  ],
+  "unavailableExtensionOmitted": "vector",
+  "fullCoreMigrationReplay": false,
+  "strategyMigrationFiles": 28,
+  "objectiveMigrationFiles": 6,
+  "runtimeRoleAttributes": "LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION",
+  "runtimeOwnerMembership": false,
+  "seedRole": "capiro_app through actual PrismaService.withTenant; no bypass GUC",
+  "defaultPrivilegeOrder": "fixture DDL-owner default DML privileges BEFORE exact migrations; immutable REVOKEs/triggers remain final",
+  "exactPackageBuilds": [
+    "packages/shared",
+    "packages/strategy-verifier"
+  ],
+  "packageRuntimeResolution": "Jest mapping to exact source-built task-owned outputs; borrowed package dist is not used",
+  "sourceUnits": [
+    {
+      "name": "001-core-identity",
+      "path": "apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql",
+      "gitBlob": "196a091fe9a561af95a6014eb57ef02c2e05f12e",
+      "selection": "identity-without-unavailable-vector-extension",
+      "originalSha256": "d7d178d03a5dcec7086f4515fa877e5c269f211195a7a48e8cb07ae07ab311e6",
+      "originalBytes": 10004,
+      "selectedSha256": "8e9d230a94dc5db7b8b647481b4f58a0741652b2b021d4cd01f8ab81e294a375",
+      "selectedBytes": 9963
+    },
+    {
+      "name": "002-core-clients",
+      "path": "apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql",
+      "gitBlob": "50ec4777f512c0c62e1e2570a8f1c30c7117c376",
+      "selection": "whole-file",
+      "originalSha256": "7cf65c125e45737add64e5a178b4375ae4d948614426b52834ad83edea105603",
+      "originalBytes": 3280,
+      "selectedSha256": "7cf65c125e45737add64e5a178b4375ae4d948614426b52834ad83edea105603",
+      "selectedBytes": 3280
+    },
+    {
+      "name": "003-core-wall",
+      "path": "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql",
+      "gitBlob": "e8f9b0ab74eb8ee7324e34d00cae3c85ca837d4f",
+      "selection": "ethical-wall-ddl-before-unrelated-embedding-backfill",
+      "originalSha256": "4198b1fc80c801f0c2b0ff1a7ad8f72916e3d68502731abd78a0e0f0ee5db8c7",
+      "originalBytes": 4236,
+      "selectedSha256": "bd0a4fd09a4185906ad898dd0dd0042fcda866f62f3d10cd60bc67115b9dd0aa",
+      "selectedBytes": 2982
+    },
+    {
+      "name": "004-core-client-composite-key",
+      "path": "apps/api/prisma/migrations/20280929010000_research_portfolios_phase1/migration.sql",
+      "gitBlob": "0c9bd70f997a970896b36efaaed7fbfd78e7227d",
+      "selection": "exact-client-composite-unique-index-only",
+      "originalSha256": "de13dbdd18a1920fc9908adcec148546c10838fcff4e257eea3e84adfc129ea7",
+      "originalBytes": 8659,
+      "selectedSha256": "ef814736f230bc8651d04fd1eb65adf9357e1afb90985d718c1e2438d5e1f535",
+      "selectedBytes": 77
+    },
+    {
+      "name": "010-strategy-20260722000000_init_strategy",
+      "path": "apps/api-strategy/prisma/migrations/20260722000000_init_strategy/migration.sql",
+      "gitBlob": "f4c7a9e773153472b0ab77bc02ecbcf12d4f9758",
+      "selection": "whole-file",
+      "originalSha256": "1297360644aba0169c8715ecddf1537ddccc50dd0698f5b60499df86c6995883",
+      "originalBytes": 13766,
+      "selectedSha256": "1297360644aba0169c8715ecddf1537ddccc50dd0698f5b60499df86c6995883",
+      "selectedBytes": 13766
+    },
+    {
+      "name": "011-strategy-20260723000000_sp_version_coalescible",
+      "path": "apps/api-strategy/prisma/migrations/20260723000000_sp_version_coalescible/migration.sql",
+      "gitBlob": "2f5b3b1fc8abb02ba1eddd9bf987739afa343d9a",
+      "selection": "whole-file",
+      "originalSha256": "aceca13e5caf3e90709b4adab2116389cab93b33e34370df9c7e38e0f0d8caf1",
+      "originalBytes": 465,
+      "selectedSha256": "aceca13e5caf3e90709b4adab2116389cab93b33e34370df9c7e38e0f0d8caf1",
+      "selectedBytes": 465
+    },
+    {
+      "name": "012-strategy-20260723000001_sp_strategy_meri_summary",
+      "path": "apps/api-strategy/prisma/migrations/20260723000001_sp_strategy_meri_summary/migration.sql",
+      "gitBlob": "d2af358f16cdd9b3b56f0fbcc43f3382db1bdf5f",
+      "selection": "whole-file",
+      "originalSha256": "63272be3831fc3b7a1c829c5a49fc98a854e957133a2a5d4199326c635c9e889",
+      "originalBytes": 214,
+      "selectedSha256": "63272be3831fc3b7a1c829c5a49fc98a854e957133a2a5d4199326c635c9e889",
+      "selectedBytes": 214
+    },
+    {
+      "name": "013-strategy-20260723000002_sp_strategy_drafted_by_meri",
+      "path": "apps/api-strategy/prisma/migrations/20260723000002_sp_strategy_drafted_by_meri/migration.sql",
+      "gitBlob": "77d645dcff5e5e22b7d65b3c46d6cb5829bb4d07",
+      "selection": "whole-file",
+      "originalSha256": "d6a36a39a629a6cc5199d0f0b0e0f96ea72a5fc8120469ca5c4471a104d30207",
+      "originalBytes": 325,
+      "selectedSha256": "d6a36a39a629a6cc5199d0f0b0e0f96ea72a5fc8120469ca5c4471a104d30207",
+      "selectedBytes": 325
+    },
+    {
+      "name": "014-strategy-20260723000003_sp_node_depends_on",
+      "path": "apps/api-strategy/prisma/migrations/20260723000003_sp_node_depends_on/migration.sql",
+      "gitBlob": "fa437f9e40dccc8a4c6e92a605c4729907a9c543",
+      "selection": "whole-file",
+      "originalSha256": "0b46b0a3cddff53b6f09644f15a18cefcf61f24f67a1a7eefb8b1a335565356c",
+      "originalBytes": 661,
+      "selectedSha256": "0b46b0a3cddff53b6f09644f15a18cefcf61f24f67a1a7eefb8b1a335565356c",
+      "selectedBytes": 661
+    },
+    {
+      "name": "015-strategy-20260723000004_sp_node_provenance",
+      "path": "apps/api-strategy/prisma/migrations/20260723000004_sp_node_provenance/migration.sql",
+      "gitBlob": "672cf9d76d674fa17c65ae663c365875be9260d8",
+      "selection": "whole-file",
+      "originalSha256": "de989a931a376c80facac3b46030f791780a155b23b951d5d197ca5152c25924",
+      "originalBytes": 457,
+      "selectedSha256": "de989a931a376c80facac3b46030f791780a155b23b951d5d197ca5152c25924",
+      "selectedBytes": 457
+    },
+    {
+      "name": "016-strategy-20260724000000_agent_foundations",
+      "path": "apps/api-strategy/prisma/migrations/20260724000000_agent_foundations/migration.sql",
+      "gitBlob": "13c0beacdebbf786a5dec28d703f2154da3568d2",
+      "selection": "whole-file",
+      "originalSha256": "47e5527bcc1fb4b7618036811a72a5bfd380dfcee3ad27c0c8ec593a9c9ae657",
+      "originalBytes": 11596,
+      "selectedSha256": "47e5527bcc1fb4b7618036811a72a5bfd380dfcee3ad27c0c8ec593a9c9ae657",
+      "selectedBytes": 11596
+    },
+    {
+      "name": "017-strategy-20260724120000_sp_node_target_ref",
+      "path": "apps/api-strategy/prisma/migrations/20260724120000_sp_node_target_ref/migration.sql",
+      "gitBlob": "cfde6291afb0aff41436baa0ee75a3068176546c",
+      "selection": "whole-file",
+      "originalSha256": "63ab514ede9014870ed971c2088ed012db3a9dd44cc9a8820d1ff65b777dd9ef",
+      "originalBytes": 790,
+      "selectedSha256": "63ab514ede9014870ed971c2088ed012db3a9dd44cc9a8820d1ff65b777dd9ef",
+      "selectedBytes": 790
+    },
+    {
+      "name": "018-strategy-20260725120000_sp_node_soft_delete",
+      "path": "apps/api-strategy/prisma/migrations/20260725120000_sp_node_soft_delete/migration.sql",
+      "gitBlob": "9bfdb6656034df404e841d11af03467eeb6f2422",
+      "selection": "whole-file",
+      "originalSha256": "d8aa2964c7f346bbf2d38eb498b16dcb50f0c4dea1eae1c12966d223156debfd",
+      "originalBytes": 2366,
+      "selectedSha256": "d8aa2964c7f346bbf2d38eb498b16dcb50f0c4dea1eae1c12966d223156debfd",
+      "selectedBytes": 2366
+    },
+    {
+      "name": "019-strategy-20260725130000_sp_run_recovery",
+      "path": "apps/api-strategy/prisma/migrations/20260725130000_sp_run_recovery/migration.sql",
+      "gitBlob": "de7e08c087e1ea24d69794f1c8a67953f35e1188",
+      "selection": "whole-file",
+      "originalSha256": "5dd62b69fb6f23e2dcb62d6cec5dc9b72736042cbcb3616fc464c7e7c8130f4f",
+      "originalBytes": 4779,
+      "selectedSha256": "5dd62b69fb6f23e2dcb62d6cec5dc9b72736042cbcb3616fc464c7e7c8130f4f",
+      "selectedBytes": 4779
+    },
+    {
+      "name": "020-strategy-20260727000000_sp_strategy_chat_message",
+      "path": "apps/api-strategy/prisma/migrations/20260727000000_sp_strategy_chat_message/migration.sql",
+      "gitBlob": "0861dbca776472d0ae2db10b8e0ad9ab848d0dad",
+      "selection": "whole-file",
+      "originalSha256": "9db52934b65336f4ac7b3b189e1bb019b09e196d554fc0e83116088d1af5bf41",
+      "originalBytes": 3874,
+      "selectedSha256": "9db52934b65336f4ac7b3b189e1bb019b09e196d554fc0e83116088d1af5bf41",
+      "selectedBytes": 3874
+    },
+    {
+      "name": "021-strategy-20260727010000_sp_watch_consistency",
+      "path": "apps/api-strategy/prisma/migrations/20260727010000_sp_watch_consistency/migration.sql",
+      "gitBlob": "831f2b4a91df19e30400102858783e2e757eba09",
+      "selection": "whole-file",
+      "originalSha256": "08c41c449fcb483a576527259751121800143e52950c0d845127f72e5a9cd2db",
+      "originalBytes": 4788,
+      "selectedSha256": "08c41c449fcb483a576527259751121800143e52950c0d845127f72e5a9cd2db",
+      "selectedBytes": 4788
+    },
+    {
+      "name": "022-strategy-20260908030000_sp_node_completed",
+      "path": "apps/api-strategy/prisma/migrations/20260908030000_sp_node_completed/migration.sql",
+      "gitBlob": "78ac2e9722b36dff6457550fc62c17ce50910f77",
+      "selection": "whole-file",
+      "originalSha256": "37ba009f6f9fa986ddafc6f07c99cccc4c753d55e3004f52f4126892c7f0ed23",
+      "originalBytes": 65,
+      "selectedSha256": "37ba009f6f9fa986ddafc6f07c99cccc4c753d55e3004f52f4126892c7f0ed23",
+      "selectedBytes": 65
+    },
+    {
+      "name": "023-strategy-20260908090000_watch_mission_purpose",
+      "path": "apps/api-strategy/prisma/migrations/20260908090000_watch_mission_purpose/migration.sql",
+      "gitBlob": "71a21c02412d6fdd5001d9b2d29cf8bef38bab3d",
+      "selection": "whole-file",
+      "originalSha256": "90dad78bc6d3c7b741569c9700a02f21db1918bc1e32be7a61a4672d147ac58a",
+      "originalBytes": 220,
+      "selectedSha256": "90dad78bc6d3c7b741569c9700a02f21db1918bc1e32be7a61a4672d147ac58a",
+      "selectedBytes": 220
+    },
+    {
+      "name": "024-strategy-20260917000000_sp_strategy_type_amendment",
+      "path": "apps/api-strategy/prisma/migrations/20260917000000_sp_strategy_type_amendment/migration.sql",
+      "gitBlob": "304144167be03adc50078e14fc81d5010c61eaa9",
+      "selection": "whole-file",
+      "originalSha256": "42eeecf50caba5bcfb1e052bca72149d2770329010a97d908290ffcf1a5adbe6",
+      "originalBytes": 66,
+      "selectedSha256": "42eeecf50caba5bcfb1e052bca72149d2770329010a97d908290ffcf1a5adbe6",
+      "selectedBytes": 66
+    },
+    {
+      "name": "025-strategy-20260917010000_sp_draft_job",
+      "path": "apps/api-strategy/prisma/migrations/20260917010000_sp_draft_job/migration.sql",
+      "gitBlob": "17c020ad5735694e77d91f24874204d82cf53084",
+      "selection": "whole-file",
+      "originalSha256": "4d9b65e8c7e1ab7e4ac422d96e087888a6d904c8c0fc8d1476fed138f45a29f6",
+      "originalBytes": 3051,
+      "selectedSha256": "4d9b65e8c7e1ab7e4ac422d96e087888a6d904c8c0fc8d1476fed138f45a29f6",
+      "selectedBytes": 3051
+    },
+    {
+      "name": "026-strategy-20261006000000_planner",
+      "path": "apps/api-strategy/prisma/migrations/20261006000000_planner/migration.sql",
+      "gitBlob": "a39075c48d8bf15259ba396d8946a1f1f2cb7163",
+      "selection": "whole-file",
+      "originalSha256": "155194347902eb64a88b5929aed60eeac9956e4fac82478223576316d76e8b4c",
+      "originalBytes": 5488,
+      "selectedSha256": "155194347902eb64a88b5929aed60eeac9956e4fac82478223576316d76e8b4c",
+      "selectedBytes": 5488
+    },
+    {
+      "name": "027-strategy-20261006010000_planner_attachments",
+      "path": "apps/api-strategy/prisma/migrations/20261006010000_planner_attachments/migration.sql",
+      "gitBlob": "52dab576da9f74f1cc8d0da0f90553b8640dd531",
+      "selection": "whole-file",
+      "originalSha256": "f26edb566475c8130468ff45871eda5a83f5fb150d585738cd923f087f6af846",
+      "originalBytes": 1355,
+      "selectedSha256": "f26edb566475c8130468ff45871eda5a83f5fb150d585738cd923f087f6af846",
+      "selectedBytes": 1355
+    },
+    {
+      "name": "028-strategy-20261006020000_planner_public_forms",
+      "path": "apps/api-strategy/prisma/migrations/20261006020000_planner_public_forms/migration.sql",
+      "gitBlob": "f3fa0a1572bc623ded669c8901a64f87502afdbe",
+      "selection": "whole-file",
+      "originalSha256": "de4c367d5cf79f6b8a24e337b706616447b68d3e9c1e125e8eee828bb4cff0e8",
+      "originalBytes": 397,
+      "selectedSha256": "de4c367d5cf79f6b8a24e337b706616447b68d3e9c1e125e8eee828bb4cff0e8",
+      "selectedBytes": 397
+    },
+    {
+      "name": "029-strategy-20261006030000_planner_runtime_grants",
+      "path": "apps/api-strategy/prisma/migrations/20261006030000_planner_runtime_grants/migration.sql",
+      "gitBlob": "ccb1cd32587af2ac0c17242b02558f2574bd88eb",
+      "selection": "whole-file",
+      "originalSha256": "309359e43a4f32347199b5c9068b7183c1d78503ed8041ca63ad1f647f7b9fe9",
+      "originalBytes": 491,
+      "selectedSha256": "309359e43a4f32347199b5c9068b7183c1d78503ed8041ca63ad1f647f7b9fe9",
+      "selectedBytes": 491
+    },
+    {
+      "name": "030-strategy-20261006040000_planner_runtime_isolation",
+      "path": "apps/api-strategy/prisma/migrations/20261006040000_planner_runtime_isolation/migration.sql",
+      "gitBlob": "8817b25eae17edfe5c23fb008c4123a4b33bb998",
+      "selection": "whole-file",
+      "originalSha256": "1e32246118ae4be1aeb799846bfc179c61f08815d69e876807bd51dd19d5a23c",
+      "originalBytes": 1321,
+      "selectedSha256": "1e32246118ae4be1aeb799846bfc179c61f08815d69e876807bd51dd19d5a23c",
+      "selectedBytes": 1321
+    },
+    {
+      "name": "031-strategy-20261006050000_planner_activity_revisions",
+      "path": "apps/api-strategy/prisma/migrations/20261006050000_planner_activity_revisions/migration.sql",
+      "gitBlob": "5e6a89fa82184d23fed7553f51c5fe7dfc0636aa",
+      "selection": "whole-file",
+      "originalSha256": "b3413e5668713de492800230e88ff694a085a233d23be8f030a0a40847d5bb75",
+      "originalBytes": 1639,
+      "selectedSha256": "b3413e5668713de492800230e88ff694a085a233d23be8f030a0a40847d5bb75",
+      "selectedBytes": 1639
+    },
+    {
+      "name": "032-strategy-20261006060000_planner_schedule_claims",
+      "path": "apps/api-strategy/prisma/migrations/20261006060000_planner_schedule_claims/migration.sql",
+      "gitBlob": "f88099c5ccfdc784a1ca52b75b7778353054c348",
+      "selection": "whole-file",
+      "originalSha256": "e7accf98f7eca4ebae002166a55a45760a6af8c9538e6524b3ac891511358e81",
+      "originalBytes": 1712,
+      "selectedSha256": "e7accf98f7eca4ebae002166a55a45760a6af8c9538e6524b3ac891511358e81",
+      "selectedBytes": 1712
+    },
+    {
+      "name": "033-strategy-20261007000000_planner_goal_activity",
+      "path": "apps/api-strategy/prisma/migrations/20261007000000_planner_goal_activity/migration.sql",
+      "gitBlob": "e0a6edfa299ef6fe84990f72238df9f17736ee0b",
+      "selection": "whole-file",
+      "originalSha256": "2570836c6c0774f9a390ece4c82055ba677e2c9baea12b371f9e0d2c1f595972",
+      "originalBytes": 2717,
+      "selectedSha256": "2570836c6c0774f9a390ece4c82055ba677e2c9baea12b371f9e0d2c1f595972",
+      "selectedBytes": 2717
+    },
+    {
+      "name": "034-strategy-20261007010000_planner_time_details",
+      "path": "apps/api-strategy/prisma/migrations/20261007010000_planner_time_details/migration.sql",
+      "gitBlob": "7bad0adaf96202e9f4184e047e08dc034efa6b12",
+      "selection": "whole-file",
+      "originalSha256": "e6d31c0eb64117501fde580476a5ab1f7e75682350a1e4fb4de96f5a5da4b732",
+      "originalBytes": 785,
+      "selectedSha256": "e6d31c0eb64117501fde580476a5ab1f7e75682350a1e4fb4de96f5a5da4b732",
+      "selectedBytes": 785
+    },
+    {
+      "name": "035-strategy-20261007020000_planner_time_preferences",
+      "path": "apps/api-strategy/prisma/migrations/20261007020000_planner_time_preferences/migration.sql",
+      "gitBlob": "1c02f8d82bca451a472783528db3f7a1475b7cb0",
+      "selection": "whole-file",
+      "originalSha256": "3f385b9c320653aac964ce7eedba4f333ba0c1a2e0d6e0700998096ece1179aa",
+      "originalBytes": 351,
+      "selectedSha256": "3f385b9c320653aac964ce7eedba4f333ba0c1a2e0d6e0700998096ece1179aa",
+      "selectedBytes": 351
+    },
+    {
+      "name": "036-strategy-20261007030000_planner_time_reminders",
+      "path": "apps/api-strategy/prisma/migrations/20261007030000_planner_time_reminders/migration.sql",
+      "gitBlob": "a886a18a4141dd270e5751632d3d9c43391fdb87",
+      "selection": "whole-file",
+      "originalSha256": "62eb9e33a83858306e616247193532b5e0f53de19d1231dd83bdf683501fd8d3",
+      "originalBytes": 1869,
+      "selectedSha256": "62eb9e33a83858306e616247193532b5e0f53de19d1231dd83bdf683501fd8d3",
+      "selectedBytes": 1869
+    },
+    {
+      "name": "037-strategy-20261007040000_planner_project_budgets",
+      "path": "apps/api-strategy/prisma/migrations/20261007040000_planner_project_budgets/migration.sql",
+      "gitBlob": "5caeb67e295c8e8b2af67b48976e0f970b2c960a",
+      "selection": "whole-file",
+      "originalSha256": "5e445dc936f194bf65e14471554ed69d49e5df71444263cb6bee33fd29851f4d",
+      "originalBytes": 2122,
+      "selectedSha256": "5e445dc936f194bf65e14471554ed69d49e5df71444263cb6bee33fd29851f4d",
+      "selectedBytes": 2122
+    },
+    {
+      "name": "050-core-20281011010000_client_objectives",
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "selection": "whole-file",
+      "originalSha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+      "originalBytes": 3398,
+      "selectedSha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+      "selectedBytes": 3398
+    },
+    {
+      "name": "051-core-20281015010000_client_objective_work_intents",
+      "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
+      "gitBlob": "c8870624c126ef5e1412f3d892358dd6ccec9b63",
+      "selection": "whole-file",
+      "originalSha256": "9076f6e73462caed2006e97b22fdb9ce4ead47b718f0f6b0c0c09f16caea31db",
+      "originalBytes": 1893,
+      "selectedSha256": "9076f6e73462caed2006e97b22fdb9ce4ead47b718f0f6b0c0c09f16caea31db",
+      "selectedBytes": 1893
+    },
+    {
+      "name": "052-core-20281015020000_client_objective_canonical_plans",
+      "path": "apps/api/prisma/migrations/20281015020000_client_objective_canonical_plans/migration.sql",
+      "gitBlob": "79223a80ab95fb63979d539208d21d4dfc07917b",
+      "selection": "whole-file",
+      "originalSha256": "475b56421caf9206124597d78bc44a1cb111361ba5d2ff6030dad11d1f3aba26",
+      "originalBytes": 2632,
+      "selectedSha256": "475b56421caf9206124597d78bc44a1cb111361ba5d2ff6030dad11d1f3aba26",
+      "selectedBytes": 2632
+    },
+    {
+      "name": "053-core-20281015030000_client_objective_operational_links",
+      "path": "apps/api/prisma/migrations/20281015030000_client_objective_operational_links/migration.sql",
+      "gitBlob": "0a5124859159669d6a6e15d683fe5afd5a87fbdb",
+      "selection": "whole-file",
+      "originalSha256": "3720dfa83dc0ad73c24cd0cfddcf0900ece56a59e3e1ef9290ddd9836f817422",
+      "originalBytes": 6782,
+      "selectedSha256": "3720dfa83dc0ad73c24cd0cfddcf0900ece56a59e3e1ef9290ddd9836f817422",
+      "selectedBytes": 6782
+    },
+    {
+      "name": "054-core-20281015050000_client_objective_work_reconsent",
+      "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+      "gitBlob": "6a479d02c90063158dcccc32af6cdc34e0c94db7",
+      "selection": "whole-file",
+      "originalSha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+      "originalBytes": 22831,
+      "selectedSha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+      "selectedBytes": 22831
+    },
+    {
+      "name": "055-core-20281016010000_client_objective_workload_delegations",
+      "path": "apps/api/prisma/migrations/20281016010000_client_objective_workload_delegations/migration.sql",
+      "gitBlob": "a500fe00745ce6fc59d5f324340ec4e45edc954f",
+      "selection": "whole-file",
+      "originalSha256": "dd762e2a5c721261525f36ac80f70b232b62fc09f0171fa3fbd5a12d4d442430",
+      "originalBytes": 26566,
+      "selectedSha256": "dd762e2a5c721261525f36ac80f70b232b62fc09f0171fa3fbd5a12d4d442430",
+      "selectedBytes": 26566
+    }
+  ]
+}

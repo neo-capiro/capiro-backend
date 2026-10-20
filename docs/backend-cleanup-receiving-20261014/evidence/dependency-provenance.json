@@ -1,0 +1,562 @@
+{
+  "owned_dependency_links": [
+    {
+      "path": "apps/intel-api/node_modules/@aws-sdk/client-bedrock-runtime",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-bedrock-runtime@3.1143.0/node_modules/@aws-sdk/client-bedrock-runtime"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@aws-sdk/client-ecs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-ecs@3.1141.0/node_modules/@aws-sdk/client-ecs"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@aws-sdk/client-s3",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-s3@3.1141.0/node_modules/@aws-sdk/client-s3"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@aws-sdk/client-sesv2",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-sesv2@3.1141.0/node_modules/@aws-sdk/client-sesv2"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@aws-sdk/client-sns",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-sns@3.1141.0/node_modules/@aws-sdk/client-sns"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@aws-sdk/s3-request-presigner",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+s3-request-presigner@3.1141.0/node_modules/@aws-sdk/s3-request-presigner"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@capiro/meriv2-core",
+      "target": "/workspace/capirov2/packages/meriv2-core"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@capiro/shared",
+      "target": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@clerk/backend",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@deepgram/sdk",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@deepgram+sdk@3.13.0/node_modules/@deepgram/sdk"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@jest/globals",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@jest+globals@29.7.0/node_modules/@jest/globals"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/cli",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+cli@10.4.9_@swc+core@1.16.2_@swc+helpers@0.5.23_/node_modules/@nestjs/cli"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/common",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/config",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+config@3.3.0_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_rtw47cx5ovoio5eqbhh3u2vmtq/node_modules/@nestjs/config"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/core",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/platform-express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/platform-ws",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-ws@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0._njxntm35r4ramdh2a3yi55gigi/node_modules/@nestjs/platform-ws"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/schematics",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+schematics@10.2.3_chokidar@3.6.0_typescript@5.9.3/node_modules/@nestjs/schematics"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/testing",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@nestjs/websockets",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+websockets@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.1_thek4fdlwvhkjkuojaz7dvepg4/node_modules/@nestjs/websockets"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@prisma/client",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@types/express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+express@4.17.25/node_modules/@types/express"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@types/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+jest@29.5.14/node_modules/@types/jest"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@types/node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@types/supertest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest"
+    },
+    {
+      "path": "apps/intel-api/node_modules/@types/ws",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+ws@8.18.1/node_modules/@types/ws"
+    },
+    {
+      "path": "apps/intel-api/node_modules/class-transformer",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer"
+    },
+    {
+      "path": "apps/intel-api/node_modules/class-validator",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator"
+    },
+    {
+      "path": "apps/intel-api/node_modules/express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express"
+    },
+    {
+      "path": "apps/intel-api/node_modules/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+    },
+    {
+      "path": "apps/intel-api/node_modules/prisma",
+      "target": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma"
+    },
+    {
+      "path": "apps/intel-api/node_modules/reflect-metadata",
+      "target": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata"
+    },
+    {
+      "path": "apps/intel-api/node_modules/rxjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs"
+    },
+    {
+      "path": "apps/intel-api/node_modules/supertest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest"
+    },
+    {
+      "path": "apps/intel-api/node_modules/ts-jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+    },
+    {
+      "path": "apps/intel-api/node_modules/tsx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+    },
+    {
+      "path": "apps/intel-api/node_modules/typescript",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+    },
+    {
+      "path": "apps/intel-api/node_modules/ws",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ws@8.22.0/node_modules/ws"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/client-bedrock-runtime",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-bedrock-runtime@3.1143.0/node_modules/@aws-sdk/client-bedrock-runtime"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/client-ecs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-ecs@3.1141.0/node_modules/@aws-sdk/client-ecs"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/client-efs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-efs@3.1141.0/node_modules/@aws-sdk/client-efs"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/client-s3",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-s3@3.1141.0/node_modules/@aws-sdk/client-s3"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/client-sesv2",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+client-sesv2@3.1141.0/node_modules/@aws-sdk/client-sesv2"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/s3-presigned-post",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+s3-presigned-post@3.1141.0/node_modules/@aws-sdk/s3-presigned-post"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk/s3-request-presigner",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@aws-sdk+s3-request-presigner@3.1141.0/node_modules/@aws-sdk/s3-request-presigner"
+    },
+    {
+      "path": "apps/api/node_modules/@azure/msal-node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@azure+msal-node@2.16.3/node_modules/@azure/msal-node"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/defense-contracts",
+      "target": "/workspace/capirov2/packages/defense-contracts"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/defense-domain",
+      "target": "/workspace/capirov2/packages/defense-domain"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/meriv2-core",
+      "target": "/workspace/capirov2/packages/meriv2-core"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/shared",
+      "target": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared"
+    },
+    {
+      "path": "apps/api/node_modules/@clerk/backend",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend"
+    },
+    {
+      "path": "apps/api/node_modules/@electric-sql/pglite",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite"
+    },
+    {
+      "path": "apps/api/node_modules/@jest/globals",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@jest+globals@29.7.0/node_modules/@jest/globals"
+    },
+    {
+      "path": "apps/api/node_modules/@makegov/tango-node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@makegov+tango-node@1.3.0/node_modules/@makegov/tango-node"
+    },
+    {
+      "path": "apps/api/node_modules/@modelcontextprotocol/sdk",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@modelcontextprotocol+sdk@1.31.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/cli",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+cli@10.4.9_@swc+core@1.16.2_@swc+helpers@0.5.23_/node_modules/@nestjs/cli"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/common",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/config",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+config@3.3.0_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_rtw47cx5ovoio5eqbhh3u2vmtq/node_modules/@nestjs/config"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/core",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/platform-express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/schematics",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+schematics@10.2.3_chokidar@3.6.0_typescript@5.9.3/node_modules/@nestjs/schematics"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/testing",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs/throttler",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@nestjs+throttler@6.7.1_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_qz7skxwdkh3bfjmnqhrf7i6ehe/node_modules/@nestjs/throttler"
+    },
+    {
+      "path": "apps/api/node_modules/@prisma/client",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client"
+    },
+    {
+      "path": "apps/api/node_modules/@types/express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+express@4.17.25/node_modules/@types/express"
+    },
+    {
+      "path": "apps/api/node_modules/@types/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+jest@29.5.14/node_modules/@types/jest"
+    },
+    {
+      "path": "apps/api/node_modules/@types/node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node"
+    },
+    {
+      "path": "apps/api/node_modules/@types/pg",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+pg@8.23.1/node_modules/@types/pg"
+    },
+    {
+      "path": "apps/api/node_modules/@types/sanitize-html",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+sanitize-html@2.16.1/node_modules/@types/sanitize-html"
+    },
+    {
+      "path": "apps/api/node_modules/@types/shpjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+shpjs@3.4.7/node_modules/@types/shpjs"
+    },
+    {
+      "path": "apps/api/node_modules/@types/supertest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest"
+    },
+    {
+      "path": "apps/api/node_modules/cheerio",
+      "target": "/workspace/capirov2/node_modules/.pnpm/cheerio@1.2.0/node_modules/cheerio"
+    },
+    {
+      "path": "apps/api/node_modules/class-transformer",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer"
+    },
+    {
+      "path": "apps/api/node_modules/class-validator",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator"
+    },
+    {
+      "path": "apps/api/node_modules/docx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/docx@9.7.2/node_modules/docx"
+    },
+    {
+      "path": "apps/api/node_modules/dotenv",
+      "target": "/workspace/capirov2/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv"
+    },
+    {
+      "path": "apps/api/node_modules/exceljs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/exceljs@4.4.0/node_modules/exceljs"
+    },
+    {
+      "path": "apps/api/node_modules/express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express"
+    },
+    {
+      "path": "apps/api/node_modules/fast-xml-parser",
+      "target": "/workspace/capirov2/node_modules/.pnpm/fast-xml-parser@5.11.1/node_modules/fast-xml-parser"
+    },
+    {
+      "path": "apps/api/node_modules/ical.js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ical.js@2.2.1/node_modules/ical.js"
+    },
+    {
+      "path": "apps/api/node_modules/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+    },
+    {
+      "path": "apps/api/node_modules/jpeg-js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jpeg-js@0.4.4/node_modules/jpeg-js"
+    },
+    {
+      "path": "apps/api/node_modules/jszip",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jszip@3.10.2/node_modules/jszip"
+    },
+    {
+      "path": "apps/api/node_modules/lru-cache",
+      "target": "/workspace/capirov2/node_modules/.pnpm/lru-cache@7.18.3/node_modules/lru-cache"
+    },
+    {
+      "path": "apps/api/node_modules/mammoth",
+      "target": "/workspace/capirov2/node_modules/.pnpm/mammoth@1.13.0/node_modules/mammoth"
+    },
+    {
+      "path": "apps/api/node_modules/pdf-lib",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pdf-lib@1.17.1/node_modules/pdf-lib"
+    },
+    {
+      "path": "apps/api/node_modules/pdf-parse",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pdf-parse@2.4.5/node_modules/pdf-parse"
+    },
+    {
+      "path": "apps/api/node_modules/pg",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg"
+    },
+    {
+      "path": "apps/api/node_modules/pptxgenjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pptxgenjs@3.12.0/node_modules/pptxgenjs"
+    },
+    {
+      "path": "apps/api/node_modules/prisma",
+      "target": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma"
+    },
+    {
+      "path": "apps/api/node_modules/reflect-metadata",
+      "target": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata"
+    },
+    {
+      "path": "apps/api/node_modules/rxjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs"
+    },
+    {
+      "path": "apps/api/node_modules/sanitize-html",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html"
+    },
+    {
+      "path": "apps/api/node_modules/shpjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/shpjs@6.2.0/node_modules/shpjs"
+    },
+    {
+      "path": "apps/api/node_modules/simple-statistics",
+      "target": "/workspace/capirov2/node_modules/.pnpm/simple-statistics@7.12.0/node_modules/simple-statistics"
+    },
+    {
+      "path": "apps/api/node_modules/stripe",
+      "target": "/workspace/capirov2/node_modules/.pnpm/stripe@17.7.0/node_modules/stripe"
+    },
+    {
+      "path": "apps/api/node_modules/supertest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest"
+    },
+    {
+      "path": "apps/api/node_modules/svix",
+      "target": "/workspace/capirov2/node_modules/.pnpm/svix@1.92.2/node_modules/svix"
+    },
+    {
+      "path": "apps/api/node_modules/ts-jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+    },
+    {
+      "path": "apps/api/node_modules/ts-loader",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-loader@9.6.2_typescript@5.9.3_webpack@5.97.1_@swc+core@1.16.2_@swc+helpers@0.5.23__/node_modules/ts-loader"
+    },
+    {
+      "path": "apps/api/node_modules/ts-node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node"
+    },
+    {
+      "path": "apps/api/node_modules/tsconfig-paths",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsconfig-paths@4.2.0/node_modules/tsconfig-paths"
+    },
+    {
+      "path": "apps/api/node_modules/tsx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+    },
+    {
+      "path": "apps/api/node_modules/typescript",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+    },
+    {
+      "path": "apps/api/node_modules/undici",
+      "target": "/workspace/capirov2/node_modules/.pnpm/undici@6.28.1/node_modules/undici"
+    },
+    {
+      "path": "apps/api/node_modules/unpdf",
+      "target": "/workspace/capirov2/node_modules/.pnpm/unpdf@1.8.1_@napi-rs+canvas@1.0.9/node_modules/unpdf"
+    },
+    {
+      "path": "apps/api/node_modules/word-extractor",
+      "target": "/workspace/capirov2/node_modules/.pnpm/word-extractor@1.0.4/node_modules/word-extractor"
+    },
+    {
+      "path": "apps/api/node_modules/zod",
+      "target": "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod"
+    },
+    {
+      "path": "packages/shared/node_modules/typescript",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+    },
+    {
+      "path": "node_modules/.modules.yaml",
+      "target": "/workspace/capirov2/node_modules/.modules.yaml"
+    },
+    {
+      "path": "node_modules/@types/eslint",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+eslint@9.6.1/node_modules/@types/eslint"
+    },
+    {
+      "path": "node_modules/@types/eslint-scope",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+eslint-scope@3.7.7/node_modules/@types/eslint-scope"
+    },
+    {
+      "path": "node_modules/eslint-scope",
+      "target": "/workspace/capirov2/node_modules/.pnpm/eslint-scope@5.1.1/node_modules/eslint-scope"
+    },
+    {
+      "path": "node_modules/prettier",
+      "target": "/workspace/capirov2/node_modules/.pnpm/prettier@3.9.9/node_modules/prettier"
+    },
+    {
+      "path": "node_modules/promptfoo",
+      "target": "/workspace/capirov2/node_modules/.pnpm/promptfoo@0.123.1_@aws-sdk+credential-provider-node@3.972.84_@aws-sdk+credential-providers@3._hpevajgkpvgq6f3omujigcouwe/node_modules/promptfoo"
+    },
+    {
+      "path": "node_modules/turbo",
+      "target": "/workspace/capirov2/node_modules/.pnpm/turbo@2.11.4/node_modules/turbo"
+    },
+    {
+      "path": "node_modules/typescript",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+    },
+    {
+      "path": "node_modules/ts-jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+    },
+    {
+      "path": "node_modules/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+    },
+    {
+      "path": "node_modules/jest-environment-node",
+      "target": "/workspace/capirov2/apps/intel-api/node_modules/jest-environment-node"
+    },
+    {
+      "path": "apps/intel-api/generated/prisma-client",
+      "target": "/workspace/capirov2/apps/intel-api/generated/prisma-client"
+    }
+  ],
+  "borrowed_targets_not_written": true,
+  "no_install_or_generator_download": true,
+  "intel_schema_source_sha256": "751cdd4b7cc4f6b59598452327917b6f48639ec104473366b104ef0c2a1c0b74",
+  "intel_cached_schema_sha256": "9bc5e267bc420e2207d4e88b29f1e066b455f12bb708ad5d9bb7fd78ab356515",
+  "schema_format_difference_only_exact_token_equality": true,
+  "schema_lexer": "\"(?:\\\\.|[^\"\\\\])*\"|//[^\\n]*|/\\*[\\s\\S]*?\\*/|[^\\s]",
+  "schema_tokens": 24378,
+  "cached_intel_client_artifacts": [
+    {
+      "path": "default.d.ts",
+      "bytes": 23,
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "default.js",
+      "bytes": 36,
+      "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+    },
+    {
+      "path": "edge.d.ts",
+      "bytes": 25,
+      "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+    },
+    {
+      "path": "edge.js",
+      "bytes": 298228,
+      "sha256": "83965c79fd7d875e51ac3bd93cbbdf2b5d399db752896322c1b17401a9ee6e18"
+    },
+    {
+      "path": "index-browser.js",
+      "bytes": 30007,
+      "sha256": "7011acd2180e57d4430a1f44880de25b60bf33acc2c903fe80b36d7859fa2cd0"
+    },
+    {
+      "path": "index.d.ts",
+      "bytes": 3086243,
+      "sha256": "7011e9c999f109b4cbc018ad964a1e475e443323bec15d28ed7ea935098e959b"
+    },
+    {
+      "path": "index.js",
+      "bytes": 299141,
+      "sha256": "a65a43580a55d502255bb1564548fc5675222075e00cfc0badc43c37e4d3a762"
+    },
+    {
+      "path": "libquery_engine-debian-openssl-3.0.x.so.node",
+      "bytes": 16161048,
+      "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+    },
+    {
+      "path": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "bytes": 14149792,
+      "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2601,
+      "sha256": "ca8ab253fffda26809cf71ad66764fb5acba416c8c74cc3232f4087b52f15db7"
+    },
+    {
+      "path": "schema.prisma",
+      "bytes": 62339,
+      "sha256": "9bc5e267bc420e2207d4e88b29f1e066b455f12bb708ad5d9bb7fd78ab356515"
+    },
+    {
+      "path": "wasm.d.ts",
+      "bytes": 23,
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "wasm.js",
+      "bytes": 30007,
+      "sha256": "7011acd2180e57d4430a1f44880de25b60bf33acc2c903fe80b36d7859fa2cd0"
+    }
+  ]
+}

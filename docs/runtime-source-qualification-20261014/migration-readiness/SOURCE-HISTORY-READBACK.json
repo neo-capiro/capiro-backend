@@ -1,0 +1,43 @@
+{
+  "sourceHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+  "sourceTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+  "import": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "importExactNewsletterLines": [
+    "100644 blob 13c949e8d93891f773bd106a196ec70cd60d87e7\tapps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+    "100644 blob 9ae731c1576f4c8a4fd1baafc0cebcd512421b0b\tapps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+    "100644 blob dc5192bb724734e0b8b70215c22772bb5a4323fc\tapps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+    "100644 blob 719cceaae0ccaa62d8ae6da144a2a62c7f50d222\tapps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql"
+  ],
+  "layoutAbsentFromImport": true,
+  "layoutIntroduction": "47213eb8924016f444c73c53cfbee47c0349a282 Include allocated Portfolio layout source migration",
+  "sourceHashVerification": {
+    "exit": 0,
+    "verifiedFiles": 25,
+    "lfSources": 25,
+    "variantMethod": "Prisma5.22.0 checksum.rs source exact/LF/CRLF SHA256 plus old unpadded hex rendering; comparison only, never ledger/file rewriting"
+  },
+  "fiveSourcePolicyReceipt": "b253d1c06f16b646364cd1be06dca67ddca688dc",
+  "noMigrationSqlOrNameChange": true,
+  "noNativeOrDatabaseCall": true,
+  "noDockerCall": true,
+  "firstChatPinsUnchanged": {
+    "apps/api/src": "bff84a087c40b808581e5338be22cfde03f01edd",
+    "apps/workspace/src": "c36560b2711ad104310817844fc8b563680f9bb7",
+    "apps/api-strategy/src": "29716f5fec4788beb3a076ccce6272b5060e88e5",
+    "apps/intel-api/src": "dc334e4fd276a2771991f445e872fbb8de946a67",
+    "packages/shared": "48be6171198ea706f665a713c1b7196bf0ef0d8b",
+    "packages/auth": "3e94f0a8b967bdcd07c337e74678cf91773e12ed",
+    "packages/meriv2-core": "d168a44c1cfebe036542de615ffdc8109996549f",
+    "packages/defense-contracts": "36044b174aa73db1fa84b4fcc344bc8166be1461",
+    "packages/defense-domain": "9dbb14ca408a16856815b91f951a71967f3275c5",
+    "packages/strategy-verifier": "15ba15f0baecd4fe202dafd226145c34e34543fd",
+    "apps/api/prisma/migrations": "abc50b38c17a4c55411da2c81729a130c38ad55a",
+    "apps/api/prisma/schema.prisma": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+    "apps/workspace/prisma/migrations": "5631e24b6b0ac9f1a7be1e664477252dec974674",
+    "apps/workspace/prisma/schema.prisma": "e42752de937aa412887878f7e2d15fcf9ea4fc4f",
+    "apps/api-strategy/prisma/migrations": "30c5416d3428225f6f45263326062ff61f000d6c",
+    "apps/api-strategy/prisma/schema.prisma": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25",
+    "apps/intel-api/prisma/migrations": "19baa0eb796e269b8b87ec50fea340293895044a",
+    "apps/intel-api/prisma/schema.prisma": "dea8c2752c5f6aa46cacedbc7063865c52a1657e"
+  }
+}

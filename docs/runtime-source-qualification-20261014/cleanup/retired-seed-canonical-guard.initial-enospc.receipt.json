@@ -1,0 +1,50 @@
+{
+  "qualification": "unchanged canonical focused source-only migration guard suite with exact candidate source snapshots; no app/database execution",
+  "command": [
+    "node",
+    "/dev/shm/capiro-pinned-parser-install-20261014/runnable-build/source/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/canonical-guard-x33pre0x/scripts/cleanup-runtime-equivalence.jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/canonical-guard-x33pre0x/apps/api/scripts/lib/pe-migration-guards.spec.ts",
+    "--no-cache"
+  ],
+  "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/retained-audit-fixtures/canonical-guard-x33pre0x",
+  "source_head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca plus uncommitted authorized four-file cleanup",
+  "inputs": [
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "sha256": "6adf558fa9419f267f1ce61ec78c6183dac118ca30944e921e803b2177be247d",
+      "bytes": 11489
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "sha256": "56219e60d984b3bed650378ab32e40c6e258bf460591e71d3aee40f9a328d64b",
+      "bytes": 15452
+    },
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "sha256": "a16c4ebffbb10da7a18a6a38f2f67bd35f39a875fdf4411b7015c395bb26e98d",
+      "bytes": 16346
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-legacy.sh",
+      "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a",
+      "bytes": 645
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "sha256": "1651d7fac414eff859be16039fbce6117782a4611d19894f9e32097dda86e420",
+      "bytes": 76955
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67",
+      "bytes": 768
+    }
+  ],
+  "exit": 1,
+  "stdout": "",
+  "stderr": "Error: ENOSPC: no space left on device, write\n    at Object.writeSync (node:fs:978:3)\n    at writeFileSync (node:fs:2503:26)\n    at HasteMap._persist (/workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/index.js:714:37)\n    at /workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/index.js:380:16\n    at async /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:268:9\n    at async Promise.all (index 0)\n    at async buildContextsAndHasteMaps (/workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:248:20)\n    at async _run10000 (/workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:327:41)\n    at async runCLI (/workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:198:3)\n    at async Object.run (/workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js:130:37)\n"
+}

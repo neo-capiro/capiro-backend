@@ -1,0 +1,865 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:meri:retrieval:meeting:0.2.0",
+  "title": "Meri pending meeting/calendar and debrief source transport contracts 0.2.0",
+  "$defs": {
+    "MeetingAttendee": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "null" }]
+        },
+        "email": {
+          "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "null" }]
+        },
+        "role": {
+          "anyOf": [{ "type": "string", "maxLength": 128 }, { "type": "null" }]
+        },
+        "responseStatus": {
+          "anyOf": [{ "type": "string", "maxLength": 128 }, { "type": "null" }]
+        }
+      },
+      "required": ["name", "email", "role", "responseStatus"],
+      "additionalProperties": false
+    },
+    "MeetingClientRef": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "null" }] }
+      },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    },
+    "MeetingUpcomingRow": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "subject": { "anyOf": [{ "type": "string", "maxLength": 4096 }, { "type": "null" }] },
+        "startsAt": { "type": "string", "format": "date-time" },
+        "endsAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "location": { "anyOf": [{ "type": "string", "maxLength": 4096 }, { "type": "null" }] },
+        "isVirtual": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+        "joinLink": { "anyOf": [{ "type": "string", "maxLength": 4096 }, { "type": "null" }] },
+        "status": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 64, "not": { "const": "cancelled" } },
+            { "type": "null" }
+          ]
+        },
+        "isInternal": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+        "organizer": { "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "null" }] },
+        "client": { "anyOf": [{ "$ref": "#/$defs/MeetingClientRef" }, { "type": "null" }] },
+        "attendees": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MeetingAttendee" },
+          "minItems": 0,
+          "maxItems": 4096
+        }
+      },
+      "required": [
+        "id", "subject", "startsAt", "endsAt", "location", "isVirtual", "joinLink", "status",
+        "isInternal", "organizer", "client", "attendees"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingUpcomingInput": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 36 },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 25,
+          "default": 10
+        },
+        "withinDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 30
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "MeetingUpcomingSelection": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 36 },
+            { "type": "null" }
+          ]
+        },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25 },
+        "withinDays": { "type": "integer", "minimum": 1, "maximum": 365 }
+      },
+      "required": ["clientId", "limit", "withinDays"],
+      "additionalProperties": false
+    },
+    "MeetingUpcomingPage": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "meeting-upcoming-page" },
+        "contractVersion": { "const": "0.2.0" },
+        "operation": {
+          "type": "object",
+          "properties": {
+            "id": { "const": "meeting.list_upcoming_meetings" },
+            "version": { "const": "0.2.0" }
+          },
+          "required": ["id", "version"],
+          "additionalProperties": false
+        },
+        "requestId": { "type": "string", "format": "uuid" },
+        "traceId": { "type": "string", "format": "uuid" },
+        "binding": { "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding" },
+        "subject": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject" },
+        "window": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/NormalizedWindow" },
+        "argumentsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "appliedFilters": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/appliedFilters" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/SourceState" },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "coverage": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/Coverage" },
+        "selection": { "$ref": "#/$defs/MeetingUpcomingSelection" },
+        "order": { "const": "startsAt-asc_nulls-and-ties-unspecified" },
+        "snapshotVersionId": { "type": "null" },
+        "calendarWindow": {
+          "type": "object",
+          "properties": {
+            "from": { "type": "string", "format": "date-time" },
+            "to": { "type": "string", "format": "date-time" },
+            "withinDays": { "type": "integer", "minimum": 1, "maximum": 365 }
+          },
+          "required": ["from", "to", "withinDays"],
+          "additionalProperties": false
+        },
+        "meetings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MeetingUpcomingRow" },
+          "minItems": 0,
+          "maxItems": 25
+        },
+        "count": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "continuation": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/continuation" },
+        "evidenceReady": { "const": false },
+        "negativeAssertion": {
+          "type": "object",
+          "properties": { "kind": { "const": "none" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind", "contractVersion", "operation", "requestId", "traceId", "binding", "subject",
+        "window", "argumentsSha256", "appliedFilters", "sources", "coverage", "selection", "order",
+        "snapshotVersionId", "calendarWindow", "meetings", "count", "continuation", "evidenceReady",
+        "negativeAssertion"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingSourceInventory": {
+      "type": "object",
+      "properties": {
+        "sourceKind": { "type": "string", "enum": ["note", "transcript"] },
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceVersion": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "meetingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "lifecycleStatus": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "availability": { "type": "string", "enum": ["available", "restricted", "unavailable"] },
+        "availabilityReason": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 256 }, { "type": "null" }]
+        },
+        "contentHash": {
+          "anyOf": [{ "type": "string", "pattern": "^[a-f0-9]{64}$" }, { "type": "null" }]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "sourceKind", "sourceId", "sourceVersion", "meetingId", "clientId", "lifecycleStatus",
+        "availability", "availabilityReason", "contentHash", "createdAt", "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingSourceAvailability": {
+      "type": "object",
+      "properties": {
+        "notes": { "type": "string", "enum": ["available", "empty", "partial"] },
+        "transcript": { "type": "string", "enum": ["available", "unavailable"] },
+        "transcriptReason": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 256 }, { "type": "null" }]
+        }
+      },
+      "required": ["notes", "transcript", "transcriptReason"],
+      "additionalProperties": false
+    },
+    "MeetingReadRow": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "subject": { "type": "string", "maxLength": 4096 },
+        "startsAt": { "type": "string", "format": "date-time" },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MeetingSourceInventory" },
+          "minItems": 0,
+          "maxItems": 4096
+        },
+        "sourceAvailability": { "$ref": "#/$defs/MeetingSourceAvailability" }
+      },
+      "required": [
+        "id", "clientId", "subject", "startsAt", "endsAt", "status", "updatedAt", "sources",
+        "sourceAvailability"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingWithoutSources": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "subject": { "type": "string", "maxLength": 4096 },
+        "startsAt": { "type": "string", "format": "date-time" },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "sourceAvailability": { "$ref": "#/$defs/MeetingSourceAvailability" }
+      },
+      "required": [
+        "id", "clientId", "subject", "startsAt", "endsAt", "status", "updatedAt",
+        "sourceAvailability"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingBodyCoverage": {
+      "type": "object",
+      "properties": {
+        "characterStart": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "characterEnd": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "totalCharacters": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "complete": { "type": "boolean" },
+        "pageComplete": { "const": true },
+        "truncated": { "type": "boolean" },
+        "nextCursor": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 8192 }, { "type": "null" }]
+        }
+      },
+      "required": [
+        "characterStart", "characterEnd", "totalCharacters", "complete", "pageComplete",
+        "truncated", "nextCursor"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingSourceProvenance": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "enum": ["meeting_notes", "engagement_attachment_storage"]
+        },
+        "sourceKind": { "type": "string", "enum": ["note", "transcript"] },
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceVersion": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "meetingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "currentClientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "bodySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "returnedBodySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "encoding": { "const": "utf8" },
+        "sourceByteLength": { "type": "integer", "minimum": 0 },
+        "returnedByteLength": { "type": "integer", "minimum": 0 }
+      },
+      "required": [
+        "owner", "sourceKind", "sourceId", "sourceVersion", "meetingId", "currentClientId",
+        "bodySha256", "returnedBodySha256", "encoding", "sourceByteLength", "returnedByteLength"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingSourceBodyProjection": {
+      "type": "object",
+      "properties": {
+        "sourceKind": { "type": "string", "enum": ["note", "transcript"] },
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceVersion": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "meetingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "lifecycleStatus": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "availability": { "const": "available" },
+        "availabilityReason": { "type": "null" },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "body": { "type": "string", "maxLength": 6000 },
+        "bodyCoverage": { "$ref": "#/$defs/MeetingBodyCoverage" },
+        "provenance": { "$ref": "#/$defs/MeetingSourceProvenance" }
+      },
+      "required": [
+        "sourceKind", "sourceId", "sourceVersion", "meetingId", "clientId", "lifecycleStatus",
+        "availability", "availabilityReason", "contentHash", "createdAt", "updatedAt", "body",
+        "bodyCoverage", "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingInventoryPageCoverage": {
+      "type": "object",
+      "properties": {
+        "sourceStatus": { "type": "string", "enum": ["healthy", "degraded"] },
+        "pageComplete": { "type": "boolean" },
+        "meetingPaginationComplete": { "type": "boolean" },
+        "sourceInventoryComplete": { "type": "boolean" },
+        "sourceBodyCoverageComplete": { "type": "boolean" },
+        "complete": { "type": "boolean" },
+        "partial": { "type": "boolean" },
+        "truncated": { "type": "boolean" },
+        "omittedMeetings": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "nextCursor": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 8192 }, { "type": "null" }]
+        },
+        "note": { "type": "string", "minLength": 1, "maxLength": 2000 }
+      },
+      "required": [
+        "sourceStatus", "pageComplete", "meetingPaginationComplete", "sourceInventoryComplete",
+        "sourceBodyCoverageComplete", "complete", "partial", "truncated", "omittedMeetings",
+        "nextCursor", "note"
+      ],
+      "additionalProperties": false
+    },
+    "MeetingSourceBodyPageCoverage": {
+      "type": "object",
+      "properties": {
+        "sourceStatus": { "const": "healthy" },
+        "pageComplete": { "const": true },
+        "meetingPaginationComplete": { "const": true },
+        "sourceInventoryComplete": { "const": true },
+        "sourceBodyCoverageComplete": { "type": "boolean" },
+        "complete": { "type": "boolean" },
+        "partial": { "type": "boolean" },
+        "truncated": { "type": "boolean" },
+        "nextCursor": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 8192 }, { "type": "null" }]
+        },
+        "note": { "type": "string", "minLength": 1, "maxLength": 2000 }
+      },
+      "required": [
+        "sourceStatus", "pageComplete", "meetingPaginationComplete", "sourceInventoryComplete",
+        "sourceBodyCoverageComplete", "complete", "partial", "truncated", "nextCursor", "note"
+      ],
+      "additionalProperties": false
+    },
+    "ClientMeetingReadInput": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "meetingId": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
+        },
+        "sourceKind": {
+          "anyOf": [
+            { "type": "string", "enum": ["note", "transcript"] },
+            { "type": "null" }
+          ]
+        },
+        "sourceId": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
+        },
+        "from": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "to": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "cursor": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 8192 }, { "type": "null" }]
+        },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25, "default": 25 },
+        "characterOffset": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000, "default": 5000 }
+      },
+      "required": ["clientId"],
+      "additionalProperties": false
+    },
+    "ClientMeetingInventorySelection": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "meetingId": { "type": "null" },
+        "from": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "to": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+      },
+      "required": ["clientId", "meetingId", "from", "to", "limit"],
+      "additionalProperties": false
+    },
+    "ClientMeetingExactMeetingSelection": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "meetingId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "from": { "type": "null" },
+        "to": { "type": "null" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+      },
+      "required": ["clientId", "meetingId", "from", "to", "limit"],
+      "additionalProperties": false
+    },
+    "ClientMeetingBodySelection": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "meetingId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "sourceKind": { "type": "string", "enum": ["note", "transcript"] },
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "characterOffset": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000 }
+      },
+      "required": [
+        "clientId", "meetingId", "sourceKind", "sourceId", "characterOffset", "characterLimit"
+      ],
+      "additionalProperties": false
+    },
+    "ClientMeetingInventoryPage": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "meeting-inventory-page" },
+        "contractVersion": { "const": "0.2.0" },
+        "operation": {
+          "type": "object",
+          "properties": {
+            "id": { "const": "meeting.read_client_meetings" },
+            "version": { "const": "0.2.0" }
+          },
+          "required": ["id", "version"],
+          "additionalProperties": false
+        },
+        "requestId": { "type": "string", "format": "uuid" },
+        "traceId": { "type": "string", "format": "uuid" },
+        "binding": { "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding" },
+        "subject": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject" },
+        "window": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/NormalizedWindow" },
+        "argumentsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "appliedFilters": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/appliedFilters" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/SourceState" },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "coverage": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/Coverage" },
+        "selection": {
+          "oneOf": [
+            { "$ref": "#/$defs/ClientMeetingInventorySelection" },
+            { "$ref": "#/$defs/ClientMeetingExactMeetingSelection" }
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "meetingId": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
+            },
+            "sourceKind": { "type": "null" },
+            "sourceId": { "type": "null" },
+            "from": {
+              "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+            },
+            "to": {
+              "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+            },
+            "cursorApplied": { "type": "boolean" },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+          },
+          "required": ["meetingId", "sourceKind", "sourceId", "from", "to", "cursorApplied", "limit"],
+          "additionalProperties": false
+        },
+        "order": { "const": "startsAt-asc_id-asc_cursor-key-owner-unconfirmed" },
+        "snapshotVersionId": { "type": "null" },
+        "pageCoverage": { "$ref": "#/$defs/MeetingInventoryPageCoverage" },
+        "returned": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "meetings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MeetingReadRow" },
+          "minItems": 0,
+          "maxItems": 25
+        },
+        "continuation": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/continuation" },
+        "evidenceReady": { "const": false },
+        "negativeAssertion": {
+          "type": "object",
+          "properties": { "kind": { "const": "none" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind", "contractVersion", "operation", "requestId", "traceId", "binding", "subject",
+        "window", "argumentsSha256", "appliedFilters", "sources", "coverage", "selection", "scope",
+        "order", "snapshotVersionId", "pageCoverage", "returned", "meetings", "continuation",
+        "evidenceReady", "negativeAssertion"
+      ],
+      "additionalProperties": false
+    },
+    "ClientMeetingSourceBodyPage": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "meeting-source-body-page" },
+        "contractVersion": { "const": "0.2.0" },
+        "operation": {
+          "type": "object",
+          "properties": {
+            "id": { "const": "meeting.read_client_meetings" },
+            "version": { "const": "0.2.0" }
+          },
+          "required": ["id", "version"],
+          "additionalProperties": false
+        },
+        "requestId": { "type": "string", "format": "uuid" },
+        "traceId": { "type": "string", "format": "uuid" },
+        "binding": { "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding" },
+        "subject": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject" },
+        "window": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/NormalizedWindow" },
+        "argumentsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "appliedFilters": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/appliedFilters" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/SourceState" },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "coverage": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/Coverage" },
+        "selection": { "$ref": "#/$defs/ClientMeetingBodySelection" },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "meetingId": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "sourceKind": { "type": "string", "enum": ["note", "transcript"] },
+            "sourceId": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "from": { "type": "null" },
+            "to": { "type": "null" },
+            "cursorApplied": { "type": "boolean" },
+            "characterOffset": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000 }
+          },
+          "required": [
+            "meetingId", "sourceKind", "sourceId", "from", "to", "cursorApplied", "characterOffset",
+            "characterLimit"
+          ],
+          "additionalProperties": false
+        },
+        "snapshotVersionId": { "type": "null" },
+        "pageCoverage": { "$ref": "#/$defs/MeetingSourceBodyPageCoverage" },
+        "returned": { "const": 1 },
+        "meeting": { "$ref": "#/$defs/MeetingWithoutSources" },
+        "source": { "$ref": "#/$defs/MeetingSourceBodyProjection" },
+        "continuation": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/continuation" },
+        "evidenceReady": { "const": false },
+        "negativeAssertion": {
+          "type": "object",
+          "properties": { "kind": { "const": "none" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind", "contractVersion", "operation", "requestId", "traceId", "binding", "subject",
+        "window", "argumentsSha256", "appliedFilters", "sources", "coverage", "selection", "scope",
+        "snapshotVersionId", "pageCoverage", "returned", "meeting", "source", "continuation",
+        "evidenceReady", "negativeAssertion"
+      ],
+      "additionalProperties": false
+    },
+    "ClientMeetingReadPage": {
+      "oneOf": [
+        { "$ref": "#/$defs/ClientMeetingInventoryPage" },
+        { "$ref": "#/$defs/ClientMeetingSourceBodyPage" }
+      ]
+    },
+    "DebriefReadInput": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "debriefId": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
+        },
+        "from": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "to": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "cursor": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 4096 }, { "type": "null" }]
+        },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25, "default": 25 },
+        "characterOffset": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000 }
+      },
+      "required": ["clientId"],
+      "additionalProperties": false
+    },
+    "DebriefListSelection": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "debriefId": { "type": "null" },
+        "from": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "to": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25 },
+        "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000 }
+      },
+      "required": ["clientId", "debriefId", "from", "to", "limit", "characterLimit"],
+      "additionalProperties": false
+    },
+    "DebriefExactSelection": {
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "debriefId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "from": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "to": {
+          "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25 },
+        "characterOffset": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000 }
+      },
+      "required": [
+        "clientId", "debriefId", "from", "to", "limit", "characterOffset", "characterLimit"
+      ],
+      "additionalProperties": false
+    },
+    "DebriefMeetingRef": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientId": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 128 }, { "type": "null" }]
+        },
+        "subject": { "type": "string", "maxLength": 4096 },
+        "startsAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "clientId", "subject", "startsAt"],
+      "additionalProperties": false
+    },
+    "DebriefAuthor": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 1024 },
+        "firstName": {
+          "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "null" }]
+        },
+        "lastName": {
+          "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "null" }]
+        }
+      },
+      "required": ["id", "email", "firstName", "lastName"],
+      "additionalProperties": false
+    },
+    "DebriefBodyCoverage": {
+      "type": "object",
+      "properties": {
+        "characterStart": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "characterEnd": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "totalCharacters": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "complete": { "type": "boolean" },
+        "pageComplete": { "const": true },
+        "truncated": { "type": "boolean" },
+        "nextCursor": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 4096 }, { "type": "null" }]
+        },
+        "note": { "type": "string", "minLength": 1, "maxLength": 2000 }
+      },
+      "required": [
+        "characterStart", "characterEnd", "totalCharacters", "complete", "pageComplete",
+        "truncated", "nextCursor", "note"
+      ],
+      "additionalProperties": false
+    },
+    "DebriefProvenance": {
+      "type": "object",
+      "properties": {
+        "sourceTable": { "const": "meeting_debriefs" },
+        "sourceRecordId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceVersion": { "type": "string", "format": "date-time" },
+        "parentMeetingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "currentClientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "bodySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "returnedBodySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": [
+        "sourceTable", "sourceRecordId", "sourceVersion", "parentMeetingId", "currentClientId",
+        "bodySha256", "returnedBodySha256"
+      ],
+      "additionalProperties": false
+    },
+    "DebriefRow": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "meetingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "meeting": { "$ref": "#/$defs/DebriefMeetingRef" },
+        "body": { "type": "string", "maxLength": 6000 },
+        "status": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "authorUserId": {
+          "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 128 }, { "type": "null" }]
+        },
+        "author": { "anyOf": [{ "$ref": "#/$defs/DebriefAuthor" }, { "type": "null" }] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "bodyCoverage": { "$ref": "#/$defs/DebriefBodyCoverage" },
+        "provenance": { "$ref": "#/$defs/DebriefProvenance" }
+      },
+      "required": [
+        "id", "meetingId", "clientId", "meeting", "body", "status", "authorUserId", "author",
+        "createdAt", "updatedAt", "bodyCoverage", "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "DebriefSourcePage": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "debrief-source-page" },
+        "contractVersion": { "const": "0.2.0" },
+        "operation": {
+          "type": "object",
+          "properties": {
+            "id": { "const": "meeting.query_debriefs" },
+            "version": { "const": "0.2.0" }
+          },
+          "required": ["id", "version"],
+          "additionalProperties": false
+        },
+        "requestId": { "type": "string", "format": "uuid" },
+        "traceId": { "type": "string", "format": "uuid" },
+        "binding": { "$ref": "urn:meri:contracts:0.1.0#/$defs/RunBinding" },
+        "subject": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/ResolvedSubject" },
+        "window": { "$ref": "urn:meri:retrieval:common:0.2.0#/$defs/NormalizedWindow" },
+        "argumentsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "appliedFilters": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/appliedFilters" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/SourceState" },
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true
+        },
+        "coverage": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/Coverage" },
+        "selection": {
+          "oneOf": [
+            { "$ref": "#/$defs/DebriefListSelection" },
+            { "$ref": "#/$defs/DebriefExactSelection" }
+          ]
+        },
+        "order": { "const": "createdAt-asc_id-asc_cursor-key-owner-unconfirmed" },
+        "snapshotVersionId": { "type": "null" },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "debriefId": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
+            },
+            "from": {
+              "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+            },
+            "to": {
+              "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+            },
+            "timeField": { "const": "meeting.startsAt" },
+            "statusEligibility": { "const": "approved_only" },
+            "characterOffset": {
+              "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 9007199254740991 }, { "type": "null" }]
+            },
+            "characterLimit": { "type": "integer", "minimum": 1, "maximum": 6000 },
+            "listLimit": { "type": "integer", "minimum": 1, "maximum": 25 },
+            "cursorApplied": { "type": "boolean" }
+          },
+          "required": [
+            "debriefId", "from", "to", "timeField", "statusEligibility", "characterOffset",
+            "characterLimit", "listLimit", "cursorApplied"
+          ],
+          "additionalProperties": false
+        },
+        "pageCoverage": {
+          "type": "object",
+          "properties": {
+            "sourceStatus": { "type": "string", "enum": ["healthy", "degraded"] },
+            "sourceReason": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 256 }, { "type": "null" }]
+            },
+            "pageComplete": { "type": "boolean" },
+            "complete": { "type": "boolean" },
+            "partial": { "type": "boolean" },
+            "paginationComplete": { "type": "boolean" },
+            "bodyCoverageComplete": { "type": "boolean" },
+            "truncated": { "type": "boolean" },
+            "nextCursor": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 4096 }, { "type": "null" }]
+            },
+            "totalIsReturnedPageOnly": { "const": true },
+            "appliesTo": { "const": "approved_only_eligible_debriefs" },
+            "note": { "type": "string", "minLength": 1, "maxLength": 2000 }
+          },
+          "required": [
+            "sourceStatus", "sourceReason", "pageComplete", "complete", "partial",
+            "paginationComplete", "bodyCoverageComplete", "truncated", "nextCursor",
+            "totalIsReturnedPageOnly", "appliesTo", "note"
+          ],
+          "additionalProperties": false
+        },
+        "total": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "returned": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "debriefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DebriefRow" },
+          "minItems": 0,
+          "maxItems": 25
+        },
+        "continuation": { "$ref": "urn:meri:retrieval:retrieval:0.2.0#/$defs/EvidenceEnvelope/properties/continuation" },
+        "evidenceReady": { "const": false },
+        "negativeAssertion": {
+          "type": "object",
+          "properties": { "kind": { "const": "none" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind", "contractVersion", "operation", "requestId", "traceId", "binding", "subject",
+        "window", "argumentsSha256", "appliedFilters", "sources", "coverage", "selection", "order",
+        "snapshotVersionId", "scope", "pageCoverage", "total", "returned", "debriefs", "continuation",
+        "evidenceReady", "negativeAssertion"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -155,6 +155,8 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     SmsVerificationService,
     TrackerOwnerGuard,
   ],
-  exports: [TrackerWatchlistService, TrackerBoardService],
+  // Phase8EvidenceService is the canonical Florida budget DTO owner reused by the
+  // signed retained-read module; it is exported, not duplicated.
+  exports: [TrackerWatchlistService, TrackerBoardService, Phase8EvidenceService],
 })
 export class TrackerModule {}

@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   NotFoundException,
   Param,
   Patch,
@@ -20,10 +21,12 @@ import {
 } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { CLIENT_STORAGE_QUOTA_BYTES } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { requireOwnerClient } from './client-ordered-owner.access.js';
 
 /**
  * Client file folders + per-file view access (Figma `907:2810` / Move to Folder
@@ -44,9 +47,78 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 
 export type ViewerMode = 'all' | 'restricted';
 
+type StorageUsage = {
+  clientId: string;
+  source: 'engagement_attachments';
+  usageBasis: 'registered_attachments';
+  allowanceScope: 'client';
+  asOf: string;
+  allowanceBytes: number;
+  enforcement: 'report_only';
+} & (
+  | { status: 'available'; usedBytes: number; remainingBytes: number; overAllowance: boolean }
+  | {
+      status: 'unavailable';
+      reason: 'incomplete_size_metadata' | 'unsafe_total';
+      usedBytes: null;
+      remainingBytes: null;
+      overAllowance: null;
+    }
+);
+
 @Injectable()
 export class ClientFilesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Registered client storage, independent of file-list visibility and paging. */
+  async storageUsage(ctx: TenantContext, clientId: string): Promise<StorageUsage> {
+    return this.prisma.withTenant<StorageUsage>(ctx.tenantId, async (tx) => {
+      // Use the same current membership, archive and ethical-wall boundary as
+      // the client team/owner reads. File access is not authority to read bytes
+      // or metadata of other files; this response exposes only their aggregate.
+      await requireOwnerClient(tx, ctx, clientId);
+      const [usage] = await tx.$queryRaw<
+        Array<{ usedBytes: string; incomplete: boolean; asOf: Date }>
+      >`
+        SELECT COALESCE(SUM(byte_size::bigint), 0)::text AS "usedBytes",
+          COALESCE(BOOL_OR(byte_size IS NULL OR byte_size < 0), false) AS incomplete,
+          statement_timestamp() AS "asOf"
+        FROM engagement_attachments
+        WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${clientId}::uuid
+          AND prospect_id IS NULL`;
+      if (!usage) throw new Error('Storage aggregate did not return a snapshot');
+      // The tenant+s3_key unique index makes one row one registered object.
+      // All lifecycle states and superseded versions count until deletion
+      // removes the row. Do not apply viewer/owner/readiness/list predicates.
+      const base = {
+        clientId,
+        source: 'engagement_attachments' as const,
+        usageBasis: 'registered_attachments' as const,
+        allowanceScope: 'client' as const,
+        asOf: usage.asOf.toISOString(),
+        allowanceBytes: CLIENT_STORAGE_QUOTA_BYTES,
+        enforcement: 'report_only' as const,
+      };
+      const usedBytes = Number(usage.usedBytes);
+      if (usage.incomplete || !Number.isSafeInteger(usedBytes) || usedBytes < 0) {
+        return {
+          ...base,
+          status: 'unavailable',
+          reason: usage.incomplete ? 'incomplete_size_metadata' : 'unsafe_total',
+          usedBytes: null,
+          remainingBytes: null,
+          overAllowance: null,
+        };
+      }
+      return {
+        ...base,
+        status: 'available',
+        usedBytes,
+        remainingBytes: Math.max(0, CLIENT_STORAGE_QUOTA_BYTES - usedBytes),
+        overAllowance: usedBytes > CLIENT_STORAGE_QUOTA_BYTES,
+      };
+    });
+  }
 
   /** Folder tree with counts, including the unfiled group. */
   async folders(ctx: TenantContext, clientId: string) {
@@ -291,6 +363,12 @@ class SetFolderAccessDto extends SetAccessDto {
 @Roles('standard_user')
 export class ClientFilesController {
   constructor(private readonly service: ClientFilesService) {}
+
+  @Get('storage-usage')
+  @Header('Cache-Control', 'no-store')
+  storageUsage(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.service.storageUsage(ctx, clientId);
+  }
 
   @Get('folders')
   folders(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {

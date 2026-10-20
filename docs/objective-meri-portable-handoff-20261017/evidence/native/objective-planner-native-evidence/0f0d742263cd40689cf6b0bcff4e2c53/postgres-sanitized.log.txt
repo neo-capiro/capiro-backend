@@ -1,0 +1,17 @@
+2026-10-17 01:22:57.116 UTC [24360] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-10-17 01:22:57.116 UTC [24360] LOG:  listening on IPv4 address "127.0.0.1", port 56455
+2026-10-17 01:22:57.177 UTC [24744] LOG:  database system was shut down at 2026-10-17 01:22:54 UTC
+2026-10-17 01:22:57.217 UTC [24360] LOG:  database system is ready to accept connections
+2026-10-17 01:23:09.059 UTC [27364] ERROR:  permission denied for table client_objective_work_intents
+2026-10-17 01:23:09.117 UTC [27364] ERROR:  current transaction is aborted, commands ignored until end of transaction block
+2026-10-17 01:23:09.617 UTC [27364] ERROR:  permission denied for table client_objective_work_intents
+2026-10-17 01:23:11.975 UTC [27364] ERROR:  permission denied for table client_objective_work_intents
+2026-10-17 01:23:12.624 UTC [27364] ERROR:  permission denied for table client_objective_work_intents
+2026-10-17 01:23:25.234 UTC [1440] ERROR:  new row for relation "client_objective_workload_delegations" violates check constraint "client_objective_workload_delegations_enabled_check"
+2026-10-17 01:23:25.584 UTC [24360] LOG:  received fast shutdown request
+2026-10-17 01:23:25.587 UTC [24360] LOG:  aborting any active transactions
+2026-10-17 01:23:25.593 UTC [24360] LOG:  background worker "logical replication launcher" (PID 18440) exited with exit code 1
+2026-10-17 01:23:25.848 UTC [9900] LOG:  shutting down
+2026-10-17 01:23:25.852 UTC [9900] LOG:  checkpoint starting: shutdown immediate
+2026-10-17 01:23:26.671 UTC [9900] LOG:  checkpoint complete: wrote 854 buffers (41.7%); 0 WAL file(s) added, 0 removed, 5 recycled; write=0.083 s, sync=0.709 s, total=0.824 s; sync files=629, longest=0.024 s, average=0.002 s; distance=5415 kB, estimate=5415 kB; lsn=0/BC20B0, redo lsn=0/BC20B0
+2026-10-17 01:23:26.987 UTC [24360] LOG:  database system is shut down

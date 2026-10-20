@@ -15,6 +15,10 @@ import type {
 } from '../retrieval/retrieval-v2.types.js';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ObjectiveGenerationContextService, ObjectiveContextIncomplete, objectiveDigest } from './objective-generation-context.service.js';
+import { ContextResolverService } from './context-resolver.service.js';
+import { OBJECTIVE_EMPTY_STEERING } from './objective-generation-background.js';
+import type { ObjectiveTypedContext } from './objective-generation-typed-context.js';
 
 export const PHASE_26 = 26;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
@@ -58,6 +62,11 @@ interface StrategyContextRoute {
 }
 
 export interface StrategyContextPlaneInput {
+  objective?: { objectiveId: string; objectiveVersion: number };
+  /** Opt-in private typed-request projection; legacy Objective compilation does not require it. */
+  objectiveTypedContext?: boolean;
+  generationRequestId?: string;
+  generationType?: string;
   tenantId: string;
   clerkUserId: string;
   clientId: string;
@@ -83,6 +92,9 @@ export interface StrategyCoverageProjection {
 }
 
 export interface StrategyContextPlaneBundle {
+  objectiveAdmission?: ReturnType<ObjectiveGenerationContextService['bind']>;
+  /** Private runtime projection; never a public field-level coverage manifest. */
+  objectiveTypedContext?: ObjectiveTypedContext;
   kind: 'governed_packet' | 'release_switch_rollback';
   packet: Phase17CompiledContextPacket;
   governedContext: MeriGovernedTurnContext;
@@ -116,9 +128,24 @@ export class StrategyContextPlaneService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly contextPlane: ContextPlaneGatewayService,
+    private readonly objectiveContext?: ObjectiveGenerationContextService,
+    private readonly objectiveResolver?: ContextResolverService,
   ) {}
 
   async resolve(input: StrategyContextPlaneInput): Promise<StrategyContextPlaneBundle> {
+    return this.resolveInternal(input, false) as Promise<StrategyContextPlaneBundle>;
+  }
+
+  /** Re-run the existing authorized resolver, without compiling another packet. */
+  async checkObjective(input: StrategyContextPlaneInput) {
+    if (!input.objective || !this.objectiveResolver) throw new ObjectiveContextIncomplete();
+    return this.resolveInternal(input, true);
+  }
+
+  private async resolveInternal(input: StrategyContextPlaneInput, verificationOnly: boolean): Promise<any> {
+    if (input.objective && !this.objectiveContext) throw new ObjectiveContextIncomplete();
+    const objective = input.objective ? await this.objectiveContext!.observe(input) : null;
+    if (objective) input = { ...input, query: objective.intent.outcome };
     const route = routeFor(input);
     const security = await this.securityEnvelope(input);
     // Anchor validation runs BEFORE the resolver, Retrieval V2 and packet
@@ -164,6 +191,19 @@ export class StrategyContextPlaneService {
         requireComplete: false,
       },
     };
+
+    if (verificationOnly) {
+      const context = await this.objectiveResolver!.resolveAndRetrieve(resolverRequest);
+      const observed = objective!;
+      const coverage = context.retrieval?.coverage;
+      const records = filterCurrentStrategyProjection(context.retrieval?.records ?? [], null);
+      const complete = coverage?.complete === true && coverage.paginationComplete &&
+        coverage.sources.every(s => s.coverageComplete && s.paginationComplete && !s.truncated && s.sourceStatus === 'healthy');
+      return { tenantId: input.tenantId, clerkUserId: input.clerkUserId, requestId: input.generationRequestId,
+        source: observed.source, sourceDigest: observed.sourceDigest, localDigest: observed.localDigest,
+        externalDigest: observed.externalDigest, historyDigest: historyDigest(records, security, observed.background.digest),
+        checkedAt: new Date().toISOString(), complete: complete && observed.issues.length === 0 };
+    }
 
     const contextRequest: ContextRequest = {
       tenantId: input.tenantId,
@@ -219,9 +259,12 @@ export class StrategyContextPlaneService {
       input.strategyId ?? null,
     );
     const projection = projectRecords(records);
+    if (objective && (records.some(r => JSON.stringify(safePayloadFor(r)).length > RECORD_CHAR_BUDGET || (r.provenance && JSON.stringify(r.provenance).length > 500)) ||
+        ((result.packet as any).rendered ?? []).map((r: any) => `[${r.type ?? 'context'}]\n${r.body ?? ''}`).join('\n\n').length > STEERING_CHAR_BUDGET))
+      throw new ObjectiveContextIncomplete();
     const coverage = projectCoverage(result.context, result.packet, projection.truncated);
     const packetSummary = toPacketSummary(result.packet, result.kind);
-    const prompt = buildStrategyPrompt({
+    const promptInput = {
       operationId: route.operationId,
       packet: result.packet,
       packetSummary,
@@ -229,9 +272,10 @@ export class StrategyContextPlaneService {
       recordsText: projection.text,
       mode: input.mode,
       kind: result.kind,
-    });
+    };
+    const prompt = buildStrategyPrompt(promptInput);
 
-    return {
+    const bundle: StrategyContextPlaneBundle = {
       kind: result.kind,
       packet: result.packet,
       records,
@@ -278,6 +322,13 @@ export class StrategyContextPlaneService {
         },
       },
     };
+    if (objective) bundle.objectiveAdmission = this.objectiveContext!.bind(input, objective, bundle, historyDigest(records, security, objective.background.digest),
+      records.map(r => ({ id: r.recordId, domain: r.domain, ...safePayloadFor(r), provenance: r.provenance ?? null })), {
+        retrieval: projection.text, steering: strategySteering(result.packet),
+        compose: (intentText, recordsText) => buildStrategyPrompt({ ...promptInput,
+          objectiveIntentText: intentText, objectiveRecordsText: recordsText }),
+      });
+    return bundle;
   }
 
   /**
@@ -439,6 +490,14 @@ export class StrategyContextPlaneService {
       };
     });
   }
+}
+
+function historyDigest(records: RetrievalRecord[], security: SecurityEnvelope, backgroundDigest?: string): string {
+  return objectiveDigest({ userId: security.userId, clientIds: [...security.authorizedClientIds].sort(),
+    mailboxIds: [...security.authorizedMailboxConnectionIds].sort(),
+    ...(backgroundDigest ? { backgroundDigest } : {}),
+    records: records.map(r => ({ domain: r.domain, recordId: r.recordId, payload: safePayloadFor(r), provenance: r.provenance ?? null }))
+      .sort((a, b) => `${a.domain}:${a.recordId}`.localeCompare(`${b.domain}:${b.recordId}`)) });
 }
 
 function routeFor(input: StrategyContextPlaneInput): StrategyContextRoute {
@@ -815,18 +874,10 @@ function buildStrategyPrompt(input: {
   recordsText: string;
   mode: StrategyContextMode;
   kind: 'governed_packet' | 'release_switch_rollback';
+  objectiveIntentText?: string;
+  objectiveRecordsText?: string;
 }): string {
-  const value = asRecord(input.packet);
-  const steering = (Array.isArray(value.rendered) ? value.rendered : [])
-    .map((raw) => {
-      const item = asRecord(raw);
-      const type = typeof item.type === 'string' ? item.type : 'context';
-      const body = typeof item.body === 'string' ? item.body : '';
-      return body ? `[${type}]\n${body}` : '';
-    })
-    .filter(Boolean)
-    .join('\n\n')
-    .slice(0, STEERING_CHAR_BUDGET);
+  const steering = strategySteering(input.packet);
   const coverage = input.coverage;
   return [
     '<capiro_strategy_context_plane>',
@@ -858,14 +909,28 @@ function buildStrategyPrompt(input: {
     `truncated=${coverage.truncated}`,
     '',
     'GOVERNED STEERING:',
-    steering || '(no approved steering items selected)',
+    input.objectiveIntentText ?? '',
+    steering || OBJECTIVE_EMPTY_STEERING,
     '',
     'AUTHORIZED RETRIEVAL:',
+    input.objectiveRecordsText ?? '',
     input.recordsText,
     '</capiro_strategy_context_plane>',
   ]
     .filter((line) => line !== '')
     .join('\n');
+}
+
+function strategySteering(packet: Phase17CompiledContextPacket): string {
+  const value = asRecord(packet);
+  return (Array.isArray(value.rendered) ? value.rendered : [])
+    .map((raw) => {
+      const item = asRecord(raw);
+      const type = typeof item.type === 'string' ? item.type : 'context';
+      const body = typeof item.body === 'string' ? item.body : '';
+      return body ? `[${type}]\n${body}` : '';
+    })
+    .filter(Boolean).join('\n\n').slice(0, STEERING_CHAR_BUDGET);
 }
 
 function sourceHealth(context: ContextRetrievalResult) {

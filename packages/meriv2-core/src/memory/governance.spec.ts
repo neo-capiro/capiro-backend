@@ -126,6 +126,12 @@ describe('class-specific recall filters', () => {
       include: false,
       reason: 'invalid_until',
     });
+    expect(
+      filterGovernedMemory(base({ effectiveFrom: '2026-07-29T00:00:00.000Z' }), access),
+    ).toEqual({ include: false, reason: 'not_yet_effective' });
+    expect(
+      filterGovernedMemory(base({ effectiveFrom: '2026-07-28T00:00:00.000Z' }), access),
+    ).toEqual({ include: true });
   });
 
   it('requires approval for firm/client classes and TTL for episodic memory', () => {
@@ -372,6 +378,10 @@ describe('governedRecallSuppressionSql', () => {
   it('supports an unaliased FROM memory_items', () => {
     expect(governedRecallSuppressionSql(true)).toContain("governed_status IN ('active', 'stale')");
     expect(governedRecallEligibilitySql()).toContain('controlling_item_id = id');
+    expect(governedRecallEligibilitySql()).toContain("status = 'active'");
+    expect(governedRecallEligibilitySql()).toContain('effective_from <= now()');
+    expect(governedRecallEligibilitySql()).toContain('valid_until > now()');
+    expect(governedRecallEligibilitySql()).toContain('expires_at > now()');
   });
 
   it('refuses an alias that is not a bare identifier', () => {

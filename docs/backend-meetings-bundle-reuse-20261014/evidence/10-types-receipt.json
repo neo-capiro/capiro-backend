@@ -1,0 +1,26 @@
+{
+  "head": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+  "tree": "6f5086f584c9915f4fd417b09c7545eb6e0f70a7",
+  "bindings": [
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "blob": "7593c2b82dc4b4645d8287fbf80399c5e28f7258",
+      "sha256": "2f2552ad4720a1a92c3cdc7f3531b214da580b6fe85b4f92f49908662e8139c6"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "blob": "75153e8a683780fa21515ce4c748dc72d8186576",
+      "sha256": "80950bc1c216da2c785366a0f260cc7fb13612c7deb25286fada28a2b85848b4"
+    }
+  ],
+  "boundSourcesUnchanged": true,
+  "exitCode": 0,
+  "signal": null,
+  "sourceFiles": 2082,
+  "diagnostics": [],
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-meetings-bundle-20261014/docs/backend-meetings-bundle-reuse-20261014/evidence/check-types.cjs"
+  ],
+  "qualification": "Actual strict/noUnchecked/noEmit changed-entry closure; workspace packages pinned to this Git source; published Engagement body read only for type compilation; cached third-party/Prisma declarations, no generator/DB/provider/native execution."
+}

@@ -1,0 +1,30 @@
+{
+  "activeWorkflowFiles": 0,
+  "allQuarantinedFilesDisabled": true,
+  "allStagedPathsPacketOnly": true,
+  "baseImport": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "format": "final-checkpoint-seal-verification/v1",
+  "initialRawCheckpoint": "750085005efbbab918734bbf54fce4ebf6531d02",
+  "productSourceChangedBySeal": false,
+  "quarantinedFilesModeBlobExact": 74,
+  "rawEvidence": [
+    {
+      "bytes": 1957,
+      "envelope": "evidence/api-action-jest.log.raw.json",
+      "gitBlob": "80922f706cf3ba5ab4fb86135ba20043837e3ada",
+      "matchesRawCheckpoint750": true,
+      "sha256": "1b750b4ef22f076bd521835ade608f30fcb765b8dbbb84265867a44562c8bf3b"
+    },
+    {
+      "bytes": 3683,
+      "envelope": "evidence/attempt0-api-action-jest.log.raw.json",
+      "gitBlob": "d1a9f68455650efa44457a60c863e8cd6fd1fad4",
+      "matchesRawCheckpoint750": true,
+      "sha256": "fc859503b59263982aa6e5fe90de9396f4460291a6581eb186438847fa112c67"
+    }
+  ],
+  "sourceBeforeSeal": "8dfb8d62fe98843979979596da43b2c551ce3952",
+  "sourceHygieneCommand": "node scripts/lib/reviewed-source-hygiene.mjs --run --base c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "sourceHygieneFinalRerunRequired": true,
+  "sourceHygienePreseal": "PASS"
+}

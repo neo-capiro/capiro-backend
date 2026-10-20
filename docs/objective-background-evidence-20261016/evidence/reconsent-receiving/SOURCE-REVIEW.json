@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUTC": "2026-10-16T03:49:39.8775183Z",
+  "reviewer": "/root/operational_proposal_review",
+  "verdict": "ACCEPT_SOURCE_ONLY",
+  "concreteBlockers": [],
+  "scope": "Independent static production-source review of the current 20-file canonical-receiving/reconsent snapshot; retained owner-executed fixture evidence inspected without execution. This receipt does not qualify a live verifier, semantic compiler, Nest application, migrated database or complete Objective loop.",
+  "candidate": {
+    "repository": "C:/Users/neoma/Documents/Codex/2026-10-14/task-6/objective-background-evidence",
+    "workingTreeSnapshot": true,
+    "gitHeadAtReview": "5034aaed12997604ab6bd6eb6a5f7d5615056384",
+    "gitHeadTree": "02ba6facb917c9a61e76df5db3eaedf348c8d954",
+    "gitHeadParent": "234d46e3ed0ffec45e94661108228c2a4c7f6de4",
+    "earlierApplicationCommit": "5afc530a6907c74b21db3ea59103def6cb5a20a5",
+    "earlierOperationalCommit": "622905839c7a510ab01a512ef8012926b2e1b4ce",
+    "sealedSuccessorCommitChecked": null,
+    "sourceFileCount": 20,
+    "allCurrentSourceHashesMatchRefreshedManifest": true,
+    "cleanWorktreeClaim": false,
+    "note": "Git HEAD anchors the preceding documentation checkpoint. The new application files remain a hash-bound working snapshot here; a later Git checkpoint must preserve these exact source hashes or receive a successor review."
+  },
+  "independence": {
+    "productionSourceAuthoredByReviewer": false,
+    "productionSourceReviewIndependent": true,
+    "testAuthorship": "Reviewer authored apps/api-strategy/test/objective-canonical-application.focused.test.mjs, covering the pure receiving kernel and synthetic transaction ports. Its contents/results are not represented as an independent test author opinion.",
+    "contractAuthorship": "Reviewer authored RECEIVING-TRUST-ALLOCATION.md and CANONICAL-APPLICATION.schema.json from current source. Schema source conformity is a transcription review, not an independently executed schema validator.",
+    "receiptAuthoredByReviewer": true,
+    "reviewerRanTests": false,
+    "reviewerRanCompiler": false,
+    "reviewerRanSchemaValidator": false,
+    "reviewerConnectedDatabase": false,
+    "reviewerPerformedProviderOrNetworkWork": false,
+    "reviewerChangedProductionSource": false
+  },
+  "reviewedProductionFindings": [
+    "Closed nine-field private request; complete original twelve-field canonical token; lowercase UUID/hash full-match syntax; epoch 1; route-fixed objective.plan.prepare; no caller actor, role, model, groups or result reference.",
+    "Effect identity deterministically binds the full original canonical reservation and authenticated Core actor. Changed generation/job/version/digest under that identity conflicts. Consent/claim identity does not silently allocate a second effect.",
+    "Workload authority verify/assertCurrent remains explicitly unavailable. No fabricated native actor context, plain identity/context hash, generic internal secret, reservation or browser bearer substitutes for workload/delegation/current-claim proof.",
+    "Actual API-Strategy Prisma transaction supplies the exported transaction choreography. Existing paired application receipt recovery precedes new-effect source fences. An orphan owner-only receipt is an integrity hold, not adopted post hoc.",
+    "Owner materialization validates actual generation job/request/objective receipt, immutable saved Strategy/version snapshot and digest. All canonical source fields correlate; no Strategy generation-job UUID is represented as a Meri run ID.",
+    "One shared output-ID resolver uses the actual reserved canonical project ID for row insertion, memberships and both immutable projections. Public manual multi-group mode retains a separate path. Existing canonical output collisions are refused instead of overwriting human work.",
+    "Planner gate and owner job/Strategy/version locks precede current Core authority/Objective, canonical reservation and current work-control fences. Effect gate checks exact ready intent/hash/source/token, current actor/wall membership and tenant Strategy/Planner flag.",
+    "Final DB-clock checks enforce current selected consent/control/action, native membership, policy revision 1, <=1800000 ms configured/effective duration and token/delegation/claim expiries. Original and newly consenting actor lineage remain separate.",
+    "Application and owner creation receipts are semantically insert-only private SP ledger kinds. The explicit mutable application head is fully rebuilt against its paired old ACK and owner receipt before version CAS. A pointer, existing output or reservation is not independent proof of application.",
+    "Owner outputs, owner creation receipt, receiving receipt and application head use one existing owner transaction. Final effect and source/consent fences follow all writes; an exception must escape so the native transaction can roll back. Native rollback itself has not been exercised.",
+    "Retained lookup has independent current read authority, tenant/client/Objective/Strategy scope and feature gate. It does not require the historical Objective version/requested token, old effect consent or worker deadline still current. Missing paired receipts stay unconfirmed and cannot trigger prepare.",
+    "Immutable receiving ACK is reconstructed from checked owner creation evidence. Current human edits, versions, memberships, archive or permission changes are separate observations. Original output cardinality/identities/created versions are checked; withholding any current output hides the complete creation ACK and its digest.",
+    "Core generation commands use live request-local Clerk proof plus current native Objective/client authority; historical actor/request receipt replay precedes new-source/control CAS. Unconnected reconciliation/settings ports cannot establish not_started or grant retry.",
+    "New consent policy is explicitly allocated revision 1/default-max 30 minutes and preserves stricter limits. SQL migration50000 is additive consent/control/command-receipt source with scoped lineage, reciprocal deferred guards, immutable-row UPDATE rejection, tenant FORCE RLS and narrow DML revocations; static inspection does not qualify native SQL/grants/inheritance/concurrency."
+  ],
+  "fixedFindings": [
+    {
+      "finding": "Required SpPlannerResource.name absent from receiving receipt/head inserts",
+      "resolution": "Bounded server names are now supplied."
+    },
+    {
+      "finding": "Internal canonical receiver omitted the existing tenant Strategy/Planner feature gate",
+      "resolution": "Transactional effect and retained-read fences now require the tenant enabled flag."
+    },
+    {
+      "finding": "UUID/SHA regex $ anchors accepted a trailing newline",
+      "resolution": "Canonical parser uses full-match exec equality; Core workUuid likewise uses full-match equality while preserving its existing lowercase normalization. Retained Core successor adds the explicit newline case."
+    }
+  ],
+  "newMutableHeadReview": {
+    "reviewed": true,
+    "runtimeExecuted": false,
+    "details": "advanceHead verifies kind/owner/canonical identity/monotonic binding, reloads the previous actor-scoped receiving receipt and separately checked owner creation receipt, rebuilds the entire expected old head, compares its full hash, and uses row-version CAS. This post-baseline service patch is statically reviewed; the pure Node suite does not instantiate the production Nest service."
+  },
+  "machineSchema": {
+    "path": "docs/objective-background-evidence-20261016/CANONICAL-APPLICATION.schema.json",
+    "sha256": "0b3fb823aeeb6b811946a647c4f82b47652c21065855316c7fff1eb1d23e8bc0",
+    "bytes": 27253,
+    "closedShapes": [
+      "request",
+      "canonical",
+      "ack",
+      "creation",
+      "success",
+      "error",
+      "materializationResult"
+    ],
+    "http": {
+      "postSuccess": 201,
+      "getSuccess": 200,
+      "errorStatuses": [
+        400,
+        404,
+        409,
+        422,
+        503
+      ]
+    },
+    "uuidLength": 36,
+    "sha256Length": 64,
+    "includesExactHashAndPrivateUuidConstruction": true,
+    "separatesCrossFieldAuthorityNormativeRules": true,
+    "validatorRun": false,
+    "copiedDefinitions": {
+      "path": "docs/objective-planner-materialization-proposal/CONTRACT.json",
+      "sha256": "8e38c42ac1b111be5d0a0fe7f1b156b3d1691974f49b8c683b3df895c895dcfa",
+      "names": [
+        "source",
+        "available",
+        "unavailable",
+        "output",
+        "project",
+        "task",
+        "context",
+        "edge",
+        "exclusion",
+        "successIssue"
+      ],
+      "unchanged": true
+    },
+    "currentResultNote": "MaterializationResult object transcribed from the current source type; no new count cap added. Cross-field hash/provenance/auth/SQL rules are not claimed to be enforced by JSON Schema."
+  },
+  "retainedExecutionEvidence": {
+    "executedBy": "Parent/root; reviewer read records and logs only",
+    "baseline": {
+      "tests": 136,
+      "passed": 136,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "suites": 0,
+      "pid": 21204,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "elapsedSeconds": 0.2298269,
+      "scope": "Four pure source-stripped Node fixture files, including static SQL-source checks. Baseline preserved; older Core kernel SHA9b906 preceded the later newline successor."
+    },
+    "migrationWindowSuccessor": {
+      "tests": 13,
+      "passed": 13,
+      "failed": 0,
+      "pid": 8688,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "elapsedSeconds": 0.1176094,
+      "scope": "Same13 static migration cases after SQL guard/assertion successor. No database execution; overlaps baseline.",
+      "migrationSha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+      "testSha256": "780784d6930b1f3f7e7fd766f7204a75add8dbfd704921a0c8ddfc25cea15fd9"
+    },
+    "workUuidSuccessor": {
+      "tests": 26,
+      "passed": 26,
+      "failed": 0,
+      "pid": 3372,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "elapsedSeconds": 0.1562951,
+      "scope": "25 previously covered Core command cases plus one new newline case; overlaps baseline.",
+      "kernelSha256": "ddecfae67401c2af6c59fab7b9ddaae6df726e1605303395daa51925f08d144c",
+      "testSha256": "e27e7d29606875da7539e2c6a10c7714db4039a2de050e400b8672059416344a"
+    },
+    "uniqueFixtureCases": 137,
+    "countsAreNotAdditive": true,
+    "no175UniqueOrAggregateClaim": true,
+    "limits": {
+      "nodeHeapMiB": 128,
+      "externalWallLimitSeconds": 120,
+      "networkServerChildrenBlockedByRetainedGuard": true,
+      "environmentSanitizedByLauncher": true,
+      "peakWorkingSetBytes": null,
+      "output4MiBCheck": "Post-run measured size, not a streaming hard cap",
+      "memoryAdmission": "Historical approved commit-availability relay at2026-10-16T02:44:21Z plus process-local os.freemem physical gate; not a fresh commit-space/peak-memory guarantee.",
+      "nativeSemanticScope": "Node source stripping executes pure source and static migration strings; it is not semantic TypeScript checking, Nest DI/HTTP, Prisma SQL execution, grants/RLS or concurrency qualification."
+    },
+    "sourcePinNote": "Retained execution records say source pinned separately and do not embed a prelaunch20-file hash set. This review independently hashes the final current20-file source manifest; it does not retroactively claim every current production byte executed in the baseline fixture process."
+  },
+  "remainingQualificationLimits": [
+    "Live workload issuer/audience/delegation/current-claim verifier remains DISABLED/unbound.",
+    "Core owner reconciliation and stricter-settings bindings remain unconnected/fail-closed; a null/missing job/control cannot establish not_started.",
+    "Narrow Strategy writer seam that creates the actual reserved canonical Strategy ID remains separately allocated; no output is inferred from reservation.",
+    "Existing output collision is refused; automatic canonical regeneration/update/human-merge behavior is not implemented by this slice.",
+    "Full semantic TypeScript/compiler and Prisma generation/validation for this successor remain unrun.",
+    "Nest dependency injection/HTTP, owner canonical Jest8 cases, full apps and real Clerk/current service credentials remain unrun/unqualified.",
+    "No migration/native PostgreSQL/grants/FORCE RLS/concurrent cancellation/ACL/claim/expiry/rollback proof is earned. Existing native ACL STOP remains in force; no security change, relocation or bootstrap bypass was performed.",
+    "Private machine schema was authored/read only, without schema-validator execution. It is not a new approved public export.",
+    "SP ledger generic table is not newly SQL-immutable; privacy/insert-only behavior here is application discipline under the owner gate.",
+    "Complete Objective loop, scheduler, provider generation, workload dispatch and runtime admission are not claimed.",
+    "Earlier331/68/other QA assertion totals are separate overlapping efforts and are not added to the137 unique cases here."
+  ],
+  "sourceFiles": [
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.controller.ts",
+      "bytes": 1057,
+      "sha256": "112dd49f83922b018ed7d3d5b24a94a889aed5d933e874c939c8197a748e09a0",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.service.ts",
+      "bytes": 13238,
+      "sha256": "8d540c34b29936826482ddb9d6fc047007221a1288d383e46c07b75af26991fd",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-application.ts",
+      "bytes": 15177,
+      "sha256": "0785ba9f6446fc552a2153ced3b61f4c4cb22e724ac8df8a10408d8b64048b60",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-authority.ts",
+      "bytes": 1591,
+      "sha256": "c6481bb5c433703492dd6f0bfc3eafebb8054739f265215957c4a20370877d23",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/objective-canonical-fence.ts",
+      "bytes": 12600,
+      "sha256": "1f1cb8ae29718fbb7eb2663163ff31ad3c735159f3c6637c4de92ed82f1606b1",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.module.ts",
+      "bytes": 1716,
+      "sha256": "1a16440dc7569135cd55d9bec9b65b8de3908922f07701dc54fc51f4080f6c08",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "bytes": 253506,
+      "sha256": "6c0c5fcd848a8e6855bba9257121b9a6ce1a620dfc47bc54bf1fc5974ff8fd29",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization-canonical.spec.ts",
+      "bytes": 6963,
+      "sha256": "71f1ea6b2fefab389a94937d42c2979c79b22075e8398b384688f0a9743ddd83",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/src/planner/strategy-materialization.ts",
+      "bytes": 23555,
+      "sha256": "b31789a0f06de7487dae60908bc50604e3e9e0f2b1d578380b34208abf527432",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api-strategy/test/objective-canonical-application.focused.test.mjs",
+      "bytes": 23702,
+      "sha256": "dcc4597480f5b5e023b32698662f63e2bb656046e965d9cc57a8746fd6960150",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
+      "bytes": 22831,
+      "sha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/src/auth/workload-authority/objective-consent-policy.ts",
+      "bytes": 4621,
+      "sha256": "d2eaa6856e03a944eb3494c1e379caa704ce86fd1ebdd75abf3b67343ae13c02",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "bytes": 8813,
+      "sha256": "d0abac8d54c15d21b6b021b13e90baf75134e683592033332fa2d60d165697ec",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work-command.ts",
+      "bytes": 23392,
+      "sha256": "ddecfae67401c2af6c59fab7b9ddaae6df726e1605303395daa51925f08d144c",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.controller.ts",
+      "bytes": 2011,
+      "sha256": "f292133e75139d12286c73e45d124cb2d1c5bb648ac074a08314c8ee15b86759",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.module.ts",
+      "bytes": 447,
+      "sha256": "4e6e8f681f877007c92f1399d330bcca849db2e0b93a1b90a42647fe5c222347",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/work/objective-work.service.ts",
+      "bytes": 26238,
+      "sha256": "acf7dd57d9129d5b5ac636c62456c56ba7e7dd8d22f14a279f9de86a3b0ce30d",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/test/objective-consent-policy.focused.test.mjs",
+      "bytes": 13480,
+      "sha256": "08636b00bc412e715ff03f60f599dc1aa71cdc61ef9ee64584d71265f3caaca7",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/test/objective-work-command.focused.test.mjs",
+      "bytes": 35722,
+      "sha256": "e27e7d29606875da7539e2c6a10c7714db4039a2de050e400b8672059416344a",
+      "manifestMatch": true
+    },
+    {
+      "path": "apps/api/test/objective-work-reconsent-migration.focused.test.mjs",
+      "bytes": 25040,
+      "sha256": "780784d6930b1f3f7e7fd766f7204a75add8dbfd704921a0c8ddfc25cea15fd9",
+      "manifestMatch": true
+    }
+  ],
+  "evidenceFiles": [
+    {
+      "path": "FOCUSED-RESULT.json",
+      "bytes": 1775,
+      "sha256": "ad13e2129d474ed0d421aab9fe541de4c0f0523cf0e1e5629552e3c88e2b4193"
+    },
+    {
+      "path": "focused.stderr.log",
+      "bytes": 1388,
+      "sha256": "f6869259ee0d275f8b9e4de3bfec446498f28d6ba0c3937a7f667f4ac88b4291"
+    },
+    {
+      "path": "focused.stdout.log",
+      "bytes": 12784,
+      "sha256": "631e0e256db455ad4957a323ec1bba7a6d3a2db705d815388bc27c8584fa4b43"
+    },
+    {
+      "path": "offline-source-guard.cjs",
+      "bytes": 777,
+      "sha256": "c72dd631bfa43116f077c9770f61afa6d5d0da58b6368993f175065223256282"
+    },
+    {
+      "path": "physical-admission.cjs",
+      "bytes": 307,
+      "sha256": "46f1dac6452bcb31822c206464044ccc06c813c66adeb90172ce0ee845fed6c7"
+    },
+    {
+      "path": "run-focused.ps1",
+      "bytes": 3618,
+      "sha256": "a6203dec42b797cf554bee65f86461feba656469acb9892017cbc3209449f36a"
+    },
+    {
+      "path": "SOURCE-FILES.json",
+      "bytes": 3855,
+      "sha256": "7f9073dea3d0e89753004213c82a992021fe378ff8db6b512a6c34bce57a2523"
+    },
+    {
+      "path": "TEST-SUMMARY.json",
+      "bytes": 617,
+      "sha256": "ed3d02a43be28038dc5260d704d691c969032f84ca39b5a121daa3620f1f7bd0"
+    },
+    {
+      "path": "migration-window-successor/FOCUSED-RESULT.json",
+      "bytes": 1624,
+      "sha256": "65fc90306b38c64d65a83100a2ab534cda01d91a32201e631c6846f6f7a5cf56"
+    },
+    {
+      "path": "migration-window-successor/focused.stderr.log",
+      "bytes": 150,
+      "sha256": "132ffc6fd9d1afbd4153b78d12917dcac177baed62e66d46ca8ae454f11d96f0"
+    },
+    {
+      "path": "migration-window-successor/focused.stdout.log",
+      "bytes": 1631,
+      "sha256": "437da9301d79f73fabe4df9f78a0c19cf71c3bd7f767a127906046cb3a59dec1"
+    },
+    {
+      "path": "migration-window-successor/offline-source-guard.cjs",
+      "bytes": 777,
+      "sha256": "c72dd631bfa43116f077c9770f61afa6d5d0da58b6368993f175065223256282"
+    },
+    {
+      "path": "migration-window-successor/physical-admission.cjs",
+      "bytes": 307,
+      "sha256": "46f1dac6452bcb31822c206464044ccc06c813c66adeb90172ce0ee845fed6c7"
+    },
+    {
+      "path": "migration-window-successor/run-focused.ps1",
+      "bytes": 3433,
+      "sha256": "2b1ddcac90cfae814fa19192993d145713ddae25af6164e89251208a80e86700"
+    },
+    {
+      "path": "work-uuid-successor/FOCUSED-RESULT.json",
+      "bytes": 1598,
+      "sha256": "980e359765a35e69cf5b1ec9896bc9ead4a586a255fd74a3ca3de0f451458135"
+    },
+    {
+      "path": "work-uuid-successor/focused.stderr.log",
+      "bytes": 854,
+      "sha256": "bd8b293fbc14b13164226edfc664f2536ea1bd24079db3f8919481e9bde3d6de"
+    },
+    {
+      "path": "work-uuid-successor/focused.stdout.log",
+      "bytes": 3177,
+      "sha256": "b7ba4798cc1696395372390f23f0d3440d9d07bfc37761b24422f8d2ad38e8b5"
+    },
+    {
+      "path": "work-uuid-successor/offline-source-guard.cjs",
+      "bytes": 777,
+      "sha256": "c72dd631bfa43116f077c9770f61afa6d5d0da58b6368993f175065223256282"
+    },
+    {
+      "path": "work-uuid-successor/physical-admission.cjs",
+      "bytes": 307,
+      "sha256": "46f1dac6452bcb31822c206464044ccc06c813c66adeb90172ce0ee845fed6c7"
+    },
+    {
+      "path": "work-uuid-successor/run-focused.ps1",
+      "bytes": 3421,
+      "sha256": "8d6f29dfde30d5a6da16662aede7ebf000a652dbca047d43ca3fc2070fc3d771"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/objective-background-evidence-20261016/CANONICAL-APPLICATION.schema.json",
+      "bytes": 27253,
+      "sha256": "0b3fb823aeeb6b811946a647c4f82b47652c21065855316c7fff1eb1d23e8bc0"
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/RECEIVING-TRUST-ALLOCATION.md",
+      "bytes": 12186,
+      "sha256": "60d3889923e29a80e304c895a2d1502ddc6d578ac21503e7f0d85cb42d668f41"
+    },
+    {
+      "path": "docs/objective-planner-materialization-proposal/CONTRACT.json",
+      "bytes": 38502,
+      "sha256": "8e38c42ac1b111be5d0a0fe7f1b156b3d1691974f49b8c683b3df895c895dcfa"
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/evidence/reconsent-receiving/FINAL-TEST-SCOPE.json",
+      "bytes": 921,
+      "sha256": "b3ddb895303c374f2196255392ce37dd9722785907b28baebb47cbed88f0befa"
+    },
+    {
+      "path": "docs/objective-background-evidence-20261016/evidence/reconsent-receiving/SOURCE-FILES.json",
+      "bytes": 3855,
+      "sha256": "7f9073dea3d0e89753004213c82a992021fe378ff8db6b512a6c34bce57a2523"
+    }
+  ]
+}

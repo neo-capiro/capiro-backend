@@ -48,7 +48,11 @@ function job(overrides: Partial<TestJob> = {}): TestJob {
   };
 }
 
-function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected', failure?: Error) {
+function harness(
+  outcome: 'projected' | 'superseded' | 'vanished' = 'projected',
+  failure?: Error,
+  subjectPresent = false,
+) {
   const captured: Array<{ sql: string; params: unknown[]; kind: 'query' | 'execute' }> = [];
   const tx = {
     $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...params: unknown[]) => {
@@ -59,6 +63,9 @@ function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected',
       const sql = sqlText(strings);
       captured.push({ sql, params, kind: 'query' });
       if (sql.includes('UPDATE memory_cleanup_outbox')) return [{ status: 'failed' }];
+      if (sql.includes('SELECT id::text AS id FROM memory_items')) {
+        return subjectPresent ? [{ id: ITEM }] : [];
+      }
       return [];
     }),
   } as unknown as Prisma.TransactionClient;
@@ -168,5 +175,27 @@ describe('ExactMemoryProjectionWorkerService', () => {
       ),
     ).resolves.toBe('failed');
     expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
+  });
+
+  test('retries a failed Clio revoke by stripping its embedding and retaining the revoked tombstone', async () => {
+    const h = harness('projected', undefined, true);
+    await expect(
+      h.process(job({
+        operation: 'revoke_projections',
+        idempotency_key: `revoke_projections:${CLIO}`,
+        expected_source_version: null,
+        expected_content_hash: null,
+      })),
+    ).resolves.toBe('completed');
+
+    expect(h.captured.some(({ sql, params }) =>
+      sql.includes('DELETE FROM context_embeddings') &&
+      params.includes(TENANT) && params.includes(ITEM),
+    )).toBe(true);
+    expect(h.captured.some(({ sql, params }) =>
+      sql.includes('DELETE FROM clio_memory') && params.includes(CLIO),
+    )).toBe(true);
+    expect(h.captured.some(({ sql }) => sql.includes('DELETE FROM memory_items'))).toBe(false);
+    expect(h.captured.some(({ sql }) => sql.includes("SET status = 'completed'"))).toBe(true);
   });
 });

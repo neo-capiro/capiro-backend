@@ -1,0 +1,7 @@
+{
+  "strictAPITypePassedBeforeSparseReduction": true,
+  "strictReceipt": "type-receipt.json",
+  "sparseRetirement": "Unrelated spec/test materialization omitted after full actual strict config pass; selected99specs and canonical fixtures retained. No source blob changed.",
+  "JSMaplessAdapter": "Delegates same existing JS ts-jest options, omits returned debug map/sourceMappingURL only; runtime statements unchanged.",
+  "oldFailure": "Inherited JS transform cached TypeScript compiler index10,033,207bytes plus4,651,820 map; no blanket Node/cache bypass."
+}

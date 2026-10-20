@@ -1,0 +1,23 @@
+{
+  "source": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+  "sourceTree": "4d33f74730f47bbae00f84d513b62a9ecfff25b1",
+  "selectedAPISuites": 99,
+  "borrowedOverlay": "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/node_modules",
+  "borrowedCoreClient": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+  "schemaByteExact": true,
+  "schemaSHA256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "freshOwnedShared": "/tmp/intelligence-facade-shared-runtime-20261013",
+  "fixtures": [
+    "apps/api/src/california-grants/california-public-sample.fixture.json",
+    "apps/api/src/directory/legistorm/__fixtures__/member-page.json",
+    "apps/api/src/directory/legistorm/__fixtures__/office-page.json",
+    "apps/api/src/directory/legistorm/__fixtures__/retired-ids.json",
+    "apps/api/src/directory/legistorm/__fixtures__/staff-page.json",
+    "apps/api/src/funding-opportunities/__fixtures__/baseline-contract-v1.json"
+  ],
+  "legacyTXT": [
+    "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+    "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt"
+  ],
+  "borrowedTargetsModified": false
+}

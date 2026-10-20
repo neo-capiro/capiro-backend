@@ -96,6 +96,12 @@ export class MeriController {
     return this.draftJobs.get(ctx, jobId);
   }
 
+  @Post('strategies/objective-drafts')
+  @HttpCode(202)
+  objectiveDraft(@CurrentTenant() ctx: AuthTenantContext, @Body() body: unknown) {
+    return this.draftJobs.submitObjective(ctx, body);
+  }
+
   @Post('strategies/:id/assistant')
   assistant(
     @CurrentTenant() ctx: AuthTenantContext,

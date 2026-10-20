@@ -1,0 +1,11 @@
+{
+  "first_jest": "160/161 cases, missing sparse retrieval.module.ts source-read asset; no parser mismatch",
+  "corrected_jest": "161/161 cases, 13 suites; exact canonical asset materialized; no tests/assertions removed",
+  "first_emission": {
+    "code": 6059,
+    "error": "relative filename outside absolute canonical rootDir",
+    "correction": "absolute filename inside original rootDir; compiler options unchanged"
+  },
+  "scope_limit": "protected EngagementService implementation excluded via opaque DI token; full API type/Nest/fixture/global ratchets not rerun here; original donor qualification separate",
+  "js_fence_is_not_os_sandbox": true
+}

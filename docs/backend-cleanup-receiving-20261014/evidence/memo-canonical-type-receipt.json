@@ -1,0 +1,35 @@
+{
+  "label": "memo-canonical-type",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "--strict",
+    "--module",
+    "commonjs",
+    "--moduleResolution",
+    "node",
+    "--target",
+    "ES2022",
+    "--lib",
+    "ES2022",
+    "--skipLibCheck",
+    "--noEmit",
+    "src/intelligence/alert-memo/memo-sections.ts"
+  ],
+  "source_head": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "source_tree": "e0592f4137c67740c0b519f9a88f5d15840b0b8f",
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-cleanup-receiving-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-cleanup-receiving-20261014/.qualification-cache/tmp"
+  },
+  "exit_code": 0,
+  "duration_seconds": 0.965,
+  "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_only": true,
+  "live_db_provider_or_customer_operation": false
+}

@@ -1,0 +1,28 @@
+PASS documented owner GRANT ALL default ACL includes app TRUNCATE
+FAIL hardened full-default-ACL posture qualifies without inherited or SET-able D
+PASS real app session cannot SET ROLE hardened owner
+FAIL effective app TRUNCATE denied engagement_plan_command_receipts
+FAIL effective app TRUNCATE denied engagement_plan_revisions
+FAIL effective app TRUNCATE denied engagement_plan_waves
+FAIL effective app TRUNCATE denied engagement_plans
+FAIL app denied wave leaf
+FAIL app denied receipt leaf
+FAIL app denied revision leaf
+FAIL app denied plan cascade
+FAIL app denied all four together
+FAIL app denied client cascade
+FAIL app denied tenant cascade
+FAIL app denied wave cascade
+FAIL app denied receipt cascade
+FAIL app denied revision cascade
+PASS unsafe_owner_inheritance fails qualification precondition
+PASS unsafe_owner_inheritance native negative control proves direct REVOKE insufficient
+PASS unsafe_owner_set_only fails qualification precondition
+PASS unsafe_owner_set_only native negative control proves direct REVOKE insufficient
+PASS unsafe_parent_truncate_inheritance fails qualification precondition
+PASS unsafe_parent_truncate_inheritance native negative control proves direct REVOKE insufficient
+PASS unsafe_parent_truncate_set_only fails qualification precondition
+PASS unsafe_parent_truncate_set_only native negative control proves direct REVOKE insufficient
+PASS unsafe_public_truncate fails qualification precondition
+PASS unsafe_public_truncate native negative control proves direct REVOKE insufficient
+{"status":"failed_qualification_invariants","phase":"before","totalChecks":27,"passedChecks":12,"failedChecks":15,"migrationSha256":"39dbfaea3f38f9eb553460e05365ffd79d3686c7d24934f7e6b7fabfe70e538f","hardenedAccepted":false,"negativeControls":5,"acceptedUnsafeProfiles":0,"report":"C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-3\\backend-plan-implementation\\docs\\engagement-manual-plans-20261015\\evidence\\migration-truncate-before.json"}

@@ -1,0 +1,14 @@
+{
+  "ownPriorObjectsPacked": 75,
+  "priorPack": "40b3fea604bdd08e6c6fba5a11101e854783cf22",
+  "ownImplementationObjectsPacked": 32,
+  "implementationPack": "8a691fd1c34b5fad48fbc200ef13758623617df7",
+  "refsUnchangedByPacking": true,
+  "failedPackingAttempt": {
+    "error": "Out of diskspace writing temporary Git pack index; subsequent ordinary sandbox mount also failed because /tmp was full",
+    "temporaryPackBytes": 72656,
+    "temporaryPackSha256": "bef3a92351c1bd9aae9d7115a3ec7d3877774074d865e8f49194162864630fcb",
+    "preservedAt": "/workspace/backend-successor-own-object-pack-20261014/failed-attempt01",
+    "resolution": "Exact two temporary files moved with byte/hash checks; auto review authorized source-only relocation, then own objects packed and all object IDs verified. No borrowed object store, source, old refs or evidence removed."
+  }
+}
