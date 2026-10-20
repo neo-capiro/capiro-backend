@@ -34,9 +34,13 @@ export const configSchema = z.object({
   CLERK_SECRET_KEY: z.string().min(1, 'CLERK_SECRET_KEY is required'),
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1, 'CLERK_WEBHOOK_SIGNING_SECRET is required'),
   CLERK_JWT_ISSUER: z.string().url().optional(),
-  // Only the separately pinned first-chat Core task opts into native GETs.
+  // The first-chat Core task, and a composed roster task when explicitly
+  // enabled below, opt into native GETs.
   // Exact strings prevent a typo from silently opening ordinary read policy.
   PREVIEW_NATIVE_GETS_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // One exact Host and GET /api/clients only. The composed Core task must also
+  // enable the existing native-read owner; false is the safe default.
+  CORE_ROSTER_PREVIEW_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // Deployment profile. 'first-chat-preview' (the held preview Core task only)
   // requires an exact, non-empty MERI_TOOL_ALLOWLIST at startup; every other
   // deployment keeps 'standard' and its existing tool behavior.
@@ -1282,6 +1286,9 @@ export type AppConfig = z.infer<typeof configSchema>;
  */
 export function validateConfig(raw: Record<string, unknown>): AppConfig {
   const parsed = configSchema.parse(raw);
+  if (parsed.CORE_ROSTER_PREVIEW_ENABLED && !parsed.PREVIEW_NATIVE_GETS_ENABLED) {
+    throw new Error('CORE_ROSTER_PREVIEW_ENABLED requires PREVIEW_NATIVE_GETS_ENABLED=true');
+  }
   // The preview listener forwards any syntactically valid tool name, so the
   // preview profile must never fall back to 'every registered tool'.
   if (parsed.CORE_DEPLOYMENT_PROFILE === 'first-chat-preview' && !parsed.MERI_TOOL_ALLOWLIST) {

@@ -202,7 +202,10 @@ export class MeriOpportunityToolsAdapter {
   ) {}
 
   /** Global source health for the existing public-catalog SAM reader; no client records. */
-  async readSamSourceFreshness(context: OpportunitySearchContext = { tenantId: '', userId: '' }): Promise<MeriSamSourceFreshness[]> {
+  async readSamSourceFreshness(
+    context: OpportunitySearchContext = { tenantId: '', userId: '' },
+    sourceHealthAsOf?: Date,
+  ): Promise<MeriSamSourceFreshness[]> {
     return (await this.opportunities.readSourceHealth(context)).sources
       .filter((row) => row.source === 'sam_gov')
       .map((row) => ({
@@ -211,7 +214,9 @@ export class MeriOpportunityToolsAdapter {
         neverSynced: row.state === 'never_synced',
         lastRunStatus: row.state,
         lastRunDegraded: row.state !== 'current',
-        hoursSinceLastSuccess: row.lastSyncedAt ? Math.max(0, (Date.now() - Date.parse(row.lastSyncedAt)) / 3600000) : null,
+        hoursSinceLastSuccess: row.lastSyncedAt
+          ? Math.max(0, ((sourceHealthAsOf?.getTime() ?? Date.now()) - Date.parse(row.lastSyncedAt)) / 3600000)
+          : null,
       }));
   }
 

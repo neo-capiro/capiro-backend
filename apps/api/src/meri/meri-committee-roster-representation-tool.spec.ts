@@ -1,4 +1,5 @@
 import { MeriToolsService } from './meri-tools.service.js';
+import { withMeriReadObservation } from './meri-funding-read-observation.js';
 
 /**
  * 50-state analyst (Phase 1 M4.1/M4.2) — get_committee_roster,
@@ -402,6 +403,11 @@ describe('get_representation (M4.2)', () => {
 });
 
 describe('get_state_rule_status (M4.2)', () => {
+  // Deliberately historical: an ambient clock would put this proposed rule in
+  // comment_closed, while the privately observed instant keeps it in nprm.
+  const BOUNDARY = '2025-02-01T12:00:00.000Z';
+  const BEFORE = '2025-02-01T11:59:59.999Z';
+  const AFTER = '2025-02-01T12:00:00.001Z';
   const FL_RULE = {
     id: 'FL-31100933',
     state: 'FL',
@@ -454,6 +460,94 @@ describe('get_state_rule_status (M4.2)', () => {
       },
     };
   }
+
+  function observedRuleStatus(
+    prisma: Fake,
+    input: Fake,
+    stageAsOf: string,
+    commentAsOf: string,
+  ): Promise<Record<string, unknown>> {
+    return withMeriReadObservation(
+      { operationId: 'get_state_rule_status', stageAsOf, commentAsOf },
+      () => call(svc({ prisma }), 'getStateRuleStatus', input),
+    );
+  }
+
+  const boundaryStateRule = () => ({
+    ...FL_RULE,
+    commentStartDate: new Date('2025-01-01T00:00:00.000Z'),
+    commentEndDate: new Date(BOUNDARY),
+  });
+  const boundaryFederalRule = () => ({
+    ...FR_RULE,
+    type: 'PROPOSED_RULE',
+    commentEndDate: new Date(BOUNDARY),
+    effectiveDate: null,
+  });
+
+  it('uses both private clocks on exact state ID, including deadline equality', async () => {
+    const prisma = prismaWith({ stateFindUnique: boundaryStateRule() });
+    const before = await observedRuleStatus(prisma, { query: 'FL-31100933' }, BEFORE, BEFORE) as {
+      found: boolean; stage: string; commentPeriod: { isOpen: boolean }; generatedAt: string;
+    };
+    expect(before.found).toBe(true);
+    expect(before.stage).toBe('nprm');
+    expect(before.commentPeriod.isOpen).toBe(true);
+    expect(before.generatedAt).not.toBe(BEFORE);
+
+    const atDeadline = await observedRuleStatus(prisma, { query: 'FL-31100933' }, BOUNDARY, BOUNDARY) as {
+      stage: string; commentPeriod: { isOpen: boolean };
+    };
+    // Stage closes only when end < stageAsOf; comments close at end <= commentAsOf.
+    expect(atDeadline.stage).toBe('nprm');
+    expect(atDeadline.commentPeriod.isOpen).toBe(false);
+
+    const distinct = await observedRuleStatus(prisma, { query: 'FL-31100933' }, AFTER, BEFORE) as {
+      stage: string; commentPeriod: { isOpen: boolean };
+    };
+    expect(distinct.stage).toBe('comment_closed');
+    expect(distinct.commentPeriod.isOpen).toBe(false);
+  });
+
+  it('uses the private clocks on the exact Federal Register ID', async () => {
+    const out = await observedRuleStatus(
+      prismaWith({ frFindUnique: boundaryFederalRule() }),
+      { query: '2026-01234' }, BEFORE, BEFORE,
+    ) as { found: boolean; jurisdiction: string; id: string; stage: string; commentPeriod: { isOpen: boolean } };
+    expect(out).toMatchObject({
+      found: true, jurisdiction: 'federal', id: '2026-01234', stage: 'nprm',
+      commentPeriod: { isOpen: true },
+    });
+  });
+
+  it.each([
+    { rail: 'state', rows: { stateFindMany: [boundaryStateRule()] }, id: 'FL-31100933' },
+    { rail: 'federal', rows: { frFindMany: [boundaryFederalRule()] }, id: '2026-01234' },
+  ])('passes distinct clocks through the single-result $rail keyword branch', async ({ rows, id }) => {
+    const out = await observedRuleStatus(
+      prismaWith(rows), { query: 'PFAS' }, BEFORE, AFTER,
+    ) as { found: boolean; id: string; stage: string; commentPeriod: { isOpen: boolean } };
+    expect(out).toMatchObject({
+      found: true, id, stage: 'nprm', commentPeriod: { isOpen: false },
+    });
+  });
+
+  it('keeps observed ambiguous and absent matches as non-status results', async () => {
+    const ambiguous = await observedRuleStatus(
+      prismaWith({ stateFindMany: [boundaryStateRule()], frFindMany: [boundaryFederalRule()] }),
+      { query: 'PFAS' }, BEFORE, BEFORE,
+    ) as { found: boolean; stage?: string; ambiguousMatches: unknown[] };
+    expect(ambiguous.found).toBe(false);
+    expect(ambiguous.stage).toBeUndefined();
+    expect(ambiguous.ambiguousMatches).toHaveLength(2);
+
+    const absent = await observedRuleStatus(prismaWith({}), { query: 'missing' }, BEFORE, BEFORE) as {
+      found: boolean; stage?: string; note: string;
+    };
+    expect(absent.found).toBe(false);
+    expect(absent.stage).toBeUndefined();
+    expect(absent.note).toMatch(/do not describe a rule's status from memory/i);
+  });
 
   it('PINNED: exact state_rule id — derives comment_open (nprm) stage from ruleType + open comment window, not a guess', async () => {
     const out = (await call(

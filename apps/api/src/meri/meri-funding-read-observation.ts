@@ -5,6 +5,8 @@ import type { Request } from 'express';
 import { hasVerifiedToolServiceIdentity } from './tool-service-secret.guard.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import type { CapabilityRolloutMode } from '@capiro/meriv2-core';
+import type { TenantContext } from '@capiro/shared';
+import type { MeriReadDelegationGrant } from '../auth/read-delegation/read-delegation-request.js';
 import {
   isMeriEvidenceModeRead,
   MERI_EVIDENCE_MODE_READS,
@@ -29,7 +31,11 @@ const FUNDING_READS = [
 type FundingReadOperation = (typeof FUNDING_READS)[number];
 const KB_READ = 'search_client_knowledge' as const;
 type ClockReadOperation = FundingReadOperation | typeof KB_READ;
-type ObservedReadOperation = ClockReadOperation | MeriEvidenceModeReadOperation;
+const SECOND_PACKAGE_READS = [
+  'get_certification_status', 'get_state_rule_status', 'search_sam_opportunities',
+] as const;
+type SecondPackageReadOperation = (typeof SECOND_PACKAGE_READS)[number];
+type ObservedReadOperation = ClockReadOperation | MeriEvidenceModeReadOperation | SecondPackageReadOperation;
 
 interface MeriClockReadObservation {
   readonly operationId: ClockReadOperation;
@@ -39,7 +45,24 @@ export interface MeriEvidenceModeObservation {
   readonly operationId: MeriEvidenceModeReadOperation;
   readonly evidenceAccuracyMode: CapabilityRolloutMode;
 }
-export type MeriReadObservation = MeriClockReadObservation | MeriEvidenceModeObservation;
+export interface MeriCertificationObservation {
+  readonly operationId: 'get_certification_status';
+  readonly comparisonLocale: string;
+}
+export interface MeriRuleStatusObservation {
+  readonly operationId: 'get_state_rule_status';
+  readonly stageAsOf: string;
+  readonly commentAsOf: string;
+}
+export interface MeriSamObservation {
+  readonly operationId: 'search_sam_opportunities';
+  readonly asOf: string;
+  readonly sourceStatusAsOf: string;
+  readonly sourceHealthAsOf: string;
+  readonly evidenceAccuracyMode: CapabilityRolloutMode;
+}
+export type MeriReadObservation = MeriClockReadObservation | MeriEvidenceModeObservation |
+  MeriCertificationObservation | MeriRuleStatusObservation | MeriSamObservation;
 
 export interface MeriFundingReadObservation {
   readonly operationId: FundingReadOperation;
@@ -102,8 +125,48 @@ function isFundingRead(name: string): name is FundingReadOperation {
   return (FUNDING_READS as readonly string[]).includes(name);
 }
 
+function isSecondPackageRead(name: string): name is SecondPackageReadOperation {
+  return (SECOND_PACKAGE_READS as readonly string[]).includes(name);
+}
+
 function isObservedRead(name: string): name is ObservedReadOperation {
-  return isFundingRead(name) || name === KB_READ || isMeriEvidenceModeRead(name);
+  return isFundingRead(name) || name === KB_READ || isMeriEvidenceModeRead(name) || isSecondPackageRead(name);
+}
+
+function canonicalIso(value: unknown): value is string {
+  if (typeof value !== 'string' ||
+      !/^(?:[0-9]{4}|[+-][0-9]{6})-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/u.test(value)) return false;
+  try { return new Date(value).toISOString() === value; } catch { return false; }
+}
+
+function canonicalSupportedLocale(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length < 2 || value.length > 128) return false;
+  try {
+    const canonical = Intl.getCanonicalLocales(value);
+    return canonical.length === 1 && canonical[0] === value &&
+      Intl.Collator.supportedLocalesOf(canonical, { localeMatcher: 'lookup' }).length === 1;
+  } catch { return false; }
+}
+
+/** The observation supplies calculation inputs, never a principal or grant.
+ * For these new operations only, require the middleware's admitted exact tool
+ * target and original actor/tenant before consuming any private context. The
+ * delegated tool allowlist remains closed until authority qualification. */
+function assertSecondPackageTarget(
+  name: SecondPackageReadOperation,
+  request: Request,
+  ctx?: Pick<TenantContext, 'tenantId' | 'userId'>,
+  grant?: MeriReadDelegationGrant,
+): void {
+  const target = `/api/clio/tools/${name}`;
+  if (!ctx || !grant || grant.kind !== 'tool' || grant.operation?.id !== name ||
+      grant.operation.version !== '0.2.0' || grant.tenantId !== ctx.tenantId ||
+      grant.actorId !== ctx.userId || request.method !== 'POST' ||
+      request.path !== target || (request.originalUrl ?? request.url) !== target ||
+      typeof grant.bodySha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(grant.bodySha256) ||
+      typeof grant.argumentsSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(grant.argumentsSha256)) {
+    throw new ForbiddenException('Read observation requires the exact delegated target');
+  }
 }
 
 function assertKnowledgeBody(body: Record<string, unknown>): void {
@@ -126,6 +189,8 @@ export function admitMeriReadObservation(
   name: string,
   rawBody: unknown,
   request: Request,
+  ctx?: Pick<TenantContext, 'tenantId' | 'userId'>,
+  grant?: MeriReadDelegationGrant,
 ): MeriReadObservation | undefined {
   const carrier = request.headers[HEADER];
   if (carrier === undefined) return undefined;
@@ -133,6 +198,7 @@ export function admitMeriReadObservation(
     throw new ForbiddenException('Funding read observation requires verified service identity');
   }
   if (!isObservedRead(name) || !record(rawBody) || typeof carrier !== 'string') invalid();
+  if (isSecondPackageRead(name)) assertSecondPackageTarget(name, request, ctx, grant);
   if (name === KB_READ) assertKnowledgeBody(rawBody);
   if (
     carrier.length === 0 ||
@@ -171,9 +237,27 @@ export function admitMeriReadObservation(
           !['off', 'shadow', 'enforce'].includes(context.evidenceAccuracyMode as string)) invalid();
       return Object.freeze({ operationId: name, evidenceAccuracyMode: context.evidenceAccuracyMode as CapabilityRolloutMode });
     }
-    if (!exactKeys(context, ['asOf']) || typeof context.asOf !== 'string' ||
-        !/^(?:[0-9]{4}|[+-][0-9]{6})-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/u.test(context.asOf) ||
-        new Date(context.asOf).toISOString() !== context.asOf) invalid();
+    if (name === 'get_certification_status') {
+      if (!exactKeys(context, ['comparisonLocale']) || !canonicalSupportedLocale(context.comparisonLocale)) invalid();
+      return Object.freeze({ operationId: name, comparisonLocale: context.comparisonLocale });
+    }
+    if (name === 'get_state_rule_status') {
+      if (!exactKeys(context, ['stageAsOf', 'commentAsOf']) ||
+          !canonicalIso(context.stageAsOf) || !canonicalIso(context.commentAsOf)) invalid();
+      return Object.freeze({ operationId: name, stageAsOf: context.stageAsOf, commentAsOf: context.commentAsOf });
+    }
+    if (name === 'search_sam_opportunities') {
+      if (!exactKeys(context, ['asOf', 'sourceStatusAsOf', 'sourceHealthAsOf', 'evidenceAccuracyMode']) ||
+          !canonicalIso(context.asOf) || !canonicalIso(context.sourceStatusAsOf) ||
+          !canonicalIso(context.sourceHealthAsOf) ||
+          !['off', 'shadow', 'enforce'].includes(context.evidenceAccuracyMode as string)) invalid();
+      return Object.freeze({
+        operationId: name, asOf: context.asOf, sourceStatusAsOf: context.sourceStatusAsOf,
+        sourceHealthAsOf: context.sourceHealthAsOf,
+        evidenceAccuracyMode: context.evidenceAccuracyMode as CapabilityRolloutMode,
+      });
+    }
+    if (!exactKeys(context, ['asOf']) || !canonicalIso(context.asOf)) invalid();
     return Object.freeze({ operationId: name, asOf: context.asOf });
   } catch {
     return invalid();
@@ -230,6 +314,46 @@ export function currentMeriEvidenceAccuracyMode(
     throw new ForbiddenException('Current read mode changed; reload');
   }
   return actual;
+}
+
+export function currentMeriCertificationComparisonLocale(): string | undefined {
+  const observation = storage.getStore();
+  if (!observation) return undefined;
+  if (observation.operationId !== 'get_certification_status') {
+    throw new ForbiddenException('Certification observation does not match this operation');
+  }
+  return observation.comparisonLocale;
+}
+
+export function currentMeriRuleStatusClocks(): Pick<MeriRuleStatusObservation, 'stageAsOf' | 'commentAsOf'> | undefined {
+  const observation = storage.getStore();
+  if (!observation) return undefined;
+  if (observation.operationId !== 'get_state_rule_status') {
+    throw new ForbiddenException('Rule observation does not match this operation');
+  }
+  return { stageAsOf: observation.stageAsOf, commentAsOf: observation.commentAsOf };
+}
+
+/** A supplied enum cannot choose Core policy. Re-read the current mode each
+ * time this accessor is used, including after awaited owner reads. */
+export function currentMeriSamProducerContext(
+  tenantId: string | null | undefined,
+): Omit<MeriSamObservation, 'operationId'> | undefined {
+  const observation = storage.getStore();
+  if (!observation) return undefined;
+  if (observation.operationId !== 'search_sam_opportunities') {
+    throw new ForbiddenException('SAM observation does not match this operation');
+  }
+  const actual = resolveEvidenceAccuracyModeForTenant(tenantId, 'chat');
+  if (actual !== observation.evidenceAccuracyMode) {
+    throw new ForbiddenException('Current SAM evidence mode changed; reload');
+  }
+  return {
+    asOf: observation.asOf,
+    sourceStatusAsOf: observation.sourceStatusAsOf,
+    sourceHealthAsOf: observation.sourceHealthAsOf,
+    evidenceAccuracyMode: actual,
+  };
 }
 
 /** Pass undefined on the legacy path so the producer retains its own clock. */

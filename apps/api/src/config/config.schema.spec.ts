@@ -1,5 +1,26 @@
 import { describe, expect, test } from '@jest/globals';
-import { configSchema } from './config.schema.js';
+import { configSchema, validateConfig } from './config.schema.js';
+
+describe('Core roster preview task settings', () => {
+  const raw = {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+    CLERK_SECRET_KEY: 'test-secret',
+    CLERK_WEBHOOK_SIGNING_SECRET: 'test-webhook-secret',
+  };
+
+  test('defaults the dedicated Host admission setting off', () => {
+    expect(configSchema.shape.CORE_ROSTER_PREVIEW_ENABLED.parse(undefined)).toBe(false);
+    expect(configSchema.shape.CORE_ROSTER_PREVIEW_ENABLED.parse('true')).toBe(true);
+    expect(() => configSchema.shape.CORE_ROSTER_PREVIEW_ENABLED.parse('yes')).toThrow();
+  });
+
+  test('refuses roster admission without the native GET owner', () => {
+    expect(() => validateConfig({ ...raw,
+      CORE_ROSTER_PREVIEW_ENABLED: 'true', PREVIEW_NATIVE_GETS_ENABLED: 'false',
+    })).toThrow('CORE_ROSTER_PREVIEW_ENABLED requires PREVIEW_NATIVE_GETS_ENABLED=true');
+  });
+});
 
 /**
  * Guards the Microsoft 365 OAuth authority configuration. Regression context:

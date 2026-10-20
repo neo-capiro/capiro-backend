@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,7 +12,7 @@ import type { AppConfig } from '../config/config.schema.js';
 import type { ApplicationMembershipReceipt } from './application-membership.js';
 import { applicationMembershipRequest } from './application-membership-request.js';
 import { ApplicationMembershipService } from './application-membership.service.js';
-import { previewNativeReadMode } from './preview-native-read-mode.js';
+import { coreRosterPreviewDecision, previewNativeReadMode } from './preview-native-read-mode.js';
 
 const unavailable = () => new ServiceUnavailableException('Preview reads unavailable');
 
@@ -29,7 +30,15 @@ export class PreviewNativeReadService {
    */
   mode(req: Request, res: Response): boolean {
     const enabled = this.config.get('PREVIEW_NATIVE_GETS_ENABLED', { infer: true });
-    const mode = previewNativeReadMode(enabled === true, req.headers.host);
+    const rosterEnabled = this.config.get('CORE_ROSTER_PREVIEW_ENABLED', { infer: true });
+    const roster = coreRosterPreviewDecision(req, rosterEnabled === true, enabled === true);
+    if (roster !== 'unrelated') {
+      res.setHeader('Cache-Control', 'no-store');
+      if (roster === 'unavailable') throw unavailable();
+      if (roster === 'not-found') throw new NotFoundException();
+      return true;
+    }
+    const mode = previewNativeReadMode(enabled === true, req.headers.host, rosterEnabled === true);
     if (mode !== 'ordinary') {
       res.setHeader('Cache-Control', 'no-store');
       if (mode === 'unavailable') throw unavailable();
