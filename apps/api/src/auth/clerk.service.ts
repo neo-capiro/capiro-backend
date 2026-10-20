@@ -14,6 +14,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClerkClient, type ClerkClient, verifyToken } from '@clerk/backend';
 import type { AppConfig } from '../config/config.schema.js';
+import { ApplicationAuthorityUnavailableException, isClerkUnanswered } from './application-authority-unavailable.js';
 
 export interface ClerkSessionClaims {
   sub: string; // Clerk user id
@@ -125,8 +126,10 @@ export class ClerkService {
   }
 
   /** Read-only online session check for application receipts. Never mints tokens.
-   * The SDK has no per-getSession AbortSignal. This deadline bounds caller
-   * refusal; late SDK settlement is consumed and cannot produce a receipt. */
+   * The SDK has no per-getSession AbortSignal. This deadline bounds the caller;
+   * late SDK settlement is consumed and cannot produce a receipt. A deadline, a
+   * transport failure or Clerk 429/5xx is ApplicationAuthorityUnavailableException
+   * (503, did not answer); an invalid, inactive or mismatched session is 401. */
   async assertActiveApplicationAuthoritySession(
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
@@ -143,13 +146,16 @@ export class ClerkService {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const session = await Promise.race([
-        Promise.resolve().then(() => this.client.sessions.getSession(sessionId)),
+        Promise.resolve().then(() => this.client.sessions.getSession(sessionId)).catch((error: unknown) => {
+          throw isClerkUnanswered(error) ? new ApplicationAuthorityUnavailableException() : denied();
+        }),
         new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(denied()), 2000);
+          timer = setTimeout(() => reject(new ApplicationAuthorityUnavailableException()), 2000);
         }),
       ]);
       const now = Date.now();
-      if (now >= deadlineMs || !session || session.id !== sessionId || session.userId !== userId ||
+      if (now >= deadlineMs) throw new ApplicationAuthorityUnavailableException();
+      if (!session || session.id !== sessionId || session.userId !== userId ||
           session.status !== 'active' ||
           ![session.createdAt, session.expireAt, session.abandonAt].every(
             (value) => Number.isSafeInteger(value) && value >= 0,
@@ -161,8 +167,9 @@ export class ClerkService {
         createdAt: session.createdAt, expireAt: session.expireAt, abandonAt: session.abandonAt,
         actor: session.actor, expiresAtMs,
       };
-    } catch {
-      throw denied();
+    } catch (error) {
+      // Clerk did not answer: retryable 503. Every other failure stays a refusal.
+      throw error instanceof ApplicationAuthorityUnavailableException ? error : denied();
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
@@ -184,15 +191,18 @@ export class ClerkService {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const listed = await Promise.race([
-        Promise.resolve().then(() => this.client.sessions.getSessionList({ userId, status: 'active' })),
+        Promise.resolve().then(() => this.client.sessions.getSessionList({ userId, status: 'active' })).catch((error: unknown) => {
+          throw isClerkUnanswered(error) ? new ApplicationAuthorityUnavailableException() : denied();
+        }),
         new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(denied()), 2000);
+          timer = setTimeout(() => reject(new ApplicationAuthorityUnavailableException()), 2000);
         }),
       ]);
       const now = Date.now();
+      if (now >= deadlineMs) throw new ApplicationAuthorityUnavailableException();
       const sessions = (Array.isArray(listed) ? listed : (listed as { data?: unknown }).data) as
         Array<{ userId?: unknown; status?: unknown; expireAt?: unknown; abandonAt?: unknown }> | undefined;
-      if (now >= deadlineMs || !Array.isArray(sessions)) throw denied();
+      if (!Array.isArray(sessions)) throw denied();
       const live = sessions.filter((s) => s && s.userId === userId && s.status === 'active' &&
         Number.isSafeInteger(s.expireAt) && Number.isSafeInteger(s.abandonAt) &&
         Math.min(s.expireAt as number, s.abandonAt as number) > now);
@@ -205,8 +215,9 @@ export class ClerkService {
         createdAt: (iat ?? 0) * 1000, expireAt: sessionUntil, abandonAt: sessionUntil,
         actor: null, expiresAtMs,
       };
-    } catch {
-      throw denied();
+    } catch (error) {
+      // Clerk did not answer: retryable 503. Every other failure stays a refusal.
+      throw error instanceof ApplicationAuthorityUnavailableException ? error : denied();
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
