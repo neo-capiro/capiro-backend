@@ -1,0 +1,20 @@
+Found 1 error(s).
+
+src/meri/meriv3-runtime.proxy.ts:81:10 - error TS2352: Conversion of type 'MeriService' to type 'MeriRuntimeService' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'streamMessage' is missing in type 'MeriService' but required in type '{ streamMessage: (ctx: TenantContext, conversationId: string, body: string, sse: SseWriter, clientSignal?: AbortSignal | undefined, mode?: RerunMode, attachmentIds?: string[], bearerToken?: string | undefined, impersonateTenantId?: string | undefined) => Promise<...>; getArtifactImage: (ctx: TenantContext, id: strin...'.
+
+ 81   return new Proxy(raw, {
+             ~~~~~~~~~~~~~~~~
+ 82     get(target, property, receiver) {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+... 
+117     },
+    ~~~~~~
+118   }) as MeriRuntimeService;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  src/meri/meri-runtime.contract.ts:11:3
+    11   streamMessage: MeriChatStream;
+         ~~~~~~~~~~~~~
+    'streamMessage' is declared here.
+

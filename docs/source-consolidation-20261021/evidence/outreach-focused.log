@@ -1,0 +1,84 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in C:/Users/Administrator/Documents/Codex/2026-10-21/task/core-consolidation/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/meri/meri-tools.firmdata.spec.ts (26.285 s)
+FAIL src/engagement/engagement-outreach-client-access.spec.ts
+  ΓùÅ outreach delivery outcome after access or association changes ΓÇ║ records the completed send when grant revoked during provider latency
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 0
+
+      51 |         await expect(service.sendCampaign(ctx, row.id)).resolves.toMatchObject({ status: 'sent' });
+      52 |       }
+    > 53 |       expect(update).toHaveBeenCalledTimes(1);
+         |                      ^
+      54 |       expect(update.mock.calls[0][0].data).toMatchObject({ status: 'sent', stats: { recipientsSent: 1 } });
+      55 |       expect(service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+      56 |
+
+      at src/engagement/engagement-outreach-client-access.spec.ts:53:22
+
+  ΓùÅ outreach delivery outcome after access or association changes ΓÇ║ records the completed send when client changed during provider latency
+
+    expect(received).resolves.toMatchObject()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: expect(received).toEqual(expected) // deep equality┬╖
+    - Expected  - 0
+    + Received  + 2┬╖
+      Object {
+    +   "clientId": "33333333-3333-4333-8333-333333333333",
+        "id": "sent-record",
+    +   "meetingId": null,
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+      }]
+
+      49 |         await expect(service.sendCampaign(ctx, row.id)).rejects.toBeInstanceOf(NotFoundException);
+      50 |       } else {
+    > 51 |         await expect(service.sendCampaign(ctx, row.id)).resolves.toMatchObject({ status: 'sent' });
+         |               ^
+      52 |       }
+      53 |       expect(update).toHaveBeenCalledTimes(1);
+      54 |       expect(update.mock.calls[0][0].data).toMatchObject({ status: 'sent', stats: { recipientsSent: 1 } });
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/engagement/engagement-outreach-client-access.spec.ts:51:15
+
+  ΓùÅ outreach delivery outcome after access or association changes ΓÇ║ records the completed send when meeting changed during provider latency
+
+    expect(received).resolves.toMatchObject()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: expect(received).toEqual(expected) // deep equality┬╖
+    - Expected  - 0
+    + Received  + 2┬╖
+      Object {
+    +   "clientId": "33333333-3333-4333-8333-333333333333",
+        "id": "sent-record",
+    +   "meetingId": null,
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+      }]
+
+      49 |         await expect(service.sendCampaign(ctx, row.id)).rejects.toBeInstanceOf(NotFoundException);
+      50 |       } else {
+    > 51 |         await expect(service.sendCampaign(ctx, row.id)).resolves.toMatchObject({ status: 'sent' });
+         |               ^
+      52 |       }
+      53 |       expect(update).toHaveBeenCalledTimes(1);
+      54 |       expect(update.mock.calls[0][0].data).toMatchObject({ status: 'sent', stats: { recipientsSent: 1 } });
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/engagement/engagement-outreach-client-access.spec.ts:51:15
+
+PASS src/engagement/engagement-owner-isolation.spec.ts
+PASS src/engagement/engagement-prior-contact.spec.ts
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       3 failed, 147 passed, 150 total
+Snapshots:   0 total
+Time:        37.584 s
+Ran all test suites within paths "src/engagement/engagement-outreach-client-access.spec.ts", "src/engagement/engagement-owner-isolation.spec.ts", "src/engagement/engagement-prior-contact.spec.ts", "src/meri/meri-tools.firmdata.spec.ts".
+Test results written to: ..\..\..\core-validation\outreach-focused.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

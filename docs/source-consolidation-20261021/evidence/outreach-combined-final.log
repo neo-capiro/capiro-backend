@@ -1,0 +1,15 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in C:/Users/Administrator/Documents/Codex/2026-10-21/task/core-consolidation/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/meri/meri-tools.firmdata.spec.ts (7.269 s)
+PASS src/engagement/engagement-outreach-client-access.spec.ts
+PASS src/engagement/engagement-owner-isolation.spec.ts
+PASS src/engagement/engagement-prior-contact.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       150 passed, 150 total
+Snapshots:   0 total
+Time:        16.784 s, estimated 38 s
+Ran all test suites within paths "src/meri/meri-tools.firmdata.spec.ts", "src/engagement/engagement-outreach-client-access.spec.ts", "src/engagement/engagement-owner-isolation.spec.ts", "src/engagement/engagement-prior-contact.spec.ts".
+Test results written to: ..\..\..\core-validation\outreach-combined-final.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

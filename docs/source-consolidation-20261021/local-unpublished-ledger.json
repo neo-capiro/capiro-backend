@@ -1,0 +1,423 @@
+[
+  {
+    "ref": "refs/heads/feat/core-outreach-client-visibility-20261017",
+    "head": "7713ecc13c1aaccf7ef6ff4605bd2f5bfb53277a",
+    "tree": "eb8e289ed66720de186b360cc4fab11a5572af28",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-3\\capiro-backend",
+    "sourceRootCount": 27,
+    "category": "received supplemental",
+    "receiver": "a49a77f0d4cb12a624db7965cb27fa50c8123ea0",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Previously unpublished Engagement outreach client-visibility source was received as a49a77f0d and corrected in 121c628ff46a86e3accfbb99b0eff7b7f5cadde4 to preserve actual delivery outcomes after client-visibility changes. The combined outreach receipt records 150 passing tests, including three regressions; the final assertion type fix is followed by 29 passing focused tests.",
+    "recommendation": "Source receipt and its review correction are qualified in the pinned candidate; final user merge and runtime/deployment qualification remain separate.",
+    "baselinePatchEquivalence": [
+      null
+    ],
+    "changedPaths": [
+      null
+    ]
+  },
+  {
+    "ref": "refs/heads/fix/objective-strategy-raw-ingress-20261017",
+    "head": "3eda7ac162f8a126bb430c1d10720428b0a3bdab",
+    "tree": "c5d8fcb79c6c51a54b756399337980b054b440f9",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-16\\task-5\\objective-core-admission",
+    "sourceRootCount": 14,
+    "category": "received supplemental",
+    "receiver": "5a0fbd011c3a3771a9263080c23f5d61d9acdfbc",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Previously unpublished Strategy Objective raw-ingress source was absent from the baseline and all existing receiver heads. Received as 5a0fbd011; 065cd32d8 bounds transport test discovery to the current bootstrap.",
+    "recommendation": "Use the receiver qualification evidence; do not equate donor existence with prior consolidation coverage.",
+    "baselinePatchEquivalence": [
+      null
+    ],
+    "changedPaths": [
+      null
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-document-control-plane-readback-20261018",
+    "head": "0042390fac2e3707622f334d33f5548f5235cfcd",
+    "tree": "abf74b79fa063b4bb506ebecf04e0a2747dc50df",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- 8f67bbfac6ba9c8dc1ba824619fa25d543c8c9b8",
+      "- 0042390fac2e3707622f334d33f5548f5235cfcd"
+    ],
+    "changedPaths": [
+      "A\tapps/api/src/meri/retained-source-v02/ecs-control-plane-document-readback.spec.ts",
+      "A\tapps/api/src/meri/retained-source-v02/ecs-control-plane-document-readback.ts",
+      "M\tapps/api/src/meri/retained-source-v02/ecs-document-runtime-identity-reader.spec.ts",
+      "M\tapps/api/src/meri/retained-source-v02/ecs-document-runtime-identity-reader.ts",
+      "A\tdocs/integration/CORE-DOCUMENT-CONTROL-PLANE-READBACK-20261018.md",
+      "M\tdocs/integration/CORE-DOCUMENT-RUNTIME-IDENTITY-READER-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-helper-qualification-note-20261018",
+    "head": "a45ec913c9e7296ba7c5b186f71a54777d77923b",
+    "tree": "0543ed873c2a6b3e4bc93204625eb2a8efc75f74",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- a45ec913c9e7296ba7c5b186f71a54777d77923b"
+    ],
+    "changedPaths": [
+      "A\tdocs/integration/CORE-MEMORY-HELPER-MIGRATION-QUALIFICATION-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-history-fresh-identity-source-20261018",
+    "head": "00470033d790b17b5e29295a642bf7eba2f2e62b",
+    "tree": "c2044ca33c76d5ff573ed8632489ef6d996de941",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "superseded",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": "apps/api/src/tenant/tenant-context.middleware.ts",
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Current PR97/102/103 identity owner adds exact original provenance, deterministic local authority row locks, mounted-path handling and same-transaction current checks. The older fresh-identity-only leaf is not the current owner and does not replace the unresolved history batch contract.",
+    "recommendation": "Retain current authority owner; do not overwrite it with the predecessor method.",
+    "baselinePatchEquivalence": [
+      "+ 00470033d790b17b5e29295a642bf7eba2f2e62b"
+    ],
+    "changedPaths": [
+      "M\tapps/api/src/auth/application-authority.spec.ts",
+      "M\tapps/api/src/tenant/tenant-context.meri-control.spec.ts",
+      "M\tapps/api/src/tenant/tenant-context.middleware.ts"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-history-release-source-20261018",
+    "head": "3a2659c046016c0549a7b87358cbb20ae10c0102",
+    "tree": "6cae619af4ad0d67a6693c57a6721fc775037172",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "held",
+    "receiver": null,
+    "replacementOrPreservedDonor": "78ceaf9bdfe00c8f013aac15eb8483312ae4f803",
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Whole tree equals published safe-handoff 78ceaf9bdfe00c8f013aac15eb8483312ae4f803. This is a preserved donor, not a current receiver. The history batch contract remains unmounted and unresolved with current native identity/currentness and Meri final-byte release.",
+    "recommendation": "Keep held until combined native transaction, mounted-path and final response release qualification. No duplicated copy or runtime activation.",
+    "baselinePatchEquivalence": [
+      "+ a7e72d371fb7d7f8502da825fcfe67b46bf9713f",
+      "+ 26df861ce2efa1c71598e6d42e794af739fed7e2",
+      "+ eaa23e6b82f809618b4cdf87acaac13906f17d10",
+      "+ 82c665898bb47b34abe97e24ebb546ebb0241459",
+      "+ 3815640ef84ff96f20a935b3f1f1280dc401af69",
+      "+ 301cba53aa93442b98ea0c1af947e098bb2beadc",
+      "+ 3a2659c046016c0549a7b87358cbb20ae10c0102"
+    ],
+    "changedPaths": [
+      "A\tapps/api/src/auth/history-release-batch-owner.focused.test.mjs",
+      "A\tapps/api/src/auth/history-release-batch-owner.ts",
+      "A\tapps/api/src/auth/history-release-selected-client-owner.focused.test.mjs",
+      "A\tapps/api/src/auth/history-release-selected-client-owner.ts",
+      "A\tapps/api/src/auth/history-release-source.focused.test.mjs",
+      "A\tapps/api/src/auth/history-release-source.ts",
+      "M\tapps/api/src/prisma/prisma.service.spec.ts",
+      "M\tapps/api/src/prisma/prisma.service.ts",
+      "A\tdocs/integration/CORE-HISTORY-RELEASE-SELECTED-CLIENT-OWNER-20261018.md",
+      "A\tdocs/integration/CORE-MERI-HISTORY-RELEASE-DECISION-PROPOSAL-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-memory-http-mount-20261018",
+    "head": "8f2eb0880046e01e4eb002f782eb5aa006af9e41",
+    "tree": "bfca853c2e2ef29c234531e70496570daa6a8d78",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- 8f2eb0880046e01e4eb002f782eb5aa006af9e41"
+    ],
+    "changedPaths": [
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-http-mount.spec.ts"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-memory-http-owner-20261018",
+    "head": "9bcf4edbdfaf878b87a045beaf1838091b8fe36c",
+    "tree": "c484679ecebd1889a45368232f14812f1235fc0a",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- 3b6f50b719634b8a1114d400957f206df79085f0",
+      "- 8a87c7f46a9680f13d4609e3535c7f2526b9aea4",
+      "- 9bcf4edbdfaf878b87a045beaf1838091b8fe36c"
+    ],
+    "changedPaths": [
+      "M\tapps/api/src/auth/read-delegation/read-delegation-request.ts",
+      "M\tapps/api/src/auth/read-delegation/read-delegation.contract.ts",
+      "M\tapps/api/src/auth/read-delegation/read-delegation.controller.ts",
+      "M\tapps/api/src/auth/read-delegation/read-delegation.service.ts",
+      "A\tapps/api/src/auth/read-delegation/signed-memory-http-gate.ts",
+      "A\tapps/api/src/auth/read-delegation/signed-memory-release.spec.ts",
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-helper.controller.ts",
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-http-composition.spec.ts",
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-proposal-receiver.spec.ts",
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-proposal-receiver.ts",
+      "M\tapps/api/src/meri/meri.controller.ts",
+      "M\tapps/api/src/meri/meri.module.ts",
+      "M\tapps/api/src/tenant/tenant-context.middleware.ts",
+      "A\tdocs/integration/CORE-MEMORY-PROPOSAL-SIGNED-RECEIVER-20261018.md",
+      "A\tdocs/integration/CORE-MEMORY-SIGNED-HTTP-COMPOSITION-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-memory-proposal-receiver-20261018",
+    "head": "c4f168b0e7fd746cce277813bafaabde27387c15",
+    "tree": "6224a870a3293c2eaa27650bdefc8c7cc747eebc",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- c4f168b0e7fd746cce277813bafaabde27387c15"
+    ],
+    "changedPaths": [
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-proposal-receiver.spec.ts",
+      "A\tapps/api/src/meri/memory-receiving/meri-memory-proposal-receiver.ts",
+      "A\tdocs/integration/CORE-MEMORY-PROPOSAL-SIGNED-RECEIVER-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-memory-purge-receipt-guard-20261018",
+    "head": "62b56ff69fb0752217e29332aec205dfd14b2f67",
+    "tree": "9c228c855943a5000363d6b8115a5fca0b163902",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- cedb3c3cf38b518e685559191e17adb7246eca32",
+      "- 62b56ff69fb0752217e29332aec205dfd14b2f67"
+    ],
+    "changedPaths": [
+      "M\tapps/api/scripts/purge-client-memory.ts",
+      "M\tapps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "M\tapps/api/src/memory/memory-purge.service.spec.ts",
+      "M\tapps/api/src/memory/memory-purge.service.ts",
+      "M\tapps/api/src/memory/memory.controller.ts"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-memory-stage1-source-20261018",
+    "head": "c9867fbff1403ddf66f87562bfeeaae67d6766ba",
+    "tree": "7f3ae3e786c761bc432af37a4a434d717c07a9da",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- 1a65fe93cf3fefd425c5db7d88d8b4229ec6bae5",
+      "- c9867fbff1403ddf66f87562bfeeaae67d6766ba"
+    ],
+    "changedPaths": [
+      "M\tapps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql",
+      "A\tapps/api/scripts/memory-submission-stage1-migration.spec.mjs",
+      "M\tdocs/integration/CORE-MEMORY-090000-STAGED-CUTOVER-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-memory-stage1-strict-guard-20261018",
+    "head": "b7b2874055580bb9777a50dac473dcc7a304ebd1",
+    "tree": "93958c90fb5a8a10ee900f3eed1cc21b1f0d1425",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- b7b2874055580bb9777a50dac473dcc7a304ebd1"
+    ],
+    "changedPaths": [
+      "M\tapps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql",
+      "M\tapps/api/scripts/memory-submission-stage1-migration.spec.mjs",
+      "M\tdocs/integration/CORE-MEMORY-090000-STAGED-CUTOVER-20261018.md"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-source-successor-20261018",
+    "head": "cf45e7811b1f9a2a7ac7a67419c5ea7ffb08b535",
+    "tree": "02ad680534455c742eb0c0563301f43c424f3f17",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "superseded",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": "apps/api/src/auth/read-delegation/read-delegation-request.ts; apps/api/src/bootstrap/configure-api-http-app.ts",
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Four of six unique commits have baseline patch equivalents. Remaining 570a5ec9/19d5467c implement an alternative delegated-target raw capture and its tests. Current canonical meriReadDelegationRawBody captures exact 16 KiB UTF-8, non-inflated CapiroMeriRead bytes before JSON parsing in the existing bootstrap and token-admission owner.",
+    "recommendation": "Keep the canonical current parser/authority closure; do not add the competing clio/read-delegations raw parser.",
+    "baselinePatchEquivalence": [
+      "- 985d41e81125eb17ba45f0937ca967f93f25b9e4",
+      "- 1cc75956e0fa15da63dd4229c9b7308d7ccd85a0",
+      "- 47e1abbe2ac3c12c9bb205c757a1d15e63a72a07",
+      "+ 570a5ec946b0c9facb925096d442f2d440dde5d0",
+      "+ 19d5467ce19a3b348c3e8014dc834c673f42cf13",
+      "- cf45e7811b1f9a2a7ac7a67419c5ea7ffb08b535"
+    ],
+    "changedPaths": [
+      "M\tapps/api/src/auth/workload-authority/objective-admit-credential-echo.spec.ts",
+      "M\tapps/api/src/auth/workload-authority/objective-admit-credential-echo.ts",
+      "M\tapps/api/src/bootstrap/configure-api-http-app.ts",
+      "A\tapps/api/src/clio/read-delegations/delegated-target-raw-body.spec.ts",
+      "A\tapps/api/src/clio/read-delegations/delegated-target-raw-body.ts",
+      "A\tapps/api/src/clio/read-delegations/delegated-target-service-identity.ts",
+      "M\tapps/api/src/main.ts",
+      "M\tapps/api/src/meri/native-approvals/native-approval.contract.ts",
+      "M\tapps/api/src/meri/native-approvals/native-approval.controller.ts",
+      "M\tapps/api/src/meri/native-approvals/native-approval.service.spec.ts",
+      "M\tapps/api/src/meri/native-approvals/native-approval.service.ts",
+      "M\tdocs/integration/CORE-ADMISSION-SNAPSHOT-FUNCTION-20261018.sql",
+      "M\tdocs/integration/CORE-INTEGRATION-LEDGER.md",
+      "A\tdocs/integration/OBJECTIVE-D7-3-SOURCE-STATUS.md",
+      "M\tinfra/cdk/lib/preview/first-chat-core.ts",
+      "M\tinfra/cdk/test/preview-first-chat-core.spec.ts"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-stage1-build-guard-20261018",
+    "head": "e0f1a5fc8192492311e772bc6a767cfbc8598000",
+    "tree": "11b4af24cbbd6cf4f9091059fefff2f3b49404a0",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- e0f1a5fc8192492311e772bc6a767cfbc8598000"
+    ],
+    "changedPaths": [
+      "M\tdocs/integration/CORE-MEMORY-090000-STAGED-CUTOVER-20261018.md",
+      "M\tdocs/integration/CORE-STAGED-SOURCE-SUCCESSOR-20261018.md",
+      "M\tinfra/deploy/first-chat-core-preview.buildspec.yml",
+      "M\tinfra/deploy/prepare-first-chat-core-source.mjs"
+    ]
+  },
+  {
+    "ref": "refs/heads/codex/core-staged-handoff-20261018",
+    "head": "cfb0ad32868001378c2a4c0506f08dc0cd69359c",
+    "tree": "b088023dc7fa1dceb67d97e26509ea6705ee4b67",
+    "initiallyUnknownObject": true,
+    "initialInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+    "sourceRoot": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-18\\task-3\\core-a8-authority-facts",
+    "sourceRootCount": 46,
+    "category": "already consolidated",
+    "receiver": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "replacementOrPreservedDonor": null,
+    "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+    "candidateAncestor": false,
+    "rationale": "Every non-merge commit absent by ancestry has a stable patch equivalent in the frozen baseline; no new source receipt is needed.",
+    "recommendation": "Preserve the original local worktree/ref and use the current canonical receiver.",
+    "baselinePatchEquivalence": [
+      "- cfb0ad32868001378c2a4c0506f08dc0cd69359c"
+    ],
+    "changedPaths": [
+      "M\tdocs/integration/CORE-DEPLOYMENT-SOURCE-PACKET-20261018.md",
+      "M\tdocs/integration/CORE-INTEGRATED-SOURCE-CANDIDATE-20261018.md",
+      "A\tdocs/integration/CORE-STAGED-SOURCE-SUCCESSOR-20261018.md"
+    ]
+  }
+]
