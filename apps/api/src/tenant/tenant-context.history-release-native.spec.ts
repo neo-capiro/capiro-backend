@@ -118,6 +118,20 @@ describe('history release native identity transaction leaf', () => {
     expect(evidence.principal).toEqual({ tenantId: tenant.id, actorId: user.id });
   });
 
+  it('refuses a root-mounted trailing-slash target before identity lock and online check', async () => {
+    const h = fixture();
+    const ctx = await authenticate(h);
+    Object.assign(h.req, { path: `${path}/`, originalUrl: `${path}/`, url: `${path}/` });
+    await expect(h.middleware.lockOriginalApplicationAuthorityInTransaction(
+      h.req, ctx, h.tx,
+    )).rejects.toMatchObject({ status: 403 });
+    await expect(h.middleware.readFreshApplicationAuthorityInTransaction(
+      h.req, ctx, h.tx,
+    )).rejects.toMatchObject({ status: 403 });
+    expect(h.queries).toHaveLength(0);
+    expect(h.active).not.toHaveBeenCalled();
+  });
+
   it('refuses changed context or ambiguous target before identity lock and online check', async () => {
     const h = fixture();
     const ctx = await authenticate(h);

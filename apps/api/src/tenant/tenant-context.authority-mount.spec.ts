@@ -186,6 +186,30 @@ async function fixture(options: { rewrittenTarget?: string; historyLeaf?: boolea
   return { app, send, mounts, verify, withSystem, activeSession, tx, queries };
 }
 
+describe('root-mounted trailed retained targets', () => {
+  it.each(retained)('refuses a trailing slash on %s with %s', async (target, scheme) => {
+    const prior = process.env.RETAINED_READS_ENABLED;
+    try {
+      process.env.RETAINED_READS_ENABLED = 'true';
+      const middleware = new TenantContextMiddleware(
+        {} as ClerkService, {} as PrismaService, new TenantContextStore(),
+      );
+      const req = {
+        method: 'POST', baseUrl: '', path: `${target}/`, originalUrl: `${target}/`, url: `${target}/`,
+        hostname: 'core.invalid', headers: { host: 'core.invalid', authorization: `${scheme} synthetic` },
+        header: jest.fn(() => undefined),
+      } as unknown as Request;
+      const res = { setHeader: jest.fn() } as unknown as Response;
+      const next = jest.fn();
+      await expect(middleware.use(req, res, next)).rejects.toMatchObject({ status: 401 });
+      expect(next).not.toHaveBeenCalled();
+    } finally {
+      if (prior === undefined) delete process.env.RETAINED_READS_ENABLED;
+      else process.env.RETAINED_READS_ENABLED = prior;
+    }
+  });
+});
+
 describe('fixed authority routes through production AppModule middleware mounting', () => {
   let f: Awaited<ReturnType<typeof fixture>> | undefined;
   const envKeys = ['RETAINED_READS_ENABLED', 'PREVIEW_NATIVE_GETS_ENABLED', 'CORE_ROSTER_PREVIEW_ENABLED', 'INTERNAL_SERVICE_SECRET',
