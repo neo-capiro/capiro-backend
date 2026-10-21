@@ -141,7 +141,7 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     };
     const f = ports();
     const tenant = { readApplicationAuthority: jest.fn(f.ports.identity) };
-    const controller = new ApplicationAuthorityController({} as never, tenant as never, { resolveApplicationAuthorityClient: f.ports.clientAuthority } as never, {} as never);
+    const controller = new ApplicationAuthorityController({} as never, tenant as never, { resolveApplicationAuthorityClient: f.ports.clientAuthority } as never, {} as never, {} as never);
     // Swap the DB-backed owners for the fake ports; the guard/identity check under test runs first.
     (controller as unknown as { contextPorts: () => unknown }).contextPorts = () => f.ports;
     const ctx = { tenantId, userId: actorId, role: 'standard_user' } as TenantContext;

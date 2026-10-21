@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   businessDevelopmentEnabled,
@@ -130,12 +131,12 @@ export class BizDevMeriScopeService {
    * and the prospect must exist on the caller's tenant. Every failure mode
    * throws the same bare safe NotFoundException.
    */
-  async resolve(ctx: TenantContext, prospectId: string): Promise<MeriProspectScope> {
+  async resolve(ctx: TenantContext, prospectId: string, transaction?: Prisma.TransactionClient): Promise<MeriProspectScope> {
     const notFound = new NotFoundException();
     if (!ctx?.tenantId) throw notFound;
     if (!prospectId) throw notFound;
     try {
-      return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const read = async (tx: Prisma.TransactionClient) => {
         const tenant = await tx.tenant.findUnique({
           where: { id: ctx.tenantId },
           select: { settings: true },
@@ -168,7 +169,8 @@ export class BizDevMeriScopeService {
             linkedClientId: prospect.linkedClientId,
           }),
         };
-      });
+      };
+      return transaction ? await read(transaction) : await this.prisma.withTenant(ctx.tenantId, read);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.logger.error(
@@ -188,6 +190,7 @@ export class BizDevMeriScopeService {
   async assertCurrent(
     ctx: TenantContext,
     persistedScope: unknown,
+    transaction?: Prisma.TransactionClient,
   ): Promise<MeriProspectScope> {
     // Accept either a bare scope object or the full metadata bag it was
     // persisted in; both go through the same fail-closed parser.
@@ -200,7 +203,7 @@ export class BizDevMeriScopeService {
             [MERI_PROSPECT_SCOPE_METADATA_KEY]: persistedScope,
           });
     if (!candidate) throw new MeriProspectScopeConflictError('not_found');
-    const current = await this.resolve(ctx, candidate.prospectId).catch((error) => {
+    const current = await (transaction ? this.resolve(ctx, candidate.prospectId, transaction) : this.resolve(ctx, candidate.prospectId)).catch((error) => {
       if (error instanceof NotFoundException) {
         throw new MeriProspectScopeConflictError('not_found');
       }

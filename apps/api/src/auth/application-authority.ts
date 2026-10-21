@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import type { ApplicationMembershipReceipt } from './application-membership.js';
 
 export interface ApplicationAuthorityPrincipal {
   tenantId: string;
@@ -29,6 +30,22 @@ export interface ApplicationAuthorityContextReceipt extends ApplicationAuthority
   selectedClientId: string;
   contextRevision: string;
 }
+export interface ApplicationAuthorityCurrentRequest {
+  conversationId: string;
+  clientId: string;
+  expect?: Partial<Record<'identityRevision' | 'membershipRevision' | 'contextRevision', string>>;
+}
+export type ApplicationAuthorityCurrentMembership = Pick<ApplicationMembershipReceipt,
+  'role' | 'permissions' | 'clientIds' | 'membershipRevision'>;
+export interface ApplicationAuthorityCurrentReceipt extends ApplicationAuthorityIdentityReceipt, ApplicationAuthorityCurrentMembership {
+  conversationId: string;
+  selectedClientId: string;
+  contextRevision: string;
+}
+/** Only the explicit revision precondition yields the wire-level 409. */
+export class ApplicationAuthorityChangedException extends ConflictException {
+  constructor() { super({ error: 'CHANGED' }); }
+}
 
 // Wire syntax, not resource authority: nil and UUID versions 7/8 are allowed.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -48,17 +65,39 @@ export function parseApplicationAuthorityContextBody(body: unknown): Application
   return { identitySha256, conversationId, clientId };
 }
 
-function closedBody(body: unknown, keys: readonly string[]): Record<string, unknown> {
+export function parseApplicationAuthorityCurrentBody(body: unknown): ApplicationAuthorityCurrentRequest {
+  const record = closedBody(body, ['conversationId', 'clientId'], ['expect']);
+  const { conversationId, clientId } = record;
+  if (typeof conversationId !== 'string' || !UUID.test(conversationId) ||
+      typeof clientId !== 'string' || !UUID.test(clientId)) {
+    throw new BadRequestException('Invalid application authority request');
+  }
+  const result: ApplicationAuthorityCurrentRequest = { conversationId, clientId };
+  if (Object.hasOwn(record, 'expect')) {
+    const expected = closedBody(record.expect, [], ['identityRevision', 'membershipRevision', 'contextRevision']);
+    for (const value of Object.values(expected)) {
+      if (typeof value !== 'string' || !HASH.test(value)) throw new BadRequestException('Invalid application authority request');
+    }
+    result.expect = expected as ApplicationAuthorityCurrentRequest['expect'];
+  }
+  // Validate descriptors before serialization, so no caller getter/toJSON runs.
+  if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 4096) {
+    throw new BadRequestException('Invalid application authority request');
+  }
+  return result;
+}
+
+function closedBody(body: unknown, keys: readonly string[], optional: readonly string[] = []): Record<string, unknown> {
   if (!body || typeof body !== 'object' || nodeTypes.isProxy(body) || Array.isArray(body) ||
       (Object.getPrototypeOf(body) !== Object.prototype && Object.getPrototypeOf(body) !== null)) {
     throw new BadRequestException('Invalid application authority request');
   }
   const own = Reflect.ownKeys(body);
-  if (own.length !== keys.length || own.some((key) => typeof key !== 'string' || !keys.includes(key))) {
+  if (own.length < keys.length || own.some((key) => typeof key !== 'string' || ![...keys, ...optional].includes(key))) {
     throw new BadRequestException('Invalid application authority request');
   }
   const result: Record<string, unknown> = Object.create(null);
-  for (const key of keys) {
+  for (const key of [...keys, ...optional.filter((key) => own.includes(key))]) {
     const descriptor = Object.getOwnPropertyDescriptor(body, key);
     if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
       throw new BadRequestException('Invalid application authority request');
@@ -129,6 +168,46 @@ export interface ApplicationAuthorityConversation {
   archivedAt: Date | null;
 }
 
+/** Every port is read on the caller's single consistent database snapshot. */
+export async function readApplicationAuthorityCurrent(
+  input: ApplicationAuthorityCurrentRequest,
+  ports: {
+    identity(): Promise<ApplicationAuthorityIdentityEvidence>;
+    membership(): Promise<ApplicationAuthorityCurrentMembership>;
+    conversation(id: string): Promise<ApplicationAuthorityConversation>;
+    conversationScope(conversation: ApplicationAuthorityConversation): Promise<unknown>;
+    clientVisible(id: string): Promise<unknown>;
+    clientAuthority(id: string): Promise<unknown>;
+  },
+): Promise<ApplicationAuthorityCurrentReceipt> {
+  const evidence = await ports.identity();
+  const membership = await ports.membership();
+  const conversation = await ports.conversation(input.conversationId);
+  assertCurrentConversation(conversation, input, evidence.principal);
+  const scope = await ports.conversationScope(conversation);
+  await ports.clientVisible(input.clientId);
+  const client = await ports.clientAuthority(input.clientId);
+  const checkedAtMs = Date.now();
+  const identity = applicationAuthorityIdentityReceipt({
+    ...evidence, expiresAtMs: Math.min(evidence.expiresAtMs, checkedAtMs + 120_000),
+  }, checkedAtMs);
+  const receipt: ApplicationAuthorityCurrentReceipt = {
+    ...identity, ...membership,
+    conversationId: conversation.id,
+    selectedClientId: input.clientId,
+    contextRevision: applicationAuthorityRevision('context', [
+      identity.identityRevision,
+      [conversation.id, conversation.tenantId, conversation.userId, conversation.clientId, conversation.status, conversation.archivedAt],
+      scope, client,
+    ]),
+  };
+  if (Object.entries(input.expect ?? {}).some(([key, value]) =>
+    receipt[key as keyof NonNullable<ApplicationAuthorityCurrentRequest['expect']>] !== value)) {
+    throw new ApplicationAuthorityChangedException();
+  }
+  return receipt;
+}
+
 /** Ports are existing application owners; selectors and the echoed hash grant nothing. */
 export async function readApplicationAuthorityContext(
   input: ApplicationAuthorityContextRequest,
@@ -187,7 +266,7 @@ export async function readApplicationAuthorityContext(
 
 function assertCurrentConversation(
   conversation: ApplicationAuthorityConversation,
-  input: ApplicationAuthorityContextRequest,
+  input: Pick<ApplicationAuthorityContextRequest, 'conversationId' | 'clientId'>,
   principal: ApplicationAuthorityPrincipal,
 ): void {
   if (conversation.id !== input.conversationId ||

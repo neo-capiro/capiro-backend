@@ -87,6 +87,7 @@ describe('marked Meri control credential route boundary', () => {
     '/api/clio/application-authority/identity',
     '/api/clio/application-authority/context',
     '/api/clio/application-authority/membership',
+    '/api/clio/application-authority/current',
   ])('accepts only the exact authority POST and checks the dedicated online control owner for %s', async (path) => {
     const f = fixture('POST', path);
     await f.middleware.use(f.req, f.res, f.next);

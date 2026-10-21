@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 
@@ -8,8 +9,9 @@ export async function loadOwnedActiveClioConversation(
   prisma: PrismaService,
   ctx: TenantContext,
   conversationId: string,
+  transaction?: Prisma.TransactionClient,
 ) {
-  const conversation = await prisma.withTenant(ctx.tenantId, async (tx) => {
+  const read = async (tx: Prisma.TransactionClient) => {
     const row = await tx.clioConversation.findFirst({
       where: {
         id: conversationId,
@@ -21,7 +23,8 @@ export async function loadOwnedActiveClioConversation(
     });
     if (row) await authorizeResearchPortfolioConversation(tx, ctx, row);
     return row;
-  });
+  };
+  const conversation = transaction ? await read(transaction) : await prisma.withTenant(ctx.tenantId, read);
   if (!conversation) throw new NotFoundException('Meri conversation not found');
   return conversation;
 }
@@ -30,12 +33,13 @@ export async function assertCurrentClientVisible(
   prisma: PrismaService,
   ctx: TenantContext,
   clientId: string,
+  transaction?: Prisma.TransactionClient,
 ) {
-  const client = await prisma.withTenant(ctx.tenantId, (tx) =>
+  const read = (tx: Prisma.TransactionClient) =>
     tx.client.findFirst({
       where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
       select: { id: true },
-    }),
-  );
+    });
+  const client = transaction ? await read(transaction) : await prisma.withTenant(ctx.tenantId, read);
   if (!client) throw new NotFoundException('Client not found');
 }

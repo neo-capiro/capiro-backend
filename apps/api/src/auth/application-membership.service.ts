@@ -7,6 +7,7 @@ import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js'
 import { fetchAccessibleClientRevisionsForClerkActor } from '../memory/memory-wall.helpers.js';
 import {
   applicationAuthorityIdentityReceipt, type ApplicationAuthorityIdentityEvidence, type ApplicationAuthorityIdentityProof,
+  type ApplicationAuthorityCurrentMembership,
 } from './application-authority.js';
 import { readDelegatedIdentity } from './read-delegation/read-delegation-request.js';
 import {
@@ -26,6 +27,18 @@ export class ApplicationMembershipService {
 
   async read(req: Request, ctx: TenantContext, control: ApplicationMembershipControl): Promise<ApplicationMembershipReceipt> {
     return this.readWith(ctx, control, () => this.tenant.readApplicationAuthority(req, ctx));
+  }
+
+  /** The combined authority owner already holds one consistent, read-only snapshot. */
+  async readInTransaction(ctx: TenantContext, tx: Prisma.TransactionClient): Promise<ApplicationAuthorityCurrentMembership> {
+    if (!UUID.test(ctx.tenantId) || !UUID.test(ctx.userId) || !ctx.clerkUserId) throw denied();
+    const current = await this.snapshotInTransaction(ctx, tx, { deadlineMs: Infinity, assertActive() {} });
+    return {
+      role: current.role,
+      permissions: applicationMembershipPermissions(current.role, ctx.userId),
+      clientIds: current.clients.map(({ id }) => id),
+      membershipRevision: applicationMembershipRevision(current),
+    };
   }
 
   /**
@@ -88,30 +101,36 @@ export class ApplicationMembershipService {
   private async snapshot(ctx: TenantContext, control: ApplicationMembershipControl): Promise<ApplicationMembershipSnapshot> {
     control.assertActive();
     try {
-      return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-        control.assertActive();
-        const before = await this.member(tx, ctx);
-        control.assertActive();
-        const rows = await fetchAccessibleClientRevisionsForClerkActor(
-          tx, ctx.tenantId, ctx.clerkUserId, APPLICATION_MEMBERSHIP_MAX_CLIENTS + 1,
-        );
-        control.assertActive();
-        if (!Array.isArray(rows) || rows.length > APPLICATION_MEMBERSHIP_MAX_CLIENTS) throw unavailable();
-        const clients = rows.map(({ id, revision }) => {
-          if (typeof id !== 'string' || !UUID.test(id) || typeof revision !== 'string' || !CLIENT_REVISION.test(revision)) throw unavailable();
-          return { id, revision };
-        }).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-        if (clients.some((row, index) => index > 0 && row.id === clients[index - 1]!.id)) throw unavailable();
-        const after = await this.member(tx, ctx);
-        control.assertActive();
-        this.assertSame({ ...before, clients: [] }, { ...after, clients: [] });
-        return { ...after, clients };
-      }, { timeoutMs: Math.max(1, Math.min(5000, control.deadlineMs - Date.now())) });
+      return await this.prisma.withTenant(ctx.tenantId,
+        (tx) => this.snapshotInTransaction(ctx, tx, control, true),
+        { timeoutMs: Math.max(1, Math.min(5000, control.deadlineMs - Date.now())) });
     } catch (error) {
       control.assertActive();
       if (error instanceof HttpException) throw error;
       throw unavailable();
     }
+  }
+
+  private async snapshotInTransaction(
+    ctx: TenantContext, tx: Prisma.TransactionClient, control: ApplicationMembershipControl, recheckMember = false,
+  ): Promise<ApplicationMembershipSnapshot> {
+    control.assertActive();
+    const before = await this.member(tx, ctx);
+    control.assertActive();
+    const rows = await fetchAccessibleClientRevisionsForClerkActor(
+      tx, ctx.tenantId, ctx.clerkUserId, APPLICATION_MEMBERSHIP_MAX_CLIENTS + 1,
+    );
+    control.assertActive();
+    if (!Array.isArray(rows) || rows.length > APPLICATION_MEMBERSHIP_MAX_CLIENTS) throw unavailable();
+    const clients = rows.map(({ id, revision }) => {
+      if (typeof id !== 'string' || !UUID.test(id) || typeof revision !== 'string' || !CLIENT_REVISION.test(revision)) throw unavailable();
+      return { id, revision };
+    }).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    if (clients.some((row, index) => index > 0 && row.id === clients[index - 1]!.id)) throw unavailable();
+    const after = recheckMember ? await this.member(tx, ctx) : before;
+    control.assertActive();
+    if (recheckMember) this.assertSame({ ...before, clients: [] }, { ...after, clients: [] });
+    return { ...after, clients };
   }
 
   private async member(tx: Prisma.TransactionClient, ctx: TenantContext): Promise<Omit<ApplicationMembershipSnapshot, 'clients'>> {

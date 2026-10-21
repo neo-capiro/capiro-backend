@@ -682,7 +682,7 @@ describe('RC1 option B read delegation, Core owner', () => {
 
     it('refuses the token on any other route, including identity, context and membership', async () => {
       const { h, t } = await admitted();
-      for (const leaf of ['identity', 'context', 'membership']) {
+      for (const leaf of ['identity', 'context', 'membership', 'current']) {
         await expect(h.use(`/api/clio/application-authority/${leaf}`, t.token, body)).rejects.toBeInstanceOf(ForbiddenException);
       }
       expect(h.verify).not.toHaveBeenCalled();

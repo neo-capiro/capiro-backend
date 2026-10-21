@@ -31,10 +31,11 @@ const nest = {
   ForbiddenException: refusal(403), NotFoundException: refusal(404),
   ConflictException: refusal(409), ServiceUnavailableException: refusal(503),
 };
-function load(text: string, ports: Record<string, unknown>) {
+function load(text: string, ports: Record<string, unknown>, useVmIntrinsics = false) {
   const module = { exports: {} as any };
   const context = createContext({
-    module, exports: module.exports, Date, Object, Reflect, Array, Promise, Number,
+    module, exports: module.exports, Date, Reflect, Promise, Number,
+    ...(useVmIntrinsics ? {} : { Object, Array }),
     String, Boolean, RegExp, Math, JSON, Map, Set, WeakMap, Error, TypeError,
     Buffer, setTimeout, clearTimeout,
     require(id: string) {
@@ -195,8 +196,11 @@ async function fixture(options: { role?: string; clients?: RosterRow[] } = {}) {
       } finally { mode = prior; }
     },
   };
+  // Clerk's cache envelopes are VM literals, so use matching Object/Array
+  // intrinsics without changing the host-input contract loaders above.
   const clerkSource = load(source('auth/clerk.service.ts'), {
     '@nestjs/common': nest, '@nestjs/config': {},
+    'node:util': { types: nodeTypes },
     './application-authority-unavailable.js': load(source('auth/application-authority-unavailable.ts'), { '@nestjs/common': nest }),
     '@clerk/backend': {
       createClerkClient: () => ({ sessions: { getSession: async (id: string) => {
@@ -207,7 +211,7 @@ async function fixture(options: { role?: string; clients?: RosterRow[] } = {}) {
       } } }),
       verifyToken: async () => clone(claims),
     },
-  });
+  }, true);
   const clerk = new clerkSource.ClerkService({ get: (key: string) => key === 'CLERK_SECRET_KEY' ? 'synthetic-membership-secret' : undefined });
   const middleware = new tenantOwner.TenantContextMiddleware(clerk, prisma, {
     run: (ctx: unknown, run: () => unknown) => { activeContext = ctx; return run(); },
@@ -243,6 +247,14 @@ async function fixture(options: { role?: string; clients?: RosterRow[] } = {}) {
 
 afterEach(() => { jest.restoreAllMocks(); });
 
+/** These fixtures specifically test a second online read. Cross the positive
+ * cache TTL explicitly so their original ordering/race assertions stay real. */
+function sessionCacheClock() {
+  let now = Date.now();
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  return () => { now += 5000; };
+}
+
 describe('Current application membership through actual canonical owners', () => {
   it('returns only current active authority, canonical sorted clients and original expiry bounds', async () => {
     const h = await fixture();
@@ -257,7 +269,9 @@ describe('Current application membership through actual canonical owners', () =>
   });
 
   it('rechecks online identity and three snapshots in sequence without writing after canonical authentication', async () => {
+    const expireCache = sessionCacheClock();
     const h = await fixture();
+    h.onSnapshot((index, point) => { if (index === 1 && point === 'after') expireCache(); });
     await h.read();
     expect(h.onlineReads).toBe(2);
     expect(h.snapshotReads).toBe(3);
@@ -319,7 +333,9 @@ describe('Current application membership through actual canonical owners', () =>
   });
 
   it('refuses a client permission loss while the fresh online session read is pending', async () => {
+    const expireCache = sessionCacheClock();
     const h = await fixture();
+    h.onSnapshot((index, point) => { if (index === 1 && point === 'after') expireCache(); });
     h.onOnline((index) => { if (index === 2) h.setClients([{ id: firstClient, revision: '1'.repeat(32) }]); });
     await expect(h.read()).rejects.toMatchObject({ status: 409 });
   });
@@ -383,9 +399,11 @@ describe('Current application membership through actual canonical owners', () =>
   });
 
   it('excludes session expiry/check time from the membership revision but retains actual member version', async () => {
+    const expireCache = sessionCacheClock();
     const h = await fixture();
     const first = await h.read();
     h.session.expireAt -= 1_000; h.session.abandonAt -= 1_000;
+    expireCache(); // Observe changed provider expiry, rather than the earlier positive proof.
     const sameMembership = await h.read();
     expect(sameMembership.membershipRevision).toBe(first.membershipRevision);
     h.member.updatedAt = new Date(h.member.updatedAt.getTime() + 1);

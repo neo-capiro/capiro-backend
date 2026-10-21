@@ -19,12 +19,14 @@ class Refusal extends Error { constructor(public readonly response?: unknown) { 
 const decorator = () => () => undefined;
 const nest = { Injectable: decorator, Optional: decorator, Controller: decorator, UseGuards: decorator,
   Post: decorator, HttpCode: decorator, Header: decorator, Body: decorator, Req: decorator, Logger: class { log() {} warn() {} error() {} },
-  UnauthorizedException: Refusal, ForbiddenException: Refusal, BadRequestException: Refusal,
+  UnauthorizedException: Refusal, ForbiddenException: Refusal, BadRequestException: Refusal, ConflictException: Refusal,
   NotFoundException: Refusal, ServiceUnavailableException: class Unanswered extends Refusal { readonly status = 503; } };
-function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
+function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout },
+  clock: Pick<typeof Date, 'now'> = Date, useVmIntrinsics = false) {
   const module = { exports: {} as any };
-  const context = createContext({ module, exports: module.exports, Date: clock, Object, Reflect, Array,
-    Promise, Number, JSON, Map, WeakMap, Error, ...timers,
+  const context = createContext({ module, exports: module.exports, Date: clock, Reflect,
+    ...(useVmIntrinsics ? {} : { Object, Array }),
+    Promise, Number, JSON, Map, WeakMap, Error, Buffer, ...timers,
     require(id: string) {
       if (Object.hasOwn(ports, id)) return ports[id];
       throw new Error(`Unexpected runtime import: ${id}`);
@@ -64,12 +66,16 @@ function clerkFixture(timers?: { setTimeout: typeof setTimeout; clearTimeout: ty
   const events: string[] = [];
   let row = session();
   let reader = async (_id: string) => row;
+  // Clerk constructs its cache envelopes inside the VM. Its Object/Array
+  // globals must match those literals for the real prototype checks to apply.
+  // Other contract fixtures keep host intrinsics for their host-created input.
   const exports = load(sources('auth/clerk.service.ts'), {
     '@nestjs/common': nest, '@nestjs/config': {}, './application-authority-unavailable.js': unavailableModule(),
+    'node:util': { types: nodeTypes },
     '@clerk/backend': { createClerkClient: () => ({ sessions: { getSession: (id: string) => {
       events.push(`getSession:${id}`); return reader(id);
     } } }), verifyToken: () => { throw new Error('JWT port must not be called by the dedicated assertion'); } },
-  }, timers, clock);
+  }, timers, clock, true);
   const clerk = new exports.ClerkService({ get: (key: string) => key === 'CLERK_SECRET_KEY' ? 'synthetic-test-secret' : undefined });
   return { clerk, events, row, setReader(next: typeof reader) { reader = next; } };
 }
@@ -402,7 +408,7 @@ describe('actual Meri and scope-owner source integration', () => {
   it('pins both POST200 no-store routes under existing role guard and provider wiring', () => {
     const controller = sources('auth/application-authority.controller.ts');
     expect(controller).toContain("@Controller('clio/application-authority')");
-    for (const route of ['identity', 'context']) expect(controller).toContain(`@Post('${route}')\n  @HttpCode(200)\n  @Header('Cache-Control', 'no-store')`);
+    for (const route of ['identity', 'context', 'current']) expect(controller).toContain(`@Post('${route}')\n  @HttpCode(200)\n  @Header('Cache-Control', 'no-store')`);
     expect(sources('meri/meri.controller.ts')).not.toContain("@Post('application-authority/");
     expect(controller).toContain("@Roles('standard_user')");
     const module = sources('context/context.module.ts');

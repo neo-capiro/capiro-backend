@@ -27,8 +27,8 @@ export class ContextSecurityScopeService {
   /** Minimal current client/wall facts for a selected-client application receipt.
    * Uses this owner's existing client resolver; requested IDs never grant access.
    * Facts are hashed by the caller, not returned as a roster or profile. */
-  async resolveApplicationAuthorityClient(tenantId: string, actorUserId: string, clientId: string) {
-    return this.prisma.withTenant(tenantId, async (tx) => {
+  async resolveApplicationAuthorityClient(tenantId: string, actorUserId: string, clientId: string, transaction?: Prisma.TransactionClient) {
+    const read = async (tx: Prisma.TransactionClient) => {
       await this.resolveClients(tx, tenantId, actorUserId, [clientId], true);
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId, status: { not: 'archived' } },
@@ -48,7 +48,8 @@ export class ContextSecurityScopeService {
       await this.resolveClients(tx, tenantId, actorUserId, [clientId], true);
       return [client.id, client.tenantId, client.status, client.memoryWall,
         client.memoryAccessGrants.map((grant) => [grant.id, grant.tenantId, grant.clientId, grant.userId, grant.createdAt.getTime()])];
-    });
+    };
+    return transaction ? read(transaction) : this.prisma.withTenant(tenantId, read);
   }
 
   async resolve(input: ResolveContextSecurityScopeInput): Promise<ResolvedContextSecurityScope> {

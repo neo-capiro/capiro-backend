@@ -13,6 +13,7 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClerkClient, type ClerkClient, verifyToken } from '@clerk/backend';
+import { types as nodeTypes } from 'node:util';
 import type { AppConfig } from '../config/config.schema.js';
 import { ApplicationAuthorityUnavailableException, isClerkUnanswered } from './application-authority-unavailable.js';
 
@@ -66,6 +67,43 @@ export interface ActiveApplicationAuthoritySession {
   expiresAtMs: number;
 }
 
+const APPLICATION_SESSION_CACHE_TTL_MS = 5000;
+const APPLICATION_SESSION_CACHE_MAX_ENTRIES = 10_000;
+
+/** Copy only bounded JSON facts accepted by the identity grammar. Actor facts
+ * begin at depth two in that grammar; the session envelope starts at one here.
+ * No malformed provider fact is stored, and callers cannot mutate a later hit. */
+function frozenAuthorityCopy<T>(value: T, ancestors = new WeakSet<object>(), depth = 1): T {
+  const denied = () => new UnauthorizedException('Application authority unavailable');
+  if (depth > 12) throw denied();
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'string' && value.length <= 4096) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'object') throw denied();
+  // Cloning a proxy into a plain object would erase the identity grammar's
+  // proxy refusal, and could execute provider-controlled traps while copying.
+  if (nodeTypes.isProxy(value) || ancestors.has(value)) throw denied();
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) throw denied();
+  const keys = Reflect.ownKeys(value);
+  if ((array ? value.length > 128 : keys.length > 128) || keys.some((key) => typeof key !== 'string')) throw denied();
+  const copy: Record<PropertyKey, unknown> | unknown[] = array ? [] : Object.create(prototype);
+  ancestors.add(value);
+  try {
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+      if (!('value' in descriptor)) throw denied(); // Never invoke an accessor.
+      Object.defineProperty(copy, key, { ...descriptor, value: array && key === 'length'
+        ? descriptor.value : frozenAuthorityCopy(descriptor.value, ancestors, depth + 1) });
+    }
+    return Object.freeze(copy) as T;
+  } finally {
+    // Shared subobjects are valid JSON facts; only an active ancestor is a cycle.
+    ancestors.delete(value);
+  }
+}
+
 /** Pure admission shape check so a malformed marked token is refused before
  * the ordinary tenant middleware can perform any local self-heal or audit. */
 export function isWellFormedMeriControlCredentialClaims(
@@ -93,6 +131,12 @@ export class ClerkService {
   private readonly client: ClerkClient;
   private readonly secretKey: string;
   private readonly issuer: string | undefined;
+  private readonly applicationSessionCache = new Map<string, {
+    storedAtMs: number; session: ActiveApplicationAuthoritySession;
+  }>();
+  private readonly applicationSessionReads = new Map<string, Promise<ActiveApplicationAuthoritySession>>();
+  private cacheWindowStartedAtMs = Date.now();
+  private cacheCounters = { hits: 0, misses: 0, joins: 0, refused: 0, unavailable: 0 };
 
   constructor(config: ConfigService<AppConfig, true>) {
     this.secretKey = config.get('CLERK_SECRET_KEY', { infer: true });
@@ -133,94 +177,175 @@ export class ClerkService {
   async assertActiveApplicationAuthoritySession(
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
+    this.reportApplicationSessionCache();
     const denied = () => new UnauthorizedException('Application authority unavailable');
     if (claims.meri_control_credential === true ||
         typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
         typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
         !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
-        (claims.exp ?? 0) * 1000 <= Date.now()) throw denied();
+        (claims.exp ?? 0) * 1000 <= Date.now()) {
+      this.cacheCounters.refused++;
+      throw denied();
+    }
     const sessionId = claims.sid;
     const userId = claims.sub;
     const jwtExpiresAtMs = claims.exp! * 1000;
-    const deadlineMs = Date.now() + 2000;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const session = await Promise.race([
-        Promise.resolve().then(() => this.client.sessions.getSession(sessionId)).catch((error: unknown) => {
-          throw isClerkUnanswered(error) ? new ApplicationAuthorityUnavailableException() : denied();
-        }),
-        new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new ApplicationAuthorityUnavailableException()), 2000);
-        }),
-      ]);
-      const now = Date.now();
-      if (now >= deadlineMs) throw new ApplicationAuthorityUnavailableException();
-      if (!session || session.id !== sessionId || session.userId !== userId ||
-          session.status !== 'active' ||
-          ![session.createdAt, session.expireAt, session.abandonAt].every(
-            (value) => Number.isSafeInteger(value) && value >= 0,
-          ) || session.createdAt > now) throw denied();
-      const expiresAtMs = Math.min(jwtExpiresAtMs, session.expireAt, session.abandonAt);
-      if (expiresAtMs <= now) throw denied();
-      return {
-        id: session.id, userId: session.userId, status: 'active',
-        createdAt: session.createdAt, expireAt: session.expireAt, abandonAt: session.abandonAt,
-        actor: session.actor, expiresAtMs,
-      };
-    } catch (error) {
-      // Clerk did not answer: retryable 503. Every other failure stays a refusal.
-      throw error instanceof ApplicationAuthorityUnavailableException ? error : denied();
-    } finally {
-      if (timer !== undefined) clearTimeout(timer);
-    }
+    return this.readCachedApplicationSession(`native:${sessionId}:${userId}`, jwtExpiresAtMs, async () => {
+      const deadlineMs = Date.now() + 2000;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const session = await Promise.race([
+          Promise.resolve().then(() => this.client.sessions.getSession(sessionId)).catch((error: unknown) => {
+            throw isClerkUnanswered(error) ? new ApplicationAuthorityUnavailableException() : denied();
+          }),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new ApplicationAuthorityUnavailableException()), 2000);
+          }),
+        ]);
+        const now = Date.now();
+        if (now >= deadlineMs) throw new ApplicationAuthorityUnavailableException();
+        if (!session || session.id !== sessionId || session.userId !== userId ||
+            session.status !== 'active' ||
+            ![session.createdAt, session.expireAt, session.abandonAt].every(
+              (value) => Number.isSafeInteger(value) && value >= 0,
+            ) || session.createdAt > now) throw denied();
+        const expiresAtMs = Math.min(jwtExpiresAtMs, session.expireAt, session.abandonAt);
+        if (expiresAtMs <= now) throw denied();
+        return {
+          id: session.id, userId: session.userId, status: 'active',
+          createdAt: session.createdAt, expireAt: session.expireAt, abandonAt: session.abandonAt,
+          actor: session.actor, expiresAtMs,
+        };
+      } catch (error) {
+        // Clerk did not answer: retryable 503. Every other failure stays a refusal.
+        throw error instanceof ApplicationAuthorityUnavailableException ? error : denied();
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
+    });
   }
 
-  /** Only the three named application-authority POSTs may call this method.
+  /** Only the four named application-authority POSTs may call this method.
    * A verified marked template token has no sid, so a fresh active session
    * list checks current user presence without pretending the token is a native
-   * session. No positive proof is cached across calls or requests. */
+   * session. Only an answered active proof is cached, for at most five seconds
+   * and never beyond its expiry, keyed to this credential's jti/sub/iat/exp.
+   * Concurrent reads share one deadline; refusals and unanswered reads are never cached. */
   async assertActiveMeriControlCredentialSession(
     claims: ClerkSessionClaims,
   ): Promise<ActiveApplicationAuthoritySession> {
+    this.reportApplicationSessionCache();
     const denied = () => new UnauthorizedException('Application authority unavailable');
     const { iat, jti, exp } = claims;
     const now0 = Date.now();
-    if (!isWellFormedMeriControlCredentialClaims(claims, now0)) throw denied();
-    const userId = claims.sub;
-    const deadlineMs = now0 + 2000;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const listed = await Promise.race([
-        Promise.resolve().then(() => this.client.sessions.getSessionList({ userId, status: 'active' })).catch((error: unknown) => {
-          throw isClerkUnanswered(error) ? new ApplicationAuthorityUnavailableException() : denied();
-        }),
-        new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new ApplicationAuthorityUnavailableException()), 2000);
-        }),
-      ]);
-      const now = Date.now();
-      if (now >= deadlineMs) throw new ApplicationAuthorityUnavailableException();
-      const sessions = (Array.isArray(listed) ? listed : (listed as { data?: unknown }).data) as
-        Array<{ userId?: unknown; status?: unknown; expireAt?: unknown; abandonAt?: unknown }> | undefined;
-      if (!Array.isArray(sessions)) throw denied();
-      const live = sessions.filter((s) => s && s.userId === userId && s.status === 'active' &&
-        Number.isSafeInteger(s.expireAt) && Number.isSafeInteger(s.abandonAt) &&
-        Math.min(s.expireAt as number, s.abandonAt as number) > now);
-      if (live.length === 0) throw denied();
-      const sessionUntil = Math.max(...live.map((s) => Math.min(s.expireAt as number, s.abandonAt as number)));
-      const expiresAtMs = Math.min((exp ?? 0) * 1000, sessionUntil);
-      if (expiresAtMs <= now) throw denied();
-      return {
-        id: `meri-template:${jti}`, userId, status: 'active',
-        createdAt: (iat ?? 0) * 1000, expireAt: sessionUntil, abandonAt: sessionUntil,
-        actor: null, expiresAtMs,
-      };
-    } catch (error) {
-      // Clerk did not answer: retryable 503. Every other failure stays a refusal.
-      throw error instanceof ApplicationAuthorityUnavailableException ? error : denied();
-    } finally {
-      if (timer !== undefined) clearTimeout(timer);
+    if (!isWellFormedMeriControlCredentialClaims(claims, now0)) {
+      this.cacheCounters.refused++;
+      throw denied();
     }
+    const userId = claims.sub;
+    return this.readCachedApplicationSession(`control:${jti}:${userId}:${iat}:${exp}`, exp! * 1000, async () => {
+      const deadlineMs = now0 + 2000;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const listed = await Promise.race([
+          Promise.resolve().then(() => this.client.sessions.getSessionList({ userId, status: 'active' })).catch((error: unknown) => {
+            throw isClerkUnanswered(error) ? new ApplicationAuthorityUnavailableException() : denied();
+          }),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new ApplicationAuthorityUnavailableException()), 2000);
+          }),
+        ]);
+        const now = Date.now();
+        if (now >= deadlineMs) throw new ApplicationAuthorityUnavailableException();
+        const sessions = (Array.isArray(listed) ? listed : (listed as { data?: unknown }).data) as
+          Array<{ userId?: unknown; status?: unknown; expireAt?: unknown; abandonAt?: unknown }> | undefined;
+        if (!Array.isArray(sessions)) throw denied();
+        const live = sessions.filter((s) => s && s.userId === userId && s.status === 'active' &&
+          Number.isSafeInteger(s.expireAt) && Number.isSafeInteger(s.abandonAt) &&
+          Math.min(s.expireAt as number, s.abandonAt as number) > now);
+        if (live.length === 0) throw denied();
+        const sessionUntil = Math.max(...live.map((s) => Math.min(s.expireAt as number, s.abandonAt as number)));
+        const expiresAtMs = Math.min((exp ?? 0) * 1000, sessionUntil);
+        if (expiresAtMs <= now) throw denied();
+        return {
+          id: `meri-template:${jti}`, userId, status: 'active',
+          createdAt: (iat ?? 0) * 1000, expireAt: sessionUntil, abandonAt: sessionUntil,
+          actor: null, expiresAtMs,
+        };
+      } catch (error) {
+        // Clerk did not answer: retryable 503. Every other failure stays a refusal.
+        throw error instanceof ApplicationAuthorityUnavailableException ? error : denied();
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
+    });
+  }
+
+  private async readCachedApplicationSession(
+    key: string,
+    callerExpiresAtMs: number,
+    read: () => Promise<ActiveApplicationAuthoritySession>,
+  ): Promise<ActiveApplicationAuthoritySession> {
+    try {
+      const now = Date.now();
+      const cached = this.applicationSessionCache.get(key);
+      if (cached && now < Math.min(cached.storedAtMs + APPLICATION_SESSION_CACHE_TTL_MS, cached.session.expiresAtMs)) {
+        this.cacheCounters.hits++;
+        return this.applicationSessionForCaller(cached.session, callerExpiresAtMs);
+      }
+      if (cached) this.applicationSessionCache.delete(key);
+      let pending = this.applicationSessionReads.get(key);
+      if (pending) {
+        this.cacheCounters.joins++;
+      } else {
+        this.cacheCounters.misses++;
+        pending = (async () => {
+          try {
+            const session = frozenAuthorityCopy(await read());
+            const storedAtMs = Date.now();
+            if (session.expiresAtMs <= storedAtMs) throw new UnauthorizedException('Application authority unavailable');
+            for (const [existingKey, entry] of this.applicationSessionCache) {
+              if (storedAtMs >= Math.min(entry.storedAtMs + APPLICATION_SESSION_CACHE_TTL_MS, entry.session.expiresAtMs)) {
+                this.applicationSessionCache.delete(existingKey);
+              }
+            }
+            if (this.applicationSessionCache.size >= APPLICATION_SESSION_CACHE_MAX_ENTRIES) {
+              this.applicationSessionCache.delete(this.applicationSessionCache.keys().next().value!);
+            }
+            this.applicationSessionCache.set(key, { storedAtMs, session });
+            return session;
+          } finally {
+            this.applicationSessionReads.delete(key);
+          }
+        })();
+        this.applicationSessionReads.set(key, pending);
+      }
+      // Native keys intentionally exclude JWT exp. A hit/join must never extend
+      // this caller's shorter token, including a token that expired while waiting.
+      return this.applicationSessionForCaller(await pending, callerExpiresAtMs);
+    } catch (error) {
+      if (error instanceof ApplicationAuthorityUnavailableException) this.cacheCounters.unavailable++;
+      else this.cacheCounters.refused++;
+      // Every follower receives the leader's exact rejection, not a remapped error.
+      throw error;
+    }
+  }
+
+  private applicationSessionForCaller(session: ActiveApplicationAuthoritySession, callerExpiresAtMs: number) {
+    const expiresAtMs = Math.min(session.expiresAtMs, callerExpiresAtMs);
+    if (expiresAtMs <= Date.now()) throw new UnauthorizedException('Application authority unavailable');
+    return frozenAuthorityCopy({ ...session, expiresAtMs });
+  }
+
+  private reportApplicationSessionCache(): void {
+    const now = Date.now();
+    if (now - this.cacheWindowStartedAtMs < 60_000) return;
+    if (Object.values(this.cacheCounters).some((count) => count > 0)) {
+      this.logger.log(JSON.stringify({ event: 'auth.clerk_session_cache', ...this.cacheCounters,
+        entries: this.applicationSessionCache.size }));
+    }
+    this.cacheWindowStartedAtMs = now;
+    this.cacheCounters = { hits: 0, misses: 0, joins: 0, refused: 0, unavailable: 0 };
   }
 
   /** Reuse the native namespace pin for a verified Core-only retained frame. */

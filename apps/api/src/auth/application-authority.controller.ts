@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Header, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -12,13 +12,17 @@ import { Roles } from './roles.decorator.js';
 import { RolesGuard } from './roles.guard.js';
 import { hasVerifiedToolServiceIdentity, ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { ApplicationAuthorityUnavailableException } from './application-authority-unavailable.js';
+import { ApplicationMembershipService } from './application-membership.service.js';
 import {
+  ApplicationAuthorityChangedException,
   assertApplicationAuthorityIdentityBody,
   parseApplicationAuthorityArtifactBody,
   parseApplicationAuthorityContextBody,
+  parseApplicationAuthorityCurrentBody,
   applicationAuthorityIdentityReceipt,
   readApplicationAuthorityArtifact,
   readApplicationAuthorityContext,
+  readApplicationAuthorityCurrent,
 } from './application-authority.js';
 
 /** Native authority adapter for rebuilt Meri; no model/runtime/store owner. */
@@ -31,6 +35,7 @@ export class ApplicationAuthorityController {
     private readonly tenant: TenantContextMiddleware,
     private readonly securityScope: ContextSecurityScopeService,
     private readonly bizdevScope: BizDevMeriScopeService,
+    private readonly membership: ApplicationMembershipService,
   ) {}
 
   @Post('identity')
@@ -41,6 +46,39 @@ export class ApplicationAuthorityController {
     assertApplicationAuthorityIdentityBody(body);
     if (!this.tenant) throw new ForbiddenException('Application authority unavailable');
     return applicationAuthorityIdentityReceipt(await this.tenant.readApplicationAuthority(req, ctx));
+  }
+
+  @Post('current')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @Header('Content-Type', 'application/json; charset=utf-8')
+  async applicationAuthorityCurrent(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    const input = parseApplicationAuthorityCurrentBody(body);
+    const contentLength = req.headers['content-length'];
+    if (typeof contentLength === 'string' && /^\d+$/.test(contentLength) && Number(contentLength) > 4096) {
+      throw new BadRequestException('Invalid application authority request');
+    }
+    // The only potential network await happens before acquiring a DB connection.
+    const session = await this.tenant.readApplicationAuthoritySession(req, ctx);
+    try {
+      // Identity retains the original membership during impersonation. Every
+      // resource owner below pins tenant/actor predicates explicitly on this tx.
+      return await this.prisma.withSystem((tx) => readApplicationAuthorityCurrent(input, {
+        identity: () => session.readCurrent(tx),
+        membership: () => this.membership.readInTransaction(ctx, tx),
+        conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id, tx),
+        conversationScope: async (conversation) => {
+          const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata, tx);
+          if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
+          return prospect ? [prospect.prospectId, prospect.canonicalOrganizationId, prospect.linkedClientId, prospect.scopeVersion] : null;
+        },
+        clientVisible: (id) => assertCurrentClientVisible(this.prisma, ctx, id, tx),
+        clientAuthority: (id) => this.securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, id, tx),
+      }), { isolationLevel: 'RepeatableRead', readOnly: true });
+    } catch (error) {
+      if (error instanceof ApplicationAuthorityUnavailableException || error instanceof ApplicationAuthorityChangedException) throw error;
+      throw new ForbiddenException('Application authority unavailable');
+    }
   }
 
   @Post('context')
@@ -63,7 +101,7 @@ export class ApplicationAuthorityController {
    * D31): the native session bearer, a VERIFIED service identity (the guard
    * alone can pass in dev/test observe mode, dot 6247459562) and
    * `standard_user`. The marked control credential never reaches here: the
-   * tenant middleware admits it only on identity/context/membership and
+   * tenant middleware admits it only on identity/context/membership/current and
    * answers 401 elsewhere. Every refusal past the body is 403.
    */
   @Post('artifact')
