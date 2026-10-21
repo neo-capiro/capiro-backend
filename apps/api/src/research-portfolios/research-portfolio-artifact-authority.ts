@@ -40,6 +40,7 @@ export async function authorizeResearchPortfolioConversation(
   tx: any,
   ctx: TenantContext,
   conversation: any,
+  options: { lock?: boolean } = {},
 ) {
   const metadata = conversation?.metadata;
   if (
@@ -56,7 +57,11 @@ export async function authorizeResearchPortfolioConversation(
   )
     throw new NotFoundException('Research Portfolio conversation not found');
   const scope = validScope(metadata);
-  await tx.$executeRaw`SELECT id FROM tenant_memberships WHERE tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid AND status='active' FOR SHARE`;
+  // A caller-owned read-only repeatable-read snapshot checks the same facts
+  // without row locks. Existing transcript/artifact callers retain their locks.
+  if (options.lock !== false) {
+    await tx.$executeRaw`SELECT id FROM tenant_memberships WHERE tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid AND status='active' FOR SHARE`;
+  }
   if (
     !(await tx.tenantMembership.findFirst({
       where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
@@ -64,8 +69,10 @@ export async function authorizeResearchPortfolioConversation(
     }))
   )
     throw new ForbiddenException('Active tenant membership required');
-  await tx.$executeRaw`SELECT id FROM research_portfolios WHERE tenant_id=${ctx.tenantId}::uuid AND id=${scope.researchPortfolioId}::uuid FOR SHARE`;
-  await tx.$executeRaw`SELECT id FROM research_portfolio_grants WHERE tenant_id=${ctx.tenantId}::uuid AND portfolio_id=${scope.researchPortfolioId}::uuid AND principal_user_id=${ctx.userId}::uuid FOR SHARE`;
+  if (options.lock !== false) {
+    await tx.$executeRaw`SELECT id FROM research_portfolios WHERE tenant_id=${ctx.tenantId}::uuid AND id=${scope.researchPortfolioId}::uuid FOR SHARE`;
+    await tx.$executeRaw`SELECT id FROM research_portfolio_grants WHERE tenant_id=${ctx.tenantId}::uuid AND portfolio_id=${scope.researchPortfolioId}::uuid AND principal_user_id=${ctx.userId}::uuid FOR SHARE`;
+  }
   await loadAuthorizedResearchPortfolio(tx, ctx, scope.researchPortfolioId, 'viewer');
   return scope;
 }

@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { createContext, Script } from 'node:vm';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
+import { performance } from 'node:perf_hooks';
 import ts from 'typescript';
 import { ROLE_RANK } from '@capiro/shared';
 import type { ApplicationAuthorityIdentityProof } from './application-authority.js';
@@ -72,6 +73,7 @@ function clerkFixture(timers?: { setTimeout: typeof setTimeout; clearTimeout: ty
   const exports = load(sources('auth/clerk.service.ts'), {
     '@nestjs/common': nest, '@nestjs/config': {}, './application-authority-unavailable.js': unavailableModule(),
     'node:util': { types: nodeTypes },
+    'node:perf_hooks': { performance },
     '@clerk/backend': { createClerkClient: () => ({ sessions: { getSession: (id: string) => {
       events.push(`getSession:${id}`); return reader(id);
     } } }), verifyToken: () => { throw new Error('JWT port must not be called by the dedicated assertion'); } },

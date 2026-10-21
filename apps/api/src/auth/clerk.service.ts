@@ -14,6 +14,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClerkClient, type ClerkClient, verifyToken } from '@clerk/backend';
 import { types as nodeTypes } from 'node:util';
+import { performance } from 'node:perf_hooks';
 import type { AppConfig } from '../config/config.schema.js';
 import { ApplicationAuthorityUnavailableException, isClerkUnanswered } from './application-authority-unavailable.js';
 
@@ -132,6 +133,7 @@ export class ClerkService {
   private readonly secretKey: string;
   private readonly issuer: string | undefined;
   private readonly applicationSessionCache = new Map<string, {
+    // Monotonic time when the leader started its online read, not reply time.
     storedAtMs: number; session: ActiveApplicationAuthoritySession;
   }>();
   private readonly applicationSessionReads = new Map<string, Promise<ActiveApplicationAuthoritySession>>();
@@ -229,7 +231,8 @@ export class ClerkService {
    * A verified marked template token has no sid, so a fresh active session
    * list checks current user presence without pretending the token is a native
    * session. Only an answered active proof is cached, for at most five seconds
-   * and never beyond its expiry, keyed to this credential's jti/sub/iat/exp.
+   * from the start of its online read and never beyond its expiry, keyed to
+   * this credential's jti/sub/iat/exp. Cache age uses a monotonic clock.
    * Concurrent reads share one deadline; refusals and unanswered reads are never cached. */
   async assertActiveMeriControlCredentialSession(
     claims: ClerkSessionClaims,
@@ -288,8 +291,9 @@ export class ClerkService {
   ): Promise<ActiveApplicationAuthoritySession> {
     try {
       const now = Date.now();
+      const monotonicNow = performance.now();
       const cached = this.applicationSessionCache.get(key);
-      if (cached && now < Math.min(cached.storedAtMs + APPLICATION_SESSION_CACHE_TTL_MS, cached.session.expiresAtMs)) {
+      if (cached && monotonicNow < cached.storedAtMs + APPLICATION_SESSION_CACHE_TTL_MS && now < cached.session.expiresAtMs) {
         this.cacheCounters.hits++;
         return this.applicationSessionForCaller(cached.session, callerExpiresAtMs);
       }
@@ -299,13 +303,18 @@ export class ClerkService {
         this.cacheCounters.joins++;
       } else {
         this.cacheCounters.misses++;
+        // Network latency consumes the same five-second freshness window. A
+        // delayed answer must not restart it, and wall-clock corrections must
+        // not extend it. JWT/session bounds remain epoch timestamps below.
+        const storedAtMs = performance.now();
         pending = (async () => {
           try {
             const session = frozenAuthorityCopy(await read());
-            const storedAtMs = Date.now();
-            if (session.expiresAtMs <= storedAtMs) throw new UnauthorizedException('Application authority unavailable');
+            const receivedAtMs = Date.now();
+            const monotonicReceivedAtMs = performance.now();
+            if (session.expiresAtMs <= receivedAtMs) throw new UnauthorizedException('Application authority unavailable');
             for (const [existingKey, entry] of this.applicationSessionCache) {
-              if (storedAtMs >= Math.min(entry.storedAtMs + APPLICATION_SESSION_CACHE_TTL_MS, entry.session.expiresAtMs)) {
+              if (monotonicReceivedAtMs >= entry.storedAtMs + APPLICATION_SESSION_CACHE_TTL_MS || receivedAtMs >= entry.session.expiresAtMs) {
                 this.applicationSessionCache.delete(existingKey);
               }
             }

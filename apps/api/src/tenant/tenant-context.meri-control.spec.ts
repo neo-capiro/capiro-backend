@@ -22,7 +22,7 @@ const member = {
 const futureExp = () => Math.floor(Date.now() / 1000) + 120;
 
 function fixture(method: string, path: string, options: {
-  marked?: boolean; originalUrl?: string; sid?: string;
+  marked?: boolean; originalUrl?: string; baseUrl?: string; sid?: string;
   claimOverrides?: Partial<ClerkSessionClaims>;
 } = {}) {
   const claims: ClerkSessionClaims = {
@@ -71,7 +71,7 @@ function fixture(method: string, path: string, options: {
   const middleware = new TenantContextMiddleware(clerk, prisma, store);
   const originalUrl = options.originalUrl ?? path;
   const req = {
-    method, path, originalUrl, url: originalUrl, baseUrl: '',
+    method, path, originalUrl, url: originalUrl, baseUrl: options.baseUrl ?? '',
     hostname: 'app.capiro.ai',
     headers: { authorization: 'Bearer verified-token', host: 'app.capiro.ai' },
     header: jest.fn(() => undefined),
@@ -83,6 +83,31 @@ function fixture(method: string, path: string, options: {
 }
 
 describe('marked Meri control credential route boundary', () => {
+  it.each(['identity', 'context', 'membership', 'current'])(
+    'admits the exact mounted %s target without broadening the original target check', async (operation) => {
+      const target = `/api/clio/application-authority/${operation}`;
+      for (const [baseUrl, path] of [[target, '/'], ['/api/clio/application-authority', `/${operation}`]] as const) {
+        const f = fixture('POST', path, { baseUrl, originalUrl: target });
+        await f.middleware.use(f.req, f.res, f.next);
+        expect(f.next).toHaveBeenCalledTimes(1);
+        const identity = await f.middleware.readApplicationAuthority(f.req, f.req.tenantContext! as never);
+        expect(identity.principal).toEqual({ tenantId: tenant.id, actorId: actor.id });
+        expect(f.controlSession).toHaveBeenCalledTimes(2);
+      }
+    },
+  );
+
+  it.each([
+    '/api/clio/application-authority/identity/',
+    '/api/clio/conversations/bootstrap',
+    'http://app.capiro.ai/api/clio/application-authority/identity',
+  ])('refuses a mounted identity route whose original target differs: %s', async (originalUrl) => {
+    const f = fixture('POST', '/', { baseUrl: '/api/clio/application-authority/identity', originalUrl });
+    await expect(f.middleware.use(f.req, f.res, f.next)).rejects.toMatchObject({ status: 401 });
+    expect(f.system).not.toHaveBeenCalled();
+    expect(f.next).not.toHaveBeenCalled();
+  });
+
   it.each([
     '/api/clio/application-authority/identity',
     '/api/clio/application-authority/context',

@@ -1,11 +1,11 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, HttpException, Post, Req, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
 import { ContextSecurityScopeService } from '../context/context-security-scope.service.js';
-import { assertCurrentClientVisible, loadOwnedActiveClioConversation } from '../context/application-authority-resource.helpers.js';
+import { assertCurrentClientVisible, loadOwnedActiveClioConversation, readApplicationAuthorityResearchPortfolioScope } from '../context/application-authority-resource.helpers.js';
 import { BizDevMeriScopeService } from '../business-development/bizdev-meri-scope.service.js';
 import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import { Roles } from './roles.decorator.js';
@@ -54,6 +54,8 @@ export class ApplicationAuthorityController {
   @Header('Content-Type', 'application/json; charset=utf-8')
   async applicationAuthorityCurrent(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
     const input = parseApplicationAuthorityCurrentBody(body);
+    // The parser bounds the semantic JSON body. Also reject a declared wire
+    // length above that limit; upstream parsing owns chunked/raw byte limits.
     const contentLength = req.headers['content-length'];
     if (typeof contentLength === 'string' && /^\d+$/.test(contentLength) && Number(contentLength) > 4096) {
       throw new BadRequestException('Invalid application authority request');
@@ -67,6 +69,7 @@ export class ApplicationAuthorityController {
         identity: () => session.readCurrent(tx),
         membership: () => this.membership.readInTransaction(ctx, tx),
         conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id, tx),
+        researchPortfolioScope: (conversation) => readApplicationAuthorityResearchPortfolioScope(conversation),
         conversationScope: async (conversation) => {
           const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata, tx);
           if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
@@ -76,7 +79,8 @@ export class ApplicationAuthorityController {
         clientAuthority: (id) => this.securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, id, tx),
       }), { isolationLevel: 'RepeatableRead', readOnly: true });
     } catch (error) {
-      if (error instanceof ApplicationAuthorityUnavailableException || error instanceof ApplicationAuthorityChangedException) throw error;
+      if (error instanceof ServiceUnavailableException || error instanceof ApplicationAuthorityChangedException) throw error;
+      if (!(error instanceof HttpException)) throw new ServiceUnavailableException('Application authority unavailable');
       throw new ForbiddenException('Application authority unavailable');
     }
   }

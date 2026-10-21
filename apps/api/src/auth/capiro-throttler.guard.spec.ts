@@ -1,7 +1,9 @@
 import 'reflect-metadata';
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { request as httpRequest } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import {
-  Controller, Get, HttpCode, Injectable, MiddlewareConsumer, Module, NestModule, Post, RequestMethod,
+  Controller, Get, HttpCode, Injectable, MiddlewareConsumer, Module, NestModule, Post,
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
@@ -25,6 +27,29 @@ jest.mock('@clerk/backend', () => ({
 
 const authorityPaths = ['identity', 'context', 'membership', 'current'];
 const now = 1_800_000_000_000;
+let configureProductionMiddleware: (consumer: MiddlewareConsumer) => void;
+
+beforeAll(async () => {
+  // Import the actual module for its configure method without constructing its
+  // broad provider graph. Import-time config validation receives local dummies;
+  // no database or SDK connection is created, and prior env values are restored.
+  const defaults = {
+    DATABASE_URL: 'postgresql://capiro:local@127.0.0.1:5432/p6_throttle_spec',
+    CLERK_SECRET_KEY: 'sk_test_p6_throttle_spec',
+    CLERK_WEBHOOK_SIGNING_SECRET: 'whsec_p6_throttle_spec',
+  };
+  const prior = Object.fromEntries(Object.keys(defaults).map((key) => [key, process.env[key]]));
+  try {
+    for (const [key, value] of Object.entries(defaults)) process.env[key] ??= value;
+    const { AppModule } = await import('../app.module.js');
+    configureProductionMiddleware = (consumer) => new AppModule().configure(consumer);
+  } finally {
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}, 60_000);
 
 @Controller('clio/application-authority')
 class AuthorityProbeController {
@@ -41,7 +66,7 @@ class OrdinaryProbeController {
   @Post() @HttpCode(200) ordinary() { return { ok: true }; }
 }
 
-async function fixture(authenticate = true, mountWithConsumer = false) {
+async function fixture(authenticate = true, rewrittenTarget?: string) {
   const events: string[] = [];
   const trackers: string[] = [];
   const tenant = { id: 'tenant_test', slug: 'test', status: 'active', clerkOrgId: 'org_test' };
@@ -93,6 +118,7 @@ async function fixture(authenticate = true, mountWithConsumer = false) {
   class SpoofPublicRequestFields {
     use(req: Request, _res: Response, next: NextFunction) {
       events.push(`request-path:${req.path}:${req.originalUrl}`);
+      if (rewrittenTarget !== undefined) req.originalUrl = rewrittenTarget;
       Object.assign(req, {
         claims: { sub: 'forged_user' }, user: { sub: 'forged_user' },
         tenantContext: { clerkUserId: 'forged_user' },
@@ -117,31 +143,8 @@ async function fixture(authenticate = true, mountWithConsumer = false) {
   })
   class ProbeModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
-      if (mountWithConsumer) {
-        consumer.apply(SpoofPublicRequestFields).forRoutes('*');
-        if (authenticate) consumer.apply(TenantContextMiddleware).exclude(
-          { path: 'health', method: RequestMethod.ALL },
-          { path: 'webhooks/(.*)', method: RequestMethod.ALL },
-          { path: '/api/v1/demo-requests', method: RequestMethod.POST },
-          { path: 'api/v1/demo-requests', method: RequestMethod.POST },
-          { path: '/api/engagement/integrations/microsoft/callback', method: RequestMethod.GET },
-          { path: 'api/engagement/integrations/microsoft/callback', method: RequestMethod.GET },
-          { path: '/api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
-          { path: 'api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
-          { path: '/api/engagement/integrations/google/callback', method: RequestMethod.GET },
-          { path: 'api/engagement/integrations/google/callback', method: RequestMethod.GET },
-          { path: '/api/clio/runtime/(.*)', method: RequestMethod.ALL },
-          { path: 'api/clio/runtime/(.*)', method: RequestMethod.ALL },
-          { path: '/api/clio/mcp-oauth/callback', method: RequestMethod.GET },
-          { path: 'api/clio/mcp-oauth/callback', method: RequestMethod.GET },
-          { path: '/api/insights', method: RequestMethod.GET },
-          { path: 'api/insights', method: RequestMethod.GET },
-          { path: 'api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
-          { path: '/api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
-          { path: '/api/internal/(.*)', method: RequestMethod.ALL },
-          { path: 'api/internal/(.*)', method: RequestMethod.ALL },
-        ).forRoutes('*');
-      }
+      consumer.apply(SpoofPublicRequestFields).forRoutes('*');
+      if (authenticate) configureProductionMiddleware(consumer);
     }
   }
 
@@ -152,22 +155,23 @@ async function fixture(authenticate = true, mountWithConsumer = false) {
     includeObjectiveDecisionRawBody: true, includeMeriReadDelegationRawBody: true,
     includeEmailSignatureLargeBody: true, defaultJsonLimit: '1mb',
   });
-  if (!mountWithConsumer) {
-    // Root middleware preserves the exact parsed/original target contract of
-    // marked credentials. The consumer-mounted native path is tested below.
-    const spoof = new SpoofPublicRequestFields();
-    app.use(spoof.use.bind(spoof));
-    if (authenticate) {
-      const middleware = module.get(TenantContextMiddleware);
-      app.use((req: Request, res: Response, next: NextFunction) => {
-        void middleware.use(req, res, next).catch(next);
-      });
-    }
-  }
   await app.init();
   const post = (path: string, token = 'native-a') => request(app.getHttpServer())
     .post(`/api/${path}`).set('Authorization', `Bearer ${token}`).send({ claims: { sub: 'body_forgery' } });
-  return { app, events, trackers, post };
+  const rawPost = async (target: string) => {
+    const server = app.getHttpServer();
+    if (!server.listening) await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as AddressInfo).port;
+    return new Promise<number>((resolve, reject) => {
+      const req = httpRequest({
+        host: '127.0.0.1', port, method: 'POST', path: target,
+        headers: { Authorization: 'Bearer control-a', Connection: 'close' },
+      }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode!)); });
+      req.on('error', reject);
+      req.end();
+    });
+  };
+  return { app, events, trackers, post, rawPost };
 }
 
 describe('authority throttling through the real Nest middleware/guard pipeline', () => {
@@ -195,16 +199,42 @@ describe('authority throttling through the real Nest middleware/guard pipeline',
   });
 
   it('observes consumer-mounted native provenance before the global guard', async () => {
-    f = await fixture(true, true);
+    f = await fixture();
     expect((await f.post('clio/application-authority/current')).status).toBe(200);
     expect(f.events.slice(1, 4)).toEqual(['verified', 'guard', 'guard']);
     expect(f.trackers).toEqual(['authority-user:user_a', 'authority-user:user_a']);
   });
 
-  it('preserves the existing control refusal when consumer mounting changes the parsed path', async () => {
-    f = await fixture(true, true);
-    expect((await f.post('clio/application-authority/identity', 'control-a')).status).toBe(401);
-    expect(f.events).toEqual(['request-path:/:/api/clio/application-authority/identity', 'verified']);
+  it('admits a marked control credential through AppModule mounting with a query', async () => {
+    f = await fixture();
+    expect((await f.post('clio/application-authority/current?source=control', 'control-a')).status).toBe(200);
+    expect(f.events[0]).toBe('request-path:/:/api/clio/application-authority/current?source=control');
+    expect(f.trackers).toEqual(['authority-user:user_a', 'authority-user:user_a']);
+  });
+
+  it.each(['ordinary', 'clio/application-authority/identity/', 'clio/application-authority/IDENTITY',
+    'clio/application-authority/identity-extra'])('refuses marked control credentials on %s', async (path) => {
+    f = await fixture();
+    expect((await f.post(path, 'control-a')).status).toBe(401);
+    expect(f.trackers).toEqual([]);
+  });
+
+  it('refuses marked control credentials on an authority GET', async () => {
+    f = await fixture();
+    expect((await request(f.app.getHttpServer()).get('/api/clio/application-authority/identity')
+      .set('Authorization', 'Bearer control-a')).status).toBe(401);
+    expect(f.trackers).toEqual([]);
+  });
+
+  it('refuses an absolute-form control target through the actual HTTP pipeline', async () => {
+    f = await fixture();
+    expect(await f.rawPost('http://app.capiro.ai/api/clio/application-authority/current')).toBe(401);
+    expect(f.trackers).toEqual([]);
+  });
+
+  it('refuses an original target rewritten to a different route', async () => {
+    f = await fixture(true, '/api/ordinary');
+    expect((await f.post('clio/application-authority/current', 'control-a')).status).toBe(401);
     expect(f.trackers).toEqual([]);
   });
 

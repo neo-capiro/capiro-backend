@@ -12,6 +12,7 @@
 // ============================================================================
 import {
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NestMiddleware,
@@ -85,12 +86,17 @@ const MERI_CONTROL_POST_PATHS = new Set([
   '/clio/application-authority/current',
 ]);
 
-/** A marked, sidless Meri control token has exactly four authority POST uses.
+/** Express removes the mount prefix from req.path while middleware runs. */
+function mountedRequestPath(req: Request): string {
+  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
+}
+
+/** A marked, sidless Meri control token is limited to allowlisted authority POSTs.
  * Check both Express' parsed path and the original target: a rewritten or
  * absolute-form target must never widen the credential's route authority. */
 function isMeriControlAuthorityPost(req: Request): boolean {
   if (req.method !== 'POST') return false;
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
   const normalized = (path: string) => path.startsWith('/api/') ? path.slice(4) : path;
   return parsed === original && MERI_CONTROL_POST_PATHS.has(normalized(parsed));
@@ -737,7 +743,7 @@ export class TenantContextMiddleware implements NestMiddleware {
           : null)
       : await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
     if (!session) throw denied();
-    return { readCurrent: (transaction) => this.readCurrentApplicationAuthority(provenance, ctx, session, transaction) };
+    return { readCurrent: (transaction) => this.readCurrentApplicationAuthority(provenance, ctx, session, transaction, true) };
   }
 
   /** Unmounted history-release identity leaf. The request must already carry
@@ -828,6 +834,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     ctx: TenantContext,
     session: ActiveApplicationAuthoritySession,
     transaction?: Prisma.TransactionClient,
+    preserveTransactionUnavailable = false,
   ): Promise<ApplicationAuthorityIdentityEvidence> {
     const denied = () => new ForbiddenException('Application authority unavailable');
     if (provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
@@ -881,7 +888,11 @@ export class TenantContextMiddleware implements NestMiddleware {
         };
       };
       return transaction ? await read(transaction) : await this.prisma.withSystem(read);
-    } catch {
+    } catch (error) {
+      // The combined receipt owns its outage response. Other callers retain
+      // their existing refusal mapping, including held-lock release owners.
+      if (transaction && preserveTransactionUnavailable &&
+          (!(error instanceof HttpException) || error instanceof ServiceUnavailableException)) throw error;
       throw denied();
     }
   }

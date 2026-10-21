@@ -49,7 +49,14 @@ export class ContextSecurityScopeService {
       return [client.id, client.tenantId, client.status, client.memoryWall,
         client.memoryAccessGrants.map((grant) => [grant.id, grant.tenantId, grant.clientId, grant.userId, grant.createdAt.getTime()])];
     };
-    return transaction ? read(transaction) : this.prisma.withTenant(tenantId, read);
+    if (!transaction) return this.prisma.withTenant(tenantId, read);
+    try { return await read(transaction); }
+    catch (error) {
+      // This owner's canonical wall refusal is a domain Error, not an HTTP
+      // exception. Preserve its denial while allowing DB failures to reach503.
+      if (error instanceof ContextResolutionError) throw new ForbiddenException('Application authority unavailable');
+      throw error;
+    }
   }
 
   async resolve(input: ResolveContextSecurityScopeInput): Promise<ResolvedContextSecurityScope> {

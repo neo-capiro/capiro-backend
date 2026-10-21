@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
@@ -21,6 +21,8 @@ import {
  * mode (missing tenant context, missing tenant row, either flag off, missing
  * or cross-tenant prospect, thrown DB error) yields the SAME bare
  * NotFoundException — indistinguishable from a route that doesn't exist.
+ * Caller-owned authority snapshots preserve infrastructure/503 failures so
+ * their HTTP owner can distinguish unavailable checks from denied authority.
  */
 
 /** The one bounded metadata key Meri prospect conversations persist scope under. */
@@ -172,6 +174,9 @@ export class BizDevMeriScopeService {
       };
       return transaction ? await read(transaction) : await this.prisma.withTenant(ctx.tenantId, read);
     } catch (error) {
+      // A caller-owned authority snapshot must distinguish infrastructure
+      // failure from a current authorization refusal. Legacy callers keep 404.
+      if (transaction && (error instanceof ServiceUnavailableException || !(error instanceof HttpException))) throw error;
       if (error instanceof NotFoundException) throw error;
       this.logger.error(
         `meri prospect scope resolution failed for tenant ${ctx.tenantId}; failing closed`,

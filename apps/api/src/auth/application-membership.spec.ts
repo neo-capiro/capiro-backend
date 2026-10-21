@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { createContext, Script } from 'node:vm';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { isDeepStrictEqual, types as nodeTypes } from 'node:util';
+import { performance } from 'node:perf_hooks';
 import ts from 'typescript';
 // Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
 import * as executionKeyConfig from './core-ed25519-key-config.js';
@@ -201,6 +202,7 @@ async function fixture(options: { role?: string; clients?: RosterRow[] } = {}) {
   const clerkSource = load(source('auth/clerk.service.ts'), {
     '@nestjs/common': nest, '@nestjs/config': {},
     'node:util': { types: nodeTypes },
+    'node:perf_hooks': { performance },
     './application-authority-unavailable.js': load(source('auth/application-authority-unavailable.ts'), { '@nestjs/common': nest }),
     '@clerk/backend': {
       createClerkClient: () => ({ sessions: { getSession: async (id: string) => {
@@ -251,8 +253,10 @@ afterEach(() => { jest.restoreAllMocks(); });
  * cache TTL explicitly so their original ordering/race assertions stay real. */
 function sessionCacheClock() {
   let now = Date.now();
+  let monotonicNow = performance.now();
   jest.spyOn(Date, 'now').mockImplementation(() => now);
-  return () => { now += 5000; };
+  jest.spyOn(performance, 'now').mockImplementation(() => monotonicNow);
+  return () => { now += 5000; monotonicNow += 5000; };
 }
 
 describe('Current application membership through actual canonical owners', () => {

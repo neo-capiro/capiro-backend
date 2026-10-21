@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { EventEmitter } from 'node:events';
-import { UnauthorizedException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
@@ -20,6 +21,7 @@ const conversationId = '00000000-0000-0000-0000-000000000004';
 const prospectId = '00000000-0000-4000-8000-000000000005';
 const otherClientId = '00000000-0000-8000-8000-000000000006';
 const targetTenantId = '00000000-0000-4000-8000-000000000007';
+const portfolioId = '00000000-0000-4000-8000-000000000008';
 const input = { conversationId, clientId };
 type Observation = { tx: number; operation: string; args?: any; sql?: string };
 
@@ -42,7 +44,7 @@ async function fixture() {
   const client = { id: clientId, tenantId, status: 'active', memoryWall: false,
     memoryAccessGrants: [{ id: 'grant-current', tenantId, clientId, userId: actorId, createdAt: new Date(4) }] };
   const prospect = { id: prospectId, tenantId, displayName: 'Synthetic prospect', canonicalEntityId: null as string | null,
-    linkedClientId: clientId };
+    linkedClientId: clientId as string | null };
   const impersonation = { id: 'impersonation-current', actorUserId: actorId, tenantId: targetTenantId,
     startedAt: new Date(1), expiresAt: new Date(Date.now() + 30_000), endedAt: null as Date | null, tenant: targetTenant };
   let allowedClients = [{ id: otherClientId, revision: '2'.repeat(32) }, { id: clientId, revision: '1'.repeat(32) }];
@@ -50,6 +52,10 @@ async function fixture() {
   let wallAllowed = true;
   let control = false;
   let onlineError: unknown;
+  let transactionError: unknown;
+  let prospectError: unknown;
+  let identityError: { owner: 'user' | 'membership'; error: unknown } | undefined;
+  let portfolioGranted = true;
   let nextTx = 0;
   let authorityTenantId = tenantId;
   const session = { id: 'sess_current_test', userId: user.clerkUserId, status: 'active', createdAt: 1,
@@ -76,6 +82,7 @@ async function fixture() {
   const prisma: any = {
     scopedClient(scope: unknown) {
       return { $transaction: async (fn: (tx: any) => Promise<unknown>, options?: unknown) => {
+        if (transactionError) throw transactionError;
         const id = ++nextTx;
         sequence.push('transaction');
         transactions.push({ id, options, scope });
@@ -100,13 +107,18 @@ async function fixture() {
           },
           user: {
             findUnique: async (args: any) => { observe('user.findUnique', args); return user; },
-            findFirst: async (args: any) => { observe('user.findFirst', args); return user; },
+            findFirst: async (args: any) => {
+              observe('user.findFirst', args);
+              if (identityError?.owner === 'user') throw identityError.error;
+              return user;
+            },
             update: async (args: any) => { observe('user.update', args); return user; },
           },
           tenantMembership: {
             findMany: async (args: any) => { observe('tenantMembership.findMany', args); return [membership]; },
             findFirst: async (args: any) => {
               observe('tenantMembership.findFirst', args);
+              if (identityError?.owner === 'membership') throw identityError.error;
               return args.where.tenantId === targetTenantId ? targetMembership : membership;
             },
           },
@@ -129,8 +141,15 @@ async function fixture() {
           },
           businessDevelopmentProspect: { findFirst: async (args: any) => {
             observe('businessDevelopmentProspect.findFirst', args);
+            if (prospectError) throw prospectError;
             expect(args.where).toEqual({ tenantId: authorityTenantId, id: prospectId });
             return prospect;
+          } },
+          researchPortfolio: { findFirst: async (args: any) => {
+            observe('researchPortfolio.findFirst', args);
+            expect(args.where).toEqual({ id: row.metadata.researchPortfolioScope.researchPortfolioId,
+              tenantId: authorityTenantId, grants: { some: { principalUserId: actorId } } });
+            return portfolioGranted ? { id: args.where.id, grants: [{ role: 'viewer' }], clientLinks: [] } : null;
           } },
         };
         return fn(tx);
@@ -192,9 +211,20 @@ async function fixture() {
         linkedClientId: prospect.linkedClientId }),
     } };
   }
+  function researchPortfolioScope(id = portfolioId, revision = 1) {
+    const scope = { kind: 'research_portfolio', researchPortfolioId: id,
+      researchPortfolioName: 'Synthetic portfolio', researchPortfolioRevision: revision };
+    row.clientId = null;
+    row.metadata = { researchPortfolioScope: { ...scope,
+      scopeVersion: createHash('sha256').update(JSON.stringify(scope)).digest('hex') } };
+  }
   return { app, module, request, observations, transactions, sequence, nativeSession, controlSession,
-    user, tenant, targetTenant, membership, targetMembership, row, client, prospect, session, impersonation, prospectScope,
+    user, tenant, targetTenant, membership, targetMembership, row, client, prospect, session, impersonation, prospectScope, researchPortfolioScope,
     setControl() { control = true; }, setOnlineError(error: unknown) { onlineError = error; },
+    setTransactionError(error: unknown) { transactionError = error; },
+    setProspectError(error: unknown) { prospectError = error; },
+    setIdentityError(owner: 'user' | 'membership', error: unknown) { identityError = { owner, error }; },
+    revokePortfolioGrant() { portfolioGranted = false; },
     hideClient() { visible = false; }, revokeWall() { wallAllowed = false; },
     setClients(rows: typeof allowedClients) { allowedClients = rows; },
     impersonate() {
@@ -283,6 +313,103 @@ describe('combined current authority registered HTTP boundary', () => {
     expect(response.body.message).toBe('Application authority unavailable');
     expect(response.headers['cache-control']).toBe('no-store');
     expect(f.transactions).toEqual([]);
+  });
+
+  it('preserves a bounded-roster outage as503 instead of an authority refusal', async () => {
+    f.setClients(Array.from({ length: 4097 }, () => ({ id: clientId, revision: '1'.repeat(32) })));
+    const response = await f.request('current', input);
+    expect(response.statusCode).toBe(503);
+    expect(response.body.message).toBe('Current membership unavailable');
+    expect(response.headers['cache-control']).toBe('no-store');
+  });
+
+  it.each([
+    ['transaction connection failure', new Error('synthetic connection failure')],
+    ['transaction timeout', { code: 'P2028', message: 'synthetic transaction timeout' }],
+    ['service unavailability', new ServiceUnavailableException('Application authority unavailable')],
+  ])('answers %s as503 without reporting revoked authority', async (_name, failure) => {
+    const response = await f.request('current', input, { afterAuthentication() { f.setTransactionError(failure); } });
+    expect(response.statusCode).toBe(503);
+    expect(response.body.message).toBe('Application authority unavailable');
+    expect(response.headers['cache-control']).toBe('no-store');
+  });
+
+  it.each([new Error('synthetic prospect database connection failure'), new ServiceUnavailableException('Application authority unavailable')])(
+    'preserves a database or503 failure through the actual prospect owner', async (failure) => {
+    f.prospectScope();
+    f.setProspectError(failure);
+    const response = await f.request('current', input);
+    expect(response.statusCode).toBe(503);
+    expect(response.body.message).toBe('Application authority unavailable');
+    expect(f.observations.some(({ operation }) => operation === 'businessDevelopmentProspect.findFirst')).toBe(true);
+    },
+  );
+
+  it.each(['user', 'membership'] as const)('preserves an actual identity %s database failure as503', async (owner) => {
+    const response = await f.request('current', input, { afterAuthentication() {
+      f.setIdentityError(owner, new Error('synthetic identity database connection failure'));
+    } });
+    expect(response.statusCode).toBe(503);
+    expect(response.body.message).toBe('Application authority unavailable');
+  });
+
+  it('permits a clientless Research Portfolio only after its current owner checks on the same read-only snapshot', async () => {
+    f.researchPortfolioScope();
+    const response = await f.request('current', { conversationId, clientId: null });
+    expect(response.statusCode).toBe(200);
+    expect(response.body.selectedClientId).toBeNull();
+    expect(f.observations.some(({ operation }) => operation === 'researchPortfolio.findFirst')).toBe(true);
+    expect(f.observations.some(({ operation }) => operation === 'client.findFirst' || operation === 'client.findMany')).toBe(false);
+    expect(f.observations.some(({ sql }) => /FOR SHARE/i.test(sql ?? ''))).toBe(false);
+    expect(new Set(f.observations.map(({ tx }) => tx)).size).toBe(1);
+    expect((await f.request('current', { conversationId, clientId: null,
+      expect: { contextRevision: response.body.contextRevision } })).statusCode).toBe(200);
+    f.researchPortfolioScope(otherClientId, 2);
+    const changed = await f.request('current', { conversationId, clientId: null });
+    expect(changed.statusCode).toBe(200);
+    expect(changed.body.contextRevision).not.toBe(response.body.contextRevision);
+    const mismatch = await f.request('current', { conversationId, clientId: null,
+      expect: { contextRevision: response.body.contextRevision } });
+    expect(mismatch.statusCode).toBe(409);
+    expect(mismatch.body).toEqual({ error: 'CHANGED' });
+  });
+
+  it.each(['plain null client', 'forged receipt', 'revoked grant', 'dual prospect scope', 'UUID selector',
+    'foreign owner', 'foreign tenant', 'archived conversation', 'inactive conversation', 'revoked membership'])(
+    'refuses clientless portfolio authority for %s', async (kind) => {
+      f.researchPortfolioScope();
+      const request = { conversationId, clientId: kind === 'UUID selector' ? clientId : null };
+      const response = await f.request('current', request, { afterAuthentication() {
+        if (kind === 'plain null client') f.row.metadata = {};
+        if (kind === 'forged receipt') f.row.metadata.researchPortfolioScope.scopeVersion = 'f'.repeat(64);
+        if (kind === 'revoked grant') f.revokePortfolioGrant();
+        if (kind === 'dual prospect scope') {
+          const portfolioScope = f.row.metadata.researchPortfolioScope;
+          f.prospect.linkedClientId = null;
+          f.prospectScope(); f.row.metadata.researchPortfolioScope = portfolioScope;
+        }
+        if (kind === 'foreign owner') f.row.userId = otherClientId;
+        if (kind === 'foreign tenant') f.row.tenantId = targetTenantId;
+        if (kind === 'archived conversation') f.row.archivedAt = new Date(1);
+        if (kind === 'inactive conversation') f.row.status = 'closed';
+        if (kind === 'revoked membership') f.membership.status = 'inactive';
+      } });
+      expect(response.statusCode).toBe(403);
+      expect(response.body.message).toBe('Application authority unavailable');
+    },
+  );
+
+  it('keeps the existing context contract UUID-only and requires the current client selector key', async () => {
+    f.researchPortfolioScope();
+    expect((await f.request('context', { conversationId, clientId: null, identitySha256: 'a'.repeat(64) })).statusCode).toBe(400);
+    expect((await f.request('current', { conversationId })).statusCode).toBe(400);
+  });
+
+  it('does not reuse a portfolio proof when a later read returns ordinary metadata on the same object', async () => {
+    f.researchPortfolioScope();
+    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(200);
+    f.row.metadata = {};
+    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(403);
   });
 
   it('preserves answered authentication refusal as401 and missing bearer as401 with no-store', async () => {

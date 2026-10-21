@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Logger } from '@nestjs/common';
+import { performance } from 'node:perf_hooks';
 import type { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import { ClerkService, type ClerkSessionClaims } from './clerk.service.js';
@@ -11,6 +12,16 @@ const SID = 'sess_PRIVATE_SID';
 const JTI = 'credential_PRIVATE_JTI';
 const mockGetSession = jest.fn<(id: string) => Promise<any>>();
 const mockGetSessionList = jest.fn<(query: unknown) => Promise<any>>();
+let elapsedMs = 0;
+
+function setElapsed(ms: number) {
+  elapsedMs = ms;
+  jest.setSystemTime(NOW + ms);
+}
+async function advanceElapsed(ms: number) {
+  elapsedMs += ms;
+  await jest.advanceTimersByTimeAsync(ms);
+}
 
 // Exercise the real owner, including deadlines and response validation. Only
 // the external SDK transport is replaced; no session-cache internals are mocked.
@@ -54,6 +65,8 @@ function answer(kind: Kind, row = session()) { return kind === 'native' ? row : 
 
 beforeEach(() => {
   jest.useFakeTimers({ now: NOW });
+  elapsedMs = 0;
+  jest.spyOn(performance, 'now').mockImplementation(() => elapsedMs);
   mockGetSession.mockReset().mockImplementation(async () => session());
   mockGetSessionList.mockReset().mockImplementation(async () => ({ data: [session()] }));
   jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -64,12 +77,12 @@ describe.each(kinds)('positive-only %s Clerk authority cache', (kind) => {
   it('returns equal, distinct frozen proofs and hits before, but not at, the 5 second boundary', async () => {
     const service = owner();
     const first = await check(service, kind);
-    jest.setSystemTime(NOW + 4999);
+    setElapsed(4999);
     const hit = await check(service, kind);
     expect(hit).toEqual(first); expect(hit).not.toBe(first);
     expect(Object.isFrozen(first)).toBe(true); expect(Object.isFrozen(hit)).toBe(true);
     expect(transport(kind)).toHaveBeenCalledTimes(1);
-    jest.setSystemTime(NOW + 5000);
+    setElapsed(5000);
     await check(service, kind);
     expect(transport(kind)).toHaveBeenCalledTimes(2);
   });
@@ -78,19 +91,71 @@ describe.each(kinds)('positive-only %s Clerk authority cache', (kind) => {
     const service = owner();
     await check(service, kind);
     transport(kind).mockResolvedValue(answer(kind, session({ status: 'revoked' })));
-    jest.setSystemTime(NOW + 4900);
+    setElapsed(4900);
     await expect(check(service, kind)).resolves.toMatchObject({ status: 'active' });
-    jest.setSystemTime(NOW + 5000);
+    setElapsed(5000);
     await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
     await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
     expect(transport(kind)).toHaveBeenCalledTimes(3);
+  });
+
+  it('counts a 1.9 second online read against the five-second window, including single-flight followers', async () => {
+    const service = owner(); const io = deferred<any>(); transport(kind).mockReturnValue(io.promise);
+    const leader = check(service, kind);
+    await advanceElapsed(1000);
+    const follower = check(service, kind);
+    await advanceElapsed(900);
+    io.resolve(answer(kind));
+    expect(await follower).toEqual(await leader);
+    transport(kind).mockResolvedValue(answer(kind, session({ status: 'revoked' })));
+    setElapsed(4999);
+    await expect(check(service, kind)).resolves.toMatchObject({ status: 'active' });
+    expect(transport(kind)).toHaveBeenCalledTimes(1);
+    setElapsed(5000);
+    // The entry expires five seconds after the leader began, not at 6.9s.
+    await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
+    await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
+    expect(transport(kind)).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not extend the five-second revocation window when the wall clock moves backwards', async () => {
+    const service = owner(); await check(service, kind);
+    transport(kind).mockResolvedValue(answer(kind, session({ status: 'revoked' })));
+    elapsedMs = 4999; jest.setSystemTime(NOW - 1000);
+    await expect(check(service, kind)).resolves.toMatchObject({ status: 'active' });
+    expect(transport(kind)).toHaveBeenCalledTimes(1);
+    elapsedMs = 5000;
+    await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
+    expect(transport(kind)).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses elapsed time for cache age when the wall clock jumps forward but epoch bounds remain valid', async () => {
+    const service = owner(); await check(service, kind);
+    elapsedMs = 1000; jest.setSystemTime(NOW + 10_000);
+    await check(service, kind); expect(transport(kind)).toHaveBeenCalledTimes(1);
+    elapsedMs = 5000;
+    await check(service, kind); expect(transport(kind)).toHaveBeenCalledTimes(2);
+  });
+
+  it('still expires session evidence by epoch time despite a younger monotonic cache entry', async () => {
+    const service = owner(); await check(service, kind);
+    elapsedMs = 1000; jest.setSystemTime(NOW + 90_000);
+    await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
+    expect(transport(kind)).toHaveBeenCalledTimes(2);
+  });
+
+  it('still refuses an epoch-expired JWT before looking up a younger monotonic cache entry', async () => {
+    const service = owner(); await check(service, kind);
+    elapsedMs = 1000; jest.setSystemTime(NOW + 120_000);
+    await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
+    expect(transport(kind)).toHaveBeenCalledTimes(1);
   });
 
   it.each(['expireAt', 'abandonAt'])('expires a cached proof at its earlier %s', async (field) => {
     const service = owner();
     transport(kind).mockResolvedValue(answer(kind, session({ [field]: NOW + 2000 })));
     await check(service, kind);
-    jest.setSystemTime(NOW + 2000);
+    setElapsed(2000);
     await expect(check(service, kind)).rejects.toMatchObject({ status: 401 });
     expect(transport(kind)).toHaveBeenCalledTimes(2);
   });
@@ -159,11 +224,11 @@ describe.each(kinds)('positive-only %s Clerk authority cache', (kind) => {
     // Attach handlers before advancing timers so a deliberate deadline rejection
     // cannot become an unhandled rejection in the test process.
     const leaderOutcome = leader.catch((error) => error);
-    await jest.advanceTimersByTimeAsync(1000);
+    await advanceElapsed(1000);
     const followerOutcome = check(service, kind).catch((error) => error);
-    await jest.advanceTimersByTimeAsync(999);
+    await advanceElapsed(999);
     expect(transport(kind)).toHaveBeenCalledTimes(1);
-    await jest.advanceTimersByTimeAsync(1);
+    await advanceElapsed(1);
     const failure = await leaderOutcome;
     expect(failure).toBeInstanceOf(ApplicationAuthorityUnavailableException);
     expect(await followerOutcome).toBe(failure);
@@ -271,7 +336,7 @@ describe('cache claims, ownership and bounds', () => {
     const leader = service.assertActiveApplicationAuthoritySession(native());
     const follower = service.assertActiveApplicationAuthoritySession(native({ exp: NOW / 1000 + 1 }));
     const outcome = follower.catch((error) => error);
-    jest.setSystemTime(NOW + 1000); io.resolve(session());
+    setElapsed(1000); io.resolve(session());
     await leader; expect((await outcome).getStatus()).toBe(401);
     await service.assertActiveApplicationAuthoritySession(native());
     expect(mockGetSession).toHaveBeenCalledTimes(1);
@@ -280,7 +345,7 @@ describe('cache claims, ownership and bounds', () => {
   it('never extends a cached short leader JWT; the longer JWT must reread when that entry expires', async () => {
     const service = owner();
     await service.assertActiveApplicationAuthoritySession(native({ exp: NOW / 1000 + 1 }));
-    jest.setSystemTime(NOW + 1000);
+    setElapsed(1000);
     await expect(service.assertActiveApplicationAuthoritySession(native({ exp: NOW / 1000 + 1 }))).rejects.toMatchObject({ status: 401 });
     expect(mockGetSession).toHaveBeenCalledTimes(1); // Expired claims fail before any cache lookup.
     await service.assertActiveApplicationAuthoritySession(native());
@@ -330,7 +395,7 @@ describe('cache claims, ownership and bounds', () => {
     expect(mockGetSession).toHaveBeenCalledTimes(count);
     await service.assertActiveApplicationAuthoritySession(native({ sid: 'session_0' }));
     expect(mockGetSession).toHaveBeenCalledTimes(count + 1);
-    jest.setSystemTime(NOW + 5000);
+    setElapsed(5000);
     await service.assertActiveApplicationAuthoritySession(native({ sid: 'after_expiry' }));
     expect((service as any).applicationSessionCache.size).toBe(1);
     expect(jest.getTimerCount()).toBe(0); // No maintenance or refresh timers.
@@ -345,8 +410,8 @@ describe('cache claims, ownership and bounds', () => {
     await expect(service.assertActiveApplicationAuthoritySession(native({ exp: 1 }))).rejects.toMatchObject({ status: 401 });
     mockGetSessionList.mockRejectedValue({ status: 503, message: 'PRIVATE_TOKEN' });
     await expect(service.assertActiveMeriControlCredentialSession(control())).rejects.toBeInstanceOf(ApplicationAuthorityUnavailableException);
-    jest.setSystemTime(NOW + 59_999); expect(Logger.prototype.log).not.toHaveBeenCalled();
-    jest.setSystemTime(NOW + 60_000);
+    setElapsed(59_999); expect(Logger.prototype.log).not.toHaveBeenCalled();
+    setElapsed(60_000);
     mockGetSession.mockResolvedValue(session());
     await service.assertActiveApplicationAuthoritySession(native());
     expect(Logger.prototype.log).toHaveBeenCalledTimes(1);
@@ -360,7 +425,7 @@ describe('cache claims, ownership and bounds', () => {
   });
 
   it('does not emit a zero-traffic cache line after an idle first minute', async () => {
-    const service = owner(); jest.setSystemTime(NOW + 60_000);
+    const service = owner(); setElapsed(60_000);
     await service.assertActiveApplicationAuthoritySession(native());
     expect(Logger.prototype.log).not.toHaveBeenCalled();
   });
