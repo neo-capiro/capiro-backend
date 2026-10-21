@@ -10,6 +10,60 @@ const GRANTED = '55555555-5555-4555-8555-555555555555';
 const ARCHIVED = '66666666-6666-4666-8666-666666666666';
 const ctx = { tenantId: TENANT, userId: USER } as TenantContext;
 
+describe('outreach delivery outcome after access or association changes', () => {
+  it.each(['grant revoked', 'client changed', 'meeting changed'])(
+    'records the completed send when %s during provider latency', async (change) => {
+      let visible = true;
+      const row = {
+        id: 'sent-record', tenantId: TENANT, clientId: VISIBLE, meetingId: null as string | null,
+        meeting: null, type: 'campaign', status: 'draft', subject: 'Subject', body: 'Body',
+        recipients: [{ email: 'recipient@example.invalid', name: 'Recipient' }], metadata: {},
+      };
+      const update = jest.fn(async ({ where, data, select }: any) => {
+        expect(where).toEqual({ id: row.id, tenantId: TENANT });
+        expect(select).toEqual({ id: true });
+        Object.assign(row, data);
+        return { id: row.id };
+      });
+      const service = Object.create(EngagementService.prototype) as any;
+      service.versionedOutreach = false;
+      service.prisma = { withTenant: jest.fn(async (_tenant: string, work: any) =>
+        work({ outreachRecord: { update } })) };
+      service.getOutreachRecord = jest.fn(async () => {
+        if (!visible) throw new NotFoundException('Outreach record not found');
+        return { ...row };
+      });
+      service.assertOutreachClientsReadable = jest.fn(async () => {
+        if (!visible) throw new NotFoundException('Outreach record not found');
+      });
+      service.assertOutreachPrepSourcesReadable = jest.fn(async () => undefined);
+      service.findCampaignSendConnection = jest.fn(async () => ({ id: 'connection', provider: 'microsoft_365' }));
+      service.loadGraphAttachments = jest.fn(async () => []);
+      service.mailSender = { sendMail: jest.fn(async () => {
+        if (change === 'grant revoked') visible = false;
+        else if (change === 'client changed') row.clientId = GRANTED;
+        else row.meetingId = 'new-meeting';
+      }) };
+
+      if (change === 'grant revoked') {
+        await expect(service.sendCampaign(ctx, row.id)).rejects.toBeInstanceOf(NotFoundException);
+      } else {
+        await expect(service.sendCampaign(ctx, row.id)).resolves.toMatchObject({ status: 'sent' });
+      }
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: 'sent', stats: expect.objectContaining({ recipientsSent: 1 }) }),
+      }));
+      expect(service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+
+      visible = true;
+      await expect(service.sendCampaign(ctx, row.id)).rejects.toThrow('Only draft campaigns can be sent');
+      expect(service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+      expect(update).toHaveBeenCalledTimes(1);
+    },
+  );
+});
+
 type ClientRow = {
   id: string;
   tenantId: string;

@@ -115,7 +115,9 @@ export function createMeriRuntimeService(
       const value = Reflect.get(target, property, receiver) as unknown;
       return typeof value === 'function' ? value.bind(target) : value;
     },
-  }) as MeriRuntimeService;
+  // The get trap supplies the current stream method; the raw service no longer
+  // exposes the retired in-process stream, so its static type is narrower.
+  }) as unknown as MeriRuntimeService;
 }
 
 function installV3Phase19Adapters(v3Service: MeriV3ProxyService): void {

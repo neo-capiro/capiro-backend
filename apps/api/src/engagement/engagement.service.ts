@@ -3265,13 +3265,13 @@ export class EngagementService {
       ...(errors.length ? { errors } : {}),
     };
 
+    // Provider effects have already happened. Record their outcome even if a
+    // grant or client association changed during delivery; otherwise a sent
+    // record remains draft and a later authorized retry can send it twice.
+    // The final read below still enforces current visibility.
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertOutreachClientsReadable(
-        tx, ctx, outreachAssociationClientIds(record), 'Outreach record not found',
-      );
-      await this.assertOutreachPrepSourcesReadable(tx, ctx, record);
       return tx.outreachRecord.update({
-        where: { id, tenantId: ctx.tenantId, clientId: record.clientId, meetingId: record.meetingId },
+        where: { id, tenantId: ctx.tenantId },
         data: {
           status: errors.length ? 'failed' : 'sent',
           sentAt: errors.length ? null : now,
