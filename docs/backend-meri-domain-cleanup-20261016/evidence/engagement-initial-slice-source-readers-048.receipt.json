@@ -1,0 +1,30 @@
+{
+  "source": "0483963adc5382202408e8398d8b1601f53d8525",
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "executable": "git",
+  "argv": [
+    "grep",
+    "-n",
+    "-I",
+    "-F",
+    "-e",
+    "engagement.service",
+    "-e",
+    "scrubPiiForVoice",
+    "-e",
+    "threadParticipantEmails",
+    "0483963adc5382202408e8398d8b1601f53d8525",
+    "--",
+    "apps",
+    "packages",
+    "scripts",
+    "tests",
+    "infra"
+  ],
+  "exitCode": 0,
+  "stdout": "engagement-initial-slice-source-readers-048.stdout",
+  "stdoutSha256": "abfd989e2782f3714cbf4ef79d7dce97a6f9d332ae99bdecbf57b17a19607c8f",
+  "stderr": "engagement-initial-slice-source-readers-048.stderr",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Finite exact source/import/helper literals in tracked code; read-only Git object search; no tests/compiler/framework"
+}

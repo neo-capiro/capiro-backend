@@ -1,0 +1,9 @@
+{
+  "source": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "originalServiceBlob": "4bce0f9ccfe1fe5dbd383ca18b8fd5a602839754",
+  "functions": 7,
+  "callers": 11,
+  "originalServiceSha256": "eeb60d50ffa8492330055bb085a10763363a7959185c6f7ae996b6ac134a1b47",
+  "unrelatedChangeRefusedByOneTimeSnapshot": true,
+  "qualification": "one-time-source-extraction-proof"
+}

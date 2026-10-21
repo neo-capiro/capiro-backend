@@ -1,0 +1,36 @@
+HEAD:apps/api/scripts/qualification/alpine-runtime-probe.test.cjs:288:  const source = path.resolve(__dirname, '../../../../docs/runtime-source-qualification-20261014/container/QUICKJS-FORMAT-PROVENANCE.json');
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.adapters.spec.ts:19:    'apps/defense-api/runtime-source/defense-budget/contracts/__fixtures__/cycle-manifest-minimal.json',
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.adapters.spec.ts:49:    const b = path.join(repoRoot, 'apps/defense-api/runtime-source', rel);
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts:8: *   - apps/defense-api/runtime-source/defense-budget/... (mirrored target)
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts:35:   * moved    = apps/defense-api/runtime-source
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts:83:  return path.join(repoRoot, 'apps', 'defense-api', 'runtime-source');
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.manifest.ts:10:      mirror: 'defense-api/runtime-source/defense-budget',
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.manifest.ts:15:      mirror: 'defense-api/runtime-source/program-element/snapshot',
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.manifest.ts:20:      mirror: 'defense-api/runtime-source/program-element/source-document',
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.manifest.ts:25:      mirror: 'defense-api/runtime-source/program-element/deltas',
+HEAD:apps/defense-api/src/runtime/phase1-7-runtime.service.ts:24:   * Build inspect-only ports bound to the moved runtime-source tree by default.
+HEAD:scripts/cleanup-gates/gate-config.mjs:22:/** Structural mirror verifier (plan §9): defense-api/runtime-source must stay
+HEAD:scripts/lib/phase17-operator-ownership.mjs:15:  const duplicateRoot = 'apps/defense-api/runtime-source/operators';
+HEAD:scripts/lib/phase17-operator-ownership.test.mjs:29:  const paths = new Set([...canonicalPaths, 'apps/defense-api/runtime-source/operators']);
+HEAD:scripts/lib/phase17-operator-ownership.test.mjs:31:    'Duplicate Phase 1-7 operator tree: apps/defense-api/runtime-source/operators; use apps/api/scripts',
+HEAD:scripts/phase8-session4-fy27-replay.mjs:89:    const moved = path.join(root, 'apps/defense-api/runtime-source', rel);
+HEAD:scripts/phase8-session4-fy27-replay.mjs:106:    'apps/defense-api/runtime-source/defense-budget/contracts/__fixtures__/cycle-manifest-minimal.json',
+HEAD:scripts/phase8-session4-fy27-replay.mjs:176:      'Moved root: apps/defense-api/runtime-source/defense-budget',
+HEAD:scripts/verify-defense-budget-mirror-parity.mjs:26:const MIRROR_B = join(ROOT, 'apps/defense-api/runtime-source/defense-budget');
+HEAD:scripts/verify-phase8-session2.mjs:227:// `runtime-source` is Session 4's byte-identical mirror of apps/api slices, kept
+HEAD:scripts/verify-phase8-session2.mjs:231:const SKIP_DIRS = new Set(['node_modules', 'generated', 'dist', 'runtime-source']);
+HEAD:scripts/verify-phase8-session2.mjs:273:// `apps/defense-api/runtime-source/` is a byte-identical copy of slices of
+HEAD:scripts/verify-phase8-session2.mjs:284:const MIRROR_DIR = 'apps/defense-api/runtime-source';
+HEAD:scripts/verify-phase8-session2.mjs:304:        /from\s+['"][^'"]*runtime-source\//.test(contents) ||
+HEAD:scripts/verify-phase8-session2.mjs:305:        /require\(\s*['"][^'"]*runtime-source\//.test(contents)
+HEAD:scripts/verify-phase8-session2.mjs:318:  if (runtimeStage.includes('runtime-source')) {
+HEAD:scripts/verify-phase8-session4-image.sh:27:[ "$(in_image 'ls /app/apps/defense-api/runtime-source 2>/dev/null | wc -l')" = "0" ] \
+HEAD:scripts/verify-phase8-session4-image.sh:28:  || fail "the trusted-source mirror (runtime-source) is present in the image"
+HEAD:scripts/verify-phase8-session4.mjs:58:  ['apps/api/src/defense-budget', 'apps/defense-api/runtime-source/defense-budget'],
+HEAD:scripts/verify-phase8-session4.mjs:59:  ['apps/api/src/program-element/snapshot', 'apps/defense-api/runtime-source/program-element/snapshot'],
+HEAD:scripts/verify-phase8-session4.mjs:60:  ['apps/api/src/program-element/source-document', 'apps/defense-api/runtime-source/program-element/source-document'],
+HEAD:scripts/verify-phase8-session4.mjs:61:  ['apps/api/src/program-element/deltas', 'apps/defense-api/runtime-source/program-element/deltas'],
+HEAD:scripts/verify-phase8-session4.mjs:72:  ['apps/api/src/program-element/program-element-change-outbox.service.ts', 'apps/defense-api/runtime-source/program-element/program-element-change-outbox.service.ts'],
+HEAD:scripts/verify-phase8-session4.mjs:73:  ['apps/api/src/program-element/program-element-change-outbox.service.spec.ts', 'apps/defense-api/runtime-source/program-element/program-element-change-outbox.service.spec.ts'],
+HEAD:scripts/verify-phase8-session4.mjs:102:  if (!exists(`apps/defense-api/runtime-source/defense-budget/${slice}`)) {
+HEAD:scripts/verify-phase8-session4.mjs:155:  if (runtimeStage.includes('runtime-source')) {

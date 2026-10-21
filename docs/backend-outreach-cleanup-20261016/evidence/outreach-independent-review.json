@@ -1,0 +1,102 @@
+{
+  "status": "SourceReviewClearWithMetadataFinding",
+  "reviewType": "Independent bounded source review only",
+  "applicationExecution": "UNRUN: no Node/framework/test/compiler launch",
+  "reviewed": {
+    "currentEvidence": {
+      "path": "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+      "sha256": "90665e6a9d4ddc6272e9c68964b5573676f3be89a8666ad6b0e7931fc1455d70",
+      "topLevelCases": 12,
+      "concreteCodeBlockers": 0
+    },
+    "meriDomain": {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "sha256": "d9e24818132fbe398dee099d118b1515aa87636f4222ca57d8bd185ddf57c53e",
+      "unchangedFederalPrefixCases": 22,
+      "engagementTailCases": 2
+    },
+    "ownership": {
+      "path": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+      "sha256": "e11f41179d0cb2eef2c6b6a2f39fa01c1085205ec95eff8df99461a0877937bb",
+      "historicalCases": 7,
+      "historicalNativeStatus": "UNRUN",
+      "currentRelatedIntelCases": 4
+    }
+  },
+  "actualSourceExtraction": {
+    "status": "SourceReviewClear",
+    "methods": [
+      "resolveSelectedItems",
+      "resolveOne",
+      "resolveIntelAlert",
+      "resolveCustomNote",
+      "malformedId",
+      "freshnessFailures",
+      "ref",
+      "item"
+    ],
+    "pureFunctions": [
+      "parsePrefixed",
+      "clip"
+    ],
+    "completePureModules": [
+      "evidence-packet.types.ts",
+      "evidence-freshness.ts"
+    ],
+    "renderer": "Actual renderAlertPacketForOutreach plus actual OUTREACH_SUMMARY_MAX",
+    "findings": "All runtime helpers used by the tested Intel/custom-note/legacy-meeting branches are present; no copied old runtime/fallback/whole god-service loading or broad import stripping. Current method/function extraction has exact named boundaries and uniqueness checks. Other resolveOne source-kind methods intentionally are not loaded or qualified.",
+    "fakePorts": [
+      "alertPacketClient.fetchAlertPacket",
+      "logger.warn"
+    ],
+    "fixtureLimits": [
+      "Context/auth header values are fixtures, not caller admission or authentication.",
+      "No controllers, guards, DB/RLS, Nest DI, native typing, real fetch producer, other resolver source kinds or actual generation-gateway execution is qualified.",
+      "Meri tail uses bounded source ownership/negative controls, not provider or authorization execution."
+    ],
+    "meaningfulControls": [
+      "Exact credential/client/alert forwarding and browser-prose exclusion",
+      "Null/missing-client/malformed/thrown-source failures without invented evidence",
+      "Authenticated-context directive separation and bounded user-authored facts",
+      "Actual non-Intel dispatch without alert fetch",
+      "Preserved Unknowns and explicit absence of the retired relationship-overlay path",
+      "Actual deterministic ordering, freshness and renderer evidence bounding"
+    ]
+  },
+  "historicalIdentityProof": {
+    "status": "PASS by binary Git stdout and strict UTF8 comparison, not test execution",
+    "sourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+    "sourceSpecBytes": 9523,
+    "sourceSpecSha256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+    "allSevenIdsSuitesTitlesAndDeclarationLinesExact": true,
+    "suiteSeparatorCodepoint": 8212,
+    "caseTwoTitleSeparatorCodepoint": 8212,
+    "consoleHyphenAppearance": "Display-only; decoded manifest strings contain U+2014 as sealed source does",
+    "evidence": "outreach-case-id-byte-review.json",
+    "gap": "Flag-on client relationship overlay remains historical-only/UNRUN with no current equivalent; current critical-failure/evidence shapes are not mislabeled old gap-body parity",
+    "manualReplay": "Data declaration only; exact existing full root/toolchain/shared queue and native receipt prerequisites retained, no process/materialization/installer added"
+  },
+  "meriPrefixProof": {
+    "status": "PASS by binary Git byte comparison",
+    "baseline": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+    "boundary": "const RETIRED = ",
+    "bytes": 28553,
+    "sha256": "f0848f58df36bf7fdb50fa7d95bd552ff70fa5b4392f0d3f470c8df71ad1132c",
+    "topLevelCases": 22,
+    "evidence": "outreach-meri-prefix-byte-review.json"
+  },
+  "findings": [
+    {
+      "id": "batch-owner-count",
+      "severity": "metadata",
+      "path": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+      "line": 345,
+      "status": "pending author correction",
+      "codeBlocker": false,
+      "issue": "retainedBatchOwnership names only engagement-batch-group.spec.ts but instruction claims11 retained batch identities. Bounded current source shows group3, revise6 (three-row test.each plus3 scalar cases), sticky-provider3:12 across these three paths. Group alone has3.",
+      "requestedCorrection": "List the intended actual paths/expanded counts or remove the unsupported aggregate11. Keep all source/fixture assertions unchanged."
+    }
+  ],
+  "sourceEditsMade": false,
+  "executionQualification": "Not accepted by this review; parent owns single-process controls and later native queue"
+}

@@ -1,0 +1,160 @@
+{
+  "sourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "premapCommit": "17b41b79b0bb8e023520cb4137e7a2fdcbb18959",
+  "path": "apps/api/src/engagement/engagement.service.ts",
+  "sourceBlob": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383",
+  "beforeSha256": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a",
+  "afterSha256": "affbfc3e316b879b60826ab62edeffe7cc89206c09c71076dd974f8e5a55b8da",
+  "beforeBytes": 496964,
+  "afterBytes": 480783,
+  "before": {
+    "physicalLines": 12303,
+    "nonblankLines": 11722
+  },
+  "after": {
+    "physicalLines": 11926,
+    "nonblankLines": 11350
+  },
+  "removedRegions": [
+    {
+      "name": "persistOutreachHold",
+      "originalFirstLine": 4386,
+      "originalLastLine": 4463,
+      "physicalLines": 78,
+      "nonblankLines": 78,
+      "bytes": 3471,
+      "sha256": "6dc635dcdeeaf792a26ba17762ab08e48aa38f0414cca4ea2396c58f99af700b"
+    },
+    {
+      "name": "recentClientMeetingsForOutreach",
+      "originalFirstLine": 9596,
+      "originalLastLine": 9641,
+      "physicalLines": 46,
+      "nonblankLines": 44,
+      "bytes": 1601,
+      "sha256": "7dcf6a6297a249b909dcedb7c72624fd4d509ebda0592200d7d8b9a752c547a2"
+    },
+    {
+      "name": "enrichOutreachContextItems",
+      "originalFirstLine": 9643,
+      "originalLastLine": 9775,
+      "physicalLines": 133,
+      "nonblankLines": 131,
+      "bytes": 6418,
+      "sha256": "6c812a10a267633d80ab9949b4b2a723560aa7d53884ee37976f56f16139fa3a"
+    },
+    {
+      "name": "peTruthBlock",
+      "originalFirstLine": 9793,
+      "originalLastLine": 9796,
+      "physicalLines": 4,
+      "nonblankLines": 4,
+      "bytes": 216,
+      "sha256": "5ca2cfb3acc38e983affa7e4d8c39428730b7352b4f9cefc73853e478f2529ec"
+    },
+    {
+      "name": "outreachClientPeopleBlock",
+      "originalFirstLine": 9933,
+      "originalLastLine": 9952,
+      "physicalLines": 20,
+      "nonblankLines": 20,
+      "bytes": 828,
+      "sha256": "2687f0a3bc6a67a3b235ed09ae251dfe6382b8f54453628f9aa09664ca0e2718"
+    },
+    {
+      "name": "outreachClientTargetOfficesBlock",
+      "originalFirstLine": 9954,
+      "originalLastLine": 10015,
+      "physicalLines": 62,
+      "nonblankLines": 61,
+      "bytes": 2165,
+      "sha256": "7a67fe1b8c7347dc380312ebe94ce7996fc526385a599f123037d5561c6528ca"
+    },
+    {
+      "name": "outreachTargetRecommendations",
+      "originalFirstLine": 10246,
+      "originalLastLine": 10270,
+      "physicalLines": 25,
+      "nonblankLines": 25,
+      "bytes": 1121,
+      "sha256": "0e717bad5cc3aab6bb26615c53d010cb2656f83f3a5c56a36328a75b01006249"
+    }
+  ],
+  "removedRegionPhysicalLines": 368,
+  "removedRegionNonblankLines": 363,
+  "removedImports": [
+    {
+      "specifier": "@capiro/shared",
+      "removedBindings": [
+        "DELIVERABLE_RISK_TIERS"
+      ],
+      "before": "  DELIVERABLE_RISK_TIERS,\n",
+      "after": ""
+    },
+    {
+      "specifier": "../intelligence/office-recommender.service.js",
+      "removedBindings": [
+        "OfficeRecommendation"
+      ],
+      "before": "import type { OfficeRecommendation } from '../intelligence/office-recommender.service.js';\n",
+      "after": ""
+    },
+    {
+      "specifier": "./outreach-context-enrichment.js",
+      "removedBindings": [
+        "intelAlertIdFromItemId",
+        "renderClientPeopleRoster",
+        "renderClientTargetOffices",
+        "TargetOfficeLite"
+      ],
+      "before": "import {\n  billIdFromItemId,\n  peCodeFromItemId,\n  intelAlertIdFromItemId,\n  formatBillTruth,\n  formatPeTruth,\n  renderClientRelationshipSnapshot,\n  renderClientPeopleRoster,\n  renderClientTargetOffices,\n  type BillTruth,\n  type PeTruth,\n  type BillVoteRow,\n  type GoverningRuleRow,\n  type PeYearFunding,\n  type TargetOfficeLite,\n} from './outreach-context-enrichment.js';\n",
+      "after": "import {\n  billIdFromItemId,\n  peCodeFromItemId,\n  formatBillTruth,\n  formatPeTruth,\n  renderClientRelationshipSnapshot,\n  type BillTruth,\n  type PeTruth,\n  type BillVoteRow,\n  type GoverningRuleRow,\n  type PeYearFunding,\n} from './outreach-context-enrichment.js';\n"
+    },
+    {
+      "specifier": "./generation/alert-packet-client.service.js",
+      "removedBindings": [
+        "renderAlertPacketForOutreach",
+        "overlayClientRelationshipContext"
+      ],
+      "before": "import {\n  AlertPacketClientService,\n  renderAlertPacketForOutreach,\n  overlayClientRelationshipContext,\n} from './generation/alert-packet-client.service.js';\n",
+      "after": "import {\n  AlertPacketClientService,\n} from './generation/alert-packet-client.service.js';\n"
+    },
+    {
+      "specifier": "../common/tenant-flags.js",
+      "removedBindings": [
+        "outreachClientProfileEnabled"
+      ],
+      "before": "import { outreachClientProfileEnabled } from '../common/tenant-flags.js';\n",
+      "after": ""
+    }
+  ],
+  "commentDelta": {
+    "originalLine": 4622,
+    "before": "    // content key matches persistOutreachHold's, so an unedited held draft is\n",
+    "after": "    // The stable content key matches historical holds, so an unedited held draft is\n",
+    "behaviorChanged": false
+  },
+  "preservedActiveSendJSDoc": {
+    "originalFirstLine": 4379,
+    "originalLastLine": 4385,
+    "sha256": "24d7ad896205b13a6b6af7aba68731904c0ff82f902d32a49e77cfad8e650718"
+  },
+  "fullServiceInverse": {
+    "status": "PASS by bounded exact string reconstruction",
+    "prescription": "Read sealed source blob from sourceCommit; remove only the seven inclusive original-line regions after their SHA256 checks; replace each exact import before string with after; apply only the exact commentDelta. Assert equality with current entire LF service. Equivalently restore imports/comment and reinsert original Git region blocks to reproduce every source byte.",
+    "allOtherSourceBytes": "unchanged",
+    "constructorAndProviderOrder": "unchanged",
+    "DTOAndPublicBillTruth": "unchanged",
+    "currentGenerationAndHoldReaderBodies": "unchanged"
+  },
+  "scope": {
+    "onlyApplicationFileEdited": "apps/api/src/engagement/engagement.service.ts",
+    "otherAgentFilesEdited": false,
+    "testsNodeCompilerGitRefOrCommitExecuted": false,
+    "nativeOrRuntimeAcceptance": "UNRUN; parent owns later qualification"
+  },
+  "afterBlob": "5bbe33a50b48da58b4a21a4d927ae91f523cb41e",
+  "independentRawAfterSha256": "affbfc3e316b879b60826ab62edeffe7cc89206c09c71076dd974f8e5a55b8da",
+  "independentSealedGitManifestReplay": "PASS: byte-preserving sealed-source SHA and seven region hashes verified; independent line-set removal plus recorded import/comment deltas exactly equals all current service bytes",
+  "priorTextPipelineAttempt": "Refused at sealed-source hash before replay: native PowerShell line/text pipeline did not preserve Git bytes; no source changed by this independent attempt. Replaced by byte-preserving Git stdout reader."
+}

@@ -1,0 +1,20 @@
+{
+  "executable": "C:\\Users\\neoma\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe",
+  "argv": [
+    "-B",
+    "run-source-job-controls.py",
+    "backend-cleanup/scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10",
+  "startedAt": "2026-10-16T02:56:38.5289323Z",
+  "endedAt": "2026-10-16T02:56:39.0987893Z",
+  "ownedPID": 34308,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 5423104,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "a5d2b68af0739aef023bb8e94d9c609665857c57c59f776c2a98e37f15b0bcdf",
+  "stderrSHA256": "169456a7ac60d9a9c2d5466c428bdc4ab5f71e79480b7db41af9db9df1191188"
+}

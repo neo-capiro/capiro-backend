@@ -1,0 +1,31 @@
+{
+  "source": "0483963adc5382202408e8398d8b1601f53d8525",
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "executable": "git",
+  "argv": [
+    "grep",
+    "-n",
+    "-I",
+    "-F",
+    "-e",
+    "engagement.service.ts",
+    "-e",
+    "outreachContext",
+    "-e",
+    "outreachVoiceFewShots",
+    "-e",
+    "batchRecipientCorrespondence",
+    "0483963adc5382202408e8398d8b1601f53d8525",
+    "--",
+    "scripts",
+    "tests",
+    "infra",
+    "apps/e2e"
+  ],
+  "exitCode": 0,
+  "stdout": "engagement-initial-slice-gate-refs-048.stdout",
+  "stdoutSha256": "1d780e054f87e0d3503fdb50aacb9b7d5346aa7260069849eab5eec8f41d7f73",
+  "stderr": "engagement-initial-slice-gate-refs-048.stderr",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Finite exact literals in scripts/tests/infra/apps-e2e; read-only Git object search; no tests/compiler/framework"
+}

@@ -1,116 +1,46 @@
 #!/usr/bin/env node
 /** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
- * Verify exact content parity between the two defense-budget mirror directories.
- * Reports counts, missing/extra/mismatched files, exits non-zero on failure.
- * Does NOT mutate either mirror.
+ * Compatibility entrypoint for the former whole-code mirror parity check.
+ * Verify canonical runtime ownership, immutable retirement/test provenance and
+ * the unchanged retained fixture/data bytes. No second implementation executes.
  */
-import { createHash } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
-import { exit } from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { inspectDefenseRuntimeSourceOwnership } from './lib/defense-runtime-source-ownership.mjs';
 
-const usage = 'Usage: node scripts/verify-defense-budget-mirror-parity.mjs (no arguments runs the existing verifier)';
+const usage = 'Usage: node scripts/verify-defense-budget-mirror-parity.mjs (no arguments verifies canonical source ownership and retained fixture parity)';
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === '--help') {
   console.log(usage);
-  exit(0);
+  process.exit(0);
 }
 if (args.length !== 0) {
   console.error(usage);
-  exit(2);
+  process.exit(2);
 }
 
-const ROOT = process.cwd();
-const MIRROR_A = join(ROOT, 'apps/api/src/defense-budget');
-const MIRROR_B = join(ROOT, 'apps/defense-api/runtime-source/defense-budget');
-// Historical closeout baseline contained 721 files. The bounded native XML
-// adapter and its mirrored regression spec add two files in each current mirror.
-const EXPECTED_FILE_COUNT = 723;
-
-async function computeFileHash(filePath) {
-  const content = await readFile(filePath);
-  return createHash('sha256').update(content).digest('hex');
+function resolveRepoRoot(start = process.cwd()) {
+  let dir = path.resolve(start);
+  for (let i = 0; i < 8; i += 1) {
+    if (fs.existsSync(path.join(dir, 'pnpm-workspace.yaml')) && fs.existsSync(path.join(dir, 'apps/defense-api'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(start);
 }
 
-async function walk(dir, base = dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await walk(full, base));
-    } else {
-      files.push(relative(base, full).replaceAll(String.fromCharCode(92), '/'));
-    }
-  }
-  return files.sort();
+console.error(usage);
+const result = inspectDefenseRuntimeSourceOwnership(resolveRepoRoot());
+if (result.errors.length) {
+  for (const error of result.errors) console.error(`- ${error}`);
+  console.error('FAILURE: canonical Defense source ownership or retained data parity failed.');
+  process.exit(1);
 }
-
-async function main() {
-  console.error(usage);
-  console.log(`Mirror A: ${MIRROR_A}`);
-  console.log(`Mirror B: ${MIRROR_B}`);
-
-  const [filesA, filesB] = await Promise.all([walk(MIRROR_A), walk(MIRROR_B)]);
-  const setA = new Set(filesA);
-  const setB = new Set(filesB);
-
-  const missingInB = filesA.filter(f => !setB.has(f));
-  const extraInB = filesB.filter(f => !setA.has(f));
-  const common = filesA.filter(f => setB.has(f));
-
-  console.log(`Total files in A: ${filesA.length}`);
-  console.log(`Total files in B: ${filesB.length}`);
-  console.log(`Common files: ${common.length}`);
-
-  if (missingInB.length > 0) {
-    console.log(`\nFiles missing in B:`);
-    missingInB.forEach(f => console.log(`  - ${f}`));
-  }
-  if (extraInB.length > 0) {
-    console.log(`\nExtra files in B:`);
-    extraInB.forEach(f => console.log(`  - ${f}`));
-  }
-
-  let mismatchCount = 0;
-  const mismatches = [];
-  // Compare common files by hash
-  for (const rel of common) {
-    const hashA = await computeFileHash(join(MIRROR_A, rel));
-    const hashB = await computeFileHash(join(MIRROR_B, rel));
-    if (hashA !== hashB) {
-      mismatches.push({ file: rel, hashA, hashB });
-    }
-  }
-  mismatchCount = mismatches.length;
-
-  if (mismatchCount > 0) {
-    console.log(`\nContent mismatches (SHA-256):`);
-    mismatches.forEach(({ file, hashA, hashB }) => {
-      console.log(`  - ${file}`);
-      console.log(`    A: ${hashA}`);
-      console.log(`    B: ${hashB}`);
-    });
-  }
-
-  const countMismatch = filesA.length !== EXPECTED_FILE_COUNT || filesB.length !== EXPECTED_FILE_COUNT;
-  if (countMismatch) {
-    console.error(`\nExpected ${EXPECTED_FILE_COUNT} files in each mirror.`);
-  }
-
-  const hasProblems =
-    countMismatch || missingInB.length > 0 || extraInB.length > 0 || mismatchCount > 0;
-  if (hasProblems) {
-    console.error(`\nFAILURE: mirrors are not identical.`);
-    exit(1);
-  } else {
-    console.log(`\nSUCCESS: both mirrors contain exactly ${common.length} files with identical content.`);
-    exit(0);
-  }
-}
-
-main().catch(err => {
-  console.error(err);
-  exit(1);
-});
+console.log(
+  `CANONICAL_DEFENSE_SOURCE_PASS: ${result.counts.retiredCodeFiles} removed code twins, ` +
+  `${result.counts.retainedCanonicalTests} retained canonical specs, ${result.counts.retainedDataFiles} unchanged data files, ` +
+  `${result.counts.replayFixtures} replay fixtures; baseline ${result.baseline}`,
+);

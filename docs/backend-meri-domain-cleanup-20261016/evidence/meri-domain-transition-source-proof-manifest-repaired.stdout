@@ -1,0 +1,1 @@
+MERI_DOMAIN_SOURCE_TRANSITION_OK {"methods":7,"facades":5,"inputDefinitions":4,"approvedFacadeHunks":13,"engagementRemovedMethods":3,"engagementRemovedPhysicalLines":225,"wholeFacadeInverse":true,"wholeEngagementInverse":true,"scope":"one-time source transition proof; not evergreen CI, native typing, router, database or runtime acceptance"}

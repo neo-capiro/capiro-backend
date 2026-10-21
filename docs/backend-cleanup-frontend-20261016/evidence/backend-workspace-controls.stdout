@@ -1,0 +1,45 @@
+Γ£ö destination package preserves all 107 existing aliases and all metadata (1.3762ms)
+Γ£ö only the four reviewed Phase26 aliases extend the original package inverse (5.2158ms)
+Γ£ö Phase1 scoped operands retain one explicit run and every current syntax check (0.1837ms)
+Γ£ö all twelve scoped verification aliases bind one run and exactly one declared scope (0.1754ms)
+Γ£ö current 18 typed workspaces partition 16 backend plus retained Onboard/E2E with Web excluded (49.1778ms)
+Γ£ö quarantined CI retains exactly the destination scope hunk union and every old guard/test/condition (41.8387ms)
+Γ£ö source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (258.0504ms)
+Γ£ö exact reviewed root manifest reconstructs every prior byte and retains its real entry points (165.5901ms)
+Γ£ö root manifest mutations cannot turn this exact review into a general exemption (43.3629ms)
+Γ£û exact reviewed api manifest reconstructs every prior byte and retains its real entry points (0.8296ms)
+Γ£ö api manifest mutations cannot turn this exact review into a general exemption (43.8271ms)
+Γ£ö unknown/coercible inputs refuse without executing application or coercion ports (0.344ms)
+Γ£ö exact package.json retirement reconstructs every prior canonical byte from its admitted representations (118.5074ms)
+Γ£ö exact pnpm-workspace.yaml retirement reconstructs every prior canonical byte from its admitted representations (124.764ms)
+Γ£ö exact pnpm-lock.yaml retirement reconstructs every prior canonical byte from its admitted representations (176.9675ms)
+Γ£ö backend defaults exclude Web, retained Onboard SPA and retained E2E while metadata and alias identities remain (1.1066ms)
+Γ£ö mixed default verifiers retain the complete existing backend operand union and explicit historical local entrypoints (0.1767ms)
+Γ£ö all seven retired main-Web frontend aliases explicitly fail through the real finite CLI (361.6487ms)
+Γ£ö retirement CLI refuses unknown or widened requests and help performs no verification (0.3069ms)
+Γ£ö package.json inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver (39.538ms)
+Γ£ö pnpm-workspace.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver (39.4ms)
+Γ£ö pnpm-lock.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver (49.1859ms)
+Γ£ö finite inverse refuses foreign paths and coercion ports and its hash profiles are immutable (0.2978ms)
+Γä╣ tests 23
+Γä╣ suites 0
+Γä╣ pass 22
+Γä╣ fail 1
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 1760.1433
+
+Γ£û failing tests:
+
+test at scripts\ci\reviewed-pe-manifest-contract.spec.mjs:16:3
+Γ£û exact reviewed api manifest reconstructs every prior byte and retains its real entry points (0.8296ms)
+  Error: Unreviewed PE manifest change refused
+      at restoreReviewedPeManifest (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/reviewed-pe-manifest-contract.mjs:42:11)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/reviewed-pe-manifest-contract.spec.mjs:18:34)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

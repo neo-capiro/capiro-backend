@@ -1,0 +1,524 @@
+{
+  "sourceHead": "3a28da334f2aa8373e7759048e8047563905260a",
+  "parent": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "changedPaths": [
+    "apps/api/src/directory/directory-detail-mappers.ts",
+    "apps/api/src/directory/directory.service.ts",
+    "docs/backend-runtime-cleanup-20261016/.gitattributes",
+    "docs/backend-runtime-cleanup-20261016/CI-ARTIFACT-OWNERSHIP.md",
+    "docs/backend-runtime-cleanup-20261016/CODE-COUNTS.json",
+    "docs/backend-runtime-cleanup-20261016/CURRENT-CI-OWNERSHIP-PLAN.md",
+    "docs/backend-runtime-cleanup-20261016/DIRECTORY-EXTRACTION-MAP.md",
+    "docs/backend-runtime-cleanup-20261016/DIRECTORY-INDEPENDENT-REVIEW.md",
+    "docs/backend-runtime-cleanup-20261016/DIRECTORY-MAP-CORRECTION.md",
+    "docs/backend-runtime-cleanup-20261016/DIRECTORY-RESULT.md",
+    "docs/backend-runtime-cleanup-20261016/HANDOFF.md",
+    "docs/backend-runtime-cleanup-20261016/MERI-OWNERSHIP.md",
+    "docs/backend-runtime-cleanup-20261016/MERI-SOURCE-REFS.json",
+    "docs/backend-runtime-cleanup-20261016/PR30-SOURCE-ACCEPTANCE.md",
+    "docs/backend-runtime-cleanup-20261016/SOURCE-MAP.md",
+    "docs/backend-runtime-cleanup-20261016/VALIDATION.json",
+    "docs/backend-runtime-cleanup-20261016/VERSIONED-SOURCE-AND-DOCS.md",
+    "docs/backend-runtime-cleanup-20261016/count-source-delta.cjs",
+    "docs/backend-runtime-cleanup-20261016/evidence/analysis-memory-before.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/directory-implementation.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/duplicate-doc-refs.raw.txt",
+    "docs/backend-runtime-cleanup-20261016/evidence/plan-status-prefaces.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-counter-directory-independent-review.md",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-ci-independent-review.md",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-inputs.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired-inputs.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-final-ci-source-review.md",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-mapper-concurrency-readback.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.stdout",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-prefix-fix-and-catalog-review.md",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-source-count-delta.json",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-source-count-delta.stderr",
+    "docs/backend-runtime-cleanup-20261016/evidence/successor-source-count-delta.stdout",
+    "docs/backend-runtime-cleanup-20261016/verify-directory-extraction-source.mjs",
+    "docs/backend-runtime-cleanup-20261016/verify-publication-source.cjs",
+    "docs/plans/budget-lines-ui-implementation-plan.md",
+    "docs/plans/clio-assistant-parity-plan.md",
+    "docs/plans/clio-assistant-parity-progress.md",
+    "docs/plans/legiwatch-ux-simplification-2026-09-18.md",
+    "docs/plans/workspace-design-handoff-parity-2026-08-16.md",
+    "scripts/backend-source-qualification.mjs",
+    "scripts/backend-source-qualification.spec.mjs",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/ci/directory-detail-mappers.contract.spec.mjs",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+    "scripts/engagement-phase3-backend-contract.mjs",
+    "scripts/engagement-phase3-backend-contract.spec.mjs",
+    "scripts/engagement-phase3-qualification-plan.mjs",
+    "scripts/engagement-phase3-qualification-plan.spec.mjs",
+    "scripts/engagement-phase3-ui-inventory.mjs",
+    "scripts/engagement-phase3-ui-inventory.spec.mjs",
+    "scripts/verify-outreach-v3-phase6-code.mjs",
+    "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
+    "tests/support/legacy-web/README.md",
+    "tests/support/legacy-web/qualification-owner.mjs",
+    "tests/support/legacy-web/visual-cli-inputs/README.md"
+  ],
+  "applicationPaths": [
+    "apps/api/src/directory/directory-detail-mappers.ts",
+    "apps/api/src/directory/directory.service.ts"
+  ],
+  "protectedIdentities": [
+    {
+      "path": "apps/api/prisma",
+      "gitTreeEntry": "040000 tree 40b9c0f80bdcb7b41033281e20d2a92d8d9f59cd\tapps/api/prisma"
+    },
+    {
+      "path": "packages",
+      "gitTreeEntry": "040000 tree 5a2a5d76b4401685bc7d9c7fa4c46ce33f515e51\tpackages"
+    },
+    {
+      "path": "apps/defense-api",
+      "gitTreeEntry": "040000 tree d6876c77d256f29b7231a2cdcba7d5f4701035c7\tapps/defense-api"
+    },
+    {
+      "path": "apps/intel-api",
+      "gitTreeEntry": "040000 tree 0c83e0cd28e95d85b98b0fffafdc1b405be32ef4\tapps/intel-api"
+    },
+    {
+      "path": "apps/api-strategy",
+      "gitTreeEntry": "040000 tree 7b81261a4e5306eb95a35a3dec8eec0332a8c38c\tapps/api-strategy"
+    },
+    {
+      "path": "apps/onboard-api",
+      "gitTreeEntry": "040000 tree 4055d9e9c7ac9b5d47ddab41bc3c00c34e35c364\tapps/onboard-api"
+    },
+    {
+      "path": "apps/onboard-web",
+      "gitTreeEntry": "040000 tree 95650827ae2643bfe862874fc215712309945d33\tapps/onboard-web"
+    },
+    {
+      "path": "apps/e2e",
+      "gitTreeEntry": "040000 tree 37b1d7c0c65a2523417dc2855fa687264ba7170b\tapps/e2e"
+    },
+    {
+      "path": ".github",
+      "gitTreeEntry": "absent at parent and successor"
+    },
+    {
+      "path": "apps/api/src/auth",
+      "gitTreeEntry": "040000 tree e0a8335dec2e40ea4dbc34b7a0c7b0cf051c7c0e\tapps/api/src/auth"
+    },
+    {
+      "path": "apps/api/src/tenant",
+      "gitTreeEntry": "040000 tree 2f3c0c3a569515adc583cb595a62e6e9df215fab\tapps/api/src/tenant"
+    },
+    {
+      "path": "apps/api/src/memory",
+      "gitTreeEntry": "040000 tree 238bfbdf5e1bcacbe3561b30b630e30f14c03231\tapps/api/src/memory"
+    },
+    {
+      "path": "apps/api/src/research-portfolios",
+      "gitTreeEntry": "040000 tree 199475e9f675eeb16d6bd7dd820621f1476c2148\tapps/api/src/research-portfolios"
+    },
+    {
+      "path": "apps/api/src/clients/objectives",
+      "gitTreeEntry": "040000 tree bf6a82037d66abe7b150c40838bfd77817c0e742\tapps/api/src/clients/objectives"
+    },
+    {
+      "path": "apps/api/src/engagement",
+      "gitTreeEntry": "040000 tree d17c8a8516cd36ff1d65ef2c92a831c8c54e8801\tapps/api/src/engagement"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "gitTreeEntry": "100644 blob 6b867553bed4ffd1376279414ce4fa892bb896e7\tapps/api/src/app.module.ts"
+    },
+    {
+      "path": "package.json",
+      "gitTreeEntry": "100644 blob 239885efbbdb940372d6c8a68ff1364f3523bff0\tpackage.json"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitTreeEntry": "100644 blob 88d3bff652c22a7d9139a1a46bafd68411b3d4fe\tpnpm-lock.yaml"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "gitTreeEntry": "100644 blob bef9bfeb6b9840a272a71ae5b0c6debf85d527f8\tpnpm-workspace.yaml"
+    },
+    {
+      "path": "scripts/engagement-phase3-preview-route-patterns.mjs",
+      "gitTreeEntry": "100644 blob 2ced1b77aa321b6e3d81423540d620f5dbcc051f\tscripts/engagement-phase3-preview-route-patterns.mjs"
+    },
+    {
+      "path": "tests/support/legacy-web/SOURCE-INPUTS.json",
+      "gitTreeEntry": "100644 blob 3d952f9c27445d2a5a238a37b3dedfcfcb8aebb0\ttests/support/legacy-web/SOURCE-INPUTS.json"
+    },
+    {
+      "path": "tests/support/legacy-web/source-inputs",
+      "gitTreeEntry": "040000 tree 10fb8b11be5eb14917efdc6abc18d2828b28538e\ttests/support/legacy-web/source-inputs"
+    },
+    {
+      "path": "docs/backend-cleanup-20261016",
+      "gitTreeEntry": "040000 tree ca98ff0b2280fad97b22b77cdee31220903f693a\tdocs/backend-cleanup-20261016"
+    },
+    {
+      "path": "docs/backend-cleanup-frontend-20261016",
+      "gitTreeEntry": "040000 tree 060fa7a9eff3d23af9816070ed05bc3edbb60ca3\tdocs/backend-cleanup-frontend-20261016"
+    }
+  ],
+  "originalPlans": [
+    {
+      "path": "docs/plans/workspace-design-handoff-parity-2026-08-16.md",
+      "originalBodyBytes": 3524,
+      "prefixBytes": 521,
+      "inverse": "exact"
+    },
+    {
+      "path": "docs/plans/legiwatch-ux-simplification-2026-09-18.md",
+      "originalBodyBytes": 34890,
+      "prefixBytes": 512,
+      "inverse": "exact"
+    },
+    {
+      "path": "docs/plans/budget-lines-ui-implementation-plan.md",
+      "originalBodyBytes": 16964,
+      "prefixBytes": 529,
+      "inverse": "exact"
+    },
+    {
+      "path": "docs/plans/clio-assistant-parity-plan.md",
+      "originalBodyBytes": 18735,
+      "prefixBytes": 551,
+      "inverse": "exact"
+    },
+    {
+      "path": "docs/plans/clio-assistant-parity-progress.md",
+      "originalBodyBytes": 12823,
+      "prefixBytes": 490,
+      "inverse": "exact"
+    }
+  ],
+  "capturedGitBytes": [
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/analysis-memory-before.json",
+      "bytes": 172,
+      "sha256": "160b3e0f884f8d7a0796e03bc61a23ef840e39cda7c5af4b884c0071bd038601"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/directory-implementation.json",
+      "bytes": 5344,
+      "sha256": "81d1ed046b03af7eed8e334c9c4a71881724207feaacd297ebb965c3ca60649b"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/duplicate-doc-refs.raw.txt",
+      "bytes": 80721,
+      "sha256": "a838827e848948c0ba2bb563db14f2189843e73b3c0b254a88dd19bda698cb61"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/plan-status-prefaces.json",
+      "bytes": 2595,
+      "sha256": "6a21bb1f3fe8b98567dbee718b8a21de104a81b4cde2dff020f38a605de76427"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-counter-directory-independent-review.md",
+      "bytes": 3313,
+      "sha256": "58d561f5a50d0cb7d5ea046a555cbe6d6dfe2d7c9079b6c994d7b397757757c2"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.json",
+      "bytes": 830,
+      "sha256": "4532b0d335a6ef61e7474b358a3895f13c6bfe7a3f2b66522a0e3b0108de2a90"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-catalog-plan.stdout",
+      "bytes": 4785,
+      "sha256": "ad036abf3f72e2524552976f58b707b14ae6aec5fb4739603ed131c1c1f29ed5"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-ci-independent-review.md",
+      "bytes": 5482,
+      "sha256": "3934ff1eb66d19d2bb21bd724c715310e9eaadabae892c8f68e5d2b2bf91f4d5"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.json",
+      "bytes": 844,
+      "sha256": "178bf6a2929f2f44d29c98cd552b2941b3705bd25e16b3b1e1980550793a9b7a"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-compat-cli.stdout",
+      "bytes": 345,
+      "sha256": "5dbc2f7c88ba757d5696aea98cb5dbd101648695c252a559ca50f4abac905bae"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-inputs.json",
+      "bytes": 1705,
+      "sha256": "368ae659c693319e54d288f9ff1a34d5001bb530bd7b24e4ed6709f2770c9626"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired-inputs.json",
+      "bytes": 1629,
+      "sha256": "72ab3a82e51d72aebe1bf37e8c9f8f21e1675461b59fbe3ed6b0990220c6acda"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.json",
+      "bytes": 991,
+      "sha256": "06f5d440d8d141021ffa06a6ea5d8efce22a6406d38a5108cdb61eca9bfd7f2e"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls-selector-repaired.stdout",
+      "bytes": 6468,
+      "sha256": "494d97e5657bb38d27c4abc5eaf46cfcdd7b136c42e3853dc0eba66f67194f39"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.json",
+      "bytes": 991,
+      "sha256": "00434b4ea0a9ad78f8cd5557b1233fa4e2040c8928186b4dbca6d717e086e6c5"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-controls.stdout",
+      "bytes": 6343,
+      "sha256": "ef8ddcd11c2ec726fb83dfb4b46a8f41702eb9bc00e62f411b2d7a41c32920ae"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.json",
+      "bytes": 858,
+      "sha256": "fcb9e7faab1900c738080ef0eb9f6bb4a6aa961029e1a3574c573cb854d8a610"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-preview-cli.stdout",
+      "bytes": 9484,
+      "sha256": "af05972576c310e60d5ea314a9bfe3daaf54f09b3bf4ac11c322ed4be00f66d5"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.json",
+      "bytes": 848,
+      "sha256": "58631191c65b865234d486a299a1761576e438a33545ad7aa6ce1cd569376236"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-route-cli.stdout",
+      "bytes": 369,
+      "sha256": "d9d94e3cad4a9a371bcaa3bf0e4e740a283a90d87f72e732d26a0fcba79a5a1f"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.json",
+      "bytes": 841,
+      "sha256": "48dc184fb8a5951bcc96db4fe9c80ca932bd0b3d5f1a9b0bd890102028fa6e70"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-current-backend-workspace-cli.stdout",
+      "bytes": 653,
+      "sha256": "a5997bca3659586fea78561c8d768678cda8ab611570d47605b6077cae7de4de"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.json",
+      "bytes": 860,
+      "sha256": "ad9477958ee7731b60b42a530152e249cf3a06194cd9eb788f84f248ecaac75a"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-extraction-source-proof.stdout",
+      "bytes": 364,
+      "sha256": "0930dca178df3a5a667f685dd949892d248f9bbcbbb6cbbc963dba92de05e902"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.json",
+      "bytes": 874,
+      "sha256": "4b5beb073cb45877ef605afce0ae46ca28b939809b6892145c69375bc3f5337d"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.stderr",
+      "bytes": 183,
+      "sha256": "8a9b8b5e7a04bf8ffc16aa7a68de382f2c6d1a60dd28feb1a763baa009ad83dd"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-directory-mapper-controls.stdout",
+      "bytes": 1016,
+      "sha256": "e2bf81e002e02095b0aac29b4db460e65a1d2c08c106d384f84b38ebe5dbbcbc"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-final-ci-source-review.md",
+      "bytes": 6514,
+      "sha256": "be706da9e775040905e0d061515e1cc4a13ed8a0d8c63d93119b5ec524d199ab"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.json",
+      "bytes": 845,
+      "sha256": "d35b43d98e57091def27438b786888129a40887d586ae3a268151399e9715693"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-help.stdout",
+      "bytes": 200,
+      "sha256": "f3d493adbb7f0f7edfd53db93f8497cf665d1eece440bde36f3d0fcc460a4354"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.json",
+      "bytes": 829,
+      "sha256": "9268773feab9c2d2c5f5b1749ce6728f4f4839f89834a9e3d836b1eae4e4089c"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.stderr",
+      "bytes": 184,
+      "sha256": "4e7be3a9007e457e88ade831cd86138cbec31f0ec502d109f9a6cf45c89c1212"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-historical-visual-no-intent.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-mapper-concurrency-readback.json",
+      "bytes": 1242,
+      "sha256": "19329f155580c6cbf735608cdee3cf36b623244ee47970f241aa51219680a723"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.json",
+      "bytes": 789,
+      "sha256": "a34709c6f61541e758ab64223551286db259184322ae2d6594ac2a80eb9cda33"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-plan-status-prefaces.stdout",
+      "bytes": 110,
+      "sha256": "328f94d3c198736cec4a40eb5a2a4b2807b48c7e2a94c5c9c12050f50e7fdf81"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-prefix-fix-and-catalog-review.md",
+      "bytes": 6080,
+      "sha256": "5619c4487fc68dfbf8b605254ef6c837b39b064e59d442acd6507c00264850fb"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-source-count-delta.json",
+      "bytes": 839,
+      "sha256": "357ffd0d32222a59ec319886bddb197c321fa1f0496bf270eafdd0a3493c5b05"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-source-count-delta.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016/evidence/successor-source-count-delta.stdout",
+      "bytes": 1143,
+      "sha256": "d7f6c3e91f16f75de9d57c47eb51aac5c58162757ec01f8651a3e25acbe6484b"
+    }
+  ],
+  "historicalInventoryCaseNames": [
+    "the backend consumer inventory retains its exact historical input bytes",
+    "the committed manifest passes every invariant",
+    "backend inventory validation is deterministic and does not mutate its input",
+    "the inventory is non-trivial",
+    "every request maps to a Phase 0 route manifest entry",
+    "every request belongs to a declared surface",
+    "every user-facing route is either consumed or explicitly api_only",
+    "classification is driven by @EngagementRuntimeAction, not by URL shape",
+    "the decorator scan finds the real runtime actions",
+    "every send endpoint is external, including send-batch and jobs/send",
+    "a GET is never classified as a local write",
+    "every heuristic exemption cites evidence and names a live route",
+    "Outreach v2 is the sole production wizard and OutreachView is inventoried",
+    "no Outreach V3 route or component exists",
+    "every surface declares loading, empty, error and permission states",
+    "NEGATIVE CONTROL: a fake missing route is rejected",
+    "NEGATIVE CONTROL: an unmapped request is rejected",
+    "NEGATIVE CONTROL: a send endpoint classified read is rejected",
+    "NEGATIVE CONTROL: omitting OutreachView is rejected",
+    "NEGATIVE CONTROL: a request with no surface is rejected",
+    "NEGATIVE CONTROL: an undecorated external route is rejected",
+    "NEGATIVE CONTROL: a V3 consumer is rejected",
+    "NEGATIVE CONTROL: a missing route-coverage entry is rejected",
+    "NEGATIVE CONTROL: a surface missing a required state is rejected",
+    "NEGATIVE CONTROL: tampered totals are rejected",
+    "NEGATIVE CONTROL: an unresolved scanner finding is rejected",
+    "NEGATIVE CONTROL: a consumed route with no consumers is rejected",
+    "normalizePath collapses dynamic segments and drops query strings",
+    "template literals resolve through module constants",
+    "matchRoute prefers a literal segment over a parameter segment",
+    "classifyRequest defers to the decorator over the method",
+    "the heuristic still recognises send-batch, which an anchored /send$/ would miss"
+  ],
+  "historicalInventoryAssertionCountUnchanged": true,
+  "historicalVisualBodyUnchanged": true,
+  "countedSourceHead": "e666c4f36bc2a802779e3255cb4d7f2edd776589",
+  "countedFirstPartySourceUnchanged": true,
+  "sealedPR30LocalRefUnchanged": true,
+  "limits": "Finite Git source/capture proof only; no native/build/install/browser/image/runtime/deployment qualification. Remote publication is checked separately."
+}

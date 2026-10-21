@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "originalControls": {
+    "path": "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+    "gitBlob": "b43d430ff6b8e17ae25cf01a34c3d35f6520c6e3",
+    "bytes": 6047,
+    "scenarios": 27,
+    "assertions": 144,
+    "runtimeExecutedByThisLane": false
+  },
+  "runtimeControlScope": {
+    "scenarios": 25,
+    "assertions": 142,
+    "purpose": "CLI grammar/config refusal and trapped inert resource opt-in only; no browser or Lighthouse run"
+  },
+  "historicalPackageAssertions": [
+    {
+      "identity": "package Lighthouse command must opt into Chrome",
+      "sourceLine": 108,
+      "script": "lighthouse:pe-watch",
+      "actual": "node scripts/lighthouse-pe-watch.mjs",
+      "expected": "node scripts/lighthouse-pe-watch.mjs --run",
+      "sourceMismatch": true,
+      "runtimeExecutedByThisLane": false
+    },
+    {
+      "identity": "package capture command must opt into writes",
+      "sourceLine": 110,
+      "script": "visual:vnext:capture",
+      "actual": "node scripts/vnext-visual-capture.mjs",
+      "expected": "node scripts/vnext-visual-capture.mjs --capture",
+      "sourceMismatch": true,
+      "runtimeExecutedByThisLane": false
+    }
+  ],
+  "expectedPackageFailureCount": 2,
+  "expectedWholeControlExitAfterRuntimeControls": 1,
+  "missingArchiveInputs": "Must fail before creating temporary input fixtures; never skip or report green",
+  "resourcePolicy": {
+    "parentHeapMib": 128,
+    "childHeapMib": 64,
+    "externalWallLimitSeconds": 120,
+    "sequentialChildTimeoutMs": 5000,
+    "explicitModeChildTimeoutMs": 30000
+  }
+}

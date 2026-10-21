@@ -1,0 +1,403 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "sourceTree": "764afb6cbc0b55b8a46cdbd011a92e048ebac763",
+  "premapCommit": "17b41b79b0bb8e023520cb4137e7a2fdcbb18959",
+  "scope": "Historical ownership metadata for seven retired private Engagement enrichment fixtures. No old runtime body or new replay runner is copied; full source remains in Git history.",
+  "sourceInputs": {
+    "scope": "Finite exact operands, canonical helper/config/package/lock references; not a full transitive native dependency closure",
+    "representation": "Hashes bind canonical Git UTF-8/LF bytes. A clean Windows checkout may contain CRLF; verify Git objects/canonical bytes manually. No automatic extraction, normalization, checkout or install is provided.",
+    "requiredFiles": [
+      {
+        "path": "apps/api/src/engagement/engagement.service.ts",
+        "mode": "100644",
+        "gitBlobSha1": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383",
+        "sha256": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a",
+        "bytes": 496964,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+        "mode": "100644",
+        "gitBlobSha1": "b68b0c53d606967cb10eb0beccd800822aebc799",
+        "sha256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+        "bytes": 9523,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/outreach-context-enrichment.ts",
+        "mode": "100644",
+        "gitBlobSha1": "d71ca064a7c95e20cf1a5e31db2d4b3065b02784",
+        "sha256": "43998c69005b79df2112e093f62412238860c445b7a35c97c994e556f1ef9f5b",
+        "bytes": 13662,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/generation/alert-packet-client.service.ts",
+        "mode": "100644",
+        "gitBlobSha1": "4f70f51c7243792522c9266730e570bc3fcb3249",
+        "sha256": "b8e54a375272b37014f83b070758aab48069aaf8806cd9de0576b062c8560799",
+        "bytes": 11159,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/generation/outreach-truth.service.ts",
+        "mode": "100644",
+        "gitBlobSha1": "34ae7319426db63739c6b326566d36e785ecc39c",
+        "sha256": "db54b9bd0d299e2fe0a85cda4f257a7b2eeca0ed073296901ae87967b8c1c125",
+        "bytes": 10848,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+        "mode": "100644",
+        "gitBlobSha1": "02f909fbb7dfa399ba681292793ebfbc58b23bff",
+        "sha256": "780469219325881b8d112afedade22b1b09ba544c7e516f48a1d4a52d36c4c2c",
+        "bytes": 61954,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+        "mode": "100644",
+        "gitBlobSha1": "25b9a3f4255b779f1698d1b33ab8630e44a85021",
+        "sha256": "8536db36dc4689a48b5f6daa997f520e9c9b718b6f404f97f5acb7776a2d2d7e",
+        "bytes": 31130,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/generation/evidence-packet.service.ts",
+        "mode": "100644",
+        "gitBlobSha1": "2a78f2ed2f0353ba1a69aa66c5945bf41756988f",
+        "sha256": "21ba916bafd1b7a9984c0da79eb23452089c341981f582c204d2af559afb984e",
+        "bytes": 19092,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/generation/generation-gateway.service.ts",
+        "mode": "100644",
+        "gitBlobSha1": "5b6d6933eed1656ec7ac3c2c022a18314214d316",
+        "sha256": "1503b57105009e4ec1f26f17b0c3849f713465b4118e430d3a8a631e5bc8da7b",
+        "bytes": 44061,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/src/engagement/engagement-batch-group.spec.ts",
+        "mode": "100644",
+        "gitBlobSha1": "3432f5a83f7f8a678e995a3c16ef3fb4d993b617",
+        "sha256": "480d251572f765e21a42bbb8143570dbd1f83722b348954fd52d6dba14025616",
+        "bytes": 8164,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/jest.config.cjs",
+        "mode": "100644",
+        "gitBlobSha1": "00998e78899becc7dc52818f3f81c2cb88f46f39",
+        "sha256": "94f1692af740ef12a085d86b7d19ece1bed2fbaa84709ad4a1fbd6f0d8ff7d95",
+        "bytes": 6357,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/jest.native-runtime-environment.cjs",
+        "mode": "100644",
+        "gitBlobSha1": "5682accba9ead35890424577759e84c50ebc7514",
+        "sha256": "31f62c69f865af50dd442d681cb031f55b83aad85170104bcfd180888b6898ae",
+        "bytes": 6917,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/jest.native-sanitize-html.cjs",
+        "mode": "100644",
+        "gitBlobSha1": "29d9a327ef9db416ec68586c9659a5e3370fe7a8",
+        "sha256": "bdfa64149133ae51a4586e422adae5b9eeed6d00a6da4e001cac641120a23c2a",
+        "bytes": 1606,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/jest.native-tango.cjs",
+        "mode": "100644",
+        "gitBlobSha1": "f7004e5dc4e7faf1747a1b1899854ec2abc91ee9",
+        "sha256": "81ad8f0e29e31a1a4a9e83f56b50c1739b3c1f4eff597c9b8742ddfdf295f894",
+        "bytes": 2016,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/jest.worker-database.cjs",
+        "mode": "100644",
+        "gitBlobSha1": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd",
+        "sha256": "3da640a20f09c14764dbb33eeda2b15bb65ddf21ffbdef048e220bf0ec6ae5f7",
+        "bytes": 12850,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/jest.setup.ts",
+        "mode": "100644",
+        "gitBlobSha1": "75f042fb3b96b7d4fbbcbc10f2d131198319d789",
+        "sha256": "0ecbfb2a53e9154e3d5677b68467e0e8b82563dec4fa1b71fa98c14d230c6475",
+        "bytes": 2580,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/tsconfig.json",
+        "mode": "100644",
+        "gitBlobSha1": "6c60698125878c4497d68ea8d6d7f32496dd8cae",
+        "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220",
+        "bytes": 624,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "tsconfig.base.json",
+        "mode": "100644",
+        "gitBlobSha1": "c88275ccf4b1b0c62627076781ce0022af22f259",
+        "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+        "bytes": 471,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "apps/api/package.json",
+        "mode": "100644",
+        "gitBlobSha1": "7fa0f785eaa48abdf361eb7a82fcea934c6ae3fe",
+        "sha256": "10a90b3357aad5c52dc04ae2e00d25dadd5a501ee49a9eb8fd25e6904c501c40",
+        "bytes": 29061,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "package.json",
+        "mode": "100644",
+        "gitBlobSha1": "239885efbbdb940372d6c8a68ff1364f3523bff0",
+        "sha256": "5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0",
+        "bytes": 14391,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "mode": "100644",
+        "gitBlobSha1": "bef9bfeb6b9840a272a71ae5b0c6debf85d527f8",
+        "sha256": "9d56f16020e0229e5724e629b4b9db4eec960f69c571cff5659585b839c2de07",
+        "bytes": 70,
+        "representation": "canonical Git UTF-8/LF bytes"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "mode": "100644",
+        "gitBlobSha1": "88d3bff652c22a7d9139a1a46bafd68411b3d4fe",
+        "sha256": "c40a4e5d624cf42f498a1ec0fb87851d970a7395d55afdb3c9e7cbbe38ced948",
+        "bytes": 723468,
+        "representation": "canonical Git UTF-8/LF bytes"
+      }
+    ]
+  },
+  "historicalGroups": [
+    {
+      "key": "engagement-intel-context",
+      "sourcePath": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+      "sourceBlob": "b68b0c53d606967cb10eb0beccd800822aebc799",
+      "owner": "backend historical Outreach replay / shared local queue",
+      "declarations": 7,
+      "expandedCases": 7,
+      "cases": [
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration rewrites an intel item body from the fetched packet, forwarding clientId/authHeader/alertId",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+          "title": "rewrites an intel item body from the fetched packet, forwarding clientId/authHeader/alertId",
+          "declarationLine": 113,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+            "seam": "resolveSelectedItems -> resolveOne -> resolveIntelAlert",
+            "relatedNativeCase": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet a resolved packet becomes authoritative_structured evidence carrying the rendered packet text",
+            "relationship": "Related current boundary; structured authoritative evidence replaces old item.body mutation. Auth/client/alert forwarding remains asserted by the current native case; not an exact replay of the old case."
+          }
+        },
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration an unverifiable alert gets an honest gap body — never the literal \"undefined\"",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+          "title": "an unverifiable alert gets an honest gap body — never the literal \"undefined\"",
+          "declarationLine": 127,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+            "seam": "resolveIntelAlert",
+            "relatedNativeCase": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet a fetch failure (no auth header, timeout, non-2xx) is a critical failure — never a silent empty item",
+            "relationship": "Different result shape: current null packet yields INTEL_ALERT_NOT_ON_RECORD critical failure and no evidence; old honest gap-string body remains historical."
+          }
+        },
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration a null clientId never calls the packet client and gets an honest gap",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+          "title": "a null clientId never calls the packet client and gets an honest gap",
+          "declarationLine": 142,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+            "seam": "resolveIntelAlert",
+            "relatedNativeCase": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet requires a clientId — an alert packet is meaningless without one",
+            "relationship": "Different result shape: current absent client yields INTEL_ALERT_NO_CLIENT critical failure and no evidence; old gap-string/no-client fixture remains historical. The existing current case does not assert a packet-client call count."
+          }
+        },
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration other kinds are unaffected",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+          "title": "other kinds are unaffected",
+          "declarationLine": 154,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+            "seam": "resolveOne kind dispatch and note directive handling",
+            "relatedNativeCase": null,
+            "relationship": "No exact current equivalent. Current note handling uses customNoteText/instruction or fact semantics, not pass-through of the old item.body fixture."
+          }
+        },
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay OUTREACH_CLIENT_PROFILE off: the packet is rendered as-is, still honestly missing the relationship fields",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+          "title": "OUTREACH_CLIENT_PROFILE off: the packet is rendered as-is, still honestly missing the relationship fields",
+          "declarationLine": 168,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+            "seam": "resolveIntelAlert -> renderAlertPacketForOutreach",
+            "relatedNativeCase": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet a resolved packet becomes authoritative_structured evidence carrying the rendered packet text",
+            "relationship": "Current packet-rendered evidence is related, but no current OUTREACH_CLIENT_PROFILE flag-off overlay assertion is claimed. Preserve this exact flag-off/gap-string case only in historical source."
+          }
+        },
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay OUTREACH_CLIENT_PROFILE on: fills people/target-offices/recent-meetings and drops exactly those three from Unknowns",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+          "title": "OUTREACH_CLIENT_PROFILE on: fills people/target-offices/recent-meetings and drops exactly those three from Unknowns",
+          "declarationLine": 185,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": null,
+            "seam": null,
+            "relatedNativeCase": null,
+            "relationship": "NO CURRENT EQUIVALENT: flag-on client-relationship overlay filling people/target offices/recent meetings and removing exactly three Unknowns is historical-only and UNRUN. This cleanup does not reimplement or reactivate it.",
+            "gap": "OUTREACH_CLIENT_PROFILE flag-on overlay"
+          }
+        },
+        {
+          "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay never fetches client-relationship data when no item is intel-kind",
+          "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+          "title": "never fetches client-relationship data when no item is intel-kind",
+          "declarationLine": 212,
+          "classification": "historical-only",
+          "nativeStatus": "UNRUN",
+          "currentOwnership": {
+            "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+            "seam": "resolveOne dispatches only intel-kind items to resolveIntelAlert",
+            "relatedNativeCase": null,
+            "relationship": "Current dispatch provides a related source boundary; no existing current Intel native case proves the old private people-block collaborator non-invocation. Original assertion remains historical-only and UNRUN."
+          }
+        }
+      ]
+    }
+  ],
+  "currentIntelOwnership": {
+    "owner": "apps/api/src/engagement/generation/evidence-source.service.ts",
+    "sourceSpec": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+    "expandedCases": 4,
+    "cases": [
+      {
+        "id": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet a malformed id is a critical, not silently dropped",
+        "suite": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet",
+        "title": "a malformed id is a critical, not silently dropped",
+        "declarationLine": 673,
+        "sourcePath": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+        "nativeStatus": "UNRUN",
+        "retainedUnchanged": true
+      },
+      {
+        "id": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet a fetch failure (no auth header, timeout, non-2xx) is a critical failure — never a silent empty item",
+        "suite": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet",
+        "title": "a fetch failure (no auth header, timeout, non-2xx) is a critical failure — never a silent empty item",
+        "declarationLine": 683,
+        "sourcePath": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+        "nativeStatus": "UNRUN",
+        "retainedUnchanged": true
+      },
+      {
+        "id": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet a resolved packet becomes authoritative_structured evidence carrying the rendered packet text",
+        "suite": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet",
+        "title": "a resolved packet becomes authoritative_structured evidence carrying the rendered packet text",
+        "declarationLine": 697,
+        "sourcePath": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+        "nativeStatus": "UNRUN",
+        "retainedUnchanged": true
+      },
+      {
+        "id": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet requires a clientId — an alert packet is meaningless without one",
+        "suite": "HP-05 (Gate L): intel alerts are rehydrated from intel-api's packet",
+        "title": "requires a clientId — an alert packet is meaningless without one",
+        "declarationLine": 714,
+        "sourcePath": "apps/api/src/engagement/generation/evidence-source.service.spec.ts",
+        "nativeStatus": "UNRUN",
+        "retainedUnchanged": true
+      }
+    ],
+    "sourceStatus": "retained; no edits allocated to producer or native evidence spec",
+    "qualification": "UNRUN; related current cases are not the seven historical cases or a claim of their exact parity"
+  },
+  "retainedBatchOwnership": {
+    "sourcePaths": [
+      "apps/api/src/engagement/engagement-batch-group.spec.ts",
+      "apps/api/src/engagement/engagement-batch-revise.spec.ts",
+      "apps/api/src/engagement/engagement-batch-sticky-provider.spec.ts"
+    ],
+    "instruction": "All listed native specs remain unchanged and outside this edit. Keep their setup stubs and assignments; no aggregate native case count is asserted by this ownership record.",
+    "changed": false,
+    "nativeStatus": "UNRUN"
+  },
+  "totals": {
+    "historicalCaseIdentities": 7,
+    "existingCurrentIntelIdentities": 4,
+    "currentEquivalentForFlagOnOverlay": 0,
+    "copiedHistoricalRuntimeBodies": 0,
+    "addedReplayRunners": 0,
+    "sourceOperands": 22
+  },
+  "manualHistoricalReplay": {
+    "status": "UNRUN",
+    "receiptType": "declaration only; no execution or preflight receipt",
+    "requiredExistingRoot": "An explicitly supplied already-existing complete source tree at sourceCommit/sourceTree; no qualified pinned root identified by this task.",
+    "executable": "pnpm",
+    "argv": [
+      "--filter",
+      "@capiro/api",
+      "exec",
+      "node",
+      "--experimental-vm-modules",
+      "node_modules/jest/bin/jest.js",
+      "--config",
+      "jest.config.cjs",
+      "--runInBand",
+      "--runTestsByPath",
+      "src/engagement/engagement-intel-context.spec.ts",
+      "--forceExit"
+    ],
+    "expectedExpandedCases": 7,
+    "prerequisites": [
+      "Obtain an explicit shared local queue lease from shipping owner 01a1383e-0c6b-778e-8893-2359c0da802e before any native process; agree runner memory/environment first.",
+      "Manually verify supplied existing full root HEAD equals sourceCommit, tree equals sourceTree, and tracked status is clean; do not create a checkout or restore retired code as part of this plan.",
+      "Manually compare all declared source/config/lock Git blobs and canonical Git SHA256 bytes, including exact seven case titles. Finite operands are not proof that every transitive dependency is present.",
+      "Use only the already-qualified dependency installation for that exact lockfile and approved native runner; no install is performed or authorized by this manifest.",
+      "Keep CLEANUP_API_WORKER_DB opt-in disabled; do not change credentials, resource/database state, or live settings. Resolve framework/platform/import prerequisites through the shared queue owner.",
+      "Run only the finite declared old spec at the pinned source. Record actual collection, seven case outcomes, exit status and platform/import blockers. No case refusal, missing input or current source-only proof counts as a historical PASS."
+    ]
+  },
+  "sourceProofNotes": [
+    "All seven IDs are suite plus scalar test title decoded directly from pinned Git UTF-8 bytes with exact punctuation; declarationLine is a JSON number. No inline parameter parser is used.",
+    "Source operands are captured before retiring the one old native spec. No test assertion is rewritten or represented as passing; the original assertion bodies remain recoverable from the pinned spec blob.",
+    "Old gap-string outcomes differ from current critical-failure/evidence results. Flag-on relationship overlay has no current equivalent. Current packet producer/helper/native identities stay retained.",
+    "All seven canonical Git-decoded IDs match the committed premap exactly; no label or assertion correction was necessary."
+  ],
+  "premapLabelCorrection": {
+    "reference": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-legacy-case-ids.json",
+    "differingIds": 0,
+    "correction": "No identity correction needed: all seven IDs match the committed premap. Pinned Git-decoded labels are authoritative; console display differences did not change the source strings."
+  }
+}

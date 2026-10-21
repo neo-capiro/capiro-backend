@@ -1,0 +1,559 @@
+Γ£û default Web Docker consumes only an explicit validated frontend-owned rootfs (1.2582ms)
+Γ£û backend ownership transition retains release operator, dependency graph and Onboard default (115.5695ms)
+Γ£ö missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify (0.693ms)
+Γ£û opt-in Docker inverse restores the entire original; default/runtime/API/security/entrypoint bytes remain intact (1.552ms)
+Γ£û only the supplied site enters the unchanged runtime path; pins are required before frozen workspace installation (0.2477ms)
+Γ£û API/auth/shared dependency manifests and frozen lock importers close without legacy frontend packages (1.9207ms)
+Γ£ö original public PDF/favicon bytes and URLs are pinned without reading a frontend source directory (0.2281ms)
+Γ£û digest/source-bound static fixture succeeds with a distinct byte-only receipt and exact file inventory (4.2045ms)
+Γ£ö empty/malformed/duplicate/conflicting invocation refuses before filesystem operations (0.6225ms)
+Γ£ö missing supplied directory never falls back to existing Web trees (0.3981ms)
+Γ£ö manifest digest/source mismatch, truncation, duplicate keys and malformed file proofs fail closed (1.7126ms)
+Γ£ö escaping, encoded, hidden, absolute and executable file names refuse even with fresh valid digests (2.6219ms)
+Γ£ö missing/unlisted/truncated/changed files and absent or replaced protected public assets refuse (3.2234ms)
+Γ£ö HTML/module/dynamic-import/export/CSS/font/SVG/Vite-table local closure remains mandatory (7.1268ms)
+Γ£ö unsafe/bare/nonstatic module or local resource references refuse; inert data images require no file (4.6337ms)
+Γ£ö empty/incomplete index or metadata-only artifact cannot yield an application-shell receipt (1.2458ms)
+Γ£û port reader rejects missing/unlisted roots, file/ancestor symlinks and nonregular entries before content reads (0.469ms)
+Γ£û physical supplied fixture qualifies with legacy frontend denied, and physical symlink escape refuses (42.5804ms)
+Γ£û case/control regression preserves all former cases and limits the helper change to canonical paths and pins (1.1191ms)
+Γ£ö uppercase JS/CSS/HTML/MJS/SVG missing-resource counterexamples now refuse, while uppercase basenames remain valid (10.1804ms)
+Γ£û trailing-LF manifest/file names now refuse before payload reads or stat of unsafe filesystem names (1.4984ms)
+Γ£û pure pins refuse coerced/non-string/control values before filesystem operations; original LF refusal is preserved (1.4509ms)
+Γ£ö actual static guard refuses comment-separated bare static import without executing payloads (1.2971ms)
+Γ£ö actual static guard refuses comment-separated nonstatic dynamic import without executing payloads (0.5776ms)
+Γ£ö actual static guard refuses comment-separated bare dynamic import without executing payloads (0.6682ms)
+Γ£ö actual static guard refuses comment-separated bare export without executing payloads (0.5406ms)
+Γ£ö actual static guard refuses comment-separated local CSS import without executing payloads (0.5139ms)
+Γ£ö comment token gaps retain legitimate closed references and quoted remote URL text (0.6287ms)
+Γ£ö recognized unsupported or escaped module and URL argument forms refuse before resource lookup (2.6988ms)
+Γ£ö binding clause cannot hide an unbundled module: import {x /* "ignored" */} from "react"; (0.557ms)
+Γ£ö binding clause cannot hide an unbundled module: export {x /* ) */} from "react"; (0.6264ms)
+Γ£ö binding clause cannot hide an unbundled module: export {x /* "ignored" */} from "react"; (0.5262ms)
+Γ£ö binding clause cannot hide an unbundled module: import {"foo" as x} from "react"; (0.5143ms)
+Γ£ö binding clause cannot hide an unbundled module: export {x as "foo"} from "react"; (0.4659ms)
+Γ£ö comment and quoted binding tokens retain closed module references without swallowing later declarations (1.1579ms)
+Γ£ö line comments stop at LF and cannot hide an unbundled import (1.5099ms)
+Γ£ö line comments stop at CRLF and cannot hide an unbundled import (1.4226ms)
+Γ£ö line comments stop at CR and cannot hide an unbundled import (1.4595ms)
+Γ£ö line comments stop at LS and cannot hide an unbundled import (2.3624ms)
+Γ£ö line comments stop at PS and cannot hide an unbundled import (1.3744ms)
+Γä╣ tests 40
+Γä╣ suites 0
+Γä╣ pass 29
+Γä╣ fail 11
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 428.895
+
+Γ£û failing tests:
+
+test at scripts\ci\frontend-artifact-docker.contract.spec.mjs:49:1
+Γ£û default Web Docker consumes only an explicit validated frontend-owned rootfs (1.2582ms)
+  AssertionError [ERR_ASSERTION]: frontend runtime base profile
+  
+  1 !== 2
+  
+      at validate (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/frontend-artifact-docker.contract.spec.mjs:27:10)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/frontend-artifact-docker.contract.spec.mjs:50:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\ci\frontend-artifact-docker.contract.spec.mjs:58:1
+Γ£û backend ownership transition retains release operator, dependency graph and Onboard default (115.5695ms)
+  AssertionError [ERR_ASSERTION]: pnpm-lock.yaml
+  + actual - expected
+  ... Skipped lines
+  
+    "lockfileVersion: '9.0'\n" +
+      '\n' +
+      'settings:\n' +
+      '  autoInstallPeers: true\n' +
+      '  excludeLinksFromLockfile: false\n' +
+  ...
+      '        version: 3.12.0\n' +
+  +   '      prisma:\n' +
+  +   '        specifier: ^5.20.0\n' +
+  +   '        version: 5.22.0\n' +
+      '      reflect-metadata:\n' +
+      '        specifier: ^0.2.2\n' +
+      '        version: 0.2.2\n' +
+      '      rxjs:\n' +
+      '        specifier: ^7.8.1\n' +
+  ...
+      '        version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))\n' +
+  -   '      prisma:\n' +
+  -   '        specifier: ^5.20.0\n' +
+  -   '        version: 5.22.0\n' +
+      '      supertest:\n' +
+      '        specifier: ^7.3.0\n' +
+      '        version: 7.3.0\n' +
+      '      ts-jest:\n' +
+      '        specifier: ^29.4.14\n' +
+  ...
+      '        version: 3.12.0\n' +
+  +   '      prisma:\n' +
+  +   '        specifier: ^5.20.0\n' +
+  +   '        version: 5.22.0\n' +
+      '      reflect-metadata:\n' +
+      '        specifier: ^0.2.2\n' +
+      '        version: 0.2.2\n' +
+      '      rxjs:\n' +
+      '        specifier: ^7.8.1\n' +
+  +   '    '... 718135 more characters
+  -   '        version: 7.8.2\n' +
+  -   '    devDependencies:\n' +
+  -   "      '@jest/globals':\n" +
+  -   '  '... 718135 more characters
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/frontend-artifact-docker.contract.spec.mjs:66:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: "lockfileVersion: '9.0'\n\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\nimporters:\n\n  apps/e2e:\n    devDependencies:\n...",
+    expected: "lockfileVersion: '9.0'\n\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\nimporters:\n\n  apps/e2e:\n    devDependencies:\n...",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:114:1
+Γ£û opt-in Docker inverse restores the entire original; default/runtime/API/security/entrypoint bytes remain intact (1.552ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '# Opt-in Onboard API + explicitly supplied static SPA artifact.\r\n' +
+  +   '# Existing Dockerfile remains the default; this variant is not released.\r\n' +
+  +   '# Supply release-artifacts/onboard-spa/{manifest.json,site/**} and all three\r\n' +
+  +   '# ONBOARD_SPA_* build args. The byte contract does not qualify browser flows.\r\n' +
+  +   '#\r\n' +
+  +   '# Build context: REPOSITORY ROOT (not apps/onboard-api).\r\n' +
+  +   '#   docker buildx build --platform linux/arm64 -f apps/onboard-api/Dockerfile -t capiro-onboard-api:local .\r\n' +
+  +   '#\r\n' +
+  +   '# Multi-stage, mirroring apps/intel-api:\r\n' +
+  +   '#   1. base    pnpm + corepack on slim node\r\n' +
+  +   '#   2. build   install + prisma generate + compile API + build the SPA,\r\n' +
+  +   '#              then prune dev deps in place\r\n' +
+  +   '#   3. runtime minimal node slim, non-root user, copies the pruned workspace\r\n' +
+  +   '#\r\n' +
+  +   '# Owns onboard_* tables; the `migrate` mode runs `prisma migrate deploy` at\r\n' +
+  +   '# task launch (forward-only), same pattern as apps/api and apps/intel-api.\r\n' +
+  +   '\r\n' +
+  +   'ARG NODE_VERSION=20.16.0\r\n' +
+  +   '\r\n' +
+  +   "# Base image is pulled from AWS's ECR Public Docker Hub mirror to avoid Docker\r\n" +
+  +   "# Hub's anonymous pull rate limit. Functionally identical to node:<tag>-bookworm-slim.\r\n" +
+  +   '\r\n' +
+  +   '# -------- base ----------------------------------------------------------------\r\n' +
+  +   'FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base\r\n' +
+  +   'ENV PNPM_HOME=/pnpm\r\n' +
+  +   'ENV PATH=$PNPM_HOME:$PATH\r\n' +
+  +   'RUN corepack enable && corepack prepare pnpm@9.12.0 --activate\r\n' +
+  +   'WORKDIR /workspace\r\n' +
+  +   '\r\n' +
+  +   '# -------- build ---------------------------------------------------------------\r\n' +
+  +   'FROM base AS build\r\n' +
+  +   'RUN apt-get update \\\r\n' +
+  +   ' && apt-get install -y --no-install-recommends openssl ca-certificates \\\r\n' +
+  +   ' && rm -rf /var/lib/apt/lists/*\r\n' +
+  +   '\r\n' +
+  +   '# No default artifact or source pin. Validate before workspace installation.\r\n' +
+  +   'COPY release-artifacts/onboard-spa /workspace/release-artifacts/onboard-spa\r\n' +
+  +   'COPY scripts/lib/onboard-spa-artifact-contract.mjs /workspace/scripts/lib/onboard-spa-artifact-contract.mjs\r\n' +
+  +   'ARG ONBOARD_SPA_MANIFEST_SHA256\r\n' +
+  +   'ARG ONBOARD_SPA_SOURCE_REPOSITORY\r\n' +
+  +   'ARG ONBOARD_SPA_SOURCE_COMMIT\r\n' +
+  +   'RUN node scripts/lib/onboard-spa-artifact-contract.mjs \\\r\n' +
+  +   '      --artifact-dir /workspace/release-artifacts/onboard-spa \\\r\n' +
+  +   '      --manifest-sha256 "$ONBOARD_SPA_MANIFEST_SHA256" \\\r\n' +
+  +   '      --source-repository "$ONBOARD_SPA_SOURCE_REPOSITORY" \\\r\n' +
+  +   '      --source-commit "$ONBOARD_SPA_SOURCE_COMMIT"\r\n' +
+  +   '\r\n' +
+  +   'COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./\r\n' +
+  +   'COPY apps/onboard-api/package.json apps/onboard-api/package.json\r\n' +
+  +   'COPY packages/shared/package.json packages/shared/package.json\r\n' +
+  +   'COPY packages/auth/package.json packages/auth/package.json\r\n' +
+  +   'RUN --mount=type=cache,id=pnpm,target=/pnpm/store \\\r\n' +
+  +   '    pnpm install --frozen-lockfile \\\r\n' +
+  +   '      --filter=@capiro/onboard-api... --filter=@capiro/onboard-web... \\\r\n' +
+  +   '      --filter=@capiro/shared... --filter=@capiro/auth...\r\n' +
+  +   '\r\n' +
+  +   'COPY packages/shared/src packages/shared/src\r\n' +
+  +   'COPY packages/shared/tsconfig.json packages/shared/tsconfig.json\r\n' +
+  +   'COPY packages/auth/src packages/auth/src\r\n' +
+  +   'COPY packages/auth/tsconfig.json packages/auth/tsconfig.json\r\n' +
+  +   'COPY apps/onboard-api/src apps/onboard-api/src\r\n' +
+  +   'COPY apps/onboard-api/prisma apps/onboard-api/prisma\r\n' +
+  +   'COPY apps/onboard-api/tsconfig.json apps/onboard-api/tsconfig.build.json apps/onboard-api/nest-cli.json apps/onboard-api/\r\n' +
+  +   '\r\n' +
+  +   'RUN pnpm --filter @capiro/shared build\r\n' +
+  +   'RUN pnpm --filter @capiro/auth build\r\n' +
+  +   '# Generate the Prisma client (outputs to apps/onboard-api/generated/prisma-client)\r\n' +
+  +   '# BEFORE the Nest build, since src imports the generated client.\r\n' +
+  +   'RUN cd apps/onboard-api && pnpm exec prisma generate\r\n' +
+  +   'RUN pnpm --filter @capiro/onboard-api build\r\n' +
+  +   '\r\n' +
+  +   '# Prune dev dependencies in place (keeps the .pnpm store intact for the\r\n' +
+  +   '# generated Prisma client).\r\n' +
+  +   'RUN --mount=type=cache,id=pnpm,target=/pnpm/store \\\r\n' +
+  +   '    pnpm install --frozen-lockfile --prod \\\r\n' +
+  +   '      --filter=@capiro/onboard-api... --filter=@capiro/shared... --filter=@capiro/auth...\r\n' +
+  +   '\r\n' +
+  +   '# -------- runtime -------------------------------------------------------------\r\n' +
+  +   'FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime\r\n' +
+  +   'ENV NODE_ENV=production\r\n' +
+  +   'ENV NODE_OPTIONS=--enable-source-maps\r\n' +
+  +   'RUN groupadd --system --gid 1001 capiro \\\r\n' +
+  +   ' && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \\\r\n' +
+  +   ' && apt-get update \\\r\n' +
+  +   ' && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \\\r\n' +
+  +   ' && rm -rf /var/lib/apt/lists/*\r\n' +
+  +   'RUN mkdir -p /app/tmp /tmp \\\r\n' +
+  +   ' && chmod 1777 /tmp \\\r\n' +
+  +   ' && chown capiro:capiro /app/tmp\r\n' +
+  +   'ENV TMPDIR=/app/tmp\r\n' +
+  +   'WORKDIR /app\r\n' +
+  +   '\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json\r\n' +
+  +   "# @capiro/auth is consumed UNBUNDLED (nest build, not the orchestrator's\r\n" +
+  +   '# webpack) ΓÇö its dist resolves @nestjs/*+@clerk/backend through its own pnpm\r\n' +
+  +   '# symlink dir, which must ship or the service dies at boot (MODULE_NOT_FOUND).\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/dist /app/apps/onboard-api/dist\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/node_modules /app/apps/onboard-api/node_modules\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/package.json /app/apps/onboard-api/package.json\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/generated /app/apps/onboard-api/generated\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/prisma /app/apps/onboard-api/prisma\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-web/dist /app/apps/onboard-web/dist\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json\r\n' +
+  +   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/tsconfig.json /app/apps/onboard-api/tsconfig.json\r\n' +
+  +   'COPY --chown=capiro:capiro apps/onboard-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh\r\n' +
+  +   'RUN chmod +x /usr/local/bin/entrypoint.sh\r\n' +
+  +   '\r\n' +
+  +   'USER capiro\r\n' +
+  +   'WORKDIR /app/apps/onboard-api\r\n' +
+  +   'EXPOSE 4400\r\n' +
+  +   'ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]\r\n' +
+  +   'CMD ["serve"]\r\n'
+  - '# Capiro Onboard API container (API + onboard-web SPA in one image).\n' +
+  -   '#\n' +
+  -   '# Build context: REPOSITORY ROOT (not apps/onboard-api).\n' +
+  -   '#   docker buildx build --platform linux/arm64 -f apps/onboard-api/Dockerfile -t capiro-onboard-api:local .\n' +
+  -   '#\n' +
+  -   '# Multi-stage, mirroring apps/intel-api:\n' +
+  -   '#   1. base    pnpm + corepack on slim node\n' +
+  -   '#   2. build   install + prisma generate + compile API + build the SPA,\n' +
+  -   '#              then prune dev deps in place\n' +
+  -   '#   3. runtime minimal node slim, non-root user, copies the pruned workspace\n' +
+  -   '#\n' +
+  -   '# Owns onboard_* tables; the `migrate` mode runs `prisma migrate deploy` at\n' +
+  -   '# task launch (forward-only), same pattern as apps/api and apps/intel-api.\n' +
+  -   '\n' +
+  -   'ARG NODE_VERSION=20.16.0\n' +
+  -   '\n' +
+  -   "# Base image is pulled from AWS's ECR Public Docker Hub mirror to avoid Docker\n" +
+  -   "# Hub's anonymous pull rate limit. Functionally identical to node:<tag>-bookworm-slim.\n" +
+  -   '\n' +
+  -   '# -------- base ----------------------------------------------------------------\n' +
+  -   'FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base\n' +
+  -   'ENV PNPM_HOME=/pnpm\n' +
+  -   'ENV PATH=$PNPM_HOME:$PATH\n' +
+  -   'RUN corepack enable && corepack prepare pnpm@9.12.0 --activate\n' +
+  -   'WORKDIR /workspace\n' +
+  -   '\n' +
+  -   '# -------- build ---------------------------------------------------------------\n' +
+  -   'FROM base AS build\n' +
+  -   'RUN apt-get update \\\n' +
+  -   ' && apt-get install -y --no-install-recommends openssl ca-certificates \\\n' +
+  -   ' && rm -rf /var/lib/apt/lists/*\n' +
+  -   '\n' +
+  -   'COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./\n' +
+  -   'COPY apps/onboard-api/package.json apps/onboard-api/package.json\n' +
+  -   'COPY apps/onboard-web/package.json apps/onboard-web/package.json\n' +
+  -   'COPY packages/shared/package.json packages/shared/package.json\n' +
+  -   'COPY packages/auth/package.json packages/auth/package.json\n' +
+  -   'RUN --mount=type=cache,id=pnpm,target=/pnpm/store \\\n' +
+  -   '    pnpm install --frozen-lockfile \\\n' +
+  -   '      --filter=@capiro/onboard-api... --filter=@capiro/onboard-web... \\\n' +
+  -   '      --filter=@capiro/shared... --filter=@capiro/auth...\n' +
+  -   '\n' +
+  -   'COPY packages/shared/src packages/shared/src\n' +
+  -   'COPY packages/shared/tsconfig.json packages/shared/tsconfig.json\n' +
+  -   'COPY packages/auth/src packages/auth/src\n' +
+  -   'COPY packages/auth/tsconfig.json packages/auth/tsconfig.json\n' +
+  -   'COPY apps/onboard-api/src apps/onboard-api/src\n' +
+  -   'COPY apps/onboard-api/prisma apps/onboard-api/prisma\n' +
+  -   'COPY apps/onboard-api/tsconfig.json apps/onboard-api/tsconfig.build.json apps/onboard-api/nest-cli.json apps/onboard-api/\n' +
+  -   'COPY apps/onboard-web apps/onboard-web\n' +
+  -   '\n' +
+  -   'RUN pnpm --filter @capiro/shared build\n' +
+  -   'RUN pnpm --filter @capiro/auth build\n' +
+  -   '# Generate the Prisma client (outputs to apps/onboard-api/generated/prisma-client)\n' +
+  -   '# BEFORE the Nest build, since src imports the generated client.\n' +
+  -   'RUN cd apps/onboard-api && pnpm exec prisma generate\n' +
+  -   'RUN pnpm --filter @capiro/onboard-api build\n' +
+  -   'RUN pnpm --filter @capiro/onboard-web build\n' +
+  -   '\n' +
+  -   '# Prune dev dependencies in place (keeps the .pnpm store intact for the\n' +
+  -   '# generated Prisma client).\n' +
+  -   'RUN --mount=type=cache,id=pnpm,target=/pnpm/store \\\n' +
+  -   '    pnpm install --frozen-lockfile --prod \\\n' +
+  -   '      --filter=@capiro/onboard-api... --filter=@capiro/shared... --filter=@capiro/auth...\n' +
+  -   '\n' +
+  -   '# -------- runtime -------------------------------------------------------------\n' +
+  -   'FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime\n' +
+  -   'ENV NODE_ENV=production\n' +
+  -   'ENV NODE_OPTIONS=--enable-source-maps\n' +
+  -   'RUN groupadd --system --gid 1001 capiro \\\n' +
+  -   ' && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \\\n' +
+  -   ' && apt-get update \\\n' +
+  -   ' && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \\\n' +
+  -   ' && rm -rf /var/lib/apt/lists/*\n' +
+  -   'RUN mkdir -p /app/tmp /tmp \\\n' +
+  -   ' && chmod 1777 /tmp \\\n' +
+  -   ' && chown capiro:capiro /app/tmp\n' +
+  -   'ENV TMPDIR=/app/tmp\n' +
+  -   'WORKDIR /app\n' +
+  -   '\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json\n' +
+  -   "# @capiro/auth is consumed UNBUNDLED (nest build, not the orchestrator's\n" +
+  -   '# webpack) ΓÇö its dist resolves @nestjs/*+@clerk/backend through its own pnpm\n' +
+  -   '# symlink dir, which must ship or the service dies at boot (MODULE_NOT_FOUND).\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/dist /app/apps/onboard-api/dist\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/node_modules /app/apps/onboard-api/node_modules\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/package.json /app/apps/onboard-api/package.json\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/generated /app/apps/onboard-api/generated\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/prisma /app/apps/onboard-api/prisma\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-web/dist /app/apps/onboard-web/dist\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json\n' +
+  -   'COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/tsconfig.json /app/apps/onboard-api/tsconfig.json\n' +
+  -   'COPY --chown=capiro:capiro apps/onboard-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh\n' +
+  -   'RUN chmod +x /usr/local/bin/entrypoint.sh\n' +
+  -   '\n' +
+  -   'USER capiro\n' +
+  -   'WORKDIR /app/apps/onboard-api\n' +
+  -   'EXPOSE 4400\n' +
+  -   'ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]\n' +
+  -   'CMD ["serve"]\n'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:116:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Opt-in Onboard API + explicitly supplied static SPA artifact.\r\n# Existing Dockerfile remains the default; this variant is not released.\r\n# Supply release-artifacts/onboard-spa/{manifest.json,site/**} and all three\r\n# ONBOARD_SPA_* build args. The byte contract does not qualify browser flows.\r\n#\r\n# Build context: REPOSITORY ROOT (not apps/onboard-api).\r\n#   docker buildx build --platform linux/arm64 -f apps/onboard-api/Dockerfile -t capiro-onboard-api:local .\r\n#\r\n# Multi-stage, mirroring apps/intel-api:\r\n#   1. base    pnpm + corepack on slim node\r\n...',
+    expected: '# Capiro Onboard API container (API + onboard-web SPA in one image).\n#\n# Build context: REPOSITORY ROOT (not apps/onboard-api).\n#   docker buildx build --platform linux/arm64 -f apps/onboard-api/Dockerfile -t capiro-onboard-api:local .\n#\n# Multi-stage, mirroring apps/intel-api:\n#   1. base    pnpm + corepack on slim node\n#   2. build   install + prisma generate + compile API + build the SPA,\n#              then prune dev deps in place\n#   3. runtime minimal node slim, non-root user, copies the pruned workspace\n...',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:125:1
+Γ£û only the supplied site enters the unchanged runtime path; pins are required before frozen workspace installation (0.2477ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:126:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:134:1
+Γ£û API/auth/shared dependency manifests and frozen lock importers close without legacy frontend packages (1.9207ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '113ec790b45ce20eda92dd1d4a7578a304ad6085011f747180ceefa22a830ff3'
+  - 'ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:137:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '113ec790b45ce20eda92dd1d4a7578a304ad6085011f747180ceefa22a830ff3',
+    expected: 'ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:166:1
+Γ£û digest/source-bound static fixture succeeds with a distinct byte-only receipt and exact file inventory (4.2045ms)
+  Error: ENOENT:C:\
+      at touch (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:100:35)
+      at Object.lstatSync (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:104:42)
+      at check (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/onboard-spa-artifact-contract.mjs:189:26)
+      at readOnboardSpaArtifact (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/onboard-spa-artifact-contract.mjs:193:3)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:171:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:260:1
+Γ£û port reader rejects missing/unlisted roots, file/ancestor symlinks and nonregular entries before content reads (0.469ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /refused:/. Input:
+  
+  'Error: ENOENT:C:\\'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:268:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: ENOENT:C:\
+        at touch (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:100:35)
+        at Object.lstatSync (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:104:42)
+        at check (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/onboard-spa-artifact-contract.mjs:189:26)
+        at readOnboardSpaArtifact (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/onboard-spa-artifact-contract.mjs:193:3)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:268:25
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:268:12)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25),
+    expected: /refused:/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:277:1
+Γ£û physical supplied fixture qualifies with legacy frontend denied, and physical symlink escape refuses (42.5804ms)
+  Error: EPERM: operation not permitted, symlink 'C:\never-read\apps\onboard-web\dist\main.js' -> 'C:\Users\neoma\AppData\Local\Packages\sandbox.{a63d3bd1-7307-4fd0-aff6-b5ba171605c8}\AC\Temp\onboard-artifact-contract-zPdTG1\site\assets\main.js'
+      at Module.symlinkSync (node:fs:1938:11)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:291:8)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\never-read\\apps\\onboard-web\\dist\\main.js',
+    dest: 'C:\\Users\\neoma\\AppData\\Local\\Packages\\sandbox.{a63d3bd1-7307-4fd0-aff6-b5ba171605c8}\\AC\\Temp\\onboard-artifact-contract-zPdTG1\\site\\assets\\main.js'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:299:1
+Γ£û case/control regression preserves all former cases and limits the helper change to canonical paths and pins (1.1191ms)
+  AssertionError [ERR_ASSERTION]: exact former controls with only receiving baseline/lock bindings
+  + actual - expected
+  
+  + '6077150ac5d319a577e848c99bc431803b5bf7bf74da6c3d3463e8228ef1239c'
+  - 'ecae39d24423d4cd8f0e87a9bfcad67c54808751b97c34544315c1788685e27e'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:312:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '6077150ac5d319a577e848c99bc431803b5bf7bf74da6c3d3463e8228ef1239c',
+    expected: 'ecae39d24423d4cd8f0e87a9bfcad67c54808751b97c34544315c1788685e27e',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:358:1
+Γ£û trailing-LF manifest/file names now refuse before payload reads or stat of unsafe filesystem names (1.4984ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /unsafe static file path/. Input:
+  
+  'Error: ENOENT:C:\\'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:364:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: ENOENT:C:\
+        at touch (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:100:35)
+        at Object.lstatSync (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:104:42)
+        at check (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/onboard-spa-artifact-contract.mjs:189:26)
+        at readOnboardSpaArtifact (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/lib/onboard-spa-artifact-contract.mjs:193:3)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:364:23
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:364:10)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /unsafe static file path/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at scripts\ci\onboard-spa-artifact.contract.spec.mjs:371:1
+Γ£û pure pins refuse coerced/non-string/control values before filesystem operations; original LF refusal is preserved (1.4509ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /manifest SHA256 mismatch|manifest\/source identity contract/. Input:
+  
+  'Error: ENOENT:C:\\'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:386:14)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: ENOENT:C:\
+        at touch (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:100:35)
+        at Object.lstatSync (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:104:42)
+        at check (data:text/javascript;base64,aW1wb3J0IHsgY3JlYXRlSGFzaCB9IGZyb20gJ25vZGU6Y3J5cHRvJzsKaW1wb3J0IHsgbHN0YXRTeW5jLCByZWFkZGlyU3luYywgcmVhZEZpbGVTeW5jIH0gZnJvbSAnbm9kZTpmcyc7CmltcG9ydCB7IGRpcm5hbWUsIGpvaW4sIHBvc2l4LCByZXNvbHZlIH0gZnJvbSAnbm9kZTpwYXRoJzsKaW1wb3J0IHsgcGF0aFRvRmlsZVVSTCB9IGZyb20gJ25vZGU6dXJsJzsKCi8qKiBTdGF0aWMgYnl0ZS9jbG9zdXJlIHF1YWxpZmljYXRpb24gb25seTsgdGhpcyBkb2VzIG5vdCBxdWFsaWZ5IE9uYm9hcmQgZmxvd3MuICovCmV4cG9ydCBjb25zdCBPTkJPQVJEX1BVQkxJQ19BU1NFVFMgPSBPYmplY3QuZnJlZXplKHsKICAnZmF2aWNvbi5zdmcnOiAnNmI4NTNlNDVkZmQ5YzBiNWRlNTQ4ZDJkMWZhNzc5MzMwYzA5ZjZjZGE4OWY1MmMxZDFiZjZiM2NhNDQ5MDRjNCcsCiAgJ2xlZ2FsLWRvY3MvQ2FwaXJvLVN1YnNjcmlwdGlvbi1BZ3JlZW1lbnQucGRmJzogJzJhZTE0MzcwOTRmOTMxMGM5ZTljZjQ5YzcxYWExNzI1ZTA2ODIzYzAyZmJhNmNiNTQ2ZDQwZTNjZWRkMzNmZjUnLAogICdsZWdhbC1kb2NzL0NhcGlyby1UZXJtcy1vZi1TZXJ2aWNlLnBkZic6ICc5NGUwMzAzMWQwMGVhZjc1OWM3ZTU1Nzk1YWE4OWVkZmE1NDI5YmY2NjdjM2NlOWY5NzVmOGYyYjY5YjZkNWQyJywKfSk7CmNvbnN0IGRpZ2VzdCA9IChieXRlcykgPT4gY3JlYXRlSGFzaCgnc2hhMjU2JykudXBkYXRlKGJ5dGVzKS5kaWdlc3QoJ2hleCcpOwpjb25zdCBmYWlsID0gKG1lc3NhZ2UpID0+IHsgdGhyb3cgbmV3IEVycm9yKGBPbmJvYXJkIFNQQSBhcnRpZmFjdCByZWZ1c2VkOiAke21lc3NhZ2V9YCk7IH07CmNvbnN0IG9iamVjdEtleXMgPSAodmFsdWUsIGtleXMpID0+IHZhbHVlICYmIHR5cGVvZiB2YWx1ZSA9PT0gJ29iamVjdCcgJiYgIUFycmF5LmlzQXJyYXkodmFsdWUpICYmCiAgT2JqZWN0LmtleXModmFsdWUpLnNvcnQoKS5qb2luKCcsJykgPT09IFsuLi5rZXlzXS5zb3J0KCkuam9pbignLCcpOwoKZnVuY3Rpb24gcGluc0NvbnRyYWN0KHBpbnMpIHsKICBpZiAoIXBpbnMgfHwgIS9eW2EtZjAtOV17NjR9JC8udGVzdChwaW5zLm1hbmlmZXN0U2hhMjU2ID8/ICcnKSB8fAogICAgICAhL15bYS1mMC05XXs0MH0kLy50ZXN0KHBpbnMuc291cmNlQ29tbWl0ID8/ICcnKSB8fAogICAgICAhL15bQS1aYS16MC05XVtBLVphLXowLTlfLi1dKlwvW0EtWmEtejAtOV1bQS1aYS16MC05Xy4tXSokLy50ZXN0KHBpbnMuc291cmNlUmVwb3NpdG9yeSA/PyAnJykpIHsKICAgIGZhaWwoJ2V4cGxpY2l0IG1hbmlmZXN0IFNIQTI1Niwgc291cmNlIHJlcG9zaXRvcnkgYW5kIHNvdXJjZSBjb21taXQgYXJlIHJlcXVpcmVkJyk7CiAgfQp9CgpmdW5jdGlvbiBzYWZlUGF0aCh2YWx1ZSkgewogIGlmICh0eXBlb2YgdmFsdWUgIT09ICdzdHJpbmcnIHx8ICEvXltBLVphLXowLTldW0EtWmEtejAtOS5fLy1dKiQvLnRlc3QodmFsdWUpIHx8CiAgICAgIHZhbHVlLnNwbGl0KCcvJykuc29tZSgocGFydCkgPT4gIXBhcnQgfHwgcGFydCA9PT0gJy4nIHx8IHBhcnQgPT09ICcuLicgfHwgcGFydC5zdGFydHNXaXRoKCcuJykpIHx8CiAgICAgICEvXC4oPzpodG1sfGpzfG1qc3xjc3N8cGRmfHN2Z3xpY298cG5nfGpwZT9nfGdpZnx3ZWJwfGF2aWZ8d29mZjI/fHR0ZnxvdGZ8ZW90fGpzb258d2FzbXxtcDR8d2VibXxtYXApJC9pLnRlc3QodmFsdWUpKSB7CiAgICBmYWlsKGB1bnNhZmUgc3RhdGljIGZpbGUgcGF0aDogJHt2YWx1ZX1gKTsKICB9CiAgcmV0dXJuIHZhbHVlOwp9CgpmdW5jdGlvbiBwYXJzZU1hbmlmZXN0KGJ5dGVzLCBwaW5zKSB7CiAgcGluc0NvbnRyYWN0KHBpbnMpOwogIGlmICghQnVmZmVyLmlzQnVmZmVyKGJ5dGVzKSB8fCBkaWdlc3QoYnl0ZXMpICE9PSBwaW5zLm1hbmlmZXN0U2hhMjU2KSBmYWlsKCdtYW5pZmVzdCBTSEEyNTYgbWlzbWF0Y2gnKTsKICBsZXQgbWFuaWZlc3Q7CiAgY29uc3QgdGV4dCA9IGJ5dGVzLnRvU3RyaW5nKCd1dGY4Jyk7CiAgdHJ5IHsgbWFuaWZlc3QgPSBKU09OLnBhcnNlKHRleHQpOyB9IGNhdGNoIHsgZmFpbCgnbWFsZm9ybWVkIG9yIHRydW5jYXRlZCBtYW5pZmVzdCcpOyB9CiAgLy8gSlNPTi5wYXJzZSBwZXJtaXRzIHJlcGVhdGVkIGtleXM7IHRoZSBkaWdlc3QtYm91bmQgY29udHJhY3QgcmVmdXNlcyBhbWJpZ3VpdHkuCiAgY29uc3Qgc3RhY2sgPSBbXTsKICBmb3IgKGxldCBpID0gMDsgaSA8IHRleHQubGVuZ3RoOyBpKyspIHsKICAgIGlmICh0ZXh0W2ldID09PSAneycgfHwgdGV4dFtpXSA9PT0gJ1snKSBzdGFjay5wdXNoKHRleHRbaV0gPT09ICd7JyA/IG5ldyBTZXQoKSA6IG51bGwpOwogICAgZWxzZSBpZiAodGV4dFtpXSA9PT0gJ30nIHx8IHRleHRbaV0gPT09ICddJykgc3RhY2sucG9wKCk7CiAgICBlbHNlIGlmICh0ZXh0W2ldID09PSAnIicpIHsKICAgICAgY29uc3Qgc3RhcnQgPSBpKys7CiAgICAgIGZvciAoOyBpIDwgdGV4dC5sZW5ndGggJiYgdGV4dFtpXSAhPT0gJyInOyBpKyspIGlmICh0ZXh0W2ldID09PSAnXFwnKSBpKys7CiAgICAgIGNvbnN0IGtleSA9IEpTT04ucGFyc2UodGV4dC5zbGljZShzdGFydCwgaSArIDEpKTsKICAgICAgaWYgKC9eXHMqOi8udGVzdCh0ZXh0LnNsaWNlKGkgKyAxKSkgJiYgc3RhY2suYXQoLTEpKSB7CiAgICAgICAgaWYgKHN0YWNrLmF0KC0xKS5oYXMoa2V5KSkgZmFpbCgnZHVwbGljYXRlIG1hbmlmZXN0IGtleScpOwogICAgICAgIHN0YWNrLmF0KC0xKS5hZGQoa2V5KTsKICAgICAgfQogICAgfQogIH0KICBpZiAoIW9iamVjdEtleXMobWFuaWZlc3QsIFsnc2NoZW1hVmVyc2lvbicsICdhcnRpZmFjdFR5cGUnLCAnc291cmNlJywgJ2ZpbGVzJ10pIHx8CiAgICAgIG1hbmlmZXN0LnNjaGVtYVZlcnNpb24gIT09IDEgfHwgbWFuaWZlc3QuYXJ0aWZhY3RUeXBlICE9PSAnY2FwaXJvLW9uYm9hcmQtc3RhdGljLXNwYScgfHwKICAgICAgIW9iamVjdEtleXMobWFuaWZlc3Quc291cmNlLCBbJ3JlcG9zaXRvcnknLCAnY29tbWl0J10pIHx8CiAgICAgIG1hbmlmZXN0LnNvdXJjZS5yZXBvc2l0b3J5ICE9PSBwaW5zLnNvdXJjZVJlcG9zaXRvcnkgfHwgbWFuaWZlc3Quc291cmNlLmNvbW1pdCAhPT0gcGlucy5zb3VyY2VDb21taXQgfHwKICAgICAgIUFycmF5LmlzQXJyYXkobWFuaWZlc3QuZmlsZXMpIHx8IG1hbmlmZXN0LmZpbGVzLmxlbmd0aCA9PT0gMCkgZmFpbCgnbWFuaWZlc3Qvc291cmNlIGlkZW50aXR5IGNvbnRyYWN0Jyk7CiAgY29uc3Qgc2VlbiA9IG5ldyBTZXQoKTsKICBmb3IgKGNvbnN0IGZpbGUgb2YgbWFuaWZlc3QuZmlsZXMpIHsKICAgIGlmICghb2JqZWN0S2V5cyhmaWxlLCBbJ3BhdGgnLCAnYnl0ZXMnLCAnc2hhMjU2J10pIHx8ICFOdW1iZXIuaXNTYWZlSW50ZWdlcihmaWxlLmJ5dGVzKSB8fCBmaWxlLmJ5dGVzIDw9IDAgfHwKICAgICAgICAhL15bYS1mMC05XXs2NH0kLy50ZXN0KGZpbGUuc2hhMjU2ID8/ICcnKSkgZmFpbCgnbWFsZm9ybWVkIGZpbGUgcHJvb2YnKTsKICAgIHNhZmVQYXRoKGZpbGUucGF0aCk7CiAgICBpZiAoc2Vlbi5oYXMoZmlsZS5wYXRoKSkgZmFpbChgZHVwbGljYXRlIGZpbGUgcHJvb2Y6ICR7ZmlsZS5wYXRofWApOwogICAgc2Vlbi5hZGQoZmlsZS5wYXRoKTsKICB9CiAgaWYgKCFzZWVuLmhhcygnaW5kZXguaHRtbCcpKSBmYWlsKCdpbmRleC5odG1sIGlzIHJlcXVpcmVkJyk7CiAgcmV0dXJuIG1hbmlmZXN0Owp9CgpmdW5jdGlvbiByZWZlcmVuY2VQYXRoKGZyb20sIHJlZmVyZW5jZSwga2luZCkgewogIGlmICghcmVmZXJlbmNlIHx8IC9bXHNcXFwwXS8udGVzdChyZWZlcmVuY2UpIHx8IC8lLy50ZXN0KHJlZmVyZW5jZSkpIGZhaWwoYHVuc2FmZSAke2tpbmR9IHJlZmVyZW5jZSBpbiAke2Zyb219YCk7CiAgaWYgKHJlZmVyZW5jZS5zdGFydHNXaXRoKCcjJykpIHJldHVybiBudWxsOwogIGlmICgvXmRhdGE6KD86aW1hZ2VcLyg/OnBuZ3xqcGVnfGdpZnx3ZWJwfGF2aWZ8c3ZnXCt4bWwpfGZvbnRcL1teOyxdKylbOyxdL2kudGVzdChyZWZlcmVuY2UpICYmIGtpbmQgIT09ICdtb2R1bGUnKSByZXR1cm4gbnVsbDsKICBpZiAoL15odHRwcz86XC9cLy9pLnRlc3QocmVmZXJlbmNlKSAmJiBraW5kICE9PSAnbW9kdWxlJykgcmV0dXJuIG51bGw7IC8vIHJlbW90ZSBiZWhhdmlvciByZW1haW5zIHVucXVhbGlmaWVkCiAgaWYgKC9eW0EtWmEtel1bQS1aYS16MC05Ky4tXSo6Ly50ZXN0KHJlZmVyZW5jZSkgfHwgcmVmZXJlbmNlLnN0YXJ0c1dpdGgoJy8vJykpIGZhaWwoYHVuc2FmZSAke2tpbmR9IHJlZmVyZW5jZSBpbiAke2Zyb219YCk7CiAgY29uc3QgcGF0aCA9IHJlZmVyZW5jZS5zcGxpdCgvWz8jXS8sIDEpWzBdOwogIGlmICghcGF0aCkgcmV0dXJuIG51bGw7CiAgaWYgKGtpbmQgPT09ICdtb2R1bGUnICYmICFwYXRoLnN0YXJ0c1dpdGgoJy8nKSAmJiAhcGF0aC5zdGFydHNXaXRoKCcuLycpICYmICFwYXRoLnN0YXJ0c1dpdGgoJy4uLycpKSB7CiAgICBmYWlsKGB1bmJ1bmRsZWQgbW9kdWxlIHJlZmVyZW5jZSBpbiAke2Zyb219OiAke3JlZmVyZW5jZX1gKTsKICB9CiAgY29uc3QgbG9jYWwgPSBwYXRoLnN0YXJ0c1dpdGgoJy8nKSA/IHBhdGguc2xpY2UoMSkgOiBwb3NpeC5qb2luKHBvc2l4LmRpcm5hbWUoZnJvbSksIHBhdGgpOwogIHJldHVybiBzYWZlUGF0aChsb2NhbCk7Cn0KCi8qKiBDb25zZXJ2YXRpdmUgc3RhdGljIGxpbmthZ2U6IG5vIGV2YWx1YXRpb24gb2YgSFRNTCwgSmF2YVNjcmlwdCBvciBDU1MuICovCmZ1bmN0aW9uIHJlc291cmNlUmVmZXJlbmNlcyhwYXRoLCB0ZXh0KSB7CiAgY29uc3QgcmVmcyA9IFtdOwogIGNvbnN0IGFkZCA9ICh2YWx1ZSwga2luZCA9ICdhc3NldCcpID0+IHJlZnMucHVzaChbdmFsdWUsIGtpbmRdKTsKICBpZiAoL1wuKD86aHRtbHxzdmcpJC8udGVzdChwYXRoKSkgewogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC88KHNjcmlwdHxsaW5rfGltZ3xzb3VyY2V8dmlkZW98YXVkaW98aWZyYW1lfGlucHV0fG9iamVjdHxlbWJlZHxpbWFnZXx1c2UpXGIoW14+XSopPi9naSkpIHsKICAgICAgY29uc3QgYXR0cnMgPSBuZXcgTWFwKCk7CiAgICAgIGZvciAoY29uc3QgYXR0ciBvZiBtYXRjaFsyXS5tYXRjaEFsbCgvXGIoc3JjfGhyZWZ8cG9zdGVyfGRhdGF8c3Jjc2V0fHR5cGV8cmVsKVxzKj1ccyooPzoiKFteIl0qKSJ8JyhbXiddKiknfChbXlxzPl0rKSkvZ2kpKSB7CiAgICAgICAgaWYgKGF0dHJzLmhhcyhhdHRyWzFdLnRvTG93ZXJDYXNlKCkpKSBmYWlsKGBkdXBsaWNhdGUgcmVzb3VyY2UgYXR0cmlidXRlIGluICR7cGF0aH1gKTsKICAgICAgICBhdHRycy5zZXQoYXR0clsxXS50b0xvd2VyQ2FzZSgpLCBhdHRyWzJdID8/IGF0dHJbM10gPz8gYXR0cls0XSk7CiAgICAgIH0KICAgICAgZm9yIChjb25zdCBhdHRyIG9mIFsnc3JjJywgJ2hyZWYnLCAncG9zdGVyJywgJ2RhdGEnXSkgewogICAgICAgIGlmIChhdHRycy5oYXMoYXR0cikpIGFkZChhdHRycy5nZXQoYXR0ciksIG1hdGNoWzFdLnRvTG93ZXJDYXNlKCkgPT09ICdzY3JpcHQnID8gJ21vZHVsZScgOiAnYXNzZXQnKTsKICAgICAgfQogICAgICBpZiAoYXR0cnMuaGFzKCdzcmNzZXQnKSkgewogICAgICAgIGZvciAoY29uc3QgZW50cnkgb2YgYXR0cnMuZ2V0KCdzcmNzZXQnKS5zcGxpdCgnLCcpKSBhZGQoZW50cnkudHJpbSgpLnNwbGl0KC9ccysvKVswXSk7CiAgICAgIH0KICAgIH0KICAgIGZvciAoY29uc3QgbWF0Y2ggb2YgdGV4dC5tYXRjaEFsbCgvPHNjcmlwdFxiW14+XSo+KFtcc1xTXSo/KTxcL3NjcmlwdFxzKj4vZ2kpKSByZWZzLnB1c2goLi4ucmVzb3VyY2VSZWZlcmVuY2VzKCdpbmxpbmUuanMnLCBtYXRjaFsxXSkpOwogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC88c3R5bGVcYltePl0qPihbXHNcU10qPyk8XC9zdHlsZVxzKj4vZ2kpKSByZWZzLnB1c2goLi4ucmVzb3VyY2VSZWZlcmVuY2VzKHBhdGggKyAnLmNzcycsIG1hdGNoWzFdKSk7CiAgICByZWZzLnB1c2goLi4ucmVzb3VyY2VSZWZlcmVuY2VzKHBhdGggKyAnLmNzcycsIHRleHQpKTsgLy8gaW5jbHVkZXMgaW5saW5lIHN0eWxlIGF0dHJpYnV0ZXMKICAgIC8vIFB1YmxpYyBkb3dubG9hZCBsaW5rcyBhcmUgcmVzb3VyY2VzOyBhcHBsaWNhdGlvbiBuYXZpZ2F0aW9uIGlzIGEgYnJvd3Nlci1mbG93IG9ibGlnYXRpb24uCiAgICBmb3IgKGNvbnN0IG1hdGNoIG9mIHRleHQubWF0Y2hBbGwoL1xiaHJlZlxzKj1ccypbIiddKFteIiddK1wuKD86cGRmfHN2Z3xpY28pKD86Wz8jXVteIiddKik/KVsiJ10vZ2kpKSBhZGQobWF0Y2hbMV0pOwogIH0KICBpZiAocGF0aC5lbmRzV2l0aCgnLmNzcycpKSB7CiAgICBmb3IgKGNvbnN0IG1hdGNoIG9mIHRleHQubWF0Y2hBbGwoL3VybFwoXHMqKD86IihbXiJdKykifCcoW14nXSspJ3woW15ccyldKykpXHMqXCkvZ2kpKSBhZGQobWF0Y2hbMV0gPz8gbWF0Y2hbMl0gPz8gbWF0Y2hbM10pOwogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC9AaW1wb3J0XHMrWyInXShbXiInXSspWyInXS9naSkpIGFkZChtYXRjaFsxXSk7CiAgfQogIGlmICgvXC4oPzptP2pzKSQvLnRlc3QocGF0aCkpIHsKICAgIGZvciAoY29uc3QgbWF0Y2ggb2YgdGV4dC5tYXRjaEFsbCgvXGIoPzppbXBvcnR8ZXhwb3J0KVxzKig/OlteOyciKCldKj9cYmZyb21ccyopP1siJ10oW14iJ10rKVsiJ10vZykpIGFkZChtYXRjaFsxXSwgJ21vZHVsZScpOwogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC9cYmltcG9ydFxzKlwoKFteKV0qKVwpL2cpKSB7CiAgICAgIGNvbnN0IHZhbHVlID0gL15ccyooWyInXSkoW14iJ10rKVwxXHMqJC8uZXhlYyhtYXRjaFsxXSk7CiAgICAgIGlmICghdmFsdWUpIGZhaWwoYG5vbnN0YXRpYyBtb2R1bGUgcmVmZXJlbmNlIGluICR7cGF0aH1gKTsKICAgICAgYWRkKHZhbHVlWzJdLCAnbW9kdWxlJyk7CiAgICB9CiAgICBmb3IgKGNvbnN0IG1hdGNoIG9mIHRleHQubWF0Y2hBbGwoL1xibmV3XHMrVVJMXHMqXCgoW14pXSopLFxzKmltcG9ydFwubWV0YVwudXJsXHMqXCkvZykpIHsKICAgICAgY29uc3QgdmFsdWUgPSAvXlxzKihbIiddKShbXiInXSspXDFccyokLy5leGVjKG1hdGNoWzFdKTsKICAgICAgaWYgKCF2YWx1ZSkgZmFpbChgbm9uc3RhdGljIGFzc2V0IHJlZmVyZW5jZSBpbiAke3BhdGh9YCk7CiAgICAgIGFkZCh2YWx1ZVsyXSk7CiAgICB9CiAgICAvLyBDb3ZlcnMgZW1pdHRlZCBWaXRlIGRlcGVuZGVuY3kvYXNzZXQgdGFibGVzIGFzIHdlbGwgYXMgZGlyZWN0IHB1YmxpYyBhc3NldCBwYXRocy4KICAgIGZvciAoY29uc3QgbWF0Y2ggb2YgdGV4dC5tYXRjaEFsbCgvWyInXSgoPzpcLj9cLj9cL3xhc3NldHNcLylbXiInXFxcc10rXC4oPzpqc3xtanN8Y3NzfHBkZnxzdmd8aWNvfHBuZ3xqcGU/Z3xnaWZ8d2VicHxhdmlmfHdvZmYyP3x0dGZ8b3RmfGVvdHxqc29ufHdhc218bXA0fHdlYm0pKD86Wz8jXVteIidcXFxzXSopPylbIiddL2dpKSkgewogICAgICBhZGQobWF0Y2hbMV0uc3RhcnRzV2l0aCgnYXNzZXRzLycpID8gJy8nICsgbWF0Y2hbMV0gOiBtYXRjaFsxXSk7CiAgICB9CiAgfQogIHJldHVybiByZWZzOwp9CgpleHBvcnQgZnVuY3Rpb24gdmFsaWRhdGVPbmJvYXJkU3BhQXJ0aWZhY3QoeyBtYW5pZmVzdEJ5dGVzLCBmaWxlcyB9LCBwaW5zKSB7CiAgY29uc3QgbWFuaWZlc3QgPSBwYXJzZU1hbmlmZXN0KG1hbmlmZXN0Qnl0ZXMsIHBpbnMpOwogIGlmICghKGZpbGVzIGluc3RhbmNlb2YgTWFwKSB8fCBmaWxlcy5zaXplICE9PSBtYW5pZmVzdC5maWxlcy5sZW5ndGgpIGZhaWwoJ2ZpbGUgaW52ZW50b3J5IG1pc21hdGNoJyk7CiAgY29uc3QgZXhwZWN0ZWQgPSBuZXcgU2V0KG1hbmlmZXN0LmZpbGVzLm1hcCgoZmlsZSkgPT4gZmlsZS5wYXRoKSk7CiAgZm9yIChjb25zdCBwYXRoIG9mIGZpbGVzLmtleXMoKSkgaWYgKCFleHBlY3RlZC5oYXMoc2FmZVBhdGgocGF0aCkpKSBmYWlsKGB1bmxpc3RlZCBmaWxlOiAke3BhdGh9YCk7CiAgZm9yIChjb25zdCBmaWxlIG9mIG1hbmlmZXN0LmZpbGVzKSB7CiAgICBjb25zdCBieXRlcyA9IGZpbGVzLmdldChmaWxlLnBhdGgpOwogICAgaWYgKCFCdWZmZXIuaXNCdWZmZXIoYnl0ZXMpIHx8IGJ5dGVzLmxlbmd0aCAhPT0gZmlsZS5ieXRlcyB8fCBkaWdlc3QoYnl0ZXMpICE9PSBmaWxlLnNoYTI1NikgZmFpbChgZmlsZSBwcm9vZiBtaXNtYXRjaDogJHtmaWxlLnBhdGh9YCk7CiAgfQogIGZvciAoY29uc3QgW3BhdGgsIHNoYTI1Nl0gb2YgT2JqZWN0LmVudHJpZXMoT05CT0FSRF9QVUJMSUNfQVNTRVRTKSkgewogICAgaWYgKCFmaWxlcy5oYXMocGF0aCkgfHwgZGlnZXN0KGZpbGVzLmdldChwYXRoKSkgIT09IHNoYTI1NikgZmFpbChgb3JpZ2luYWwgcHVibGljIGFzc2V0IG1pc3Npbmcgb3IgY2hhbmdlZDogLyR7cGF0aH1gKTsKICB9CiAgY29uc3QgaW5kZXggPSBmaWxlcy5nZXQoJ2luZGV4Lmh0bWwnKS50b1N0cmluZygndXRmOCcpOwogIGlmICghLzwhZG9jdHlwZVxzK2h0bWxccyo+L2kudGVzdChpbmRleCkgfHwgIS88aHRtbFxiL2kudGVzdChpbmRleCkgfHwgIS88XC9odG1sXHMqPi9pLnRlc3QoaW5kZXgpIHx8CiAgICAgICEvPGJvZHlcYi9pLnRlc3QoaW5kZXgpIHx8ICEvPFwvYm9keVxzKj4vaS50ZXN0KGluZGV4KSB8fCAhLzxzY3JpcHRcYltePl0qXGJzcmNccyo9L2kudGVzdChpbmRleCkpIGZhaWwoJ3N0YXRpYyBhcHBsaWNhdGlvbiBzaGVsbCBpcyBpbmNvbXBsZXRlJyk7CiAgZm9yIChjb25zdCBbcGF0aCwgYnl0ZXNdIG9mIGZpbGVzKSB7CiAgICBpZiAoIS9cLig/Omh0bWx8bT9qc3xjc3N8c3ZnKSQvLnRlc3QocGF0aCkpIGNvbnRpbnVlOwogICAgZm9yIChjb25zdCBbcmVmZXJlbmNlLCBraW5kXSBvZiByZXNvdXJjZVJlZmVyZW5jZXMocGF0aCwgYnl0ZXMudG9TdHJpbmcoJ3V0ZjgnKSkpIHsKICAgICAgY29uc3QgdGFyZ2V0ID0gcmVmZXJlbmNlUGF0aChwYXRoLCByZWZlcmVuY2UsIGtpbmQpOwogICAgICBpZiAodGFyZ2V0ICYmICFmaWxlcy5oYXModGFyZ2V0KSkgZmFpbChgbWlzc2luZyAke2tpbmR9IGNsb3N1cmU6ICR7cGF0aH0gLT4gJHtyZWZlcmVuY2V9YCk7CiAgICB9CiAgfQogIHJldHVybiB7IHJlY2VpcHQ6ICdPTkJPQVJEX1NUQVRJQ19TUEFfQVJUSUZBQ1RfVkFMSURBVEVEJywgbWFuaWZlc3RTaGEyNTY6IHBpbnMubWFuaWZlc3RTaGEyNTYsCiAgICBzb3VyY2U6IG1hbmlmZXN0LnNvdXJjZSwgZmlsZXM6IGZpbGVzLnNpemUsIHF1YWxpZmljYXRpb246ICdzdGF0aWMtYnl0ZS1jb250cmFjdC1vbmx5JyB9Owp9CgovKiogQWxsIGZpbGVzeXN0ZW0gZWZmZWN0cyBhcmUgcG9ydHM7IGV2ZXJ5IGFuY2VzdG9yIGlzIGNoZWNrZWQgYmVmb3JlIHJlYWRzLiAqLwpleHBvcnQgZnVuY3Rpb24gcmVhZE9uYm9hcmRTcGFBcnRpZmFjdChkaXJlY3RvcnksIHBpbnMsIHBvcnRzID0geyBsc3RhdFN5bmMsIHJlYWRkaXJTeW5jLCByZWFkRmlsZVN5bmMgfSkgewogIHBpbnNDb250cmFjdChwaW5zKTsKICBpZiAodHlwZW9mIGRpcmVjdG9yeSAhPT0gJ3N0cmluZycgfHwgIWRpcmVjdG9yeSB8fCBkaXJlY3RvcnkuaW5jbHVkZXMoJ1wwJykpIGZhaWwoJ2FydGlmYWN0IGRpcmVjdG9yeSBpcyByZXF1aXJlZCcpOwogIGNvbnN0IHJvb3QgPSByZXNvbHZlKGRpcmVjdG9yeSk7CiAgY29uc3QgY2hlY2sgPSAocGF0aCwgdHlwZSkgPT4gewogICAgY29uc3QgYW5jZXN0b3JzID0gW107CiAgICBmb3IgKGxldCBjdXJyZW50ID0gcGF0aDsgOyBjdXJyZW50ID0gZGlybmFtZShjdXJyZW50KSkgewogICAgICBhbmNlc3RvcnMudW5zaGlmdChjdXJyZW50KTsKICAgICAgaWYgKGRpcm5hbWUoY3VycmVudCkgPT09IGN1cnJlbnQpIGJyZWFrOwogICAgfQogICAgZm9yIChjb25zdCBjdXJyZW50IG9mIGFuY2VzdG9ycykgewogICAgICBjb25zdCBzdGF0ID0gcG9ydHMubHN0YXRTeW5jKGN1cnJlbnQpOwogICAgICBpZiAoc3RhdC5pc1N5bWJvbGljTGluaygpIHx8ICEoY3VycmVudCA9PT0gcGF0aCAmJiB0eXBlID09PSAnZmlsZScgPyBzdGF0LmlzRmlsZSgpIDogc3RhdC5pc0RpcmVjdG9yeSgpKSkgZmFpbChgdW5zYWZlIGZpbGVzeXN0ZW0gZW50cnk6ICR7Y3VycmVudH1gKTsKICAgIH0KICB9OwogIGNoZWNrKHJvb3QsICdkaXJlY3RvcnknKTsKICBpZiAocG9ydHMucmVhZGRpclN5bmMocm9vdCkuc29ydCgpLmpvaW4oJywnKSAhPT0gJ21hbmlmZXN0Lmpzb24sc2l0ZScpIGZhaWwoJ2FydGlmYWN0IHJvb3QgbXVzdCBjb250YWluIG9ubHkgbWFuaWZlc3QuanNvbiBhbmQgc2l0ZScpOwogIGNvbnN0IG1hbmlmZXN0UGF0aCA9IGpvaW4ocm9vdCwgJ21hbmlmZXN0Lmpzb24nKTsgY2hlY2sobWFuaWZlc3RQYXRoLCAnZmlsZScpOwogIGNvbnN0IG1hbmlmZXN0Qnl0ZXMgPSBwb3J0cy5yZWFkRmlsZVN5bmMobWFuaWZlc3RQYXRoKTsKICBjb25zdCBtYW5pZmVzdCA9IHBhcnNlTWFuaWZlc3QobWFuaWZlc3RCeXRlcywgcGlucyk7CiAgY29uc3QgZXhwZWN0ZWQgPSBuZXcgU2V0KG1hbmlmZXN0LmZpbGVzLm1hcCgoZmlsZSkgPT4gZmlsZS5wYXRoKSk7CiAgY29uc3QgZGlycyA9IG5ldyBTZXQoKTsKICBmb3IgKGNvbnN0IGZpbGUgb2YgZXhwZWN0ZWQpIHsKICAgIGZvciAobGV0IHBhdGggPSBwb3NpeC5kaXJuYW1lKGZpbGUpOyBwYXRoICE9PSAnLic7IHBhdGggPSBwb3NpeC5kaXJuYW1lKHBhdGgpKSBkaXJzLmFkZChwYXRoKTsKICB9CiAgY29uc3QgZmlsZXMgPSBuZXcgTWFwKCk7CiAgY29uc3Qgd2FsayA9IChwYXRoLCByZWxhdGl2ZSA9ICcnKSA9PiB7CiAgICBjaGVjayhwYXRoLCAnZGlyZWN0b3J5Jyk7CiAgICBmb3IgKGNvbnN0IG5hbWUgb2YgcG9ydHMucmVhZGRpclN5bmMocGF0aCkpIHsKICAgICAgaWYgKHR5cGVvZiBuYW1lICE9PSAnc3RyaW5nJyB8fCAhL15bQS1aYS16MC05XVtBLVphLXowLTkuXy1dKiQvLnRlc3QobmFtZSkpIGZhaWwoJ3Vuc2FmZSBmaWxlc3lzdGVtIG5hbWUnKTsKICAgICAgY29uc3QgZmlsZSA9IHJlbGF0aXZlID8gYCR7cmVsYXRpdmV9LyR7bmFtZX1gIDogbmFtZTsKICAgICAgY29uc3QgYWJzb2x1dGUgPSBqb2luKHBhdGgsIG5hbWUpOwogICAgICBjb25zdCBzdGF0ID0gcG9ydHMubHN0YXRTeW5jKGFic29sdXRlKTsKICAgICAgaWYgKHN0YXQuaXNTeW1ib2xpY0xpbmsoKSkgZmFpbChgc3ltYm9saWMgYXJ0aWZhY3QgZW50cnk6ICR7ZmlsZX1gKTsKICAgICAgaWYgKHN0YXQuaXNEaXJlY3RvcnkoKSkgewogICAgICAgIGlmICghZGlycy5oYXMoZmlsZSkpIGZhaWwoYHVubGlzdGVkIGRpcmVjdG9yeTogJHtmaWxlfWApOwogICAgICAgIHdhbGsoYWJzb2x1dGUsIGZpbGUpOwogICAgICB9IGVsc2UgewogICAgICAgIGlmICghZXhwZWN0ZWQuaGFzKGZpbGUpKSBmYWlsKGB1bmxpc3RlZCBmaWxlOiAke2ZpbGV9YCk7CiAgICAgICAgY2hlY2soYWJzb2x1dGUsICdmaWxlJyk7CiAgICAgICAgZmlsZXMuc2V0KGZpbGUsIHBvcnRzLnJlYWRGaWxlU3luYyhhYnNvbHV0ZSkpOwogICAgICB9CiAgICB9CiAgfTsKICB3YWxrKGpvaW4ocm9vdCwgJ3NpdGUnKSk7CiAgcmV0dXJuIHZhbGlkYXRlT25ib2FyZFNwYUFydGlmYWN0KHsgbWFuaWZlc3RCeXRlcywgZmlsZXMgfSwgcGlucyk7Cn0KCmV4cG9ydCBmdW5jdGlvbiBwYXJzZU9uYm9hcmRTcGFBcnRpZmFjdEludm9jYXRpb24oYXJncykgewogIGNvbnN0IG5hbWVzID0gbmV3IE1hcChbWyctLWFydGlmYWN0LWRpcicsICdkaXJlY3RvcnknXSwgWyctLW1hbmlmZXN0LXNoYTI1NicsICdtYW5pZmVzdFNoYTI1NiddLAogICAgWyctLXNvdXJjZS1yZXBvc2l0b3J5JywgJ3NvdXJjZVJlcG9zaXRvcnknXSwgWyctLXNvdXJjZS1jb21taXQnLCAnc291cmNlQ29tbWl0J11dKTsKICBjb25zdCBvcHRpb25zID0ge307CiAgaWYgKCFBcnJheS5pc0FycmF5KGFyZ3MpIHx8IGFyZ3MubGVuZ3RoICE9PSA4KSBmYWlsKCdwcm92aWRlIGFsbCBmb3VyIG5hbWVkIGFyZ3VtZW50cyBleGFjdGx5IG9uY2UnKTsKICBmb3IgKGxldCBpID0gMDsgaSA8IGFyZ3MubGVuZ3RoOyBpICs9IDIpIHsKICAgIGNvbnN0IGtleSA9IG5hbWVzLmdldChhcmdzW2ldKTsgY29uc3QgdmFsdWUgPSBhcmdzW2kgKyAxXTsKICAgIGlmICgha2V5IHx8IG9wdGlvbnNba2V5XSAhPT0gdW5kZWZpbmVkIHx8IHR5cGVvZiB2YWx1ZSAhPT0gJ3N0cmluZycgfHwgIXZhbHVlIHx8IHZhbHVlLnRyaW0oKSAhPT0gdmFsdWUgfHwgL1tcMFxyXG5dLy50ZXN0KHZhbHVlKSkgZmFpbCgnbWFsZm9ybWVkIG9yIGR1cGxpY2F0ZSBpbnZvY2F0aW9uJyk7CiAgICBvcHRpb25zW2tleV0gPSB2YWx1ZTsKICB9CiAgcGluc0NvbnRyYWN0KG9wdGlvbnMpOwogIHJldHVybiBvcHRpb25zOwp9CgppZiAocHJvY2Vzcy5hcmd2WzFdICYmIHBhdGhUb0ZpbGVVUkwocmVzb2x2ZShwcm9jZXNzLmFyZ3ZbMV0pKS5ocmVmID09PSBpbXBvcnQubWV0YS51cmwpIHsKICB0cnkgewogICAgY29uc3Qgb3B0aW9ucyA9IHBhcnNlT25ib2FyZFNwYUFydGlmYWN0SW52b2NhdGlvbihwcm9jZXNzLmFyZ3Yuc2xpY2UoMikpOwogICAgY29uc29sZS5sb2coSlNPTi5zdHJpbmdpZnkocmVhZE9uYm9hcmRTcGFBcnRpZmFjdChvcHRpb25zLmRpcmVjdG9yeSwgb3B0aW9ucykpKTsKICB9IGNhdGNoIChlcnJvcikgewogICAgY29uc29sZS5lcnJvcihlcnJvci5tZXNzYWdlKTsKICAgIHByb2Nlc3MuZXhpdENvZGUgPSAxOwogIH0KfQoKZXhwb3J0IHsgcGluc0NvbnRyYWN0IGFzIGJlZm9yZVBpbnNDb250cmFjdCB9Owo=:173:26)
+        at Module.readOnboardSpaArtifact (data:text/javascript;base64,aW1wb3J0IHsgY3JlYXRlSGFzaCB9IGZyb20gJ25vZGU6Y3J5cHRvJzsKaW1wb3J0IHsgbHN0YXRTeW5jLCByZWFkZGlyU3luYywgcmVhZEZpbGVTeW5jIH0gZnJvbSAnbm9kZTpmcyc7CmltcG9ydCB7IGRpcm5hbWUsIGpvaW4sIHBvc2l4LCByZXNvbHZlIH0gZnJvbSAnbm9kZTpwYXRoJzsKaW1wb3J0IHsgcGF0aFRvRmlsZVVSTCB9IGZyb20gJ25vZGU6dXJsJzsKCi8qKiBTdGF0aWMgYnl0ZS9jbG9zdXJlIHF1YWxpZmljYXRpb24gb25seTsgdGhpcyBkb2VzIG5vdCBxdWFsaWZ5IE9uYm9hcmQgZmxvd3MuICovCmV4cG9ydCBjb25zdCBPTkJPQVJEX1BVQkxJQ19BU1NFVFMgPSBPYmplY3QuZnJlZXplKHsKICAnZmF2aWNvbi5zdmcnOiAnNmI4NTNlNDVkZmQ5YzBiNWRlNTQ4ZDJkMWZhNzc5MzMwYzA5ZjZjZGE4OWY1MmMxZDFiZjZiM2NhNDQ5MDRjNCcsCiAgJ2xlZ2FsLWRvY3MvQ2FwaXJvLVN1YnNjcmlwdGlvbi1BZ3JlZW1lbnQucGRmJzogJzJhZTE0MzcwOTRmOTMxMGM5ZTljZjQ5YzcxYWExNzI1ZTA2ODIzYzAyZmJhNmNiNTQ2ZDQwZTNjZWRkMzNmZjUnLAogICdsZWdhbC1kb2NzL0NhcGlyby1UZXJtcy1vZi1TZXJ2aWNlLnBkZic6ICc5NGUwMzAzMWQwMGVhZjc1OWM3ZTU1Nzk1YWE4OWVkZmE1NDI5YmY2NjdjM2NlOWY5NzVmOGYyYjY5YjZkNWQyJywKfSk7CmNvbnN0IGRpZ2VzdCA9IChieXRlcykgPT4gY3JlYXRlSGFzaCgnc2hhMjU2JykudXBkYXRlKGJ5dGVzKS5kaWdlc3QoJ2hleCcpOwpjb25zdCBmYWlsID0gKG1lc3NhZ2UpID0+IHsgdGhyb3cgbmV3IEVycm9yKGBPbmJvYXJkIFNQQSBhcnRpZmFjdCByZWZ1c2VkOiAke21lc3NhZ2V9YCk7IH07CmNvbnN0IG9iamVjdEtleXMgPSAodmFsdWUsIGtleXMpID0+IHZhbHVlICYmIHR5cGVvZiB2YWx1ZSA9PT0gJ29iamVjdCcgJiYgIUFycmF5LmlzQXJyYXkodmFsdWUpICYmCiAgT2JqZWN0LmtleXModmFsdWUpLnNvcnQoKS5qb2luKCcsJykgPT09IFsuLi5rZXlzXS5zb3J0KCkuam9pbignLCcpOwoKZnVuY3Rpb24gcGluc0NvbnRyYWN0KHBpbnMpIHsKICBpZiAoIXBpbnMgfHwgIS9eW2EtZjAtOV17NjR9JC8udGVzdChwaW5zLm1hbmlmZXN0U2hhMjU2ID8/ICcnKSB8fAogICAgICAhL15bYS1mMC05XXs0MH0kLy50ZXN0KHBpbnMuc291cmNlQ29tbWl0ID8/ICcnKSB8fAogICAgICAhL15bQS1aYS16MC05XVtBLVphLXowLTlfLi1dKlwvW0EtWmEtejAtOV1bQS1aYS16MC05Xy4tXSokLy50ZXN0KHBpbnMuc291cmNlUmVwb3NpdG9yeSA/PyAnJykpIHsKICAgIGZhaWwoJ2V4cGxpY2l0IG1hbmlmZXN0IFNIQTI1Niwgc291cmNlIHJlcG9zaXRvcnkgYW5kIHNvdXJjZSBjb21taXQgYXJlIHJlcXVpcmVkJyk7CiAgfQp9CgpmdW5jdGlvbiBzYWZlUGF0aCh2YWx1ZSkgewogIGlmICh0eXBlb2YgdmFsdWUgIT09ICdzdHJpbmcnIHx8ICEvXltBLVphLXowLTldW0EtWmEtejAtOS5fLy1dKiQvLnRlc3QodmFsdWUpIHx8CiAgICAgIHZhbHVlLnNwbGl0KCcvJykuc29tZSgocGFydCkgPT4gIXBhcnQgfHwgcGFydCA9PT0gJy4nIHx8IHBhcnQgPT09ICcuLicgfHwgcGFydC5zdGFydHNXaXRoKCcuJykpIHx8CiAgICAgICEvXC4oPzpodG1sfGpzfG1qc3xjc3N8cGRmfHN2Z3xpY298cG5nfGpwZT9nfGdpZnx3ZWJwfGF2aWZ8d29mZjI/fHR0ZnxvdGZ8ZW90fGpzb258d2FzbXxtcDR8d2VibXxtYXApJC9pLnRlc3QodmFsdWUpKSB7CiAgICBmYWlsKGB1bnNhZmUgc3RhdGljIGZpbGUgcGF0aDogJHt2YWx1ZX1gKTsKICB9CiAgcmV0dXJuIHZhbHVlOwp9CgpmdW5jdGlvbiBwYXJzZU1hbmlmZXN0KGJ5dGVzLCBwaW5zKSB7CiAgcGluc0NvbnRyYWN0KHBpbnMpOwogIGlmICghQnVmZmVyLmlzQnVmZmVyKGJ5dGVzKSB8fCBkaWdlc3QoYnl0ZXMpICE9PSBwaW5zLm1hbmlmZXN0U2hhMjU2KSBmYWlsKCdtYW5pZmVzdCBTSEEyNTYgbWlzbWF0Y2gnKTsKICBsZXQgbWFuaWZlc3Q7CiAgY29uc3QgdGV4dCA9IGJ5dGVzLnRvU3RyaW5nKCd1dGY4Jyk7CiAgdHJ5IHsgbWFuaWZlc3QgPSBKU09OLnBhcnNlKHRleHQpOyB9IGNhdGNoIHsgZmFpbCgnbWFsZm9ybWVkIG9yIHRydW5jYXRlZCBtYW5pZmVzdCcpOyB9CiAgLy8gSlNPTi5wYXJzZSBwZXJtaXRzIHJlcGVhdGVkIGtleXM7IHRoZSBkaWdlc3QtYm91bmQgY29udHJhY3QgcmVmdXNlcyBhbWJpZ3VpdHkuCiAgY29uc3Qgc3RhY2sgPSBbXTsKICBmb3IgKGxldCBpID0gMDsgaSA8IHRleHQubGVuZ3RoOyBpKyspIHsKICAgIGlmICh0ZXh0W2ldID09PSAneycgfHwgdGV4dFtpXSA9PT0gJ1snKSBzdGFjay5wdXNoKHRleHRbaV0gPT09ICd7JyA/IG5ldyBTZXQoKSA6IG51bGwpOwogICAgZWxzZSBpZiAodGV4dFtpXSA9PT0gJ30nIHx8IHRleHRbaV0gPT09ICddJykgc3RhY2sucG9wKCk7CiAgICBlbHNlIGlmICh0ZXh0W2ldID09PSAnIicpIHsKICAgICAgY29uc3Qgc3RhcnQgPSBpKys7CiAgICAgIGZvciAoOyBpIDwgdGV4dC5sZW5ndGggJiYgdGV4dFtpXSAhPT0gJyInOyBpKyspIGlmICh0ZXh0W2ldID09PSAnXFwnKSBpKys7CiAgICAgIGNvbnN0IGtleSA9IEpTT04ucGFyc2UodGV4dC5zbGljZShzdGFydCwgaSArIDEpKTsKICAgICAgaWYgKC9eXHMqOi8udGVzdCh0ZXh0LnNsaWNlKGkgKyAxKSkgJiYgc3RhY2suYXQoLTEpKSB7CiAgICAgICAgaWYgKHN0YWNrLmF0KC0xKS5oYXMoa2V5KSkgZmFpbCgnZHVwbGljYXRlIG1hbmlmZXN0IGtleScpOwogICAgICAgIHN0YWNrLmF0KC0xKS5hZGQoa2V5KTsKICAgICAgfQogICAgfQogIH0KICBpZiAoIW9iamVjdEtleXMobWFuaWZlc3QsIFsnc2NoZW1hVmVyc2lvbicsICdhcnRpZmFjdFR5cGUnLCAnc291cmNlJywgJ2ZpbGVzJ10pIHx8CiAgICAgIG1hbmlmZXN0LnNjaGVtYVZlcnNpb24gIT09IDEgfHwgbWFuaWZlc3QuYXJ0aWZhY3RUeXBlICE9PSAnY2FwaXJvLW9uYm9hcmQtc3RhdGljLXNwYScgfHwKICAgICAgIW9iamVjdEtleXMobWFuaWZlc3Quc291cmNlLCBbJ3JlcG9zaXRvcnknLCAnY29tbWl0J10pIHx8CiAgICAgIG1hbmlmZXN0LnNvdXJjZS5yZXBvc2l0b3J5ICE9PSBwaW5zLnNvdXJjZVJlcG9zaXRvcnkgfHwgbWFuaWZlc3Quc291cmNlLmNvbW1pdCAhPT0gcGlucy5zb3VyY2VDb21taXQgfHwKICAgICAgIUFycmF5LmlzQXJyYXkobWFuaWZlc3QuZmlsZXMpIHx8IG1hbmlmZXN0LmZpbGVzLmxlbmd0aCA9PT0gMCkgZmFpbCgnbWFuaWZlc3Qvc291cmNlIGlkZW50aXR5IGNvbnRyYWN0Jyk7CiAgY29uc3Qgc2VlbiA9IG5ldyBTZXQoKTsKICBmb3IgKGNvbnN0IGZpbGUgb2YgbWFuaWZlc3QuZmlsZXMpIHsKICAgIGlmICghb2JqZWN0S2V5cyhmaWxlLCBbJ3BhdGgnLCAnYnl0ZXMnLCAnc2hhMjU2J10pIHx8ICFOdW1iZXIuaXNTYWZlSW50ZWdlcihmaWxlLmJ5dGVzKSB8fCBmaWxlLmJ5dGVzIDw9IDAgfHwKICAgICAgICAhL15bYS1mMC05XXs2NH0kLy50ZXN0KGZpbGUuc2hhMjU2ID8/ICcnKSkgZmFpbCgnbWFsZm9ybWVkIGZpbGUgcHJvb2YnKTsKICAgIHNhZmVQYXRoKGZpbGUucGF0aCk7CiAgICBpZiAoc2Vlbi5oYXMoZmlsZS5wYXRoKSkgZmFpbChgZHVwbGljYXRlIGZpbGUgcHJvb2Y6ICR7ZmlsZS5wYXRofWApOwogICAgc2Vlbi5hZGQoZmlsZS5wYXRoKTsKICB9CiAgaWYgKCFzZWVuLmhhcygnaW5kZXguaHRtbCcpKSBmYWlsKCdpbmRleC5odG1sIGlzIHJlcXVpcmVkJyk7CiAgcmV0dXJuIG1hbmlmZXN0Owp9CgpmdW5jdGlvbiByZWZlcmVuY2VQYXRoKGZyb20sIHJlZmVyZW5jZSwga2luZCkgewogIGlmICghcmVmZXJlbmNlIHx8IC9bXHNcXFwwXS8udGVzdChyZWZlcmVuY2UpIHx8IC8lLy50ZXN0KHJlZmVyZW5jZSkpIGZhaWwoYHVuc2FmZSAke2tpbmR9IHJlZmVyZW5jZSBpbiAke2Zyb219YCk7CiAgaWYgKHJlZmVyZW5jZS5zdGFydHNXaXRoKCcjJykpIHJldHVybiBudWxsOwogIGlmICgvXmRhdGE6KD86aW1hZ2VcLyg/OnBuZ3xqcGVnfGdpZnx3ZWJwfGF2aWZ8c3ZnXCt4bWwpfGZvbnRcL1teOyxdKylbOyxdL2kudGVzdChyZWZlcmVuY2UpICYmIGtpbmQgIT09ICdtb2R1bGUnKSByZXR1cm4gbnVsbDsKICBpZiAoL15odHRwcz86XC9cLy9pLnRlc3QocmVmZXJlbmNlKSAmJiBraW5kICE9PSAnbW9kdWxlJykgcmV0dXJuIG51bGw7IC8vIHJlbW90ZSBiZWhhdmlvciByZW1haW5zIHVucXVhbGlmaWVkCiAgaWYgKC9eW0EtWmEtel1bQS1aYS16MC05Ky4tXSo6Ly50ZXN0KHJlZmVyZW5jZSkgfHwgcmVmZXJlbmNlLnN0YXJ0c1dpdGgoJy8vJykpIGZhaWwoYHVuc2FmZSAke2tpbmR9IHJlZmVyZW5jZSBpbiAke2Zyb219YCk7CiAgY29uc3QgcGF0aCA9IHJlZmVyZW5jZS5zcGxpdCgvWz8jXS8sIDEpWzBdOwogIGlmICghcGF0aCkgcmV0dXJuIG51bGw7CiAgaWYgKGtpbmQgPT09ICdtb2R1bGUnICYmICFwYXRoLnN0YXJ0c1dpdGgoJy8nKSAmJiAhcGF0aC5zdGFydHNXaXRoKCcuLycpICYmICFwYXRoLnN0YXJ0c1dpdGgoJy4uLycpKSB7CiAgICBmYWlsKGB1bmJ1bmRsZWQgbW9kdWxlIHJlZmVyZW5jZSBpbiAke2Zyb219OiAke3JlZmVyZW5jZX1gKTsKICB9CiAgY29uc3QgbG9jYWwgPSBwYXRoLnN0YXJ0c1dpdGgoJy8nKSA/IHBhdGguc2xpY2UoMSkgOiBwb3NpeC5qb2luKHBvc2l4LmRpcm5hbWUoZnJvbSksIHBhdGgpOwogIHJldHVybiBzYWZlUGF0aChsb2NhbCk7Cn0KCi8qKiBDb25zZXJ2YXRpdmUgc3RhdGljIGxpbmthZ2U6IG5vIGV2YWx1YXRpb24gb2YgSFRNTCwgSmF2YVNjcmlwdCBvciBDU1MuICovCmZ1bmN0aW9uIHJlc291cmNlUmVmZXJlbmNlcyhwYXRoLCB0ZXh0KSB7CiAgY29uc3QgcmVmcyA9IFtdOwogIGNvbnN0IGFkZCA9ICh2YWx1ZSwga2luZCA9ICdhc3NldCcpID0+IHJlZnMucHVzaChbdmFsdWUsIGtpbmRdKTsKICBpZiAoL1wuKD86aHRtbHxzdmcpJC8udGVzdChwYXRoKSkgewogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC88KHNjcmlwdHxsaW5rfGltZ3xzb3VyY2V8dmlkZW98YXVkaW98aWZyYW1lfGlucHV0fG9iamVjdHxlbWJlZHxpbWFnZXx1c2UpXGIoW14+XSopPi9naSkpIHsKICAgICAgY29uc3QgYXR0cnMgPSBuZXcgTWFwKCk7CiAgICAgIGZvciAoY29uc3QgYXR0ciBvZiBtYXRjaFsyXS5tYXRjaEFsbCgvXGIoc3JjfGhyZWZ8cG9zdGVyfGRhdGF8c3Jjc2V0fHR5cGV8cmVsKVxzKj1ccyooPzoiKFteIl0qKSJ8JyhbXiddKiknfChbXlxzPl0rKSkvZ2kpKSB7CiAgICAgICAgaWYgKGF0dHJzLmhhcyhhdHRyWzFdLnRvTG93ZXJDYXNlKCkpKSBmYWlsKGBkdXBsaWNhdGUgcmVzb3VyY2UgYXR0cmlidXRlIGluICR7cGF0aH1gKTsKICAgICAgICBhdHRycy5zZXQoYXR0clsxXS50b0xvd2VyQ2FzZSgpLCBhdHRyWzJdID8/IGF0dHJbM10gPz8gYXR0cls0XSk7CiAgICAgIH0KICAgICAgZm9yIChjb25zdCBhdHRyIG9mIFsnc3JjJywgJ2hyZWYnLCAncG9zdGVyJywgJ2RhdGEnXSkgewogICAgICAgIGlmIChhdHRycy5oYXMoYXR0cikpIGFkZChhdHRycy5nZXQoYXR0ciksIG1hdGNoWzFdLnRvTG93ZXJDYXNlKCkgPT09ICdzY3JpcHQnID8gJ21vZHVsZScgOiAnYXNzZXQnKTsKICAgICAgfQogICAgICBpZiAoYXR0cnMuaGFzKCdzcmNzZXQnKSkgewogICAgICAgIGZvciAoY29uc3QgZW50cnkgb2YgYXR0cnMuZ2V0KCdzcmNzZXQnKS5zcGxpdCgnLCcpKSBhZGQoZW50cnkudHJpbSgpLnNwbGl0KC9ccysvKVswXSk7CiAgICAgIH0KICAgIH0KICAgIGZvciAoY29uc3QgbWF0Y2ggb2YgdGV4dC5tYXRjaEFsbCgvPHNjcmlwdFxiW14+XSo+KFtcc1xTXSo/KTxcL3NjcmlwdFxzKj4vZ2kpKSByZWZzLnB1c2goLi4ucmVzb3VyY2VSZWZlcmVuY2VzKCdpbmxpbmUuanMnLCBtYXRjaFsxXSkpOwogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC88c3R5bGVcYltePl0qPihbXHNcU10qPyk8XC9zdHlsZVxzKj4vZ2kpKSByZWZzLnB1c2goLi4ucmVzb3VyY2VSZWZlcmVuY2VzKHBhdGggKyAnLmNzcycsIG1hdGNoWzFdKSk7CiAgICByZWZzLnB1c2goLi4ucmVzb3VyY2VSZWZlcmVuY2VzKHBhdGggKyAnLmNzcycsIHRleHQpKTsgLy8gaW5jbHVkZXMgaW5saW5lIHN0eWxlIGF0dHJpYnV0ZXMKICAgIC8vIFB1YmxpYyBkb3dubG9hZCBsaW5rcyBhcmUgcmVzb3VyY2VzOyBhcHBsaWNhdGlvbiBuYXZpZ2F0aW9uIGlzIGEgYnJvd3Nlci1mbG93IG9ibGlnYXRpb24uCiAgICBmb3IgKGNvbnN0IG1hdGNoIG9mIHRleHQubWF0Y2hBbGwoL1xiaHJlZlxzKj1ccypbIiddKFteIiddK1wuKD86cGRmfHN2Z3xpY28pKD86Wz8jXVteIiddKik/KVsiJ10vZ2kpKSBhZGQobWF0Y2hbMV0pOwogIH0KICBpZiAocGF0aC5lbmRzV2l0aCgnLmNzcycpKSB7CiAgICBmb3IgKGNvbnN0IG1hdGNoIG9mIHRleHQubWF0Y2hBbGwoL3VybFwoXHMqKD86IihbXiJdKykifCcoW14nXSspJ3woW15ccyldKykpXHMqXCkvZ2kpKSBhZGQobWF0Y2hbMV0gPz8gbWF0Y2hbMl0gPz8gbWF0Y2hbM10pOwogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC9AaW1wb3J0XHMrWyInXShbXiInXSspWyInXS9naSkpIGFkZChtYXRjaFsxXSk7CiAgfQogIGlmICgvXC4oPzptP2pzKSQvLnRlc3QocGF0aCkpIHsKICAgIGZvciAoY29uc3QgbWF0Y2ggb2YgdGV4dC5tYXRjaEFsbCgvXGIoPzppbXBvcnR8ZXhwb3J0KVxzKig/OlteOyciKCldKj9cYmZyb21ccyopP1siJ10oW14iJ10rKVsiJ10vZykpIGFkZChtYXRjaFsxXSwgJ21vZHVsZScpOwogICAgZm9yIChjb25zdCBtYXRjaCBvZiB0ZXh0Lm1hdGNoQWxsKC9cYmltcG9ydFxzKlwoKFteKV0qKVwpL2cpKSB7CiAgICAgIGNvbnN0IHZhbHVlID0gL15ccyooWyInXSkoW14iJ10rKVwxXHMqJC8uZXhlYyhtYXRjaFsxXSk7CiAgICAgIGlmICghdmFsdWUpIGZhaWwoYG5vbnN0YXRpYyBtb2R1bGUgcmVmZXJlbmNlIGluICR7cGF0aH1gKTsKICAgICAgYWRkKHZhbHVlWzJdLCAnbW9kdWxlJyk7CiAgICB9CiAgICBmb3IgKGNvbnN0IG1hdGNoIG9mIHRleHQubWF0Y2hBbGwoL1xibmV3XHMrVVJMXHMqXCgoW14pXSopLFxzKmltcG9ydFwubWV0YVwudXJsXHMqXCkvZykpIHsKICAgICAgY29uc3QgdmFsdWUgPSAvXlxzKihbIiddKShbXiInXSspXDFccyokLy5leGVjKG1hdGNoWzFdKTsKICAgICAgaWYgKCF2YWx1ZSkgZmFpbChgbm9uc3RhdGljIGFzc2V0IHJlZmVyZW5jZSBpbiAke3BhdGh9YCk7CiAgICAgIGFkZCh2YWx1ZVsyXSk7CiAgICB9CiAgICAvLyBDb3ZlcnMgZW1pdHRlZCBWaXRlIGRlcGVuZGVuY3kvYXNzZXQgdGFibGVzIGFzIHdlbGwgYXMgZGlyZWN0IHB1YmxpYyBhc3NldCBwYXRocy4KICAgIGZvciAoY29uc3QgbWF0Y2ggb2YgdGV4dC5tYXRjaEFsbCgvWyInXSgoPzpcLj9cLj9cL3xhc3NldHNcLylbXiInXFxcc10rXC4oPzpqc3xtanN8Y3NzfHBkZnxzdmd8aWNvfHBuZ3xqcGU/Z3xnaWZ8d2VicHxhdmlmfHdvZmYyP3x0dGZ8b3RmfGVvdHxqc29ufHdhc218bXA0fHdlYm0pKD86Wz8jXVteIidcXFxzXSopPylbIiddL2dpKSkgewogICAgICBhZGQobWF0Y2hbMV0uc3RhcnRzV2l0aCgnYXNzZXRzLycpID8gJy8nICsgbWF0Y2hbMV0gOiBtYXRjaFsxXSk7CiAgICB9CiAgfQogIHJldHVybiByZWZzOwp9CgpleHBvcnQgZnVuY3Rpb24gdmFsaWRhdGVPbmJvYXJkU3BhQXJ0aWZhY3QoeyBtYW5pZmVzdEJ5dGVzLCBmaWxlcyB9LCBwaW5zKSB7CiAgY29uc3QgbWFuaWZlc3QgPSBwYXJzZU1hbmlmZXN0KG1hbmlmZXN0Qnl0ZXMsIHBpbnMpOwogIGlmICghKGZpbGVzIGluc3RhbmNlb2YgTWFwKSB8fCBmaWxlcy5zaXplICE9PSBtYW5pZmVzdC5maWxlcy5sZW5ndGgpIGZhaWwoJ2ZpbGUgaW52ZW50b3J5IG1pc21hdGNoJyk7CiAgY29uc3QgZXhwZWN0ZWQgPSBuZXcgU2V0KG1hbmlmZXN0LmZpbGVzLm1hcCgoZmlsZSkgPT4gZmlsZS5wYXRoKSk7CiAgZm9yIChjb25zdCBwYXRoIG9mIGZpbGVzLmtleXMoKSkgaWYgKCFleHBlY3RlZC5oYXMoc2FmZVBhdGgocGF0aCkpKSBmYWlsKGB1bmxpc3RlZCBmaWxlOiAke3BhdGh9YCk7CiAgZm9yIChjb25zdCBmaWxlIG9mIG1hbmlmZXN0LmZpbGVzKSB7CiAgICBjb25zdCBieXRlcyA9IGZpbGVzLmdldChmaWxlLnBhdGgpOwogICAgaWYgKCFCdWZmZXIuaXNCdWZmZXIoYnl0ZXMpIHx8IGJ5dGVzLmxlbmd0aCAhPT0gZmlsZS5ieXRlcyB8fCBkaWdlc3QoYnl0ZXMpICE9PSBmaWxlLnNoYTI1NikgZmFpbChgZmlsZSBwcm9vZiBtaXNtYXRjaDogJHtmaWxlLnBhdGh9YCk7CiAgfQogIGZvciAoY29uc3QgW3BhdGgsIHNoYTI1Nl0gb2YgT2JqZWN0LmVudHJpZXMoT05CT0FSRF9QVUJMSUNfQVNTRVRTKSkgewogICAgaWYgKCFmaWxlcy5oYXMocGF0aCkgfHwgZGlnZXN0KGZpbGVzLmdldChwYXRoKSkgIT09IHNoYTI1NikgZmFpbChgb3JpZ2luYWwgcHVibGljIGFzc2V0IG1pc3Npbmcgb3IgY2hhbmdlZDogLyR7cGF0aH1gKTsKICB9CiAgY29uc3QgaW5kZXggPSBmaWxlcy5nZXQoJ2luZGV4Lmh0bWwnKS50b1N0cmluZygndXRmOCcpOwogIGlmICghLzwhZG9jdHlwZVxzK2h0bWxccyo+L2kudGVzdChpbmRleCkgfHwgIS88aHRtbFxiL2kudGVzdChpbmRleCkgfHwgIS88XC9odG1sXHMqPi9pLnRlc3QoaW5kZXgpIHx8CiAgICAgICEvPGJvZHlcYi9pLnRlc3QoaW5kZXgpIHx8ICEvPFwvYm9keVxzKj4vaS50ZXN0KGluZGV4KSB8fCAhLzxzY3JpcHRcYltePl0qXGJzcmNccyo9L2kudGVzdChpbmRleCkpIGZhaWwoJ3N0YXRpYyBhcHBsaWNhdGlvbiBzaGVsbCBpcyBpbmNvbXBsZXRlJyk7CiAgZm9yIChjb25zdCBbcGF0aCwgYnl0ZXNdIG9mIGZpbGVzKSB7CiAgICBpZiAoIS9cLig/Omh0bWx8bT9qc3xjc3N8c3ZnKSQvLnRlc3QocGF0aCkpIGNvbnRpbnVlOwogICAgZm9yIChjb25zdCBbcmVmZXJlbmNlLCBraW5kXSBvZiByZXNvdXJjZVJlZmVyZW5jZXMocGF0aCwgYnl0ZXMudG9TdHJpbmcoJ3V0ZjgnKSkpIHsKICAgICAgY29uc3QgdGFyZ2V0ID0gcmVmZXJlbmNlUGF0aChwYXRoLCByZWZlcmVuY2UsIGtpbmQpOwogICAgICBpZiAodGFyZ2V0ICYmICFmaWxlcy5oYXModGFyZ2V0KSkgZmFpbChgbWlzc2luZyAke2tpbmR9IGNsb3N1cmU6ICR7cGF0aH0gLT4gJHtyZWZlcmVuY2V9YCk7CiAgICB9CiAgfQogIHJldHVybiB7IHJlY2VpcHQ6ICdPTkJPQVJEX1NUQVRJQ19TUEFfQVJUSUZBQ1RfVkFMSURBVEVEJywgbWFuaWZlc3RTaGEyNTY6IHBpbnMubWFuaWZlc3RTaGEyNTYsCiAgICBzb3VyY2U6IG1hbmlmZXN0LnNvdXJjZSwgZmlsZXM6IGZpbGVzLnNpemUsIHF1YWxpZmljYXRpb246ICdzdGF0aWMtYnl0ZS1jb250cmFjdC1vbmx5JyB9Owp9CgovKiogQWxsIGZpbGVzeXN0ZW0gZWZmZWN0cyBhcmUgcG9ydHM7IGV2ZXJ5IGFuY2VzdG9yIGlzIGNoZWNrZWQgYmVmb3JlIHJlYWRzLiAqLwpleHBvcnQgZnVuY3Rpb24gcmVhZE9uYm9hcmRTcGFBcnRpZmFjdChkaXJlY3RvcnksIHBpbnMsIHBvcnRzID0geyBsc3RhdFN5bmMsIHJlYWRkaXJTeW5jLCByZWFkRmlsZVN5bmMgfSkgewogIHBpbnNDb250cmFjdChwaW5zKTsKICBpZiAodHlwZW9mIGRpcmVjdG9yeSAhPT0gJ3N0cmluZycgfHwgIWRpcmVjdG9yeSB8fCBkaXJlY3RvcnkuaW5jbHVkZXMoJ1wwJykpIGZhaWwoJ2FydGlmYWN0IGRpcmVjdG9yeSBpcyByZXF1aXJlZCcpOwogIGNvbnN0IHJvb3QgPSByZXNvbHZlKGRpcmVjdG9yeSk7CiAgY29uc3QgY2hlY2sgPSAocGF0aCwgdHlwZSkgPT4gewogICAgY29uc3QgYW5jZXN0b3JzID0gW107CiAgICBmb3IgKGxldCBjdXJyZW50ID0gcGF0aDsgOyBjdXJyZW50ID0gZGlybmFtZShjdXJyZW50KSkgewogICAgICBhbmNlc3RvcnMudW5zaGlmdChjdXJyZW50KTsKICAgICAgaWYgKGRpcm5hbWUoY3VycmVudCkgPT09IGN1cnJlbnQpIGJyZWFrOwogICAgfQogICAgZm9yIChjb25zdCBjdXJyZW50IG9mIGFuY2VzdG9ycykgewogICAgICBjb25zdCBzdGF0ID0gcG9ydHMubHN0YXRTeW5jKGN1cnJlbnQpOwogICAgICBpZiAoc3RhdC5pc1N5bWJvbGljTGluaygpIHx8ICEoY3VycmVudCA9PT0gcGF0aCAmJiB0eXBlID09PSAnZmlsZScgPyBzdGF0LmlzRmlsZSgpIDogc3RhdC5pc0RpcmVjdG9yeSgpKSkgZmFpbChgdW5zYWZlIGZpbGVzeXN0ZW0gZW50cnk6ICR7Y3VycmVudH1gKTsKICAgIH0KICB9OwogIGNoZWNrKHJvb3QsICdkaXJlY3RvcnknKTsKICBpZiAocG9ydHMucmVhZGRpclN5bmMocm9vdCkuc29ydCgpLmpvaW4oJywnKSAhPT0gJ21hbmlmZXN0Lmpzb24sc2l0ZScpIGZhaWwoJ2FydGlmYWN0IHJvb3QgbXVzdCBjb250YWluIG9ubHkgbWFuaWZlc3QuanNvbiBhbmQgc2l0ZScpOwogIGNvbnN0IG1hbmlmZXN0UGF0aCA9IGpvaW4ocm9vdCwgJ21hbmlmZXN0Lmpzb24nKTsgY2hlY2sobWFuaWZlc3RQYXRoLCAnZmlsZScpOwogIGNvbnN0IG1hbmlmZXN0Qnl0ZXMgPSBwb3J0cy5yZWFkRmlsZVN5bmMobWFuaWZlc3RQYXRoKTsKICBjb25zdCBtYW5pZmVzdCA9IHBhcnNlTWFuaWZlc3QobWFuaWZlc3RCeXRlcywgcGlucyk7CiAgY29uc3QgZXhwZWN0ZWQgPSBuZXcgU2V0KG1hbmlmZXN0LmZpbGVzLm1hcCgoZmlsZSkgPT4gZmlsZS5wYXRoKSk7CiAgY29uc3QgZGlycyA9IG5ldyBTZXQoKTsKICBmb3IgKGNvbnN0IGZpbGUgb2YgZXhwZWN0ZWQpIHsKICAgIGZvciAobGV0IHBhdGggPSBwb3NpeC5kaXJuYW1lKGZpbGUpOyBwYXRoICE9PSAnLic7IHBhdGggPSBwb3NpeC5kaXJuYW1lKHBhdGgpKSBkaXJzLmFkZChwYXRoKTsKICB9CiAgY29uc3QgZmlsZXMgPSBuZXcgTWFwKCk7CiAgY29uc3Qgd2FsayA9IChwYXRoLCByZWxhdGl2ZSA9ICcnKSA9PiB7CiAgICBjaGVjayhwYXRoLCAnZGlyZWN0b3J5Jyk7CiAgICBmb3IgKGNvbnN0IG5hbWUgb2YgcG9ydHMucmVhZGRpclN5bmMocGF0aCkpIHsKICAgICAgaWYgKHR5cGVvZiBuYW1lICE9PSAnc3RyaW5nJyB8fCAhL15bQS1aYS16MC05XVtBLVphLXowLTkuXy1dKiQvLnRlc3QobmFtZSkpIGZhaWwoJ3Vuc2FmZSBmaWxlc3lzdGVtIG5hbWUnKTsKICAgICAgY29uc3QgZmlsZSA9IHJlbGF0aXZlID8gYCR7cmVsYXRpdmV9LyR7bmFtZX1gIDogbmFtZTsKICAgICAgY29uc3QgYWJzb2x1dGUgPSBqb2luKHBhdGgsIG5hbWUpOwogICAgICBjb25zdCBzdGF0ID0gcG9ydHMubHN0YXRTeW5jKGFic29sdXRlKTsKICAgICAgaWYgKHN0YXQuaXNTeW1ib2xpY0xpbmsoKSkgZmFpbChgc3ltYm9saWMgYXJ0aWZhY3QgZW50cnk6ICR7ZmlsZX1gKTsKICAgICAgaWYgKHN0YXQuaXNEaXJlY3RvcnkoKSkgewogICAgICAgIGlmICghZGlycy5oYXMoZmlsZSkpIGZhaWwoYHVubGlzdGVkIGRpcmVjdG9yeTogJHtmaWxlfWApOwogICAgICAgIHdhbGsoYWJzb2x1dGUsIGZpbGUpOwogICAgICB9IGVsc2UgewogICAgICAgIGlmICghZXhwZWN0ZWQuaGFzKGZpbGUpKSBmYWlsKGB1bmxpc3RlZCBmaWxlOiAke2ZpbGV9YCk7CiAgICAgICAgY2hlY2soYWJzb2x1dGUsICdmaWxlJyk7CiAgICAgICAgZmlsZXMuc2V0KGZpbGUsIHBvcnRzLnJlYWRGaWxlU3luYyhhYnNvbHV0ZSkpOwogICAgICB9CiAgICB9CiAgfTsKICB3YWxrKGpvaW4ocm9vdCwgJ3NpdGUnKSk7CiAgcmV0dXJuIHZhbGlkYXRlT25ib2FyZFNwYUFydGlmYWN0KHsgbWFuaWZlc3RCeXRlcywgZmlsZXMgfSwgcGlucyk7Cn0KCmV4cG9ydCBmdW5jdGlvbiBwYXJzZU9uYm9hcmRTcGFBcnRpZmFjdEludm9jYXRpb24oYXJncykgewogIGNvbnN0IG5hbWVzID0gbmV3IE1hcChbWyctLWFydGlmYWN0LWRpcicsICdkaXJlY3RvcnknXSwgWyctLW1hbmlmZXN0LXNoYTI1NicsICdtYW5pZmVzdFNoYTI1NiddLAogICAgWyctLXNvdXJjZS1yZXBvc2l0b3J5JywgJ3NvdXJjZVJlcG9zaXRvcnknXSwgWyctLXNvdXJjZS1jb21taXQnLCAnc291cmNlQ29tbWl0J11dKTsKICBjb25zdCBvcHRpb25zID0ge307CiAgaWYgKCFBcnJheS5pc0FycmF5KGFyZ3MpIHx8IGFyZ3MubGVuZ3RoICE9PSA4KSBmYWlsKCdwcm92aWRlIGFsbCBmb3VyIG5hbWVkIGFyZ3VtZW50cyBleGFjdGx5IG9uY2UnKTsKICBmb3IgKGxldCBpID0gMDsgaSA8IGFyZ3MubGVuZ3RoOyBpICs9IDIpIHsKICAgIGNvbnN0IGtleSA9IG5hbWVzLmdldChhcmdzW2ldKTsgY29uc3QgdmFsdWUgPSBhcmdzW2kgKyAxXTsKICAgIGlmICgha2V5IHx8IG9wdGlvbnNba2V5XSAhPT0gdW5kZWZpbmVkIHx8IHR5cGVvZiB2YWx1ZSAhPT0gJ3N0cmluZycgfHwgIXZhbHVlIHx8IHZhbHVlLnRyaW0oKSAhPT0gdmFsdWUgfHwgL1tcMFxyXG5dLy50ZXN0KHZhbHVlKSkgZmFpbCgnbWFsZm9ybWVkIG9yIGR1cGxpY2F0ZSBpbnZvY2F0aW9uJyk7CiAgICBvcHRpb25zW2tleV0gPSB2YWx1ZTsKICB9CiAgcGluc0NvbnRyYWN0KG9wdGlvbnMpOwogIHJldHVybiBvcHRpb25zOwp9CgppZiAocHJvY2Vzcy5hcmd2WzFdICYmIHBhdGhUb0ZpbGVVUkwocmVzb2x2ZShwcm9jZXNzLmFyZ3ZbMV0pKS5ocmVmID09PSBpbXBvcnQubWV0YS51cmwpIHsKICB0cnkgewogICAgY29uc3Qgb3B0aW9ucyA9IHBhcnNlT25ib2FyZFNwYUFydGlmYWN0SW52b2NhdGlvbihwcm9jZXNzLmFyZ3Yuc2xpY2UoMikpOwogICAgY29uc29sZS5sb2coSlNPTi5zdHJpbmdpZnkocmVhZE9uYm9hcmRTcGFBcnRpZmFjdChvcHRpb25zLmRpcmVjdG9yeSwgb3B0aW9ucykpKTsKICB9IGNhdGNoIChlcnJvcikgewogICAgY29uc29sZS5lcnJvcihlcnJvci5tZXNzYWdlKTsKICAgIHByb2Nlc3MuZXhpdENvZGUgPSAxOwogIH0KfQoKZXhwb3J0IHsgcGluc0NvbnRyYWN0IGFzIGJlZm9yZVBpbnNDb250cmFjdCB9Owo=:177:3)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:386:34
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/scripts/ci/onboard-spa-artifact.contract.spec.mjs:386:14)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /manifest SHA256 mismatch|manifest\/source identity contract/,
+    operator: 'throws',
+    diff: 'simple'
+  }

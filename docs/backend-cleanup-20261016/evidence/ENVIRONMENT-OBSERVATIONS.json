@@ -1,0 +1,9 @@
+{
+  "initialMemoryProbeFailures": [
+    { "action": "Get-Counter Memory capacity", "result": "Memory performance object not found", "dependentCheckStarted": false },
+    { "action": "Sandboxed Win32_OperatingSystem CIM read", "result": "CIM resource unavailable", "dependentCheckStarted": false, "nullFieldsWereNotCapacityEvidence": true }
+  ],
+  "resolution": "Read-only escalated CIM memory query approved and succeeded before focused controls; fresh receipt retained separately.",
+  "testPeakSamplingLimit": "The six-case process exited before the first100ms sample; observed peak0 in its raw receipt means unmeasured.",
+  "initialCommitAttempt": "Git add refused new docs outside sparse definition; no commit executed. Added the new docs path to this clone's sparse definition, then committed normally."
+}

@@ -1,0 +1,21 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/engagement-phase3-ui-inventory.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:47:58.4255321Z",
+  "endedAt": "2026-10-16T02:47:58.6536651Z",
+  "ownedPID": 3784,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 52133888,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "7c7bcd872023e5485728fc1df95296454a95ca7db50d71796bbcd057ef890932",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

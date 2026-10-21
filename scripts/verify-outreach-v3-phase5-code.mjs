@@ -3,13 +3,17 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { outreachCodeScope } from './lib/outreach-code-scope.mjs';
 
-const usage = 'Usage: node scripts/verify-outreach-v3-phase5-code.mjs (--run | --help)';
+const usage = 'Usage: node scripts/verify-outreach-v3-phase5-code.mjs (--run [--backend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(usage);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let scope;
+try {
+  scope = outreachCodeScope(process.argv.slice(2));
+} catch {
   console.error(usage);
   process.exit(2);
 }
@@ -196,4 +200,4 @@ run('Diff whitespace', 'git', ['diff', '--check', `${phase4Base}...${phase5Scope
 
 run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
-process.stdout.write('\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\n');
+process.stdout.write(scope === 'backend-only' ? '\nOUTREACH_V3_PHASE5_BACKEND_DB_FREE_COMPLETE\n' : '\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\n');

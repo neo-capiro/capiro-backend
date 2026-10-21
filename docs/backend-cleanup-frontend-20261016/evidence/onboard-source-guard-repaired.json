@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "--test-name-pattern=^case/control regression preserves all former cases",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:56:31.1298369Z",
+  "endedAt": "2026-10-16T02:56:31.4342473Z",
+  "ownedPID": 30348,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 44732416,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "53a710957789e320d3d89fdfba0a7faf823639db8180483b6f1c19114fb5d5f6",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

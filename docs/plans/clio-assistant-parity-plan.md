@@ -1,3 +1,6 @@
+> **Scope status — backend cleanup successor.** Historical frontend execution status. Read [the existing progress audit](clio-assistant-parity-progress.md) for recorded implementation and qualification distinctions. The original Proposed status and design below are preserved. Current frontend parity belongs to `capiro-frontend`; retained Meri/Fable backend and sandbox implementations remain active dependencies.
+> Source retirement: [PR30](https://github.com/neo-capiro/capiro-backend/pull/30), exact `7b6bda7ca75ea86afb36c76f013f550fdd79e42f`.
+
 # Clio Assistant-Parity Implementation Plan
 
 Six features that close the experience gap between Clio and ChatGPT/Claude, grounded in the current codebase. Each feature has current state (with file references), design, implementation steps, measurable success criteria, risks, and effort.

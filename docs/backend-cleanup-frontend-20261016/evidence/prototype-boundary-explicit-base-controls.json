@@ -1,0 +1,21 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/verify-engagement-phase3-prototype-boundary.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:50:58.1600704Z",
+  "endedAt": "2026-10-16T02:50:58.3431577Z",
+  "ownedPID": 9468,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 44539904,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "882b521ca74092a7a9f4e6b68b5d28bdd3c04e895e11d19545a9307a63967378",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

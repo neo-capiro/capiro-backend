@@ -1,0 +1,37 @@
+[
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration rewrites an intel item body from the fetched packet, forwarding clientId/authHeader/alertId",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+    "title": "rewrites an intel item body from the fetched packet, forwarding clientId/authHeader/alertId"
+  },
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration an unverifiable alert gets an honest gap body — never the literal \"undefined\"",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+    "title": "an unverifiable alert gets an honest gap body — never the literal \"undefined\""
+  },
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration a null clientId never calls the packet client and gets an honest gap",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+    "title": "a null clientId never calls the packet client and gets an honest gap"
+  },
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration other kinds are unaffected",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-05 (Gate L) intel rehydration",
+    "title": "other kinds are unaffected"
+  },
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay OUTREACH_CLIENT_PROFILE off: the packet is rendered as-is, still honestly missing the relationship fields",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+    "title": "OUTREACH_CLIENT_PROFILE off: the packet is rendered as-is, still honestly missing the relationship fields"
+  },
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay OUTREACH_CLIENT_PROFILE on: fills people/target-offices/recent-meetings and drops exactly those three from Unknowns",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+    "title": "OUTREACH_CLIENT_PROFILE on: fills people/target-offices/recent-meetings and drops exactly those three from Unknowns"
+  },
+  {
+    "id": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay never fetches client-relationship data when no item is intel-kind",
+    "suite": "EngagementService.enrichOutreachContextItems — HP-04 (Gate L phase b) client-relationship overlay",
+    "title": "never fetches client-relationship data when no item is intel-kind"
+  }
+]

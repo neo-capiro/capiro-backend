@@ -1,0 +1,174 @@
+{
+  "sourceHead": "f69d4a1bdfe354d95daaffa273bd274d1bf89011",
+  "sourceBase": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "premapCommit": "17b41b79b0bb8e023520cb4137e7a2fdcbb18959",
+  "representation": "Raw saved packet bytes; canonical source hashes are separately declared in SOURCE-PROOF.json",
+  "hashes": [
+    {
+      "path": ".gitattributes",
+      "sha256": "e5eab9b525e87a505ae2101b883effc3276e7fc0fb33d42f854d8faf9eb3b079",
+      "bytes": 19
+    },
+    {
+      "path": "CODE-COUNTS.json",
+      "sha256": "928789fea5f6f83123850961c1ffc98be6e1fb16d2553e8ad269d2bb5f69a522",
+      "bytes": 5994
+    },
+    {
+      "path": "count-source-delta.cjs",
+      "sha256": "11898753e29b700177f4168935ad6d03fd8e476ae6bd9f06f0bb2391519c5955",
+      "bytes": 5503
+    },
+    {
+      "path": "COUNTS.md",
+      "sha256": "f2aab840bf58379ffc80df42918b85d932ab2a3684d4e86f96c6f0e3064d4c37",
+      "bytes": 1380
+    },
+    {
+      "path": "evidence/next-cleanup-memory-before.json",
+      "sha256": "738dcefd32cf6ce3a3d8ea22282c969c16221553d6507033fa9d4855f1124c4b",
+      "bytes": 208
+    },
+    {
+      "path": "evidence/next-engagement-candidate-reference-pass.json",
+      "sha256": "f78d335ce0057bc6d1ada02e818817a5b8db7a25a88aacddf3114e7e0ce98b03",
+      "bytes": 5737
+    },
+    {
+      "path": "evidence/next-engagement-candidate-regions.json",
+      "sha256": "98cf4843d35ea849b7b57fa5aa716e58264eb61a29de5ba914eb9e96baa73b8b",
+      "bytes": 2165
+    },
+    {
+      "path": "evidence/next-engagement-legacy-case-ids.json",
+      "sha256": "825ca1b261ea0b1302bc2ce969521ccd86a4770d87c942d484f9910015dc5eee",
+      "bytes": 2783
+    },
+    {
+      "path": "evidence/next-engagement-pe-reference-pass.json",
+      "sha256": "7f1bb772ab4a8a5debaef3e2d9a1a65e64fe35deed3fca530dbf79ecbae84bb2",
+      "bytes": 1333
+    },
+    {
+      "path": "evidence/outreach-case-id-byte-review.json",
+      "sha256": "297c432041d7d921f3d77fcbd858ea5df70800759cdfd4ce481502aa6a163d9c",
+      "bytes": 2554
+    },
+    {
+      "path": "evidence/outreach-count-stage1.json",
+      "sha256": "e8cc0b7d903c8fef6f0f769ad7360ef40422c74cf22e57e54cbe16403979b493",
+      "bytes": 840
+    },
+    {
+      "path": "evidence/outreach-count-stage1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/outreach-count-stage1.stdout",
+      "sha256": "78c12bd3a7838911fdbfce6f4f6ffa746af7064f063e400be7b52b3c846d63e1",
+      "bytes": 1141
+    },
+    {
+      "path": "evidence/outreach-current-controls.json",
+      "sha256": "a6873af2af68c8947d4c7a3d62162b4b9e1f91b93c8141c20688aea8b0a73b0f",
+      "bytes": 7243
+    },
+    {
+      "path": "evidence/outreach-focused-inputs.json",
+      "sha256": "541252a955fe8470242a5187f553f1319b3210132b49f1eec6923de21bdd4f0b",
+      "bytes": 1884
+    },
+    {
+      "path": "evidence/outreach-focused-stage1.json",
+      "sha256": "58d202f33260586cd728f72fe0f5ed78024c559aa0c3e1b5789f02f8bd92b941",
+      "bytes": 990
+    },
+    {
+      "path": "evidence/outreach-focused-stage1.stderr",
+      "sha256": "2bf21ba3bbcae462777565f988695ba11aae23644e71b3b55b5aac5810fbca62",
+      "bytes": 183
+    },
+    {
+      "path": "evidence/outreach-focused-stage1.stdout",
+      "sha256": "c16e253b722c178ac15ebf34d69ebc2cac025ff6549c1e925debcb5d171cddb7",
+      "bytes": 5985
+    },
+    {
+      "path": "evidence/outreach-historical-ownership.json",
+      "sha256": "5c5900bc12498f1cfc01e2b27ff027c47d3bedd7885c52a6be61d0c000464ec3",
+      "bytes": 3781
+    },
+    {
+      "path": "evidence/outreach-independent-review.json",
+      "sha256": "2fda7875652c0e785b9bbce0f475809b4e5ad8f12049c8a2223abdfce5314a63",
+      "bytes": 5163
+    },
+    {
+      "path": "evidence/outreach-meri-prefix-byte-review.json",
+      "sha256": "4de9ad98ff0d09cdfff258a2bfe31d2eb8c635a8dc79719268cc77fe50b755b9",
+      "bytes": 312
+    },
+    {
+      "path": "evidence/outreach-proof-review.json",
+      "sha256": "68b004a31ab2836e1f62c3109ab1c316b024de0fb4f266af47beb76a85ba8b3a",
+      "bytes": 4893
+    },
+    {
+      "path": "evidence/outreach-removal.json",
+      "sha256": "51259f3800a523d18089b175a7ff809dce9d5e30e168df601d90aace6f2a29cf",
+      "bytes": 7010
+    },
+    {
+      "path": "evidence/outreach-review-closure.json",
+      "sha256": "01b62852eda661672a172f2a86694c32c9c8c05eab1f0ea426a04357e3e0fdee",
+      "bytes": 765
+    },
+    {
+      "path": "evidence/outreach-service-review.json",
+      "sha256": "147f509d4a1d4bff7d27f23f73cfc75ba6e4c6f4b2dff7673c8ffdf33b1021d2",
+      "bytes": 7553
+    },
+    {
+      "path": "evidence/outreach-source-proof-stage1.json",
+      "sha256": "a5ae85e62442e04f1728a16937dac19e327426f25ce932f5a739552271624f37",
+      "bytes": 846
+    },
+    {
+      "path": "evidence/outreach-source-proof-stage1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/outreach-source-proof-stage1.stdout",
+      "sha256": "89fb615ee6c0238501f1ce93cf1b09f784ffabc9a1df89d52dfbe893cd3dcf8a",
+      "bytes": 227
+    },
+    {
+      "path": "HANDOFF.md",
+      "sha256": "39bb03a7a749517ab151a684bae8cfedc330c9c60d64344a775f81fecb9b44fb",
+      "bytes": 2762
+    },
+    {
+      "path": "SOURCE-MAP.md",
+      "sha256": "51d4027abcdcc56cce81c6f22a2eeb23ac1352c5afa1aed403eb73e9ae6dfaa3",
+      "bytes": 3631
+    },
+    {
+      "path": "SOURCE-PROOF.json",
+      "sha256": "43a516f219c4ffe76ce9ba3bc5888e4038bfab5dd9a1a8471e9ecfe28e575faf",
+      "bytes": 12977
+    },
+    {
+      "path": "VALIDATION.md",
+      "sha256": "69c9db1d761f1602cc513598fb7ab46ef7dcdf12805984ffbd6a2ed8ed01d0db",
+      "bytes": 3054
+    },
+    {
+      "path": "verify-source-transition.cjs",
+      "sha256": "beceb2ba662e2597fc8e6ad9e4d711d3f388053766aa968cc6d8de1796fac180",
+      "bytes": 8575
+    }
+  ],
+  "limits": "Packet integrity and finite source proof, not native or release acceptance"
+}

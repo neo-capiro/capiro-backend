@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "path": "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+  "beforeSha256": "ed198c48767cbdd119337b9d2d21cf6dbfc8bc6f2d0d1e9c2e7454afbfa72f9b",
+  "afterSha256": "adf5eeb6f9fc9ede14867bf9ca7a741d8eb12409e56c064182c37709632d7b3d",
+  "beforeBytes": 9499,
+  "afterBytes": 3069,
+  "retainedPrefixOriginalLines": "1-11",
+  "retainedArchiveOriginalLines": "63-100",
+  "retainedArchiveNewLines": "12-49",
+  "retainedArchiveSha256": "07ae19acb94399f7c2bf847429a0f604e0c08010e1d2b99e769eda5c3e371bd4",
+  "retainedArchiveEveryByteEqual": true,
+  "currentArchiveExpandedCases": 3,
+  "historicalRawExpandedCases": 8,
+  "historicalExecution": "UNRUN",
+  "nativeExecution": "UNRUN",
+  "otherSourceFilesEdited": false
+}

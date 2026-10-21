@@ -1,0 +1,74 @@
+{
+  "sourceCommit": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "affectedPath": "tests/support/legacy-meri/CASE-OWNERSHIP.json",
+  "originalFrozenLedgerSha256": "5ed932d15b5326d9262bfce4fc9d8fbeb59e3cd7747987446bfcc59f81a2517d",
+  "correctedLedgerSha256": "1c3759f5bf048c1785c035deea17f2df07d550c7e846d271abe7e105152b6c74",
+  "cause": "Evidence generator selected first quoted token on inline it.each declarations, capturing provider_failure/other-tenant parameters instead of the subsequent test-title string.",
+  "notCause": "declarationLine fields remain numeric; ownership validator correctly rejected duplicated IDs.",
+  "sourceTitleExtractionForCorrection": "Pinned f3 lines151/93: select quoted title following the it.each closing parenthesis, then apply original %s/%j parameters.",
+  "correctedCases": [
+    {
+      "group": "raw-lifecycle",
+      "sourceLine": 151,
+      "previousIncorrectId": "native Meri lifecycle persistence matches the final stream receipt provider_failure",
+      "correctOriginalId": "native Meri lifecycle persistence matches the final stream receipt keeps provider_failure distinct on stream and reload",
+      "parameters": [
+        "provider_failure"
+      ]
+    },
+    {
+      "group": "raw-lifecycle",
+      "sourceLine": 151,
+      "previousIncorrectId": "native Meri lifecycle persistence matches the final stream receipt provider_failure",
+      "correctOriginalId": "native Meri lifecycle persistence matches the final stream receipt keeps user_stop distinct on stream and reload",
+      "parameters": [
+        "user_stop"
+      ]
+    },
+    {
+      "group": "raw-lifecycle",
+      "sourceLine": 151,
+      "previousIncorrectId": "native Meri lifecycle persistence matches the final stream receipt provider_failure",
+      "correctOriginalId": "native Meri lifecycle persistence matches the final stream receipt keeps provider_timeout distinct on stream and reload",
+      "parameters": [
+        "provider_timeout"
+      ]
+    },
+    {
+      "group": "current-archive",
+      "sourceLine": 93,
+      "previousIncorrectId": "archived Meri thread deep-link recovery other-tenant",
+      "correctOriginalId": "archived Meri thread deep-link recovery rejects archive discovery and restore outside the owner ({\"tenantId\":\"other-tenant\"})",
+      "parameters": {
+        "tenantId": "other-tenant"
+      }
+    },
+    {
+      "group": "current-archive",
+      "sourceLine": 93,
+      "previousIncorrectId": "archived Meri thread deep-link recovery other-tenant",
+      "correctOriginalId": "archived Meri thread deep-link recovery rejects archive discovery and restore outside the owner ({\"userId\":\"other-user\"})",
+      "parameters": {
+        "userId": "other-user"
+      }
+    }
+  ],
+  "allOriginalGroupsCaseCount": 93,
+  "allIdsUnique": true,
+  "validationWeakened": false,
+  "validatorSourceChanged": false,
+  "testCountRemains": 16,
+  "failedRootStage": {
+    "ownedPID": 8272,
+    "startedAt": "2026-10-16T04:38:57.749Z",
+    "exitCode": 1,
+    "tests": 35,
+    "pass": 26,
+    "fail": 9,
+    "catalogPass": 19,
+    "receiptStatus": "Preserved unchanged by this correction"
+  },
+  "rerun": "UNRUN_BY_AGENT_ROOT_QUEUE_PENDING",
+  "historicalNative": "UNRUN",
+  "realPinnedRootPreflight": "UNRUN_MISSING_EXPLICIT_INPUT"
+}

@@ -1,0 +1,40 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { createHash } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const root = path.resolve(__dirname,'../..');
+const baseline = '4e0c189c5d0522098be1c4916a033bb681d11c0b';
+const frozen = 'cd3c51e940f14e1b2a1040b0ffa445e85d68b332';
+const git = (...args) => execFileSync('git',args,{cwd:root,timeout:30000,maxBuffer:4*1024*1024});
+const blob = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+const web = JSON.parse(fs.readFileSync(path.join(__dirname,'WEB-SOURCE-RETIREMENT.json'),'utf8'));
+const tools = JSON.parse(fs.readFileSync(path.join(__dirname,'WEB-BUILD-TOOL-RETIREMENT.json'),'utf8'));
+const failures = [];
+const requireThat = (condition,message) => {if(!condition)failures.push(message);};
+requireThat(web.baseline === baseline && tools.baseline === baseline,'wrong retirement source');
+requireThat(git('rev-parse',`${frozen}^{commit}`).toString().trim() === frozen,'frozen commit identity changed');
+for(const entry of web.entries) {
+  requireThat(!fs.existsSync(path.join(root,entry.path)),`retired source remains: ${entry.path}`);
+  if(entry.destination) requireThat(blob(fs.readFileSync(path.join(root,entry.destination))) === entry.blob,`relocated data changed: ${entry.path}`);
+}
+for(const entry of tools.entries) requireThat(!fs.existsSync(path.join(root,entry.path)),`retired build/tool remains: ${entry.path}`);
+const publicTree = git('ls-tree','-rz',baseline,'--','apps/web/public').toString().split('\0').filter(Boolean);
+requireThat(publicTree.length === web.retainedPublic.length && publicTree.length ===129,'public inventory size');
+const diffEmpty = (paths,label) => {
+  if(!paths.length) throw new Error('Refuse an unbounded empty path query: '+label);
+  requireThat(git('diff','--name-only',baseline,'--',...paths).length ===0,label);
+};
+diffEmpty(['apps/web/public','apps/web/nginx','apps/web/Dockerfile.frontend-artifact','apps/web/.dockerignore'],'Web assets/nginx/compatibility changed');
+diffEmpty(['apps/onboard-web','apps/onboard-api','apps/e2e'],'Onboard/E2E application or support changed');
+diffEmpty(['apps/api/prisma','apps/defense-api/prisma','apps/defense-api/src','apps/api/src/defense-budget','apps/api/src/program-element'],'canonical runtime, migrations or Defense adapter changed');
+diffEmpty(['apps/api/src/auth','apps/api/src/context','apps/api/src/memory','apps/api/src/tenant','apps/api/src/clients','apps/api/src/engagement/plans','apps/api/src/engagement/engagement.module.ts','apps/api/src/app.module.ts','apps/api-strategy','packages'],'protected feature/Core/shared source changed');
+diffEmpty(['infra','docker','apps/api/Dockerfile','apps/api/Dockerfile.alpine-qualification','apps/api/package.json','apps/defense-api/package.json','apps/defense-api/Dockerfile'],'backend deployment/security/manifests changed');
+const apiChanges = git('diff','--name-only',baseline,'--','apps/api/src').toString().trim().split('\n').filter(Boolean);
+requireThat(JSON.stringify(apiChanges) === JSON.stringify(['apps/api/src/engagement/runtime/engagement-phase1-browser-acceptance.spec.ts']),'unexpected API production change');
+const rootFiles = git('ls-tree','--name-only',baseline).toString().trim().split('\n');
+const licensePaths = rootFiles.filter(file=>/^(?:LICENSE|NOTICE|COPYING|COPYRIGHT)/i.test(file));
+if(licensePaths.length)diffEmpty(licensePaths,'license/provenance changed');
+const report = {baseline,frozen,sourceHead:git('rev-parse','HEAD').toString().trim(),retiredWebSourceFiles:web.entries.length,retiredBuildAndBrowserInputs:tools.entries.length,retainedPublicFiles:web.retainedPublic.length,relocatedNonCodeFiles:web.entries.filter(e=>e.destination).length,canonicalBackendSpecTwins:317,retainedMirrorDataFiles:17,checks:'Tracked source boundaries compared against exact parent; relocated data checked as original Git blobs; runtime ownership verifier separately checks canonical twins and data. No application/framework/build/browser run.',failures};
+fs.writeFileSync(path.join(__dirname,'RETAINED-BOUNDARIES.json'),JSON.stringify(report,null,2)+'\n');
+console.log(JSON.stringify(report,null,2));
+if(failures.length)process.exitCode=1;

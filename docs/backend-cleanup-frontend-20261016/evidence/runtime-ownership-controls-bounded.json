@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/lib/defense-runtime-source-ownership.test.mjs",
+    "scripts/lib/phase17-operator-ownership.test.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:30:29.9408586Z",
+  "endedAt": "2026-10-16T02:30:30.0754074Z",
+  "ownedPID": 25020,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": null,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "71d2a6ff6a7b99d30022c9504acf6af7935594cfea65b35f0d4c1925b819a131",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

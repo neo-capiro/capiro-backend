@@ -1,0 +1,23 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T04:30:25.0528203Z",
+  "endedAt": "2026-10-16T04:30:25.2727271Z",
+  "ownedPID": 40044,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 67428352,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "61d8368b1f62a4847a012719915c773b32f46fee2de5495b52028c6e46afef21",
+  "stderrSHA256": "908cba4115fa3b01f5728bce4422f91d837ce869ac2708cb6c1fc3af4f1b9904"
+}

@@ -1,0 +1,13 @@
+{
+  "baseline": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "frozen": "cd3c51e940f14e1b2a1040b0ffa445e85d68b332",
+  "sourceHead": "afa91d6b4c04bca075c1e660e8946bf19a8fc39c",
+  "retiredWebSourceFiles": 2165,
+  "retiredBuildAndBrowserInputs": 31,
+  "retainedPublicFiles": 129,
+  "relocatedNonCodeFiles": 14,
+  "canonicalBackendSpecTwins": 317,
+  "retainedMirrorDataFiles": 17,
+  "checks": "Tracked source boundaries compared against exact parent; relocated data checked as original Git blobs; runtime ownership verifier separately checks canonical twins and data. No application/framework/build/browser run.",
+  "failures": []
+}

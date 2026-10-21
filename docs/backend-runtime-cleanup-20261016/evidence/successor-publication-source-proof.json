@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-runtime-cleanup-20261016/verify-publication-source.cjs",
+    "--run"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T03:48:08.7998759Z",
+  "endedAt": "2026-10-16T03:48:13.7756815Z",
+  "ownedPID": 13160,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 41271296,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "aa119245449eb425b036aa7981a51e96e21725ca75fbd5d6bf739d3e180c1534",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

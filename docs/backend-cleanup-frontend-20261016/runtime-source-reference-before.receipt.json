@@ -1,0 +1,24 @@
+{
+  "executable": "git",
+  "startedAt": "2026-10-16T02:19:33.998Z",
+  "endedAt": "2026-10-16T02:19:36.480Z",
+  "argv": [
+    "-c",
+    "grep.threads=1",
+    "grep",
+    "-n",
+    "-I",
+    "-F",
+    "runtime-source",
+    "HEAD",
+    "--",
+    "apps",
+    "packages",
+    "scripts",
+    "infra",
+    "tests"
+  ],
+  "exitCode": 0,
+  "baseline": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "matchCount": 36
+}

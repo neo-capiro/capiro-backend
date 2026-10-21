@@ -14,11 +14,6 @@ if (process.argv.length === 3 && process.argv[2] === '--help') {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
-const BASE = resolvePhase3ScopeBase({
-  git,
-  end: END,
-  explicitBase: process.env.ENGAGEMENT_PHASE3_BASE_SHA,
-});
 const LEDGER = path.join(ROOT, 'docs/plans/engagement-api/phase-3-findings-ledger.v2.json');
 const REVIEWED_TEST_ONLY_INFRA_FIXTURES = new Set([
   'infra/cdk/fixtures/engagement-runtime-ownership.v1.json',
@@ -74,6 +69,11 @@ export function scopeIssues({ changed, addedSource, counts, scoped = false }) {
 }
 
 function main() {
+  const BASE = resolvePhase3ScopeBase({
+    git,
+    end: END,
+    explicitBase: process.env.ENGAGEMENT_PHASE3_BASE_SHA,
+  });
   console.error('Usage: node scripts/verify-engagement-phase3-scope.mjs (no arguments runs the existing verifier)');
   git(['cat-file', '-e', `${BASE}^{commit}`]);
   git(['cat-file', '-e', `${END}^{commit}`]);

@@ -71,7 +71,6 @@ import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
-import { MeriV2ChatClient } from './meriv2-chat.client.js';
 import { MeriV3ChatClient } from './meriv3-chat.client.js';
 import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
@@ -205,7 +204,6 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     },
     MeriComplianceAuditService,
     MeriClaimWriterService,
-    MeriV2ChatClient,
     {
       provide: 'FUNDING_OPPORTUNITY_ASSESSMENT_WIRING',
       useFactory: (

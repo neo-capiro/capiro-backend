@@ -1,0 +1,56 @@
+{
+  "sourceCommit": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "sourceTree": "1bc72c2b95867d997d4d5063096822fd41892205",
+  "files": [
+    {
+      "path": "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+      "bytes": 3069,
+      "sha256": "adf5eeb6f9fc9ede14867bf9ca7a741d8eb12409e56c064182c37709632d7b3d"
+    },
+    {
+      "path": "tests/support/legacy-meri/CASE-OWNERSHIP.json",
+      "bytes": 78969,
+      "sha256": "1c3759f5bf048c1785c035deea17f2df07d550c7e846d271abe7e105152b6c74"
+    },
+    {
+      "path": "tests/support/legacy-meri/SOURCE-INPUTS.json",
+      "bytes": 7511,
+      "sha256": "c9a6ca99bee505c62fc19ee9f6846e96b4a70a187c77ef182328b4b58006cf72"
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.mjs",
+      "bytes": 13018,
+      "sha256": "90e25caaf30341006a68af6abdfef6f5b50ad89177ee14ee62055e4e5e01e6de"
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.spec.mjs",
+      "bytes": 13685,
+      "sha256": "af0fba5ebe052334defc2b4f21071e999847d0e5c1c89441de8b9caff660c085"
+    }
+  ],
+  "historicalCaseIdentities": 71,
+  "existingCurrentCaseIdentities": 22,
+  "currentRpMappedIdentities": 22,
+  "pinnedSourceOperands": 23,
+  "plannerBuiltinTestsPrepared": 16,
+  "plannerBuiltinExecution": "ROOT_STAGE_FAILED_PRESERVED_METADATA_CORRECTION_PENDING_ROOT_RERUN; no agent Node/test execution",
+  "realPinnedRootPreflight": {
+    "status": "UNRUN_MISSING_EXPLICIT_INPUT",
+    "sourceRoot": null,
+    "reason": "No existing full checkout at exact f3 commit/tree has been supplied. Immutable Git source objects are retained; no checkout, object extraction or installation was created."
+  },
+  "historicalNativeReplay": "UNRUN",
+  "applicationNativeExecution": "UNRUN",
+  "archiveBodiesPreservedByteExactly": true,
+  "agentExecution": "Only finite Git/source reads and file/metadata edits; no Node, tests, parser, compiler, services, install or Git commit",
+  "requiredCheckoutRepresentation": "Exact recorded raw Git blob bytes, including the pinned LF text representation. A merely clean Windows CRLF checkout is insufficient and is rejected. No normalization, checkout or extraction is performed.",
+  "metadataCorrection": {
+    "evidence": "evidence/meri-loop-replay-metadata-correction.json",
+    "cause": "Inline it.each title extraction selected first quoted parameter; repaired three raw and two archive IDs from exact f3 declarations",
+    "allOriginalIdsUnique": 93,
+    "validatorWeakened": false,
+    "testCount": 16,
+    "rerun": "PENDING_ROOT_SHARED_QUEUE",
+    "failedRootStage": "PID8272,35tests26PASS9FAIL; original stdout/receipt retained unchanged"
+  }
+}

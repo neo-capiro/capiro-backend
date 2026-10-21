@@ -1,0 +1,63 @@
+{
+  "sourceCommit": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "runtimeTestsExecutedByThisLane": false,
+  "cta": {
+    "path": "apps/intel-api/src/tracker/__fixtures__/email-cta-app-source.txt",
+    "gitBlob": "24d75b1bd4d3e22d4eb0027b9412b33281a84c85",
+    "canonicalGitBytes": 30256,
+    "workingBytes": 30943,
+    "crlfCount": 687,
+    "normalizedBytes": 30256,
+    "normalizedSha256": "a7b1ff2a7cb9945af55ba58c5849cfe18cf5f89a47c195d99e7edac1fcbfe2cc",
+    "expectedCanonicalSha256": "a7b1ff2a7cb9945af55ba58c5849cfe18cf5f89a47c195d99e7edac1fcbfe2cc"
+  },
+  "pins": [
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "blob": "2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "bytes": 183851
+    },
+    {
+      "path": "apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "blob": "2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "bytes": 183851
+    },
+    {
+      "path": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "blob": "d2b1f9f70d118e0dbc1fedaea06236fd72c21bb4",
+      "bytes": 94918
+    },
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.spec.mjs",
+      "blob": "dd2356f10fe18fe542f1213cd8622be3d3ebea3d",
+      "bytes": 14196
+    }
+  ],
+  "historicalInventory": {
+    "requests": 237,
+    "unmappedRequests": 15,
+    "nullSurfaceRequests": 86,
+    "v3ConsumerFiles": [
+      "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts"
+    ],
+    "scannerFindings": 26,
+    "uncoveredCurrentBackendRoutes": [
+      "GET /api/clio/krisp-notetaker",
+      "GET /api/clio/krisp-notetaker/folders",
+      "GET /api/clio/krisp-notetaker/imports/:id/candidates",
+      "POST /api/clio/krisp-notetaker/imports/:id/match",
+      "POST /api/clio/krisp-notetaker/preferences",
+      "GET /api/engagement/mail/mailboxes",
+      "GET /api/engagement/plans",
+      "POST /api/engagement/plans",
+      "GET /api/engagement/plans/:planId",
+      "PATCH /api/engagement/plans/:planId",
+      "GET /api/engagement/plans/:planId/history",
+      "POST /api/engagement/plans/:planId/reviews",
+      "POST /api/engagement/plans/:planId/waves",
+      "PATCH /api/engagement/plans/:planId/waves/:waveId",
+      "POST /api/engagement/plans/:planId/waves/reorder"
+    ]
+  }
+}

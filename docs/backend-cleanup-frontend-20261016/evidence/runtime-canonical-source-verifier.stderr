@@ -1,0 +1,1 @@
+Usage: node scripts/verify-defense-budget-mirror-parity.mjs (no arguments verifies canonical source ownership and retained fixture parity)

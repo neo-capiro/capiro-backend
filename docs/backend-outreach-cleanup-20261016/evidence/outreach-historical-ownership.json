@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "sourceTree": "764afb6cbc0b55b8a46cdbd011a92e048ebac763",
+  "premapCommit": "17b41b79b0bb8e023520cb4137e7a2fdcbb18959",
+  "manifest": {
+    "path": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+    "bytes": 23065,
+    "sha256": "2da8d8c006322b5f0dbe52da3c4ea88f071b1d2c947b17d05e747a052cf7598b",
+    "hashStatus": "Computed by root after metadata-only batch path correction; raw current UTF8 bytes."
+  },
+  "manifestBeforeBatchOwnershipCorrection": {
+    "bytes": 22927,
+    "sha256": "e11f41179d0cb2eef2c6b6a2f39fa01c1085205ec95eff8df99461a0877937bb"
+  },
+  "batchOwnershipCorrection": {
+    "previousExactInstruction": "Existing 11 batch-test identities across the retained batch suite remain outside this edit. Keep setup stubs and assignments; they exercise other old methods, not the retired enrichment graph.",
+    "previousSourcePath": "apps/api/src/engagement/engagement-batch-group.spec.ts",
+    "reason": "The aggregate 11 claim was inaccurate and a single group spec did not identify all retained batch owners. The original claim is preserved here as superseded evidence, not current qualification.",
+    "correctedSourcePaths": [
+      "apps/api/src/engagement/engagement-batch-group.spec.ts",
+      "apps/api/src/engagement/engagement-batch-revise.spec.ts",
+      "apps/api/src/engagement/engagement-batch-sticky-provider.spec.ts"
+    ],
+    "currentAggregateCaseCount": null,
+    "specsChanged": false,
+    "nativeStatus": "UNRUN"
+  },
+  "retirement": {
+    "path": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+    "sourceBlob": "b68b0c53d606967cb10eb0beccd800822aebc799",
+    "sourceSha256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+    "sourceBytes": 9523,
+    "workingTreeRawSha256": "d98e285a2d3265870069b7495de8122587f31d1245ec3dbc3c62e5b0634fd99d",
+    "workingTreeRawBytes": 9523,
+    "comparison": "strict UTF-8; only CRLF-to-LF comparison permitted; exact canonical content matched before deletion",
+    "removalStatus": "removed from working tree after complete manifest capture; Git index/history/ref unchanged by this agent",
+    "missingFromWorkingTreeConfirmed": true,
+    "sourcePreservation": "Exact old spec and assertions remain in the pinned a2 Git blob; no runtime body or replay runner copied into the new tree."
+  },
+  "counts": {
+    "historicalCaseIdentities": 7,
+    "existingCurrentIntelIdentities": 4,
+    "currentEquivalentForFlagOnOverlay": 0,
+    "copiedHistoricalRuntimeBodies": 0,
+    "addedReplayRunners": 0,
+    "sourceOperands": 22
+  },
+  "labelCorrection": {
+    "reference": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-legacy-case-ids.json",
+    "differingIds": 0,
+    "correction": "No identity correction needed: all seven IDs match the committed premap. Pinned Git-decoded labels are authoritative; console display differences did not change the source strings."
+  },
+  "sourceProof": "22 finite Git show byte reads; each SHA1(blob header + bytes) matched git ls-tree. Seven unique original scalar labels and four existing current Intel labels read from canonical bytes. No framework/Node/test execution.",
+  "nativeHistoricalStatus": "UNRUN",
+  "nativeCurrentStatus": "UNRUN",
+  "testsExecuted": 0,
+  "productionChangesByThisAgent": 0,
+  "correctionNotes": [
+    "All seven original IDs match the committed premap. Apparent console punctuation differences were display-only; no metadata identity correction was needed.",
+    "No fake replacement or flag-on overlay current equivalent is claimed.",
+    "This is source/metadata capture, not complete historical native preflight or test acceptance."
+  ]
+}

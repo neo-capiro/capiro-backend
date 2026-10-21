@@ -1,0 +1,10 @@
+{
+  "rawReceipt": "meri-loop-memory-before.json",
+  "actualTimestamp": "2026-10-16T04:24:17.5558273Z",
+  "normalRead": "Microsoft.VisualBasic.Devices.ComputerInfo",
+  "availablePhysicalBytes": 11542081536,
+  "rawFieldFreeVirtualBytesMeaning": "AvailableVirtualMemory is process virtual address space in this observation, not system commit headroom",
+  "freshCommitMarginProven": false,
+  "executionScope": "Only proportional light source/fixture work; no compiler/framework/browser/DB/install/image stage",
+  "runtimeReceipts": "Each bounded job retains its actual PID, heap cap, hard wall, observed peak (or null when too short to sample), exit and cleanup. A 512 MiB RSS stop is a configured stop threshold, not a measured footprint or stage memory grant."
+}

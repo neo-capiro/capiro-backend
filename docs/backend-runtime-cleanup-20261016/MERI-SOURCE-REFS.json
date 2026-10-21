@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 1,
+  "sourceHead": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "worktree": "C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup",
+  "mode": "bounded-read-only",
+  "admittedRemovalCandidates": [],
+  "findings": [
+    {
+      "id": "core-meri-service",
+      "status": "retain-active-owner",
+      "paths": [
+        "apps/api/src/meri/meri.module.ts",
+        "apps/api/src/meri/meri.service.ts",
+        "apps/api/src/meri/meriv3-runtime.proxy.ts"
+      ],
+      "references": [
+        {
+          "path": "apps/api/src/app.module.ts",
+          "lines": "29,110"
+        },
+        {
+          "path": "apps/api/src/meri/meri.module.ts",
+          "lines": "139-155"
+        },
+        {
+          "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+          "lines": "98-123,130-131"
+        }
+      ],
+      "reason": "V3 factory intercepts full-chat streaming and refusal, but binds other service methods to the raw Core owner; class-wide removal would remove active conversation/action/history/maintenance capabilities."
+    },
+    {
+      "id": "raw-turn-maintenance",
+      "status": "retain-active-owner",
+      "paths": [
+        "apps/api/src/meri/meri-turn-maintenance.ts",
+        "apps/api/src/meri/meriv3-proxy.service.ts",
+        "apps/api/src/meri/meri-research.service.ts"
+      ],
+      "references": [
+        {
+          "path": "apps/api/src/meri/meri.module.ts",
+          "lines": "139-140,179"
+        },
+        {
+          "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+          "lines": "131,1224"
+        },
+        {
+          "path": "apps/api/src/meri/meri-research.service.ts",
+          "lines": "345-347,4492"
+        },
+        {
+          "path": "apps/api/src/meri/meri.service.ts",
+          "lines": "3305-3316"
+        }
+      ],
+      "reason": "Both V3 proxy and research inject the existing raw-service maintenance authority."
+    },
+    {
+      "id": "v2-orchestrator-package",
+      "status": "retain-active-owner",
+      "paths": [
+        "apps/meriv2-orchestrator"
+      ],
+      "references": [
+        {
+          "path": "apps/meriv2-orchestrator/src/app.module.ts",
+          "lines": "7,23"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meri.module.ts",
+          "lines": "41-78"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+          "lines": "29-34"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts",
+          "lines": "51-59"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/Dockerfile",
+          "lines": "58-69,114-124"
+        },
+        {
+          "path": "infra/cdk/lib/compute-stack.ts",
+          "lines": "1487-1525,2382-2393"
+        }
+      ],
+      "reason": "The versioned package hosts V3 and several distinct retained HTTP surfaces; its name is not retirement evidence."
+    },
+    {
+      "id": "v3-old-base-inheritance",
+      "status": "retain-active-owner",
+      "paths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts"
+      ],
+      "references": [
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meri.module.ts",
+          "lines": "68-71"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-assistant.service.ts",
+          "lines": "315,359"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-retrieval-assistant.service.ts",
+          "lines": "166,181,368,430"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service.ts",
+          "lines": "217,230,251,370,426,442,521,642"
+        }
+      ],
+      "reason": "Clean -> Retrieval -> ManagedMcp -> MeriV3Assistant inheritance and super calls require the older base implementation; useClass does not make it dead."
+    },
+    {
+      "id": "meriv2-core-library",
+      "status": "retain-active-owner",
+      "paths": [
+        "packages/meriv2-core"
+      ],
+      "references": [
+        {
+          "path": "apps/api/package.json",
+          "lines": "272"
+        },
+        {
+          "path": "apps/api/Dockerfile",
+          "lines": "40,48-49,61,82,118-125"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/package.json",
+          "lines": "16"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/Dockerfile",
+          "lines": "32,49-50,63,97-102"
+        },
+        {
+          "path": "packages/meriv2-core/package.json",
+          "lines": "7-79,81-94"
+        }
+      ],
+      "reason": "Both API and orchestrator depend on and ship the shared package; exported context/grounding/assurance/telemetry contracts remain consumers."
+    },
+    {
+      "id": "legacy-approval-compatibility",
+      "status": "retain-compatibility-contract",
+      "paths": [
+        "apps/api/src/meri/meri.controller.ts",
+        "apps/api/src/meri/meri-approval.service.ts"
+      ],
+      "references": [
+        {
+          "path": "apps/api/src/meri/meri.controller.ts",
+          "lines": "590-625"
+        }
+      ],
+      "reason": "Retired write authority intentionally retains mounted explicit refusal/check routes for cached clients, plus audit ownership; deletion would change the public response contract."
+    },
+    {
+      "id": "clio-analysis-sandbox",
+      "status": "retain-active-conditional-owner",
+      "paths": [
+        "apps/clio-sandbox",
+        "apps/api/src/meri/meri-tools.service.ts"
+      ],
+      "references": [
+        {
+          "path": "apps/clio-sandbox/package.json",
+          "lines": "6-12"
+        },
+        {
+          "path": "apps/clio-sandbox/Dockerfile",
+          "lines": "32-33"
+        },
+        {
+          "path": "apps/api/src/meri/meri-tools.service.ts",
+          "lines": "2331-2337,2340-2347,2376-2393"
+        },
+        {
+          "path": "apps/clio-sandbox/src/server.ts",
+          "lines": "18-19,114-117"
+        }
+      ],
+      "reason": "API run_analysis explicitly calls the separate /run service behind existing configuration/tenant gates; a conditional capability is not proven retired."
+    }
+  ],
+  "sourceRefs": [
+    {
+      "path": "apps/api/Dockerfile",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "3f673a0acaaf6a309be34b2d32cb2f2ecde9be62"
+    },
+    {
+      "path": "apps/api/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7fa0f785eaa48abdf361eb7a82fcea934c6ae3fe"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6b867553bed4ffd1376279414ce4fa892bb896e7"
+    },
+    {
+      "path": "apps/api/src/meri/meri-turn-maintenance.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "da8c4f25f5b14c0891cf120b0c52be171ec4f21c"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "598e9146e5568349f213cbd548de0213113dc924"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "a17e94efba349979236ed1dbada4be4c17cf8f02"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "8878d515849c36ce037a9fc8591e46bbb06e65b2"
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-chat.client.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "326a4dccf53d71e68260d6d5bbb4c065e274235f"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "87b8d9b925fd76e48f3acd6970da9dfb22278713"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "28f02937c824fdbf1f6655f87bd94a52969aa360"
+    },
+    {
+      "path": "apps/api/src/mobile/meri-mobile.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "c194f6b4cfe77e796cbbf7227c61a676be5d58f3"
+    },
+    {
+      "path": "apps/clio-sandbox/Dockerfile",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "185b79dad8c5a767c3cd2ad8102cf7b5e08e7633"
+    },
+    {
+      "path": "apps/clio-sandbox/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "981e98000c94494ce902082305799968c21410d5"
+    },
+    {
+      "path": "apps/clio-sandbox/src/server.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6a7c5fd386b25a6ff0c6d2eb057195059e2e5a29"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/Dockerfile",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "cd7c9d060ae313e0ec8471890005bdbf0310847e"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "c86afa81acbdb66e01dda6bf059e3eec4a0d9375"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/app.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "ff522c1265bf37d2291f73d8081439c5ea9a3ddf"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "e20d91dc5d40e1e4b71ff809fdb2cd86902cbfcf"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri.module.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "8918f9ca79e900a3c281c635b01855ef37ea886c"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "4a9de0de132d1d3f90708157f63c3d3e88bd0f90"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-assistant.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "dcef09fe3904614a54ebbb4ef388d8ba8924a903"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "b55dcdd7e092520417f64ac622f5b55ff7976edd"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-retrieval-assistant.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6cd9aa305f73f0f0de7477d1ff18a48d070846a0"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "21abf2617c9b5ac892005513267513a4fcbe8c45"
+    },
+    {
+      "path": "infra/cdk/lib/compute-stack.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6b00290053cd08cec718134070ad3138ade0cb9b"
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "b8469e8303f277ccf029180d011174e0a5e63e44"
+    }
+  ],
+  "parentReportedActiveClaims": {
+    "verifiedInThisLane": false,
+    "startup": {
+      "thread": "01a14241-cbba-7531-9aba-71299cd430d7",
+      "candidatePins": [
+        "e5eda7",
+        "936ef078"
+      ],
+      "scope": "task4 meri-greenfield native first chat/history and membership; narrow READS composition"
+    },
+    "reads": {
+      "thread": "01a14241-f378-7459-96a8-5523fdded0e1",
+      "candidatePins": [
+        "75a6",
+        "eee482",
+        "f54"
+      ],
+      "scope": "retained gateway and disabled native Reads joint source"
+    },
+    "directive": "All Meri/Fable implementations retained. Canonical MeriToolsService/RP, meri-rp-tool-transport and Intel keyword/evidence/folder/research producers remain active dependencies. No Meri edit claim allocated to cleanup."
+  },
+  "limits": [
+    "No application edits, tests, compiler, install, startup, provider, DB, cloud or deployment operations.",
+    "No repository-wide absence proof or full dependency/LOC scan.",
+    "Source registrations and build definitions are not evidence of current deployed images or live flags."
+  ]
+}

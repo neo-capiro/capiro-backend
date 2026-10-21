@@ -1,0 +1,746 @@
+{
+  "sourceHead": "f0e846c2ad04a3c1edc4fa8f8bbcf0da22cc9ae3",
+  "baseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "parent": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "scope": "Bounded builtin/source controls, no compiler/browser/install/DB/image/deployment. Stage case totals overlap; do not add them as unique coverage.",
+  "stages": [
+    {
+      "name": "backend-workspace-controls",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 23,
+      "pass": 22,
+      "fail": 1,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/backend-workspace-controls.json"
+    },
+    {
+      "name": "backend-workspace-controls-repaired",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/backend-workspace-controls-repaired.json"
+    },
+    {
+      "name": "backend-qualification-reader-controls",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 117,
+      "pass": 110,
+      "fail": 7,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/backend-qualification-reader-controls.json"
+    },
+    {
+      "name": "backend-reader-current-controls",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 85,
+      "pass": 85,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/backend-reader-current-controls.json"
+    },
+    {
+      "name": "frontend-artifact-source-contracts",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 40,
+      "pass": 29,
+      "fail": 11,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/frontend-artifact-source-contracts.json"
+    },
+    {
+      "name": "default-frontend-artifact-controls-repaired",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/default-frontend-artifact-controls-repaired.json"
+    },
+    {
+      "name": "onboard-source-guard-repaired",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/onboard-source-guard-repaired.json"
+    },
+    {
+      "name": "historical-inventory-controls",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 32,
+      "pass": 27,
+      "fail": 5,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/historical-inventory-controls.json"
+    },
+    {
+      "name": "historical-web-visual-cli-controls",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/historical-web-visual-cli-controls.json"
+    },
+    {
+      "name": "phase3-source-scope-controls",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 55,
+      "pass": 55,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/phase3-source-scope-controls.json"
+    },
+    {
+      "name": "prototype-boundary-relocation-controls",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/prototype-boundary-relocation-controls.json"
+    },
+    {
+      "name": "prototype-boundary-explicit-base-controls",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/prototype-boundary-explicit-base-controls.json"
+    },
+    {
+      "name": "owned-preview-pattern-drift-check",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/owned-preview-pattern-drift-check.json"
+    },
+    {
+      "name": "source-job-selected-controls",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": 4,
+      "receipt": "evidence/source-job-selected-controls.json"
+    },
+    {
+      "name": "changed-js-syntax",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/changed-js-syntax.json"
+    },
+    {
+      "name": "retained-source-boundaries",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/retained-source-boundaries.json"
+    },
+    {
+      "name": "retained-source-boundaries-repaired",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/retained-source-boundaries-repaired.json"
+    },
+    {
+      "name": "retained-source-boundaries-committed",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/retained-source-boundaries-committed.json"
+    },
+    {
+      "name": "continuation-source-count-delta",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/continuation-source-count-delta.json"
+    },
+    {
+      "name": "web-retirement-inventory",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/web-retirement-inventory.json"
+    },
+    {
+      "name": "web-build-tool-retirement",
+      "exit": 1,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/web-build-tool-retirement.json"
+    },
+    {
+      "name": "web-build-tool-retirement-repaired",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/web-build-tool-retirement-repaired.json"
+    },
+    {
+      "name": "runtime-canonical-source-verifier",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/runtime-canonical-source-verifier.json"
+    },
+    {
+      "name": "session4-canonical-source-verifier",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "skipped": null,
+      "pythonTests": null,
+      "receipt": "evidence/session4-canonical-source-verifier.json"
+    },
+    {
+      "name": "runtime-ownership-controls-bounded",
+      "exit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "skipped": 0,
+      "pythonTests": null,
+      "receipt": "evidence/runtime-ownership-controls-bounded.json"
+    }
+  ],
+  "notes": {
+    "knownHistoricalFailures": "Five inventory assertions, two visual package assertions, and five preview-prefix exclusions retain original failures; see source proofs.",
+    "windowsQualification": "Initial Onboard Windows fake filesystem, symlink EPERM, historical source/dependency guards remain failed/unqualified. Selected source-prefix inverse passes. Python four selected cases: three pass, preservation childNode abort134 under original PATH-only environment; no bypass. POSIX propagation test unrun.",
+    "repairs": "Canonical CTA LF bytes plus exact attributes, strict default Docker text and lock identity guards, finite Onboard source-reader inverse. Initial receipts retained.",
+    "scopeEvolution": "Historical UI prototype CLI belongs to full/frontend scope. All pure backend boundary/scope/base controls and actual backend findings/enablement constraints remain.",
+    "prototypePureTest": "Initial missing-main collection failure retained; explicit016e base yielded7pass. Subsequent lazy import fix plus four source-control files yielded55pass without base env.",
+    "replay": "Three relocated historical full-source cases unrun; missing input fails collection. No checkout was created.",
+    "syntax": "53 changed JavaScript files parsed sequentially with64MiB child heap; later modified scope/artifact modules were imported by passing focused tests.",
+    "counting": "Original regular-Git-blob/mode, UTF8, generated, category and nonblank rules; baseline receipt SHA is sealed. Archived .txt operands disclosed separately.",
+    "resource": "One primary process per stage,128MiB parent heap whereNode,64MiB CLI/syntax children,60/120second owned hardwall. PeakRSS includes399MB initial failing buffer-diff stage; it exited and no heavy test was launched. Fresh final batch free commit3,183,489,024B."
+  },
+  "evidence": [
+    {
+      "path": "evidence/backend-workspace-controls.json",
+      "bytes": 892,
+      "sha256": "8a55eeaa98e85a0508ba4cf62ac8a5a2938434eac838678c4617a64741eafd08"
+    },
+    {
+      "path": "evidence/backend-workspace-controls.stdout",
+      "bytes": 3752,
+      "sha256": "f3d1f75f0bcaa5e2bee386ac7d5f7f46fb28cd1ccae56d6595d000fff31a74a3"
+    },
+    {
+      "path": "evidence/backend-workspace-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/backend-workspace-controls-repaired.json",
+      "bytes": 892,
+      "sha256": "d10dcc12b6cfc8c03f4785ad8fe032575afee9240960feb78254f267c53848fa"
+    },
+    {
+      "path": "evidence/backend-workspace-controls-repaired.stdout",
+      "bytes": 2928,
+      "sha256": "b52ea5c33cf588deda2f9f7b16636292f66b2bf15c3ed05cf54ba6c6feeab416"
+    },
+    {
+      "path": "evidence/backend-workspace-controls-repaired.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/backend-qualification-reader-controls.json",
+      "bytes": 1249,
+      "sha256": "c1ad273c2f750ae20271b9c1f0793b71f48a26dbf0326c9d6292e497331365e9"
+    },
+    {
+      "path": "evidence/backend-qualification-reader-controls.stdout",
+      "bytes": 93703,
+      "sha256": "949d5cd6dc519dd8aad5c63995e7643bf6b53fe9bcdca6b7d3dc2b7af96daa56"
+    },
+    {
+      "path": "evidence/backend-qualification-reader-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/backend-reader-current-controls.json",
+      "bytes": 1192,
+      "sha256": "08555548c5fa1f0c06aca8d4b9278d63a64a9cc22474e787875b077f6d0a9f6d"
+    },
+    {
+      "path": "evidence/backend-reader-current-controls.stdout",
+      "bytes": 8008,
+      "sha256": "5ab8f8c21ec48bba464b3c71578a13ad081363a54b9c6fd106cfaf29c2b1b822"
+    },
+    {
+      "path": "evidence/backend-reader-current-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/frontend-artifact-source-contracts.json",
+      "bytes": 839,
+      "sha256": "59c962e4c5e56cf7ee8456fe46f743155ccaf90c69ea8b1bd9c5662cbc28cc36"
+    },
+    {
+      "path": "evidence/frontend-artifact-source-contracts.stdout",
+      "bytes": 71230,
+      "sha256": "744c23a1e6ee3c27ee5c88ba37fdb5230592445c8d9f0200d6c5d71a486c76c3"
+    },
+    {
+      "path": "evidence/frontend-artifact-source-contracts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/default-frontend-artifact-controls-repaired.json",
+      "bytes": 781,
+      "sha256": "4b6ef3ffa54ee1eff78fe651b759b4d8109514d5418c88b1c8d1f7fcf326be0a"
+    },
+    {
+      "path": "evidence/default-frontend-artifact-controls-repaired.stdout",
+      "bytes": 459,
+      "sha256": "e46d739ef8495cbc5bab459cfbe4b65ad83beb59488f57deef03d8e21f11972f"
+    },
+    {
+      "path": "evidence/default-frontend-artifact-controls-repaired.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/onboard-source-guard-repaired.json",
+      "bytes": 857,
+      "sha256": "b16b40df74466fe86840b55402fe1a1c708551c4bd8473025a0eace23e604279"
+    },
+    {
+      "path": "evidence/onboard-source-guard-repaired.stdout",
+      "bytes": 270,
+      "sha256": "53a710957789e320d3d89fdfba0a7faf823639db8180483b6f1c19114fb5d5f6"
+    },
+    {
+      "path": "evidence/onboard-source-guard-repaired.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/historical-inventory-controls.json",
+      "bytes": 774,
+      "sha256": "ebe41694f10450b6aaffc7d9be781fe302cb7ee6f9c6c4a40beab0f3730da16a"
+    },
+    {
+      "path": "evidence/historical-inventory-controls.stdout",
+      "bytes": 33882,
+      "sha256": "7c7bcd872023e5485728fc1df95296454a95ca7db50d71796bbcd057ef890932"
+    },
+    {
+      "path": "evidence/historical-inventory-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/historical-web-visual-cli-controls.json",
+      "bytes": 740,
+      "sha256": "3401888035c7c7f7ffdd88b1bb65ce39a39e1d58a600320bd63b0597763f9374"
+    },
+    {
+      "path": "evidence/historical-web-visual-cli-controls.stdout",
+      "bytes": 118,
+      "sha256": "9936e790409cc430b7755b33dd9fef68fb1eaf3c224e7d5b80135ea5df907f5a"
+    },
+    {
+      "path": "evidence/historical-web-visual-cli-controls.stderr",
+      "bytes": 3312,
+      "sha256": "7fb82306c4578b9525c5eb0ea9081d3485711ef54ac7c7f5cd249785bc0dddf6"
+    },
+    {
+      "path": "evidence/phase3-source-scope-controls.json",
+      "bytes": 960,
+      "sha256": "57b313e3d9727147b8bd96bc69e6e0d2235c69d5438bc9ee0b8beb8cb9fb0004"
+    },
+    {
+      "path": "evidence/phase3-source-scope-controls.stdout",
+      "bytes": 4365,
+      "sha256": "e1aceb67f10d65aff58981cd17026d0836f8585a90683f78e395154b7236a5c8"
+    },
+    {
+      "path": "evidence/phase3-source-scope-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/prototype-boundary-relocation-controls.json",
+      "bytes": 788,
+      "sha256": "259fb6f334101d460e9433988097f19e855717194a39a263aeac02a171028234"
+    },
+    {
+      "path": "evidence/prototype-boundary-relocation-controls.stdout",
+      "bytes": 1078,
+      "sha256": "b8726de0bfc1b0676375f5b8568460ff4f2e1a6028bf0fdbcae618fc815d4322"
+    },
+    {
+      "path": "evidence/prototype-boundary-relocation-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/prototype-boundary-explicit-base-controls.json",
+      "bytes": 787,
+      "sha256": "a5b791a50990c0c9dda3fb21ace433717384ee05e5e6fbb6caa42b3ae1eb1f92"
+    },
+    {
+      "path": "evidence/prototype-boundary-explicit-base-controls.stdout",
+      "bytes": 650,
+      "sha256": "882b521ca74092a7a9f4e6b68b5d28bdd3c04e895e11d19545a9307a63967378"
+    },
+    {
+      "path": "evidence/prototype-boundary-explicit-base-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/owned-preview-pattern-drift-check.json",
+      "bytes": 747,
+      "sha256": "ee5b29a961576bf37d79151498a27b65e28378d4f5037c5359f3816d411a0f18"
+    },
+    {
+      "path": "evidence/owned-preview-pattern-drift-check.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/owned-preview-pattern-drift-check.stderr",
+      "bytes": 698,
+      "sha256": "a621e4cbe2ecdc39f7815995c2c6a4a61f475b98e245fcc950d5fdb1df7de1da"
+    },
+    {
+      "path": "evidence/source-job-selected-controls.json",
+      "bytes": 798,
+      "sha256": "f29bd368a8c744abebf6c404fc42be03bd3ed8db1b28dc985c6ad4a7f260374a"
+    },
+    {
+      "path": "evidence/source-job-selected-controls.stdout",
+      "bytes": 355,
+      "sha256": "a5d2b68af0739aef023bb8e94d9c609665857c57c59f776c2a98e37f15b0bcdf"
+    },
+    {
+      "path": "evidence/source-job-selected-controls.stderr",
+      "bytes": 2211,
+      "sha256": "169456a7ac60d9a9c2d5466c428bdc4ab5f71e79480b7db41af9db9df1191188"
+    },
+    {
+      "path": "evidence/changed-js-syntax.json",
+      "bytes": 691,
+      "sha256": "df7c7c7f2f9590056b9d29a89d8be81f38d73b63a99b7266884dad1364e04209"
+    },
+    {
+      "path": "evidence/changed-js-syntax.stdout",
+      "bytes": 36,
+      "sha256": "4c572eab527ef4596953a696ed50c84abfe0e538edc8f223fc172cc9310a7cc9"
+    },
+    {
+      "path": "evidence/changed-js-syntax.stderr",
+      "bytes": 112,
+      "sha256": "22c33ee9282a983d657a64ad6471a66d9c3cbfbb10d9e1aff5520ec1967ae271"
+    },
+    {
+      "path": "evidence/retained-source-boundaries.json",
+      "bytes": 752,
+      "sha256": "6ea4f4786a80f8ca3638afe4e066454f8366097b07a82707ac1c39347eb74f1a"
+    },
+    {
+      "path": "evidence/retained-source-boundaries.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/retained-source-boundaries.stderr",
+      "bytes": 3889,
+      "sha256": "9038dd6c1682fea6f4a2a6fc7d0923dac14be3e749376fb551bb9e51b97ab1ff"
+    },
+    {
+      "path": "evidence/retained-source-boundaries-repaired.json",
+      "bytes": 752,
+      "sha256": "6741d7711bb798d0190ab1ab54780adf3b9378604de6b00cad9c648569364376"
+    },
+    {
+      "path": "evidence/retained-source-boundaries-repaired.stdout",
+      "bytes": 629,
+      "sha256": "6f0123c73b1de2c869f82a236c650e6ef5a8555e1fdee9b5b83d6fc224a5500e"
+    },
+    {
+      "path": "evidence/retained-source-boundaries-repaired.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/retained-source-boundaries-committed.json",
+      "bytes": 751,
+      "sha256": "6766d2f69bac65183da762c50323cb0ec186002990a63fb8331362c4ffe60431"
+    },
+    {
+      "path": "evidence/retained-source-boundaries-committed.stdout",
+      "bytes": 629,
+      "sha256": "d26ed87476e2bf4acf5d3853afa1cf2eab1c17610e2e58a94ff1e166b8592dd6"
+    },
+    {
+      "path": "evidence/retained-source-boundaries-committed.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/continuation-source-count-delta.json",
+      "bytes": 798,
+      "sha256": "5722dace5a0eff2ff058842d66cc4f9bbc65b7d06cc9dee74f5da62a1b45fb96"
+    },
+    {
+      "path": "evidence/continuation-source-count-delta.stdout",
+      "bytes": 1252,
+      "sha256": "de5099ad6ccc5de0714bd7641226edc786854bfd317428ccdd90196dbddf11fa"
+    },
+    {
+      "path": "evidence/continuation-source-count-delta.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/web-retirement-inventory.json",
+      "bytes": 647,
+      "sha256": "9e7566253fef2652238ab0242857788666267851e3d5a3bb128405e292b69c42"
+    },
+    {
+      "path": "evidence/web-retirement-inventory.stdout",
+      "bytes": 165,
+      "sha256": "1ba72e935368e2550f01d98771de7ffe7f4e8977a34ee67eba2d1515cf3aae6a"
+    },
+    {
+      "path": "evidence/web-retirement-inventory.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/web-build-tool-retirement.json",
+      "bytes": 684,
+      "sha256": "fe1b1742518dca15a9c1124fda8b5f862c88c02fac92e82d804a9cbd2214b0c5"
+    },
+    {
+      "path": "evidence/web-build-tool-retirement.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/web-build-tool-retirement.stderr",
+      "bytes": 1011,
+      "sha256": "a6e5ea5a0b08a49ac83c86c4647f17c30f789848e5b5e5c4641ec273989b0538"
+    },
+    {
+      "path": "evidence/web-build-tool-retirement-repaired.json",
+      "bytes": 688,
+      "sha256": "069676dd40362e688e2c8c2296f6e1e630f7cb2ac7091addcb8e6efb11253e6b"
+    },
+    {
+      "path": "evidence/web-build-tool-retirement-repaired.stdout",
+      "bytes": 108,
+      "sha256": "6805bca6aeac802d2548cc3a7f7977fffa94a4b32a197f972701d6f2297cb5c7"
+    },
+    {
+      "path": "evidence/web-build-tool-retirement-repaired.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/runtime-canonical-source-verifier.json",
+      "bytes": 731,
+      "sha256": "c6df36817ec6ceaea081f8cce5d42ef8ce632d3fffe616be64d3933f944d1f91"
+    },
+    {
+      "path": "evidence/runtime-canonical-source-verifier.stdout",
+      "bytes": 179,
+      "sha256": "62e63e6c446cbe483f830ce14782f606f0507330d94bbb7242fd6d1b932142a0"
+    },
+    {
+      "path": "evidence/runtime-canonical-source-verifier.stderr",
+      "bytes": 139,
+      "sha256": "53397111ea340962d8b29ef830df94c5451648f6e5bb0df17db37df99bb1e371"
+    },
+    {
+      "path": "evidence/session4-canonical-source-verifier.json",
+      "bytes": 718,
+      "sha256": "05b115c8d141f6fd15042890438b29fbe09fa1f70030c54fd651c5d6cdb926de"
+    },
+    {
+      "path": "evidence/session4-canonical-source-verifier.stdout",
+      "bytes": 326,
+      "sha256": "32459caf7847ae8447a33353eac4f9b84b96fd6a3f66b437a457fd077f092356"
+    },
+    {
+      "path": "evidence/session4-canonical-source-verifier.stderr",
+      "bytes": 108,
+      "sha256": "323510f499d46873701d3ed39a1da292f7b091fa068f9ace2a11fb48a2278050"
+    },
+    {
+      "path": "evidence/runtime-ownership-controls-bounded.json",
+      "bytes": 833,
+      "sha256": "cf855c1a78ac6b5b0a34802d7cd1948690a492ef961bc777cea69f50ac1f04b0"
+    },
+    {
+      "path": "evidence/runtime-ownership-controls-bounded.stdout",
+      "bytes": 1883,
+      "sha256": "71d2a6ff6a7b99d30022c9504acf6af7935594cfea65b35f0d4c1925b819a131"
+    },
+    {
+      "path": "evidence/runtime-ownership-controls-bounded.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/changed-js-syntax-results.json",
+      "bytes": 8763,
+      "sha256": "03cabd831e541e20b7995ab763af85c9d11c088ff189884b951b745383797439"
+    },
+    {
+      "path": "evidence/reader-failures-source-classification.json",
+      "bytes": 2455,
+      "sha256": "ac75b874fc9298679686572490ff87a07b26062996f240428c1f54674dfe3fef"
+    },
+    {
+      "path": "evidence/preview-pattern-inherited-failure-source-proof.json",
+      "bytes": 8862,
+      "sha256": "231a1202b5e3f48793c7510c9b12380c17682718ab11eaefa8bbd75cbd878b91"
+    },
+    {
+      "path": "evidence/classify-preview-pattern-source.ps1",
+      "bytes": 7983,
+      "sha256": "eee186607c721bdcd336c7d0211ba8909334b3b72463d08ee5215b87ea388d1b"
+    },
+    {
+      "path": "evidence/remaining-web-tools.txt",
+      "bytes": 344,
+      "sha256": "103d1b0684b5fcbbcb9fc89adeb6d4e7d15bb48852f16ac6f62920708c24b90f"
+    },
+    {
+      "path": "evidence/retired-web-root-files.txt",
+      "bytes": 562,
+      "sha256": "951a747f89d9d31f627b79fa6e112785af41886d4907aa5ccbcc3c981caa1b8f"
+    },
+    {
+      "path": "evidence/remaining-web-tool-references.json",
+      "bytes": 863,
+      "sha256": "65145e4be17748c2bce80a1cc6f57629a219367e0967a5080e26fce8556bc078"
+    },
+    {
+      "path": "evidence/remaining-web-tool-references.stdout",
+      "bytes": 1120,
+      "sha256": "4e0821231e2d4206e2d26dea500d58a5d3bf37e949e795cfc36f615cc58fd2b3"
+    },
+    {
+      "path": "evidence/remaining-web-tool-references.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/final-batch-memory-before.json",
+      "bytes": 108,
+      "sha256": "7577aa3f268d3d22dfa435a410fe7bab05dba7687ca414c6c6da62174f97ad0f"
+    }
+  ]
+}

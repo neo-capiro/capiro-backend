@@ -1,0 +1,1256 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "sourceTree": "1bc72c2b95867d997d4d5063096822fd41892205",
+  "groups": [
+    {
+      "key": "raw-lifecycle",
+      "sourcePath": "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+      "sourceBlob": "88a482005990d910c9dbaa7bbff3836f51b6dad6",
+      "classification": "historical-only",
+      "owner": "backend legacy Meri replay/shared local queue",
+      "declarations": 4,
+      "expandedCases": 8,
+      "cases": [
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt records an in-band provider error as failed even after text and before a later completion frame",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "records an in-band provider error as failed even after text and before a later completion frame",
+          "declarationLine": 105,
+          "parameters": null
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt retains a Stop racing the final provider round instead of persisting success",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "retains a Stop racing the final provider round instead of persisting success",
+          "declarationLine": 127,
+          "parameters": null
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt records provider finish end_turn faithfully",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "records provider finish end_turn faithfully",
+          "declarationLine": 143,
+          "parameters": [
+            "end_turn",
+            "stop",
+            false
+          ]
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt records provider finish max_tokens faithfully",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "records provider finish max_tokens faithfully",
+          "declarationLine": 143,
+          "parameters": [
+            "max_tokens",
+            "max_tokens",
+            true
+          ]
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt records provider finish null faithfully",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "records provider finish null faithfully",
+          "declarationLine": 143,
+          "parameters": [
+            null,
+            "stream_interrupted",
+            true
+          ]
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt provider_failure",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "provider_failure",
+          "declarationLine": 151,
+          "parameters": [
+            "provider_failure"
+          ]
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt provider_failure",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "provider_failure",
+          "declarationLine": 151,
+          "parameters": [
+            "user_stop"
+          ]
+        },
+        {
+          "id": "native Meri lifecycle persistence matches the final stream receipt provider_failure",
+          "suite": "native Meri lifecycle persistence matches the final stream receipt",
+          "title": "provider_failure",
+          "declarationLine": 151,
+          "parameters": [
+            "provider_timeout"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "current-archive",
+      "sourcePath": "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+      "sourceBlob": "88a482005990d910c9dbaa7bbff3836f51b6dad6",
+      "classification": "current-retained",
+      "owner": "backend API conversation domain",
+      "declarations": 2,
+      "expandedCases": 3,
+      "cases": [
+        {
+          "id": "archived Meri thread deep-link recovery discovers the owned archived row without restoring or reading its messages, then restores the saved conversation",
+          "suite": "archived Meri thread deep-link recovery",
+          "title": "discovers the owned archived row without restoring or reading its messages, then restores the saved conversation",
+          "declarationLine": 82,
+          "parameters": null
+        },
+        {
+          "id": "archived Meri thread deep-link recovery other-tenant",
+          "suite": "archived Meri thread deep-link recovery",
+          "title": "other-tenant",
+          "declarationLine": 93,
+          "parameters": {
+            "tenantId": "other-tenant"
+          }
+        },
+        {
+          "id": "archived Meri thread deep-link recovery other-tenant",
+          "suite": "archived Meri thread deep-link recovery",
+          "title": "other-tenant",
+          "declarationLine": 93,
+          "parameters": {
+            "userId": "other-user"
+          }
+        }
+      ]
+    },
+    {
+      "key": "v2-client",
+      "sourcePath": "apps/api/src/meri/meriv2-chat.client.spec.ts",
+      "sourceBlob": "2e781b64cdf9b593e12d1c4a42a1107682fa6598",
+      "classification": "historical-only",
+      "owner": "backend legacy API V2 transport/shared local queue",
+      "declarations": 4,
+      "expandedCases": 4,
+      "retirementPrerequisite": "Rehome current V3 ResolvedAiForChatHeader type and receive source-owner confirmation",
+      "cases": [
+        {
+          "id": "MeriV2ChatClient.streamChat POSTs to /meri-api/chat/stream with bearer + BYOK header and parses frames across chunk boundaries",
+          "suite": "MeriV2ChatClient.streamChat",
+          "title": "POSTs to /meri-api/chat/stream with bearer + BYOK header and parses frames across chunk boundaries",
+          "declarationLine": 31,
+          "parameters": null
+        },
+        {
+          "id": "MeriV2ChatClient.streamChat omits the BYOK header when no credential resolved (global-key fallback downstream)",
+          "suite": "MeriV2ChatClient.streamChat",
+          "title": "omits the BYOK header when no credential resolved (global-key fallback downstream)",
+          "declarationLine": 80,
+          "parameters": null
+        },
+        {
+          "id": "MeriV2ChatClient.streamChat throws on a non-2xx response (no silent fallback — rollback is the flag)",
+          "suite": "MeriV2ChatClient.streamChat",
+          "title": "throws on a non-2xx response (no silent fallback — rollback is the flag)",
+          "declarationLine": 99,
+          "parameters": null
+        },
+        {
+          "id": "MeriV2ChatClient.streamChat requires the caller bearer and a configured orchestrator URL",
+          "suite": "MeriV2ChatClient.streamChat",
+          "title": "requires the caller bearer and a configured orchestrator URL",
+          "declarationLine": 115,
+          "parameters": null
+        }
+      ]
+    },
+    {
+      "key": "v2-helper",
+      "sourcePath": "apps/api/src/meri/meriv2-routing.helpers.spec.ts",
+      "sourceBlob": "6456b9ba255094a1141641e5005661403d778a03",
+      "classification": "historical-only",
+      "owner": "backend legacy raw routing/shared local queue",
+      "declarations": 2,
+      "expandedCases": 5,
+      "cases": [
+        {
+          "id": "shouldRouteMeriV2FullChat routes a normal enabled turn",
+          "suite": "shouldRouteMeriV2FullChat",
+          "title": "routes a normal enabled turn",
+          "declarationLine": 6,
+          "parameters": null
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat keeps the turn on the contained path for missing bearer",
+          "suite": "shouldRouteMeriV2FullChat",
+          "title": "keeps the turn on the contained path for missing bearer",
+          "declarationLine": 18,
+          "parameters": {
+            "label": "missing bearer"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat keeps the turn on the contained path for unconfigured orchestrator",
+          "suite": "shouldRouteMeriV2FullChat",
+          "title": "keeps the turn on the contained path for unconfigured orchestrator",
+          "declarationLine": 18,
+          "parameters": {
+            "label": "unconfigured orchestrator"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat keeps the turn on the contained path for disabled tenant flag",
+          "suite": "shouldRouteMeriV2FullChat",
+          "title": "keeps the turn on the contained path for disabled tenant flag",
+          "declarationLine": 18,
+          "parameters": {
+            "label": "disabled tenant flag"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat keeps the turn on the contained path for impersonation",
+          "suite": "shouldRouteMeriV2FullChat",
+          "title": "keeps the turn on the contained path for impersonation",
+          "declarationLine": 18,
+          "parameters": {
+            "label": "impersonation"
+          }
+        }
+      ]
+    },
+    {
+      "key": "v2-matrix",
+      "sourcePath": "apps/api/src/meri/meriv2-routing.matrix.spec.ts",
+      "sourceBlob": "5e578a6b60add25d054610efb68b8f109476d202",
+      "classification": "historical-only",
+      "owner": "backend legacy raw routing/shared local queue",
+      "declarations": 9,
+      "expandedCases": 32,
+      "cases": [
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=true enabled=true impersonated=false → meriv2-orchestrator",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=true enabled=true impersonated=false → meriv2-orchestrator",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": true,
+            "enabled": true,
+            "impersonated": false,
+            "expected": "meriv2-orchestrator"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=true enabled=true impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=true enabled=true impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": true,
+            "enabled": true,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=true enabled=false impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=true enabled=false impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": true,
+            "enabled": false,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=true enabled=false impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=true enabled=false impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": true,
+            "enabled": false,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=false enabled=true impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=false enabled=true impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": false,
+            "enabled": true,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=false enabled=true impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=false enabled=true impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": false,
+            "enabled": true,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=false enabled=false impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=false enabled=false impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": false,
+            "enabled": false,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=true configured=false enabled=false impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=true configured=false enabled=false impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": true,
+            "configured": false,
+            "enabled": false,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=true enabled=true impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=true enabled=true impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": true,
+            "enabled": true,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=true enabled=true impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=true enabled=true impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": true,
+            "enabled": true,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=true enabled=false impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=true enabled=false impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": true,
+            "enabled": false,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=true enabled=false impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=true enabled=false impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": true,
+            "enabled": false,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=false enabled=true impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=false enabled=true impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": false,
+            "enabled": true,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=false enabled=true impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=false enabled=true impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": false,
+            "enabled": true,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=false enabled=false impersonated=false → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=false enabled=false impersonated=false → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": false,
+            "enabled": false,
+            "impersonated": false,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table bearer=false configured=false enabled=false impersonated=true → contained-legacy",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "bearer=false configured=false enabled=false impersonated=true → contained-legacy",
+          "declarationLine": 106,
+          "parameters": {
+            "bearer": false,
+            "configured": false,
+            "enabled": false,
+            "impersonated": true,
+            "expected": "contained-legacy"
+          }
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table the table enumerates every boolean combination exactly once",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "the table enumerates every boolean combination exactly once",
+          "declarationLine": 112,
+          "parameters": null
+        },
+        {
+          "id": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table exactly one cell routes to MeriV2: bearer ∧ configured ∧ enabled ∧ ¬impersonated",
+          "suite": "shouldRouteMeriV2FullChat — exhaustive 16-cell truth table",
+          "title": "exactly one cell routes to MeriV2: bearer ∧ configured ∧ enabled ∧ ¬impersonated",
+          "declarationLine": 120,
+          "parameters": null
+        },
+        {
+          "id": "absent-bearer representations stay contained even when everything else is ready bearerToken = undefined (header missing) → contained-legacy",
+          "suite": "absent-bearer representations stay contained even when everything else is ready",
+          "title": "bearerToken = undefined (header missing) → contained-legacy",
+          "declarationLine": 145,
+          "parameters": {
+            "label": "undefined (header missing)"
+          }
+        },
+        {
+          "id": "absent-bearer representations stay contained even when everything else is ready bearerToken = null → contained-legacy",
+          "suite": "absent-bearer representations stay contained even when everything else is ready",
+          "title": "bearerToken = null → contained-legacy",
+          "declarationLine": 145,
+          "parameters": {
+            "label": "null"
+          }
+        },
+        {
+          "id": "absent-bearer representations stay contained even when everything else is ready bearerToken = empty string → contained-legacy",
+          "suite": "absent-bearer representations stay contained even when everything else is ready",
+          "title": "bearerToken = empty string → contained-legacy",
+          "declarationLine": 145,
+          "parameters": {
+            "label": "empty string"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = undefined (header missing) counts as NOT impersonated → ready turn routes to MeriV2",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = undefined (header missing) counts as NOT impersonated → ready turn routes to MeriV2",
+          "declarationLine": 160,
+          "parameters": {
+            "label": "undefined (header missing)"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = null counts as NOT impersonated → ready turn routes to MeriV2",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = null counts as NOT impersonated → ready turn routes to MeriV2",
+          "declarationLine": 160,
+          "parameters": {
+            "label": "null"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = empty string counts as NOT impersonated → ready turn routes to MeriV2",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = empty string counts as NOT impersonated → ready turn routes to MeriV2",
+          "declarationLine": 160,
+          "parameters": {
+            "label": "empty string"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = whitespace only counts as NOT impersonated → ready turn routes to MeriV2",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = whitespace only counts as NOT impersonated → ready turn routes to MeriV2",
+          "declarationLine": 160,
+          "parameters": {
+            "label": "whitespace only"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = tenant uuid is contained even for a fully ready turn",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = tenant uuid is contained even for a fully ready turn",
+          "declarationLine": 172,
+          "parameters": {
+            "label": "tenant uuid"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = padded tenant uuid is contained even for a fully ready turn",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = padded tenant uuid is contained even for a fully ready turn",
+          "declarationLine": 172,
+          "parameters": {
+            "label": "padded tenant uuid"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = non-uuid string is contained even for a fully ready turn",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = non-uuid string is contained even for a fully ready turn",
+          "declarationLine": 172,
+          "parameters": {
+            "label": "non-uuid string"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) impersonateTenantId = single character is contained even for a fully ready turn",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "impersonateTenantId = single character is contained even for a fully ready turn",
+          "declarationLine": 172,
+          "parameters": {
+            "label": "single character"
+          }
+        },
+        {
+          "id": "impersonation representations (containment contract, 264b351af) containment does not depend on the other three keys (all 8 combinations)",
+          "suite": "impersonation representations (containment contract, 264b351af)",
+          "title": "containment does not depend on the other three keys (all 8 combinations)",
+          "declarationLine": 178,
+          "parameters": {
+            "expandedCases": 1,
+            "internalAssertionsCombinations": 8
+          }
+        },
+        {
+          "id": "documented edges of the helper itself the helper trims impersonateTenantId but NOT bearerToken: a whitespace-only bearer counts as present (meri.controller.ts normalizes it to undefined before the helper ever sees it)",
+          "suite": "documented edges of the helper itself",
+          "title": "the helper trims impersonateTenantId but NOT bearerToken: a whitespace-only bearer counts as present (meri.controller.ts normalizes it to undefined before the helper ever sees it)",
+          "declarationLine": 200,
+          "parameters": null
+        },
+        {
+          "id": "documented edges of the helper itself the helper returns a strict boolean, never a truthy/falsy passthrough",
+          "suite": "documented edges of the helper itself",
+          "title": "the helper returns a strict boolean, never a truthy/falsy passthrough",
+          "declarationLine": 204,
+          "parameters": null
+        }
+      ]
+    },
+    {
+      "key": "raw-rp",
+      "sourcePath": "apps/api/src/meri/ResearchPortfolioMeriTurnBinding.spec.ts",
+      "sourceBlob": "7abf804a8d4b4b8fbd98abdefcadbc10eab627fe",
+      "classification": "historical-raw-fragment-evidence-current-security-must-land",
+      "owner": "backend historical raw-fragment replay; canonical current RP owner retains protection",
+      "declarations": 4,
+      "expandedCases": 22,
+      "cases": [
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_analytics before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_analytics before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_analytics"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_changes before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_changes before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_changes"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for create_research_portfolio_snapshot before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for create_research_portfolio_snapshot before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "create_research_portfolio_snapshot"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for request_research_portfolio_output before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for request_research_portfolio_output before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "request_research_portfolio_output"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for save_research_portfolio_output_to_client before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for save_research_portfolio_output_to_client before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "save_research_portfolio_output_to_client"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for watch_research_portfolio before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for watch_research_portfolio before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "watch_research_portfolio"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for update_research_portfolio_change_state before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for update_research_portfolio_change_state before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "update_research_portfolio_change_state"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_bookmarks before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_bookmarks before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_bookmarks"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for create_research_portfolio_bookmark before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for create_research_portfolio_bookmark before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "create_research_portfolio_bookmark"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_fit before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_fit before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_fit"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_reviews before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_reviews before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_reviews"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for add_research_portfolio_review_note before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for add_research_portfolio_review_note before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "add_research_portfolio_review_note"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_rules before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_rules before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_rules"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_imports before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_imports before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_imports"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_operations before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for get_research_portfolio_operations before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "get_research_portfolio_operations"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for prepare_research_portfolio_brief before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for prepare_research_portfolio_brief before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "prepare_research_portfolio_brief"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for prepare_research_portfolio_meeting before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for prepare_research_portfolio_meeting before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "prepare_research_portfolio_meeting"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for manage_research_portfolio before actual native dispatch",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "actual normalization refuses model retargeting for manage_research_portfolio before actual native dispatch",
+          "declarationLine": 114,
+          "parameters": {
+            "tool": "manage_research_portfolio"
+          }
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding injects omitted current conversation and retains exact current conversation",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "injects omitted current conversation and retains exact current conversation",
+          "declarationLine": 123,
+          "parameters": null
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding ordinary native tools preserve their existing supplied conversation treatment",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "ordinary native tools preserve their existing supplied conversation treatment",
+          "declarationLine": 131,
+          "parameters": null
+        },
+        {
+          "id": "Current-turn Research Portfolio tool binding rejects null/empty/non-string scope attempts without rewriting them as a successful current request",
+          "suite": "Current-turn Research Portfolio tool binding",
+          "title": "rejects null/empty/non-string scope attempts without rewriting them as a successful current request",
+          "declarationLine": 139,
+          "parameters": null
+        }
+      ]
+    },
+    {
+      "key": "current-runtime-proxy",
+      "sourcePath": "apps/api/src/meri/meriv3-runtime.proxy.spec.ts",
+      "sourceBlob": "1f5cd3b0a01c79fa1ed8b0ea34002ff0394b873c",
+      "classification": "current-retained",
+      "owner": "backend current governed V3",
+      "declarations": 5,
+      "expandedCases": 5,
+      "cases": [
+        {
+          "id": "Meri runtime proxy Phase 19 a closed gate refuses the turn: no governed context, no V3 turn, no legacy fallback",
+          "suite": "Meri runtime proxy Phase 19",
+          "title": "a closed gate refuses the turn: no governed context, no V3 turn, no legacy fallback",
+          "declarationLine": 58,
+          "parameters": null
+        },
+        {
+          "id": "Meri runtime proxy Phase 19 resolves governed context once before routing an allowed turn to MeriV3",
+          "suite": "Meri runtime proxy Phase 19",
+          "title": "resolves governed context once before routing an allowed turn to MeriV3",
+          "declarationLine": 72,
+          "parameters": null
+        },
+        {
+          "id": "Meri runtime proxy Phase 19 preserves regenerate mode when preparing the governed turn",
+          "suite": "Meri runtime proxy Phase 19",
+          "title": "preserves regenerate mode when preparing the governed turn",
+          "declarationLine": 89,
+          "parameters": null
+        },
+        {
+          "id": "Meri runtime proxy Phase 19 routes the legacy image endpoint through the tenant + user scoped reader",
+          "suite": "Meri runtime proxy Phase 19",
+          "title": "routes the legacy image endpoint through the tenant + user scoped reader",
+          "declarationLine": 109,
+          "parameters": null
+        },
+        {
+          "id": "Meri runtime proxy Phase 19 binds every other non-stream method to the original service",
+          "suite": "Meri runtime proxy Phase 19",
+          "title": "binds every other non-stream method to the original service",
+          "declarationLine": 119,
+          "parameters": null
+        }
+      ]
+    },
+    {
+      "key": "current-phase19",
+      "sourcePath": "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+      "sourceBlob": "933e4424d586d85dba888c7a35c6d75d5f0b0779",
+      "classification": "current-retained",
+      "owner": "backend current governed V3",
+      "declarations": 8,
+      "expandedCases": 8,
+      "cases": [
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract Meri product traffic enters through one API Context Plane adapter",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "Meri product traffic enters through one API Context Plane adapter",
+          "declarationLine": 9,
+          "parameters": null
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract current V3 prewarms are suppressed on governed turns",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "current V3 prewarms are suppressed on governed turns",
+          "declarationLine": 24,
+          "parameters": null,
+          "originalCaseId": "Knowledge Plane Phase 19 Meri adoption contract legacy chat prewarms are suppressed on governed turns"
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract Deep Research uses both Phase 19 governed operations and no direct compiler dependency",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "Deep Research uses both Phase 19 governed operations and no direct compiler dependency",
+          "declarationLine": 33,
+          "parameters": null
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract Phase 19 registry operations are packet-required with their old exception ids removed",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "Phase 19 registry operations are packet-required with their old exception ids removed",
+          "declarationLine": 42,
+          "parameters": null
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract V2 and V3 public chat routes fail closed without an upstream governed bundle",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "V2 and V3 public chat routes fail closed without an upstream governed bundle",
+          "declarationLine": 54,
+          "parameters": null
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract V3 does not expose its parallel retrieval recipes on a governed Capiro turn",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "V3 does not expose its parallel retrieval recipes on a governed Capiro turn",
+          "declarationLine": 69,
+          "parameters": null
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract durable Meri recall is a shared Retrieval V2 institutional-knowledge source",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "durable Meri recall is a shared Retrieval V2 institutional-knowledge source",
+          "declarationLine": 84,
+          "parameters": null
+        },
+        {
+          "id": "Knowledge Plane Phase 19 Meri adoption contract Phase 19 introduces no ContextPacket V3 or Meri-specific knowledge database",
+          "suite": "Knowledge Plane Phase 19 Meri adoption contract",
+          "title": "Phase 19 introduces no ContextPacket V3 or Meri-specific knowledge database",
+          "declarationLine": 109,
+          "parameters": null
+        }
+      ],
+      "sourceBlobRole": "Original pinned pre-retirement source. One current ownership assertion has an explicit case transition below."
+    },
+    {
+      "key": "current-runtime-coverage",
+      "sourcePath": "apps/api/src/meri/meriv3-runtime.coverage.spec.ts",
+      "sourceBlob": "dbb4e689dac687d4365bff1b33a8d06d181d388f",
+      "classification": "current-retained",
+      "owner": "backend current governed V3 coverage",
+      "declarations": 3,
+      "expandedCases": 6,
+      "cases": [
+        {
+          "id": "governed Meri stream completion coverage passes later-read reconciliation to persistence and SSE without losing the signed initial failure",
+          "suite": "governed Meri stream completion coverage",
+          "title": "passes later-read reconciliation to persistence and SSE without losing the signed initial failure",
+          "declarationLine": 72,
+          "parameters": null
+        },
+        {
+          "id": "governed Meri stream completion coverage keeps governed initial coverage when no completed-turn receipts exist (%p) [parameter-index=0]",
+          "suite": "governed Meri stream completion coverage",
+          "titleTemplate": "keeps governed initial coverage when no completed-turn receipts exist (%p)",
+          "declarationLine": 124,
+          "parameterIndex": 0,
+          "parameterValueJson": "undefined",
+          "identityRendering": "Jest %p pretty-format rendering; stable identity is source blob plus template plus parameter index/value, not a guessed pretty-format string"
+        },
+        {
+          "id": "governed Meri stream completion coverage keeps governed initial coverage when no completed-turn receipts exist (%p) [parameter-index=1]",
+          "suite": "governed Meri stream completion coverage",
+          "titleTemplate": "keeps governed initial coverage when no completed-turn receipts exist (%p)",
+          "declarationLine": 124,
+          "parameterIndex": 1,
+          "parameterValueJson": "null",
+          "identityRendering": "Jest %p pretty-format rendering; stable identity is source blob plus template plus parameter index/value, not a guessed pretty-format string"
+        },
+        {
+          "id": "governed Meri stream completion coverage keeps governed initial coverage when no completed-turn receipts exist (%p) [parameter-index=2]",
+          "suite": "governed Meri stream completion coverage",
+          "titleTemplate": "keeps governed initial coverage when no completed-turn receipts exist (%p)",
+          "declarationLine": 124,
+          "parameterIndex": 2,
+          "parameterValueJson": "{\"coverage\":{\"complete\":true}}",
+          "identityRendering": "Jest %p pretty-format rendering; stable identity is source blob plus template plus parameter index/value, not a guessed pretty-format string"
+        },
+        {
+          "id": "governed Meri stream completion coverage keeps governed initial coverage when no completed-turn receipts exist (%p) [parameter-index=3]",
+          "suite": "governed Meri stream completion coverage",
+          "titleTemplate": "keeps governed initial coverage when no completed-turn receipts exist (%p)",
+          "declarationLine": 124,
+          "parameterIndex": 3,
+          "parameterValueJson": "{\"coverage\":{\"phase\":\"turn\",\"complete\":true,\"toolReads\":\"malformed\"}}",
+          "identityRendering": "Jest %p pretty-format rendering; stable identity is source blob plus template plus parameter index/value, not a guessed pretty-format string"
+        },
+        {
+          "id": "governed Meri stream completion coverage passes tool and progress events through unchanged",
+          "suite": "governed Meri stream completion coverage",
+          "title": "passes tool and progress events through unchanged",
+          "declarationLine": 132,
+          "parameters": null
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "historicalExpandedCases": 71,
+    "existingCurrentExpandedCases": 22,
+    "currentRpMappedIdentities": 22
+  },
+  "historicalExecution": {
+    "status": "UNRUN",
+    "reason": "No existing exact-f3 full source root has been supplied; real pinned-root CLI preflight and historical native execution are UNRUN. Unit temporary operands do not qualify either.",
+    "nativeResults": [],
+    "passClaim": false,
+    "realPinnedRootPreflight": {
+      "status": "UNRUN_MISSING_EXPLICIT_INPUT",
+      "sourceRoot": null,
+      "reason": "No existing full checkout at exact f3 commit/tree has been supplied. Immutable Git source objects are retained; no checkout, object extraction or installation was created."
+    }
+  },
+  "notes": [
+    "Historical original IDs are source/template/parameter identities, not a claim the current implementation executes them.",
+    "Three archive case bodies remain current; eight raw lifecycle cases are historical.",
+    "V2 type rehome and retired-file deletion were confirmed by root; original seven retired source/test operands remain pinned in SOURCE-INPUTS.",
+    "All22 RP safety identities have actual current Repo.execute native and builtin source case mappings; native Jest remains UNRUN.",
+    "The Phase19 raw-prewarm case becomes current V3-prewarm ownership with explicit original/current IDs, not silent assertion deletion.",
+    "Jest %p pretty-format current-coverage IDs retain template+parameter index/value without fabricating display whitespace."
+  ],
+  "currentRpMappings": [
+    {
+      "mappingId": "RP-CURRENT-01",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-02",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_analytics before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_analytics before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_analytics before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_analytics",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-03",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_changes before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_changes before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_changes before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_changes",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-04",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for create_research_portfolio_snapshot before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for create_research_portfolio_snapshot before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for create_research_portfolio_snapshot before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: create_research_portfolio_snapshot",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-05",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for request_research_portfolio_output before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for request_research_portfolio_output before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for request_research_portfolio_output before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: request_research_portfolio_output",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-06",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for save_research_portfolio_output_to_client before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for save_research_portfolio_output_to_client before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for save_research_portfolio_output_to_client before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: save_research_portfolio_output_to_client",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-07",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for watch_research_portfolio before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for watch_research_portfolio before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for watch_research_portfolio before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: watch_research_portfolio",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-08",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for update_research_portfolio_change_state before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for update_research_portfolio_change_state before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for update_research_portfolio_change_state before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: update_research_portfolio_change_state",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-09",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_bookmarks before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_bookmarks before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_bookmarks before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_bookmarks",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-10",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for create_research_portfolio_bookmark before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for create_research_portfolio_bookmark before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for create_research_portfolio_bookmark before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: create_research_portfolio_bookmark",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-11",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_fit before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_fit before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_fit before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_fit",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-12",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_reviews before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_reviews before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_reviews before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_reviews",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-13",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for add_research_portfolio_review_note before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for add_research_portfolio_review_note before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for add_research_portfolio_review_note before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: add_research_portfolio_review_note",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-14",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_rules before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_rules before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_rules before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_rules",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-15",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_imports before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_imports before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_imports before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_imports",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-16",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for get_research_portfolio_operations before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for get_research_portfolio_operations before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for get_research_portfolio_operations before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: get_research_portfolio_operations",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-17",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for prepare_research_portfolio_brief before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for prepare_research_portfolio_brief before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for prepare_research_portfolio_brief before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: prepare_research_portfolio_brief",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-18",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for prepare_research_portfolio_meeting before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for prepare_research_portfolio_meeting before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for prepare_research_portfolio_meeting before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: prepare_research_portfolio_meeting",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-19",
+      "oldCaseId": "Current-turn Research Portfolio tool binding actual normalization refuses model retargeting for manage_research_portfolio before actual native dispatch",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "actual normalization refuses model retargeting for manage_research_portfolio before actual native dispatch",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch refuses model retargeting for manage_research_portfolio before actual delegated dispatch",
+      "newBuiltinCaseId": "current dispatch refuses model retargeting: manage_research_portfolio",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-20",
+      "oldCaseId": "Current-turn Research Portfolio tool binding injects omitted current conversation and retains exact current conversation",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "injects omitted current conversation and retains exact current conversation",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch injects omitted current conversation and retains exact current conversation",
+      "newBuiltinCaseId": "current dispatch injects omitted and preserves exact current conversation",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-21",
+      "oldCaseId": "Current-turn Research Portfolio tool binding ordinary native tools preserve their existing supplied conversation treatment",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "ordinary native tools preserve their existing supplied conversation treatment",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch ordinary delegated tools preserve their existing supplied conversation treatment",
+      "newBuiltinCaseId": "ordinary delegated tool preserves supplied conversation treatment",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    },
+    {
+      "mappingId": "RP-CURRENT-22",
+      "oldCaseId": "Current-turn Research Portfolio tool binding rejects null/empty/non-string scope attempts without rewriting them as a successful current request",
+      "status": "source-landed-native-UNRUN",
+      "currentOwner": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.ts execute -> bindCurrentConversationToolInput BEFORE HTTP -> typed RP envelope -> API current-use owner",
+      "requiredSemantics": "rejects null/empty/non-string scope attempts without rewriting them as a successful current request",
+      "newNativeCaseId": "Current-turn Research Portfolio delegated dispatch rejects null/empty/non-string scope attempts without rewriting them as a successful current request",
+      "newBuiltinCaseId": "current dispatch rejects null/empty/non-string scope attempts",
+      "qualification": "Source mapping landed at actual current Repo.execute; native Jest remains UNRUN. Builtin source qualification is a separate root receipt.",
+      "nativePath": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "builtinPath": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs"
+    }
+  ],
+  "currentCaseTransitions": [
+    {
+      "oldCaseId": "Knowledge Plane Phase 19 Meri adoption contract legacy chat prewarms are suppressed on governed turns",
+      "newCaseId": "Knowledge Plane Phase 19 Meri adoption contract current V3 prewarms are suppressed on governed turns",
+      "path": "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+      "reason": "Raw installer removed; current V3 KB/client suppression and governed bundle assertions remain actual current obligations",
+      "nativeExecution": "UNRUN"
+    }
+  ]
+}

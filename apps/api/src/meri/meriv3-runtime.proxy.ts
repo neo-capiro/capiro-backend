@@ -10,26 +10,25 @@
 //  * When the gate declines, the turn is REFUSED: an `error` frame with code
 //    `meri_unavailable`, a persisted assistant row with servedBy 'unavailable',
 //    and a `meri_unavailable` warning log (CloudWatch metric filter + alarm).
-//    It never falls back to the MeriV2 proxy or the legacy in-process loop; those
-//    paths are deleted in Stage 1 §4.3.
+//    The retired MeriV2 proxy and legacy in-process loop provide no fallback.
 //  * The gate is checked BEFORE the governed Context Plane turn is prepared, so
 //    a refusal makes no model, retrieval or tool call.
 //  * The gate is bearer- and impersonation-blind: it reads only ctx.tenantId
 //    (the middleware-swapped ctx on impersonated turns).
 //
-// The Phase-19 adapter installers below (installRawPhase19Adapters /
-// installV3Phase19Adapters) patch private seams of both services at construction
-// time; the raw-service adapters are removed with the V1 deletion (§4.3).
+// The Phase-19 V3 adapters below patch its client and client-KB seams once at
+// construction. The raw service supplies retained non-stream operations only.
 // ---------------------------------------------------------------------------
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
-import { MeriService } from './meri.service.js';
+import type { MeriService } from './meri.service.js';
 import {
   currentMeriGovernedRuntime,
-  MeriContextPlaneRuntimeService,
+  type MeriContextPlaneRuntimeService,
 } from './meri-context-plane-runtime.js';
-import { MeriV3ProxyService } from './meriv3-proxy.service.js';
-import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import type { MeriV3ProxyService } from './meriv3-proxy.service.js';
+import type { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import type { MeriRuntimeService, MeriStreamArgs } from './meri-runtime.contract.js';
 import { withMeriTurnProgress } from './meri-turn-progress.js';
 
 export const RAW_MERI_SERVICE = Symbol('RAW_MERI_SERVICE');
@@ -51,18 +50,8 @@ interface ClientKbLike {
 
 /** Structural views intentionally exclude the class types themselves. Intersecting
  * these shapes with Nest classes that declare the same members `private` reduces
- * to `never` in TypeScript. The factory owns both concrete instances, so this is
+ * to `never` in TypeScript. The factory owns the concrete instance, so this is
  * a narrow construction-time adapter, not a public cast contract. */
-type RawMeriInternals = {
-  [PHASE19_PATCHED]?: boolean;
-  orchestrateContext: (...args: unknown[]) => Promise<Record<string, unknown>>;
-  loadRelevantMemories: (...args: unknown[]) => Promise<Array<{ key: string; value: string }>>;
-  policyForIntent: (intent: string, query: string) => Record<string, unknown>;
-  templateForIntent: (intent: string) => Record<string, unknown> | null;
-  meriV2Chat: StreamClient;
-  clientKb: ClientKbLike;
-};
-
 type V3Internals = {
   [PHASE19_PATCHED]?: boolean;
   client: StreamClient;
@@ -74,13 +63,10 @@ type V3Internals = {
  * unavailable" when the two-key gate is closed. Phase 19 wraps the V3 turn in
  * one server-derived Context Plane turn before the model can run.
  *
- * The existing services are intentionally not rewritten: their mature action,
- * attachment, history, compliance, and persistence code stays intact. Instead,
- * their former prewarm seams are adapted at construction time:
- *  - legacy `orchestrateContext` consumes the governed prompt/coverage,
- *  - V2/V3 clients receive the same governed bundle over their existing JSON body,
- *  - legacy clio_memory + client-KB prewarms are suppressed only while a governed
- *    turn is active,
+ * The raw service retains its action, attachment, history, compliance, and
+ * persistence operations. V3's prewarm seams are adapted at construction time:
+ *  - its client receives the governed bundle over the existing JSON body,
+ *  - its client-KB prewarm is suppressed only while a governed turn is active,
  *  - done frames retain the API-side packet and the orchestrator's reconciliation
  *    of later reads, so saved coverage matches the evidence used for the turn.
  */
@@ -89,21 +75,20 @@ export function createMeriRuntimeService(
   meriv3: MeriV3ProxyService,
   visualAnalysis: MeriV3VisualAnalysisService,
   governedRuntime: MeriContextPlaneRuntimeService,
-): MeriService {
-  installRawPhase19Adapters(raw);
+): MeriRuntimeService {
   installV3Phase19Adapters(meriv3);
 
   return new Proxy(raw, {
     get(target, property, receiver) {
       if (property === 'streamMessage') {
-        return async (...args: Parameters<MeriService['streamMessage']>) => {
+        return async (...args: MeriStreamArgs) => {
           const ctx = args[0] as TenantContext;
           const conversationId = args[1] as string;
           const body = args[2] as string;
           const mode = (args[5] ?? 'new') as 'new' | 'regenerate' | 'resend';
           const signal = args[4];
           return withMeriTurnProgress(args[3], signal, async (writer) => {
-            const forwarded = [...args] as Parameters<MeriService['streamMessage']>;
+            const forwarded = [...args] as MeriStreamArgs;
             forwarded[3] = writer;
             signal?.throwIfAborted();
             // Decide before the governed turn is prepared: a closed gate is a
@@ -124,65 +109,13 @@ export function createMeriRuntimeService(
         };
       }
       if (property === 'getArtifactImage') {
-        return (...args: Parameters<MeriService['getArtifactImage']>) =>
+        return (...args: Parameters<MeriRuntimeService['getArtifactImage']>) =>
           visualAnalysis.getArtifactImage(...args);
       }
       const value = Reflect.get(target, property, receiver) as unknown;
       return typeof value === 'function' ? value.bind(target) : value;
     },
-  });
-}
-
-function installRawPhase19Adapters(rawService: MeriService): void {
-  const raw = rawService as unknown as RawMeriInternals;
-  if (raw[PHASE19_PATCHED]) return;
-  raw[PHASE19_PATCHED] = true;
-
-  const originalOrchestrate = raw.orchestrateContext.bind(raw);
-  raw.orchestrateContext = async (...args: unknown[]) => {
-    const governed = currentMeriGovernedRuntime();
-    if (!governed) return originalOrchestrate(...args);
-    const intent = String(args[2] ?? 'general_question');
-    const query = String(args[3] ?? '');
-    const sourceHealth = governed.context.retrieval.coverage.sourceHealth;
-    const sources = sourceHealth.map((source) => ({
-      tool: `context_plane:${source.source}`,
-      count: undefined,
-      summary: source.detail ?? `Context Plane checked ${source.source}`,
-      confidence:
-        source.status === 'complete' ? 'high' : source.status === 'partial' ? 'medium' : 'low',
-    }));
-    const trace = sourceHealth.length
-      ? sourceHealth.map((source) => ({
-          tool: `context_plane:${source.source}`,
-          action:
-            source.status === 'complete' || source.status === 'partial' ? 'selected' : 'skipped',
-          reason: source.detail ?? `Context Plane source status: ${source.status}`,
-        }))
-      : [
-          {
-            tool: 'context_plane',
-            action: 'selected',
-            reason: 'Governed ContextPacket compiled; retrieval was not required for this turn.',
-          },
-        ];
-    return {
-      context: governed.context.prompt,
-      sources,
-      trace,
-      conflict: null,
-      policy: raw.policyForIntent(intent, query),
-      template: raw.templateForIntent(intent),
-      activeClient: governed.activeClient,
-    };
-  };
-
-  const originalRecall = raw.loadRelevantMemories.bind(raw);
-  raw.loadRelevantMemories = async (...args: unknown[]) =>
-    currentMeriGovernedRuntime() ? [] : originalRecall(...args);
-
-  raw.clientKb = governedClientKbProxy(raw.clientKb);
-  raw.meriV2Chat = governedStreamClientProxy(raw.meriV2Chat);
+  }) as MeriRuntimeService;
 }
 
 function installV3Phase19Adapters(v3Service: MeriV3ProxyService): void {

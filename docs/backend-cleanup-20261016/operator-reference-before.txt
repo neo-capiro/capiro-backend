@@ -1,0 +1,38 @@
+HEAD:apps/api/package.json:130:    "phase6:extract-stage": "tsx scripts/phase6-stage-cycle.ts --command extract_stage_document",
+HEAD:apps/api/package.json:131:    "phase6:compose-authorization": "tsx scripts/phase6-stage-cycle.ts --command compose_authorization_cycle",
+HEAD:apps/api/package.json:132:    "phase6:compose-appropriations": "tsx scripts/phase6-stage-cycle.ts --command compose_appropriations_cycle",
+HEAD:apps/api/package.json:133:    "phase6:compose-post-enactment": "tsx scripts/phase6-stage-cycle.ts --command compose_post_enactment_evidence",
+HEAD:apps/api/package.json:134:    "phase6:verify-cycle": "tsx scripts/phase6-stage-cycle.ts --command verify_full_stage_cycle",
+HEAD:apps/api/package.json:135:    "phase6:report-cycle": "tsx scripts/phase6-stage-cycle.ts --command report_cycle_certification",
+HEAD:apps/api/scripts/entrypoint.sh:187:    exec ./node_modules/.bin/tsx scripts/plan-defense-budget-promotion-v1.ts "$@"
+HEAD:apps/api/scripts/entrypoint.sh:211:    exec ./node_modules/.bin/tsx scripts/status-defense-budget-promotion-v1.ts "$@"
+HEAD:apps/api/scripts/file-defense-budget-promotion-plan-v1.ts:3: * `plan-defense-budget-promotion-v1.ts`'s own header always said was separate:
+HEAD:apps/api/scripts/pe-budget-phase7-plan-rehearsal.ts:408:    const first = runVerb('plan-defense-budget-promotion-v1.ts', planArgs, APP_URL);
+HEAD:apps/api/scripts/pe-budget-phase7-plan-rehearsal.ts:440:    const second = runVerb('plan-defense-budget-promotion-v1.ts', planArgs, APP_URL);
+HEAD:apps/api/scripts/pe-budget-phase7-plan-rehearsal.ts:456:      'plan-defense-budget-promotion-v1.ts',
+HEAD:apps/api/scripts/persist-phase6-audit-projections-v1.ts:5: * Before this script existed, `phase6-stage-cycle.ts`'s `verify_full_stage_cycle`
+HEAD:apps/api/scripts/persist-phase6-audit-projections-v1.ts:15: * Deliberately kept out of `phase6-stage-cycle.ts`: that entrypoint's whole
+HEAD:apps/api/scripts/persist-phase6-audit-projections-v1.ts:25: * `phase6-stage-cycle.ts verify_full_stage_cycle`) and writes nothing ΓÇö
+HEAD:apps/api/scripts/plan-defense-budget-promotion-v1.ts:126:    console.error('Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+HEAD:apps/api/scripts/status-defense-budget-promotion-v1.ts:54:    console.error('Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+HEAD:apps/api/scripts/validate-defense-budget-promotion-v1.ts:54:  // Same rule as status-defense-budget-promotion-v1.ts: the ECS
+HEAD:apps/api/scripts/verify-pe-budget-phase-7-safety.ts:145:    'scripts/plan-defense-budget-promotion-v1.ts',
+HEAD:apps/api/scripts/verify-pe-budget-phase6-closeout.sh:33:  "apps/api/scripts/phase6-stage-cycle.ts" \
+HEAD:apps/api/src/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.ts:124:   * .loadForEligibilityHash`, exactly as `plan-defense-budget-promotion-v1.ts`
+HEAD:apps/api/src/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.ts:11: *     `plan-defense-budget-promotion-v1.ts` already does. That method
+HEAD:apps/api/src/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.ts:26: *   - `loadPriorRows`: identical query to `plan-defense-budget-promotion-v1.ts`'s
+HEAD:apps/api/src/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.ts:121:    // EXISTING Phase 7 seam exactly as `plan-defense-budget-promotion-v1.ts`
+HEAD:apps/api/src/defense-budget/promotion/slo-metrics-v1.ts:41: *     `scripts/status-defense-budget-promotion-v1.ts`, the read-only operator
+HEAD:apps/api/tsconfig.phase6.json:13:    "scripts/phase6-stage-cycle.ts",
+HEAD:apps/api/tsconfig.phase7.json:21:    "scripts/plan-defense-budget-promotion-v1.ts",
+HEAD:apps/api/tsconfig.phase7.json:26:    "scripts/status-defense-budget-promotion-v1.ts",
+HEAD:apps/defense-api/runtime-source/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.ts:124:   * .loadForEligibilityHash`, exactly as `plan-defense-budget-promotion-v1.ts`
+HEAD:apps/defense-api/runtime-source/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.ts:11: *     `plan-defense-budget-promotion-v1.ts` already does. That method
+HEAD:apps/defense-api/runtime-source/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.ts:26: *   - `loadPriorRows`: identical query to `plan-defense-budget-promotion-v1.ts`'s
+HEAD:apps/defense-api/runtime-source/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.ts:121:    // EXISTING Phase 7 seam exactly as `plan-defense-budget-promotion-v1.ts`
+HEAD:apps/defense-api/runtime-source/defense-budget/promotion/slo-metrics-v1.ts:41: *     `scripts/status-defense-budget-promotion-v1.ts`, the read-only operator
+HEAD:apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts:126:    console.error('Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+HEAD:apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts:54:    console.error('Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+HEAD:scripts/verify-phase8-session4.mjs:73:  ['apps/api/scripts/phase6-stage-cycle.ts', 'apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts'],
+HEAD:scripts/verify-phase8-session4.mjs:74:  ['apps/api/scripts/plan-defense-budget-promotion-v1.ts', 'apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts'],
+HEAD:scripts/verify-phase8-session4.mjs:75:  ['apps/api/scripts/status-defense-budget-promotion-v1.ts', 'apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts'],

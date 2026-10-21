@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "0483963adc5382202408e8398d8b1601f53d8525",
+  "sourcePath": "apps/api/src/engagement/engagement.service.ts",
+  "sourceBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+  "sourceLineCount": 12528,
+  "methodEntries": [
+    {
+      "name": "outreachContext",
+      "visibility": "private",
+      "methodStartLine": 9595,
+      "methodEndLine": 9644,
+      "methodPhysicalLines": 50,
+      "methodNonblankLines": 49,
+      "proposedBlockStartLine": 9595,
+      "proposedBlockEndLine": 9644,
+      "blockPhysicalLines": 50,
+      "blockNonblankLines": 49
+    },
+    {
+      "name": "outreachVoiceFewShots",
+      "visibility": "private",
+      "methodStartLine": 10288,
+      "methodEndLine": 10342,
+      "methodPhysicalLines": 55,
+      "methodNonblankLines": 55,
+      "proposedBlockStartLine": 10281,
+      "proposedBlockEndLine": 10342,
+      "blockPhysicalLines": 62,
+      "blockNonblankLines": 62
+    },
+    {
+      "name": "batchRecipientCorrespondence",
+      "visibility": "private",
+      "methodStartLine": 10439,
+      "methodEndLine": 10528,
+      "methodPhysicalLines": 90,
+      "methodNonblankLines": 86,
+      "proposedBlockStartLine": 10416,
+      "proposedBlockEndLine": 10528,
+      "blockPhysicalLines": 113,
+      "blockNonblankLines": 109
+    }
+  ],
+  "totals": {
+    "methodPhysicalLines": 195,
+    "methodNonblankLines": 190,
+    "proposedBlocksPhysicalLines": 225,
+    "proposedBlocksNonblankLines": 220
+  },
+  "qualification": "Read-only source/reference proof; no application edit, compiler, test, service, install or deployment executed",
+  "retainedTests": {
+    "directEnrichmentCases": 7,
+    "batchCasesWithAssignmentOnlyStubs": 11,
+    "exportedScrubberCases": 2
+  }
+}

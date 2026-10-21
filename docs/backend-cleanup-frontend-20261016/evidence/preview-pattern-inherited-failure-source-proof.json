@@ -1,0 +1,180 @@
+{
+  "sourceCommit": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "classification": "Inherited protective route-authority failure; not cleanup-induced output drift",
+  "basis": "Static source/data comparison only. No generator, test, compiler, browser, database, install or build executed by this analysis.",
+  "generator": {
+    "path": "scripts/engagement-phase3-preview-route-patterns.mjs",
+    "sourceBlob": "1fda08859597cb5fd0b56d4b4191e4e78115a3ce",
+    "sourceBytes": 7975,
+    "sourceSha256": "6bd9d1861ee98b20f53ee5d516f27949152058ffc16fee5087de966aff0e8d4d",
+    "workingBytes": 8001,
+    "workingSha256": "d4016b28c408e4db49941c8954955b509f302d0b4fc3ad9eeef8f1b98529ba1b",
+    "workingCanonicalLfSha256": "d4016b28c408e4db49941c8954955b509f302d0b4fc3ad9eeef8f1b98529ba1b",
+    "approvedInverse": {
+      "replace": "tests/support/legacy-web/source-inputs/engagement-api-preview-routes.generated.ts.txt",
+      "with": "apps/web/src/lib/engagement-api-preview-routes.generated.ts",
+      "occurrences": 1,
+      "reconstructedSha256": "6bd9d1861ee98b20f53ee5d516f27949152058ffc16fee5087de966aff0e8d4d",
+      "byteExactToCanonicalGit": true
+    },
+    "ruleChanges": 0
+  },
+  "unchangedManifests": [
+    {
+      "path": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "sourceBlob": "d2b1f9f70d118e0dbc1fedaea06236fd72c21bb4",
+      "sourceBytes": 94918,
+      "sourceSha256": "162901efd77490e3a00d4cec8245c2c03fbefd58338422f6cef86a65bb35f8e9",
+      "workingBytes": 94918,
+      "workingSha256": "162901efd77490e3a00d4cec8245c2c03fbefd58338422f6cef86a65bb35f8e9",
+      "workingCanonicalLfSha256": "162901efd77490e3a00d4cec8245c2c03fbefd58338422f6cef86a65bb35f8e9",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+      "sourceBlob": "dcc1a215744cf684e6a14ddb848c16c01ee1bc29",
+      "sourceBytes": 1942,
+      "sourceSha256": "47786180f38c8db253544d624f68b7a042f754d823e16f9c2d41e4d9c3ee9536",
+      "workingBytes": 1942,
+      "workingSha256": "47786180f38c8db253544d624f68b7a042f754d823e16f9c2d41e4d9c3ee9536",
+      "workingCanonicalLfSha256": "47786180f38c8db253544d624f68b7a042f754d823e16f9c2d41e4d9c3ee9536",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json",
+      "sourceBlob": "96cdacbde494f1ffe83d73ab36c00abb61e5c648",
+      "sourceBytes": 962,
+      "sourceSha256": "ca2a25a40472d2ce50552fb997ce22681a79e84bc849a1942c7ec63cec15c8ed",
+      "workingBytes": 962,
+      "workingSha256": "ca2a25a40472d2ce50552fb997ce22681a79e84bc849a1942c7ec63cec15c8ed",
+      "workingCanonicalLfSha256": "ca2a25a40472d2ce50552fb997ce22681a79e84bc849a1942c7ec63cec15c8ed",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json",
+      "sourceBlob": "855a95a3aea191c6855a974f20da53939db6ef01",
+      "sourceBytes": 792,
+      "sourceSha256": "c1ca3b8ec80596dde998beb35f9d45ac731ca559b44a2a875a4519816ab37b48",
+      "workingBytes": 792,
+      "workingSha256": "c1ca3b8ec80596dde998beb35f9d45ac731ca559b44a2a875a4519816ab37b48",
+      "workingCanonicalLfSha256": "c1ca3b8ec80596dde998beb35f9d45ac731ca559b44a2a875a4519816ab37b48",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-context-route-manifest.v1.json",
+      "sourceBlob": "1cac136f08958838fbe465da703be9f1717f2c36",
+      "sourceBytes": 961,
+      "sourceSha256": "325ce86a4824c3d9b4b20e495d941f638a16091da6f5f630f3a81e0279ffec47",
+      "workingBytes": 961,
+      "workingSha256": "325ce86a4824c3d9b4b20e495d941f638a16091da6f5f630f3a81e0279ffec47",
+      "workingCanonicalLfSha256": "325ce86a4824c3d9b4b20e495d941f638a16091da6f5f630f3a81e0279ffec47",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-generation-route-manifest.v1.json",
+      "sourceBlob": "1b09c5bf0c8eded5a1b2c299620814a4138f73f2",
+      "sourceBytes": 2448,
+      "sourceSha256": "d65fd3705cba46cf53a5b7f0d9f2f00f550057ec8ff7e4a7cf727dd18f99c3e6",
+      "workingBytes": 2448,
+      "workingSha256": "d65fd3705cba46cf53a5b7f0d9f2f00f550057ec8ff7e4a7cf727dd18f99c3e6",
+      "workingCanonicalLfSha256": "d65fd3705cba46cf53a5b7f0d9f2f00f550057ec8ff7e4a7cf727dd18f99c3e6",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-drafts-route-manifest.v1.json",
+      "sourceBlob": "86cb203e84cc6c36a6e4d7b62275f883afa9e830",
+      "sourceBytes": 1260,
+      "sourceSha256": "821ecf805e5cb7de8a9252552693d3e85e80a997b789a562362f92eddd9ca894",
+      "workingBytes": 1260,
+      "workingSha256": "821ecf805e5cb7de8a9252552693d3e85e80a997b789a562362f92eddd9ca894",
+      "workingCanonicalLfSha256": "821ecf805e5cb7de8a9252552693d3e85e80a997b789a562362f92eddd9ca894",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-send-route-manifest.v1.json",
+      "sourceBlob": "4dab7878916bab621eb2f6e4de4afeed1dedb865",
+      "sourceBytes": 1786,
+      "sourceSha256": "f45964ca237615dfa19c69f2ee77aab5f57a40824c710daa4be60cfbc40f5ab3",
+      "workingBytes": 1786,
+      "workingSha256": "f45964ca237615dfa19c69f2ee77aab5f57a40824c710daa4be60cfbc40f5ab3",
+      "workingCanonicalLfSha256": "f45964ca237615dfa19c69f2ee77aab5f57a40824c710daa4be60cfbc40f5ab3",
+      "byteExact": true,
+      "canonicalLfExact": true
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-templates-route-manifest.v1.json",
+      "sourceBlob": "cd34201cd5d07ef52ecff28c7e253108ce03ca77",
+      "sourceBytes": 1628,
+      "sourceSha256": "e2ed530058ab829aebf21c38d85aa76040e1e9c46e8ba0298fa7e8a27633254f",
+      "workingBytes": 1628,
+      "workingSha256": "e2ed530058ab829aebf21c38d85aa76040e1e9c46e8ba0298fa7e8a27633254f",
+      "workingCanonicalLfSha256": "e2ed530058ab829aebf21c38d85aa76040e1e9c46e8ba0298fa7e8a27633254f",
+      "byteExact": true,
+      "canonicalLfExact": true
+    }
+  ],
+  "unchangedRules": {
+    "previewPrefix": "/api/engagement",
+    "exclusions": [
+      "/api/internal/ai-credentials/resolve",
+      "/webhooks/recall"
+    ],
+    "proof": "Complete generator inverse equals sealed Git source, including all prefix/exclusion/validation code."
+  },
+  "generatedOperand": {
+    "source": "apps/web/src/lib/engagement-api-preview-routes.generated.ts",
+    "destination": "tests/support/legacy-web/source-inputs/engagement-api-preview-routes.generated.ts.txt",
+    "sourceBlob": "bd370fe927dbfb9ee3d19199b4de399ed275736e",
+    "bytes": 10476,
+    "sha256": "52d4860d305acd1c34774cde5f5eeabbd36aadbdd1b0de487f4311bd7262421f",
+    "byteExact": true,
+    "comparedByObservedCommand": false
+  },
+  "rejectedHistoricalRoutes": [
+    {
+      "path": "/api/clio/krisp-notetaker",
+      "method": "GET",
+      "source": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "line": 8
+    },
+    {
+      "path": "/api/clio/krisp-notetaker/folders",
+      "method": "GET",
+      "source": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "line": 32
+    },
+    {
+      "path": "/api/clio/krisp-notetaker/imports/:id/candidates",
+      "method": "GET",
+      "source": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "line": 56
+    },
+    {
+      "path": "/api/clio/krisp-notetaker/imports/:id/match",
+      "method": "POST",
+      "source": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "line": 81
+    },
+    {
+      "path": "/api/clio/krisp-notetaker/preferences",
+      "method": "POST",
+      "source": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "line": 107
+    }
+  ],
+  "parentObservedDiagnostic": {
+    "path": "evidence/owned-preview-pattern-drift-check.stderr",
+    "bytes": 698,
+    "sha256": "a621e4cbe2ecdc39f7815995c2c6a4a61f475b98e245fcc950d5fdb1df7de1da",
+    "marker": "ENGAGEMENT_PREVIEW_ROUTE_PATTERNS_INVALID (5)",
+    "failureCount": 5
+  },
+  "qualificationBoundary": "The guard fails before rendering or reading the generated output. Output-path relocation cannot produce these errors; all five route/rule disagreements are present at sealed source4e. Current backend preview-route acceptance remains unqualified. No authority/exclusion/table/contract change is made."
+}

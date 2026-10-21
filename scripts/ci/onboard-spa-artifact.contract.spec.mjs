@@ -12,7 +12,9 @@ import { ONBOARD_PUBLIC_ASSETS, parseOnboardSpaArtifactInvocation, readOnboardSp
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const baseline = 'b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08';
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const source = (path) => fs.readFileSync(join(root, path), 'utf8');
+const source = (path) => fs.readFileSync(join(root, path.startsWith('.github/workflows/')
+  ? 'docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/' + path.slice('.github/workflows/'.length) + '.disabled'
+  : path), 'utf8');
 const originalBytes = (path) => execFileSync('git', ['show', `${baseline}:${path}`], { cwd: root });
 const original = (path) => originalBytes(path).toString('utf8');
 const dockerPath = 'apps/onboard-api/Dockerfile';
@@ -306,7 +308,13 @@ test('case/control regression preserves all former cases and limits the helper c
     .replace('webm|map)$/.test(value)', 'webm|map)$/i.test(value)')
     .replace(`typeof name !== 'string' || /[\\s\\u0000-\\u001f\\u007f]/.test(name) ||`, `typeof name !== 'string' ||`);
   assert.equal(inverse, before);
-  const prefix = source('scripts/ci/onboard-spa-artifact.contract.spec.mjs').slice(0, 20003);
+  const controls = source('scripts/ci/onboard-spa-artifact.contract.spec.mjs');
+  // Invert only the exact quarantine reader adaptation; all former source-case
+  // bytes and the original prefix identity remain mandatory.
+  const reviewedReader = "const source = (path) => fs.readFileSync(join(root, path.startsWith('.github/workflows/')\n  ? 'docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/' + path.slice('.github/workflows/'.length) + '.disabled'\n  : path), 'utf8');";
+  const formerReader = "const source = (path) => fs.readFileSync(join(root, path), 'utf8');";
+  assert.equal(controls.split(reviewedReader).length, 2, 'one exact reviewed quarantine reader');
+  const prefix = controls.replace(reviewedReader, formerReader).slice(0, 20003);
   assert.equal(sha(prefix), 'ecae39d24423d4cd8f0e87a9bfcad67c54808751b97c34544315c1788685e27e', 'exact former controls with only receiving baseline/lock bindings');
 });
 

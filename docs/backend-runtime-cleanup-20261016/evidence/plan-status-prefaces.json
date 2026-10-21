@@ -1,0 +1,51 @@
+{
+  "source": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "scope": "Five documentation-only status prefaces; original paths and every historical body byte retained; no application/runtime/qualification status promotion",
+  "rows": [
+    {
+      "path": "docs/plans/workspace-design-handoff-parity-2026-08-16.md",
+      "beforeBlob": "20dc6b7778c3b83f4dbfa8038859c1df7547eda0",
+      "beforeSHA256": "f193a0ed293f54a434028ff4de1157e0c9866f1dc9ab9e7beacd289ca0c2bcd3",
+      "afterSHA256": "1e9089c81b6a6c187e43a69d6b765c2b8285332b99c891e512e04fcf1f76b102",
+      "prefixBytes": 521,
+      "originalBodyBytes": 3524,
+      "inverse": "Remove only the recorded prefix; original Git blob bytes remain exact"
+    },
+    {
+      "path": "docs/plans/legiwatch-ux-simplification-2026-09-18.md",
+      "beforeBlob": "8578d7704e7644933380f69447516148ec2394d6",
+      "beforeSHA256": "0e040b40f92473a57c5fbc0c27dc1639d935d208295f06ab361c19a058f95040",
+      "afterSHA256": "e9a0e581a67c23e19c76b78e93a4d00881221eec6b81bb65440656d417b759a8",
+      "prefixBytes": 512,
+      "originalBodyBytes": 34890,
+      "inverse": "Remove only the recorded prefix; original Git blob bytes remain exact"
+    },
+    {
+      "path": "docs/plans/budget-lines-ui-implementation-plan.md",
+      "beforeBlob": "9de20a2347efc8b757ea4907aaf448a378ecebbd",
+      "beforeSHA256": "99580a5d079f48f6dedd5680cabcb3fbf3deb7aab2a7f0ead995c726b93f0634",
+      "afterSHA256": "12872763656fbe4376e72b04f6d8e15bc6103f21ebe1cd26d41ce5b8f7b07937",
+      "prefixBytes": 529,
+      "originalBodyBytes": 16964,
+      "inverse": "Remove only the recorded prefix; original Git blob bytes remain exact"
+    },
+    {
+      "path": "docs/plans/clio-assistant-parity-plan.md",
+      "beforeBlob": "1d8d589d60de001116a6b1387766a14ba99c9598",
+      "beforeSHA256": "d2b353e5f02b02588bc3c26733b5168034d36ac8bd0c55166f84cc856032eeac",
+      "afterSHA256": "432984ca0b079261ceea4ac90f4a6c1984aa97db635749f9b420819fc0712411",
+      "prefixBytes": 551,
+      "originalBodyBytes": 18735,
+      "inverse": "Remove only the recorded prefix; original Git blob bytes remain exact"
+    },
+    {
+      "path": "docs/plans/clio-assistant-parity-progress.md",
+      "beforeBlob": "44b9ec7c978c9450c2e4929d7a68b0d450969d05",
+      "beforeSHA256": "9be0808502efd02dc9f48995059850f95757b5771d89b8d6f9d140588db57e41",
+      "afterSHA256": "bb8e340d357d61f8c549ee3ce21f4021399843aa822f7e9cb3019411ccb53ac1",
+      "prefixBytes": 490,
+      "originalBodyBytes": 12823,
+      "inverse": "Remove only the recorded prefix; original Git blob bytes remain exact"
+    }
+  ]
+}

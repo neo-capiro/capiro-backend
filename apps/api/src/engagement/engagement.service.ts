@@ -102,7 +102,6 @@ import {
   deriveMeetingVirtuality,
   billStatusLabel,
   currentCycleFyOf,
-  DELIVERABLE_RISK_TIERS,
   GOOGLE_WORKSPACE_SCOPES,
   isTenantAdmin,
   type AiGenerationUsageLike,
@@ -136,7 +135,6 @@ import {
   type ReportTargetLinkInput,
   type ReportStatusField,
 } from './report-targets.js';
-import type { OfficeRecommendation } from '../intelligence/office-recommender.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ClientAssociationService } from './client-association.service.js';
@@ -160,25 +158,18 @@ import { editRatio } from '../common/text-distance.js';
 import {
   billIdFromItemId,
   peCodeFromItemId,
-  intelAlertIdFromItemId,
   formatBillTruth,
   formatPeTruth,
   renderClientRelationshipSnapshot,
-  renderClientPeopleRoster,
-  renderClientTargetOffices,
   type BillTruth,
   type PeTruth,
   type BillVoteRow,
   type GoverningRuleRow,
   type PeYearFunding,
-  type TargetOfficeLite,
 } from './outreach-context-enrichment.js';
 import {
   AlertPacketClientService,
-  renderAlertPacketForOutreach,
-  overlayClientRelationshipContext,
 } from './generation/alert-packet-client.service.js';
-import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 // Wave-2 post-hoc grounding auditor (dark/shadow by default via MERI_AUDITOR_MODE):
 // extends the same deterministic post-generation check to the outreach batch
 // drafter, re-deriving ground truth from the same PE/bill truth blocks already
@@ -4387,84 +4378,6 @@ export class EngagementService {
    * `testMode` a single [TEST] copy is sent to the logged-in user so they
    * can preview formatting before the real send.
    */
-  /**
-   * §3.3 server-side outreach hold (defense-in-depth): a HELD draft becomes a
-   * durable review_request keyed by CONTENT (recipient + exact subject/body),
-   * and sendBatchEmails refuses any draft whose content key has a non-approved
-   * review. The wizard's client-side 'held' handling stays the first line;
-   * this closes the direct-API / wizard-bug bypass. Fail-open on persistence
-   * errors (loud log): generation must never lose a draft because the hold row
-   * failed — the client-side gate still applies to that draft.
-   */
-  /**
-   * @deprecated Phase 0 §3.b3 — CONTENT-KEYED holds are superseded by immutable
-   * draft versions (`subjectType='outreach-draft-version'`). This method is
-   * reached ONLY on the pre-Phase-0 path (ENGAGEMENT_VERSIONED_OUTREACH=false),
-   * where removing it would leave generation with no server-side hold gate at
-   * all. It is retained for that compatibility window and for reading historical
-   * rows; do NOT add new callers, and do NOT create new review rows with
-   * subjectType='outreach-draft'.
-   */
-  private async persistOutreachHold(
-    ctx: TenantContext,
-    held: {
-      recipientId: string;
-      recipientName: string | null;
-      clientId: string | null;
-      subject: string;
-      body: string;
-      findings: unknown[];
-    },
-  ): Promise<void> {
-    try {
-      const subjectId = outreachDraftHoldKey(held.recipientId, held.subject, held.body);
-      const findingSummary = (held.findings as Array<Record<string, unknown>>)
-        .map((f) => `${String(f.check ?? '?')} (${String(f.severity ?? '?')})`)
-        .join(', ');
-      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-        // Idempotent per content key: a regenerate that reproduces the same
-        // held text must not stack duplicate pending reviews.
-        const existing = await tx.reviewRequest.findFirst({
-          where: {
-            tenantId: ctx.tenantId,
-            subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
-            subjectId,
-            status: 'pending',
-          },
-          select: { id: true },
-        });
-        if (existing) return;
-        await tx.reviewRequest.create({
-          data: {
-            tenantId: ctx.tenantId,
-            // Outreach is an external send — the blueprint's restricted tier.
-            riskTier: DELIVERABLE_RISK_TIERS.external_send ?? 'restricted',
-            surface: 'outreach',
-            subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
-            subjectId,
-            clientId: held.clientId,
-            title: `Held outreach draft — ${held.recipientName || held.recipientId}`.slice(0, 300),
-            reason:
-              `Grounding auditor held this draft under enforce mode` +
-              (findingSummary ? ` (${findingSummary})` : '') +
-              `. Approving releases the EXACT held text for sending; any edit produces new content that regenerates its own verdict.`,
-            payload: {
-              recipientId: held.recipientId,
-              subject: held.subject,
-              body: held.body,
-              findings: held.findings,
-            } as Prisma.InputJsonValue,
-            requestedBy: ctx.userId ?? null,
-          },
-        });
-      });
-    } catch (e) {
-      this.logger.error(
-        `outreach hold persistence FAILED — the server-side send gate will not cover this draft ` +
-          `(the wizard's client-side held status still applies): ${(e as Error).message}`,
-      );
-    }
-  }
 
   /**
    * COMPATIBILITY ROUTE (Phase 0 §3.d2).
@@ -4623,7 +4536,7 @@ export class EngagementService {
 
     // §3.3 server-side hold gate: refuse to send any draft whose EXACT content
     // was held by the grounding auditor and not yet approved in Reviews. The
-    // content key matches persistOutreachHold's, so an unedited held draft is
+    // The stable content key matches historical holds, so an unedited held draft is
     // blocked here no matter what the caller claims — the wizard's client-side
     // 'held' status is UX, this is the enforcement boundary. One batch lookup.
     const holdKeys = [
@@ -9608,237 +9521,8 @@ export class EngagementService {
     return this.ai.rewriteEmailDraft(ctx, input);
   }
 
-  private async outreachContext(
-    ctx: TenantContext,
-    record: {
-      clientId: string | null;
-      meetingId: string | null;
-      metadata: Prisma.JsonValue;
-      meeting?: {
-        clientId: string | null;
-        organizerEmail: string | null;
-        attendees: Array<{ email: string | null }>;
-      } | null;
-    },
-    recipients: OutreachRecipientInput[],
-    extraMetadata?: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    const meetingId = record.meetingId;
-    const clientId = record.clientId ?? record.meeting?.clientId ?? null;
-    const [notes, debriefs, clientContext, recentClientMeetings, directoryMatches] =
-      await Promise.all([
-        meetingId ? this.listMeetingNotes(ctx, meetingId).catch(() => []) : Promise.resolve([]),
-        meetingId ? this.listMeetingDebriefs(ctx, meetingId).catch(() => []) : Promise.resolve([]),
-        clientId ? this.clientContext(ctx, clientId).catch(() => null) : Promise.resolve(null),
-        clientId
-          ? this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => [])
-          : Promise.resolve([]),
-        this.directory
-          .findContactsByEmails(
-            unique([
-              ...recipients.map((recipient) => recipient.email ?? ''),
-              ...(record.meeting?.attendees ?? []).map((attendee) => attendee.email ?? ''),
-              record.meeting?.organizerEmail ?? '',
-            ]).filter(Boolean),
-            50,
-          )
-          .catch(() => []),
-      ]);
 
-    // Rendered to a compact STRING, not the raw object: PromptSpec v2 only
-    // renders string context values (nonEmptyStr), so an object silently drops.
-    // Same fix as the batch path (generateBatchEmails) — see
-    // renderClientRelationshipSnapshot's other call site.
-    return pruneForAi({
-      notes: notes.filter((note) => !note.restricted),
-      debriefs: debriefs.filter((debrief) => !debrief.restricted),
-      clientContext: renderClientRelationshipSnapshot(clientContext),
-      recentClientMeetings,
-      directoryMatches,
-      metadata: mergeJsonObjects(record.metadata, extraMetadata ?? {}),
-    });
-  }
 
-  private async recentClientMeetingsForOutreach(ctx: TenantContext, clientId: string) {
-    const meetings = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const rows=await tx.meeting.findMany({
-        where: {
-          AND: [
-            { tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-            await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId),
-          ],
-        },
-        select: {
-          id: true,
-          subject: true,
-          startsAt: true,
-          endsAt: true,
-          location: true,
-          organizerEmail: true,
-          organizerName: true,
-          attendees: {
-            select: { id: true, email: true, name: true, role: true },
-            orderBy: { createdAt: 'asc' as const },
-          },
-          preps: {
-            orderBy: { createdAt: 'desc' as const },
-            take: 1,
-          },
-          tasks: {
-            where: { status: { not: EngagementTaskStatus.canceled } },
-            orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'desc' as const }],
-          },
-        },
-        orderBy: { startsAt: 'desc' },
-        take: 8,
-      });
-      for(const row of rows)row.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,row.preps);
-      return rows;
-    });
-
-    const debriefsByMeeting = await Promise.all(
-      meetings.map((meeting) => this.listMeetingDebriefs(ctx, meeting.id).catch(() => [])),
-    );
-
-    return meetings.map((meeting, index) => ({
-      ...meeting,
-      debriefs: (debriefsByMeeting[index] ?? []).filter((debrief) => !debrief.restricted),
-    }));
-  }
-
-  /**
-   * Accuracy fix (2026-07-11): rewrite the body of every attached `bill` /
-   * `programElement` context item with an AUTHORITATIVE block sourced from our
-   * own (global, non-RLS) tables, so drafts cite real canonical status and every
-   * congressional mark instead of narrating from a single stale string. Runs once
-   * per campaign, in parallel, best-effort: any lookup error/miss leaves the
-   * original client-supplied body untouched (never blocks a draft).
-   *
-   * Also returns `truthByItemId` — the RAW structured PeTruth/BillTruth behind
-   * each rewritten item's rendered text, keyed by context-item id. This is
-   * additive (the rendered `text` is byte-identical to what used to be returned
-   * bare): the post-hoc grounding auditor (shadow by default) uses the raw truth
-   * to build ground-truth LedgerEntrys for whichever items a given recipient's
-   * draft actually used — see generateBatchEmails.
-   *
-   * HP-05 (Gate L): also rewrites an `intel` item's body from intel-api's alert
-   * packet, the SAME accuracy fix extended to LegiWatch alert context — before
-   * this, an `intel` item's body was never touched here, so it reached the
-   * prompt as the literal string `- [intel] undefined` (the wizard's Generate
-   * request sends id-only; nothing ever filled `body` back in). `clientId` is
-   * required — an alert packet is meaningless without one, and
-   * AlertPacketService.build enforces the client belongs to the tenant.
-   * `authHeader` forwards the caller's own already-verified identity to
-   * intel-api (see AlertPacketClientService); a missing header or any fetch
-   * failure degrades to an honest gap, never a guess, matching every other
-   * channel in this method.
-   *
-   * HP-04 (Gate L phase b): a fetched intel packet's client-relationship fields
-   * (people/target offices/recent meetings) are always empty by construction —
-   * intel-api cannot reach apps/api's schema (a layering rule, not an
-   * inability). Resolved ONCE per batch (not per item — same pattern
-   * generateBatchEmails already uses for its own OUTREACH_CLIENT_PROFILE
-   * blocks) and overlaid onto every intel packet fetched below, with
-   * `missingFields` recomputed to honestly reflect what got filled.
-   */
-  private async enrichOutreachContextItems(
-    items: OutreachSelectedContextItemInput[],
-    ctx: TenantContext,
-    clientId: string | null,
-    authHeader?: string,
-  ): Promise<{
-    items: OutreachSelectedContextItemInput[];
-    truthByItemId: Map<string, OutreachContextTruth>;
-  }> {
-    const truthByItemId = new Map<string, OutreachContextTruth>();
-    if (!items.length) return { items, truthByItemId };
-
-    let relationshipOverlay: {
-      existingRelationships?: string[];
-      targetOffices?: string[];
-      recentMeetings?: string[];
-    } = {};
-    if (clientId && items.some((i) => i.kind === 'intel')) {
-      const tenantRow = await this.prisma
-        .withTenant(ctx.tenantId, (tx) =>
-          tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
-        )
-        .catch(() => null);
-      if (outreachClientProfileEnabled(tenantRow?.settings)) {
-        const [peopleBlock, targetOfficesBlock, recentMeetings] = await Promise.all([
-          this.outreachClientPeopleBlock(ctx, clientId).catch(() => null),
-          this.outreachClientTargetOfficesBlock(ctx, clientId).catch(() => null),
-          this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => []),
-        ]);
-        relationshipOverlay = {
-          existingRelationships: peopleBlock ? [peopleBlock] : [],
-          targetOffices: targetOfficesBlock ? [targetOfficesBlock] : [],
-          recentMeetings: recentMeetings
-            .map(
-              (m) =>
-                `${m.subject || 'Meeting'}${m.startsAt ? ` (${new Date(m.startsAt).toISOString().slice(0, 10)})` : ''}`,
-            )
-            .slice(0, 8),
-        };
-      }
-    }
-
-    const enriched = await Promise.all(
-      items.map(async (item) => {
-        try {
-          if (item.kind === 'bill') {
-            const billId = billIdFromItemId(item.id);
-            const block = billId ? await this.billTruthBlock(billId) : null;
-            if (block) {
-              truthByItemId.set(item.id, { kind: 'bill', raw: block.raw });
-              return { ...item, body: block.text };
-            }
-            return item;
-          }
-          if (item.kind === 'programElement') {
-            const peCode = peCodeFromItemId(item.id);
-            const block = peCode ? await this.peTruthBlock(peCode) : null;
-            if (block) {
-              truthByItemId.set(item.id, { kind: 'programElement', raw: block.raw });
-              return { ...item, body: block.text };
-            }
-            // RC1: on a lookup miss do NOT keep the thin client-supplied
-            // "Current: $X / Request: $Y" body — an unverified, direction-
-            // ambiguous figure must never survive into the prompt as fact.
-            return {
-              ...item,
-              body: `No budget-funding record is available in Capiro's data for program element ${
-                peCode ?? item.id
-              }. Do NOT state or estimate any dollar figure for it.`,
-            };
-          }
-          if (item.kind === 'intel') {
-            const alertId = intelAlertIdFromItemId(item.id);
-            const packet =
-              alertId && clientId
-                ? await this.alertPacketClient.fetchAlertPacket(authHeader, clientId, alertId)
-                : null;
-            if (packet) {
-              const enrichedPacket = overlayClientRelationshipContext(packet, relationshipOverlay);
-              return { ...item, body: renderAlertPacketForOutreach(enrichedPacket) };
-            }
-            // Never a bare "undefined": an alert Capiro cannot verify server-side
-            // is named as an honest gap, exactly like the PE lookup-miss above.
-            return {
-              ...item,
-              body: 'This LegiWatch alert could not be verified against Capiro’s records, so no detail from it is included. Do NOT state or infer any fact about it.',
-            };
-          }
-        } catch (err) {
-          this.logger.warn(
-            `outreach context enrichment failed for ${item.id}: ${(err as Error).message}`,
-          );
-        }
-        return item;
-      }),
-    );
-    return { items: enriched, truthByItemId };
-  }
 
   /** Authoritative bill-truth block (see outreach-context-enrichment). Null if the
    *  bill isn't on record — the caller then keeps the thin client body. */
@@ -9856,10 +9540,6 @@ export class EngagementService {
     return this.truth.billTruthBlock(billId);
   }
 
-  /** Authoritative PE-funding block. Null if the PE isn't on record. */
-  private async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {
-    return this.truth.peTruthBlock(peCode);
-  }
 
   /**
    * A compact, prompt-ready block of the client's actively tracked bills with
@@ -9996,89 +9676,7 @@ export class EngagementService {
     return `Client watchlist (the client's standing priority issues and declared stance — align the ask to these where relevant; do not invent a position the client has not stated):\n${parts.join('\n')}`;
   }
 
-  /**
-   * "People this client works with" roster (client_people) — the biggest
-   * who-does-this-client-know gap. Client-level / recipient-invariant, gated by
-   * OUTREACH_CLIENT_PROFILE. tenant-scoped (RLS). Bounded + rendered by the pure
-   * renderClientPeopleRoster. (Rich client-profile context.)
-   */
-  private async outreachClientPeopleBlock(
-    ctx: TenantContext,
-    clientId: string,
-  ): Promise<string | null> {
-    const people = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientPerson.findMany({
-        where: { tenantId: ctx.tenantId, clientId },
-        orderBy: [{ lastContact: 'desc' }, { updatedAt: 'desc' }],
-        take: 15,
-        select: { name: true, title: true, role: true, notes: true, lastContact: true },
-      }),
-    );
-    return renderClientPeopleRoster(people);
-  }
 
-  /**
-   * The client's coordinated TARGET-OFFICE map: the team's explicit picks
-   * (client_targets) UNION Meri's office recommendations (client_target_
-   * recommendations), so a draft can frame the recipient as one of a planned set.
-   * Client-level / recipient-invariant, gated by OUTREACH_CLIENT_PROFILE. Explicit
-   * picks first; recommendations augment committee/billCount and fill the tail.
-   */
-  private async outreachClientTargetOfficesBlock(
-    ctx: TenantContext,
-    clientId: string,
-  ): Promise<string | null> {
-    const [targets, recs] = await Promise.all([
-      this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clientTarget.findMany({
-          where: { tenantId: ctx.tenantId, clientId },
-          orderBy: { addedAt: 'desc' },
-          take: 20,
-          select: {
-            memberId: true,
-            memberName: true,
-            party: true,
-            state: true,
-            chamber: true,
-            committee: true,
-          },
-        }),
-      ),
-      this.outreachTargetRecommendations(ctx, clientId),
-    ]);
-
-    const offices: TargetOfficeLite[] = [];
-    const seen = new Set<string>();
-    for (const t of targets) {
-      const rec = t.memberId ? recs.byMember.get(t.memberId) : undefined;
-      offices.push({
-        memberId: t.memberId,
-        office: t.memberName ?? rec?.office ?? null,
-        party: t.party ?? rec?.party ?? null,
-        state: t.state ?? rec?.state ?? null,
-        chamber: t.chamber ?? rec?.chamber ?? null,
-        committee: t.committee ?? rec?.committee ?? null,
-        billCount: rec?.billCount ?? null,
-        explicit: true,
-      });
-      if (t.memberId) seen.add(t.memberId);
-    }
-    // recs.byMember preserves the stored (score-sorted) recommendation order.
-    for (const [memberId, rec] of recs.byMember) {
-      if (seen.has(memberId)) continue;
-      offices.push({
-        memberId,
-        office: rec.office,
-        party: rec.party,
-        state: rec.state,
-        chamber: rec.chamber,
-        committee: rec.committee,
-        billCount: rec.billCount,
-        explicit: false,
-      });
-    }
-    return renderClientTargetOffices(offices);
-  }
 
   /**
    * W5.2 — prior-outreach dedup. For each recipient email, the most recent SENT
@@ -10294,68 +9892,6 @@ export class EngagementService {
     return out;
   }
 
-  /**
-   * W5.6 — voice few-shots: 2-3 excerpts from the user's OWN recently sent
-   * outreach, so drafts sound like this author. PII-stripped (emails/phones
-   * scrubbed) and capped; style guidance only, never a source of facts. Scoped to
-   * the outreach path (appended to the voice block there), not the shared
-   * loadUserVoiceBlock used by meeting prep/debrief.
-   */
-  private async outreachVoiceFewShots(
-    ctx: TenantContext,
-    clientId: string | null,
-  ): Promise<string | null> {
-    // Phase 1 §3.e2 / §5.8 — HARD client scope.
-    //
-    // This query previously selected by AUTHOR alone, so a lobbyist working three
-    // accounts could have Client A's sent email body pasted verbatim into a draft
-    // written for Client B. Nothing downstream stopped the model from reusing its
-    // specifics. The invariant "raw cross-client writing examples never enter
-    // prompts" is unconditional, so the scope is fixed on BOTH the gateway and the
-    // legacy path rather than only behind the flag — a cross-client leak should not
-    // wait on a rollout. With no campaign client there is no safe scope, so no
-    // examples are used at all.
-    //
-    // NOTE (deviation): this does change the flag-off prompt bytes for the
-    // few-shot block. Strictly in the safe direction — fewer, correctly-scoped
-    // examples — and only for campaigns that previously leaked.
-    if (!clientId) return null;
-    const rows = await this.prisma
-      .withTenant(ctx.tenantId, (tx) =>
-        tx.outreachRecord.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            createdByUserId: ctx.userId,
-            clientId,
-            status: 'sent',
-            deletedAt: null,
-            body: { not: null },
-          },
-          orderBy: { sentAt: 'desc' },
-          take: 3,
-          select: { body: true },
-        }),
-      )
-      .catch(() => [] as Array<{ body: string | null }>);
-    const excerpts = rows
-      .map((r) => scrubPiiForVoice(r.body ?? ''))
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => (s.length > 400 ? `${s.slice(0, 399).trim()}…` : s));
-    if (!excerpts.length) return null;
-    // Total cap ~1200 chars across the (up to 3) excerpts.
-    const capped: string[] = [];
-    let total = 0;
-    for (const e of excerpts) {
-      if (total + e.length > 1200) break;
-      capped.push(e);
-      total += e.length;
-    }
-    if (!capped.length) return null;
-    return `RECENT SENT EXAMPLES BY THIS AUTHOR (mirror the tone, structure, and phrasing — do NOT copy content or reuse their specific facts):\n${capped
-      .map((e, i) => `Example ${i + 1}:\n${e}`)
-      .join('\n\n')}`;
-  }
 
   /** Tracked bill ids for a client (client-level, resolved once per campaign). */
   private async outreachTrackedBillIds(ctx: TenantContext, clientId: string): Promise<string[]> {
@@ -10371,31 +9907,6 @@ export class EngagementService {
     return rows.map((r) => r.billId);
   }
 
-  /**
-   * The Office Recommender's "why this office is a fit for the client" output —
-   * one manual-refresh cache row per client holding an OfficeRecommendation[].
-   * Indexed by directory member id so a recipient can be matched by its
-   * directoryContactId. computedAt is surfaced so the caller can caveat stale
-   * reasoning. (Tier-2 outreach enrichment.)
-   */
-  private async outreachTargetRecommendations(
-    ctx: TenantContext,
-    clientId: string,
-  ): Promise<{ byMember: Map<string, OfficeRecommendation>; computedAt: string | null }> {
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientTargetRecommendation.findUnique({ where: { clientId } }),
-    );
-    const byMember = new Map<string, OfficeRecommendation>();
-    if (!row) return { byMember, computedAt: null };
-    const recs = (row.recommendations ?? []) as unknown as OfficeRecommendation[];
-    for (const rec of recs) {
-      if (rec?.memberId) byMember.set(rec.memberId, rec);
-    }
-    return {
-      byMember,
-      computedAt: row.computedAt ? row.computedAt.toISOString().slice(0, 10) : null,
-    };
-  }
 
   /**
    * Recent press for a set of members, batched by bioguide id. member_press_item
@@ -10429,119 +9940,6 @@ export class EngagementService {
     return byBioguide;
   }
 
-  /**
-   * Recipients' recent correspondence with the sender, resolved for the WHOLE
-   * batch in two queries and bucketed by lowercased email (email is the only
-   * identifier shared across the directory, meeting-attendee, and mail tables).
-   * Meetings match by attendee email; mail threads are client-scoped, so they
-   * load only when clientId is set. Both reads are own-user + tenant scoped and
-   * best-effort. Dates serialize to ISO via JSON.stringify in the prompt builder.
-   * Per recipient we keep the 3 most recent of each. (Tier-1 outreach enrichment.)
-   *
-   * CROSS-CLIENT CONFIDENTIALITY: meetings used to match on attendee email ALONE,
-   * with no client predicate at all — even when the campaign had a client. Since
-   * the caller puts each match's `subject` into the prompt, and a lobbying firm's
-   * congressional contacts are shared across its whole portfolio, a meeting held
-   * for client A surfaced its subject line inside client B's draft. Meetings
-   * belonging to a DIFFERENT client are now excluded; untagged meetings (clientId
-   * null) are still included because they name no client and are usually the most
-   * relevant history for a bare congressional contact. This mirrors the gateway's
-   * own rule for debriefs (resolveDebrief's DEBRIEF_OTHER_CLIENT check).
-   *
-   * Known limitation, deliberately not papered over: an UNTAGGED meeting whose
-   * subject happens to name another client still passes. Scoping cannot detect
-   * that — only tagging the meeting to its client can.
-   */
-  private async batchRecipientCorrespondence(
-    ctx: TenantContext,
-    clientId: string | null,
-    emailsLower: string[],
-  ): Promise<{ meetingsByEmail: Map<string, unknown[]>; threadsByEmail: Map<string, unknown[]> }> {
-    const meetingsByEmail = new Map<string, unknown[]>();
-    const threadsByEmail = new Map<string, unknown[]>();
-    if (!emailsLower.length) return { meetingsByEmail, threadsByEmail };
-    const wanted = new Set(emailsLower);
-    const PER_RECIPIENT = 3;
-    // A no-client campaign may only see untagged meetings: it has no client whose
-    // history it is entitled to, so widening to the whole tenant is the leak.
-    const meetingClientWhere = clientId
-      ? { OR: [{ clientId: null }, { clientId }] }
-      : { clientId: null };
-
-    const [meetings, threads] = await Promise.all([
-      this.prisma
-        .withTenant(ctx.tenantId, (tx) =>
-          tx.meeting.findMany({
-            where: {
-              tenantId: ctx.tenantId,
-              ...ownMeetingWhere(ctx.userId),
-              ...meetingClientWhere,
-              attendees: { some: { email: { in: emailsLower } } },
-            },
-            select: {
-              subject: true,
-              startsAt: true,
-              location: true,
-              attendees: { select: { name: true, email: true, role: true } },
-            },
-            orderBy: { startsAt: 'desc' },
-            take: 100,
-          }),
-        )
-        .catch(
-          () =>
-            [] as Array<{
-              subject: string | null;
-              startsAt: Date | null;
-              location: string | null;
-              attendees: Array<{ name: string | null; email: string | null; role: string | null }>;
-            }>,
-        ),
-      clientId
-        ? this.listMailThreads(ctx, { clientId, recipientEmails: emailsLower }).catch(() => [])
-        : Promise.resolve([]),
-    ]);
-
-    for (const meeting of meetings) {
-      const item = {
-        subject: meeting.subject ?? null,
-        date: meeting.startsAt ?? null,
-        location: meeting.location ?? null,
-        attendees: meeting.attendees ?? [],
-      };
-      const attendeeEmails = new Set(
-        (meeting.attendees ?? [])
-          .map((a) => a.email?.trim().toLowerCase())
-          .filter((e): e is string => Boolean(e)),
-      );
-      for (const email of attendeeEmails) {
-        if (!wanted.has(email)) continue;
-        const list = meetingsByEmail.get(email) ?? [];
-        if (list.length < PER_RECIPIENT) {
-          list.push(item);
-          meetingsByEmail.set(email, list);
-        }
-      }
-    }
-
-    for (const thread of threads as Array<Record<string, unknown>>) {
-      const item = {
-        subject: (thread.subject as string | null) ?? null,
-        lastMessageAt: (thread.lastMessageAt as Date | null) ?? null,
-        snippet: (thread.snippet as string | null) ?? null,
-      };
-      for (const email of threadParticipantEmails(thread)) {
-        if (!wanted.has(email)) continue;
-        const list = threadsByEmail.get(email) ?? [];
-        if (list.length < PER_RECIPIENT) {
-          list.push(item);
-          threadsByEmail.set(email, list);
-        }
-      }
-    }
-
-    return { meetingsByEmail, threadsByEmail };
-  }
 
   async listCampaigns(ctx: TenantContext, query: { clientId?: string; status?: string }) {
     const clientId = query.clientId?.trim() || null;

@@ -1,0 +1,12 @@
+100644 blob ad68121580378e51af35a6315ca63125b8cfd67b    5364	apps/api/src/engagement/engagement-batch-error-status.spec.ts
+100644 blob 3432f5a83f7f8a678e995a3c16ef3fb4d993b617    8164	apps/api/src/engagement/engagement-batch-group.spec.ts
+100644 blob 95d7ec581f64972476a03efd6abdebb26156c199    7349	apps/api/src/engagement/engagement-batch-revise.spec.ts
+100644 blob 563e4eaf23e03cb355498ad829e75b93c10f81dc    6353	apps/api/src/engagement/engagement-batch-sticky-provider.spec.ts
+100644 blob b68b0c53d606967cb10eb0beccd800822aebc799    9523	apps/api/src/engagement/engagement-intel-context.spec.ts
+100644 blob edb4697bb0c21f5ab3b726cbc49457f1156373c1   12439	apps/api/src/engagement/engagement.module.ts
+100644 blob 6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82  506538	apps/api/src/engagement/engagement.service.ts
+100644 blob 093cb9eb1773ee7f55ac467dc8f488c15ce9239b   16388	apps/api/src/engagement/generation/author-style-profile.service.ts
+100644 blob 5b6d6933eed1656ec7ac3c2c022a18314214d316   44061	apps/api/src/engagement/generation/generation-gateway.service.ts
+100644 blob 45b397d15e9baa3a1c605a5ca7f9f055fab9a628   23737	apps/api/src/engagement/generation/outreach-context-plane.service.ts
+100644 blob 0552b3412e91b5849b5811403e0d4d52b010a3c0    7908	apps/api/src/engagement/governed-engagement.factory.ts
+100644 blob f0b6d8fd4b88527f51105affb40c05fd2160b53c    2961	apps/api/src/engagement/outreach-channels.spec.ts
