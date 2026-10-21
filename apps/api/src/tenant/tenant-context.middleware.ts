@@ -10,6 +10,7 @@
 // Investigate read-only and PROPOSE first; wait for go-ahead before editing,
 // merging, or deploying.
 // ============================================================================
+import { mountedRequestPath } from '../auth/mounted-request-path.js';
 import {
   ForbiddenException,
   HttpException,
@@ -85,11 +86,6 @@ const MERI_CONTROL_POST_PATHS = new Set([
   '/clio/application-authority/membership',
   '/clio/application-authority/current',
 ]);
-
-/** Express removes the mount prefix from req.path while middleware runs. */
-function mountedRequestPath(req: Request): string {
-  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
-}
 
 /** A marked, sidless Meri control token is limited to allowlisted authority POSTs.
  * Check both Express' parsed path and the original target: a rewritten or

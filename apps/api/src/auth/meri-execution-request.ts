@@ -1,10 +1,6 @@
+import { mountedRequestPath } from './mounted-request-path.js';
 import type { Request } from 'express';
 import { isMeriExecutionBearer } from './core-ed25519-key-config.js';
-
-/** Express removes the mount prefix from req.path while middleware runs. */
-function mountedRequestPath(req: Request): string {
-  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
-}
 
 /**
  * The single Core route that accepts a Meri execution capability as its

@@ -1,3 +1,4 @@
+import { mountedRequestPath } from '../mounted-request-path.js';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import {
@@ -41,11 +42,6 @@ const SERVICE_POSTS = [
   new RegExp(`^${BASE}/read-delegations/${UUID_PART}/(?:tokens|revocations)$`),
   new RegExp(`^${BASE}/read-delegation-consents/${UUID_PART}/state$`),
 ];
-
-/** Express removes the mount prefix from req.path while middleware runs. */
-function mountedRequestPath(req: Request): string {
-  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
-}
 
 /** Parsed target equal to the original, no query, normalized without `/api`. */
 function exactPath(req: Request): string | null {

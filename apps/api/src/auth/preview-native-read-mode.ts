@@ -1,9 +1,5 @@
+import { mountedRequestPath } from './mounted-request-path.js';
 import type { Request } from 'express';
-
-/** Express removes the mount prefix from req.path while middleware runs. */
-function mountedRequestPath(req: Request): string {
-  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
-}
 
 const PREVIEW_HOST = 'first-chat-preview.app-dev.capiro.ai';
 export const CORE_ROSTER_PREVIEW_HOST = 'core-roster-preview.capiro.ai';

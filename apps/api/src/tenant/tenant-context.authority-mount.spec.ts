@@ -231,6 +231,13 @@ describe('fixed authority routes through production AppModule middleware mountin
     expect(f.withSystem).not.toHaveBeenCalled();
   });
 
+  it.each(retained)('refuses a trailing-slash retained target rewritten to the canonical mount %s', async (path, scheme) => {
+    f = await fixture({ rewrittenTarget: `${path}/` });
+    expect((await f.send(path, { authorization: `${scheme} synthetic` })).status).toBe(401);
+    expect(f.mounts[0]).toEqual({ baseUrl: path, path: '/', originalUrl: `${path}/` });
+    expect(f.verify).not.toHaveBeenCalled(); expect(f.withSystem).not.toHaveBeenCalled();
+  });
+
   it('verifies execution identity on the exact mounted receiver and refuses alternate targets', async () => {
     f = await fixture(); const authorization = `Bearer ${executionToken()}`;
     expect(await f.send(executionPath, { authorization })).toEqual({ status: 200,
@@ -315,6 +322,13 @@ describe('fixed authority routes through production AppModule middleware mountin
   it('refuses rewritten history provenance before any lock or online currentness read', async () => {
     f = await fixture({ historyLeaf: true, rewrittenTarget: '/api/rewritten' });
     expect((await f.send(historyPath, { authorization: 'Bearer native' })).status).toBe(403);
+    expect(f.queries).toHaveLength(0); expect(f.activeSession).not.toHaveBeenCalled();
+  });
+
+  it('refuses a trailing-slash history target rewritten to the canonical mount before any lock or online read', async () => {
+    f = await fixture({ historyLeaf: true, rewrittenTarget: `${historyPath}/` });
+    expect((await f.send(historyPath, { authorization: 'Bearer native' })).status).toBe(403);
+    expect(f.mounts[0]).toEqual({ baseUrl: historyPath, path: '/', originalUrl: `${historyPath}/` });
     expect(f.queries).toHaveLength(0); expect(f.activeSession).not.toHaveBeenCalled();
   });
 });

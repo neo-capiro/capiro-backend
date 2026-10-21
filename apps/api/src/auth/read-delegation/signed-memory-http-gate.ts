@@ -1,11 +1,7 @@
+import { mountedRequestPath } from '../mounted-request-path.js';
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { Request } from 'express';
 import type { OperationRef } from './read-delegation.contract.js';
-
-/** Express removes the mount prefix from req.path while middleware runs. */
-function mountedRequestPath(req: Request): string {
-  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
-}
 
 /** Source registration only. No environment variable or request may activate
  * either transport. A later owner must qualify the matching Meri wire, Core

@@ -9,6 +9,7 @@ import ts from 'typescript';
 // Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
 import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
+import * as mountedRequest from './mounted-request-path.js';
 import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
 
 // Exercise actual owner sources. Only Nest/Clerk/Prisma/request I/O is synthetic.
@@ -68,7 +69,7 @@ const authority = load(source('auth/application-authority.ts'), {
 });
 const wall = load(source('memory/memory-wall.helpers.ts'), { '@capiro/shared': shared });
 const roleMapping = load(source('auth/clerk-role.util.ts'), { '@capiro/shared': shared });
-const previewNativeReadMode = load(source('auth/preview-native-read-mode.ts'), {});
+const previewNativeReadMode = load(source('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest });
 const retainedNativeAuthority = load(source('auth/retained-native-authority.ts'), {
   '@nestjs/common': nest, '@capiro/shared': shared, 'node:util': { types: nodeTypes },
 });
@@ -82,6 +83,7 @@ const tenantOwner = load(source('tenant/tenant-context.middleware.ts'), {
   '../auth/core-ed25519-key-config.js': executionKeyConfig,
   '../auth/meri-execution-request.js': executionRequest,
   '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
+  '../auth/mounted-request-path.js': mountedRequest,
 });
 // The actual canonical governed-memory policy (type-only imports), not a stub.
 const memoryAdminPolicy = load(source('memory/memory-review-admin-policy.ts'), {});
