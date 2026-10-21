@@ -35,7 +35,14 @@ describe('Meri stream/launcher fail-closed contracts', () => {
   });
 
   test('provider resolution failures are classified before they can become a generic 500', () => {
-    expect(readApi('meri.service.ts')).toContain('meriProviderConfigurationError');
-    expect(readApi('meriv3-proxy.service.ts')).toContain('meriProviderConfigurationError');
+    // The current chat stream resolves its provider in the V3 proxy; the retired
+    // in-process loop in meri.service.ts no longer resolves one.
+    const v3 = readApi('meriv3-proxy.service.ts');
+    const resolve = v3.indexOf("aiProvider = await this.aiCredentials.resolveProvider(ctx, 'openai');");
+    const classified = v3.indexOf('throw meriProviderConfigurationError(err);', resolve);
+    expect(resolve).toBeGreaterThan(-1);
+    // The classification is this call's own catch arm, before any later step.
+    expect(classified).toBeGreaterThan(resolve);
+    expect(v3.slice(resolve, classified)).toMatch(/^[^;]*;\s*\}\s*catch \(err\) \{\s*$/);
   });
 });

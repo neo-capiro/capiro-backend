@@ -61,6 +61,14 @@ function harness() {
   };
 }
 
+/** The single delegated request a dispatch made. */
+function onlyRequest(h: ReturnType<typeof harness>): RequestInit {
+  expect(h.fetchSpy).toHaveBeenCalledTimes(1);
+  const [request] = h.requests;
+  if (!request) throw new Error('expected one delegated request');
+  return request;
+}
+
 describe('Current-turn Research Portfolio delegated dispatch', () => {
   it.each(names)('refuses model retargeting for %s before actual delegated dispatch', async name => {
     const h = harness();
@@ -72,11 +80,11 @@ describe('Current-turn Research Portfolio delegated dispatch', () => {
     for (const input of [{}, { conversationId: currentTurn.conversationId }]) {
       const h = harness();
       await expect(h.run('get_research_portfolio', input)).resolves.toEqual({ portfolio: 'Current turn portfolio' });
-      expect(h.fetchSpy).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(h.requests[0].body as string)).toEqual({
+      const request = onlyRequest(h);
+      expect(JSON.parse(request.body as string)).toEqual({
         version: 1, input: { conversationId: currentTurn.conversationId }, currentTurn,
       });
-      expect(h.requests[0].headers).toMatchObject({
+      expect(request.headers).toMatchObject({
         authorization: 'Bearer fixture-verified-user',
         'x-internal-service-secret': 'fixture-service-identity',
       });
@@ -87,8 +95,7 @@ describe('Current-turn Research Portfolio delegated dispatch', () => {
     const h = harness();
     const input = { conversationId: otherConversationId, query: 'funding' };
     await h.run('search_memory', input);
-    expect(h.fetchSpy).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(h.requests[0].body as string)).toEqual(input);
+    expect(JSON.parse(onlyRequest(h).body as string)).toEqual(input);
   });
 
   it('rejects null/empty/non-string scope attempts without rewriting them as a successful current request', async () => {
