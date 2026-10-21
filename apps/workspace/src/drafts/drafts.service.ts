@@ -1,3 +1,4 @@
+import { nextDraftClient, requireDraftClient } from './draft-client-access.js';
 import { createProspectDraft } from '../prospect-resources/prospect-draft-create.js';
 import {
   withProspectDraft,
@@ -50,7 +51,14 @@ export class DraftsService {
       return createProspectDraft(this.prisma, tenantId, ownerId, dto, (tx) =>
         this.create(tenantId, ownerId, dto, tx),
       );
-    const db = transaction ?? this.prisma;
+    if (!transaction) return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+      return this.create(tenantId, ownerId, dto, tx);
+    });
+    const db = transaction;
+    const clientId = dto.clientId ?? null;
+    if (dto.prospectId && clientId) throw new ConflictException('Prospect drafts cannot acquire client association');
+    const canonicalClient = await requireDraftClient(this.prisma, db, tenantId, ownerId, clientId);
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
     const sections = product ? WSC.suggestedSections(product) : [];
@@ -60,7 +68,8 @@ export class DraftsService {
     const config: Record<string, unknown> = {
       industry: dto.industry ?? null,
       product: product || null,
-      client: dto.client ?? null,
+      client: canonicalClient?.name ?? dto.client ?? null,
+      clientId,
       pathways: [],
       committees: [],
       personalize: meta?.personalize ?? false,
@@ -91,7 +100,8 @@ export class DraftsService {
         docTitle: dto.docTitle ?? (product ? `${product} draft` : 'Untitled draft'),
         industry: dto.industry ?? null,
         product: product || null,
-        client: dto.client ?? null,
+        client: canonicalClient?.name ?? dto.client ?? null,
+        clientId,
         config: config as never,
         ask: funding ? { amount: '', pb: '', delta: '' } : 'n/a',
         isPacket: meta?.cover ?? false,
@@ -302,6 +312,7 @@ export class DraftsService {
         industry: true,
         product: true,
         client: true,
+        clientId: true,
         prospectId: true,
         versions: {
           select: { id: true, createdAt: true },
@@ -363,18 +374,28 @@ export class DraftsService {
       'Only owners and editors can edit this document',
     );
 
-    return withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', async (db) => {
+    const run = <T>(operation: (db: Prisma.TransactionClient) => Promise<T>) => existing.prospectId
+      ? withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', operation)
+      : this.prisma.$transaction(async tx => {
+          await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+          await tx.$queryRaw`SELECT id FROM ws_draft WHERE tenant_id=${tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+          return operation(tx);
+        });
+    return run(async (db) => {
       // Prospect writes hold the parent lock. Re-read before merging so a queued
       // legacy autosave cannot restore config/doc counts read before a copy save.
-      const current = existing.prospectId
-        ? await db.wsDraft.findFirstOrThrow({
-            where: { id, tenantId },
-            include: { documents: { select: { id: true } } },
-          })
-        : existing;
+      const current = await db.wsDraft.findFirstOrThrow({
+        where: { id, tenantId }, include: { documents: { select: { id: true } } },
+      });
+      const clientId = nextDraftClient(current, actorId, dto.clientId);
+      if (dto.config && Object.prototype.hasOwnProperty.call(dto.config, 'clientId') && dto.config.clientId !== clientId)
+        throw new ConflictException('Use the explicit client association field');
+      const canonicalClient = await requireDraftClient(this.prisma, db, tenantId, actorId, clientId);
       const mergedConfig: Record<string, unknown> = {
         ...(current.config as Record<string, unknown>),
         ...(dto.config ?? {}),
+        clientId,
+        ...(canonicalClient ? { client: canonicalClient.name } : {}),
       };
 
       const product = dto.product ?? current.product ?? '';
@@ -399,7 +420,8 @@ export class DraftsService {
           ...(dto.docTitle !== undefined ? { docTitle: dto.docTitle } : {}),
           ...(dto.industry !== undefined ? { industry: dto.industry } : {}),
           ...(dto.product !== undefined ? { product: dto.product } : {}),
-          ...(dto.client !== undefined ? { client: dto.client } : {}),
+          clientId,
+          ...(canonicalClient ? { client: canonicalClient.name } : dto.client !== undefined ? { client: dto.client } : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
           lastEditedById: actorId, // stamp who last edited (for the Documents list)
           config: mergedConfig as never,

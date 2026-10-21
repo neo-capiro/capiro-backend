@@ -30,6 +30,7 @@ export class CreateDraftDto {
   @IsOptional() @IsString() industry?: string;
   @IsOptional() @IsString() product?: string;
   @IsOptional() @IsString() client?: string;
+  @IsOptional() @IsUUID() clientId?: string | null;
   @IsOptional() @IsString() docTitle?: string;
 }
 
@@ -38,6 +39,7 @@ export class UpdateDraftDto {
   @IsOptional() @IsString() industry?: string;
   @IsOptional() @IsString() product?: string;
   @IsOptional() @IsString() client?: string;
+  @IsOptional() @IsUUID() clientId?: string | null;
   @IsOptional() @IsIn(['draft', 'complete']) status?: 'draft' | 'complete';
   // Full or partial engine config — merged into the persisted config blob.
   @IsOptional() @IsObject() config?: Record<string, unknown>;

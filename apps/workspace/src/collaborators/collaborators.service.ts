@@ -1,3 +1,4 @@
+import { draftClientSourceAccess } from '../drafts/draft-client-access.js';
 import { withProspectDraft, prospectDraftSourceAccess, withProspectInvitation, requireProspectInvitee } from '../prospect-resources/prospect-draft-access.js';
 import {
   BadRequestException,
@@ -83,9 +84,9 @@ export class CollaboratorsService {
   ): Promise<boolean> {
     const origin = await this.prisma.wsDraft.findFirst({
       where: { tenantId, id: draftId },
-      select: { id: true, tenantId: true, prospectId: true },
+      select: { id: true, tenantId: true, prospectId: true, clientId: true, config: true },
     });
-    if (!origin || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId)))
+    if (!origin || !(await draftClientSourceAccess(this.prisma, origin, clerkUserId)) || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId)))
       return false;
     const rows = await this.prisma.$queryRaw<
       Array<{ source_key: string; owner_id: string; source_type: string }>

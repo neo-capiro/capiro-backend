@@ -79,7 +79,7 @@ export class DeliveryController {
     @Param('draftId') draftId: string,
     @Param('shareLinkId') shareLinkId: string,
   ) {
-    return this.shareLink.revoke(ctx.tenantId, draftId, shareLinkId);
+    return this.shareLink.revoke(ctx.tenantId, draftId, shareLinkId, ctx.clerkUserId);
   }
 
   /**
@@ -106,7 +106,7 @@ export class SharesController {
 
   @Get()
   listShares(@CurrentTenant() ctx: WorkspaceTenantContext) {
-    return this.shareLink.listShares(ctx.tenantId);
+    return this.shareLink.listShares(ctx.tenantId, ctx.clerkUserId);
   }
 }
 

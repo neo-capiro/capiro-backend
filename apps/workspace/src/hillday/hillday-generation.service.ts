@@ -1,3 +1,4 @@
+import { admitHillDayDocument } from './hillday-access.js';
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import {
   BadRequestException,
@@ -117,7 +118,7 @@ export class HillDayGenerationService {
   ) {}
 
   async start(tenantId: string, actorId: string, documentId: string): Promise<{ jobId: string; status: 'queued' | 'running' }> {
-    const doc = await this.assertDoc(tenantId, documentId);
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can generate it');
     const meetings = await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
@@ -165,7 +166,8 @@ export class HillDayGenerationService {
     return { jobId: job.id, status: 'queued' };
   }
 
-  async jobStatus(tenantId: string, documentId: string, jobId: string): Promise<JobStatus> {
+  async jobStatus(tenantId: string, documentId: string, jobId: string, actorId: string): Promise<JobStatus> {
+    await this.assertDoc(tenantId, documentId, actorId);
     const job = await this.prisma.wsHillDayJob.findFirst({ where: { id: jobId, tenantId, documentId } });
     if (!job) throw new NotFoundException('Generation job not found');
     return {
@@ -185,7 +187,9 @@ export class HillDayGenerationService {
     documentId: string,
     jobId: string,
     afterSeq: number,
+    actorId: string,
   ): Promise<{ status: JobStatus['status']; events: JobEvent[] }> {
+    await this.assertDoc(tenantId, documentId, actorId);
     const job = await this.prisma.wsHillDayJob.findFirst({ where: { id: jobId, tenantId, documentId } });
     if (!job) throw new NotFoundException('Generation job not found');
     const events = ((job.events as JobEvent[] | null) ?? []).filter((e) => e.seq > afterSeq);
@@ -199,7 +203,7 @@ export class HillDayGenerationService {
     documentId: string,
     sectionId: string,
   ): Promise<{ section: MeetingSection; sourceSet: SourceSet }> {
-    const doc = await this.assertDoc(tenantId, documentId);
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can regenerate it');
     if (this.inFlight.has(documentId)) throw new ConflictException('A generation job is already running');
     const meeting = (await this.prisma.wsHillDayMeeting.findFirst({
@@ -227,7 +231,7 @@ export class HillDayGenerationService {
     field: 'focus' | 'background',
     text: string,
   ): Promise<{ text: string }> {
-    const doc = await this.assertDoc(tenantId, documentId);
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can refine it');
     const meeting = (await this.prisma.wsHillDayMeeting.findFirst({
       where: { id: sectionId, tenantId, documentId },
@@ -272,8 +276,7 @@ export class HillDayGenerationService {
       const job = await this.prisma.wsHillDayJob.findUnique({ where: { id: jobId } });
       if (!job) return;
       state.units = (job.units as JobUnit[] | null) ?? [];
-      const doc = await this.prisma.wsHillDayDocument.findUnique({ where: { id: documentId } });
-      if (!doc) return;
+      const doc = await this.assertDoc(tenantId, documentId, actorId);
       await this.prisma.wsHillDayJob.update({
         where: { id: jobId },
         data: { status: 'running', startedAt: new Date() },
@@ -286,6 +289,7 @@ export class HillDayGenerationService {
 
       let failed = 0;
       await forEachBounded(meetings, UNIT_CONCURRENCY, async (meeting) => {
+        await this.assertDoc(tenantId, documentId, actorId);
         const section = meeting.section as MeetingSection | null;
         if (section?.edited?.focus || section?.edited?.background) {
           // Edited sections are excluded from bulk regeneration (requirements §6 PATCH).
@@ -629,10 +633,8 @@ export class HillDayGenerationService {
     }
   }
 
-  private async assertDoc(tenantId: string, documentId: string) {
-    const doc = await this.prisma.wsHillDayDocument.findFirst({ where: { id: documentId, tenantId } });
-    if (!doc) throw new NotFoundException('Document not found');
-    return doc;
+  private async assertDoc(tenantId: string, documentId: string, actorId: string) {
+    return admitHillDayDocument(this.prisma, this.source, tenantId, actorId, documentId);
   }
 }
 

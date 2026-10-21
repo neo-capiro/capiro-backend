@@ -66,6 +66,7 @@ model WsDraft {
   industry  String?
   product   String?
   client    String?
+  clientId  String? @map("client_id") @db.Uuid
   // Canonical immutable Core origin; free-text client never grants authority.
   prospectId String? @map("prospect_id") @db.Uuid
   status    WsDocStatus @default(draft)
@@ -94,6 +95,7 @@ model WsDraft {
   guestComments WsGuestComment[]
 
   @@index([tenantId])
+  @@index([tenantId, clientId, updatedAt], map: "ws_draft_client_idx")
   @@index([tenantId, prospectId, updatedAt], map: "ws_draft_prospect_idx")
   @@index([tenantId, ownerId])
   @@index([tenantId, updatedAt])

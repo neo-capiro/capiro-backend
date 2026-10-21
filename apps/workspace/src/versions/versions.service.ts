@@ -1,3 +1,4 @@
+import { requireDraftClient } from '../drafts/draft-client-access.js';
 import {
   workspaceSavedOutreachRevisionWithinTx,
   WorkspaceRevisionUnavailable,
@@ -174,7 +175,7 @@ export class VersionsService {
       const byDocument = new Map(sources.map((source) => [source.id, source.sourceBriefVersion]));
       const snapshot = {
         docTitle: draft.docTitle,
-        config: draft.config,
+        config: { ...(draft.config as Record<string, unknown>), clientId: draft.clientId ?? null },
         ask: draft.ask,
         documents: draft.documents.map((d) => ({
           id: d.id,
@@ -213,7 +214,12 @@ export class VersionsService {
     if (!version) throw new NotFoundException('Version not found');
 
     const snap = (version.snapshot as Snapshot) ?? {};
+    const snapshotClient = (snap.config as Record<string, unknown> | undefined)?.clientId ?? null;
+    if (snapshotClient !== (draft.clientId ?? null))
+      throw new ConflictException('Saved revision belongs to a different client association');
     await this.prisma.$transaction(async (tx) => {
+      if (!actorId) throw new NotFoundException('Draft not found');
+      await requireDraftClient(this.prisma, tx, tenantId, actorId, draft.clientId ?? null);
       await requireProspectDraftInTx(tx, draft, actorId, canEdit, 'write');
       if (draft.prospectId) await assertNoBoundBriefCopy(tx, tenantId, draftId);
       await tx.wsDraft.update({

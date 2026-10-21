@@ -1,15 +1,17 @@
+import { releaseVersion } from './release-version.js';
 import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 // Approval Service — manages client-facing approval requests.
 // A document changed after approval becomes approval-stale.
 
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
-import { canReview } from '../collaborators/role-policy.js';
+import { canEdit, canRead, canReview } from '../collaborators/role-policy.js';
 import { readAgentState } from '../document-agent/document-agent-state.js';
 
 @Injectable()
@@ -31,6 +33,7 @@ export class ApprovalService {
     approvalPolicy: { clientFacingApprovalRequired: boolean; permittedApproverRoles: string[] };
     isStale: boolean;
   }> {
+    await this.collaborators.assertCan(tenantId, draftId, actorId, canRead);
     const draft = await this.prisma.wsDraft.findFirst({
       where: { prospectId: null, id: draftId, tenantId },
     });
@@ -59,9 +62,15 @@ export class ApprovalService {
       where: { tenantId, draftId, status: 'approved' },
       orderBy: { decidedAt: 'desc' },
     });
-    const isStale = existingApproval
-      ? draft.updatedAt.getTime() > (existingApproval.decidedAt?.getTime() ?? 0) + 1000
-      : false;
+    let isStale = false;
+    if (existingApproval) {
+      try {
+        await releaseVersion(this.prisma, tenantId, draftId, existingApproval.versionId);
+      } catch (error) {
+        if (!(error instanceof ConflictException) && !(error instanceof NotFoundException)) throw error;
+        isStale = true;
+      }
+    }
 
     return {
       requiresApproval,
@@ -83,6 +92,9 @@ export class ApprovalService {
     params: { versionId?: string; notes?: string; idempotencyKey?: string },
   ): Promise<{ requestId: string; status: string }> {
     denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
+    await this.collaborators.assertCan(tenantId, draftId, actorId, canEdit);
+    await releaseVersion(this.prisma, tenantId, draftId, params.versionId);
 
     // Check for existing pending request.
     const existing = await this.prisma.wsApprovalRequest.findFirst({
@@ -126,7 +138,7 @@ export class ApprovalService {
   ): Promise<{ status: string }> {
     denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
 
-    await this.collaborators.assertCan(tenantId, draftId, actorId, canReview);
+    const role = await this.collaborators.assertCan(tenantId, draftId, actorId, canReview);
 
     const request = await this.prisma.wsApprovalRequest.findFirst({
       where: { id: requestId, tenantId, draftId },
@@ -136,8 +148,13 @@ export class ApprovalService {
       throw new ConflictException(`Approval request is already ${request.status}`);
     }
 
-    await this.prisma.wsApprovalRequest.update({
-      where: { id: requestId },
+    const { policy } = await releaseVersion(this.prisma, tenantId, draftId, request.versionId);
+    if (policy.permittedApproverRoles.length && !policy.permittedApproverRoles.includes(role!))
+      throw new ForbiddenException('Your document role may not approve this revision');
+    await this.collaborators.assertCan(tenantId, draftId, actorId, currentRole =>
+      canReview(currentRole) && (!policy.permittedApproverRoles.length || policy.permittedApproverRoles.includes(currentRole!)));
+    const saved = await this.prisma.wsApprovalRequest.updateMany({
+      where: { id: requestId, tenantId, draftId, status: 'pending', versionId: request.versionId },
       data: {
         status: decision,
         reviewerId: actorId,
@@ -145,6 +162,7 @@ export class ApprovalService {
         decidedAt: new Date(),
       },
     });
+    if (saved.count !== 1) throw new ConflictException('This approval request already changed');
     return { status: decision };
   }
 }
