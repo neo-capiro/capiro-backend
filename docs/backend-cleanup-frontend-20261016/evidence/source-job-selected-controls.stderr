@@ -1,0 +1,20 @@
+test_current_receiving_job_and_dependency_closure (cleanup_source_job_contract.SourceJobsContract.test_current_receiving_job_and_dependency_closure) ... ok
+test_all_source_categories_trigger_without_draft_native_work (cleanup_source_job_contract.SourceJobsContract.test_all_source_categories_trigger_without_draft_native_work) ... ok
+test_security_bypasses_and_unavailable_carrier_dependency_refuse (cleanup_source_job_contract.SourceJobsContract.test_security_bypasses_and_unavailable_carrier_dependency_refuse) ... ok
+test_backend_transition_preserves_existing_gates_and_explicit_artifact_consumer (cleanup_source_job_contract.SourceJobsContract.test_backend_transition_preserves_existing_gates_and_explicit_artifact_consumer) ... ERROR
+
+======================================================================
+ERROR: test_backend_transition_preserves_existing_gates_and_explicit_artifact_consumer (cleanup_source_job_contract.SourceJobsContract.test_backend_transition_preserves_existing_gates_and_explicit_artifact_consumer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\neoma\Documents\Codex\2026-10-15\task-10\backend-cleanup\scripts\ci\backend-retirement-source-jobs.contract.spec.py", line 203, in test_backend_transition_preserves_existing_gates_and_explicit_artifact_consumer
+    current = subprocess.run(["node", "--no-addons", "--input-type=module", "-e", source, kind],
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\neoma\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['node', '--no-addons', '--input-type=module', '-e', "import {restoreReviewedPeManifest} from './scripts/lib/reviewed-pe-manifest-contract.mjs'; import {readFileSync} from 'node:fs'; process.stdout.write(restoreReviewedPeManifest(readFileSync(0), process.argv[1]));", 'root']' returned non-zero exit status 134.
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.261s
+
+FAILED (errors=1)

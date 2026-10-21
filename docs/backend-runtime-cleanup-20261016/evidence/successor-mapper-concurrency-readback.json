@@ -1,0 +1,14 @@
+{
+  "observedThread": "01a14241-cbba-7531-9aba-71299cd430d7",
+  "status": {
+    "type": "active",
+    "activeFlags": []
+  },
+  "messages": [
+    "Generation and the deterministic check passed. The focused type check then failed because the fixture imports `Run` and `Conversation` from a root export that does not expose those names. I’ve stopped the sequence as instructed; byte tests and packaging have not run. I’ll correct the declaration linkage while preserving the frozen exports.",
+    "The fixture-only correction is pushed at `89ea3497`. It now checks against the existing public conversation receipt types; generator inputs and all four generated files are unchanged. The failed receipt is preserved. The corrected type check, byte tests and pack remain queued behind the current serialized check."
+  ],
+  "purpose": "Concurrency readback only: generation completed, sequence stopped at type failure; corrected stage queued. Existing 03:10:05Z normal memory observation retained, no fresh memory value or grant claimed.",
+  "memoryReceipt": "successor-analysis-memory-before.json",
+  "policy": "Parent clarified pure builtin stripTypeScriptTypes is light test; <=128MiBV8/120s/oneprocess/nochildren, no full compiler stage."
+}

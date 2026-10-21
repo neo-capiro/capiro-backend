@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-meri-loop-retirement-20261016/verify-source-transition.cjs",
+    "--run"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T04:43:15.3142381Z",
+  "endedAt": "2026-10-16T04:43:16.2393566Z",
+  "ownedPID": 26472,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 48451584,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "df630a705c29ee51061b0515376dddebf3b57f44820cc619f67fac4eb4439fe7"
+}

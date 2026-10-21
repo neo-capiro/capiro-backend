@@ -2,8 +2,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-console.error('Usage: node scripts/verify-research-portfolios-phases1-4.mjs (no arguments run the verifier)');
-if (process.argv.length > 2) process.exit(2);
+console.error('Usage: node scripts/verify-research-portfolios-phases1-4.mjs [--backend-only] (no arguments run the historical full verifier)');
+const args = process.argv.slice(2);
+if (args.length > 1 || (args.length === 1 && args[0] !== '--backend-only')) process.exit(2);
+const backendOnly = args[0] === '--backend-only';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -24,7 +26,10 @@ for (const path of [
   'apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioListPage.tsx',
   'apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioDetailPage.tsx',
   'docs/defense-budget/research-portfolios/phases-0-4-closeout.json',
-]) requireFile(path);
+]) {
+  if (backendOnly && path.startsWith('apps/web/')) continue;
+  requireFile(path);
+}
 
 requireText('apps/api/prisma/schema.prisma', [
   'model ResearchPortfolio {', 'model ResearchPortfolioMember {',
@@ -45,7 +50,7 @@ requireText('apps/api/src/defense-research/defense-research.controller.ts', [
 requireText('apps/api/src/program-element/funding-execution/funding-execution-read.service.ts', [
   'amountBasis:', 'executionMetric:', 'asOfDate:', 'periodStart:', 'periodEnd:',
 ]);
-requireText('apps/web/src/vnext/adapters/routes/routeManifest.ts', [
+if (!backendOnly) requireText('apps/web/src/vnext/adapters/routes/routeManifest.ts', [
   "id: 'portfolio-research-portfolios'", "featureFlag: 'research_portfolios'",
 ]);
 
@@ -56,4 +61,4 @@ for (const phase of [0, 1, 2, 3, 4]) {
 }
 if (closeout.deploymentStatus !== 'not_deployed' || closeout.sourceActivationStatus !== 'not_authorized_and_not_performed') throw new Error('Closeout must not imply deployment or source activation');
 
-console.log('PASS research-portfolios phases 1-4: manual collections, rules/templates/taxonomy, defense research readers, contextual sources/references, and rollback boundaries are present.');
+console.log(`${backendOnly ? 'RESEARCH_PORTFOLIOS_PHASES1_4_BACKEND_SOURCE_COMPLETE' : 'PASS research-portfolios phases 1-4'}: manual collections, rules/templates/taxonomy, defense research readers, contextual sources/references, and rollback boundaries are present.`);

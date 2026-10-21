@@ -51,64 +51,54 @@ function methodBody(source: string, method: string): string {
   return source.slice(start, end < 0 ? undefined : end);
 }
 
-describe('Session client scope — the chat tool loop enforces, it does not default', () => {
-  const text = read('meri.service.ts');
+/**
+ * The chat tool loop is no longer in apps/api. The in-process loop these pins
+ * used to read was deleted with the MeriV2 transport; MeriService.streamMessage
+ * is served by the V3 runtime proxy (meriv3-runtime.proxy.ts), and tool
+ * dispatch for chat turns runs in the orchestrator's MeriV3AssistantService.
+ * Its behaviour is pinned there (meriv3-assistant.service.spec.ts cross-client
+ * cases asserting CROSS_CLIENT_REFUSAL; meriv3-managed-mcp-request-path.spec.ts).
+ * These static pins follow the enforcement to that owner, so a silent revert of
+ * the guard is still caught from here.
+ */
+describe('Session client scope — the current chat tool loop enforces, it does not default', () => {
+  const text = read('../../../meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts');
+
+  function augmentBody(): string {
+    const start = text.indexOf('protected augmentToolInput(');
+    expect(start).toBeGreaterThan(-1);
+    return text.slice(start, text.indexOf('\n  protected ', start + 1));
+  }
+
+  it('consumes the scope guard before mutating the tool input', () => {
+    const body = augmentBody();
+    const guard = body.indexOf('if (scopeViolation) return { input: output, scopeViolation };');
+    const mutation = body.indexOf('output.clientId =');
+    expect(guard).toBeGreaterThan(-1);
+    expect(mutation).toBeGreaterThan(guard);
+  });
 
   it('refuses a clientId that is not the conversation client', () => {
-    expect(text).toContain('let scopeViolation: string | undefined;');
-    expect(text).toContain('clientScopeRefusal(await resolveSessionClientName())');
-    // The pre-fix behaviour was a comment-documented default-only rule.
-    expect(text).not.toContain(
-      '// Default clientId from the conversation if the model omitted it.',
-    );
+    const body = augmentBody();
+    const mismatch = body.indexOf('if (supplied && supplied !== dto.clientId) {');
+    expect(mismatch).toBeGreaterThan(-1);
+    expect(body.slice(mismatch)).toContain('return { input: output, scopeViolation: CROSS_CLIENT_REFUSAL };');
   });
 
   it('still fills an OMITTED clientId from the conversation', () => {
-    expect(text).toContain('parsedInput.clientId = conversation.clientId;');
+    expect(augmentBody()).toContain('if (supplied || !mailRead) output.clientId = dto.clientId;');
   });
 
   it('short-circuits BEFORE the tool runs (a blocked read must not execute)', () => {
-    const guard = text.indexOf('if (item.scopeViolation) {');
-    const execute = text.indexOf('return this.tools.execute(ctx, item.tool.name as never');
+    const guard = text.indexOf('return { blocked: true, error: scopeViolation };');
+    const execute = text.indexOf('const definition = this.registry.get(args.name);');
     expect(guard).toBeGreaterThan(-1);
     expect(execute).toBeGreaterThan(guard);
   });
+});
 
-  it('does not let a refusal move a tool circuit breaker', () => {
-    expect(text).toContain('if (item.scopeViolation) continue;');
-  });
-
-  it('enforces on NATIVE tools only — a bridged MCP clientId is a foreign namespace', () => {
-    expect(text).toContain('if (conversation.clientId && !isBridged) {');
-  });
-
-  it('binds clientless memory tools and checks the current wall before dispatching a client save', () => {
-    const binding = text.indexOf('bindUnscopedMemoryTool(t.name, parsedInput)');
-    const wall = text.indexOf('clientMemorySaveWallRefusal(');
-    const dispatch = text.indexOf('preparedTools.push({', binding);
-    expect(binding).toBeGreaterThan(-1);
-    expect(wall).toBeGreaterThan(binding);
-    expect(dispatch).toBeGreaterThan(wall);
-    expect(text.slice(binding, dispatch)).toContain('if (bound.refusal) scopeViolation = bound.refusal;');
-    expect(text.slice(wall, dispatch)).toContain('clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)');
-  });
-
-  it('resolves an exact client NAME for this session rather than refusing it', () => {
-    // find_contacts documents a name in clientId; a name that IS this session's
-    // client must resolve, not cost the user a refusal round-trip.
-    expect(text).toContain('CLIENT_ID_UUID_RE.test(supplied)');
-    expect(text).toContain('supplied.toLowerCase() === nameToMatch.toLowerCase()');
-  });
-
-  it('states the scope in the system prompt, in the uncached per-turn tail', () => {
-    expect(text).toContain('if (activeClient) tail.push(clientScopeDirective(activeClient.name));');
-    expect(text).toContain('orchestration.activeClient');
-    // Must NOT be appended to the cached base — that prefix is shared across
-    // conversations, so a per-conversation client would poison it.
-    const base = text.indexOf('const base = [');
-    const baseEnd = text.indexOf("].join('\\n');", base);
-    expect(text.slice(base, baseEnd)).not.toContain('clientScopeDirective');
-  });
+describe('Session client scope — the retained client roster stays reference-only', () => {
+  const text = read('meri.service.ts');
 
   it('marks the firm-wide client roster as reference-only in a scoped session', () => {
     expect(text).toContain('const scopeNote = activeClient');

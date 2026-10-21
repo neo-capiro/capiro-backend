@@ -1,0 +1,8 @@
+HEAD:apps/web/package.json:13:    "lighthouse:pe-watch": "node scripts/lighthouse-pe-watch.mjs",
+HEAD:apps/web/package.json:14:    "visual:vnext:capture": "node scripts/vnext-visual-capture.mjs",
+HEAD:apps/web/scripts/lighthouse-pe-watch.mjs:24:const USAGE = 'Usage: PE_WATCH_URL=<url> node apps/web/scripts/lighthouse-pe-watch.mjs --run';
+HEAD:apps/web/scripts/vnext-visual-capture.mjs:32:const USAGE = 'Usage: node apps/web/scripts/vnext-visual-capture.mjs --capture (writes PNGs and manifest.json to VNEXT_VISUAL_OUTPUT_DIR or ./artifacts/vnext-visual)';
+HEAD:scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:76:  const lighthouse = 'lighthouse-pe-watch.mjs';
+HEAD:scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:77:  const capture = 'vnext-visual-capture.mjs';
+HEAD:scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:109:    'node scripts/lighthouse-pe-watch.mjs --run', 'package Lighthouse command must opt into Chrome');
+HEAD:scripts/cleanup-script-smoke/web-visual-cli-controls.mjs:111:    'node scripts/vnext-visual-capture.mjs --capture', 'package capture command must opt into writes');

@@ -8,7 +8,7 @@ test('accepts current Phase 3 preview/parity files', () => {
     verifyBoundary({
       changed: [
         'apps/web/src/lib/engagement-api-preview.ts',
-        'apps/web/scripts/engagement-phase3-browser-parity.mjs',
+        'tests/support/legacy-web/engagement-phase3-browser-parity.mjs',
         'docs/plans/engagement-api/phase-3-to-outreach-v3-handoff.md',
       ],
       addedLines: "import { EngagementPreviewBoundary } from './EngagementPreviewBoundary.js';",

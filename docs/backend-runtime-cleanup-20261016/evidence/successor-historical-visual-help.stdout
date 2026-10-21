@@ -1,0 +1,1 @@
+Use exactly --historical-replay to run the sealed 27 historical Web scenarios. Canonical frontend parity owner: capiro-frontend. Current backend gate: scripts/backend-source-qualification.mjs --plan.

@@ -1,0 +1,738 @@
+{
+  "parent": "f3ede4fe8d88ba686a81c59f71e44319c0f45fd1",
+  "sourceHead": "0a83ced7744932c42e17db084b30b0a9810c4699",
+  "sealedParentReceiptSHA256": "8c908934d8bfc32fd2e01ee76f929764b1f76da19393c977f55460d410ec150d",
+  "originalBaseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "originalBefore": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "method": "Sealed PR34 after totals plus changed regular Git-blob deltas under unchanged original016e UTF-8/nonblank/comment/exclusion rules. No full source scan.",
+  "before": {
+    "unique": {
+      "files": 7981,
+      "nonblankLines": 1811365,
+      "physicalLines": 1937177
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7981,
+      "nonblankLines": 1811365,
+      "physicalLines": 1937177
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 7981,
+      "nonblankLines": 1809228,
+      "physicalLines": 1934974
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7981,
+      "nonblankLines": 1809228,
+      "physicalLines": 1934974
+    }
+  },
+  "deltaFromParent": {
+    "unique": {
+      "files": 0,
+      "nonblankLines": -2137,
+      "physicalLines": -2203
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 0,
+      "nonblankLines": -2137,
+      "physicalLines": -2203
+    }
+  },
+  "changes": [
+    {
+      "path": "apps/api/src/meri/ResearchPortfolioMeriTurnBinding.spec.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 146,
+        "physicalLines": 146,
+        "blob": "7abf804a8d4b4b8fbd98abdefcadbc10eab627fe"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -146,
+        "physicalLines": -146
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-ai.types.ts",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 8,
+        "physicalLines": 8,
+        "blob": "80458252313164aa318d111fea57a30697aae67d"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 8,
+        "physicalLines": 8
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-feedback-learning-signal-resilience.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 204,
+        "physicalLines": 232,
+        "blob": "7f11cfb1234fdd634000866bc44e12c22481b59e"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 203,
+        "physicalLines": 231,
+        "blob": "0cdfd2e593308913d0f964e27d21fdfd6cf12876"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -1,
+        "physicalLines": -1
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-memory-legal-hold.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 151,
+        "physicalLines": 162,
+        "blob": "cec6e2fef5da8fa26148a75501752d78a69edc9a"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 150,
+        "physicalLines": 161,
+        "blob": "39463b3ea936a441a3f426f1c17f85e9f45189b2"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -1,
+        "physicalLines": -1
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-portfolio-tool-scope.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 17,
+        "physicalLines": 18,
+        "blob": "a437f3539cf982b32dfe0b4798cd211ec93327f5"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -17,
+        "physicalLines": -18
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-runtime.contract.ts",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 11,
+        "physicalLines": 13,
+        "blob": "1686a524ee13acdf00443e0d9a09606f02546b7f"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 11,
+        "physicalLines": 13
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-turn-lifecycle.phase4.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 152,
+        "physicalLines": 164,
+        "blob": "88a482005990d910c9dbaa7bbff3836f51b6dad6"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 44,
+        "physicalLines": 49,
+        "blob": "c00edfc2010abe6b95caf4ef25f5d3d9c332a142"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -108,
+        "physicalLines": -115
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 1234,
+        "physicalLines": 1371,
+        "blob": "598e9146e5568349f213cbd548de0213113dc924"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 1226,
+        "physicalLines": 1363,
+        "blob": "f81b6084ef7191159c3bdad565cff8dbe13f5dd0"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -8,
+        "physicalLines": -8
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 267,
+        "physicalLines": 269,
+        "blob": "a17e94efba349979236ed1dbada4be4c17cf8f02"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 265,
+        "physicalLines": 267,
+        "blob": "16e4fea42ea01436be9c00fe101865d62490a4f9"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -2,
+        "physicalLines": -2
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.create-conversation.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 239,
+        "physicalLines": 253,
+        "blob": "5f6ba044f4124f8f2ee9b73ce25dfe6882c1d718"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 237,
+        "physicalLines": 251,
+        "blob": "f11df93abc3b665d86a66f3d406ad9f6ea476c4b"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -2,
+        "physicalLines": -2
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 6652,
+        "physicalLines": 6898,
+        "blob": "8878d515849c36ce037a9fc8591e46bbb06e65b2"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 4379,
+        "physicalLines": 4554,
+        "blob": "0dbde200562cfee75a94f6a1ba1241e1faac3ce8"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -2273,
+        "physicalLines": -2344
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.upload-attachment.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 336,
+        "physicalLines": 362,
+        "blob": "39b8b54269730b0d685d58d69598ef47c32eda32"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 335,
+        "physicalLines": 361,
+        "blob": "45b7716c501647d5d298020c86bb820eb74390c7"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -1,
+        "physicalLines": -1
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-chat.client.spec.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 126,
+        "physicalLines": 139,
+        "blob": "2e781b64cdf9b593e12d1c4a42a1107682fa6598"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -126,
+        "physicalLines": -139
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-chat.client.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 213,
+        "physicalLines": 219,
+        "blob": "326a4dccf53d71e68260d6d5bbb4c065e274235f"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -213,
+        "physicalLines": -219
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-routing.helpers.spec.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 18,
+        "physicalLines": 21,
+        "blob": "6456b9ba255094a1141641e5005661403d778a03"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -18,
+        "physicalLines": -21
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-routing.helpers.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 18,
+        "physicalLines": 19,
+        "blob": "505dfa5bfc5cc4a8e9c852916e6f90edc51366aa"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -18,
+        "physicalLines": -19
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv2-routing.matrix.spec.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 191,
+        "physicalLines": 209,
+        "blob": "5e578a6b60add25d054610efb68b8f109476d202"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -191,
+        "physicalLines": -209
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-chat.client.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 352,
+        "physicalLines": 361,
+        "blob": "85df4ed79b4c05cb35eb5dca3f8c7f15d86c4bca"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 352,
+        "physicalLines": 361,
+        "blob": "840c990af484ab4646c3cd1358b56ebff01328da"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.coverage.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 130,
+        "physicalLines": 137,
+        "blob": "dbb4e689dac687d4365bff1b33a8d06d181d388f"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 125,
+        "physicalLines": 132,
+        "blob": "f8cc69213e57e29fbfbe503a44076011cb530b65"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -5,
+        "physicalLines": -5
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 112,
+        "physicalLines": 124,
+        "blob": "1f5cd3b0a01c79fa1ed8b0ea34002ff0394b873c"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 105,
+        "physicalLines": 117,
+        "blob": "012682a9b62054311077c1a96e80049aeb493a3a"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -7,
+        "physicalLines": -7
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 246,
+        "physicalLines": 261,
+        "blob": "28f02937c824fdbf1f6655f87bd94a52969aa360"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 184,
+        "physicalLines": 194,
+        "blob": "6874b754f4a439c871e941af30669fb704e3a584"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -62,
+        "physicalLines": -67
+      }
+    },
+    {
+      "path": "apps/api/src/meri/phase-19-meri-context-plane.contract.spec.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 103,
+        "physicalLines": 120,
+        "blob": "933e4424d586d85dba888c7a35c6d75d5f0b0779"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 105,
+        "physicalLines": 122,
+        "blob": "e1c1ba1077b55249618f0866fbbb4aef5b514043"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 2,
+        "physicalLines": 2
+      }
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/research-portfolio-current-turn-dispatch.spec.ts",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 95,
+        "physicalLines": 101,
+        "blob": "113b69a88946cc666308e2105d2109e52750097b"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 95,
+        "physicalLines": 101
+      }
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 243,
+        "physicalLines": 249,
+        "blob": "d5968d6dba49523dd30691a2394904a5645395fe"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 257,
+        "physicalLines": 263,
+        "blob": "b5cbae399ccc5c7bfb51bccb24706e1fddb5e0af"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 14,
+        "physicalLines": 14
+      }
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 167,
+        "physicalLines": 169,
+        "blob": "622cc59db6bd7f887dfebacb77e53a0c5d6548e0"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 184,
+        "physicalLines": 187,
+        "blob": "2c981b952e00a1551c857a817bde226005eb7dcb"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 17,
+        "physicalLines": 18
+      }
+    },
+    {
+      "path": "scripts/ci/meri-current-turn-dispatch.contract.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 181,
+        "physicalLines": 184,
+        "blob": "615ceb5697a13096a89209e7f6d9c6bcf930e72f"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 181,
+        "physicalLines": 184
+      }
+    },
+    {
+      "path": "scripts/ci/meri-loop-current-runtime.contract.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 369,
+        "physicalLines": 390,
+        "blob": "acd2a75ccd780bb6c9980c1f5cf2a9bbf63933ff"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 369,
+        "physicalLines": 390
+      }
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 175,
+        "physicalLines": 184,
+        "blob": "34131c382393d3f154343270be1cd058fb1052a9"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 175,
+        "physicalLines": 184
+      }
+    },
+    {
+      "path": "tests/support/legacy-meri/replay-plan.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 190,
+        "physicalLines": 207,
+        "blob": "bfb7d06282af71b2f7e4d1eb1e0f3c2ed2667bf7"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 190,
+        "physicalLines": 207
+      }
+    }
+  ],
+  "excludedChanges": [
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/.gitattributes",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-loop-retirement-20261016/SOURCE-MAP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "tests/support/legacy-meri/CASE-OWNERSHIP.json",
+      "status": "A",
+      "reason": "supplemental-config-data"
+    },
+    {
+      "path": "tests/support/legacy-meri/SOURCE-INPUTS.json",
+      "status": "A",
+      "reason": "supplemental-config-data"
+    }
+  ],
+  "limits": "Source size only. New source-contract/fixture controls increase source intentionally. No native coverage, runtime, image or frontend acceptance claim. Historical qualification data and all old receipts retain their existing disclosed accounting."
+}

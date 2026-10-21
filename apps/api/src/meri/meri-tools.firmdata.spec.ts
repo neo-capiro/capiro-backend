@@ -1199,6 +1199,36 @@ describe('query_outreach', () => {
     expect(result.campaigns[0]).toMatchObject({ recipientCount: 3, clientName: 'Acme' });
   });
 
+  it('derives unscoped total and limit from the owner-filtered campaigns, retaining clientless rows', async () => {
+    const m = makeMocks();
+    // EngagementService owns the current client wall. This is its already
+    // filtered return, so a denied campaign must not influence the Meri count.
+    m.engagement.listCampaigns.mockResolvedValue([
+      {
+        id: 'permitted', name: 'Permitted', type: 'custom', status: 'draft',
+        subject: null, clientId: 'client-1', client: { name: 'Acme' },
+        recipients: [{ id: 'r1' }], createdBy: null, sentAt: null,
+        createdAt: new Date('2026-06-01'),
+      },
+      {
+        id: 'clientless', name: 'Firm-wide', type: 'custom', status: 'draft',
+        subject: null, clientId: null, client: null,
+        recipients: [], createdBy: null, sentAt: null,
+        createdAt: new Date('2026-06-02'),
+      },
+    ]);
+    const result = (await m.service.execute(ctx, 'query_outreach', { limit: 1 })) as {
+      total: number;
+      campaigns: Array<{ id: string }>;
+    };
+    expect(m.engagement.listCampaigns).toHaveBeenCalledWith(ctx, {
+      clientId: undefined,
+      status: undefined,
+    });
+    expect(result.total).toBe(2);
+    expect(result.campaigns.map((campaign) => campaign.id)).toEqual(['permitted']);
+  });
+
   it('detail branch fetches a single record', async () => {
     const m = makeMocks();
     m.engagement.getOutreachRecord.mockResolvedValue({ id: 'outreach-9', body: 'b' });

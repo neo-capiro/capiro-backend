@@ -1,0 +1,381 @@
+{
+  "baseline": "4e0c189c5d0522098be1c4916a033bb681d11c0b",
+  "heapMiB": 64,
+  "perChildTimeoutMs": 10000,
+  "execution": "sequential syntax parsing only; no application modules imported",
+  "files": 53,
+  "failures": [],
+  "results": [
+    {
+      "file": "apps/intel-api/src/tracker/email-cta-route-input-parity.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "apps/intel-api/test/qualification/hearing-recording-transport-parity.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/engagement-phase3-preview-route-patterns.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/engagement-phase3-qualification-plan.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/engagement-phase3-ui-inventory.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/engagement-phase3-ui-inventory.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/backend-workspace-retirement.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/backend-workspace-retirement.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/defense-runtime-source-ownership.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/defense-runtime-source-ownership.test.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/outreach-code-scope.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/outreach-code-scope.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/lib/reviewed-pe-manifest-contract.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/run-engagement-phase0-local.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/run-engagement-phase1-local.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/run-engagement-phase1-post-acceptance.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/run-engagement-phase3-local.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-defense-budget-mirror-parity.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-code.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-prototype-boundary.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-engagement-web-no-preview-header.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-outreach-v3-phase2-code.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-outreach-v3-phase6-code.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-phase8-session4.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "scripts/verify-research-portfolios-phases1-4.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase0-browser-acceptance.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase1-browser-parity.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase1-post-acceptance.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-browser-interactions.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-browser-parity-with-replay.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-browser-parity.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-browser-parity.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-browser-scenarios.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-browser-scenarios.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-dom-normalizer.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-network-recorder.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/engagement-phase3-refresh-token.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/historical-source-replay.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/inputs.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/inputs.spec.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/phase19-cdp.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/source-root.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/visual-cli-inputs/inputs.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    },
+    {
+      "file": "tests/support/legacy-web/workspace.mjs",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stderr": ""
+    }
+  ]
+}

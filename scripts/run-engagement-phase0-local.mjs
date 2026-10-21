@@ -15,6 +15,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { requireLocalRun } from './lib/engagement-local-cli.mjs';
+import { requireLegacyWebWorkspace } from '../tests/support/legacy-web/workspace.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(requireLocalRun(
@@ -22,6 +23,7 @@ const args = parse(requireLocalRun(
   'Usage: node scripts/run-engagement-phase0-local.mjs --run [--sha SHA] [--evidence-dir DIR]',
   ['sha', 'evidence-dir', 'db-port'],
 ));
+requireLegacyWebWorkspace(ROOT);
 const sha =
   args.sha ?? process.env.ENGAGEMENT_PHASE0_SHA ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
 if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('Phase 0 requires an exact 40-character SHA.');
@@ -114,7 +116,7 @@ async function main() {
     await run(
       'Run engagement browser acceptance',
       process.execPath,
-      ['apps/web/scripts/engagement-phase0-browser-acceptance.mjs'],
+      ['tests/support/legacy-web/engagement-phase0-browser-acceptance.mjs'],
       { env },
     );
 

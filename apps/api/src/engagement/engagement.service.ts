@@ -102,7 +102,6 @@ import {
   deriveMeetingVirtuality,
   billStatusLabel,
   currentCycleFyOf,
-  DELIVERABLE_RISK_TIERS,
   GOOGLE_WORKSPACE_SCOPES,
   isTenantAdmin,
   type AiGenerationUsageLike,
@@ -136,7 +135,6 @@ import {
   type ReportTargetLinkInput,
   type ReportStatusField,
 } from './report-targets.js';
-import type { OfficeRecommendation } from '../intelligence/office-recommender.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ClientAssociationService } from './client-association.service.js';
@@ -160,25 +158,18 @@ import { editRatio } from '../common/text-distance.js';
 import {
   billIdFromItemId,
   peCodeFromItemId,
-  intelAlertIdFromItemId,
   formatBillTruth,
   formatPeTruth,
   renderClientRelationshipSnapshot,
-  renderClientPeopleRoster,
-  renderClientTargetOffices,
   type BillTruth,
   type PeTruth,
   type BillVoteRow,
   type GoverningRuleRow,
   type PeYearFunding,
-  type TargetOfficeLite,
 } from './outreach-context-enrichment.js';
 import {
   AlertPacketClientService,
-  renderAlertPacketForOutreach,
-  overlayClientRelationshipContext,
 } from './generation/alert-packet-client.service.js';
-import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 // Wave-2 post-hoc grounding auditor (dark/shadow by default via MERI_AUDITOR_MODE):
 // extends the same deterministic post-generation check to the outreach batch
 // drafter, re-deriving ground truth from the same PE/bill truth blocks already
@@ -2656,11 +2647,12 @@ export class EngagementService {
           }
         : undefined;
 
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.outreachRecord.findMany({
+    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const ownerWhere = ownOutreachRecordWhere(ctx.userId);
+      const selected = await tx.outreachRecord.findMany({
         where: {
           tenantId: ctx.tenantId,
-          ...ownOutreachRecordWhere(ctx.userId),
+          ...ownerWhere,
           deletedAt: query.deleted ? { not: null } : null,
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(type ? { type } : {}),
@@ -2668,12 +2660,52 @@ export class EngagementService {
           // drafts sent days after creation must keep showing as sent once the
           // creation date scrolls out of the range filter.
           ...(dateWindow ? { OR: [{ createdAt: dateWindow }, { sentAt: dateWindow }] } : {}),
+          // Filter parent and linked-meeting client access before `take`, so
+          // hidden records cannot crowd visible rows off the page.
+          AND: [ownerWhere, outreachReadableRecordWhere(ctx)],
         },
         include: outreachInclude(),
         orderBy: { createdAt: 'desc' },
         take: limit,
-      }),
-    );
+      });
+      const currentClients = await this.outreachReadableClientIds(tx, ctx, selected.flatMap((row) => [
+        row.clientId,
+        row.meeting?.clientId ?? null,
+        ...(row.meeting?.preps.map((prep) => prep.clientId) ?? []),
+        ...(row.meeting?.debriefs.map((debrief) => debrief.clientId) ?? []),
+      ]));
+      const visible: typeof selected = [];
+      for (const row of selected) {
+        // Recheck after the row read. The body can derive from the latest
+        // linked prep/debrief, so an inaccessible child hides the whole card.
+        if (!outreachClientInSet(currentClients, row.clientId) ||
+            !outreachClientInSet(currentClients, row.meeting?.clientId ?? null)) continue;
+        if (!row.meeting) {
+          visible.push(row);
+          continue;
+        }
+        let childrenReadable = true;
+        for (const prep of row.meeting.preps) {
+          if (!outreachClientInSet(currentClients, prep.clientId)) {
+            childrenReadable = false;
+            break;
+          }
+          try {
+            await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+          } catch (error) {
+            if (error instanceof ForbiddenException || error instanceof NotFoundException) {
+              childrenReadable = false;
+              break;
+            }
+            throw error;
+          }
+        }
+        if (!childrenReadable || row.meeting.debriefs.some((debrief) =>
+          !outreachClientInSet(currentClients, debrief.clientId))) continue;
+        visible.push(row);
+      }
+      return visible;
+    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
     if (!this.versionedOutreach || rows.length === 0) return rows;
 
     // Only unsent campaign/outbound_campaign drafts need this — a sent record's
@@ -2692,19 +2724,93 @@ export class EngagementService {
   }
 
   async getOutreachRecord(ctx: TenantContext, id: string) {
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.outreachRecord.findFirst({
-        where: {
-          id,
-          tenantId: ctx.tenantId,
-          ...ownOutreachRecordWhere(ctx.userId),
-          deletedAt: null,
-        },
-        include: outreachInclude(),
-      }),
-    );
-    if (!row) throw new NotFoundException('Outreach record not found');
-    return row;
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const where = {
+        id,
+        tenantId: ctx.tenantId,
+        ...ownOutreachRecordWhere(ctx.userId),
+        deletedAt: null,
+      };
+      // The first read carries only association ids. A meeting can name a
+      // client even when the outreach record does not, and its latest prep or
+      // debrief can name a different client again. Check every association
+      // before loading their bodies and attendee/client projections.
+      const association = await tx.outreachRecord.findFirst({
+        where,
+        select: outreachAssociationSelect(),
+      });
+      if (!association) throw new NotFoundException('Outreach record not found');
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(association), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, association);
+
+      const row = await tx.outreachRecord.findFirst({ where, include: outreachInclude() });
+      if (!row || outreachAssociationKey(row) !== outreachAssociationKey(association))
+        throw new NotFoundException('Outreach record not found');
+      // A grant or association may change while the include is loading.
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(row), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, row);
+      return row;
+    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
+  }
+
+  private async assertOutreachPrepSourcesReadable(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    association: OutreachAssociationRow,
+    notFoundMessage = 'Outreach record not found',
+  ): Promise<void> {
+    for (const prep of association.meeting?.preps ?? []) {
+      try {
+        await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+      } catch (error) {
+        if (error instanceof ForbiddenException || error instanceof NotFoundException)
+          throw new NotFoundException(notFoundMessage);
+        throw error;
+      }
+    }
+  }
+
+  private async assertOutreachClientsReadable(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientIds: readonly string[],
+    notFoundMessage = 'Client not found',
+  ): Promise<void> {
+    for (const clientId of clientIds) {
+      if (!(await this.outreachClientReadable(tx, ctx, clientId)))
+        throw new NotFoundException(notFoundMessage);
+    }
+  }
+
+  private async outreachClientReadable(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientId: string | null,
+  ): Promise<boolean> {
+    if (clientId === null) return true;
+    const client = await tx.client.findFirst({
+      where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+      select: { id: true },
+    });
+    return Boolean(client) && clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+  }
+
+  private async outreachReadableClientIds(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientIds: readonly (string | null)[],
+  ): Promise<Set<string>> {
+    const ids = [...new Set(clientIds.filter((id): id is string => typeof id === 'string'))];
+    if (!ids.length) return new Set();
+    const rows = await tx.client.findMany({
+      where: { ...outreachReadableClientWhere(ctx), id: { in: ids } },
+      select: { id: true },
+    });
+    return new Set(rows.map((row) => row.id));
   }
 
   async createOutreachRecord(ctx: TenantContext, input: CreateOutreachRecordInput) {
@@ -2729,7 +2835,7 @@ export class EngagementService {
         contextPool,
       });
 
-      return tx.outreachRecord.create({
+      const created = await tx.outreachRecord.create({
         data: {
           tenantId: ctx.tenantId,
           clientId,
@@ -2747,6 +2853,11 @@ export class EngagementService {
         },
         include: outreachInclude(),
       });
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(created), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, created);
+      return created;
     });
   }
 
@@ -2761,6 +2872,15 @@ export class EngagementService {
         },
       });
       if (!existing) throw new NotFoundException('Outreach record not found');
+      const existingAssociation = await tx.outreachRecord.findFirst({
+        where: { id, tenantId: ctx.tenantId, ...ownOutreachRecordWhere(ctx.userId), deletedAt: null },
+        select: outreachAssociationSelect(),
+      });
+      if (!existingAssociation) throw new NotFoundException('Outreach record not found');
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(existingAssociation), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, existingAssociation);
       if (existing.status !== 'draft' && input.status === 'draft') {
         throw new BadRequestException('Sent outreach cannot be moved back to draft');
       }
@@ -2791,7 +2911,7 @@ export class EngagementService {
         { direction, contextPool },
       );
 
-      return tx.outreachRecord.update({
+      const updated = await tx.outreachRecord.update({
         where: { id },
         data: {
           ...('clientId' in input ? { clientId: nextClientId } : {}),
@@ -2811,6 +2931,11 @@ export class EngagementService {
         },
         include: outreachInclude(),
       });
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(updated), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, updated);
+      return updated;
     });
   }
 
@@ -2984,9 +3109,13 @@ export class EngagementService {
       throw new BadRequestException('Draft subject and body are required');
 
     const openedAt = new Date();
-    const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.outreachRecord.update({
-        where: { id },
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(record), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, record);
+      return tx.outreachRecord.update({
+        where: { id, tenantId: ctx.tenantId, clientId: record.clientId, meetingId: record.meetingId },
         data: {
           status: 'opened_in_email',
           openedInEmailAt: openedAt,
@@ -2994,12 +3123,12 @@ export class EngagementService {
             openedInEmailAt: openedAt.toISOString(),
           }) as Prisma.InputJsonValue,
         },
-        include: outreachInclude(),
-      }),
-    );
+        select: { id: true },
+      });
+    });
 
     return {
-      record: updated,
+      record: await this.getOutreachRecord(ctx, id),
       mailtoUrl: buildMailtoUrl(recipients, record.subject, record.body),
     };
   }
@@ -3051,6 +3180,9 @@ export class EngagementService {
     }
 
     const connection = await this.findCampaignSendConnection(ctx);
+    const currentRecord = await this.getOutreachRecord(ctx, id);
+    if (outreachAssociationKey(currentRecord) !== outreachAssociationKey(record))
+      throw new NotFoundException('Outreach record not found');
     const sent: Array<{ email: string; name: string | null; sentAt: string }> = [];
     const errors: Array<{ email: string; message: string }> = [];
 
@@ -3133,9 +3265,13 @@ export class EngagementService {
       ...(errors.length ? { errors } : {}),
     };
 
-    const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.outreachRecord.update({
-        where: { id },
+    // Provider effects have already happened. Record their outcome even if a
+    // grant or client association changed during delivery; otherwise a sent
+    // record remains draft and a later authorized retry can send it twice.
+    // The final read below still enforces current visibility.
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      return tx.outreachRecord.update({
+        where: { id, tenantId: ctx.tenantId },
         data: {
           status: errors.length ? 'failed' : 'sent',
           sentAt: errors.length ? null : now,
@@ -3151,9 +3287,9 @@ export class EngagementService {
           }) as Prisma.InputJsonValue,
           lastStep: 5,
         },
-        include: outreachInclude(),
-      }),
-    );
+        select: { id: true },
+      });
+    });
 
     if (errors.length) {
       throw new ServiceUnavailableException(
@@ -3161,7 +3297,7 @@ export class EngagementService {
       );
     }
 
-    return updated;
+    return this.getOutreachRecord(ctx, id);
   }
 
   async outboundCampaignContactData(ctx: TenantContext, query: { clientId?: string }) {
@@ -3170,15 +3306,7 @@ export class EngagementService {
     const clientId = query.clientId?.trim() || null;
 
     const meetings = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (clientId) {
-        await ensureExists(
-          tx.client.findFirst({
-            where: { id: clientId, tenantId: ctx.tenantId },
-            select: { id: true },
-          }),
-          'Client not found',
-        );
-      }
+      if (clientId) await this.assertOutreachClientsReadable(tx, ctx, [clientId]);
       const clientAssociationWhere = clientId
         ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId)
         : null;
@@ -3193,6 +3321,7 @@ export class EngagementService {
               source: { not: EngagementSource.manual },
               startsAt: { gte: from, lte: to },
             },
+            { OR: [{ clientId: null }, { client: { is: outreachReadableClientWhere(ctx) } }] },
             ...(clientAssociationWhere ? [clientAssociationWhere] : []),
           ],
         },
@@ -3214,9 +3343,33 @@ export class EngagementService {
         orderBy: { startsAt: 'desc' },
         take: 100,
       });
-      for(const row of rows)row.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,row.preps);
-      return rows;
-    });
+      const currentClients = await this.outreachReadableClientIds(tx, ctx, rows.flatMap((row) => [
+        row.clientId,
+        ...row.preps.map((prep) => prep.clientId),
+        ...row.debriefs.map((debrief) => debrief.clientId),
+      ]));
+      const visible: typeof rows = [];
+      for (const row of rows) {
+        if (!outreachClientInSet(currentClients, row.clientId) ||
+            row.preps.some((prep) => !outreachClientInSet(currentClients, prep.clientId)) ||
+            row.debriefs.some((debrief) => !outreachClientInSet(currentClients, debrief.clientId)))
+          continue;
+        let sourcesReadable = true;
+        for (const prep of row.preps) {
+          try {
+            await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+          } catch (error) {
+            if (error instanceof ForbiddenException || error instanceof NotFoundException) {
+              sourcesReadable = false;
+              break;
+            }
+            throw error;
+          }
+        }
+        if (sourcesReadable) visible.push(row);
+      }
+      return visible;
+    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
 
     const attendeeEmails = unique(
       meetings.flatMap((meeting) =>
@@ -4387,84 +4540,6 @@ export class EngagementService {
    * `testMode` a single [TEST] copy is sent to the logged-in user so they
    * can preview formatting before the real send.
    */
-  /**
-   * §3.3 server-side outreach hold (defense-in-depth): a HELD draft becomes a
-   * durable review_request keyed by CONTENT (recipient + exact subject/body),
-   * and sendBatchEmails refuses any draft whose content key has a non-approved
-   * review. The wizard's client-side 'held' handling stays the first line;
-   * this closes the direct-API / wizard-bug bypass. Fail-open on persistence
-   * errors (loud log): generation must never lose a draft because the hold row
-   * failed — the client-side gate still applies to that draft.
-   */
-  /**
-   * @deprecated Phase 0 §3.b3 — CONTENT-KEYED holds are superseded by immutable
-   * draft versions (`subjectType='outreach-draft-version'`). This method is
-   * reached ONLY on the pre-Phase-0 path (ENGAGEMENT_VERSIONED_OUTREACH=false),
-   * where removing it would leave generation with no server-side hold gate at
-   * all. It is retained for that compatibility window and for reading historical
-   * rows; do NOT add new callers, and do NOT create new review rows with
-   * subjectType='outreach-draft'.
-   */
-  private async persistOutreachHold(
-    ctx: TenantContext,
-    held: {
-      recipientId: string;
-      recipientName: string | null;
-      clientId: string | null;
-      subject: string;
-      body: string;
-      findings: unknown[];
-    },
-  ): Promise<void> {
-    try {
-      const subjectId = outreachDraftHoldKey(held.recipientId, held.subject, held.body);
-      const findingSummary = (held.findings as Array<Record<string, unknown>>)
-        .map((f) => `${String(f.check ?? '?')} (${String(f.severity ?? '?')})`)
-        .join(', ');
-      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-        // Idempotent per content key: a regenerate that reproduces the same
-        // held text must not stack duplicate pending reviews.
-        const existing = await tx.reviewRequest.findFirst({
-          where: {
-            tenantId: ctx.tenantId,
-            subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
-            subjectId,
-            status: 'pending',
-          },
-          select: { id: true },
-        });
-        if (existing) return;
-        await tx.reviewRequest.create({
-          data: {
-            tenantId: ctx.tenantId,
-            // Outreach is an external send — the blueprint's restricted tier.
-            riskTier: DELIVERABLE_RISK_TIERS.external_send ?? 'restricted',
-            surface: 'outreach',
-            subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
-            subjectId,
-            clientId: held.clientId,
-            title: `Held outreach draft — ${held.recipientName || held.recipientId}`.slice(0, 300),
-            reason:
-              `Grounding auditor held this draft under enforce mode` +
-              (findingSummary ? ` (${findingSummary})` : '') +
-              `. Approving releases the EXACT held text for sending; any edit produces new content that regenerates its own verdict.`,
-            payload: {
-              recipientId: held.recipientId,
-              subject: held.subject,
-              body: held.body,
-              findings: held.findings,
-            } as Prisma.InputJsonValue,
-            requestedBy: ctx.userId ?? null,
-          },
-        });
-      });
-    } catch (e) {
-      this.logger.error(
-        `outreach hold persistence FAILED — the server-side send gate will not cover this draft ` +
-          `(the wizard's client-side held status still applies): ${(e as Error).message}`,
-      );
-    }
-  }
 
   /**
    * COMPATIBILITY ROUTE (Phase 0 §3.d2).
@@ -4623,7 +4698,7 @@ export class EngagementService {
 
     // §3.3 server-side hold gate: refuse to send any draft whose EXACT content
     // was held by the grounding auditor and not yet approved in Reviews. The
-    // content key matches persistOutreachHold's, so an unedited held draft is
+    // The stable content key matches historical holds, so an unedited held draft is
     // blocked here no matter what the caller claims — the wizard's client-side
     // 'held' status is UX, this is the enforcement boundary. One batch lookup.
     const holdKeys = [
@@ -4866,18 +4941,18 @@ export class EngagementService {
 
   async deleteOutreachRecord(ctx: TenantContext, id: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const existing = await tx.outreachRecord.findFirst({
-        where: {
-          id,
-          tenantId: ctx.tenantId,
-          ...ownOutreachRecordWhere(ctx.userId),
-          deletedAt: null,
-        },
-      });
+      const where = { id, tenantId: ctx.tenantId, ...ownOutreachRecordWhere(ctx.userId), deletedAt: null };
+      const association = await tx.outreachRecord.findFirst({ where, select: outreachAssociationSelect() });
+      if (!association) throw new NotFoundException('Outreach record not found');
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(association), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, association);
+      const existing = await tx.outreachRecord.findFirst({ where });
       if (!existing) throw new NotFoundException('Outreach record not found');
       const deletedAt = new Date();
 
-      return tx.outreachRecord.update({
+      const updated = await tx.outreachRecord.update({
         where: { id },
         data: {
           deletedAt,
@@ -4890,6 +4965,11 @@ export class EngagementService {
         },
         include: outreachInclude(),
       });
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(updated), 'Outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, updated);
+      return updated;
     });
   }
 
@@ -4902,14 +4982,14 @@ export class EngagementService {
    */
   async restoreOutreachRecord(ctx: TenantContext, id: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const existing = await tx.outreachRecord.findFirst({
-        where: {
-          id,
-          tenantId: ctx.tenantId,
-          ...ownOutreachRecordWhere(ctx.userId),
-          deletedAt: { not: null },
-        },
-      });
+      const where = { id, tenantId: ctx.tenantId, ...ownOutreachRecordWhere(ctx.userId), deletedAt: { not: null } };
+      const association = await tx.outreachRecord.findFirst({ where, select: outreachAssociationSelect() });
+      if (!association) throw new NotFoundException('Deleted outreach record not found');
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(association), 'Deleted outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, association, 'Deleted outreach record not found');
+      const existing = await tx.outreachRecord.findFirst({ where });
       if (!existing) throw new NotFoundException('Deleted outreach record not found');
 
       const metadata = { ...((existing.metadata as Record<string, unknown> | null) ?? {}) };
@@ -4917,7 +4997,7 @@ export class EngagementService {
       delete metadata.deletedAt;
       delete metadata.deletedByUserId;
 
-      return tx.outreachRecord.update({
+      const restored = await tx.outreachRecord.update({
         where: { id },
         data: {
           deletedAt: null,
@@ -4926,6 +5006,11 @@ export class EngagementService {
         },
         include: outreachInclude(),
       });
+      await this.assertOutreachClientsReadable(
+        tx, ctx, outreachAssociationClientIds(restored), 'Deleted outreach record not found',
+      );
+      await this.assertOutreachPrepSourcesReadable(tx, ctx, restored, 'Deleted outreach record not found');
+      return restored;
     });
   }
 
@@ -9103,15 +9188,7 @@ export class EngagementService {
     clientId: string | null,
     meetingId: string | null,
   ) {
-    if (clientId) {
-      await ensureExists(
-        tx.client.findFirst({
-          where: { id: clientId, tenantId: ctx.tenantId },
-          select: { id: true },
-        }),
-        'Client not found',
-      );
-    }
+    if (clientId) await this.assertOutreachClientsReadable(tx, ctx, [clientId]);
     if (meetingId) {
       const meeting = await tx.meeting.findFirst({
         where: {
@@ -9119,9 +9196,29 @@ export class EngagementService {
           tenantId: ctx.tenantId,
           ...ownMeetingWhere(ctx.userId),
         },
-        select: { clientId: true },
+        select: {
+          clientId: true,
+          preps: { select: { clientId: true, generatedFrom: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+          debriefs: { select: { clientId: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+        },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      await this.assertOutreachClientsReadable(
+        tx, ctx, [...new Set([
+          meeting.clientId,
+          ...meeting.preps.map((prep) => prep.clientId),
+          ...meeting.debriefs.map((debrief) => debrief.clientId),
+        ].filter((id): id is string => id !== null))], 'Meeting not found',
+      );
+      for (const prep of meeting.preps) {
+        try {
+          await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+        } catch (error) {
+          if (error instanceof ForbiddenException || error instanceof NotFoundException)
+            throw new NotFoundException('Meeting not found');
+          throw error;
+        }
+      }
       if (clientId && meeting.clientId && meeting.clientId !== clientId) {
         throw new BadRequestException('Meeting belongs to a different client');
       }
@@ -9608,237 +9705,8 @@ export class EngagementService {
     return this.ai.rewriteEmailDraft(ctx, input);
   }
 
-  private async outreachContext(
-    ctx: TenantContext,
-    record: {
-      clientId: string | null;
-      meetingId: string | null;
-      metadata: Prisma.JsonValue;
-      meeting?: {
-        clientId: string | null;
-        organizerEmail: string | null;
-        attendees: Array<{ email: string | null }>;
-      } | null;
-    },
-    recipients: OutreachRecipientInput[],
-    extraMetadata?: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    const meetingId = record.meetingId;
-    const clientId = record.clientId ?? record.meeting?.clientId ?? null;
-    const [notes, debriefs, clientContext, recentClientMeetings, directoryMatches] =
-      await Promise.all([
-        meetingId ? this.listMeetingNotes(ctx, meetingId).catch(() => []) : Promise.resolve([]),
-        meetingId ? this.listMeetingDebriefs(ctx, meetingId).catch(() => []) : Promise.resolve([]),
-        clientId ? this.clientContext(ctx, clientId).catch(() => null) : Promise.resolve(null),
-        clientId
-          ? this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => [])
-          : Promise.resolve([]),
-        this.directory
-          .findContactsByEmails(
-            unique([
-              ...recipients.map((recipient) => recipient.email ?? ''),
-              ...(record.meeting?.attendees ?? []).map((attendee) => attendee.email ?? ''),
-              record.meeting?.organizerEmail ?? '',
-            ]).filter(Boolean),
-            50,
-          )
-          .catch(() => []),
-      ]);
 
-    // Rendered to a compact STRING, not the raw object: PromptSpec v2 only
-    // renders string context values (nonEmptyStr), so an object silently drops.
-    // Same fix as the batch path (generateBatchEmails) — see
-    // renderClientRelationshipSnapshot's other call site.
-    return pruneForAi({
-      notes: notes.filter((note) => !note.restricted),
-      debriefs: debriefs.filter((debrief) => !debrief.restricted),
-      clientContext: renderClientRelationshipSnapshot(clientContext),
-      recentClientMeetings,
-      directoryMatches,
-      metadata: mergeJsonObjects(record.metadata, extraMetadata ?? {}),
-    });
-  }
 
-  private async recentClientMeetingsForOutreach(ctx: TenantContext, clientId: string) {
-    const meetings = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const rows=await tx.meeting.findMany({
-        where: {
-          AND: [
-            { tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-            await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId),
-          ],
-        },
-        select: {
-          id: true,
-          subject: true,
-          startsAt: true,
-          endsAt: true,
-          location: true,
-          organizerEmail: true,
-          organizerName: true,
-          attendees: {
-            select: { id: true, email: true, name: true, role: true },
-            orderBy: { createdAt: 'asc' as const },
-          },
-          preps: {
-            orderBy: { createdAt: 'desc' as const },
-            take: 1,
-          },
-          tasks: {
-            where: { status: { not: EngagementTaskStatus.canceled } },
-            orderBy: [{ dueDate: 'asc' as const }, { createdAt: 'desc' as const }],
-          },
-        },
-        orderBy: { startsAt: 'desc' },
-        take: 8,
-      });
-      for(const row of rows)row.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,row.preps);
-      return rows;
-    });
-
-    const debriefsByMeeting = await Promise.all(
-      meetings.map((meeting) => this.listMeetingDebriefs(ctx, meeting.id).catch(() => [])),
-    );
-
-    return meetings.map((meeting, index) => ({
-      ...meeting,
-      debriefs: (debriefsByMeeting[index] ?? []).filter((debrief) => !debrief.restricted),
-    }));
-  }
-
-  /**
-   * Accuracy fix (2026-07-11): rewrite the body of every attached `bill` /
-   * `programElement` context item with an AUTHORITATIVE block sourced from our
-   * own (global, non-RLS) tables, so drafts cite real canonical status and every
-   * congressional mark instead of narrating from a single stale string. Runs once
-   * per campaign, in parallel, best-effort: any lookup error/miss leaves the
-   * original client-supplied body untouched (never blocks a draft).
-   *
-   * Also returns `truthByItemId` — the RAW structured PeTruth/BillTruth behind
-   * each rewritten item's rendered text, keyed by context-item id. This is
-   * additive (the rendered `text` is byte-identical to what used to be returned
-   * bare): the post-hoc grounding auditor (shadow by default) uses the raw truth
-   * to build ground-truth LedgerEntrys for whichever items a given recipient's
-   * draft actually used — see generateBatchEmails.
-   *
-   * HP-05 (Gate L): also rewrites an `intel` item's body from intel-api's alert
-   * packet, the SAME accuracy fix extended to LegiWatch alert context — before
-   * this, an `intel` item's body was never touched here, so it reached the
-   * prompt as the literal string `- [intel] undefined` (the wizard's Generate
-   * request sends id-only; nothing ever filled `body` back in). `clientId` is
-   * required — an alert packet is meaningless without one, and
-   * AlertPacketService.build enforces the client belongs to the tenant.
-   * `authHeader` forwards the caller's own already-verified identity to
-   * intel-api (see AlertPacketClientService); a missing header or any fetch
-   * failure degrades to an honest gap, never a guess, matching every other
-   * channel in this method.
-   *
-   * HP-04 (Gate L phase b): a fetched intel packet's client-relationship fields
-   * (people/target offices/recent meetings) are always empty by construction —
-   * intel-api cannot reach apps/api's schema (a layering rule, not an
-   * inability). Resolved ONCE per batch (not per item — same pattern
-   * generateBatchEmails already uses for its own OUTREACH_CLIENT_PROFILE
-   * blocks) and overlaid onto every intel packet fetched below, with
-   * `missingFields` recomputed to honestly reflect what got filled.
-   */
-  private async enrichOutreachContextItems(
-    items: OutreachSelectedContextItemInput[],
-    ctx: TenantContext,
-    clientId: string | null,
-    authHeader?: string,
-  ): Promise<{
-    items: OutreachSelectedContextItemInput[];
-    truthByItemId: Map<string, OutreachContextTruth>;
-  }> {
-    const truthByItemId = new Map<string, OutreachContextTruth>();
-    if (!items.length) return { items, truthByItemId };
-
-    let relationshipOverlay: {
-      existingRelationships?: string[];
-      targetOffices?: string[];
-      recentMeetings?: string[];
-    } = {};
-    if (clientId && items.some((i) => i.kind === 'intel')) {
-      const tenantRow = await this.prisma
-        .withTenant(ctx.tenantId, (tx) =>
-          tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
-        )
-        .catch(() => null);
-      if (outreachClientProfileEnabled(tenantRow?.settings)) {
-        const [peopleBlock, targetOfficesBlock, recentMeetings] = await Promise.all([
-          this.outreachClientPeopleBlock(ctx, clientId).catch(() => null),
-          this.outreachClientTargetOfficesBlock(ctx, clientId).catch(() => null),
-          this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => []),
-        ]);
-        relationshipOverlay = {
-          existingRelationships: peopleBlock ? [peopleBlock] : [],
-          targetOffices: targetOfficesBlock ? [targetOfficesBlock] : [],
-          recentMeetings: recentMeetings
-            .map(
-              (m) =>
-                `${m.subject || 'Meeting'}${m.startsAt ? ` (${new Date(m.startsAt).toISOString().slice(0, 10)})` : ''}`,
-            )
-            .slice(0, 8),
-        };
-      }
-    }
-
-    const enriched = await Promise.all(
-      items.map(async (item) => {
-        try {
-          if (item.kind === 'bill') {
-            const billId = billIdFromItemId(item.id);
-            const block = billId ? await this.billTruthBlock(billId) : null;
-            if (block) {
-              truthByItemId.set(item.id, { kind: 'bill', raw: block.raw });
-              return { ...item, body: block.text };
-            }
-            return item;
-          }
-          if (item.kind === 'programElement') {
-            const peCode = peCodeFromItemId(item.id);
-            const block = peCode ? await this.peTruthBlock(peCode) : null;
-            if (block) {
-              truthByItemId.set(item.id, { kind: 'programElement', raw: block.raw });
-              return { ...item, body: block.text };
-            }
-            // RC1: on a lookup miss do NOT keep the thin client-supplied
-            // "Current: $X / Request: $Y" body — an unverified, direction-
-            // ambiguous figure must never survive into the prompt as fact.
-            return {
-              ...item,
-              body: `No budget-funding record is available in Capiro's data for program element ${
-                peCode ?? item.id
-              }. Do NOT state or estimate any dollar figure for it.`,
-            };
-          }
-          if (item.kind === 'intel') {
-            const alertId = intelAlertIdFromItemId(item.id);
-            const packet =
-              alertId && clientId
-                ? await this.alertPacketClient.fetchAlertPacket(authHeader, clientId, alertId)
-                : null;
-            if (packet) {
-              const enrichedPacket = overlayClientRelationshipContext(packet, relationshipOverlay);
-              return { ...item, body: renderAlertPacketForOutreach(enrichedPacket) };
-            }
-            // Never a bare "undefined": an alert Capiro cannot verify server-side
-            // is named as an honest gap, exactly like the PE lookup-miss above.
-            return {
-              ...item,
-              body: 'This LegiWatch alert could not be verified against Capiro’s records, so no detail from it is included. Do NOT state or infer any fact about it.',
-            };
-          }
-        } catch (err) {
-          this.logger.warn(
-            `outreach context enrichment failed for ${item.id}: ${(err as Error).message}`,
-          );
-        }
-        return item;
-      }),
-    );
-    return { items: enriched, truthByItemId };
-  }
 
   /** Authoritative bill-truth block (see outreach-context-enrichment). Null if the
    *  bill isn't on record — the caller then keeps the thin client body. */
@@ -9856,10 +9724,6 @@ export class EngagementService {
     return this.truth.billTruthBlock(billId);
   }
 
-  /** Authoritative PE-funding block. Null if the PE isn't on record. */
-  private async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {
-    return this.truth.peTruthBlock(peCode);
-  }
 
   /**
    * A compact, prompt-ready block of the client's actively tracked bills with
@@ -9996,89 +9860,7 @@ export class EngagementService {
     return `Client watchlist (the client's standing priority issues and declared stance — align the ask to these where relevant; do not invent a position the client has not stated):\n${parts.join('\n')}`;
   }
 
-  /**
-   * "People this client works with" roster (client_people) — the biggest
-   * who-does-this-client-know gap. Client-level / recipient-invariant, gated by
-   * OUTREACH_CLIENT_PROFILE. tenant-scoped (RLS). Bounded + rendered by the pure
-   * renderClientPeopleRoster. (Rich client-profile context.)
-   */
-  private async outreachClientPeopleBlock(
-    ctx: TenantContext,
-    clientId: string,
-  ): Promise<string | null> {
-    const people = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientPerson.findMany({
-        where: { tenantId: ctx.tenantId, clientId },
-        orderBy: [{ lastContact: 'desc' }, { updatedAt: 'desc' }],
-        take: 15,
-        select: { name: true, title: true, role: true, notes: true, lastContact: true },
-      }),
-    );
-    return renderClientPeopleRoster(people);
-  }
 
-  /**
-   * The client's coordinated TARGET-OFFICE map: the team's explicit picks
-   * (client_targets) UNION Meri's office recommendations (client_target_
-   * recommendations), so a draft can frame the recipient as one of a planned set.
-   * Client-level / recipient-invariant, gated by OUTREACH_CLIENT_PROFILE. Explicit
-   * picks first; recommendations augment committee/billCount and fill the tail.
-   */
-  private async outreachClientTargetOfficesBlock(
-    ctx: TenantContext,
-    clientId: string,
-  ): Promise<string | null> {
-    const [targets, recs] = await Promise.all([
-      this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clientTarget.findMany({
-          where: { tenantId: ctx.tenantId, clientId },
-          orderBy: { addedAt: 'desc' },
-          take: 20,
-          select: {
-            memberId: true,
-            memberName: true,
-            party: true,
-            state: true,
-            chamber: true,
-            committee: true,
-          },
-        }),
-      ),
-      this.outreachTargetRecommendations(ctx, clientId),
-    ]);
-
-    const offices: TargetOfficeLite[] = [];
-    const seen = new Set<string>();
-    for (const t of targets) {
-      const rec = t.memberId ? recs.byMember.get(t.memberId) : undefined;
-      offices.push({
-        memberId: t.memberId,
-        office: t.memberName ?? rec?.office ?? null,
-        party: t.party ?? rec?.party ?? null,
-        state: t.state ?? rec?.state ?? null,
-        chamber: t.chamber ?? rec?.chamber ?? null,
-        committee: t.committee ?? rec?.committee ?? null,
-        billCount: rec?.billCount ?? null,
-        explicit: true,
-      });
-      if (t.memberId) seen.add(t.memberId);
-    }
-    // recs.byMember preserves the stored (score-sorted) recommendation order.
-    for (const [memberId, rec] of recs.byMember) {
-      if (seen.has(memberId)) continue;
-      offices.push({
-        memberId,
-        office: rec.office,
-        party: rec.party,
-        state: rec.state,
-        chamber: rec.chamber,
-        committee: rec.committee,
-        billCount: rec.billCount,
-        explicit: false,
-      });
-    }
-    return renderClientTargetOffices(offices);
-  }
 
   /**
    * W5.2 — prior-outreach dedup. For each recipient email, the most recent SENT
@@ -10096,8 +9878,8 @@ export class EngagementService {
    * returns EMPTY rather than widening the scope.
    *
    * `requireClient: false` is accepted only for the wizard's own "last contacted"
-   * badge, which is a UI affordance for the user's own workspace and never
-   * becomes prompt text — see getRecipientPriorContact.
+   * badge. That tenant-wide search still excludes records associated with
+   * clients the caller cannot currently read.
    */
   private async outreachPriorContactByEmail(
     ctx: TenantContext,
@@ -10112,23 +9894,62 @@ export class EngagementService {
     const wanted = new Set(emailsLower);
     const since = new Date(Date.now() - 90 * 864e5);
     const rows = await this.prisma
-      .withTenant(ctx.tenantId, (tx) =>
-        tx.outreachRecord.findMany({
+      .withTenant(ctx.tenantId, async (tx) => {
+        const selected = await tx.outreachRecord.findMany({
           where: {
             tenantId: ctx.tenantId,
             status: 'sent',
             sentAt: { gte: since },
             deletedAt: null,
             ...(clientId ? { clientId } : {}),
+            AND: [outreachReadableRecordWhere(ctx)],
           },
           orderBy: { sentAt: 'desc' },
           take: 300,
-          select: { subject: true, sentAt: true, recipients: true },
-        }),
-      )
-      .catch(
-        () => [] as Array<{ subject: string | null; sentAt: Date | null; recipients: unknown }>,
-      );
+          select: {
+            clientId: true,
+            meeting: { select: {
+              clientId: true,
+              preps: {
+                select: { clientId: true, generatedFrom: true },
+                orderBy: { createdAt: 'desc' }, take: 1,
+              },
+              debriefs: {
+                select: { clientId: true }, orderBy: { createdAt: 'desc' }, take: 1,
+              },
+            } },
+            subject: true, sentAt: true, recipients: true,
+          },
+        });
+        const currentClients = await this.outreachReadableClientIds(tx, ctx, selected.flatMap((row) => [
+          row.clientId, row.meeting?.clientId ?? null,
+          ...(row.meeting?.preps.map((prep) => prep.clientId) ?? []),
+          ...(row.meeting?.debriefs.map((debrief) => debrief.clientId) ?? []),
+        ]));
+        const visible: typeof selected = [];
+        for (const row of selected) {
+          if (!outreachClientInSet(currentClients, row.clientId) ||
+              !outreachClientInSet(currentClients, row.meeting?.clientId ?? null) ||
+              row.meeting?.preps.some((prep) => !outreachClientInSet(currentClients, prep.clientId)) ||
+              row.meeting?.debriefs.some((debrief) => !outreachClientInSet(currentClients, debrief.clientId)))
+            continue;
+          let sourcesReadable = true;
+          for (const prep of row.meeting?.preps ?? []) {
+            try {
+              await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+            } catch (error) {
+              if (error instanceof ForbiddenException || error instanceof NotFoundException) {
+                sourcesReadable = false;
+                break;
+              }
+              throw error;
+            }
+          }
+          if (sourcesReadable) visible.push(row);
+        }
+        return visible;
+      }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS })
+      .catch(() => []);
     for (const r of rows) {
       if (!r.sentAt) continue;
       const recips = Array.isArray(r.recipients) ? r.recipients : [];
@@ -10155,13 +9976,8 @@ export class EngagementService {
    * the result (never fabricated). Returns ISO date strings for the wire.
    *
    * This is the ONE caller allowed to run without a client (`requireClient:
-   * false`): it answers "has my firm emailed this person recently" inside the
-   * user's own workspace, and its answer is rendered as a badge in the Recipients
-   * step — it never reaches a prompt or an outgoing email. The generator's
-   * priorOutreach channel deliberately does NOT get that latitude, so the badge
-   * and the prompt line can now legitimately differ for a no-client campaign:
-   * the user still sees the reminder, the model is not told another client's
-   * subject line.
+   * false`). The badge can search readable client and genuinely clientless
+   * records; the generator's priorOutreach channel still requires a client.
    */
   async getRecipientPriorContact(
     ctx: TenantContext,
@@ -10294,68 +10110,6 @@ export class EngagementService {
     return out;
   }
 
-  /**
-   * W5.6 — voice few-shots: 2-3 excerpts from the user's OWN recently sent
-   * outreach, so drafts sound like this author. PII-stripped (emails/phones
-   * scrubbed) and capped; style guidance only, never a source of facts. Scoped to
-   * the outreach path (appended to the voice block there), not the shared
-   * loadUserVoiceBlock used by meeting prep/debrief.
-   */
-  private async outreachVoiceFewShots(
-    ctx: TenantContext,
-    clientId: string | null,
-  ): Promise<string | null> {
-    // Phase 1 §3.e2 / §5.8 — HARD client scope.
-    //
-    // This query previously selected by AUTHOR alone, so a lobbyist working three
-    // accounts could have Client A's sent email body pasted verbatim into a draft
-    // written for Client B. Nothing downstream stopped the model from reusing its
-    // specifics. The invariant "raw cross-client writing examples never enter
-    // prompts" is unconditional, so the scope is fixed on BOTH the gateway and the
-    // legacy path rather than only behind the flag — a cross-client leak should not
-    // wait on a rollout. With no campaign client there is no safe scope, so no
-    // examples are used at all.
-    //
-    // NOTE (deviation): this does change the flag-off prompt bytes for the
-    // few-shot block. Strictly in the safe direction — fewer, correctly-scoped
-    // examples — and only for campaigns that previously leaked.
-    if (!clientId) return null;
-    const rows = await this.prisma
-      .withTenant(ctx.tenantId, (tx) =>
-        tx.outreachRecord.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            createdByUserId: ctx.userId,
-            clientId,
-            status: 'sent',
-            deletedAt: null,
-            body: { not: null },
-          },
-          orderBy: { sentAt: 'desc' },
-          take: 3,
-          select: { body: true },
-        }),
-      )
-      .catch(() => [] as Array<{ body: string | null }>);
-    const excerpts = rows
-      .map((r) => scrubPiiForVoice(r.body ?? ''))
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => (s.length > 400 ? `${s.slice(0, 399).trim()}…` : s));
-    if (!excerpts.length) return null;
-    // Total cap ~1200 chars across the (up to 3) excerpts.
-    const capped: string[] = [];
-    let total = 0;
-    for (const e of excerpts) {
-      if (total + e.length > 1200) break;
-      capped.push(e);
-      total += e.length;
-    }
-    if (!capped.length) return null;
-    return `RECENT SENT EXAMPLES BY THIS AUTHOR (mirror the tone, structure, and phrasing — do NOT copy content or reuse their specific facts):\n${capped
-      .map((e, i) => `Example ${i + 1}:\n${e}`)
-      .join('\n\n')}`;
-  }
 
   /** Tracked bill ids for a client (client-level, resolved once per campaign). */
   private async outreachTrackedBillIds(ctx: TenantContext, clientId: string): Promise<string[]> {
@@ -10371,31 +10125,6 @@ export class EngagementService {
     return rows.map((r) => r.billId);
   }
 
-  /**
-   * The Office Recommender's "why this office is a fit for the client" output —
-   * one manual-refresh cache row per client holding an OfficeRecommendation[].
-   * Indexed by directory member id so a recipient can be matched by its
-   * directoryContactId. computedAt is surfaced so the caller can caveat stale
-   * reasoning. (Tier-2 outreach enrichment.)
-   */
-  private async outreachTargetRecommendations(
-    ctx: TenantContext,
-    clientId: string,
-  ): Promise<{ byMember: Map<string, OfficeRecommendation>; computedAt: string | null }> {
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientTargetRecommendation.findUnique({ where: { clientId } }),
-    );
-    const byMember = new Map<string, OfficeRecommendation>();
-    if (!row) return { byMember, computedAt: null };
-    const recs = (row.recommendations ?? []) as unknown as OfficeRecommendation[];
-    for (const rec of recs) {
-      if (rec?.memberId) byMember.set(rec.memberId, rec);
-    }
-    return {
-      byMember,
-      computedAt: row.computedAt ? row.computedAt.toISOString().slice(0, 10) : null,
-    };
-  }
 
   /**
    * Recent press for a set of members, batched by bioguide id. member_press_item
@@ -10429,129 +10158,21 @@ export class EngagementService {
     return byBioguide;
   }
 
-  /**
-   * Recipients' recent correspondence with the sender, resolved for the WHOLE
-   * batch in two queries and bucketed by lowercased email (email is the only
-   * identifier shared across the directory, meeting-attendee, and mail tables).
-   * Meetings match by attendee email; mail threads are client-scoped, so they
-   * load only when clientId is set. Both reads are own-user + tenant scoped and
-   * best-effort. Dates serialize to ISO via JSON.stringify in the prompt builder.
-   * Per recipient we keep the 3 most recent of each. (Tier-1 outreach enrichment.)
-   *
-   * CROSS-CLIENT CONFIDENTIALITY: meetings used to match on attendee email ALONE,
-   * with no client predicate at all — even when the campaign had a client. Since
-   * the caller puts each match's `subject` into the prompt, and a lobbying firm's
-   * congressional contacts are shared across its whole portfolio, a meeting held
-   * for client A surfaced its subject line inside client B's draft. Meetings
-   * belonging to a DIFFERENT client are now excluded; untagged meetings (clientId
-   * null) are still included because they name no client and are usually the most
-   * relevant history for a bare congressional contact. This mirrors the gateway's
-   * own rule for debriefs (resolveDebrief's DEBRIEF_OTHER_CLIENT check).
-   *
-   * Known limitation, deliberately not papered over: an UNTAGGED meeting whose
-   * subject happens to name another client still passes. Scoping cannot detect
-   * that — only tagging the meeting to its client can.
-   */
-  private async batchRecipientCorrespondence(
-    ctx: TenantContext,
-    clientId: string | null,
-    emailsLower: string[],
-  ): Promise<{ meetingsByEmail: Map<string, unknown[]>; threadsByEmail: Map<string, unknown[]> }> {
-    const meetingsByEmail = new Map<string, unknown[]>();
-    const threadsByEmail = new Map<string, unknown[]>();
-    if (!emailsLower.length) return { meetingsByEmail, threadsByEmail };
-    const wanted = new Set(emailsLower);
-    const PER_RECIPIENT = 3;
-    // A no-client campaign may only see untagged meetings: it has no client whose
-    // history it is entitled to, so widening to the whole tenant is the leak.
-    const meetingClientWhere = clientId
-      ? { OR: [{ clientId: null }, { clientId }] }
-      : { clientId: null };
-
-    const [meetings, threads] = await Promise.all([
-      this.prisma
-        .withTenant(ctx.tenantId, (tx) =>
-          tx.meeting.findMany({
-            where: {
-              tenantId: ctx.tenantId,
-              ...ownMeetingWhere(ctx.userId),
-              ...meetingClientWhere,
-              attendees: { some: { email: { in: emailsLower } } },
-            },
-            select: {
-              subject: true,
-              startsAt: true,
-              location: true,
-              attendees: { select: { name: true, email: true, role: true } },
-            },
-            orderBy: { startsAt: 'desc' },
-            take: 100,
-          }),
-        )
-        .catch(
-          () =>
-            [] as Array<{
-              subject: string | null;
-              startsAt: Date | null;
-              location: string | null;
-              attendees: Array<{ name: string | null; email: string | null; role: string | null }>;
-            }>,
-        ),
-      clientId
-        ? this.listMailThreads(ctx, { clientId, recipientEmails: emailsLower }).catch(() => [])
-        : Promise.resolve([]),
-    ]);
-
-    for (const meeting of meetings) {
-      const item = {
-        subject: meeting.subject ?? null,
-        date: meeting.startsAt ?? null,
-        location: meeting.location ?? null,
-        attendees: meeting.attendees ?? [],
-      };
-      const attendeeEmails = new Set(
-        (meeting.attendees ?? [])
-          .map((a) => a.email?.trim().toLowerCase())
-          .filter((e): e is string => Boolean(e)),
-      );
-      for (const email of attendeeEmails) {
-        if (!wanted.has(email)) continue;
-        const list = meetingsByEmail.get(email) ?? [];
-        if (list.length < PER_RECIPIENT) {
-          list.push(item);
-          meetingsByEmail.set(email, list);
-        }
-      }
-    }
-
-    for (const thread of threads as Array<Record<string, unknown>>) {
-      const item = {
-        subject: (thread.subject as string | null) ?? null,
-        lastMessageAt: (thread.lastMessageAt as Date | null) ?? null,
-        snippet: (thread.snippet as string | null) ?? null,
-      };
-      for (const email of threadParticipantEmails(thread)) {
-        if (!wanted.has(email)) continue;
-        const list = threadsByEmail.get(email) ?? [];
-        if (list.length < PER_RECIPIENT) {
-          list.push(item);
-          threadsByEmail.set(email, list);
-        }
-      }
-    }
-
-    return { meetingsByEmail, threadsByEmail };
-  }
 
   async listCampaigns(ctx: TenantContext, query: { clientId?: string; status?: string }) {
     const clientId = query.clientId?.trim() || null;
     const status = query.status?.trim() || null;
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementCampaign.findMany({
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (clientId) await this.assertOutreachClientsReadable(tx, ctx, [clientId]);
+      const campaigns = await tx.engagementCampaign.findMany({
         where: {
           tenantId: ctx.tenantId,
           ...(clientId ? { clientId } : {}),
           ...(status ? { status } : {}),
+          // A null client remains tenant-visible under the existing campaign
+          // policy. A client-associated campaign requires the caller's current
+          // nonarchived client and ethical-wall grant, even without a filter.
+          OR: [{ clientId: null }, { client: { is: outreachReadableClientWhere(ctx) } }],
         },
         include: {
           client: clientSummarySelect(),
@@ -10559,8 +10180,14 @@ export class EngagementService {
           recipients: true,
         },
         orderBy: { updatedAt: 'desc' },
-      }),
-    );
+      });
+      // Recheck after the row read before any caller (including Meri) computes
+      // totals or projects client names and recipients.
+      const currentClients = await this.outreachReadableClientIds(
+        tx, ctx, campaigns.map((campaign) => campaign.clientId),
+      );
+      return campaigns.filter((campaign) => outreachClientInSet(currentClients, campaign.clientId));
+    });
   }
 
   async createCampaign(
@@ -10574,16 +10201,8 @@ export class EngagementService {
   ) {
     const clientId = input.clientId?.trim() || null;
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (clientId) {
-        await ensureExists(
-          tx.client.findFirst({
-            where: { id: clientId, tenantId: ctx.tenantId },
-            select: { id: true },
-          }),
-          'Client not found',
-        );
-      }
-      return tx.engagementCampaign.create({
+      if (clientId) await this.assertOutreachClientsReadable(tx, ctx, [clientId]);
+      const created = await tx.engagementCampaign.create({
         data: {
           tenantId: ctx.tenantId,
           clientId,
@@ -10598,20 +10217,29 @@ export class EngagementService {
           recipients: true,
         },
       });
+      if (!(await this.outreachClientReadable(tx, ctx, created.clientId)))
+        throw new NotFoundException('Client not found');
+      return created;
     });
   }
 
   async getCampaign(ctx: TenantContext, id: string) {
-    const campaign = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementCampaign.findFirst({
-        where: { id, tenantId: ctx.tenantId },
+    const campaign = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row = await tx.engagementCampaign.findFirst({
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          OR: [{ clientId: null }, { client: { is: outreachReadableClientWhere(ctx) } }],
+        },
         include: {
           client: clientSummarySelect(),
           createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
           recipients: { orderBy: { createdAt: 'asc' } },
         },
-      }),
-    );
+      });
+      if (!row || !(await this.outreachClientReadable(tx, ctx, row.clientId))) return null;
+      return row;
+    });
     if (!campaign) throw new NotFoundException('Campaign not found');
     return campaign;
   }
@@ -10629,25 +10257,24 @@ export class EngagementService {
       sourceContext?: Record<string, unknown>;
       metadata?: Record<string, unknown>;
     },
+    expectedClientId?: string | null,
   ) {
     const campaign = await this.getCampaign(ctx, id);
+    if (expectedClientId !== undefined && campaign.clientId !== expectedClientId)
+      throw new NotFoundException('Campaign not found');
     const clientId = input.clientId === null ? null : input.clientId?.trim() || campaign.clientId;
 
-    if (clientId && clientId !== campaign.clientId) {
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        ensureExists(
-          tx.client.findFirst({
-            where: { id: clientId, tenantId: ctx.tenantId },
-            select: { id: true },
-          }),
-          'Client not found',
-        ),
-      );
-    }
-
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementCampaign.update({
-        where: { id },
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.engagementCampaign.findFirst({
+        where: { id, tenantId: ctx.tenantId }, select: { clientId: true },
+      });
+      if (!current || current.clientId !== campaign.clientId ||
+          !(await this.outreachClientReadable(tx, ctx, current.clientId)))
+        throw new NotFoundException('Campaign not found');
+      if (clientId && clientId !== current.clientId)
+        await this.assertOutreachClientsReadable(tx, ctx, [clientId]);
+      const updated = await tx.engagementCampaign.update({
+        where: { id, tenantId: ctx.tenantId, clientId: current.clientId },
         data: {
           ...(input.name !== undefined ? { name: input.name.trim() } : {}),
           ...(input.clientId !== undefined ? { clientId } : {}),
@@ -10672,8 +10299,11 @@ export class EngagementService {
           createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
           recipients: { orderBy: { createdAt: 'asc' } },
         },
-      }),
-    );
+      });
+      if (!(await this.outreachClientReadable(tx, ctx, updated.clientId)))
+        throw new NotFoundException('Campaign not found');
+      return updated;
+    });
   }
 
   async deleteCampaign(ctx: TenantContext, id: string) {
@@ -10754,6 +10384,31 @@ export class EngagementService {
 
     const clientId = campaign.clientId;
     const client = clientId ? await this.clientContext(ctx, clientId).catch(() => null) : null;
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.engagementCampaign.findFirst({
+        where: { id, tenantId: ctx.tenantId }, select: { clientId: true },
+      });
+      if (!current || current.clientId !== campaign.clientId)
+        throw new NotFoundException('Campaign not found');
+      const associatedClients = [current.clientId, meeting?.clientId ?? null,
+        debrief?.clientId ?? null, prep?.clientId ?? null];
+      for (const linkedMeetingId of new Set([meeting?.id, debrief?.meetingId, prep?.meetingId])) {
+        if (!linkedMeetingId) continue;
+        const parent = await tx.meeting.findFirst({
+          where: { id: linkedMeetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+          select: { clientId: true },
+        });
+        if (!parent) throw new NotFoundException('Campaign source meeting not found');
+        if (meeting?.id === linkedMeetingId && parent.clientId !== meeting.clientId)
+          throw new NotFoundException('Campaign source meeting not found');
+        associatedClients.push(parent.clientId);
+      }
+      await this.assertOutreachClientsReadable(
+        tx, ctx, associatedClients.filter((value): value is string => value !== null),
+        'Campaign not found',
+      );
+      if (prep) await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+    }, { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS });
     const firstRecipient = campaign.recipients[0] ?? null;
     // Phase 26 cutover: campaign follow-up context is always governed. This was
     // flag-gated, so with the flag off the provider was called with the raw
@@ -10787,27 +10442,17 @@ export class EngagementService {
     );
     await this.recordAiUsage(ctx, 'campaign_email', result);
 
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementCampaign.update({
-        where: { id },
-        data: {
-          subject: result.subject,
-          body: result.body,
-          metadata: mergeJsonObjects(campaign.metadata, {
-            aiGenerated: {
-              provider: result.provider,
-              model: result.model,
-              at: new Date().toISOString(),
-            },
-          }) as Prisma.InputJsonValue,
+    return this.updateCampaign(ctx, id, {
+      subject: result.subject,
+      body: result.body,
+      metadata: {
+        aiGenerated: {
+          provider: result.provider,
+          model: result.model,
+          at: new Date().toISOString(),
         },
-        include: {
-          client: clientSummarySelect(),
-          createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
-          recipients: { orderBy: { createdAt: 'asc' } },
-        },
-      }),
-    );
+      },
+    }, campaign.clientId);
   }
 
   /**
@@ -10974,6 +10619,88 @@ export {
   canReadEncryptedEntry,
   canEditEncryptedEntry,
 };
+
+type OutreachAssociationRow = {
+  clientId: string | null;
+  meetingId: string | null;
+  meeting?: {
+    id: string;
+    clientId: string | null;
+    preps: Array<{ id: string; clientId: string | null; generatedFrom: unknown }>;
+    debriefs: Array<{ id: string; clientId: string | null }>;
+  } | null;
+};
+
+function outreachReadableClientWhere(ctx: TenantContext): Prisma.ClientWhereInput {
+  return {
+    tenantId: ctx.tenantId,
+    status: { not: 'archived' },
+    OR: [
+      { memoryWall: false },
+      { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+    ],
+  };
+}
+
+function outreachClientInSet(currentClients: ReadonlySet<string>, clientId: string | null): boolean {
+  return clientId === null || currentClients.has(clientId);
+}
+
+function outreachReadableRecordWhere(ctx: TenantContext): Prisma.OutreachRecordWhereInput {
+  const client = outreachReadableClientWhere(ctx);
+  return {
+    AND: [
+      { OR: [{ clientId: null }, { client: { is: client } }] },
+      { OR: [
+        { meetingId: null },
+        { meeting: { is: { OR: [{ clientId: null }, { client: { is: client } }] } } },
+      ] },
+    ],
+  };
+}
+
+function outreachAssociationSelect() {
+  return {
+    clientId: true,
+    meetingId: true,
+    meeting: {
+      select: {
+        id: true,
+        clientId: true,
+        preps: {
+          select: { id: true, clientId: true, generatedFrom: true },
+          orderBy: { createdAt: 'desc' as const },
+          take: 1,
+        },
+        debriefs: {
+          select: { id: true, clientId: true },
+          orderBy: { createdAt: 'desc' as const },
+          take: 1,
+        },
+      },
+    },
+  };
+}
+
+function outreachAssociationKey(row: OutreachAssociationRow): string {
+  return JSON.stringify([
+    row.clientId,
+    row.meetingId,
+    row.meeting?.id ?? null,
+    row.meeting?.clientId ?? null,
+    row.meeting?.preps?.map((prep) => [prep.id, prep.clientId]) ?? [],
+    row.meeting?.debriefs?.map((debrief) => [debrief.id, debrief.clientId]) ?? [],
+  ]);
+}
+
+function outreachAssociationClientIds(row: OutreachAssociationRow): string[] {
+  return [...new Set([
+    row.clientId,
+    row.meeting?.clientId,
+    ...(row.meeting?.preps?.map((prep) => prep.clientId) ?? []),
+    ...(row.meeting?.debriefs?.map((debrief) => debrief.clientId) ?? []),
+  ].filter((clientId): clientId is string => typeof clientId === 'string'))];
+}
 
 function outreachInclude() {
   return {

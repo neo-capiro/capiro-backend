@@ -1,0 +1,194 @@
+TAP version 13
+# (node:11780) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: current stream/image and neutral credential types have one source owner; loader rejects new ports
+ok 1 - current stream/image and neutral credential types have one source owner; loader rejects new ports
+  ---
+  duration_ms: 6.3608
+  type: 'test'
+  ...
+# Subtest: construction needs no raw streaming/private seams and patches V3 only once
+ok 2 - construction needs no raw streaming/private seams and patches V3 only once
+  ---
+  duration_ms: 0.797
+  type: 'test'
+  ...
+# Subtest: closed gate refuses through V3 without context preparation or a raw fallback
+ok 3 - closed gate refuses through V3 without context preparation or a raw fallback
+  ---
+  duration_ms: 1.3867
+  type: 'test'
+  ...
+# Subtest: allowed turn prepares once before V3 and forwards through the actual observed writer
+ok 4 - allowed turn prepares once before V3 and forwards through the actual observed writer
+  ---
+  duration_ms: 0.5648
+  type: 'test'
+  ...
+# Subtest: default mode keeps original arity and reruns preserve every optional argument by identity
+ok 5 - default mode keeps original arity and reruns preserve every optional argument by identity
+  ---
+  duration_ms: 0.666
+  type: 'test'
+  ...
+# Subtest: already aborted turns call no gate or runtime and release timers/listeners
+ok 6 - already aborted turns call no gate or runtime and release timers/listeners
+  ---
+  duration_ms: 0.6984
+  type: 'test'
+  ...
+# Subtest: abort during either gate outcome cannot dispatch a V3 or refusal stream
+ok 7 - abort during either gate outcome cannot dispatch a V3 or refusal stream
+  ---
+  duration_ms: 0.91
+  type: 'test'
+  ...
+# Subtest: flag, preparation, current stream and refusal failures propagate without fallback
+ok 8 - flag, preparation, current stream and refusal failures propagate without fallback
+  ---
+  duration_ms: 0.9089
+  type: 'test'
+  ...
+# Subtest: actual progress helper observes real stages with bounded initial/heartbeat display only
+ok 9 - actual progress helper observes real stages with bounded initial/heartbeat display only
+  ---
+  duration_ms: 0.8494
+  type: 'test'
+  ...
+# Subtest: actual stream frames remain intact while progress tracks acceptance, tools and answer
+ok 10 - actual stream frames remain intact while progress tracks acceptance, tools and answer
+  ---
+  duration_ms: 1.1479
+  type: 'test'
+  ...
+# Subtest: progress releases resources on terminal frames, abort, throws and display write failures
+ok 11 - progress releases resources on terminal frames, abort, throws and display write failures
+  ---
+  duration_ms: 0.6198
+  type: 'test'
+  ...
+# Subtest: artifact images use only the current visual port with exact arguments/results/errors
+ok 12 - artifact images use only the current visual port with exact arguments/results/errors
+  ---
+  duration_ms: 0.4559
+  type: 'test'
+  ...
+# Subtest: retained history and other non-stream methods stay bound to the original receiver
+ok 13 - retained history and other non-stream methods stay bound to the original receiver
+  ---
+  duration_ms: 0.1264
+  type: 'test'
+  ...
+# Subtest: retained maintenance stays bound to raw and the ordinary provider graph aliases that instance
+ok 14 - retained maintenance stays bound to raw and the ordinary provider graph aliases that instance
+  ---
+  duration_ms: 5.9338
+  type: 'test'
+  ...
+# Subtest: V3 client-KB suppression is limited to governed turns and preserves other receiver methods
+ok 15 - V3 client-KB suppression is limited to governed turns and preserves other receiver methods
+  ---
+  duration_ms: 0.5124
+  type: 'test'
+  ...
+# Subtest: V3 stream adapter keeps ungoverned input exact and adds only current governed context
+ok 16 - V3 stream adapter keeps ungoverned input exact and adds only current governed context
+  ---
+  duration_ms: 0.5579
+  type: 'test'
+  ...
+# Subtest: actual completion adapter retains later-read receipts and signed initial coverage without mutating upstream
+ok 17 - actual completion adapter retains later-read receipts and signed initial coverage without mutating upstream
+  ---
+  duration_ms: 0.4579
+  type: 'test'
+  ...
+# Subtest: current Phase-19 source contract names V3 adapters and rejects restored raw dependencies
+ok 18 - current Phase-19 source contract names V3 adapters and rejects restored raw dependencies
+  ---
+  duration_ms: 1.6576
+  type: 'test'
+  ...
+# (node:18560) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: actual selected-alert resolver forwards exact request credentials and ids and ignores browser prose
+ok 19 - actual selected-alert resolver forwards exact request credentials and ids and ignores browser prose
+  ---
+  duration_ms: 3.7369
+  type: 'test'
+  ...
+# Subtest: null fetched packet produces critical failure and zero evidence with no invented fallback
+ok 20 - null fetched packet produces critical failure and zero evidence with no invented fallback
+  ---
+  duration_ms: 0.2845
+  type: 'test'
+  ...
+# Subtest: missing or empty client fails critically before alert fetching
+ok 21 - missing or empty client fails critically before alert fetching
+  ---
+  duration_ms: 0.2083
+  type: 'test'
+  ...
+# Subtest: malformed alert ids fail before fetch while valid suffix whitespace follows the actual parser
+ok 22 - malformed alert ids fail before fetch while valid suffix whitespace follows the actual parser
+  ---
+  duration_ms: 0.7
+  type: 'test'
+  ...
+# Subtest: thrown alert-fetch error becomes a logged critical resolution failure without fabricated evidence
+ok 23 - thrown alert-fetch error becomes a logged critical resolution failure without fabricated evidence
+  ---
+  duration_ms: 0.4953
+  type: 'test'
+  ...
+# Subtest: authenticated item instructions stay separate from fetched evidence and survive a missing source
+ok 24 - authenticated item instructions stay separate from fetched evidence and survive a missing source
+  ---
+  duration_ms: 0.6845
+  type: 'test'
+  ...
+# Subtest: current custom-note instructions and legacy meeting dispatch never fetch intel packets
+ok 25 - current custom-note instructions and legacy meeting dispatch never fetch intel packets
+  ---
+  duration_ms: 0.3345
+  type: 'test'
+  ...
+# Subtest: a user-marked fact note stays bounded user-authored evidence and cannot become canonical alert truth
+ok 26 - a user-marked fact note stays bounded user-authored evidence and cannot become canonical alert truth
+  ---
+  duration_ms: 0.4044
+  type: 'test'
+  ...
+# Subtest: missing relationship fields stay Unknowns with no legacy overlay and ownership counterexamples fail
+ok 27 - missing relationship fields stay Unknowns with no legacy overlay and ownership counterexamples fail
+  ---
+  duration_ms: 2.905
+  type: 'test'
+  ...
+# Subtest: actual packet ordering yields deterministic evidence directives and failures across selection order
+ok 28 - actual packet ordering yields deterministic evidence directives and failures across selection order
+  ---
+  duration_ms: 1.6481
+  type: 'test'
+  ...
+# Subtest: current as-of precedence and real freshness helpers retain explicit missing and stale caveats
+ok 29 - current as-of precedence and real freshness helpers retain explicit missing and stale caveats
+  ---
+  duration_ms: 1.0501
+  type: 'test'
+  ...
+# Subtest: actual renderer preserves Unknowns and actions while budgeting an evidence-heavy official list
+ok 30 - actual renderer preserves Unknowns and actions while budgeting an evidence-heavy official list
+  ---
+  duration_ms: 0.7398
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 199.5763

@@ -29,7 +29,7 @@ interface Inventory {
 const ROOT = path.resolve(__dirname, '../../..');
 const INVENTORY_FILE = path.join(
   ROOT,
-  'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+  'apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
 );
 const MAIN_URL = process.env.ENGAGEMENT_PHASE3_MAIN_URL ?? 'http://127.0.0.1:4000';
 const SHADOW_URL = process.env.ENGAGEMENT_PHASE3_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';

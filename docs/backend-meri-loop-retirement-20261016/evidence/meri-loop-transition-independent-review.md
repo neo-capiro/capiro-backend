@@ -1,0 +1,35 @@
+# Independent transition/counter source review
+
+**SourceReviewClearPendingExecution.** No remaining concrete source blocker found in the reviewed one-time transition verifier or counter. This is a read-only source review, not successful execution, source-gate acceptance, native acceptance or an assertion that the pending complete source commit already exists.
+
+Reviewed from task10/backend-cleanup, current readable HEAD `989bbb0f2` after premap `bca4368306defae1495ab69f088171a3fccfaf56`, against sealed source `f3ede4fe8d88ba686a81c59f71e44319c0f45fd1`. Root explicitly retains the remaining source writes until its full source checkpoint; verifier/counter execution belongs after that checkpoint. No Node, tests, compiler, planner, verifier or counter was executed. Only bounded Git/source reads and PowerShell string/hash comparisons were used.
+
+## Reviewed files and resolved observation
+
+- `docs/backend-meri-loop-retirement-20261016/verify-source-transition.cjs`, SHA256 `9ee4e31f7cdd03f750267ac2c35879b6aa643a6f08240a870e3e4508fe19a912`.
+- `docs/backend-meri-loop-retirement-20261016/count-source-delta.cjs`, SHA256 `e5b93ba074a604669b1870ef24896b15736731aaeafdd06e6ac3a08471867015`.
+- Finite raw/runtime implementation manifests, sealed prior counter/receipt, current archive test and `tests/support/legacy-meri/replay-plan.mjs`, SHA256 `90e25caaf30341006a68af6abdfef6f5b50ad89177ee14ee62055e4e5e01e6de`.
+
+The first verifier read used `sha(read(row.path))` for runtime receipt rows while `read` normalizes CRLF. That did not preserve the exact-working-byte meaning of the receipt's `sha256` field. Root corrected line62 to hash `fs.readFileSync(...)` bytes. A bounded check found all nine current runtime files already have matching raw and LF hashes, so this was a receipt-semantics robustness concern, not a reproduced current input failure. The fix is source-confirmed and leaves the original receipt field semantics intact.
+
+## Transition proof assessment
+
+At lines20-41 the raw inverse uses actual manifest field names: `removedRegions` and exact inclusive original lines/SHA256, exact `removedImports.before/after`, `removedV2Constructor.exactParameter`, and exact `removedToolBreaker.sha256`. It compares the full reconstructed retained service against current source and checks the old raw stream/V2/breaker names are absent. Before/after hashes use the manifest's canonical LF source representation. This preserves all other raw method bodies under the source proof.
+
+At lines43-61 the four fixture paths contain five actual constructors, including both create-conversation constructors. Reverse-order splicing removes only exact old argument index10, and full-file equality protects every other argument, collaborator and assertion. The module inverse permits only the exact V2 import/provider removal. The manifest's optional per-constructor hash/line annotations are not the executable authority; the stronger whole-file inverse and exact removed argument are.
+
+At lines62-82 runtime fields match the runtime manifest. The V3 helper suffix compares the entire current adapter/reconciliation region. The route comparison reverses only the two stream tuple occurrences, visual type operand and proxy return cast, then compares the full routing region. The V3 client inverse permits only the neutral header import; interface comparison preserves all five fields exactly. The controller inverse restores explicit DI/type edits and ignores full-line comments while comparing all remaining route/auth/header code. Comment changes therefore do not become authorization changes.
+
+At lines83-97 the archive inverse keeps all three expanded archive cases and original surrounding retained source, while retired files must be absent and their exact old Git bytes/blob identities remain in the finite historical manifest. The seven retirement paths are closed explicitly.
+
+At lines98-111 the single-thread Git consumer pass is finite and correctly treats only exit1 plus empty stdout/stderr as a negative result. It uses the committed `HEAD` and explicitly excludes the historical operand folder and the current runtime negative-control spec. This is a bounded textual current-import/call check, not a general AST/dynamic-loader completeness claim. Its use of `HEAD`, and the committed application-path comparison, make the parent's full-source-commit prerequisite material.
+
+The application allowlist totals **23 paths**: six raw/module/constructor-fixture files, eight runtime application files, one lifecycle file, seven retirements and one new current RP native spec. The protected list at lines112-129 contains **38 identities**, not37. The verifier reports the dynamic length, so the implementation is already correct; surrounding prose should use38. It protects old cleanup packets, configuration, packages/schema, canonical RP dispatch and other current authority/app paths by exact before/after Git tree entries. Existing sealed PR34 ref is checked explicitly. Report writes target only the new packet's `SOURCE-TRANSITION-PROOF.json`.
+
+The report's case-count labels (`archive3`, `currentRpMappedIdentities22`) are descriptive source ownership, not native test results; qualification remains in the dedicated case ledger/controls and later native queue. The verifier's explicit output scope correctly withholds DI, typing, auth/admission/grant, provider, DB, build, image and live acceptance.
+
+## Counting and historical planner
+
+A bounded textual inverse comparison proved the entire new counter identical to the sealed prior counter after exactly three expected rebindings: parent commit, prior packet receipt path, and the PR34 description. Original016e UTF-8/nonblank/source/config/generated/vendor/build exclusions, regular Git blob restrictions, delta arithmetic and unique/mirror/physical bucket treatment are unchanged. It reads only changed blobs, carries the sealed prior `after` totals and original baseline provenance, and writes only this new packet's `CODE-COUNTS.json`. No old packet or receipt is overwritten. Source controls count as new authored code; JSON historical evidence retains its disclosed supplemental-data exclusion. No counts have been executed or accepted by this review.
+
+The historical planner remains data-only. Its argument parser requires explicit `--plan`, absolute existing source root and finite suite; unknown/duplicate/executing arguments fail. It validates finite immutable source identities and exact Git-byte/LF inputs, rejects symlink/escape/non-file operands, and produces manual argv without launching or materializing anything. Its raw-lifecycle test-name prefix matches the actual sealed describe name. Historical suite arithmetic preserves71 expanded cases, while current archive/V3/RP obligations remain separate. Full HEAD/tree/clean tracked source, dependencies, resource reservation and native execution remain explicit manual prerequisites. Missing inputs, refusal and zero-selection cannot constitute a pass. No supplied full f3 source root or native qualification is inferred.

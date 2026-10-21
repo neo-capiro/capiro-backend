@@ -1,0 +1,8 @@
+src/auth/auth.module.ts(4,28): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+src/auth/current-tenant.decorator.ts(3,31): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+src/auth/org-tenant-resolver.module.ts(2,37): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+src/auth/org-tenant-resolver.provider.ts(2,56): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+src/auth/tenant-context.ts(2,40): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+src/auth/tenant.guard.ts(3,29): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+src/planner/planner.service.ts(4407,61): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.

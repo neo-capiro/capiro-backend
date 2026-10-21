@@ -18,9 +18,25 @@ const ctx: TenantContext = {
 
 /** Service whose outreachRecord.findMany returns canned rows + captures the where. */
 function serviceWithRecords(
-  rows: Array<{ subject: string | null; sentAt: Date | null; recipients: unknown }>,
-): { service: EngagementService; lastWhere: () => Record<string, unknown> | null } {
+  rows: Array<{
+    subject: string | null;
+    sentAt: Date | null;
+    recipients: unknown;
+    clientId: string | null;
+    meeting: {
+      clientId: string | null;
+      preps: Array<{ clientId: string | null; generatedFrom: unknown }>;
+      debriefs: Array<{ clientId: string | null }>;
+    } | null;
+  }>,
+  readableClientIds: string[] = [],
+): {
+  service: EngagementService;
+  lastWhere: () => Record<string, unknown> | null;
+  clientCountCalls: () => number;
+} {
   let lastWhere: Record<string, unknown> | null = null;
+  let clientCountCalls = 0;
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
   // Phase 1: generateBatchEmails branches on this.gateway.enabled before doing
@@ -34,18 +50,32 @@ function serviceWithRecords(
         outreachRecord: {
           findMany: async ({ where }: { where: Record<string, unknown> }) => {
             lastWhere = where;
-            return rows;
+            return rows.filter((row) => !where.clientId || row.clientId === where.clientId);
+          },
+        },
+        client: {
+          findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
+            readableClientIds.filter((id) => where.id.in.includes(id)).map((id) => ({ id })),
+          count: async () => {
+            clientCountCalls++;
+            return 0;
           },
         },
       }),
   };
-  return { service, lastWhere: () => lastWhere };
+  return { service, lastWhere: () => lastWhere, clientCountCalls: () => clientCountCalls };
 }
 
 const sent = (email: string, daysAgo: number, subject: string | null = 'Prior ask') => ({
   subject,
   sentAt: new Date(Date.now() - daysAgo * 864e5),
   recipients: [{ email }],
+  clientId: null as string | null,
+  meeting: null as {
+    clientId: string | null;
+    preps: Array<{ clientId: string | null; generatedFrom: unknown }>;
+    debriefs: Array<{ clientId: string | null }>;
+  } | null,
 });
 
 describe('getRecipientPriorContact (W5.2)', () => {
@@ -80,6 +110,54 @@ describe('getRecipientPriorContact (W5.2)', () => {
     const { service, lastWhere } = serviceWithRecords([]);
     await service.getRecipientPriorContact(ctx, { emails: ['a@x.com'] });
     expect('clientId' in (lastWhere() ?? {})).toBe(false);
+  });
+
+  test('unscoped badge omits hidden and archived client subjects while keeping readable and clientless ones', async () => {
+    const visible = 'visible-client';
+    const hidden = 'hidden-client';
+    const archived = 'archived-client';
+    const { service, lastWhere } = serviceWithRecords([
+      { ...sent('hidden@example.com', 1, 'Hidden matter'), clientId: hidden },
+      { ...sent('archived@example.com', 1, 'Archived matter'), clientId: archived },
+      { ...sent('visible@example.com', 1, 'Visible matter'), clientId: visible },
+      sent('clientless@example.com', 1, 'Firm-wide note'),
+    ], [visible]);
+    const emails = [
+      'hidden@example.com', 'archived@example.com',
+      'visible@example.com', 'clientless@example.com',
+    ];
+    const result = await service.getRecipientPriorContact(ctx, { emails });
+    expect(result.map((row) => [row.email, row.subject])).toEqual([
+      ['visible@example.com', 'Visible matter'],
+      ['clientless@example.com', 'Firm-wide note'],
+    ]);
+    expect(lastWhere()?.AND).toBeDefined();
+    expect(await service.getRecipientPriorContact(ctx, { clientId: hidden, emails }))
+      .toEqual([]);
+  });
+
+  test('unscoped badge omits a clientless sent subject derived from an inaccessible prep source', async () => {
+    const row = {
+      ...sent('source-hidden@example.com', 1, 'Briefing-derived subject'),
+      meeting: {
+        clientId: null,
+        preps: [{
+          clientId: null,
+          generatedFrom: {
+            briefing: true,
+            grounding: { accessSources: [{ access: { clients: ['hidden-client'] } }] },
+          },
+        }],
+        debriefs: [],
+      },
+    };
+    const { service, clientCountCalls } = serviceWithRecords([row]);
+    expect(await service.getRecipientPriorContact(ctx, {
+      emails: ['source-hidden@example.com'],
+    })).toEqual([]);
+    // The source gate was exercised; an unrelated mock exception would also
+    // produce an empty badge because the public read intentionally fails closed.
+    expect(clientCountCalls()).toBe(1);
   });
 
   test('empty email list short-circuits (no query, empty result)', async () => {

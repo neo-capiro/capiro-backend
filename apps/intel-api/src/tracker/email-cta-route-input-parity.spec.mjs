@@ -4,11 +4,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { readLegacySourceInput } from '../../../../tests/support/legacy-web/inputs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, '../../../..');
 const fixture = resolve(here, '__fixtures__/email-cta-app-source.txt');
-const currentApp = resolve(repoRoot, 'apps/web/src/App.tsx');
 const existingSpec = resolve(here, 'email-cta-routes.spec.ts');
 
 // Qualification data only: these preserved variants are not a shared router.
@@ -50,10 +49,9 @@ test('owned CTA route input retains the declared Core bytes and Git blob', () =>
   );
 });
 
-test('owned CTA route input matches the retained current frontend source', () => {
-  // The current source must exist and agree. A snapshot alone cannot qualify
-  // published routes or authorize frontend removal.
-  assert.deepEqual(readFileSync(fixture), readFileSync(currentApp));
+test('owned CTA route input matches the sealed retired frontend source', () => {
+  // Historical qualification only; external frontend route acceptance is separate.
+  assert.deepEqual(readFileSync(fixture), readLegacySourceInput('App.tsx.txt'));
 });
 
 test('CTA qualification changes only its owned input and retains every case and operand', () => {

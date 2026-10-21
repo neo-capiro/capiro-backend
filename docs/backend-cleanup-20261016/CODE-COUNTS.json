@@ -1,0 +1,187 @@
+{
+  "baseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "sourceHead": "967b0e4b67862f780a5a41cb8891b74ef379df07",
+  "baselineReceiptSHA256": "fad456de08566e2e7857a0b104d18d446362ace22696d06b8219c1620e63fed6",
+  "method": "Sealed baseline plus exact Git-blob line deltas for six classified changed code paths; UTF-8 nonblank including comments, same exclusions/categories; no full rescan.",
+  "before": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 10138,
+      "nonblankLines": 2473087,
+      "physicalLines": 2640561
+    },
+    "mirror": {
+      "files": 727,
+      "nonblankLines": 191226,
+      "physicalLines": 205344
+    },
+    "physical": {
+      "files": 10865,
+      "nonblankLines": 2664313,
+      "physicalLines": 2845905
+    }
+  },
+  "changes": [
+    {
+      "path": "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+      "status": "D",
+      "mirror": true,
+      "category": "backend-app-library-source",
+      "before": {
+        "files": 1,
+        "nonblankLines": 89,
+        "physicalLines": 96
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -89,
+        "physicalLines": -96
+      },
+      "beforeBlob": "d9a82728dc01bd0b48a92580ab581b13ff19bec8",
+      "afterBlob": null,
+      "afterSHA256": null
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+      "status": "D",
+      "mirror": true,
+      "category": "backend-app-library-source",
+      "before": {
+        "files": 1,
+        "nonblankLines": 367,
+        "physicalLines": 404
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -367,
+        "physicalLines": -404
+      },
+      "beforeBlob": "c5be25e428397dcf41c10a6cadba0bd6ca3ae2df",
+      "afterBlob": null,
+      "afterSHA256": null
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts",
+      "status": "D",
+      "mirror": true,
+      "category": "backend-app-library-source",
+      "before": {
+        "files": 1,
+        "nonblankLines": 162,
+        "physicalLines": 177
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -162,
+        "physicalLines": -177
+      },
+      "beforeBlob": "d36871ae5ce879f59b941f6ab5eb1c944ab0dec8",
+      "afterBlob": null,
+      "afterSHA256": null
+    },
+    {
+      "path": "scripts/lib/phase17-operator-ownership.mjs",
+      "status": "A",
+      "mirror": false,
+      "category": "infra-scripts-schema-config",
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 19,
+        "physicalLines": 20
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 19,
+        "physicalLines": 20
+      },
+      "beforeBlob": null,
+      "afterBlob": "0633356b0733acc48ea545bc5791671811079498",
+      "afterSHA256": "fe33c4d3d6ece5a028ef342e8a53008d52d511a476e034be27cbb61a881c4e98"
+    },
+    {
+      "path": "scripts/lib/phase17-operator-ownership.test.mjs",
+      "status": "A",
+      "mirror": false,
+      "category": "tests-fixtures-evals",
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 36,
+        "physicalLines": 41
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 36,
+        "physicalLines": 41
+      },
+      "beforeBlob": null,
+      "afterBlob": "35ef462af64ae6d10d3f98785ff5d57d434e37b0",
+      "afterSHA256": "cf5a1938d9f59843c57a4543eb7ed7695d36b6116cd8d40a4040312f022b51fa"
+    },
+    {
+      "path": "scripts/verify-phase8-session4.mjs",
+      "status": "M",
+      "mirror": false,
+      "category": "infra-scripts-schema-config",
+      "before": {
+        "files": 1,
+        "nonblankLines": 196,
+        "physicalLines": 209
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 197,
+        "physicalLines": 211
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 1,
+        "physicalLines": 2
+      },
+      "beforeBlob": "d2b68bb1364bd454d1a41b8b5cfb2385c21d9d40",
+      "afterBlob": "d297d681911d6a6d8dd65f0621101aeb7fedadfe",
+      "afterSHA256": "eea409c1727454247b38862df5915c1a5ade51790edcfb6db5339bcc33cb02de"
+    }
+  ],
+  "limits": "Approximate source-size metric, not language-aware SLOC. All frontend/tests/scripts retained. Docs, README, binary/data/lock/config supplements excluded as in baseline. No runtime qualification inferred."
+}

@@ -7,7 +7,7 @@
  * cannot reach the product bundle, that a skipped browser proof cannot report a pass, and
  * that NC8 cannot pass without being measured.
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import {
   assertSoleActiveMembership,
@@ -20,10 +20,10 @@ function readRepoFile(relative: string): string {
   return readFileSync(path.join(REPO_ROOT, relative), 'utf8');
 }
 
-const BROWSER_PARITY = 'apps/web/scripts/engagement-phase1-browser-parity.mjs';
+const BROWSER_PARITY = 'tests/support/legacy-web/engagement-phase1-browser-parity.mjs';
 const LOCAL_RUNNER = 'scripts/run-engagement-phase1-local.mjs';
 const POST_RUNNER = 'scripts/run-engagement-phase1-post-acceptance.mjs';
-const POST_VERIFIER = 'apps/web/scripts/engagement-phase1-post-acceptance.mjs';
+const POST_VERIFIER = 'tests/support/legacy-web/engagement-phase1-post-acceptance.mjs';
 
 function membership(overrides: Partial<ActiveMembershipRow> = {}): ActiveMembershipRow {
   return {
@@ -159,29 +159,9 @@ describe('orgless mode uses the default session token', () => {
 });
 
 describe('the acceptance token shim cannot reach the product bundle', () => {
-  it('is absent from every file under apps/web/src', () => {
-    const root = path.join(REPO_ROOT, 'apps/web/src');
-    const offenders: string[] = [];
-    const walk = (directory: string): void => {
-      for (const entry of readdirSync(directory)) {
-        const full = path.join(directory, entry);
-        if (statSync(full).isDirectory()) {
-          walk(full);
-          continue;
-        }
-        if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(entry)) continue;
-        const source = readFileSync(full, 'utf8');
-        if (
-          source.includes('__capiroAcceptanceOrglessTokenShim') ||
-          source.includes('__capiroAcceptanceShimmed')
-        ) {
-          offenders.push(path.relative(REPO_ROOT, full));
-        }
-      }
-    };
-    walk(root);
-    expect(offenders).toEqual([]);
-  });
+  // The full retired-UI traversal case, with its original name and assertions,
+  // lives in tests/support/legacy-web/historical-source-replay.spec.mjs.
+  // It requires an explicit pinned source root; no missing-tree pass or skip.
 
   it('lives only in the acceptance harness', () => {
     expect(readRepoFile(BROWSER_PARITY)).toContain('__capiroAcceptanceOrglessTokenShim');

@@ -1,0 +1,387 @@
+{
+  "parent": "0483963adc5382202408e8398d8b1601f53d8525",
+  "sourceHead": "322b2f30cd30488631dc5acb20e14b12995c48ca",
+  "sealedParentReceiptSHA256": "04b8dafdf054e6d549c5ab850ed869e85925e03c6db88da45f9df8de69d73197",
+  "originalBaseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "originalBefore": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "method": "Sealed PR32 after totals plus changed regular Git-blob deltas under unchanged original016e UTF-8/nonblank/comment/exclusion rules. No full source scan.",
+  "before": {
+    "unique": {
+      "files": 7978,
+      "nonblankLines": 1811119,
+      "physicalLines": 1936900
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7978,
+      "nonblankLines": 1811119,
+      "physicalLines": 1936900
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 7981,
+      "nonblankLines": 1811365,
+      "physicalLines": 1937177
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7981,
+      "nonblankLines": 1811365,
+      "physicalLines": 1937177
+    }
+  },
+  "deltaFromParent": {
+    "unique": {
+      "files": 3,
+      "nonblankLines": 246,
+      "physicalLines": 277
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 3,
+      "nonblankLines": 246,
+      "physicalLines": 277
+    }
+  },
+  "changes": [
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 11942,
+        "physicalLines": 12528,
+        "blob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 11722,
+        "physicalLines": 12303,
+        "blob": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -220,
+        "physicalLines": -225
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 633,
+        "physicalLines": 659,
+        "blob": "c82626227ef07ae685975cdaded238d4af92ac27"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 633,
+        "physicalLines": 659
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 20,
+        "physicalLines": 24,
+        "blob": "d8d84b0ee1e4a52a4cfd2c3557c6b630fff0dc98"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 20,
+        "physicalLines": 24
+      }
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 10015,
+        "physicalLines": 10423,
+        "blob": "32a7a744ba9ab812337baaf6093a37540864333b"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 9399,
+        "physicalLines": 9784,
+        "blob": "801b2a4bb4d2910e23e13e584da988b11d10bc05"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -616,
+        "physicalLines": -639
+      }
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 242,
+        "physicalLines": 248,
+        "blob": "4a804305b2a3c1b263eda7aae1f5d23f619c20ee"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 243,
+        "physicalLines": 249,
+        "blob": "d5968d6dba49523dd30691a2394904a5645395fe"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 1,
+        "physicalLines": 1
+      }
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 428,
+        "physicalLines": 457,
+        "blob": "1ad23427119f153a718a327533202d208f728299"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 428,
+        "physicalLines": 457
+      }
+    }
+  ],
+  "excludedChanges": [
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/.gitattributes",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/SOURCE-MAP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/SOURCE-TRANSITION-PROOF.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/count-source-delta.cjs",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-dynamic-dispatch-source-probe.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-dynamic-dispatch-source-probe.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-gate-refs-048.receipt.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-gate-refs-048.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-gate-refs-048.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-manifest-048.txt",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-readers-048.receipt.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-readers-048.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-readers-048.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-exact-name-pass-048.receipt.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-exact-name-pass-048.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-exact-name-pass-048.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-independent-review.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-initial-slice-map.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-initial-slice-source-manifest.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-removal.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls-inputs.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof-manifest-repaired.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof-manifest-repaired.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof-manifest-repaired.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof.stderr",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof.stdout",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-federal-implementation.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-federal-independent-review.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-federal-read-extraction-map.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-loop-retirement-boundary-map.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/verify-source-transition.cjs",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    }
+  ],
+  "limits": "Source size only. New source-contract/fixture controls increase source intentionally. No native coverage, runtime, image or frontend acceptance claim. Historical qualification data and all old receipts retain their existing disclosed accounting."
+}

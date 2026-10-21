@@ -1,0 +1,160 @@
+{
+  "scope": "current-backend-source-contracts-only",
+  "frontendParityOwner": "capiro-frontend",
+  "currentWorkspaceContract": {
+    "execution": "in-process before child steps",
+    "validator": "validateCurrentWorkspaceInputs",
+    "scope": "current workspace/source/importer/default-task ownership fields; no whole-file hash"
+  },
+  "current": [
+    [
+      "Owned qualification input identity",
+      [
+        "--test",
+        "--test-isolation=none",
+        "tests/support/legacy-web/inputs.spec.mjs"
+      ]
+    ],
+    [
+      "Current backend contract controls",
+      [
+        "--test",
+        "--test-isolation=none",
+        "scripts/engagement-phase3-backend-contract.spec.mjs"
+      ]
+    ],
+    [
+      "Current source catalog controls",
+      [
+        "--test",
+        "--test-isolation=none",
+        "scripts/backend-source-qualification.spec.mjs"
+      ]
+    ],
+    [
+      "Current backend route declarations",
+      [
+        "scripts/engagement-phase3-backend-contract.mjs",
+        "--check-routes"
+      ]
+    ],
+    [
+      "Current backend preview boundary",
+      [
+        "scripts/engagement-phase3-backend-contract.mjs",
+        "--check-preview-boundary"
+      ]
+    ],
+    [
+      "Current canonical runtime ownership controls",
+      [
+        "--test",
+        "--test-isolation=none",
+        "scripts/lib/defense-runtime-source-ownership.test.mjs",
+        "scripts/lib/phase17-operator-ownership.test.mjs"
+      ]
+    ],
+    [
+      "Canonical runtime source ownership",
+      [
+        "scripts/verify-defense-budget-mirror-parity.mjs"
+      ]
+    ],
+    [
+      "Canonical session4 source ownership",
+      [
+        "scripts/verify-phase8-session4.mjs"
+      ]
+    ],
+    [
+      "Current Directory mapper contracts",
+      [
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/directory-detail-mappers.contract.spec.mjs"
+      ]
+    ]
+  ],
+  "historical": [
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.spec.mjs",
+      "cases": 32,
+      "owner": "capiro-frontend",
+      "requiredInput": "CAPIRO_LEGACY_WEB_SOURCE_ROOT at sealed source4e"
+    },
+    {
+      "path": "scripts/engagement-phase3-preview-route-patterns.mjs",
+      "owner": "capiro-frontend",
+      "scope": "historical-browser-table-generation",
+      "inheritedPrefixFailures": 5
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+      "scenarios": 27,
+      "assertions": 144,
+      "owner": "capiro-frontend",
+      "requiredArgument": "--historical-replay",
+      "inheritedPackageFailures": 2
+    },
+    {
+      "path": "tests/support/legacy-web/historical-source-replay.spec.mjs",
+      "cases": 3,
+      "owner": "capiro-frontend",
+      "requiredInput": "CAPIRO_LEGACY_WEB_SOURCE_ROOT at sealed source4e"
+    }
+  ],
+  "acceptanceLimits": [
+    "no current frontend parity",
+    "no compiler/build/native/database/browser execution",
+    "no live router/service/deployment attestation",
+    "no preview header authority or browser-table write"
+  ],
+  "executionNotes": [
+    "The two canonical runtime source verifiers perform finite synchronous Git reads; they start no child services or compiler.",
+    "Source qualification uses the Node24 runner and builtin TypeScript stripping in existing fixture controls. This implies no upgrade of the retained Onboard Node20 image/runtime."
+  ],
+  "unrunScopes": [
+    {
+      "scope": "nativeApplication",
+      "status": "UNRUN",
+      "owner": "backend application owners/shared local queue"
+    },
+    {
+      "scope": "install",
+      "status": "UNRUN",
+      "owner": "backend integration owner/shared local queue"
+    },
+    {
+      "scope": "build",
+      "status": "UNRUN",
+      "owner": "backend integration owner/shared local queue"
+    },
+    {
+      "scope": "image",
+      "status": "UNRUN",
+      "owner": "backend integration owner/shared local queue"
+    },
+    {
+      "scope": "frontend",
+      "status": "UNRUN",
+      "owner": "capiro-frontend"
+    },
+    {
+      "scope": "Onboard-default-source-SPA-and-Node20-image",
+      "status": "UNRUN",
+      "owner": "backend Onboard/API image owner/shared local queue",
+      "obligation": "Current default still builds/serves retained Onboard source dependencies; workspace checks establish retention only, not image acceptance."
+    },
+    {
+      "scope": "Onboard-optional-artifact-image",
+      "status": "UNRUN",
+      "owner": "backend Onboard artifact/image owner/shared local queue",
+      "obligation": "Retained optional artifact admission remains separate; old whole-lock transition profiles are historical evidence."
+    },
+    {
+      "scope": "native-platform",
+      "status": "UNRUN",
+      "owner": "Windows/native qualification owner/shared local queue"
+    }
+  ]
+}

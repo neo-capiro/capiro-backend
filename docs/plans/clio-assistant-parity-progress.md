@@ -1,3 +1,6 @@
+> **Scope status — backend cleanup successor.** Historical qualification audit. Old Web build/browser commands below are archived frontend obligations, not current backend CI. Preserve the recorded local/harness/deployment distinctions. Current frontend parity belongs to `capiro-frontend`; retained Meri/Fable and sandbox source ownership is unchanged.
+> Source retirement: [PR30](https://github.com/neo-capiro/capiro-backend/pull/30), exact `7b6bda7ca75ea86afb36c76f013f550fdd79e42f`.
+
 # Clio Assistant-Parity — Implementation Status & Success-Criteria Audit
 
 **Date:** 2026-06-10 · **Branch:** `feat/clio-assistant-parity` · **Plan:** [clio-assistant-parity-plan.md](clio-assistant-parity-plan.md)

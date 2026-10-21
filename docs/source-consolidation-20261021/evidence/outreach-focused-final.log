@@ -1,0 +1,43 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in C:/Users/Administrator/Documents/Codex/2026-10-21/task/core-consolidation/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/engagement/engagement-outreach-client-access.spec.ts (8.163 s)
+  outreach delivery outcome after access or association changes
+    ΓêÜ records the completed send when grant revoked during provider latency (255 ms)
+    ΓêÜ records the completed send when client changed during provider latency (6 ms)
+    ΓêÜ records the completed send when meeting changed during provider latency (3 ms)
+  Engagement outreach client visibility
+    ΓêÜ filters denied and archived associated campaigns before an unscoped list reaches Meri totals (3 ms)
+    ΓêÜ refuses explicit hidden or archived campaign scopes and permits a current granted scope (5 ms)
+    ΓêÜ omits a campaign if its grant is revoked between the relation query and returned total (10 ms)
+    ΓêÜ uses the same indistinguishable not-found result for denied campaign detail and a missing id (2 ms)
+    ΓêÜ refuses campaign detail if its current grant is revoked after the filtered row read (1 ms)
+    ΓêÜ refuses campaign creation for inaccessible client 44444444-4444-4444-8444-444444444444 (1 ms)
+    ΓêÜ refuses campaign creation for inaccessible client 66666666-6666-4666-8666-666666666666
+    ΓêÜ cannot reassign a hidden old campaign to a visible or null client (1 ms)
+    ΓêÜ cannot reassign a visible campaign to an inaccessible next client (1 ms)
+    ΓêÜ excludes hidden, archived, and foreign meetings from unscoped outbound contact data (2 ms)
+    ΓêÜ filters hidden record and meeting clients before an unscoped outreach page limit (4 ms)
+    ΓêÜ omits a record with inaccessible newest prep and debrief before returning any content (1 ms)
+    ΓêÜ hides clientless linked briefing when its saved accessSources names a denied client (2 ms)
+    ΓêÜ rejects a denied direct client before loading the full outreach projection
+    ΓêÜ rejects a denied archived direct client before loading the full outreach projection (1 ms)
+    ΓêÜ rejects a denied nested meeting client with null record client before loading the full outreach projection
+    ΓêÜ rejects a denied nested prep client with visible meeting before loading the full outreach projection
+    ΓêÜ rejects a denied nested debrief client with visible meeting before loading the full outreach projection (1 ms)
+    ΓêÜ keeps visible, granted and genuinely clientless outreach records readable (1 ms)
+    ΓêÜ refuses an outreach record if its grant is revoked while the projection loads (1 ms)
+    ΓêÜ refuses outreach creation for inaccessible client 44444444-4444-4444-8444-444444444444 (1 ms)
+    ΓêÜ refuses outreach creation for inaccessible client 66666666-6666-4666-8666-666666666666
+    ΓêÜ refuses outreach creation against a linked meeting owned by a hidden client (1 ms)
+    ΓêÜ does not let reassignment wash a hidden existing outreach association (1 ms)
+    ΓêÜ refuses an inaccessible next client or linked meeting on outreach update (1 ms)
+    ΓêÜ refuses delete and restore of a record whose current client is hidden (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        10.51 s
+Ran all test suites matching /src\\engagement\\engagement-outreach-client-access.spec.ts|src\\engagement\\engagement-outreach-evidence.spec.ts|src\\meri\\meri-tools.meeting-read-authorization.spec.ts|src\\engagement\\engagement-client-access.spec.ts/i.
+Test results written to: ..\..\..\core-validation\outreach-focused-final.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

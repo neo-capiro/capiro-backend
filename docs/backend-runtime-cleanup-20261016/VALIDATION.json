@@ -1,0 +1,131 @@
+{
+  "sourceHead": "e666c4f36bc2a802779e3255cb4d7f2edd776589",
+  "parent": "7b6bda7ca75ea86afb36c76f013f550fdd79e42f",
+  "applicationCommit": "62dd68e355c99f0de014d725367532f9f70f6315",
+  "currentCICommit": "c41f8fa4146ce15d71f3f70c76dea6eba89bef6b",
+  "policy": "One bounded Node process per sequential stage, V8<=128MiB, wall<=120s, observed pressure stop; finite synchronous Git source reads only where declared, no service/compiler/browser/install/database/image/provider work",
+  "memoryObservation": "Existing normal 2026-10-16T03:10:05.8813837Z sample freeVirtual3076685824/freePhysical11970367488 bytes; not a fresh observation at test time. No unavailable/denied probe retry or escalation. Actual stage RSS is captured separately.",
+  "stages": [
+    {
+      "name": "successor-directory-mapper-controls",
+      "receipt": "evidence/successor-directory-mapper-controls.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 62750720,
+      "note": "8 pass; separate semantic and forwarding/purity cases; no native API qualification"
+    },
+    {
+      "name": "successor-directory-extraction-source-proof",
+      "receipt": "evidence/successor-directory-extraction-source-proof.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-current-backend-controls",
+      "receipt": "evidence/successor-current-backend-controls.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 96563200,
+      "note": "74 pass; superseded by default-selector correction; preserved inputs and receipt"
+    },
+    {
+      "name": "successor-current-backend-controls-selector-repaired",
+      "receipt": "evidence/successor-current-backend-controls-selector-repaired.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 92729344,
+      "note": "75 pass, zero fail/skip/cancel/todo; 27 contract +18 catalog/workspace +30 planner"
+    },
+    {
+      "name": "successor-current-backend-route-cli",
+      "receipt": "evidence/successor-current-backend-route-cli.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 45268992,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-current-backend-preview-cli",
+      "receipt": "evidence/successor-current-backend-preview-cli.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 49639424,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-current-backend-compat-cli",
+      "receipt": "evidence/successor-current-backend-compat-cli.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 49520640,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-current-backend-workspace-cli",
+      "receipt": "evidence/successor-current-backend-workspace-cli.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-current-backend-catalog-plan",
+      "receipt": "evidence/successor-current-backend-catalog-plan.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-historical-visual-no-intent",
+      "receipt": "evidence/successor-historical-visual-no-intent.json",
+      "actualExit": 2,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Expected exit2 before archive payload/fixture/scenario execution"
+    },
+    {
+      "name": "successor-historical-visual-help",
+      "receipt": "evidence/successor-historical-visual-help.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": null,
+      "note": "Bounded source/CLI evidence only"
+    },
+    {
+      "name": "successor-source-count-delta",
+      "receipt": "evidence/successor-source-count-delta.json",
+      "actualExit": 0,
+      "timedOut": false,
+      "ownedProcessExited": true,
+      "observedPeakWorkingSetBytes": 50110464,
+      "note": "Bounded source/CLI evidence only"
+    }
+  ],
+  "aggregateCurrentCatalogRun": "UNRUN; --plan and individual changed entries only, shared integrated checkpoint owns full catalog/native/build/image/install acceptance",
+  "historical": "No full retired UI rerun. Original 32 inventory cases/5 known failures, 27 visual scenarios/144 assertions/2 known package failures, unchanged original preview5Krisp refusal and3full-source replay cases remain explicit. Current frontend parity owner capiro-frontend.",
+  "unrun": [
+    "native API/Jest/public Directory tests",
+    "strict application typing",
+    "build/install/image/artifact resolution",
+    "Onboard default sourceSPA and optional artifact closure",
+    "native POSIX/security/platform controls",
+    "adapter behavioral replay",
+    "protected feature candidate integration",
+    "current frontend/browser/URL parity"
+  ],
+  "failureRetention": "Original PR29/PR30 failures and receipts remain unchanged; this packet also retains first74PASS inputs/result and every reported source-review gap plus correction."
+}

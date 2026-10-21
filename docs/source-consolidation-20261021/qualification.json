@@ -1,0 +1,313 @@
+{
+  "observedAt": "2026-10-21T13:41:56.182Z",
+  "repository": "neo-capiro/capiro-backend",
+  "branch": "codex/source-consolidation-20261021-core",
+  "sourceHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+  "sourceTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+  "base": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+  "remoteDefaultRefresh": {
+    "head": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+    "branchExisted": false,
+    "action": "git ls-remote",
+    "noMutation": true
+  },
+  "sourceResult": "qualified supplemental source with inherited Core typecheck failures and explicit runtime holds",
+  "testCommands": {
+    "sourceCatalog": "Node 24.14.0: node scripts/backend-source-qualification.mjs --run; process-local Git safe.directory for this owned worktree",
+    "sourceCatalogResult": {
+      "exit": 0,
+      "completedSteps": 14,
+      "passedTests": 193
+    },
+    "coreBuild": "apps/api: node --max-old-space-size=6144 node_modules/@nestjs/cli/bin/nest.js build",
+    "coreBuildExit": 0,
+    "strategyBuild": "apps/api-strategy: node --max-old-space-size=6144 node_modules/@nestjs/cli/bin/nest.js build",
+    "strategyBuildExit": 0,
+    "strategyTypes": "apps/api-strategy: node --max-old-space-size=6144 node_modules/typescript/bin/tsc --noEmit --pretty false",
+    "strategyTypesExit": 0,
+    "coreBroadTypes": "apps/api: node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit --rootDir . --pretty false",
+    "coreBroadTypesResult": {
+      "exit": 2,
+      "baselineExit": 2,
+      "baselineDiagnostics": 62,
+      "candidateDiagnostics": 62,
+      "addedDiagnostics": 0,
+      "normalizedSignaturesEqual": true,
+      "signaturesSha256": "c301a9b78eaeb99f40aece0ae66c68df9b26a1045cd71997bffd5c79b5524e6e",
+      "completeChainedTypecheck": false
+    },
+    "directory": {
+      "suite": "src/directory/directory-browse.spec.ts",
+      "passed": 36
+    },
+    "rawStrategy": {
+      "config": "docs/objective-strategy-core-20261017/qualification/strategy-raw-http.jest.cjs",
+      "passed": 53,
+      "scopedTypecheckExit": 0,
+      "productionAuthority": "503 AUTHORITY_UNAVAILABLE before Prisma I/O"
+    },
+    "outreach": {
+      "suites": [
+        "src/meri/meri-tools.firmdata.spec.ts",
+        "src/engagement/engagement-outreach-client-access.spec.ts",
+        "src/engagement/engagement-owner-isolation.spec.ts",
+        "src/engagement/engagement-prior-contact.spec.ts"
+      ],
+      "passed": 150,
+      "newDeliveryRegressions": 3,
+      "finalAssertionTypingRerun": 29
+    },
+    "workspaceRetirement": {
+      "passed": 11
+    },
+    "diffCheckExit": 0
+  },
+  "baselineEnvironment": "Dedicated untouched base checkout; task-owned candidate dependency graph and unchanged generated Prisma output linked into baseline. Identical dependency versions and workspace output; no shared dirty checkout dependency store modified.",
+  "noChanges": [
+    "shared contract packages",
+    "Prisma schemas/migrations",
+    "Actions workflows",
+    "live systems/credentials/IAM/network configuration"
+  ],
+  "unrun": [
+    "complete chained Core typecheck after first failing command",
+    "native PostgreSQL/RLS",
+    "live authority/provider/API probes",
+    "deployed images",
+    "Onboard image acceptance",
+    "browser parity",
+    "held migration/runner/runtime activation"
+  ],
+  "noDefaultMerge": true,
+  "noPrMerge": true,
+  "finalMergeOwner": "Neo",
+  "evidence": [
+    {
+      "file": "evidence/auth-package-build.log",
+      "bytes": 144,
+      "sha256": "592c2d13eb61fc423635081e7679bb32a3033918c56ab67af563e93cf0c66972"
+    },
+    {
+      "file": "evidence/baseline-core-typecheck-qualified.log",
+      "bytes": 7483,
+      "sha256": "3f0043ec5ed06a6aff09af58e9b12fec658089dc66e3cfa3faf1a920c78e2ab9"
+    },
+    {
+      "file": "evidence/baseline-core-typecheck.log",
+      "bytes": 9587,
+      "sha256": "31cce15b6dd637661770177beff761a23822ee1616ec9dca9c8920375f61d752"
+    },
+    {
+      "file": "evidence/cleanup-builtin.log",
+      "bytes": 50092,
+      "sha256": "fbce4baeab91af302c1cdafcb8a976734c0a879cd2143da81d25f6a34ce775e2"
+    },
+    {
+      "file": "evidence/cleanup-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/core-nest-build-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/core-nest-build.log",
+      "bytes": 1084,
+      "sha256": "2cdccc84565b6fec8ce53114015d5fac302d6d22aba07290fdf41fee8c249fda"
+    },
+    {
+      "file": "evidence/core-typecheck-final.log",
+      "bytes": 7595,
+      "sha256": "2744ccda54599bf4af6d7bbaa1a0f8fecada5b9a33138d737239945591286f3c"
+    },
+    {
+      "file": "evidence/core-typecheck-qualified.log",
+      "bytes": 7483,
+      "sha256": "cdeff4d5470a1d4d3da99101480c54cb747f85481f327e4dba6c0931eefa9bac"
+    },
+    {
+      "file": "evidence/core-typecheck.log",
+      "bytes": 1765,
+      "sha256": "6f32d49084b5c13830be3b4d765b1899a9fe6a2d84df3671423a871a75321997"
+    },
+    {
+      "file": "evidence/directory-browse.json",
+      "bytes": 12869,
+      "sha256": "3e8fb625d2f69347247e1b5d3a581553c13f21a83d737d335e88d458f57c060e"
+    },
+    {
+      "file": "evidence/directory-browse.log",
+      "bytes": 2478,
+      "sha256": "b1f455c4040b46040d1ceae9df040ccae285cf0d41c993539020e05674fb5442"
+    },
+    {
+      "file": "evidence/outreach-combined-final.json",
+      "bytes": 62777,
+      "sha256": "74469d44ccb0766ea055ab75e98b37d861a7546d44d9593bf83bb370e858d4d8"
+    },
+    {
+      "file": "evidence/outreach-combined-final.log",
+      "bytes": 1146,
+      "sha256": "b477f3118ac2ce9c21f254010585a975e48b63fa60806e1475cfc2f3dc7618ca"
+    },
+    {
+      "file": "evidence/outreach-corrected-types.json",
+      "bytes": 13462,
+      "sha256": "eba9f10f2a8f822a5dd5491c15507f1d144c9de23d9b1646f6b398318beb6880"
+    },
+    {
+      "file": "evidence/outreach-corrected-types.log",
+      "bytes": 3795,
+      "sha256": "1c6156df4876c6315ac4f7719584d3f906b63fdb443ce850faba3294d93a2dd0"
+    },
+    {
+      "file": "evidence/outreach-focused-final.json",
+      "bytes": 13463,
+      "sha256": "1f9b4d49bdcfcc5b38f894a9a41bedf983f1e9c22411fc744b47476a5f5d685e"
+    },
+    {
+      "file": "evidence/outreach-focused-final.log",
+      "bytes": 3999,
+      "sha256": "306dd6aefb0156602eb02cb574e40c26041a838ab9997965b16e765adfdda795"
+    },
+    {
+      "file": "evidence/outreach-focused.json",
+      "bytes": 74470,
+      "sha256": "a75f70a377de0eea6bdeaa8cba3ec60caad0d600f59802efde38503a31e0bea0"
+    },
+    {
+      "file": "evidence/outreach-focused.log",
+      "bytes": 4443,
+      "sha256": "cc28227a12746764a0b04111e03e84617e827a9559330333f8303710d202dfc8"
+    },
+    {
+      "file": "evidence/receiving-runtime-controls.log",
+      "bytes": 8053,
+      "sha256": "2fb91990e4f6ecea16df2b2a624043b2c00e5b20936e0f7db9117cc854e4ea6c"
+    },
+    {
+      "file": "evidence/source-catalog-final.log",
+      "bytes": 169,
+      "sha256": "96cea38f6e253163c94d782c8c0bb5e4dad5856da9eec2407ba68be1e178970c"
+    },
+    {
+      "file": "evidence/source-catalog-node24-final.log",
+      "bytes": 20545,
+      "sha256": "293f5ce9ccc88e7bb121bb32e4f77be82f45e719362c16e003ccdf22690afa7b"
+    },
+    {
+      "file": "evidence/source-catalog-qualified.log",
+      "bytes": 33299,
+      "sha256": "d4a747857bec4cbe07c89273070364e20f48d8cc4f41a14167097a3c42451ff6"
+    },
+    {
+      "file": "evidence/strategy-nest-build-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/strategy-nest-build.log",
+      "bytes": 1814,
+      "sha256": "d8143c9780f203f6e081a031c852764f4791cef5ebb8857bad7a19240a00d1c7"
+    },
+    {
+      "file": "evidence/strategy-raw-http-final.json",
+      "bytes": 27451,
+      "sha256": "b49aad70ebd86b164c314860cd3bb69cd463b0e17a15dc490e82a92bbd0605cd"
+    },
+    {
+      "file": "evidence/strategy-raw-http-final.log",
+      "bytes": 5557,
+      "sha256": "e0dde8a038778ecc541974dbe3eb598315d0ec34f2c661648f8224c4ac1d0d0e"
+    },
+    {
+      "file": "evidence/strategy-raw-http-typecheck-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/strategy-raw-http-typecheck.log",
+      "bytes": 150,
+      "sha256": "407f948d313feda07ee3ed88d19a21ce111b3e8588fa3dfdc339d3b700ae487c"
+    },
+    {
+      "file": "evidence/strategy-raw-http.json",
+      "bytes": 2275,
+      "sha256": "2d459e0f4a97387e6ead9d2659001f0c631268d83953c6640869d6c565ae4fce"
+    },
+    {
+      "file": "evidence/strategy-raw-http.log",
+      "bytes": 2296,
+      "sha256": "792d98d49498f2d19cd97f2c0c7e8beb66d75e8ff31fa172424506cfe696d2d0"
+    },
+    {
+      "file": "evidence/strategy-typecheck-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "evidence/strategy-typecheck.log",
+      "bytes": 958,
+      "sha256": "a1fed1c5df1d64eff57e4f12b58cf229efee76194303449ad624dfc834567ee2"
+    },
+    {
+      "file": "evidence/strategy-verifier-build.log",
+      "bytes": 170,
+      "sha256": "d5312537fc98dc9937974b23df0327706259236746f0c67aba76f2cb6ae33371"
+    },
+    {
+      "file": "evidence/workspace-package-build.log",
+      "bytes": 675,
+      "sha256": "1a7147b352dd2dacc7acbb6911a07a24963a9b29947fffb16efb0ecb418cf8bd"
+    },
+    {
+      "file": "evidence/workspace-retirement.log",
+      "bytes": 3300,
+      "sha256": "415f68e9d371f68f77f1114278f08310c99919e621e3251ba0d0efb82384c1f2"
+    }
+  ],
+  "audit": {
+    "publishedBranches": 151,
+    "pullRequests": 103,
+    "initiallyUnknownLocalHeads": 15,
+    "qualifiedSource": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+    "originalContentInventorySha256": "aca6fd91528f866b6de23d176ca66e84579314cae97edeef063a8395ecfd2e91",
+    "compressedContentInventorySha256": "2f1f77f5a43d3d74503036c4961b9dc18eadfa77e5381f4d44757c4d2f40d1d6",
+    "files": [
+      {
+        "file": "LEDGER.md",
+        "sha256": "3a227d6ae4addd8fe15790759d8e6bf781c69edf98f85eea946d571e073ea361"
+      },
+      {
+        "file": "branch-ledger.json",
+        "sha256": "fc91537994d1c2056756265505cd460845978b00587d9ade97308474a5d55afa"
+      },
+      {
+        "file": "pr-ledger.json",
+        "sha256": "eff4cc70a2edc499b3b1ca67dc4e084840640b67710354e2d1b9f34f30fcd503"
+      },
+      {
+        "file": "local-unpublished-ledger.json",
+        "sha256": "0e7c81b14bb8ba958ab56f24591fdafa111634ee3e48f6f87d951d473e0e8490"
+      },
+      {
+        "file": "coverage-summary.json",
+        "sha256": "1489df7c7a0f9e2d52990ead0f6c544f06daa8b35747529c513ad527843488da"
+      },
+      {
+        "file": "pr-ancestry-audit.json",
+        "sha256": "8a266acfa9f4595761f60f1be28b8f4a049b23401c6e88465bf8f82b8657cc5b"
+      },
+      {
+        "file": "validation-receipt.json",
+        "sha256": "94a6d4debf995b382a6a853bb26700d8da0f120e42818383e0e1e1713ade7de5"
+      },
+      {
+        "file": "AUDIT.md",
+        "sha256": "b4fe096f5b79b128c6d2a0b1060391e9f026b9a66cdae2dee2e80f7265841c08"
+      }
+    ]
+  }
+}

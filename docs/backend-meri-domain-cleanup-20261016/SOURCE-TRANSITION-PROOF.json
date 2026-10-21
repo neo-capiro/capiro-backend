@@ -1,0 +1,589 @@
+{
+  "parent": "0483963adc5382202408e8398d8b1601f53d8525",
+  "workingSourceIdentities": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "canonicalSha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "checkoutSha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372",
+      "bytes": 392207,
+      "physicalLines": 9784,
+      "nonblankLines": 9399
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "canonicalSha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "checkoutSha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0",
+      "bytes": 23905,
+      "physicalLines": 659,
+      "nonblankLines": 633
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "canonicalSha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "checkoutSha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe",
+      "bytes": 977,
+      "physicalLines": 24,
+      "nonblankLines": 20
+    }
+  ],
+  "methods": [
+    {
+      "name": "resolveBillId",
+      "bodySHA256": "dd6de953cf9fc3c4f944e6b06a6da749f2890213240e5b5ac0c0a02c98beadef",
+      "sourceIdentical": true
+    },
+    {
+      "name": "searchCongressBills",
+      "bodySHA256": "0f51ad130aa191d8f36546ad082ea80c806fc608033cf257630a9b03550e5e4d",
+      "sourceIdentical": true
+    },
+    {
+      "name": "readBillText",
+      "bodySHA256": "0ae146bcc562371d7d3496c17bc2f8ab66478e1bca80ffd81d7cca147be65111",
+      "sourceIdentical": true
+    },
+    {
+      "name": "locatedBillText",
+      "bodySHA256": "50fd18046f05e5a007f671cff992e94728bea90873fcae4a605b0ed1f8e39e50",
+      "sourceIdentical": true
+    },
+    {
+      "name": "getBillStatus",
+      "bodySHA256": "dc58e19b8087d695ea6d82b4cd69224df69acf2f841275d9d3be8accf1b0e58a",
+      "sourceIdentical": true
+    },
+    {
+      "name": "searchFloorVotes",
+      "bodySHA256": "005b104c457a58692491efa2d5c9ab70d10839ca91c8099df77a11655fe63e94",
+      "sourceIdentical": true
+    },
+    {
+      "name": "searchCboCostEstimates",
+      "bodySHA256": "7cec576889c526d5ecc6af9d617331b59a8e83fc8922bbe90f1b73112924c155",
+      "sourceIdentical": true
+    }
+  ],
+  "canonicalInputDefinitions": 4,
+  "exactSQLAndAlgorithms": true,
+  "facadeInverseSHA256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267",
+  "facadeOtherCodeUnchanged": true,
+  "approvedFacadeHunks": [
+    {
+      "oldStart": 0,
+      "oldCount": 0,
+      "newStart": 1,
+      "newCount": 2,
+      "removedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "addedSHA256": "c1f8ba63ab2a7d3fbad491bc9f63ae567a41066ad1f92ac29053dc710938fe20"
+    },
+    {
+      "oldStart": 29,
+      "oldCount": 10,
+      "newStart": 30,
+      "newCount": 0,
+      "removedSHA256": "a609a38d1a313bee1cb71f2676e5c61813cb520d4bc5aa72edc5ab9571bc2335",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 45,
+      "oldCount": 2,
+      "newStart": 36,
+      "newCount": 0,
+      "removedSHA256": "25cd4ba1de04275bba9ed2ec79e054337e1502bc59e2de911fb206b53cd65897",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 299,
+      "oldCount": 17,
+      "newStart": 288,
+      "newCount": 0,
+      "removedSHA256": "b7fc6927a740faa2d42e0a652e991fd013a097c423778d3fec9c5848e9ccaa49",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 342,
+      "oldCount": 1,
+      "newStart": 314,
+      "newCount": 0,
+      "removedSHA256": "5701a0f50cf185a1f1b9a17e04f8874621f22d37dc4aa8ff12b91408f6d2f5a9",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 3630,
+      "oldCount": 14,
+      "newStart": 3601,
+      "newCount": 0,
+      "removedSHA256": "24a22cc1861e1d70b65fa6c47ade1664ba79a2657bc0c6411f48cbddae5173ae",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 3703,
+      "oldCount": 63,
+      "newStart": 3661,
+      "newCount": 1,
+      "removedSHA256": "849ee2cfb939a7f44fb8019bd28e93dd7c455eb0599f02ad2f24e34b165fd321",
+      "addedSHA256": "b2eff995125d840c6478ecef860d59633805587acd57bd0f1c093e1456eb3603"
+    },
+    {
+      "oldStart": 3829,
+      "oldCount": 189,
+      "newStart": 3725,
+      "newCount": 1,
+      "removedSHA256": "2728d3c5bacd983b17328b6a243daeede45171a411908a0c3352be250307f440",
+      "addedSHA256": "be72e9c03f79e5576d2de16fc7f5db764e2950cc842b05aaef7630fd4dcf7c3b"
+    },
+    {
+      "oldStart": 4021,
+      "oldCount": 134,
+      "newStart": 3729,
+      "newCount": 1,
+      "removedSHA256": "a181fec7411ce71d8e24382d617a4e41e4a2ed1974b978cf9d5d19feb0a045e5",
+      "addedSHA256": "42ed5cd66365c4944557bcfa5ac02f809ff586ed02d7487256d1612f99296067"
+    },
+    {
+      "oldStart": 4162,
+      "oldCount": 155,
+      "newStart": 3737,
+      "newCount": 1,
+      "removedSHA256": "0377a2cf21074a28218f72a3f8dfc8bf4990ae1aa997e36220726cd45668bae8",
+      "addedSHA256": "8edad7609e288865505547476aed18c1ddc8f787e72149a8d31b1412402c5f41"
+    },
+    {
+      "oldStart": 4324,
+      "oldCount": 40,
+      "newStart": 3745,
+      "newCount": 1,
+      "removedSHA256": "c7f7c40790c9344a299bfce7c0eb696b0789526c006667e1508997692497eca1",
+      "addedSHA256": "4d9147e247bc6d4a637d668d9e869dfd35e376dd7a3557bf484d2caa1037f4cf"
+    },
+    {
+      "oldStart": 9867,
+      "oldCount": 14,
+      "newStart": 9248,
+      "newCount": 0,
+      "removedSHA256": "f471cf082180439271d050c8c549cb541ece1fd21e72a529477d6501aeb41819",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "oldStart": 9969,
+      "oldCount": 7,
+      "newStart": 9336,
+      "newCount": 0,
+      "removedSHA256": "957620017cf41500f98b26ad851ca0d8db5d533aa084eaae9cac8d245f12d945",
+      "addedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "engagement": {
+    "removedMethods": [
+      "outreachContext",
+      "outreachVoiceFewShots",
+      "batchRecipientCorrespondence"
+    ],
+    "physicalLines": 225,
+    "nonblankLines": 220,
+    "inverseSHA256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9",
+    "otherBytesUnchanged": true
+  },
+  "scope": "one-time source transition proof; not evergreen CI, native typing, router, database or runtime acceptance",
+  "protectedIdentities": [
+    {
+      "path": "apps/api/prisma",
+      "gitTreeEntry": "040000 tree 40b9c0f80bdcb7b41033281e20d2a92d8d9f59cd\tapps/api/prisma"
+    },
+    {
+      "path": "packages",
+      "gitTreeEntry": "040000 tree 5a2a5d76b4401685bc7d9c7fa4c46ce33f515e51\tpackages"
+    },
+    {
+      "path": "apps/defense-api",
+      "gitTreeEntry": "040000 tree d6876c77d256f29b7231a2cdcba7d5f4701035c7\tapps/defense-api"
+    },
+    {
+      "path": "apps/intel-api",
+      "gitTreeEntry": "040000 tree 0c83e0cd28e95d85b98b0fffafdc1b405be32ef4\tapps/intel-api"
+    },
+    {
+      "path": "apps/api-strategy",
+      "gitTreeEntry": "040000 tree 7b81261a4e5306eb95a35a3dec8eec0332a8c38c\tapps/api-strategy"
+    },
+    {
+      "path": "apps/onboard-api",
+      "gitTreeEntry": "040000 tree 4055d9e9c7ac9b5d47ddab41bc3c00c34e35c364\tapps/onboard-api"
+    },
+    {
+      "path": "apps/onboard-web",
+      "gitTreeEntry": "040000 tree 95650827ae2643bfe862874fc215712309945d33\tapps/onboard-web"
+    },
+    {
+      "path": "apps/e2e",
+      "gitTreeEntry": "040000 tree 37b1d7c0c65a2523417dc2855fa687264ba7170b\tapps/e2e"
+    },
+    {
+      "path": "apps/api/src/auth",
+      "gitTreeEntry": "040000 tree e0a8335dec2e40ea4dbc34b7a0c7b0cf051c7c0e\tapps/api/src/auth"
+    },
+    {
+      "path": "apps/api/src/tenant",
+      "gitTreeEntry": "040000 tree 2f3c0c3a569515adc583cb595a62e6e9df215fab\tapps/api/src/tenant"
+    },
+    {
+      "path": "apps/api/src/memory",
+      "gitTreeEntry": "040000 tree 238bfbdf5e1bcacbe3561b30b630e30f14c03231\tapps/api/src/memory"
+    },
+    {
+      "path": "apps/api/src/research-portfolios",
+      "gitTreeEntry": "040000 tree 199475e9f675eeb16d6bd7dd820621f1476c2148\tapps/api/src/research-portfolios"
+    },
+    {
+      "path": "apps/api/src/clients/objectives",
+      "gitTreeEntry": "040000 tree bf6a82037d66abe7b150c40838bfd77817c0e742\tapps/api/src/clients/objectives"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "gitTreeEntry": "100644 blob 6b867553bed4ffd1376279414ce4fa892bb896e7\tapps/api/src/app.module.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/plans",
+      "gitTreeEntry": "040000 tree 7aa43281d80375ced4dc20be428a5103c8b51290\tapps/api/src/engagement/plans"
+    },
+    {
+      "path": "apps/api/src/engagement/meetings",
+      "gitTreeEntry": "absent at both pins"
+    },
+    {
+      "path": "apps/api/src/engagement/generation",
+      "gitTreeEntry": "040000 tree f8f42eddccb4e4ed1afd14a443d8c21d0e7aef3f\tapps/api/src/engagement/generation"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.module.ts",
+      "gitTreeEntry": "100644 blob edb4697bb0c21f5ab3b726cbc49457f1156373c1\tapps/api/src/engagement/engagement.module.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "gitTreeEntry": "100644 blob 7b1f1482687ed43fb1084c51b135a255a7d104af\tapps/api/src/engagement/engagement.controller.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "gitTreeEntry": "100644 blob a17e94efba349979236ed1dbada4be4c17cf8f02\tapps/api/src/meri/meri.module.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitTreeEntry": "100644 blob 598e9146e5568349f213cbd548de0213113dc924\tapps/api/src/meri/meri.controller.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-rp-tool-transport.ts",
+      "gitTreeEntry": "100644 blob 4bca739696cbed54cda61f53173e0c6489a4a181\tapps/api/src/meri/meri-rp-tool-transport.ts"
+    },
+    {
+      "path": "apps/api/src/meri/governed-meri-tools.proxy.ts",
+      "gitTreeEntry": "100644 blob 88c7c163a62959ea3b631b2116e3db3f8cca3e1b\tapps/api/src/meri/governed-meri-tools.proxy.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitTreeEntry": "100644 blob 8878d515849c36ce037a9fc8591e46bbb06e65b2\tapps/api/src/meri/meri.service.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "gitTreeEntry": "100644 blob 28f02937c824fdbf1f6655f87bd94a52969aa360\tapps/api/src/meri/meriv3-runtime.proxy.ts"
+    },
+    {
+      "path": "apps/api/src/meri/meri-research.service.ts",
+      "gitTreeEntry": "100644 blob aaa52e7b1dc0a158844e738056d805e5f3667f7b\tapps/api/src/meri/meri-research.service.ts"
+    },
+    {
+      "path": "package.json",
+      "gitTreeEntry": "100644 blob 239885efbbdb940372d6c8a68ff1364f3523bff0\tpackage.json"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitTreeEntry": "100644 blob 88d3bff652c22a7d9139a1a46bafd68411b3d4fe\tpnpm-lock.yaml"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "gitTreeEntry": "100644 blob bef9bfeb6b9840a272a71ae5b0c6debf85d527f8\tpnpm-workspace.yaml"
+    },
+    {
+      "path": ".github",
+      "gitTreeEntry": "absent at both pins"
+    },
+    {
+      "path": "docs/backend-cleanup-20261016",
+      "gitTreeEntry": "040000 tree ca98ff0b2280fad97b22b77cdee31220903f693a\tdocs/backend-cleanup-20261016"
+    },
+    {
+      "path": "docs/backend-cleanup-frontend-20261016",
+      "gitTreeEntry": "040000 tree 060fa7a9eff3d23af9816070ed05bc3edbb60ca3\tdocs/backend-cleanup-frontend-20261016"
+    },
+    {
+      "path": "docs/backend-runtime-cleanup-20261016",
+      "gitTreeEntry": "040000 tree c0f49d8537439e233c2e98057c1e69fc42d2f26c\tdocs/backend-runtime-cleanup-20261016"
+    }
+  ],
+  "testedSourceIdentities": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "d71aaba113fdd4b84466ef820821b5db5e1aa60a2d679da8cb38e04e955d6372"
+    },
+    {
+      "path": "apps/api/src/meri/meri-federal-legislation-tools.ts",
+      "sha256": "95de3fe70064ebcd664e1b30362f4d81c946a3d157602c0495669884c691a0f0"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-input.helpers.ts",
+      "sha256": "a21c1ac62814eb7991b3a5cb19b448086173bd0aa6c473a86e707e898052d8fe"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bill-text-search.ts",
+      "sha256": "e8bbb52c50714cff87ab5ddd0dcd54c293a063e0410f95b0bf2cb6f840efec14"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "sha256": "0cf586f1034839239a40a135aa384b99846815d6fb52f5db16611f5bf6b9ad8a"
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "sha256": "e63a3582ca6b12433490407dc370e7e32a3e498cadd7fae60a086c7e6bbe654c"
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "sha256": "478014a4d3a33bf26ffb6e7eacff3ba1490afd883f252ee673197db241a8778b"
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "sha256": "5043be2a209a788f306b1a5dad221ad14a3db9e4aa0d7d244d5cb59cbe98eafd"
+    }
+  ],
+  "capturedGitBytes": [
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-dynamic-dispatch-source-probe.json",
+      "blob": "b21b13f434e86be08fc320e26604023e42ed020d",
+      "bytes": 526,
+      "sha256": "bbf6521b78c468edd38b371505b64bccf7ab77d9837d20988578d4d2d84c426d"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-dynamic-dispatch-source-probe.stdout",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-gate-refs-048.receipt.json",
+      "blob": "4b25bbaa5162621e093197fb0a97ad2026655b63",
+      "bytes": 965,
+      "sha256": "cb9d4f578c4d83eb4b460e8d769645886357e835b5be9dfadf2e97eb46ed78a6"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-gate-refs-048.stderr",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-gate-refs-048.stdout",
+      "blob": "d7dc54dc4f9c40508645d4501b72fd15e9b19ba9",
+      "bytes": 1112,
+      "sha256": "1d780e054f87e0d3503fdb50aacb9b7d5346aa7260069849eab5eec8f41d7f73"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-manifest-048.txt",
+      "blob": "fb4f4cad0d2d0678bca33207b58ee91998c51af3",
+      "bytes": 1436,
+      "sha256": "6bbba8b09212f5df9e2c2ae5c990579d9bd9132e634514d10e6f4d37f34f4cdc"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-readers-048.receipt.json",
+      "blob": "90e9517f51f95f8efc13ee875323c7ee48209e57",
+      "bytes": 945,
+      "sha256": "6a1fa4e553ed8c5ccbda148fb797f1b186a615cc63949286ce351cdbd75c38de"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-readers-048.stderr",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-initial-slice-source-readers-048.stdout",
+      "blob": "a1c01af9a2537140b83e6b9fb459a1900382ecfc",
+      "bytes": 39389,
+      "sha256": "abfd989e2782f3714cbf4ef79d7dce97a6f9d332ae99bdecbf57b17a19607c8f"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-exact-name-pass-048.receipt.json",
+      "blob": "30d5285e2d5cc49320c967d0b4ddb9ac38145755",
+      "bytes": 1199,
+      "sha256": "e573ec361d61f93f9fdc94d249189f738da4de38382a0c7ddc66bebe5f190b20"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-exact-name-pass-048.stderr",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-exact-name-pass-048.stdout",
+      "blob": "582f81ad4338ae5e8f0ec70628e2083ab06b40f5",
+      "bytes": 19430,
+      "sha256": "00a627a1f3292756bb3da06f16a0542f1d9ebdf7bf32a65c5aa6c03ca65bbfa9"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-independent-review.md",
+      "blob": "582b33d615f3892f69dec3f4a7bcdae73dfebdfd",
+      "bytes": 5432,
+      "sha256": "bd1f0d111c18aa26a560a9c478e63df150ab1b5c27b1210691e17721c2845e11"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-initial-slice-map.md",
+      "blob": "9a66656e3fe65a0f9b9b1625438a8a961fbce4d6",
+      "bytes": 10196,
+      "sha256": "992606458971fe70842df6ce39cbabc83e3577eb5d95c6ed5f3cf06b4b17ebae"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-initial-slice-source-manifest.json",
+      "blob": "2dc008ea71cb644b1bb2396f2d8d82af77da8ebd",
+      "bytes": 1800,
+      "sha256": "75bd0eadd8ddbe37ac4d4d58b201d1080e62e50a0227d0c593cd799942116ace"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/engagement-orphan-removal.json",
+      "blob": "ebb6177e85b416b1f37cbc223a37aac60af326f0",
+      "bytes": 3563,
+      "sha256": "c1c77de38a7ee18e108c6aa03cd7b78a562406e52c33ab61879e949066ff2d98"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-controls-independent-review.md",
+      "blob": "2d1d7f3f5e0274452f23db9d58bd6a972ea03526",
+      "bytes": 6781,
+      "sha256": "1edde18094d1b5e626b2d748737c8ef1df944e00324b340c3dff66185a4855b5"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-current-catalog-plan.json",
+      "blob": "4b384370a3c65bc1092ec93073c644fc9dca4d94",
+      "bytes": 829,
+      "sha256": "ea7c5ac753ce6c2561bb3aba1704de7cdae690a16001ab6d666a0b5d4c36e9b6"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-current-catalog-plan.stderr",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-current-catalog-plan.stdout",
+      "blob": "c90c9ced9ae8e8e8b3e0d6a9e28c9ecfd675fa38",
+      "bytes": 4986,
+      "sha256": "6af27458fe1ff0644dca3ac4116c25239ab0a8ad71b2819caf2eb1fb59a0b8d3"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls-inputs.json",
+      "blob": "1c3b47204d9ce8add568f58a66a613e5bfc457f0",
+      "bytes": 1609,
+      "sha256": "93f852a370bef08cdeb85b4c4bc20de7f329bbef1e499bf2fb5acf3729d45b7c"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls.json",
+      "blob": "69da5bd05809d66e5aa755111d427b6cba6ad8bb",
+      "bytes": 927,
+      "sha256": "0ffdfc31a2b5b29f947ed76f67762e586495ce1f650a74eac91f5df0081da4f4"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls.stderr",
+      "blob": "9501a9fe03661d5a37695a1c4390172e691e1335",
+      "bytes": 183,
+      "sha256": "e04263af397c475ce1551a201dd20914815147c2f5dd964af3dfccc6e3f50818"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-focused-controls.stdout",
+      "blob": "56a832b5727f457da6c89beafa317b94eb9441f4",
+      "bytes": 4556,
+      "sha256": "aaade998ec35ccfecb8e8453479804907c7e18760443bcb63f33eecba8c5e7c8"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-source-count-delta.json",
+      "blob": "e8b7734f0744f3ac22f4bc3e00ac34446debfa86",
+      "bytes": 842,
+      "sha256": "524b23694c150073a49e28372914fd4a3090feffdf7d269fc8ad704c958a0b72"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-source-count-delta.stderr",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-source-count-delta.stdout",
+      "blob": "a45abef849134cedb1ea29dfd06c1f39555db4fa",
+      "bytes": 1138,
+      "sha256": "3437a670888893e6771e6762ad686080b012b490cdce909517ff0c58ca6165aa"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof-manifest-repaired.json",
+      "blob": "9348742637b9973910f20631ccdda9713e25853b",
+      "bytes": 863,
+      "sha256": "5cb2c4459df40737612576de4aab5499d97f7fd31f51240f1e88f9ca58b6b619"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof-manifest-repaired.stderr",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof-manifest-repaired.stdout",
+      "blob": "ba75e7e8c9f5c52cfbea6faca5a67b683ddebfcc",
+      "bytes": 343,
+      "sha256": "c81d07f626862966c5a815f726d72678b4e3539a01507c6391ad9c910c9231f3"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof.json",
+      "blob": "1169bd6091ba8646d137ae804cacc46458f10bdc",
+      "bytes": 858,
+      "sha256": "a6409088a882acbd9a285f671f07d8080af3723b2bf870178a916aa00ef8a699"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof.stderr",
+      "blob": "5e285593a32ff55801e43a228b319d4400bfe0d8",
+      "bytes": 918,
+      "sha256": "75570baf988c4613e487b978ebc54cee1f28f1d4f404f3655a628352aedede4d"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-domain-transition-source-proof.stdout",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-federal-implementation.json",
+      "blob": "93084f12284f2b12b31793b7da9346b6793f05dd",
+      "bytes": 9648,
+      "sha256": "e653d4831f820657a5487df885b9c687ead5b3cd9317e377c246d3863339f41c"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-federal-independent-review.md",
+      "blob": "7474618deba3db03039c1624c2692dcf70af8092",
+      "bytes": 6280,
+      "sha256": "dffc4a24e902de9b47694db8c20b7b2a11053b4ad1c21a90afabeaecc894bff1"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-federal-read-extraction-map.md",
+      "blob": "322ce3925aba39c4d2b0ced0165098c549da7001",
+      "bytes": 14437,
+      "sha256": "fa76ccc26ecf94e0715e5684c88ceb96c0d6175bf98c30a3b195c4d1edb5b6df"
+    },
+    {
+      "path": "docs/backend-meri-domain-cleanup-20261016/evidence/meri-loop-retirement-boundary-map.md",
+      "blob": "66eaf4bb982ade97698b4a2a72413d9a6af998b7",
+      "bytes": 13015,
+      "sha256": "f4519ca0ac2b9a27d94dade6868075d78cefdaaad108d33a6de0aed254c1e4d5"
+    }
+  ],
+  "sourceCheckpoint": "40d83130fb2a65ba2a826e0498e9eb1124c548bf",
+  "applicationPaths": [
+    "apps/api/src/engagement/engagement.service.ts",
+    "apps/api/src/meri/meri-federal-legislation-tools.ts",
+    "apps/api/src/meri/meri-tool-input.helpers.ts",
+    "apps/api/src/meri/meri-tools.service.ts"
+  ],
+  "sealedPR32LocalRefUnchanged": true,
+  "countedSourceHead": "322b2f30cd30488631dc5acb20e14b12995c48ca"
+}

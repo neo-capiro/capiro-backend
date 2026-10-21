@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-10-16T02:29:43.177Z",
+  "endedAt": "2026-10-16T02:29:43.935Z",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/lib/defense-runtime-source-ownership.test.mjs",
+    "scripts/lib/phase17-operator-ownership.test.mjs"
+  ],
+  "chunk_id": "d026b9",
+  "wall_time_seconds": 0.503408387,
+  "exit_code": 0,
+  "original_token_count": 449,
+  "note": "Completed before the parent's later explicit 128MB/single-process instruction arrived; preserved separately. Requested bounded rerun is recorded in runtime-ownership-controls-bounded.json."
+}

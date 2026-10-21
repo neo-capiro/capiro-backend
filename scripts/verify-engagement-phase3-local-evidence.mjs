@@ -33,7 +33,7 @@ const EVIDENCE = path.resolve(required('ENGAGEMENT_PHASE3_EVIDENCE_DIR'));
 const EXPECTED_SHA = required('RELEASE_SHA');
 const INVENTORY = path.join(
   ROOT,
-  'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+  'apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
 );
 const FINDINGS = path.join(
   ROOT,

@@ -1,0 +1,2 @@
+# Preserve exact captured evidence bytes used by the qualification hashes.
+evidence/** -text

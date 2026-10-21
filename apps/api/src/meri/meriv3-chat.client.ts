@@ -9,7 +9,7 @@ import type {
   MeriGovernedTurnContext,
   MeriResearchPlanExecutionEnvelopeV1,
 } from '@capiro/meriv2-core';
-import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
+import type { ResolvedAiForChatHeader } from './meri-chat-ai.types.js';
 import type { MeriTelemetryContext } from '@capiro/meriv2-core';
 import {
   currentMeriApiTelemetry,

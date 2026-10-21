@@ -1,0 +1,21 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=64",
+    "prepare-plan-status-prefaces.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10",
+  "startedAt": "2026-10-16T03:30:46.9817031Z",
+  "endedAt": "2026-10-16T03:30:47.5275982Z",
+  "ownedPID": 41520,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 41373696,
+  "hardWallSeconds": 60,
+  "maxObservedWorkingSetBytes": 268435456,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "328f94d3c198736cec4a40eb5a2a4b2807b48c7e2a94c5c9c12050f50e7fdf81",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

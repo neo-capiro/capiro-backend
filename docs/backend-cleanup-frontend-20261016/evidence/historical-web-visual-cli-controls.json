@@ -1,0 +1,19 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:46:15.7144073Z",
+  "endedAt": "2026-10-16T02:46:18.6290118Z",
+  "ownedPID": 36084,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 40898560,
+  "hardWallSeconds": 120,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "9936e790409cc430b7755b33dd9fef68fb1eaf3c224e7d5b80135ea5df907f5a",
+  "stderrSHA256": "7fb82306c4578b9525c5eb0ea9081d3485711ef54ac7c7f5cd249785bc0dddf6"
+}

@@ -1,0 +1,42 @@
+{
+  "stage": "successor-current-backend-controls",
+  "actualResult": "74 pass; later source review requires default selector-scope correction; this passing stage is preserved and superseded",
+  "inputs": [
+    {
+      "path": "scripts/engagement-phase3-backend-contract.mjs",
+      "sha256": "6b150a826e4497c01d118551bda42833d9b461aecfea088853ecb8fc4c854c5a"
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-contract.spec.mjs",
+      "sha256": "9488a1e14b4baaaf60d51fa0051371d6b277d0042890818b7cc8ccd4f5a8c020"
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "sha256": "0c1d846f01afcc3cb36f7c3fd50e74ecfb8319a5753db8399f26edcdb4a545cd"
+    },
+    {
+      "path": "scripts/backend-source-qualification.spec.mjs",
+      "sha256": "8d39cf9a3fd8d369d670ce0310883f371dfb857929aadd9cfcafb92c4ece33b3"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "sha256": "60873fa16932224863a54352d428488cf6d9d9c98758bff9c057232d405581e5"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "sha256": "0620da44b4ad8589c776b67fc5091d13c163b597018255639aff522e9b77b83e"
+    },
+    {
+      "path": "scripts/engagement-phase3-ui-inventory.mjs",
+      "sha256": "add8161edfeb1ac37d12ae111aadd80fa88122a351ff01f91e1a0b3f3bbb3b98"
+    },
+    {
+      "path": "tests/support/legacy-web/qualification-owner.mjs",
+      "sha256": "dd149d66292c1f6ebe94f402973a5417ee541b9c827bdfc955360f57188da5a6"
+    },
+    {
+      "path": "tests/support/legacy-web/QUALIFICATION-OWNERSHIP.json",
+      "sha256": "44d308d47ff9a61667279940cbb2d202024d7191c78e09f80eb41a3e641d00ad"
+    }
+  ]
+}

@@ -15,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveSpawn } from './lib/resolve-tool.mjs';
 import { PHASE1_LOCAL_OPTIONS, requireLocalRun } from './lib/engagement-local-cli.mjs';
+import { requireLegacyWebWorkspace } from '../tests/support/legacy-web/workspace.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // rawArgs stays an array for forwarding to child scripts; parse() returns an object,
@@ -25,6 +26,7 @@ const rawArgs = requireLocalRun(
   PHASE1_LOCAL_OPTIONS,
 );
 const args = parse(rawArgs);
+requireLegacyWebWorkspace(ROOT);
 const SHA = args.sha ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const actualSha = (await capture('git', ['rev-parse', 'HEAD'])).trim();
 if (!/^[0-9a-f]{40}$/i.test(SHA) || SHA !== actualSha) {
@@ -263,14 +265,14 @@ try {
       await run(
         'Rerun hardened authenticated browser proof',
         process.execPath,
-        [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs'), '--run'],
+        [path.join(ROOT, 'tests/support/legacy-web/engagement-phase1-browser-parity.mjs'), '--run'],
         browserEnv(commonEnv),
       );
     }
   await run(
     'Successful-response and real-record verifier',
     process.execPath,
-    [path.join(ROOT, 'apps/web/scripts/engagement-phase1-post-acceptance.mjs'), ...rawArgs],
+    [path.join(ROOT, 'tests/support/legacy-web/engagement-phase1-post-acceptance.mjs'), ...rawArgs],
     commonEnv,
   );
   console.log('ENGAGEMENT_PHASE1_POST_RUNTIME_COMPLETE');

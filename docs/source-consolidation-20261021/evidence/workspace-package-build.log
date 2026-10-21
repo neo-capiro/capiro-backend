@@ -1,0 +1,17 @@
+Scope: 4 of 19 workspace projects
+
+> @capiro/shared@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-21\task\core-consolidation\packages\shared
+> tsc -p tsconfig.json
+
+
+> @capiro/defense-contracts@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-21\task\core-consolidation\packages\defense-contracts
+> tsc -p tsconfig.json
+
+
+> @capiro/meriv2-core@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-21\task\core-consolidation\packages\meriv2-core
+> tsc -p tsconfig.json
+
+
+> @capiro/defense-domain@0.0.0 build C:\Users\Administrator\Documents\Codex\2026-10-21\task\core-consolidation\packages\defense-domain
+> tsc -p tsconfig.json
+

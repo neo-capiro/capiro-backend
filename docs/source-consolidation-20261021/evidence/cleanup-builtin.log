@@ -1,0 +1,1229 @@
+TAP version 13
+# Subtest: current source catalog accepts only its declared single ownership modes
+ok 1 - current source catalog accepts only its declared single ownership modes
+  ---
+  duration_ms: 1.6252
+  type: 'test'
+  ...
+# Subtest: current source catalog refuses missing intent before executing anything
+ok 2 - current source catalog refuses missing intent before executing anything
+  ---
+  duration_ms: 0.733
+  type: 'test'
+  ...
+# Subtest: current source catalog refuses unknown arguments
+ok 3 - current source catalog refuses unknown arguments
+  ---
+  duration_ms: 0.193
+  type: 'test'
+  ...
+# Subtest: current source catalog refuses combined modes
+ok 4 - current source catalog refuses combined modes
+  ---
+  duration_ms: 0.1508
+  type: 'test'
+  ...
+# Subtest: current source catalog refuses duplicated mode flags
+ok 5 - current source catalog refuses duplicated mode flags
+  ---
+  duration_ms: 0.1709
+  type: 'test'
+  ...
+# Subtest: current source catalog names every historical obligation and its canonical frontend owner
+ok 6 - current source catalog names every historical obligation and its canonical frontend owner
+  ---
+  duration_ms: 117.0585
+  type: 'test'
+  ...
+# Subtest: fake executor observes exactly the finite Node argv and no service commands
+ok 7 - fake executor observes exactly the finite Node argv and no service commands
+  ---
+  duration_ms: 19.7374
+  type: 'test'
+  ...
+# Subtest: Meri historical replay is explicit data ownership outside the current source steps
+ok 8 - Meri historical replay is explicit data ownership outside the current source steps
+  ---
+  duration_ms: 7.927
+  type: 'test'
+  ...
+# Subtest: a failed current source step stops later work and cannot emit completion
+ok 9 - a failed current source step stops later work and cannot emit completion
+  ---
+  duration_ms: 10.8445
+  type: 'test'
+  ...
+# Subtest: uncertain child results and empty or unowned source plans fail closed
+ok 10 - uncertain child results and empty or unowned source plans fail closed
+  ---
+  duration_ms: 33.9104
+  type: 'test'
+  ...
+# Subtest: plan and help inspect ownership without invoking any child process
+ok 11 - plan and help inspect ownership without invoking any child process
+  ---
+  duration_ms: 0.4656
+  type: 'test'
+  ...
+# Subtest: current workspace fields and real delegated Turbo filters validate
+ok 12 - current workspace fields and real delegated Turbo filters validate
+  ---
+  duration_ms: 2.6182
+  type: 'test'
+  ...
+# Subtest: unrelated versions dependencies and backend importers remain free to evolve
+ok 13 - unrelated versions dependencies and backend importers remain free to evolve
+  ---
+  duration_ms: 32.3693
+  type: 'test'
+  ...
+# Subtest: retired Web source package workspace and importer regressions each fail
+ok 14 - retired Web source package workspace and importer regressions each fail
+  ---
+  duration_ms: 95.6467
+  type: 'test'
+  ...
+# Subtest: Onboard and E2E retain their package workspace importer and identity support
+ok 15 - Onboard and E2E retain their package workspace importer and identity support
+  ---
+  duration_ms: 70.1441
+  type: 'test'
+  ...
+# Subtest: fake filter substrings shell controls and forwarded flags cannot satisfy current defaults
+ok 16 - fake filter substrings shell controls and forwarded flags cannot satisfy current defaults
+  ---
+  duration_ms: 96.7164
+  type: 'test'
+  ...
+# Subtest: typecheck delegation follows actual tokens supports equivalent quoting and rejects cycles or missing filters
+ok 17 - typecheck delegation follows actual tokens supports equivalent quoting and rejects cycles or missing filters
+  ---
+  duration_ms: 70.5774
+  type: 'test'
+  ...
+# Subtest: dry-run graph help and version flags cannot replace executing current default tasks
+ok 18 - dry-run graph help and version flags cannot replace executing current default tasks
+  ---
+  duration_ms: 104.9826
+  type: 'test'
+  ...
+# Subtest: extra positive broad negative and duplicated default selectors cannot narrow the current task set to zero
+ok 19 - extra positive broad negative and duplicated default selectors cannot narrow the current task set to zero
+  ---
+  duration_ms: 92.0414
+  type: 'test'
+  ...
+# (node:2968) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio
+ok 20 - current dispatch refuses model retargeting: get_research_portfolio
+  ---
+  duration_ms: 5.9247
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_analytics
+ok 21 - current dispatch refuses model retargeting: get_research_portfolio_analytics
+  ---
+  duration_ms: 0.3945
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_changes
+ok 22 - current dispatch refuses model retargeting: get_research_portfolio_changes
+  ---
+  duration_ms: 0.321
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: create_research_portfolio_snapshot
+ok 23 - current dispatch refuses model retargeting: create_research_portfolio_snapshot
+  ---
+  duration_ms: 0.5088
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: request_research_portfolio_output
+ok 24 - current dispatch refuses model retargeting: request_research_portfolio_output
+  ---
+  duration_ms: 0.9466
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: save_research_portfolio_output_to_client
+ok 25 - current dispatch refuses model retargeting: save_research_portfolio_output_to_client
+  ---
+  duration_ms: 2.7063
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: watch_research_portfolio
+ok 26 - current dispatch refuses model retargeting: watch_research_portfolio
+  ---
+  duration_ms: 1.1437
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: update_research_portfolio_change_state
+ok 27 - current dispatch refuses model retargeting: update_research_portfolio_change_state
+  ---
+  duration_ms: 0.5858
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_bookmarks
+ok 28 - current dispatch refuses model retargeting: get_research_portfolio_bookmarks
+  ---
+  duration_ms: 17.8095
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: create_research_portfolio_bookmark
+ok 29 - current dispatch refuses model retargeting: create_research_portfolio_bookmark
+  ---
+  duration_ms: 8.8668
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_fit
+ok 30 - current dispatch refuses model retargeting: get_research_portfolio_fit
+  ---
+  duration_ms: 1.4189
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_reviews
+ok 31 - current dispatch refuses model retargeting: get_research_portfolio_reviews
+  ---
+  duration_ms: 0.677
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: add_research_portfolio_review_note
+ok 32 - current dispatch refuses model retargeting: add_research_portfolio_review_note
+  ---
+  duration_ms: 0.2807
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_rules
+ok 33 - current dispatch refuses model retargeting: get_research_portfolio_rules
+  ---
+  duration_ms: 0.75
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_imports
+ok 34 - current dispatch refuses model retargeting: get_research_portfolio_imports
+  ---
+  duration_ms: 0.6292
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: get_research_portfolio_operations
+ok 35 - current dispatch refuses model retargeting: get_research_portfolio_operations
+  ---
+  duration_ms: 1.0348
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: prepare_research_portfolio_brief
+ok 36 - current dispatch refuses model retargeting: prepare_research_portfolio_brief
+  ---
+  duration_ms: 0.2694
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: prepare_research_portfolio_meeting
+ok 37 - current dispatch refuses model retargeting: prepare_research_portfolio_meeting
+  ---
+  duration_ms: 0.1897
+  type: 'test'
+  ...
+# Subtest: current dispatch refuses model retargeting: manage_research_portfolio
+ok 38 - current dispatch refuses model retargeting: manage_research_portfolio
+  ---
+  duration_ms: 0.488
+  type: 'test'
+  ...
+# Subtest: current dispatch injects omitted and preserves exact current conversation
+ok 39 - current dispatch injects omitted and preserves exact current conversation
+  ---
+  duration_ms: 104.4138
+  type: 'test'
+  ...
+# Subtest: ordinary delegated tool preserves supplied conversation treatment
+ok 40 - ordinary delegated tool preserves supplied conversation treatment
+  ---
+  duration_ms: 2.0258
+  type: 'test'
+  ...
+# Subtest: current dispatch rejects null/empty/non-string scope attempts
+ok 41 - current dispatch rejects null/empty/non-string scope attempts
+  ---
+  duration_ms: 0.699
+  type: 'test'
+  ...
+# Subtest: actual executor refuses absent trusted scope before network
+ok 42 - actual executor refuses absent trusted scope before network
+  ---
+  duration_ms: 0.3966
+  type: 'test'
+  ...
+# Subtest: actual typed transport refuses malformed trusted actor before network
+ok 43 - actual typed transport refuses malformed trusted actor before network
+  ---
+  duration_ms: 0.7438
+  type: 'test'
+  ...
+# Subtest: actual executor refuses missing service identity before network
+ok 44 - actual executor refuses missing service identity before network
+  ---
+  duration_ms: 0.5746
+  type: 'test'
+  ...
+# Subtest: actual executor refuses absent request credential before network
+ok 45 - actual executor refuses absent request credential before network
+  ---
+  duration_ms: 0.6834
+  type: 'test'
+  ...
+# Subtest: trusted scope is immutable and does not escape its request
+ok 46 - trusted scope is immutable and does not escape its request
+  ---
+  duration_ms: 5.7107
+  type: 'test'
+  ...
+# Subtest: current native landing retains all twenty-two old safety identities without raw extraction
+ok 47 - current native landing retains all twenty-two old safety identities without raw extraction
+  ---
+  duration_ms: 17.0669
+  type: 'test'
+  ...
+# (node:21736) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: canonical input leaf retains trim/cap/required/integer/UUID behavior without mutating callers
+ok 48 - canonical input leaf retains trim/cap/required/integer/UUID behavior without mutating callers
+  ---
+  duration_ms: 7.4314
+  type: 'test'
+  ...
+# Subtest: undecorated domain construction stores explicit dependencies without reading eager ports
+ok 49 - undecorated domain construction stores explicit dependencies without reading eager ports
+  ---
+  duration_ms: 3.9739
+  type: 'test'
+  ...
+# Subtest: domain input and facade ownership refuses copied bodies wrong forwarding and unowned module bindings
+ok 50 - domain input and facade ownership refuses copied bodies wrong forwarding and unowned module bindings
+  ---
+  duration_ms: 57.0253
+  type: 'test'
+  ...
+# Subtest: title search preserves Lda positional filters limit page coercion and input immutability
+ok 51 - title search preserves Lda positional filters limit page coercion and input immutability
+  ---
+  duration_ms: 7.3183
+  type: 'test'
+  ...
+# Subtest: exact bill designation uses direct lookup while a missing direct record falls back honestly
+ok 52 - exact bill designation uses direct lookup while a missing direct record falls back honestly
+  ---
+  duration_ms: 4.9845
+  type: 'test'
+  ...
+# Subtest: bill-text search keeps exact SQL and positional query congress limit offset with real paging projection
+ok 53 - bill-text search keeps exact SQL and positional query congress limit offset with real paging projection
+  ---
+  duration_ms: 8.9656
+  type: 'test'
+  ...
+# Subtest: bill status distinguishes invalid input and unavailable data without inventing status or child queries
+ok 54 - bill status distinguishes invalid input and unavailable data without inventing status or child queries
+  ---
+  duration_ms: 0.8048
+  type: 'test'
+  ...
+# Subtest: rule-failed status preserves governing rule evidence and does not infer floor passage from absent votes
+ok 55 - rule-failed status preserves governing rule evidence and does not infer floor passage from absent votes
+  ---
+  duration_ms: 1.0525
+  type: 'test'
+  ...
+# Subtest: status with recorded floor votes returns their actual totals without a fabricated absence note
+ok 56 - status with recorded floor votes returns their actual totals without a fabricated absence note
+  ---
+  duration_ms: 0.9101
+  type: 'test'
+  ...
+# Subtest: floor vote filters preserve canonical member/LIS alternatives query chamber congress and bound
+ok 57 - floor vote filters preserve canonical member/LIS alternatives query chamber congress and bound
+  ---
+  duration_ms: 1.5442
+  type: 'test'
+  ...
+# Subtest: ambiguous vote member names return candidates and never query unattributed roll calls
+ok 58 - ambiguous vote member names return candidates and never query unattributed roll calls
+  ---
+  duration_ms: 0.6233
+  type: 'test'
+  ...
+# Subtest: unknown member IDs and names fail honestly rather than widening the vote query
+ok 59 - unknown member IDs and names fail honestly rather than widening the vote query
+  ---
+  duration_ms: 0.4321
+  type: 'test'
+  ...
+# Subtest: bill-text ID query/cursor and malformed scoped cursor failures occur before SQL reads
+ok 60 - bill-text ID query/cursor and malformed scoped cursor failures occur before SQL reads
+  ---
+  duration_ms: 1.9324
+  type: 'test'
+  ...
+# Subtest: bill-text reads exact current complete ownership and returns untrusted provenance plus honest coverage
+ok 61 - bill-text reads exact current complete ownership and returns untrusted provenance plus honest coverage
+  ---
+  duration_ms: 0.8741
+  type: 'test'
+  ...
+# Subtest: bill-text continuations bind exact revision/hash/offset and refuse changed or out-of-range text
+ok 62 - bill-text continuations bind exact revision/hash/offset and refuse changed or out-of-range text
+  ---
+  duration_ms: 0.859
+  type: 'test'
+  ...
+# Subtest: bill-text page boundaries never split a surrogate pair and continuation reconstructs the exact string
+ok 63 - bill-text page boundaries never split a surrogate pair and continuation reconstructs the exact string
+  ---
+  duration_ms: 0.5746
+  type: 'test'
+  ...
+# Subtest: located bill-text passages use the real locator and carry exact-revision read cursors with partial coverage
+ok 64 - located bill-text passages use the real locator and carry exact-revision read cursors with partial coverage
+  ---
+  duration_ms: 1.8822
+  type: 'test'
+  ...
+# Subtest: located-text no-match is an explicit excerpt result rather than evidence the bill lacks the topic
+ok 65 - located-text no-match is an explicit excerpt result rather than evidence the bill lacks the topic
+  ---
+  duration_ms: 0.4137
+  type: 'test'
+  ...
+# Subtest: CBO filters retain literal IDs ordering bound and explicit missing-estimate honesty
+ok 66 - CBO filters retain literal IDs ordering bound and explicit missing-estimate honesty
+  ---
+  duration_ms: 0.5923
+  type: 'test'
+  ...
+# Subtest: actual facade methods support prototype receivers plain prisma CBO seams and fresh per-call dependencies
+ok 67 - actual facade methods support prototype receivers plain prisma CBO seams and fresh per-call dependencies
+  ---
+  duration_ms: 0.4168
+  type: 'test'
+  ...
+# Subtest: all five real domain handlers leave frozen input objects unchanged
+ok 68 - all five real domain handlers leave frozen input objects unchanged
+  ---
+  duration_ms: 0.5019
+  type: 'test'
+  ...
+# Subtest: all five domain and actual facade handlers propagate identical port errors without swallowing them
+ok 69 - all five domain and actual facade handlers propagate identical port errors without swallowing them
+  ---
+  duration_ms: 1.1638
+  type: 'test'
+  ...
+# Subtest: retired Engagement outreach roots have no private declarations or direct calls and counterexamples fail
+ok 70 - retired Engagement outreach roots have no private declarations or direct calls and counterexamples fail
+  ---
+  duration_ms: 825.4449
+  type: 'test'
+  ...
+# Subtest: current Engagement evidence bill truth voice scrubber and gateway seams remain free of a whole-file freeze
+ok 71 - current Engagement evidence bill truth voice scrubber and gateway seams remain free of a whole-file freeze
+  ---
+  duration_ms: 37.5995
+  type: 'test'
+  ...
+# (node:4228) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: current stream/image and neutral credential types have one source owner; loader rejects new ports
+ok 72 - current stream/image and neutral credential types have one source owner; loader rejects new ports
+  ---
+  duration_ms: 15.9578
+  type: 'test'
+  ...
+# Subtest: construction needs no raw streaming/private seams and patches V3 only once
+ok 73 - construction needs no raw streaming/private seams and patches V3 only once
+  ---
+  duration_ms: 0.7471
+  type: 'test'
+  ...
+# Subtest: closed gate refuses through V3 without context preparation or a raw fallback
+ok 74 - closed gate refuses through V3 without context preparation or a raw fallback
+  ---
+  duration_ms: 0.9155
+  type: 'test'
+  ...
+# Subtest: allowed turn prepares once before V3 and forwards through the actual observed writer
+ok 75 - allowed turn prepares once before V3 and forwards through the actual observed writer
+  ---
+  duration_ms: 1.6385
+  type: 'test'
+  ...
+# Subtest: default mode keeps original arity and reruns preserve every optional argument by identity
+ok 76 - default mode keeps original arity and reruns preserve every optional argument by identity
+  ---
+  duration_ms: 1.0431
+  type: 'test'
+  ...
+# Subtest: already aborted turns call no gate or runtime and release timers/listeners
+ok 77 - already aborted turns call no gate or runtime and release timers/listeners
+  ---
+  duration_ms: 1.0463
+  type: 'test'
+  ...
+# Subtest: abort during either gate outcome cannot dispatch a V3 or refusal stream
+ok 78 - abort during either gate outcome cannot dispatch a V3 or refusal stream
+  ---
+  duration_ms: 1.2352
+  type: 'test'
+  ...
+# Subtest: flag, preparation, current stream and refusal failures propagate without fallback
+ok 79 - flag, preparation, current stream and refusal failures propagate without fallback
+  ---
+  duration_ms: 0.9276
+  type: 'test'
+  ...
+# Subtest: actual progress helper observes real stages with bounded initial/heartbeat display only
+ok 80 - actual progress helper observes real stages with bounded initial/heartbeat display only
+  ---
+  duration_ms: 0.8511
+  type: 'test'
+  ...
+# Subtest: actual stream frames remain intact while progress tracks acceptance, tools and answer
+ok 81 - actual stream frames remain intact while progress tracks acceptance, tools and answer
+  ---
+  duration_ms: 1.4244
+  type: 'test'
+  ...
+# Subtest: progress releases resources on terminal frames, abort, throws and display write failures
+ok 82 - progress releases resources on terminal frames, abort, throws and display write failures
+  ---
+  duration_ms: 0.7432
+  type: 'test'
+  ...
+# Subtest: artifact images use only the current visual port with exact arguments/results/errors
+ok 83 - artifact images use only the current visual port with exact arguments/results/errors
+  ---
+  duration_ms: 0.6692
+  type: 'test'
+  ...
+# Subtest: retained history and other non-stream methods stay bound to the original receiver
+ok 84 - retained history and other non-stream methods stay bound to the original receiver
+  ---
+  duration_ms: 0.3672
+  type: 'test'
+  ...
+# Subtest: retained maintenance stays bound to raw and the ordinary provider graph aliases that instance
+ok 85 - retained maintenance stays bound to raw and the ordinary provider graph aliases that instance
+  ---
+  duration_ms: 8.0096
+  type: 'test'
+  ...
+# Subtest: V3 client-KB suppression is limited to governed turns and preserves other receiver methods
+ok 86 - V3 client-KB suppression is limited to governed turns and preserves other receiver methods
+  ---
+  duration_ms: 0.6298
+  type: 'test'
+  ...
+# Subtest: V3 stream adapter keeps ungoverned input exact and adds only current governed context
+ok 87 - V3 stream adapter keeps ungoverned input exact and adds only current governed context
+  ---
+  duration_ms: 0.5717
+  type: 'test'
+  ...
+# Subtest: actual completion adapter retains later-read receipts and signed initial coverage without mutating upstream
+ok 88 - actual completion adapter retains later-read receipts and signed initial coverage without mutating upstream
+  ---
+  duration_ms: 0.6345
+  type: 'test'
+  ...
+# Subtest: current Phase-19 source contract names V3 adapters and rejects restored raw dependencies
+ok 89 - current Phase-19 source contract names V3 adapters and rejects restored raw dependencies
+  ---
+  duration_ms: 2.2404
+  type: 'test'
+  ...
+# (node:14896) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: actual selected-alert resolver forwards exact request credentials and ids and ignores browser prose
+ok 90 - actual selected-alert resolver forwards exact request credentials and ids and ignores browser prose
+  ---
+  duration_ms: 6.2336
+  type: 'test'
+  ...
+# Subtest: null fetched packet produces critical failure and zero evidence with no invented fallback
+ok 91 - null fetched packet produces critical failure and zero evidence with no invented fallback
+  ---
+  duration_ms: 0.5076
+  type: 'test'
+  ...
+# Subtest: missing or empty client fails critically before alert fetching
+ok 92 - missing or empty client fails critically before alert fetching
+  ---
+  duration_ms: 0.3688
+  type: 'test'
+  ...
+# Subtest: malformed alert ids fail before fetch while valid suffix whitespace follows the actual parser
+ok 93 - malformed alert ids fail before fetch while valid suffix whitespace follows the actual parser
+  ---
+  duration_ms: 0.8656
+  type: 'test'
+  ...
+# Subtest: thrown alert-fetch error becomes a logged critical resolution failure without fabricated evidence
+ok 94 - thrown alert-fetch error becomes a logged critical resolution failure without fabricated evidence
+  ---
+  duration_ms: 0.5386
+  type: 'test'
+  ...
+# Subtest: authenticated item instructions stay separate from fetched evidence and survive a missing source
+ok 95 - authenticated item instructions stay separate from fetched evidence and survive a missing source
+  ---
+  duration_ms: 0.8468
+  type: 'test'
+  ...
+# Subtest: current custom-note instructions and legacy meeting dispatch never fetch intel packets
+ok 96 - current custom-note instructions and legacy meeting dispatch never fetch intel packets
+  ---
+  duration_ms: 0.4667
+  type: 'test'
+  ...
+# Subtest: a user-marked fact note stays bounded user-authored evidence and cannot become canonical alert truth
+ok 97 - a user-marked fact note stays bounded user-authored evidence and cannot become canonical alert truth
+  ---
+  duration_ms: 0.7218
+  type: 'test'
+  ...
+# Subtest: missing relationship fields stay Unknowns with no legacy overlay and ownership counterexamples fail
+ok 98 - missing relationship fields stay Unknowns with no legacy overlay and ownership counterexamples fail
+  ---
+  duration_ms: 4.1913
+  type: 'test'
+  ...
+# Subtest: actual packet ordering yields deterministic evidence directives and failures across selection order
+ok 99 - actual packet ordering yields deterministic evidence directives and failures across selection order
+  ---
+  duration_ms: 5.5065
+  type: 'test'
+  ...
+# Subtest: current as-of precedence and real freshness helpers retain explicit missing and stale caveats
+ok 100 - current as-of precedence and real freshness helpers retain explicit missing and stale caveats
+  ---
+  duration_ms: 13.0595
+  type: 'test'
+  ...
+# Subtest: actual renderer preserves Unknowns and actions while budgeting an evidence-heavy official list
+ok 101 - actual renderer preserves Unknowns and actions while budgeting an evidence-heavy official list
+  ---
+  duration_ms: 1.0169
+  type: 'test'
+  ...
+# Subtest: exact package.json retirement reconstructs every prior canonical byte from its admitted representations
+not ok 102 - exact package.json retirement reconstructs every prior canonical byte from its admitted representations
+  ---
+  duration_ms: 5.074
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-21\\task\\core-consolidation\\scripts\\lib\\backend-workspace-retirement.spec.mjs:26:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'f3d0b38c43833758b7d47ce6ebb8aabfae566bb98e655e1a6f6f39f67a1c026c'
+    - '5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '5bbfb38f057af67a635f4f86ecb23694fd626ee2e2a9382bcb3ff192960089a0'
+  actual: 'f3d0b38c43833758b7d47ce6ebb8aabfae566bb98e655e1a6f6f39f67a1c026c'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-21/task/core-consolidation/scripts/lib/backend-workspace-retirement.spec.mjs:29:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: exact pnpm-workspace.yaml retirement reconstructs every prior canonical byte from its admitted representations
+ok 103 - exact pnpm-workspace.yaml retirement reconstructs every prior canonical byte from its admitted representations
+  ---
+  duration_ms: 383.0318
+  type: 'test'
+  ...
+# Subtest: exact pnpm-lock.yaml retirement reconstructs every prior canonical byte from its admitted representations
+not ok 104 - exact pnpm-lock.yaml retirement reconstructs every prior canonical byte from its admitted representations
+  ---
+  duration_ms: 7.5671
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-21\\task\\core-consolidation\\scripts\\lib\\backend-workspace-retirement.spec.mjs:26:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'bd5869cf775d7fb6f0fb72f9b0c6c314823b072343d68546e13c05fbaac24ce1'
+    - 'c40a4e5d624cf42f498a1ec0fb87851d970a7395d55afdb3c9e7cbbe38ced948'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'c40a4e5d624cf42f498a1ec0fb87851d970a7395d55afdb3c9e7cbbe38ced948'
+  actual: 'bd5869cf775d7fb6f0fb72f9b0c6c314823b072343d68546e13c05fbaac24ce1'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-21/task/core-consolidation/scripts/lib/backend-workspace-retirement.spec.mjs:29:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: backend defaults exclude Web, retained Onboard SPA and retained E2E while metadata and alias identities remain
+not ok 105 - backend defaults exclude Web, retained Onboard SPA and retained E2E while metadata and alias identities remain
+  ---
+  duration_ms: 2.0434
+  type: 'test'
+  location: 'C:\\Users\\Administrator\\Documents\\Codex\\2026-10-21\\task\\core-consolidation\\scripts\\lib\\backend-workspace-retirement.spec.mjs:47:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'build',
+        'dev',
+        'lint',
+        'typecheck',
+    ...
+        'gate:cleanup4:verification-scopes',
+    +   'build:backend'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'build'
+    1: 'dev'
+    2: 'lint'
+    3: 'typecheck'
+    4: 'test'
+    5: 'verify:research-portfolios-phase0'
+    6: 'verify:research-portfolios-phases0-4'
+    7: 'verify:research-portfolios-phases9-11'
+    8: 'marketing:build'
+    9: 'marketing:test'
+    10: 'db:up'
+    11: 'db:down'
+    12: 'db:logs'
+    13: 'db:migrate'
+    14: 'db:reset'
+    15: 'verify:pe-phase-9'
+    16: 'verify:pe-phase-9:full'
+    17: 'verify:pe-phase-9:backend'
+    18: 'verify:pe-phase-9:backend:dry-run'
+    19: 'verify:pe-phase-10'
+    20: 'verify:engagement-phase-0'
+    21: 'verify:engagement-phase-0:browser'
+    22: 'verify:engagement-phase-1'
+    23: 'verify:engagement-phase-1:local'
+    24: 'verify:engagement-phase-2'
+    25: 'verify:engagement-phase-3'
+    26: 'verify:engagement-phase-3:local'
+    27: 'verify:outreach-v3-phase-1'
+    28: 'verify:outreach-v3-phase-1:local'
+    29: 'verify:outreach-v3-phase-2'
+    30: 'verify:outreach-v3-phase-2:db'
+    31: 'verify:outreach-v3-phase-2:local'
+    32: 'verify:outreach-v3-phase-3'
+    33: 'verify:outreach-v3-phase-3:db'
+    34: 'verify:outreach-v3-phase-3:eval'
+    35: 'verify:outreach-v3-phase-4'
+    36: 'verify:outreach-v3-phase-4:local'
+    37: 'verify:outreach-v3-phase-5'
+    38: 'verify:outreach-v3-phase-5:local'
+    39: 'verify:outreach-v3-phase-6'
+    40: 'verify:outreach-v3-templates'
+    41: 'verify:outreach-v3-templates:db'
+    42: 'verify:phase8-session2'
+    43: 'verify:phase8-session2:db'
+    44: 'verify:phase8-session3'
+    45: 'verify:phase8-session3:admin'
+    46: 'verify:phase8-session3:parity'
+    47: 'verify:phase8-session3:db'
+    48: 'verify:phase8-session4'
+    49: 'verify:phase8-session4:replay'
+    50: 'verify:phase8-session4:enforce'
+    51: 'verify:phase8-session4:image'
+    52: 'verify:phase8-session5'
+    53: 'verify:phase8-session5:corpus'
+    54: 'verify:phase8-session5:provider-decision'
+    55: 'verify:phase8-session6'
+    56: 'verify:phase8-session6:db'
+    57: 'verify:phase8-session6:domain'
+    58: 'prepare:phase8-session6:corpus'
+    59: 'verify:phase8-session7'
+    60: 'verify:phase8-session7:enforce'
+    61: 'verify:phase8-session7:db'
+    62: 'verify:phase8-session7:domain'
+    63: 'verify:phase8-session7:replay'
+    64: 'prepare:phase8-session7:corpus'
+    65: 'validate:knowledge-plane:phase26'
+    66: 'validate:knowledge-plane:phase26:fast'
+    67: 'validate:knowledge-plane:phase26:backend'
+    68: 'validate:knowledge-plane:phase26:backend:typing'
+    69: 'validate:knowledge-plane:phase26:backend:source'
+    70: 'validate:knowledge-plane:phase26:frontend'
+    71: 'validate:knowledge-plane:phase27'
+    72: 'validate:knowledge-plane:phase27:fast'
+    73: 'validate:knowledge-plane:phase27e'
+    74: 'validate:knowledge-plane:phase27e:fast'
+    75: 'validate:knowledge-plane:phase27f'
+    76: 'validate:knowledge-plane:phase27f:fast'
+    77: 'verify:phase8-session8'
+    78: 'verify:phase8-session8:enforce'
+    79: 'verify:phase8-session8:db'
+    80: 'verify:phase8-session8:domain'
+    81: 'verify:phase8-session8:native'
+    82: 'verify:phase8-session8:replay'
+    83: 'prepare:phase8-session8:corpus'
+    84: 'verify:phase8-session9'
+    85: 'verify:phase8-session9:db'
+    86: 'verify:phase8-session9:domain'
+    87: 'verify:phase8-session9:runtime'
+    88: 'verify:phase8-session10'
+    89: 'verify:phase8-session10:db'
+    90: 'verify:phase8-session10:domain'
+    91: 'verify:phase8-session10:runtime'
+    92: 'verify:phase8-session11'
+    93: 'verify:phase8-session11:db'
+    94: 'verify:phase8-session11:domain'
+    95: 'verify:phase8-session11:runtime'
+    96: 'verify:phase8-session12'
+    97: 'verify:phase8-session12:e2e'
+    98: 'verify:phase8-session12:e2e:db'
+    99: 'gate:cleanup1'
+    100: 'gate:cleanup1:core'
+    101: 'gate:cleanup1:guards'
+    102: 'gate:cleanup1:python'
+    103: 'gate:cleanup1:e2e'
+    104: 'gate:cleanup1:test'
+    105: 'coverage:cleanup1'
+    106: 'gate:cleanup4:strategy-time'
+    107: 'gate:cleanup4:registry-ownership'
+    108: 'gate:cleanup4:duplicate-helpers'
+    109: 'gate:cleanup4:tango-page-leaves'
+    110: 'gate:cleanup4:strategy-template-metadata'
+    111: 'gate:cleanup4:workspace-product-metadata'
+    112: 'gate:cleanup4:meri-local-dispatch'
+    113: 'typecheck:backend'
+    114: 'typecheck:frontend'
+    115: 'verify:engagement-phase-1:backend'
+    116: 'verify:engagement-phase-1:frontend'
+    117: 'verify:engagement-phase-2:backend'
+    118: 'verify:engagement-phase-2:frontend'
+    119: 'verify:engagement-phase-3:backend'
+    120: 'verify:engagement-phase-3:frontend'
+    121: 'verify:outreach-v3-phase-1:backend'
+    122: 'verify:outreach-v3-phase-1:frontend'
+    123: 'verify:outreach-v3-phase-3:backend'
+    124: 'verify:outreach-v3-phase-3:frontend'
+    125: 'verify:outreach-v3-phase-4:backend'
+    126: 'verify:outreach-v3-phase-4:frontend'
+    127: 'gate:cleanup4:verification-scopes'
+  actual:
+    0: 'build'
+    1: 'dev'
+    2: 'lint'
+    3: 'typecheck'
+    4: 'test'
+    5: 'verify:research-portfolios-phase0'
+    6: 'verify:research-portfolios-phases0-4'
+    7: 'verify:research-portfolios-phases9-11'
+    8: 'marketing:build'
+    9: 'marketing:test'
+    10: 'db:up'
+    11: 'db:down'
+    12: 'db:logs'
+    13: 'db:migrate'
+    14: 'db:reset'
+    15: 'verify:pe-phase-9'
+    16: 'verify:pe-phase-9:full'
+    17: 'verify:pe-phase-9:backend'
+    18: 'verify:pe-phase-9:backend:dry-run'
+    19: 'verify:pe-phase-10'
+    20: 'verify:engagement-phase-0'
+    21: 'verify:engagement-phase-0:browser'
+    22: 'verify:engagement-phase-1'
+    23: 'verify:engagement-phase-1:local'
+    24: 'verify:engagement-phase-2'
+    25: 'verify:engagement-phase-3'
+    26: 'verify:engagement-phase-3:local'
+    27: 'verify:outreach-v3-phase-1'
+    28: 'verify:outreach-v3-phase-1:local'
+    29: 'verify:outreach-v3-phase-2'
+    30: 'verify:outreach-v3-phase-2:db'
+    31: 'verify:outreach-v3-phase-2:local'
+    32: 'verify:outreach-v3-phase-3'
+    33: 'verify:outreach-v3-phase-3:db'
+    34: 'verify:outreach-v3-phase-3:eval'
+    35: 'verify:outreach-v3-phase-4'
+    36: 'verify:outreach-v3-phase-4:local'
+    37: 'verify:outreach-v3-phase-5'
+    38: 'verify:outreach-v3-phase-5:local'
+    39: 'verify:outreach-v3-phase-6'
+    40: 'verify:outreach-v3-templates'
+    41: 'verify:outreach-v3-templates:db'
+    42: 'verify:phase8-session2'
+    43: 'verify:phase8-session2:db'
+    44: 'verify:phase8-session3'
+    45: 'verify:phase8-session3:admin'
+    46: 'verify:phase8-session3:parity'
+    47: 'verify:phase8-session3:db'
+    48: 'verify:phase8-session4'
+    49: 'verify:phase8-session4:replay'
+    50: 'verify:phase8-session4:enforce'
+    51: 'verify:phase8-session4:image'
+    52: 'verify:phase8-session5'
+    53: 'verify:phase8-session5:corpus'
+    54: 'verify:phase8-session5:provider-decision'
+    55: 'verify:phase8-session6'
+    56: 'verify:phase8-session6:db'
+    57: 'verify:phase8-session6:domain'
+    58: 'prepare:phase8-session6:corpus'
+    59: 'verify:phase8-session7'
+    60: 'verify:phase8-session7:enforce'
+    61: 'verify:phase8-session7:db'
+    62: 'verify:phase8-session7:domain'
+    63: 'verify:phase8-session7:replay'
+    64: 'prepare:phase8-session7:corpus'
+    65: 'validate:knowledge-plane:phase26'
+    66: 'validate:knowledge-plane:phase26:fast'
+    67: 'validate:knowledge-plane:phase26:backend'
+    68: 'validate:knowledge-plane:phase26:backend:typing'
+    69: 'validate:knowledge-plane:phase26:backend:source'
+    70: 'validate:knowledge-plane:phase26:frontend'
+    71: 'validate:knowledge-plane:phase27'
+    72: 'validate:knowledge-plane:phase27:fast'
+    73: 'validate:knowledge-plane:phase27e'
+    74: 'validate:knowledge-plane:phase27e:fast'
+    75: 'validate:knowledge-plane:phase27f'
+    76: 'validate:knowledge-plane:phase27f:fast'
+    77: 'verify:phase8-session8'
+    78: 'verify:phase8-session8:enforce'
+    79: 'verify:phase8-session8:db'
+    80: 'verify:phase8-session8:domain'
+    81: 'verify:phase8-session8:native'
+    82: 'verify:phase8-session8:replay'
+    83: 'prepare:phase8-session8:corpus'
+    84: 'verify:phase8-session9'
+    85: 'verify:phase8-session9:db'
+    86: 'verify:phase8-session9:domain'
+    87: 'verify:phase8-session9:runtime'
+    88: 'verify:phase8-session10'
+    89: 'verify:phase8-session10:db'
+    90: 'verify:phase8-session10:domain'
+    91: 'verify:phase8-session10:runtime'
+    92: 'verify:phase8-session11'
+    93: 'verify:phase8-session11:db'
+    94: 'verify:phase8-session11:domain'
+    95: 'verify:phase8-session11:runtime'
+    96: 'verify:phase8-session12'
+    97: 'verify:phase8-session12:e2e'
+    98: 'verify:phase8-session12:e2e:db'
+    99: 'gate:cleanup1'
+    100: 'gate:cleanup1:core'
+    101: 'gate:cleanup1:guards'
+    102: 'gate:cleanup1:python'
+    103: 'gate:cleanup1:e2e'
+    104: 'gate:cleanup1:test'
+    105: 'coverage:cleanup1'
+    106: 'gate:cleanup4:strategy-time'
+    107: 'gate:cleanup4:registry-ownership'
+    108: 'gate:cleanup4:duplicate-helpers'
+    109: 'gate:cleanup4:tango-page-leaves'
+    110: 'gate:cleanup4:strategy-template-metadata'
+    111: 'gate:cleanup4:workspace-product-metadata'
+    112: 'gate:cleanup4:meri-local-dispatch'
+    113: 'typecheck:backend'
+    114: 'typecheck:frontend'
+    115: 'verify:engagement-phase-1:backend'
+    116: 'verify:engagement-phase-1:frontend'
+    117: 'verify:engagement-phase-2:backend'
+    118: 'verify:engagement-phase-2:frontend'
+    119: 'verify:engagement-phase-3:backend'
+    120: 'verify:engagement-phase-3:frontend'
+    121: 'verify:outreach-v3-phase-1:backend'
+    122: 'verify:outreach-v3-phase-1:frontend'
+    123: 'verify:outreach-v3-phase-3:backend'
+    124: 'verify:outreach-v3-phase-3:frontend'
+    125: 'verify:outreach-v3-phase-4:backend'
+    126: 'verify:outreach-v3-phase-4:frontend'
+    127: 'gate:cleanup4:verification-scopes'
+    128: 'build:backend'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/Administrator/Documents/Codex/2026-10-21/task/core-consolidation/scripts/lib/backend-workspace-retirement.spec.mjs:53:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: mixed default verifiers retain the complete existing backend operand union and explicit historical local entrypoints
+ok 106 - mixed default verifiers retain the complete existing backend operand union and explicit historical local entrypoints
+  ---
+  duration_ms: 0.9376
+  type: 'test'
+  ...
+# Subtest: all seven retired main-Web frontend aliases explicitly fail through the real finite CLI
+ok 107 - all seven retired main-Web frontend aliases explicitly fail through the real finite CLI
+  ---
+  duration_ms: 934.2927
+  type: 'test'
+  ...
+# Subtest: retirement CLI refuses unknown or widened requests and help performs no verification
+ok 108 - retirement CLI refuses unknown or widened requests and help performs no verification
+  ---
+  duration_ms: 0.382
+  type: 'test'
+  ...
+# Subtest: package.json inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver
+ok 109 - package.json inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver
+  ---
+  duration_ms: 49.1417
+  type: 'test'
+  ...
+# Subtest: pnpm-workspace.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver
+ok 110 - pnpm-workspace.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver
+  ---
+  duration_ms: 49.1528
+  type: 'test'
+  ...
+# Subtest: pnpm-lock.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver
+ok 111 - pnpm-lock.yaml inverse rejects scope, metadata, importer and resolution mutations instead of granting a general waiver
+  ---
+  duration_ms: 67.6214
+  type: 'test'
+  ...
+# Subtest: finite inverse refuses foreign paths and coercion ports and its hash profiles are immutable
+ok 112 - finite inverse refuses foreign paths and coercion ports and its hash profiles are immutable
+  ---
+  duration_ms: 0.5272
+  type: 'test'
+  ...
+# Subtest: one canonical code owner preserves all original test twins and retained data
+ok 113 - one canonical code owner preserves all original test twins and retained data
+  ---
+  duration_ms: 10.7852
+  type: 'test'
+  ...
+# Subtest: missing canonical runtime source fails ownership
+ok 114 - missing canonical runtime source fails ownership
+  ---
+  duration_ms: 5.6861
+  type: 'test'
+  ...
+# Subtest: missing canonical regression spec fails instead of dropping its twin
+ok 115 - missing canonical regression spec fails instead of dropping its twin
+  ---
+  duration_ms: 10.9219
+  type: 'test'
+  ...
+# Subtest: reintroduced TypeScript or Python implementations fail the retained-data boundary
+ok 116 - reintroduced TypeScript or Python implementations fail the retained-data boundary
+  ---
+  duration_ms: 4.9901
+  type: 'test'
+  ...
+# Subtest: changed retained fixture bytes fail their immutable digest
+ok 117 - changed retained fixture bytes fail their immutable digest
+  ---
+  duration_ms: 6.5248
+  type: 'test'
+  ...
+# Subtest: canonical fixture drift fails parity even when retained bytes are intact
+ok 118 - canonical fixture drift fails parity even when retained bytes are intact
+  ---
+  duration_ms: 6.3697
+  type: 'test'
+  ...
+# Subtest: missing retained fixture is reported without removing its acceptance row
+ok 119 - missing retained fixture is reported without removing its acceptance row
+  ---
+  duration_ms: 5.3134
+  type: 'test'
+  ...
+# Subtest: an unavailable canonical data file fails closed
+ok 120 - an unavailable canonical data file fails closed
+  ---
+  duration_ms: 5.9268
+  type: 'test'
+  ...
+# Subtest: a self-consistent manifest cannot omit a regression twin from the independent baseline
+ok 121 - a self-consistent manifest cannot omit a regression twin from the independent baseline
+  ---
+  duration_ms: 20.333
+  type: 'test'
+  ...
+# Subtest: changing a retired blob cannot rewrite its immutable canonical proof
+ok 122 - changing a retired blob cannot rewrite its immutable canonical proof
+  ---
+  duration_ms: 9.7771
+  type: 'test'
+  ...
+# Subtest: a different implementation owner cannot replace a canonical mapping
+ok 123 - a different implementation owner cannot replace a canonical mapping
+  ---
+  duration_ms: 43.12
+  type: 'test'
+  ...
+# Subtest: historical source tree hashes must match their immutable Git objects
+ok 124 - historical source tree hashes must match their immutable Git objects
+  ---
+  duration_ms: 15.3235
+  type: 'test'
+  ...
+# Subtest: removing a replay identity or non-replay data cannot shrink retained scope
+ok 125 - removing a replay identity or non-replay data cannot shrink retained scope
+  ---
+  duration_ms: 4.834
+  type: 'test'
+  ...
+# Subtest: canonical API entrypoints satisfy operator ownership without copied implementations
+ok 126 - canonical API entrypoints satisfy operator ownership without copied implementations
+  ---
+  duration_ms: 23.8474
+  type: 'test'
+  ...
+# Subtest: rejects missing canonical entrypoint apps/api/scripts/phase6-stage-cycle.ts
+ok 127 - rejects missing canonical entrypoint apps/api/scripts/phase6-stage-cycle.ts
+  ---
+  duration_ms: 1.6573
+  type: 'test'
+  ...
+# Subtest: rejects missing canonical entrypoint apps/api/scripts/plan-defense-budget-promotion-v1.ts
+ok 128 - rejects missing canonical entrypoint apps/api/scripts/plan-defense-budget-promotion-v1.ts
+  ---
+  duration_ms: 4.59
+  type: 'test'
+  ...
+# Subtest: rejects missing canonical entrypoint apps/api/scripts/status-defense-budget-promotion-v1.ts
+ok 129 - rejects missing canonical entrypoint apps/api/scripts/status-defense-budget-promotion-v1.ts
+  ---
+  duration_ms: 0.8779
+  type: 'test'
+  ...
+# Subtest: rejects reintroduced copied operators, including previously unknown filenames
+ok 130 - rejects reintroduced copied operators, including previously unknown filenames
+  ---
+  duration_ms: 0.4908
+  type: 'test'
+  ...
+# Subtest: current checkout retains canonical entrypoints and has no copied operator tree
+ok 131 - current checkout retains canonical entrypoints and has no copied operator tree
+  ---
+  duration_ms: 3.0935
+  type: 'test'
+  ...
+# Subtest: case ownership preserves historical71 current22 and mapped22RP without inflating internal loops
+ok 132 - case ownership preserves historical71 current22 and mapped22RP without inflating internal loops
+  ---
+  duration_ms: 4.7106
+  type: 'test'
+  ...
+# Subtest: ownership refuses lost duplicate unowned and repinned case identities
+ok 133 - ownership refuses lost duplicate unowned and repinned case identities
+  ---
+  duration_ms: 2.7306
+  type: 'test'
+  ...
+# Subtest: each original RP identity requires one current seam mapping and no invented historical pass
+ok 134 - each original RP identity requires one current seam mapping and no invented historical pass
+  ---
+  duration_ms: 3.2709
+  type: 'test'
+  ...
+# Subtest: source manifest binds exact full-source pin and finite safe regular-file operands
+ok 135 - source manifest binds exact full-source pin and finite safe regular-file operands
+  ---
+  duration_ms: 1.603
+  type: 'test'
+  ...
+# Subtest: CLI argument admission requires explicit plan absolute root and one finite suite
+ok 136 - CLI argument admission requires explicit plan absolute root and one finite suite
+  ---
+  duration_ms: 183.1147
+  type: 'test'
+  ...
+# Subtest: CLI refuses run unknown duplicate missing and implicit-current-checkout arguments
+ok 137 - CLI refuses run unknown duplicate missing and implicit-current-checkout arguments
+  ---
+  duration_ms: 103.9521
+  type: 'test'
+  ...
+# Subtest: preflight rejects absent relative and non-directory source roots before claiming inputs
+ok 138 - preflight rejects absent relative and non-directory source roots before claiming inputs
+  ---
+  duration_ms: 89.1072
+  type: 'test'
+  ...
+# Subtest: finite byte preflight checks every synthetic operand without calling it historical execution
+ok 139 - finite byte preflight checks every synthetic operand without calling it historical execution
+  ---
+  duration_ms: 180.8293
+  type: 'test'
+  ...
+# Subtest: same-size byte drift CRLF SHA-only drift and Git-blob drift all fail closed
+ok 140 - same-size byte drift CRLF SHA-only drift and Git-blob drift all fail closed
+  ---
+  duration_ms: 124.0851
+  type: 'test'
+  ...
+# Subtest: missing and truncated full-source operands refuse instead of producing a green plan
+ok 141 - missing and truncated full-source operands refuse instead of producing a green plan
+  ---
+  duration_ms: 93.3383
+  type: 'test'
+  ...
+# Subtest: all plan contains four manual stages and historical71 only with no current archive or RP pass claim
+ok 142 - all plan contains four manual stages and historical71 only with no current archive or RP pass claim
+  ---
+  duration_ms: 165.1249
+  type: 'test'
+  ...
+# Subtest: finite suites retain exact expected counts and raw lifecycle selector without passWithNoTests
+ok 143 - finite suites retain exact expected counts and raw lifecycle selector without passWithNoTests
+  ---
+  duration_ms: 1885.8107
+  type: 'test'
+  ...
+# Subtest: plan requires manual HEAD tree clean-source dependency platform and shared-queue receipts
+ok 144 - plan requires manual HEAD tree clean-source dependency platform and shared-queue receipts
+  ---
+  duration_ms: 246.37
+  type: 'test'
+  ...
+# Subtest: unknown suites and changed case ownership fail before returning a replay plan
+ok 145 - unknown suites and changed case ownership fail before returning a replay plan
+  ---
+  duration_ms: 120.1226
+  type: 'test'
+  ...
+# Subtest: production CLI cannot accept synthetic fixture bytes or a caller manifest override
+ok 146 - production CLI cannot accept synthetic fixture bytes or a caller manifest override
+  ---
+  duration_ms: 95.0092
+  type: 'test'
+  ...
+# Subtest: planner stays data-only and receipt has no implicit executable results
+ok 147 - planner stays data-only and receipt has no implicit executable results
+  ---
+  duration_ms: 174.8253
+  type: 'test'
+  ...
+1..147
+# tests 147
+# suites 0
+# pass 144
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4047.7467

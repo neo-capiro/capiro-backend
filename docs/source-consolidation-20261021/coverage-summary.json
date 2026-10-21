@@ -1,0 +1,75 @@
+{
+  "baseline": "309af848f1aa403f6c8e54aa0d22990d4230f063",
+  "candidateHead": "121c628ff46a86e3accfbb99b0eff7b7f5cadde4",
+  "candidateTree": "ff3777bb0f7fe2bc6fee4b23e140a47970db42c1",
+  "localInventoryObservedAt": "2026-10-21T13:18:07.02Z",
+  "localRepositories": 93,
+  "localUniqueBranchHeads": 180,
+  "initiallyUnknownHeads": 15,
+  "trackedDirtyCheckouts": 4,
+  "coverageReportSha256": "2fc2db0e3cd81af7710b6bcdb53ae706d94d66c84242959d03a345d27ee99ffe",
+  "localAuditReportSha256": "1a937506377652a7d487ee503097fb378720925abc2c3fbe4c098993ff7c8e46",
+  "sourceScope": "Metadata inventory of C:/Users/Administrator/Documents/Codex, depth three; source comparison only for selected committed heads imported into the task-owned bare repository. No dirty/untracked content, credentials, or protected unpublished Engagement body adopted.",
+  "localCategoryCounts": [
+    {
+      "category": "already consolidated",
+      "count": 10
+    },
+    {
+      "category": "held",
+      "count": 1
+    },
+    {
+      "category": "received supplemental",
+      "count": 2
+    },
+    {
+      "category": "superseded",
+      "count": 2
+    }
+  ],
+  "publishedBranchCategoryCounts": [
+    {
+      "category": "already consolidated",
+      "count": 124
+    },
+    {
+      "category": "held",
+      "count": 5
+    },
+    {
+      "category": "intentional exclusion",
+      "count": 11
+    },
+    {
+      "category": "received supplemental",
+      "count": 7
+    },
+    {
+      "category": "superseded",
+      "count": 4
+    }
+  ],
+  "prCategoryCounts": [
+    {
+      "category": "already consolidated",
+      "count": 89
+    },
+    {
+      "category": "held",
+      "count": 1
+    },
+    {
+      "category": "intentional exclusion",
+      "count": 5
+    },
+    {
+      "category": "received supplemental",
+      "count": 7
+    },
+    {
+      "category": "superseded",
+      "count": 1
+    }
+  ]
+}

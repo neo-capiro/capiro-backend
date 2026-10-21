@@ -1,0 +1,22 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:43:12.7189074Z",
+  "endedAt": "2026-10-16T02:43:13.2546484Z",
+  "ownedPID": 23380,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 59166720,
+  "hardWallSeconds": 60,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "744c23a1e6ee3c27ee5c88ba37fdb5230592445c8d9f0200d6c5d71a486c76c3",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

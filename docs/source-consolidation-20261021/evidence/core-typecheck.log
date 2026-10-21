@@ -1,0 +1,28 @@
+
+<--- Last few GCs --->
+
+[11844:00000185D0729000]    67710 ms: Mark-Compact 4040.2 (4131.8) -> 4030.3 (4138.6) MB, pooled: 0 MB, 2262.96 / 0.00 ms  (average mu = 0.284, current mu = 0.115) allocation failure; scavenge might not succeed
+[11844:00000185D0729000]    71343 ms: Mark-Compact 4047.4 (4139.6) -> 4035.8 (4144.1) MB, pooled: 0 MB, 3535.83 / 0.00 ms  (average mu = 0.133, current mu = 0.027) allocation failure; scavenge might not succeed
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF6EDB859D7 node::SetCppgcReference+21127
+ 2: 00007FF6EDAE52AB EVP_MD_meth_get_input_blocksize+102619
+ 3: 00007FF6EE6F4681 v8::Isolate::ReportExternalAllocationLimitReached+65
+ 4: 00007FF6EE6E1136 v8::Function::Experimental_IsNopFunction+3318
+ 5: 00007FF6EE53D760 v8::internal::StrongRootAllocatorBase::StrongRootAllocatorBase+33904
+ 6: 00007FF6EE539DEA v8::internal::StrongRootAllocatorBase::StrongRootAllocatorBase+19194
+ 7: 00007FF6EE55039C v8::Isolate::GetHeapProfiler+8012
+ 8: 00007FF6EE550C1A v8::Isolate::GetHeapProfiler+10186
+ 9: 00007FF6EE55BD51 v8::Isolate::GetHeapProfiler+55553
+10: 00007FF6EE56F93A v8::Isolate::GetHeapProfiler+136426
+11: 00007FF6EE56FC13 v8::Isolate::GetHeapProfiler+137155
+12: 00007FF6EE30A4F3 v8::MemorySpan<std::basic_string_view<char,std::char_traits<char> > const >::end+129507
+13: 00007FF6EE30B302 v8::MemorySpan<std::basic_string_view<char,std::char_traits<char> > const >::end+133106
+14: 00007FF6EE30ABF5 v8::MemorySpan<std::basic_string_view<char,std::char_traits<char> > const >::end+131301
+15: 00007FF6EE2378FE v8::base::AddressSpaceReservation::AddressSpaceReservation+364830
+16: 00007FF68E76DAFA 

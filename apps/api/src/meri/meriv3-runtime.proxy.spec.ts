@@ -14,18 +14,11 @@ const ctx = {
 
 function make() {
   const raw = {
-    streamMessage: jest.fn(async () => undefined),
     listConversations: jest.fn(async () => ['raw']),
     getArtifactImage: jest.fn(async () => ({
       buffer: Buffer.from('legacy-tenant-only-result'),
       contentType: 'image/png',
     })),
-    orchestrateContext: jest.fn(async () => ({})),
-    loadRelevantMemories: jest.fn(async () => []),
-    policyForIntent: jest.fn(() => ({})),
-    templateForIntent: jest.fn(() => null),
-    meriV2Chat: { streamChat: jest.fn(async () => undefined) },
-    clientKb: { buildSnapshot: jest.fn(async () => 'legacy-kb') },
   } as unknown as MeriService;
   const meriv3 = {
     shouldHandle: jest.fn(async () => false),
@@ -66,7 +59,7 @@ describe('Meri runtime proxy Phase 19', () => {
     });
     expect(governedRuntime.runChatTurn).not.toHaveBeenCalled();
     expect(meriv3.streamMessage).not.toHaveBeenCalled();
-    expect(raw.streamMessage).not.toHaveBeenCalled();
+    expect(raw).not.toHaveProperty('streamMessage');
   });
 
   test('resolves governed context once before routing an allowed turn to MeriV3', async () => {
@@ -83,7 +76,7 @@ describe('Meri runtime proxy Phase 19', () => {
     const forwarded = (meriv3.streamMessage as jest.Mock).mock.calls[0]![3];
     forwarded.write('data: {"type":"text","text":"hello"}\n\n');
     expect(writer.write).toHaveBeenCalledWith('data: {"type":"text","text":"hello"}\n\n');
-    expect(raw.streamMessage).not.toHaveBeenCalled();
+    expect(raw).not.toHaveProperty('streamMessage');
   });
 
   test('preserves regenerate mode when preparing the governed turn', async () => {

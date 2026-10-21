@@ -1,0 +1,72 @@
+[
+  {
+    "name": "persistOutreachHold",
+    "firstLine": 4386,
+    "lastLine": 4463,
+    "physicalLines": 78,
+    "nonblankLines": 78,
+    "sha256LF": "6dc635dcdeeaf792a26ba17762ab08e48aa38f0414cca4ea2396c58f99af700b",
+    "firstText": "  /**",
+    "lastText": "  }"
+  },
+  {
+    "name": "recentClientMeetingsForOutreach",
+    "firstLine": 9596,
+    "lastLine": 9641,
+    "physicalLines": 46,
+    "nonblankLines": 44,
+    "sha256LF": "7dcf6a6297a249b909dcedb7c72624fd4d509ebda0592200d7d8b9a752c547a2",
+    "firstText": "  private async recentClientMeetingsForOutreach(ctx: TenantContext, clientId: string) {",
+    "lastText": "  }"
+  },
+  {
+    "name": "enrichOutreachContextItems",
+    "firstLine": 9643,
+    "lastLine": 9775,
+    "physicalLines": 133,
+    "nonblankLines": 131,
+    "sha256LF": "6c812a10a267633d80ab9949b4b2a723560aa7d53884ee37976f56f16139fa3a",
+    "firstText": "  /**",
+    "lastText": "  }"
+  },
+  {
+    "name": "peTruthBlock",
+    "firstLine": 9793,
+    "lastLine": 9796,
+    "physicalLines": 4,
+    "nonblankLines": 4,
+    "sha256LF": "5ca2cfb3acc38e983affa7e4d8c39428730b7352b4f9cefc73853e478f2529ec",
+    "firstText": "  /** Authoritative PE-funding block. Null if the PE isn't on record. */",
+    "lastText": "  }"
+  },
+  {
+    "name": "outreachClientPeopleBlock",
+    "firstLine": 9933,
+    "lastLine": 9952,
+    "physicalLines": 20,
+    "nonblankLines": 20,
+    "sha256LF": "2687f0a3bc6a67a3b235ed09ae251dfe6382b8f54453628f9aa09664ca0e2718",
+    "firstText": "  /**",
+    "lastText": "  }"
+  },
+  {
+    "name": "outreachClientTargetOfficesBlock",
+    "firstLine": 9954,
+    "lastLine": 10015,
+    "physicalLines": 62,
+    "nonblankLines": 61,
+    "sha256LF": "7a67fe1b8c7347dc380312ebe94ce7996fc526385a599f123037d5561c6528ca",
+    "firstText": "  /**",
+    "lastText": "  }"
+  },
+  {
+    "name": "outreachTargetRecommendations",
+    "firstLine": 10246,
+    "lastLine": 10270,
+    "physicalLines": 25,
+    "nonblankLines": 25,
+    "sha256LF": "0e717bad5cc3aab6bb26615c53d010cb2656f83f3a5c56a36328a75b01006249",
+    "firstText": "  /**",
+    "lastText": "  }"
+  }
+]

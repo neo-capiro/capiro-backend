@@ -1,0 +1,46 @@
+PASS apps/api/src/directory/directory-browse.spec.ts
+  DirectoryBrowse
+    ΓêÜ returns the first page with the default size for fractional pagination below one (12 ms)
+    ΓêÜ returns staffers with default pagination for fractions below one (1 ms)
+    ΓêÜ returns committees with default pagination for fractions below one
+    ΓêÜ returns committee staff with default pagination for fractions below one (1 ms)
+    ΓêÜ ranks own-name matches before staff-only matches and leaves cached contacts untouched (1 ms)
+    ΓêÜ applies staffer search and structured filters before clamping the page
+    ΓêÜ keeps committee code lookup and missing-roster behavior (1 ms)
+    toPositiveInt
+      ΓêÜ uses the fallback when 0.5 rounds down to zero (3 ms)
+      ΓêÜ uses the fallback when "0.5" rounds down to zero
+      ΓêÜ uses the fallback when "0.999" rounds down to zero
+      ΓêÜ uses the fallback when 5e-324 rounds down to zero
+      ΓêÜ preserves the fallback for undefined
+      ΓêÜ preserves the fallback for null (1 ms)
+      ΓêÜ preserves the fallback for ""
+      ΓêÜ preserves the fallback for " "
+      ΓêÜ preserves the fallback for 0
+      ΓêÜ preserves the fallback for "0"
+      ΓêÜ preserves the fallback for -1
+      ΓêÜ preserves the fallback for "-0.5"
+      ΓêÜ preserves the fallback for "invalid"
+      ΓêÜ preserves the fallback for NaN
+      ΓêÜ preserves the fallback for Infinity
+      ΓêÜ preserves the fallback for "Infinity"
+      ΓêÜ preserves the fallback for -Infinity
+      ΓêÜ preserves the fallback for "-Infinity"
+      ΓêÜ normalizes 1 to the positive integer 1
+      ΓêÜ normalizes "1" to the positive integer 1
+      ΓêÜ normalizes 24 to the positive integer 24
+      ΓêÜ normalizes "24" to the positive integer 24 (1 ms)
+      ΓêÜ normalizes 2.9 to the positive integer 2
+      ΓêÜ normalizes "2.9" to the positive integer 2
+      ΓêÜ caps 20000 at the maximum
+      ΓêÜ caps "20000.9" at the maximum
+      ΓêÜ caps 20001 at the maximum
+      ΓêÜ caps "20001" at the maximum
+      ΓêÜ does not apply the maximum to the fallback (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       36 passed, 36 total
+Snapshots:   0 total
+Time:        3.247 s
+Ran all test suites within paths "apps/api/src/directory/directory-browse.spec.ts".
+Test results written to: ..\core-validation\directory-browse.json

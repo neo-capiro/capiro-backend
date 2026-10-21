@@ -1,0 +1,21 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "docs/backend-meri-loop-retirement-20261016/count-source-delta.cjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T04:42:39.8970820Z",
+  "endedAt": "2026-10-16T04:42:43.6936231Z",
+  "ownedPID": 23196,
+  "exitCode": 0,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 45555712,
+  "hardWallSeconds": 120,
+  "configuredWorkingSetStopBytes": 536870912,
+  "stoppedForObservedResourcePressure": false,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "e305754c4afd681a1b68979b5f1bb2209850bee2db6e4763cb8134f533b36816",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

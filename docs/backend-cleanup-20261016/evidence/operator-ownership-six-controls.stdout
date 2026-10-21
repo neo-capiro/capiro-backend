@@ -1,0 +1,14 @@
+Γ£ö canonical API entrypoints satisfy operator ownership without copied implementations (0.8542ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/phase6-stage-cycle.ts (0.1585ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/plan-defense-budget-promotion-v1.ts (0.0571ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/status-defense-budget-promotion-v1.ts (0.0495ms)
+Γ£ö rejects reintroduced copied operators, including previously unknown filenames (0.0816ms)
+Γ£ö current checkout retains canonical entrypoints and has no copied operator tree (0.9567ms)
+Γä╣ tests 6
+Γä╣ suites 0
+Γä╣ pass 6
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 15.099

@@ -1,0 +1,6 @@
+0483963adc5382202408e8398d8b1601f53d8525:infra/cdk/lib/engagement-api/engagement-api-service-stack.ts:328:  // engagement.service.ts (createAttachmentUploadUrl, confirmAttachment,
+0483963adc5382202408e8398d8b1601f53d8525:infra/cdk/test/engagement-api-active-promotion.spec.ts:145:// engagement.service.ts actually reads to find that bucket
+0483963adc5382202408e8398d8b1601f53d8525:scripts/engagement-phase3-ui-inventory.mjs:341:    evidence: 'apps/api/src/engagement/engagement.service.ts:2515 openOutreachInConnectedEmail',
+0483963adc5382202408e8398d8b1601f53d8525:scripts/outreach-v3-p1-change-scope.spec.mjs:88:    'apps/api/src/engagement/engagement.service.ts',
+0483963adc5382202408e8398d8b1601f53d8525:scripts/outreach-v3-p1-change-scope.spec.mjs:212:      { file: 'apps/api/src/engagement/engagement.service.ts', before: 'old', after: 'new' },
+0483963adc5382202408e8398d8b1601f53d8525:tests/support/legacy-web/source-data/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json:1381:      "evidence": "apps/api/src/engagement/engagement.service.ts:2515 openOutreachInConnectedEmail",

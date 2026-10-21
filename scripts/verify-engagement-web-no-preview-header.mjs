@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-/** @cleanup-smoke noArgsExit=0 */
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
- * Current-web no-preview-header guard.
+ * Explicit historical-Web no-preview-header guard. Current frontend artifact
+ * acceptance is separate; this command requires the pinned legacy source root.
  *
  * The dark engagement-api service is only ever reachable via
  * X-Capiro-Engagement-Preview: v3. Nothing in the production web bundle may
@@ -19,10 +20,24 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { requirePinnedLegacySourceRoot } from '../tests/support/legacy-web/source-root.mjs';
 
-console.error('Usage: node scripts/verify-engagement-web-no-preview-header.mjs (no arguments runs the existing verifier)');
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const usage = 'Usage: CAPIRO_LEGACY_WEB_SOURCE_ROOT=<clean pinned checkout> node scripts/verify-engagement-web-no-preview-header.mjs (historical frontend proof only)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (process.argv.length !== 2) {
+  console.error(usage);
+  process.exit(2);
+}
+let REPO_ROOT;
+try {
+  REPO_ROOT = requirePinnedLegacySourceRoot();
+} catch (error) {
+  console.error(`${usage}\n${error.message}`);
+  process.exit(2);
+}
 const WEB_SRC = path.join(REPO_ROOT, 'apps', 'web', 'src');
 
 /**
@@ -96,4 +111,4 @@ if (findings.length > 0) {
   console.error(`\nENGAGEMENT_WEB_PREVIEW_HEADER_GUARD_FAILED (${findings.length})`);
   process.exit(1);
 }
-console.log('ENGAGEMENT_WEB_PREVIEW_HEADER_GUARD_PASSED');
+console.log('ENGAGEMENT_HISTORICAL_WEB_PREVIEW_HEADER_GUARD_PASSED');

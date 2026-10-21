@@ -1,0 +1,225 @@
+{
+  "parent": "a2e3eee209dc82d7536f3fc318a9d952c80e628a",
+  "sourceHead": "f69d4a1bdfe354d95daaffa273bd274d1bf89011",
+  "sealedParentReceiptSHA256": "17add412e04ef50d394f1cfed73ec62c4e3c35ad8edad73c21d95ae974837bd3",
+  "originalBaseline": "016e79b585c14f20d13669e13c987c01e3dd29dd",
+  "originalBefore": {
+    "unique": {
+      "files": 10136,
+      "nonblankLines": 2473031,
+      "physicalLines": 2640498
+    },
+    "mirror": {
+      "files": 730,
+      "nonblankLines": 191844,
+      "physicalLines": 206021
+    },
+    "physical": {
+      "files": 10866,
+      "nonblankLines": 2664875,
+      "physicalLines": 2846519
+    }
+  },
+  "method": "Sealed PR36 after totals plus changed regular Git-blob deltas under unchanged original016e UTF-8/nonblank/comment/exclusion rules. No full source scan.",
+  "before": {
+    "unique": {
+      "files": 7981,
+      "nonblankLines": 1809228,
+      "physicalLines": 1934974
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7981,
+      "nonblankLines": 1809228,
+      "physicalLines": 1934974
+    }
+  },
+  "after": {
+    "unique": {
+      "files": 7981,
+      "nonblankLines": 1808956,
+      "physicalLines": 1934700
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 7981,
+      "nonblankLines": 1808956,
+      "physicalLines": 1934700
+    }
+  },
+  "deltaFromParent": {
+    "unique": {
+      "files": 0,
+      "nonblankLines": -272,
+      "physicalLines": -274
+    },
+    "mirror": {
+      "files": 0,
+      "nonblankLines": 0,
+      "physicalLines": 0
+    },
+    "physical": {
+      "files": 0,
+      "nonblankLines": -272,
+      "physicalLines": -274
+    }
+  },
+  "changes": [
+    {
+      "path": "apps/api/src/engagement/engagement-intel-context.spec.ts",
+      "status": "D",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 214,
+        "physicalLines": 226,
+        "blob": "b68b0c53d606967cb10eb0beccd800822aebc799"
+      },
+      "after": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "delta": {
+        "files": -1,
+        "nonblankLines": -214,
+        "physicalLines": -226
+      }
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 11722,
+        "physicalLines": 12303,
+        "blob": "441b35d1ae3eb6dc8783f8f05f753aa53dd9e383"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 11350,
+        "physicalLines": 11926,
+        "blob": "5bbe33a50b48da58b4a21a4d927ae91f523cb41e"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": -372,
+        "physicalLines": -377
+      }
+    },
+    {
+      "path": "scripts/backend-source-qualification.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 257,
+        "physicalLines": 263,
+        "blob": "b5cbae399ccc5c7bfb51bccb24706e1fddb5e0af"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 265,
+        "physicalLines": 271,
+        "blob": "1000f3a94afe9601db49ccc3b3b05ea0df2134db"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 8,
+        "physicalLines": 8
+      }
+    },
+    {
+      "path": "scripts/ci/meri-domain-cleanup.contract.spec.mjs",
+      "status": "M",
+      "mirror": false,
+      "before": {
+        "files": 1,
+        "nonblankLines": 428,
+        "physicalLines": 457,
+        "blob": "1ad23427119f153a718a327533202d208f728299"
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 461,
+        "physicalLines": 490,
+        "blob": "435870271aa8874907b5b6fbae238dc9ea62df86"
+      },
+      "delta": {
+        "files": 0,
+        "nonblankLines": 33,
+        "physicalLines": 33
+      }
+    },
+    {
+      "path": "scripts/ci/outreach-current-evidence.contract.spec.mjs",
+      "status": "A",
+      "mirror": false,
+      "before": {
+        "files": 0,
+        "nonblankLines": 0,
+        "physicalLines": 0,
+        "blob": null
+      },
+      "after": {
+        "files": 1,
+        "nonblankLines": 273,
+        "physicalLines": 288,
+        "blob": "c9c1e182987b4273ca909116aa3336cf19fb8d9c"
+      },
+      "delta": {
+        "files": 1,
+        "nonblankLines": 273,
+        "physicalLines": 288
+      }
+    }
+  ],
+  "excludedChanges": [
+    {
+      "path": "docs/backend-outreach-cleanup-20261016/.gitattributes",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-outreach-cleanup-20261016/SOURCE-MAP.md",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-candidate-reference-pass.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-candidate-regions.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-legacy-case-ids.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "docs/backend-outreach-cleanup-20261016/evidence/next-engagement-pe-reference-pass.json",
+      "status": "A",
+      "reason": "outside-first-party-code-roots"
+    },
+    {
+      "path": "tests/support/legacy-outreach/CASE-OWNERSHIP.json",
+      "status": "A",
+      "reason": "supplemental-config-data"
+    }
+  ],
+  "limits": "Source size only. New source-contract/fixture controls increase source intentionally. No native coverage, runtime, image or frontend acceptance claim. Historical qualification data and all old receipts retain their existing disclosed accounting."
+}

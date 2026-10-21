@@ -1,0 +1,244 @@
+Γ£ö current source catalog accepts only its declared single ownership modes (0.7284ms)
+Γ£ö current source catalog refuses missing intent before executing anything (0.2674ms)
+Γ£ö current source catalog refuses unknown arguments (0.0954ms)
+Γ£ö current source catalog refuses combined modes (0.0705ms)
+Γ£ö current source catalog refuses duplicated mode flags (0.0788ms)
+Γ£ö current source catalog names every historical obligation and its canonical frontend owner (1.1171ms)
+Γ£ö fake executor observes exactly the finite Node argv and no service commands (4.6528ms)
+Γ£ö Meri historical replay is explicit data ownership outside the current source steps (0.7716ms)
+Γ£ö a failed current source step stops later work and cannot emit completion (4.1112ms)
+Γ£ö uncertain child results and empty or unowned source plans fail closed (11.8176ms)
+Γ£ö plan and help inspect ownership without invoking any child process (0.2128ms)
+Γ£ö current workspace fields and real delegated Turbo filters validate (0.9063ms)
+Γ£ö unrelated versions dependencies and backend importers remain free to evolve (3.0831ms)
+Γ£ö retired Web source package workspace and importer regressions each fail (10.5552ms)
+Γ£ö Onboard and E2E retain their package workspace importer and identity support (14.2073ms)
+Γ£ö fake filter substrings shell controls and forwarded flags cannot satisfy current defaults (19.8845ms)
+Γ£ö typecheck delegation follows actual tokens supports equivalent quoting and rejects cycles or missing filters (10.8691ms)
+Γ£ö dry-run graph help and version flags cannot replace executing current default tasks (17.9193ms)
+Γ£ö extra positive broad negative and duplicated default selectors cannot narrow the current task set to zero (11.5594ms)
+Γ£û case ownership preserves historical71 current22 and mapped22RP without inflating internal loops (0.6188ms)
+Γ£ö ownership refuses lost duplicate unowned and repinned case identities (0.9651ms)
+Γ£û each original RP identity requires one current seam mapping and no invented historical pass (0.6332ms)
+Γ£ö source manifest binds exact full-source pin and finite safe regular-file operands (0.4748ms)
+Γ£ö CLI argument admission requires explicit plan absolute root and one finite suite (21.723ms)
+Γ£ö CLI refuses run unknown duplicate missing and implicit-current-checkout arguments (19.1128ms)
+Γ£ö preflight rejects absent relative and non-directory source roots before claiming inputs (18.362ms)
+Γ£ö finite byte preflight checks every synthetic operand without calling it historical execution (49.0203ms)
+Γ£ö same-size byte drift CRLF SHA-only drift and Git-blob drift all fail closed (31.9628ms)
+Γ£û missing and truncated full-source operands refuse instead of producing a green plan (19.2522ms)
+Γ£û all plan contains four manual stages and historical71 only with no current archive or RP pass claim (17.0187ms)
+Γ£û finite suites retain exact expected counts and raw lifecycle selector without passWithNoTests (17.7146ms)
+Γ£û plan requires manual HEAD tree clean-source dependency platform and shared-queue receipts (17.2676ms)
+Γ£û unknown suites and changed case ownership fail before returning a replay plan (17.5576ms)
+Γ£û production CLI cannot accept synthetic fixture bytes or a caller manifest override (17.1897ms)
+Γ£û planner stays data-only and receipt has no implicit executable results (17.7042ms)
+Γä╣ tests 35
+Γä╣ suites 0
+Γä╣ pass 26
+Γä╣ fail 9
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 409.7246
+
+Γ£û failing tests:
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:36:1
+Γ£û case ownership preserves historical71 current22 and mapped22RP without inflating internal loops (0.6188ms)
+  Error: Case identity is missing or duplicated: raw-lifecycle
+      at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+      at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:37:18)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:62:1
+Γ£û each original RP identity requires one current seam mapping and no invented historical pass (0.6332ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /current-seam mapping/. Input:
+  
+  'Error: Case identity is missing or duplicated: raw-lifecycle'
+  
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Case identity is missing or duplicated: raw-lifecycle
+        at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+        at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:64:23
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:64:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19),
+    expected: /current-seam mapping/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:136:1
+Γ£û missing and truncated full-source operands refuse instead of producing a green plan (19.2522ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /bytes differ/. Input:
+  
+  'Error: Case identity is missing or duplicated: raw-lifecycle'
+  
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:139:10
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:136:99)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Case identity is missing or duplicated: raw-lifecycle
+        at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+        at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+        at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:139:23
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:139:10
+        at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:136:99)
+        at Test.runInAsyncScope (node:async_hooks:227:14),
+    expected: /bytes differ/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:144:1
+Γ£û all plan contains four manual stages and historical71 only with no current archive or RP pass claim (17.0187ms)
+  Error: Case identity is missing or duplicated: raw-lifecycle
+      at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+      at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+      at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:145:16
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:144:115)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:156:1
+Γ£û finite suites retain exact expected counts and raw lifecycle selector without passWithNoTests (17.7146ms)
+  Error: Case identity is missing or duplicated: raw-lifecycle
+      at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+      at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+      at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:158:18
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:156:109)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:168:1
+Γ£û plan requires manual HEAD tree clean-source dependency platform and shared-queue receipts (17.2676ms)
+  Error: Case identity is missing or duplicated: raw-lifecycle
+      at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+      at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+      at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:169:16
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:168:105)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:180:1
+Γ£û unknown suites and changed case ownership fail before returning a replay plan (17.5576ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /count mismatch/. Input:
+  
+  'Error: Case identity is missing or duplicated: raw-lifecycle'
+  
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:183:10
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:180:93)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Case identity is missing or duplicated: raw-lifecycle
+        at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+        at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+        at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:183:23
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:183:10
+        at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:180:93)
+        at Test.runInAsyncScope (node:async_hooks:227:14),
+    expected: /count mismatch/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:186:1
+Γ£û production CLI cannot accept synthetic fixture bytes or a caller manifest override (17.1897ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /bytes differ/. Input:
+  
+  'Error: Case identity is missing or duplicated: raw-lifecycle'
+  
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:188:10
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:186:98)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Case identity is missing or duplicated: raw-lifecycle
+        at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+        at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+        at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+        at replayPlanCli (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:176:16)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:188:23
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:188:10
+        at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+        at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:186:98),
+    expected: /bytes differ/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\support\legacy-meri\replay-plan.spec.mjs:193:1
+Γ£û planner stays data-only and receipt has no implicit executable results (17.7042ms)
+  Error: Case identity is missing or duplicated: raw-lifecycle
+      at fail (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:24:33)
+      at validateOwnership (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:49:9)
+      at buildHistoricalReplayPlan (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.mjs:143:18)
+      at file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:195:16
+      at withInputs (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:27:12)
+      at TestContext.<anonymous> (file:///C:/Users/neoma/Documents/Codex/2026-10-15/task-10/backend-cleanup/tests/support/legacy-meri/replay-plan.spec.mjs:193:86)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)

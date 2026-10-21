@@ -1,0 +1,282 @@
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase0-browser-acceptance.mjs (1.5942ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase1-browser-parity.mjs (0.5612ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase1-post-acceptance.mjs (0.3334ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-browser-interactions.mjs (0.6069ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-browser-parity-with-replay.mjs (0.324ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-browser-parity.mjs (0.3981ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-browser-parity.spec.mjs (0.2833ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-browser-scenarios.mjs (0.2364ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-browser-scenarios.spec.mjs (0.3238ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-refresh-token.mjs (0.6598ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/phase19-cdp.mjs (0.5502ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-network-recorder.mjs (0.4348ms)
+Γ£ö harness relocation preserves original bytes after exact path inverse: apps/web/scripts/engagement-phase3-dom-normalizer.mjs (0.3784ms)
+Γ£ö historical operand retains source bytes and blob: apps/web/src/App.tsx (0.9544ms)
+Γ£ö one-byte historical operand drift is refused: apps/web/src/App.tsx (1.0113ms)
+Γ£ö historical operand retains source bytes and blob: apps/web/src/lib/hearing-recording-transport.ts (0.5071ms)
+Γ£ö one-byte historical operand drift is refused: apps/web/src/lib/hearing-recording-transport.ts (0.3669ms)
+Γ£ö historical operand retains source bytes and blob: apps/web/src/lib/engagement-api-preview-routes.generated.ts (0.3749ms)
+Γ£ö one-byte historical operand drift is refused: apps/web/src/lib/engagement-api-preview-routes.generated.ts (0.3895ms)
+Γ£ö an undeclared historical operand is refused before reading it (0.1319ms)
+Γ£ö a retired local browser runner refuses a missing Web tree (0.1768ms)
+Γ£ö the local browser preflight preserves an explicit full-source workspace (0.1009ms)
+Γä╣ tests 22
+Γä╣ suites 0
+Γä╣ pass 22
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 39.0188
+Γ£ö current backend manifests and controller declarations validate without UI coverage assumptions (1.6491ms)
+Γ£ö current backend external and read classifications come from retained controller metadata (0.2016ms)
+Γ£ö current route catalog is deterministic and does not mutate source declarations (38.7183ms)
+Γ£ö historical byte inputs are preserved only as qualification data identities (2.6683ms)
+Γ£ö a duplicate current backend method and path is rejected (17.8272ms)
+Γ£ö a missing admitted route manifest is rejected (0.6959ms)
+Γ£ö an unavailable owned controller source is rejected (17.1176ms)
+Γ£ö a controller metadata name absent from its source is rejected (17.8878ms)
+Γ£ö a handler metadata name absent from its source is rejected (18.7044ms)
+Γ£ö an unsupported route method is rejected (22.2806ms)
+Γ£ö a route path carrying a query or traversal is rejected (23.2364ms)
+Γ£ö an additive manifest with a different runtime declaration is rejected (28.6883ms)
+Γ£ö an additive route cannot escape the existing Engagement prefix (28.1201ms)
+Γ£ö removing the current send action metadata introduces its own backend diagnostic (19.9433ms)
+Γ£ö send-intent status reads remain reads while mutation heuristics remain external (0.1939ms)
+Γ£ö the two documented local exemptions cannot absorb a genuine current send (0.2494ms)
+Γ£ö invalid handler identifiers are rejected before source matching (18.6149ms)
+Γ£ö a stale heuristic exemption is rejected against current backend declarations (21.5426ms)
+Γ£ö current preview patterns exclude every non-preview backend catalog path (6.2896ms)
+Γ£ö a broad prefix pattern is rejected even if route coverage is unchanged (1.6467ms)
+Γ£ö an unanchored pattern is rejected (1.9146ms)
+Γ£ö dropping an in-prefix route cannot shrink the checked preview boundary (1.7415ms)
+Γ£ö the current backend check cannot broaden the reviewed preview prefix (1.7804ms)
+Γ£ö the current backend check cannot add a Krisp exclusion to the historical policy (1.9026ms)
+Γ£ö additive global and controller prefix metadata mutations introduce their own diagnostics (90.0822ms)
+Γ£ö an additive route cannot move into a sibling Engagement or V3 family owner (36.2522ms)
+Γ£ö legitimate future routes under each admitted additive owner need no historical UI update (17.1614ms)
+Γä╣ tests 27
+Γä╣ suites 0
+Γä╣ pass 27
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 573.1609
+Γ£ö current source catalog accepts only its declared single ownership modes (0.9525ms)
+Γ£ö current source catalog refuses missing intent before executing anything (0.3877ms)
+Γ£ö current source catalog refuses unknown arguments (0.1156ms)
+Γ£ö current source catalog refuses combined modes (0.0998ms)
+Γ£ö current source catalog refuses duplicated mode flags (0.1038ms)
+Γ£ö current source catalog names every historical obligation and its canonical frontend owner (2.0956ms)
+Γ£ö fake executor observes exactly the finite Node argv and no service commands (4.9877ms)
+Γ£ö Meri historical replay is explicit data ownership outside the current source steps (0.9694ms)
+Γ£ö a failed current source step stops later work and cannot emit completion (4.1233ms)
+Γ£ö uncertain child results and empty or unowned source plans fail closed (15.2569ms)
+Γ£ö plan and help inspect ownership without invoking any child process (0.2862ms)
+Γ£ö current workspace fields and real delegated Turbo filters validate (2.1857ms)
+Γ£ö unrelated versions dependencies and backend importers remain free to evolve (6.0571ms)
+Γ£ö retired Web source package workspace and importer regressions each fail (21.7632ms)
+Γ£ö Onboard and E2E retain their package workspace importer and identity support (24.9899ms)
+Γ£ö fake filter substrings shell controls and forwarded flags cannot satisfy current defaults (34.0831ms)
+Γ£ö typecheck delegation follows actual tokens supports equivalent quoting and rejects cycles or missing filters (20.2894ms)
+Γ£ö dry-run graph help and version flags cannot replace executing current default tasks (37.1429ms)
+Γ£ö extra positive broad negative and duplicated default selectors cannot narrow the current task set to zero (17.966ms)
+Γä╣ tests 19
+Γä╣ suites 0
+Γä╣ pass 19
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 221.9831
+CURRENT_BACKEND_SOURCE_CONTRACT_OK {"mode":"--check-routes","issues":[],"summary":{"manifests":9,"routes":207,"primary":144,"additive":63},"inputs":{"purpose":"immutable-qualification-data-identity-only","inventoryRequests":237,"generatedBytes":10476,"historicalPackageBytes":2250},"boundary":null,"frontendParityOwner":"capiro-frontend","liveRoutingAcceptance":false}
+CURRENT_BACKEND_SOURCE_CONTRACT_OK {"mode":"--check-preview-boundary","issues":[],"summary":{"manifests":9,"routes":207,"primary":144,"additive":63},"inputs":{"purpose":"immutable-qualification-data-identity-only","inventoryRequests":237,"generatedBytes":10476,"historicalPackageBytes":2250},"boundary":{"issues":[],"previewPaths":["/api/engagement/associations/override","/api/engagement/attachments","/api/engagement/attachments/:id","/api/engagement/attachments/:id/context-source","/api/engagement/attachments/:id/context-text","/api/engagement/attachments/:id/extract-text","/api/engagement/attachments/confirm","/api/engagement/attachments/upload-url","/api/engagement/campaigns","/api/engagement/campaigns/:id","/api/engagement/campaigns/:id/generate","/api/engagement/campaigns/:id/recipients","/api/engagement/campaigns/:id/recipients/:recipientId","/api/engagement/campaigns/:id/send","/api/engagement/campaigns/:id/send-test","/api/engagement/capabilities","/api/engagement/clients/:id/notetaker","/api/engagement/contacts","/api/engagement/context/:clientId","/api/engagement/debriefs","/api/engagement/integrations","/api/engagement/integrations/google/:connectionId","/api/engagement/integrations/google/:connectionId/sync","/api/engagement/integrations/google/callback","/api/engagement/integrations/google/capabilities","/api/engagement/integrations/google/start","/api/engagement/integrations/microsoft/:connectionId","/api/engagement/integrations/microsoft/:connectionId/calendar-window","/api/engagement/integrations/microsoft/:connectionId/subscriptions","/api/engagement/integrations/microsoft/:connectionId/sync","/api/engagement/integrations/microsoft/callback","/api/engagement/integrations/microsoft/capabilities","/api/engagement/integrations/microsoft/notifications","/api/engagement/integrations/microsoft/start","/api/engagement/mail-threads","/api/engagement/mail-threads/:id","/api/engagement/mail/mailboxes","/api/engagement/mail/rewrite","/api/engagement/mail/send","/api/engagement/meeting-preps/:id","/api/engagement/meeting-preps/:id/pdf-attachment","/api/engagement/meetings","/api/engagement/meetings/:id","/api/engagement/meetings/:id/artifacts/share","/api/engagement/meetings/:id/artifacts/unshare","/api/engagement/meetings/:id/attachments/:attachmentId/approve","/api/engagement/meetings/:id/debrief-draft","/api/engagement/meetings/:id/debriefs","/api/engagement/meetings/:id/debriefs/:debriefId","/api/engagement/meetings/:id/debriefs/:debriefId/approve","/api/engagement/meetings/:id/notes","/api/engagement/meetings/:id/notes/:noteId","/api/engagement/meetings/:id/notes/:noteId/approve","/api/engagement/meetings/:id/notetaker","/api/engagement/meetings/:id/prep","/api/engagement/meetings/:id/prep-jobs/:jobId","/api/engagement/meetings/:id/prep-jobs/:jobId/resume","/api/engagement/meetings/:id/prep-jobs/latest","/api/engagement/meetings/:id/prep-monday-mapping","/api/engagement/meetings/:id/share","/api/engagement/meetings/:id/unshare","/api/engagement/meetings/library","/api/engagement/outcomes","/api/engagement/outreach","/api/engagement/outreach-v3/reasoning/conversations/:conversationId","/api/engagement/outreach-v3/reasoning/conversations/:conversationId/archive","/api/engagement/outreach-v3/reasoning/conversations/:conversationId/turns","/api/engagement/outreach-v3/sessions","/api/engagement/outreach-v3/sessions/:sessionId","/api/engagement/outreach-v3/sessions/:sessionId/archive","/api/engagement/outreach-v3/sessions/:sessionId/commands","/api/engagement/outreach-v3/sessions/:sessionId/context/document","/api/engagement/outreach-v3/sessions/:sessionId/context/government/search","/api/engagement/outreach-v3/sessions/:sessionId/context/memory/search","/api/engagement/outreach-v3/sessions/:sessionId/context/review","/api/engagement/outreach-v3/sessions/:sessionId/context/strategy","/api/engagement/outreach-v3/sessions/:sessionId/drafts","/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/refine","/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions","/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId","/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval","/api/engagement/outreach-v3/sessions/:sessionId/events","/api/engagement/outreach-v3/sessions/:sessionId/generation/approach-approval","/api/engagement/outreach-v3/sessions/:sessionId/generation/full","/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId","/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/cancel","/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/items/:itemId/retry","/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/latest","/api/engagement/outreach-v3/sessions/:sessionId/generation/plan","/api/engagement/outreach-v3/sessions/:sessionId/generation/review-packet-approval","/api/engagement/outreach-v3/sessions/:sessionId/generation/samples","/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging","/api/engagement/outreach-v3/sessions/:sessionId/objective-destination","/api/engagement/outreach-v3/sessions/:sessionId/proposals","/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/apply","/api/engagement/outreach-v3/sessions/:sessionId/proposals/:proposalId/reject","/api/engagement/outreach-v3/sessions/:sessionId/reasoning/conversations","/api/engagement/outreach-v3/sessions/:sessionId/send/intent","/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId","/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/cancel","/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/refresh","/api/engagement/outreach-v3/sessions/:sessionId/send/preflight","/api/engagement/outreach-v3/sessions/:sessionId/send/settings","/api/engagement/outreach-v3/sessions/:sessionId/send/test","/api/engagement/outreach-v3/sessions/:sessionId/targets/coverage","/api/engagement/outreach-v3/sessions/:sessionId/targets/profile","/api/engagement/outreach-v3/sessions/:sessionId/targets/relationships","/api/engagement/outreach-v3/sessions/:sessionId/targets/search","/api/engagement/outreach-v3/sessions/:sessionId/versions","/api/engagement/outreach-v3/sessions/:sessionId/versions/:version","/api/engagement/outreach-v3/templates","/api/engagement/outreach-v3/templates/:templateId","/api/engagement/outreach-v3/templates/:templateId/archive","/api/engagement/outreach-v3/templates/:templateId/draft","/api/engagement/outreach-v3/templates/:templateId/duplicate","/api/engagement/outreach-v3/templates/:templateId/publish","/api/engagement/outreach-v3/templates/:templateId/use","/api/engagement/outreach-v3/templates/:templateId/versions/from-session","/api/engagement/outreach-v3/templates/from-scratch","/api/engagement/outreach-v3/templates/from-session","/api/engagement/outreach-v3/templates/provenance/:sessionId","/api/engagement/outreach/:id","/api/engagement/outreach/:id/generate-draft","/api/engagement/outreach/:id/open-email","/api/engagement/outreach/:id/restore","/api/engagement/outreach/:id/send-campaign","/api/engagement/outreach/:outreachRecordId/draft-artifacts","/api/engagement/outreach/ai-templates","/api/engagement/outreach/ai-templates/:id","/api/engagement/outreach/ai-templates/:id/preview","/api/engagement/outreach/audiences","/api/engagement/outreach/context-library","/api/engagement/outreach/draft-artifacts/:artifactId/versions","/api/engagement/outreach/draft-artifacts/:artifactId/versions/:candidateVersionId/accept","/api/engagement/outreach/draft-versions/:versionId","/api/engagement/outreach/generate-batch","/api/engagement/outreach/insights","/api/engagement/outreach/insights/talking-points","/api/engagement/outreach/jobs/:id","/api/engagement/outreach/jobs/:id/cancel","/api/engagement/outreach/jobs/:id/items/:itemId/retry","/api/engagement/outreach/jobs/generate","/api/engagement/outreach/jobs/send","/api/engagement/outreach/outbound/contact-data","/api/engagement/outreach/prior-contact","/api/engagement/outreach/send-batch","/api/engagement/outreach/send-intents","/api/engagement/outreach/send-intents/:id","/api/engagement/outreach/send-intents/:id/cancel","/api/engagement/outreach/templates","/api/engagement/plans","/api/engagement/plans/:planId","/api/engagement/plans/:planId/history","/api/engagement/plans/:planId/reviews","/api/engagement/plans/:planId/waves","/api/engagement/plans/:planId/waves/:waveId","/api/engagement/plans/:planId/waves/reorder","/api/engagement/reports/overview","/api/engagement/reports/target-offices","/api/engagement/reports/target-offices/:id","/api/engagement/reports/target-offices/link","/api/engagement/reports/target-offices/overrides","/api/engagement/shared-meetings","/api/engagement/tasks","/api/engagement/tasks/:id"],"nonPreviewPaths":["/api/clio/krisp-notetaker","/api/clio/krisp-notetaker/folders","/api/clio/krisp-notetaker/imports/:id/candidates","/api/clio/krisp-notetaker/imports/:id/match","/api/clio/krisp-notetaker/preferences","/api/internal/ai-credentials/resolve","/webhooks/recall"],"historicalGeneratorUnaccounted":["/api/clio/krisp-notetaker","/api/clio/krisp-notetaker/folders","/api/clio/krisp-notetaker/imports/:id/candidates","/api/clio/krisp-notetaker/imports/:id/match","/api/clio/krisp-notetaker/preferences"],"scope":"backend-pattern-boundary-only; browser-table-generation-and-frontend-parity-not-performed"},"frontendParityOwner":"capiro-frontend","liveRoutingAcceptance":false}
+Γ£ö one canonical code owner preserves all original test twins and retained data (5.8303ms)
+Γ£ö missing canonical runtime source fails ownership (3.6696ms)
+Γ£ö missing canonical regression spec fails instead of dropping its twin (3.1737ms)
+Γ£ö reintroduced TypeScript or Python implementations fail the retained-data boundary (3.1664ms)
+Γ£ö changed retained fixture bytes fail their immutable digest (2.5767ms)
+Γ£ö canonical fixture drift fails parity even when retained bytes are intact (3.2024ms)
+Γ£ö missing retained fixture is reported without removing its acceptance row (2.8787ms)
+Γ£ö an unavailable canonical data file fails closed (3.3638ms)
+Γ£ö a self-consistent manifest cannot omit a regression twin from the independent baseline (3.1771ms)
+Γ£ö changing a retired blob cannot rewrite its immutable canonical proof (3.0584ms)
+Γ£ö a different implementation owner cannot replace a canonical mapping (3.5533ms)
+Γ£ö historical source tree hashes must match their immutable Git objects (3.4839ms)
+Γ£ö removing a replay identity or non-replay data cannot shrink retained scope (2.5466ms)
+Γ£ö canonical API entrypoints satisfy operator ownership without copied implementations (0.2286ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/phase6-stage-cycle.ts (0.251ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/plan-defense-budget-promotion-v1.ts (0.08ms)
+Γ£ö rejects missing canonical entrypoint apps/api/scripts/status-defense-budget-promotion-v1.ts (0.0507ms)
+Γ£ö rejects reintroduced copied operators, including previously unknown filenames (0.0874ms)
+Γ£ö current checkout retains canonical entrypoints and has no copied operator tree (0.4546ms)
+Γä╣ tests 19
+Γä╣ suites 0
+Γä╣ pass 19
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 71.2123
+Usage: node scripts/verify-defense-budget-mirror-parity.mjs (no arguments verifies canonical source ownership and retained fixture parity)
+CANONICAL_DEFENSE_SOURCE_PASS: 727 removed code twins, 317 retained canonical specs, 17 unchanged data files, 9 replay fixtures; baseline 4e0c189c5d0522098be1c4916a033bb681d11c0b
+Usage: node scripts/verify-phase8-session4.mjs [--enforce-replay] (no arguments runs the existing verifier)
+[phase8-session4] Runtime implementation owner: apps/api/src; replay compares two fixture roots through one inspect adapter, not independent implementations
+[phase8-session4] FY27 behavioral replay was not enforced; rerun with --enforce-replay before declaring Session 4 complete
+[phase8-session4] SESSION4_SOURCE_PARITY_PASS
+Γ£ö member offices preserve raw field projection, finite-ID coercion and district/class strings (1.763ms)
+Γ£ö leaderships preserve ordering, nullish defaults, falsy values and legacy array-object admission (0.2972ms)
+Γ£ö contact methods retain only string contacts including empty and untrimmed values (0.3368ms)
+Γ£ö staff roles preserve nested nullish member fallback and zero-producing coercions (0.2923ms)
+Γ£ö staff issues preserve issue text, nullish defaults and finite-ID conversions (0.2512ms)
+Γ£ö staff positions preserve strict flags, nested member choice and preferred-name whitespace semantics (0.4264ms)
+(node:13736) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+Γ£ö staff office addresses preserve all fields, finite IDs, false values and strict main-office flag (0.3156ms)
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ö current detail projections retain one pure algorithm owner while unrelated service edits remain free (10.3244ms)
+Γä╣ tests 8
+Γä╣ suites 0
+Γä╣ pass 8
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 91.937
+Γ£ö canonical input leaf retains trim/cap/required/integer/UUID behavior without mutating callers (1.9772ms)
+Γ£ö undecorated domain construction stores explicit dependencies without reading eager ports (0.324ms)
+Γ£ö domain input and facade ownership refuses copied bodies wrong forwarding and unowned module bindings (12.4913ms)
+Γ£ö title search preserves Lda positional filters limit page coercion and input immutability (2.1158ms)
+Γ£ö exact bill designation uses direct lookup while a missing direct record falls back honestly (0.7823ms)
+Γ£ö bill-text search keeps exact SQL and positional query congress limit offset with real paging projection (1.1259ms)
+Γ£ö bill status distinguishes invalid input and unavailable data without inventing status or child queries (0.561ms)
+Γ£ö rule-failed status preserves governing rule evidence and does not infer floor passage from absent votes (0.6962ms)
+Γ£ö status with recorded floor votes returns their actual totals without a fabricated absence note (0.4202ms)
+(node:9996) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ö floor vote filters preserve canonical member/LIS alternatives query chamber congress and bound (0.933ms)
+Γ£ö ambiguous vote member names return candidates and never query unattributed roll calls (0.4785ms)
+Γ£ö unknown member IDs and names fail honestly rather than widening the vote query (0.2907ms)
+Γ£ö bill-text ID query/cursor and malformed scoped cursor failures occur before SQL reads (1.2362ms)
+Γ£ö bill-text reads exact current complete ownership and returns untrusted provenance plus honest coverage (0.5815ms)
+Γ£ö bill-text continuations bind exact revision/hash/offset and refuse changed or out-of-range text (0.6827ms)
+Γ£ö bill-text page boundaries never split a surrogate pair and continuation reconstructs the exact string (0.4056ms)
+Γ£ö located bill-text passages use the real locator and carry exact-revision read cursors with partial coverage (1.4092ms)
+Γ£ö located-text no-match is an explicit excerpt result rather than evidence the bill lacks the topic (0.3866ms)
+Γ£ö CBO filters retain literal IDs ordering bound and explicit missing-estimate honesty (0.5426ms)
+Γ£ö actual facade methods support prototype receivers plain prisma CBO seams and fresh per-call dependencies (0.3416ms)
+Γ£ö all five real domain handlers leave frozen input objects unchanged (0.5074ms)
+Γ£ö all five domain and actual facade handlers propagate identical port errors without swallowing them (0.8554ms)
+Γ£ö retired Engagement outreach roots have no private declarations or direct calls and counterexamples fail (345.642ms)
+Γ£ö current Engagement evidence bill truth voice scrubber and gateway seams remain free of a whole-file freeze (48.7415ms)
+Γä╣ tests 24
+Γä╣ suites 0
+Γä╣ pass 24
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 602.3401
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio (2.4313ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_analytics (0.2178ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_changes (0.1372ms)
+Γ£ö current dispatch refuses model retargeting: create_research_portfolio_snapshot (0.1255ms)
+Γ£ö current dispatch refuses model retargeting: request_research_portfolio_output (0.1602ms)
+Γ£ö current dispatch refuses model retargeting: save_research_portfolio_output_to_client (0.1344ms)
+Γ£ö current dispatch refuses model retargeting: watch_research_portfolio (0.1343ms)
+Γ£ö current dispatch refuses model retargeting: update_research_portfolio_change_state (0.0915ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_bookmarks (0.1366ms)
+Γ£ö current dispatch refuses model retargeting: create_research_portfolio_bookmark (0.2512ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_fit (0.1427ms)
+(node:8788) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_reviews (0.1508ms)
+Γ£ö current dispatch refuses model retargeting: add_research_portfolio_review_note (0.0897ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_rules (0.0698ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_imports (0.0912ms)
+Γ£ö current dispatch refuses model retargeting: get_research_portfolio_operations (0.1661ms)
+Γ£ö current dispatch refuses model retargeting: prepare_research_portfolio_brief (0.1455ms)
+Γ£ö current dispatch refuses model retargeting: prepare_research_portfolio_meeting (0.1606ms)
+Γ£ö current dispatch refuses model retargeting: manage_research_portfolio (0.0832ms)
+Γ£ö current dispatch injects omitted and preserves exact current conversation (23.9607ms)
+Γ£ö ordinary delegated tool preserves supplied conversation treatment (0.9312ms)
+Γ£ö current dispatch rejects null/empty/non-string scope attempts (0.3481ms)
+Γ£ö actual executor refuses absent trusted scope before network (0.2762ms)
+Γ£ö actual typed transport refuses malformed trusted actor before network (0.2789ms)
+Γ£ö actual executor refuses missing service identity before network (0.1946ms)
+Γ£ö actual executor refuses absent request credential before network (0.2195ms)
+Γ£ö trusted scope is immutable and does not escape its request (3.0181ms)
+Γ£ö current native landing retains all twenty-two old safety identities without raw extraction (13.8768ms)
+Γ£ö current stream/image and neutral credential types have one source owner; loader rejects new ports (3.3253ms)
+Γ£ö construction needs no raw streaming/private seams and patches V3 only once (0.449ms)
+Γ£ö closed gate refuses through V3 without context preparation or a raw fallback (0.5116ms)
+Γ£ö allowed turn prepares once before V3 and forwards through the actual observed writer (0.4144ms)
+Γ£ö default mode keeps original arity and reruns preserve every optional argument by identity (0.4225ms)
+Γ£ö already aborted turns call no gate or runtime and release timers/listeners (0.219ms)
+Γ£ö abort during either gate outcome cannot dispatch a V3 or refusal stream (0.4123ms)
+Γ£ö flag, preparation, current stream and refusal failures propagate without fallback (0.621ms)
+Γ£ö actual progress helper observes real stages with bounded initial/heartbeat display only (0.4755ms)
+Γ£ö actual stream frames remain intact while progress tracks acceptance, tools and answer (0.3723ms)
+Γ£ö progress releases resources on terminal frames, abort, throws and display write failures (0.491ms)
+Γ£ö artifact images use only the current visual port with exact arguments/results/errors (0.3003ms)
+Γ£ö retained history and other non-stream methods stay bound to the original receiver (0.0956ms)
+Γ£ö retained maintenance stays bound to raw and the ordinary provider graph aliases that instance (35.0452ms)
+Γ£ö V3 client-KB suppression is limited to governed turns and preserves other receiver methods (0.3544ms)
+Γ£ö V3 stream adapter keeps ungoverned input exact and adds only current governed context (0.2255ms)
+Γ£ö actual completion adapter retains later-read receipts and signed initial coverage without mutating upstream (0.399ms)
+Γ£ö current Phase-19 source contract names V3 adapters and rejects restored raw dependencies (12.731ms)
+Γä╣ tests 46
+Γä╣ suites 0
+Γä╣ pass 46
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 359.3358
+Γ£ö actual selected-alert resolver forwards exact request credentials and ids and ignores browser prose (3.7846ms)
+(node:4432) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+Γ£ö null fetched packet produces critical failure and zero evidence with no invented fallback (0.3331ms)
+Γ£ö missing or empty client fails critically before alert fetching (0.2316ms)
+Γ£ö malformed alert ids fail before fetch while valid suffix whitespace follows the actual parser (0.4635ms)
+Γ£ö thrown alert-fetch error becomes a logged critical resolution failure without fabricated evidence (0.3436ms)
+Γ£ö authenticated item instructions stay separate from fetched evidence and survive a missing source (0.5116ms)
+Γ£ö current custom-note instructions and legacy meeting dispatch never fetch intel packets (0.4301ms)
+Γ£ö a user-marked fact note stays bounded user-authored evidence and cannot become canonical alert truth (0.3846ms)
+Γ£ö missing relationship fields stay Unknowns with no legacy overlay and ownership counterexamples fail (2.9977ms)
+(Use `node --trace-warnings ...` to show where the warning was created)
+Γ£ö actual packet ordering yields deterministic evidence directives and failures across selection order (0.9887ms)
+Γ£ö current as-of precedence and real freshness helpers retain explicit missing and stale caveats (0.4924ms)
+Γ£ö actual renderer preserves Unknowns and actions while budgeting an evidence-heavy official list (0.4075ms)
+Γä╣ tests 12
+Γä╣ suites 0
+Γä╣ pass 12
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 106.5046
+Γ£ö case ownership preserves historical71 current22 and mapped22RP without inflating internal loops (2.2942ms)
+Γ£ö ownership refuses lost duplicate unowned and repinned case identities (1.2147ms)
+Γ£ö each original RP identity requires one current seam mapping and no invented historical pass (1.1891ms)
+Γ£ö source manifest binds exact full-source pin and finite safe regular-file operands (0.784ms)
+Γ£ö CLI argument admission requires explicit plan absolute root and one finite suite (34.3381ms)
+Γ£ö CLI refuses run unknown duplicate missing and implicit-current-checkout arguments (27.6826ms)
+Γ£ö preflight rejects absent relative and non-directory source roots before claiming inputs (27.2913ms)
+Γ£ö finite byte preflight checks every synthetic operand without calling it historical execution (50.5408ms)
+Γ£ö same-size byte drift CRLF SHA-only drift and Git-blob drift all fail closed (47.0335ms)
+Γ£ö missing and truncated full-source operands refuse instead of producing a green plan (32.3634ms)
+Γ£ö all plan contains four manual stages and historical71 only with no current archive or RP pass claim (49.9823ms)
+Γ£ö finite suites retain exact expected counts and raw lifecycle selector without passWithNoTests (122.8942ms)
+Γ£ö plan requires manual HEAD tree clean-source dependency platform and shared-queue receipts (47.8066ms)
+Γ£ö unknown suites and changed case ownership fail before returning a replay plan (26.2323ms)
+Γ£ö production CLI cannot accept synthetic fixture bytes or a caller manifest override (28.422ms)
+Γ£ö planner stays data-only and receipt has no implicit executable results (53.4463ms)
+Γä╣ tests 16
+Γä╣ suites 0
+Γä╣ pass 16
+Γä╣ fail 0
+Γä╣ cancelled 0
+Γä╣ skipped 0
+Γä╣ todo 0
+Γä╣ duration_ms 617.1673
+CURRENT_BACKEND_SOURCE_QUALIFICATION_COMPLETE {"completed":["Current workspace ownership","Owned qualification input identity","Current backend contract controls","Current source catalog controls","Current backend route declarations","Current backend preview boundary","Current canonical runtime ownership controls","Canonical runtime source ownership","Canonical session4 source ownership","Current Directory mapper contracts","Current Meri domain and Engagement cleanup contracts","Current Meri stream and RP dispatch contracts","Current outreach evidence contracts","Historical Meri replay planner controls"],"scope":"current-backend-source-contracts-only","frontendParityOwner":"capiro-frontend"}

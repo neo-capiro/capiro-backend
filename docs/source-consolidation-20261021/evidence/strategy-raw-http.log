@@ -1,0 +1,36 @@
+jest-haste-map: Haste module naming collision: @capiro/shared
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>\packages\shared\package.json
+    * <rootDir>\docs\pr2450-dependency-reuse-local-20261013\local-host\shared-runtime\package.json
+
+jest-haste-map: Haste module naming collision: @capiro/web
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>\tests\support\legacy-web\visual-cli-inputs\package.json
+    * <rootDir>\docs\cleanup-newsletter-accepted-source-admission-20261013\evidence\frontend-source\candidatec8\apps\web\package.json
+
+FAIL apps/api-strategy/src/bootstrap/objective-generation-raw-body.int.spec.ts
+  ΓùÅ Test suite failed to run
+
+    The name `@capiro/shared` was looked up in the Haste module map. It cannot be resolved, because there exists several different files, or packages, that provide a module for that particular name and platform. The platform is generic (no extension). You must delete or exclude files until there remains only one of these:
+
+      * `C:\Users\Administrator\Documents\Codex\2026-10-21\task\core-consolidation\docs\pr2450-dependency-reuse-local-20261013\local-host\shared-runtime\package.json` (package)
+      * `C:\Users\Administrator\Documents\Codex\2026-10-21\task\core-consolidation\packages\shared\package.json` (package)
+
+    > 1 | import {
+        | ^
+      2 |   requireClientObjectiveDestinationRevision,
+      3 |   ClientObjectiveDestinationError,
+      4 |   type ClientObjectiveDestinationTx,
+
+      at ModuleMap._assertNoDuplicates (node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/ModuleMap.js:189:11)
+      at Object.<anonymous> (apps/api-strategy/src/planner/objective-canonical-fence.ts:1:1)
+      at Object.<anonymous> (apps/api-strategy/src/meri/objective-canonical-producer.service.ts:10:1)
+      at Object.<anonymous> (apps/api-strategy/src/meri/objective-canonical-producer.controller.ts:3:1)
+      at Object.<anonymous> (apps/api-strategy/src/bootstrap/objective-generation-raw-body.int.spec.ts:11:1)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        13.582 s
+Ran all test suites.
+Test results written to: ..\core-validation\strategy-raw-http.json

@@ -1,0 +1,23 @@
+{
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "argv": [
+    "--max-old-space-size=128",
+    "--test",
+    "--test-isolation=none",
+    "scripts/lib/backend-workspace-retirement.spec.mjs",
+    "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs"
+  ],
+  "cwd": "C:\\Users\\neoma\\Documents\\Codex\\2026-10-15\\task-10\\backend-cleanup",
+  "startedAt": "2026-10-16T02:32:16.5601240Z",
+  "endedAt": "2026-10-16T02:32:18.4143949Z",
+  "ownedPID": 36524,
+  "exitCode": 1,
+  "timedOut": false,
+  "observedPeakWorkingSetBytes": 68689920,
+  "hardWallSeconds": 120,
+  "ownedProcessTreeCleanupOnTimeout": true,
+  "ownedProcessExited": true,
+  "stdoutSHA256": "f3d1f75f0bcaa5e2bee386ac7d5f7f46fb28cd1ccae56d6595d000fff31a74a3",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

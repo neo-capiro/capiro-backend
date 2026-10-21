@@ -1,0 +1,67 @@
+src/engagement/engagement-outreach-client-access.spec.ts(54,14): error TS2532: Object is possibly 'undefined'.
+src/memory/memory-candidate-injection.spec.ts(44,80): error TS2502: 'tx' is referenced directly or indirectly in its own type annotation.
+src/memory/memory-store.projection-governance.spec.ts(18,49): error TS2352: Conversion of type 'any[]' to type 'TemplateStringsArray' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'raw' is missing in type 'any[]' but required in type 'TemplateStringsArray'.
+src/memory/memory-store.projection-governance.spec.ts(92,31): error TS2345: Argument of type '(strings: unknown, ...values: unknown[]) => Promise<{ ready: boolean; }[]>' is not assignable to parameter of type '(strings: unknown, ...values: unknown[]) => Promise<{ id: unknown; }[]>'.
+  Type 'Promise<{ ready: boolean; }[]>' is not assignable to type 'Promise<{ id: unknown; }[]>'.
+    Type '{ ready: boolean; }[]' is not assignable to type '{ id: unknown; }[]'.
+      Property 'id' is missing in type '{ ready: boolean; }' but required in type '{ id: unknown; }'.
+src/meri/meri-memory-legal-hold.spec.ts(132,53): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+src/meri/meri-memory-legal-hold.spec.ts(133,18): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'readonly string[]'.
+src/meri/meri-memory-legal-hold.spec.ts(232,55): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+src/meri/meri-memory-legal-hold.spec.ts(233,20): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'readonly string[]'.
+src/meri/meri-retained-identity-source.spec.ts(119,81): error TS2502: 'tx' is referenced directly or indirectly in its own type annotation.
+src/meri/meri-retained-identity-source.spec.ts(120,60): error TS2502: 'tx' is referenced directly or indirectly in its own type annotation.
+src/meri/meri-retained-identity-source.spec.ts(140,59): error TS2339: Property 'where' does not exist on type '{}'.
+src/meri/meri-retained-identity-source.spec.ts(142,44): error TS2339: Property 'where' does not exist on type '{}'.
+src/meri/meri-retained-identity-source.spec.ts(143,52): error TS2339: Property 'where' does not exist on type '{}'.
+src/meri/retained-client-context.spec.ts(29,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(29,27): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(29,71): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(30,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(30,42): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(31,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(31,27): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(32,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(32,28): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(33,21): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(34,21): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(34,37): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(35,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(35,60): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(36,18): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(37,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(38,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(38,40): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(39,5): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-client-context.spec.ts(40,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(21,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(22,9): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(22,59): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(25,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(25,42): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(26,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(26,27): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(27,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(27,28): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(28,21): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(29,21): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(29,37): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(30,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(30,60): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(31,19): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(32,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(33,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(33,40): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(34,5): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/client-context.spec.ts(35,7): error TS18048: 'schema' is possibly 'undefined'.
+src/meri/retained-source-v02/documents.spec.ts(41,59): error TS18046: 'first.data' is of type 'unknown'.
+src/meri/retained-source-v02/documents.spec.ts(42,12): error TS2571: Object is of type 'unknown'.
+src/meri/retained-source-v02/documents.spec.ts(43,12): error TS2571: Object is of type 'unknown'.
+src/meri/retained-source-v02/documents.spec.ts(74,59): error TS18046: 'first.data' is of type 'unknown'.
+src/meri/retained-source-v02/documents.spec.ts(91,12): error TS2571: Object is of type 'unknown'.
+src/meri/retained-source-v02/identity-contacts.spec.ts(91,41): error TS2532: Object is possibly 'undefined'.
+src/meri/retained-source-v02/identity-contacts.spec.ts(92,41): error TS2532: Object is possibly 'undefined'.
+src/meri/retained-source-v02/identity-contacts.spec.ts(93,41): error TS2532: Object is possibly 'undefined'.
+src/meri/retained-source-v02/identity-contacts.spec.ts(126,41): error TS2532: Object is possibly 'undefined'.
+src/meri/retained-source-v02/identity-contacts.spec.ts(127,41): error TS2532: Object is possibly 'undefined'.
