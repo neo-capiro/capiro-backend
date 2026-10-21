@@ -11,6 +11,7 @@ import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-
 import { Roles } from './roles.decorator.js';
 import { RolesGuard } from './roles.guard.js';
 import { hasVerifiedToolServiceIdentity, ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { ApplicationAuthorityUnavailableException } from './application-authority-unavailable.js';
 import {
   assertApplicationAuthorityIdentityBody,
   parseApplicationAuthorityArtifactBody,
@@ -50,7 +51,9 @@ export class ApplicationAuthorityController {
     const input = parseApplicationAuthorityContextBody(body);
     try {
       return await readApplicationAuthorityContext(input, this.contextPorts(ctx, req, input.clientId));
-    } catch {
+    } catch (error) {
+      // Clerk not answering is not a refusal: keep its retryable 503.
+      if (error instanceof ApplicationAuthorityUnavailableException) throw error;
       throw new ForbiddenException('Application authority unavailable');
     }
   }
@@ -73,7 +76,9 @@ export class ApplicationAuthorityController {
     if (!hasVerifiedToolServiceIdentity(req)) throw new ForbiddenException('Application authority unavailable');
     try {
       return await readApplicationAuthorityArtifact(input, ctx.role, this.contextPorts(ctx, req, input.clientId));
-    } catch {
+    } catch (error) {
+      // Clerk not answering is not a refusal: keep its retryable 503.
+      if (error instanceof ApplicationAuthorityUnavailableException) throw error;
       throw new ForbiddenException('Application authority unavailable');
     }
   }

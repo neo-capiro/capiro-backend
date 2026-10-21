@@ -197,6 +197,7 @@ async function fixture(options: { role?: string; clients?: RosterRow[] } = {}) {
   };
   const clerkSource = load(source('auth/clerk.service.ts'), {
     '@nestjs/common': nest, '@nestjs/config': {},
+    './application-authority-unavailable.js': load(source('auth/application-authority-unavailable.ts'), { '@nestjs/common': nest }),
     '@clerk/backend': {
       createClerkClient: () => ({ sessions: { getSession: async (id: string) => {
         expect(id).toBe(session.id);
