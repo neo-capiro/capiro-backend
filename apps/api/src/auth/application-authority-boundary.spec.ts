@@ -48,6 +48,16 @@ function graph(overrides: Record<string, string> = {}) {
 }
 
 describe('authority runtime import boundary and current reexports', () => {
+  it('keeps the current receipt builder free of runtime membership or domain imports', () => {
+    const source = readFileSync(resolve(root, 'apps/api/src/auth/application-authority.ts'), 'utf8');
+    const js = ts.transpileModule(source, { compilerOptions: {
+      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
+    } }).outputText;
+    expect(source).toContain('export async function readApplicationAuthorityCurrent(');
+    const imports = [...js.matchAll(/require\("([^"]+)"\)/g)].map((match) => match[1]).sort();
+    expect(imports).toEqual(['@nestjs/common', 'node:crypto', 'node:util']);
+  });
+
   it('follows emitted runtime imports through the actual auth/domain closure without legacy owner', () => {
     const closure = graph();
     expect(closure.paths).toContain('apps/api/src/auth/application-authority.controller.ts');

@@ -1,5 +1,6 @@
 /** Existing prospect authorization owned by Business Development. */
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import {
   MeriProspectScopeConflictError,
   parsePersistedMeriProspectScope,
@@ -19,6 +20,7 @@ export async function authorizeMeriProspectScope(
   bizdevScope: BizDevMeriScopeService | undefined,
   ctx: TenantContext,
   conversationMetadata: unknown,
+  transaction?: Prisma.TransactionClient,
 ): Promise<MeriProspectScope | null> {
   const metadata =
     conversationMetadata &&
@@ -33,5 +35,5 @@ export async function authorizeMeriProspectScope(
   if (!hasPersistedScope) return null;
   if (!persisted) throw new MeriProspectScopeConflictError('not_found');
   if (!bizdevScope) throw new MeriProspectScopeConflictError('not_found');
-  return bizdevScope.assertCurrent(ctx, conversationMetadata);
+  return transaction ? bizdevScope.assertCurrent(ctx, conversationMetadata, transaction) : bizdevScope.assertCurrent(ctx, conversationMetadata);
 }

@@ -1,6 +1,7 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   businessDevelopmentEnabled,
@@ -20,6 +21,8 @@ import {
  * mode (missing tenant context, missing tenant row, either flag off, missing
  * or cross-tenant prospect, thrown DB error) yields the SAME bare
  * NotFoundException — indistinguishable from a route that doesn't exist.
+ * Caller-owned authority snapshots preserve infrastructure/503 failures so
+ * their HTTP owner can distinguish unavailable checks from denied authority.
  */
 
 /** The one bounded metadata key Meri prospect conversations persist scope under. */
@@ -130,12 +133,12 @@ export class BizDevMeriScopeService {
    * and the prospect must exist on the caller's tenant. Every failure mode
    * throws the same bare safe NotFoundException.
    */
-  async resolve(ctx: TenantContext, prospectId: string): Promise<MeriProspectScope> {
+  async resolve(ctx: TenantContext, prospectId: string, transaction?: Prisma.TransactionClient): Promise<MeriProspectScope> {
     const notFound = new NotFoundException();
     if (!ctx?.tenantId) throw notFound;
     if (!prospectId) throw notFound;
     try {
-      return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const read = async (tx: Prisma.TransactionClient) => {
         const tenant = await tx.tenant.findUnique({
           where: { id: ctx.tenantId },
           select: { settings: true },
@@ -168,8 +171,12 @@ export class BizDevMeriScopeService {
             linkedClientId: prospect.linkedClientId,
           }),
         };
-      });
+      };
+      return transaction ? await read(transaction) : await this.prisma.withTenant(ctx.tenantId, read);
     } catch (error) {
+      // A caller-owned authority snapshot must distinguish infrastructure
+      // failure from a current authorization refusal. Legacy callers keep 404.
+      if (transaction && (error instanceof ServiceUnavailableException || !(error instanceof HttpException))) throw error;
       if (error instanceof NotFoundException) throw error;
       this.logger.error(
         `meri prospect scope resolution failed for tenant ${ctx.tenantId}; failing closed`,
@@ -188,6 +195,7 @@ export class BizDevMeriScopeService {
   async assertCurrent(
     ctx: TenantContext,
     persistedScope: unknown,
+    transaction?: Prisma.TransactionClient,
   ): Promise<MeriProspectScope> {
     // Accept either a bare scope object or the full metadata bag it was
     // persisted in; both go through the same fail-closed parser.
@@ -200,7 +208,7 @@ export class BizDevMeriScopeService {
             [MERI_PROSPECT_SCOPE_METADATA_KEY]: persistedScope,
           });
     if (!candidate) throw new MeriProspectScopeConflictError('not_found');
-    const current = await this.resolve(ctx, candidate.prospectId).catch((error) => {
+    const current = await (transaction ? this.resolve(ctx, candidate.prospectId, transaction) : this.resolve(ctx, candidate.prospectId)).catch((error) => {
       if (error instanceof NotFoundException) {
         throw new MeriProspectScopeConflictError('not_found');
       }

@@ -145,10 +145,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; readOnly?: boolean },
   ): Promise<T> {
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
+        // PostgreSQL requires transaction characteristics before any data query.
+        if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
         // SET LOCAL is bound to the transaction. set_config(..., true) returns
         // the value, which we discard. Parameter binding via $executeRaw is
         // safe against injection. (The GUC is now belt-and-suspenders: the
@@ -165,7 +167,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       //    the start of the transaction"
       // every time the intel tab loaded. Callers can pass a higher
       // timeoutMs for known-slow paths.
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      opts?.timeoutMs || opts?.isolationLevel
+        ? { ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+            ...(opts.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}) }
+        : undefined,
     );
   }
 
@@ -236,12 +241,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    */
   async withSystem<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
+    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel; readOnly?: boolean },
   ): Promise<T> {
     // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
     // preserving the intentional cross-tenant reach of system paths.
     return this.scopedClient({ bypass: true }).$transaction(
       async (tx) => {
+        if (opts?.readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       },

@@ -12,6 +12,7 @@
 // ============================================================================
 import {
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NestMiddleware,
@@ -82,17 +83,30 @@ const MERI_CONTROL_POST_PATHS = new Set([
   '/clio/application-authority/identity',
   '/clio/application-authority/context',
   '/clio/application-authority/membership',
+  '/clio/application-authority/current',
 ]);
 
-/** A marked, sidless Meri control token has exactly three authority POST uses.
+/** Express removes the mount prefix from req.path while middleware runs. */
+function mountedRequestPath(req: Request): string {
+  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
+}
+
+/** A marked, sidless Meri control token is limited to allowlisted authority POSTs.
  * Check both Express' parsed path and the original target: a rewritten or
  * absolute-form target must never widen the credential's route authority. */
 function isMeriControlAuthorityPost(req: Request): boolean {
   if (req.method !== 'POST') return false;
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
   const normalized = (path: string) => path.startsWith('/api/') ? path.slice(4) : path;
   return parsed === original && MERI_CONTROL_POST_PATHS.has(normalized(parsed));
+}
+
+/** Only authenticated middleware provenance can choose an authority user key. */
+export function applicationAuthorityThrottleKey(req: Request): string | null {
+  if (!isMeriControlAuthorityPost(req)) return null;
+  const provenance = applicationAuthorityRequests.get(req);
+  return provenance ? `authority-user:${provenance.claims.sub}` : null;
 }
 
 // Signed retained-read routes authenticate with a Core-issued Ed25519 envelope,
@@ -177,6 +191,7 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
       '/clio/application-authority/identity', '/clio/application-authority/context',
       '/api/clio/application-authority/membership', '/clio/application-authority/membership',
+      '/api/clio/application-authority/current', '/clio/application-authority/current',
       '/api/clio/application-authority/retained-research-portfolio', '/clio/application-authority/retained-research-portfolio',
       '/api/clio/application-authority/retained-research-portfolio-changes', '/clio/application-authority/retained-research-portfolio-changes',
       '/api/clio/application-authority/retained-florida-budget', '/clio/application-authority/retained-florida-budget',
@@ -325,8 +340,9 @@ export class TenantContextMiddleware implements NestMiddleware {
       }
       // The ordinary context resolver can write during membership self-heal.
       // Refuse a revoked control credential before that first local DB action.
-      // The authority owner checks online again after resolution, and on each
-      // later currentness read; this early proof is never cached for release.
+      // The authority owner checks again after resolution and on each later
+      // read. Clerk may reuse positive session evidence for at most five seconds;
+      // local authority is always re-read and never cached.
       await this.clerk.assertActiveMeriControlCredentialSession(claims);
     }
 
@@ -659,7 +675,7 @@ export class TenantContextMiddleware implements NestMiddleware {
         (claims.exp ?? 0) * 1000 <= Date.now()) {
       throw new UnauthorizedException('Application authority unavailable');
     }
-    // This online sid/sub/exp check runs BEFORE even the first local DB read.
+    // Check sid/sub/exp with bounded Clerk evidence BEFORE the first local DB read.
     await this.clerk.assertActiveApplicationAuthoritySession(claims);
     if (req.header('x-capiro-impersonate-tenant')) throw denied();
     const requestedSlug = this.resolveRequestedTenantSlug(req);
@@ -704,10 +720,20 @@ export class TenantContextMiddleware implements NestMiddleware {
     this.store.run(ctx, () => next());
   }
 
-  /** A fresh online session read followed by read-only current local checks.
+  /** Bounded Clerk session evidence followed by fresh, read-only local checks.
    * The original authentication pipeline can provision/update/audit; this
    * method cannot repair missing authority or choose a different membership. */
   async readApplicationAuthority(req: Request, ctx: TenantContext): Promise<ApplicationAuthorityIdentityProof> {
+    const session = await this.readApplicationAuthoritySession(req, ctx);
+    const evidence = await session.readCurrent();
+    return { ...evidence, recheckCurrent: () => session.readCurrent() };
+  }
+
+  /** Authenticate before opening a snapshot. The closure binds the private
+   * request provenance and verified session; callers cannot substitute either. */
+  async readApplicationAuthoritySession(req: Request, ctx: TenantContext): Promise<{
+    readCurrent(transaction?: Prisma.TransactionClient): Promise<ApplicationAuthorityIdentityEvidence>;
+  }> {
     const denied = () => new ForbiddenException('Application authority unavailable');
     const provenance = applicationAuthorityRequests.get(req);
     if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
@@ -717,8 +743,7 @@ export class TenantContextMiddleware implements NestMiddleware {
           : null)
       : await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
     if (!session) throw denied();
-    const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
-    return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
+    return { readCurrent: (transaction) => this.readCurrentApplicationAuthority(provenance, ctx, session, transaction, true) };
   }
 
   /** Unmounted history-release identity leaf. The request must already carry
@@ -744,7 +769,7 @@ export class TenantContextMiddleware implements NestMiddleware {
   }
 
   /** Caller owns the one REPEATABLE READ transaction. These locks remain held
-   * through the batch owner's final online observation and transaction commit.
+   * through the batch owner's final session check and transaction commit.
    * Bare SQL does not inherit Prisma's tenant predicate: pin every local fact. */
   async lockOriginalApplicationAuthorityInTransaction(
     req: Request, ctx: TenantContext, tx: Prisma.TransactionClient,
@@ -771,8 +796,9 @@ export class TenantContextMiddleware implements NestMiddleware {
     if (memberships.length !== 1 || memberships[0]?.id !== provenance.membershipId) throw denied();
   }
 
-  /** A NEW same-session Clerk observation under the caller's held local locks.
-   * Read local identity on that same transaction; no nested withSystem lease. */
+  /** Check the same session under the caller's held local locks. Clerk may
+   * reuse positive evidence for at most five seconds; local identity is always
+   * re-read on that same transaction, with no nested withSystem lease. */
   async readFreshApplicationAuthorityInTransaction(
     req: Request, ctx: TenantContext, tx: Prisma.TransactionClient,
   ): Promise<ApplicationAuthorityIdentityEvidence> {
@@ -792,7 +818,7 @@ export class TenantContextMiddleware implements NestMiddleware {
   }
 
   /** Only the receiving signed-codec closure can supply this runtime proof.
-   * Every invocation makes a new online session call and uses the same local owner. */
+   * Every invocation checks bounded Clerk evidence and freshly reads local facts. */
   async requiresVerifiedRetainedNativeAuthority(verified: VerifiedRetainedNativeAuthority): Promise<RetainedNativeAuthorityCurrent> {
     return requiresVerifiedRetainedNativeAuthority(verified, async (provenance) => {
       if (Date.now() >= verified.originalExpiresAtMs) throw new UnauthorizedException('Application authority unavailable');
@@ -808,6 +834,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     ctx: TenantContext,
     session: ActiveApplicationAuthoritySession,
     transaction?: Prisma.TransactionClient,
+    preserveTransactionUnavailable = false,
   ): Promise<ApplicationAuthorityIdentityEvidence> {
     const denied = () => new ForbiddenException('Application authority unavailable');
     if (provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
@@ -861,7 +888,11 @@ export class TenantContextMiddleware implements NestMiddleware {
         };
       };
       return transaction ? await read(transaction) : await this.prisma.withSystem(read);
-    } catch {
+    } catch (error) {
+      // The combined receipt owns its outage response. Other callers retain
+      // their existing refusal mapping, including held-lock release owners.
+      if (transaction && preserveTransactionUnavailable &&
+          (!(error instanceof HttpException) || error instanceof ServiceUnavailableException)) throw error;
       throw denied();
     }
   }

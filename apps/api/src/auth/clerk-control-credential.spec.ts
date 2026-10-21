@@ -92,6 +92,27 @@ describe('ClerkService native session and named Meri control assertion', () => {
     expect(receipt.expiresAtMs).toBe(Math.min(claims.exp! * 1000, row.abandonAt));
   });
 
+  it('reuses only the same control credential instance and returns fresh frozen receipts', async () => {
+    const service = owner();
+    const claims = controlClaims();
+    const first = await service.assertActiveMeriControlCredentialSession(claims);
+    const second = await service.assertActiveMeriControlCredentialSession(claims);
+    expect(second).toEqual(first); expect(second).not.toBe(first);
+    expect(Object.isFrozen(first)).toBe(true); expect(Object.isFrozen(second)).toBe(true);
+    expect(mockGetSessionList).toHaveBeenCalledTimes(1);
+    await service.assertActiveMeriControlCredentialSession({ ...claims, jti: 'next_control_jti' });
+    expect(mockGetSessionList).toHaveBeenCalledTimes(2);
+    expect(mockGetSession).not.toHaveBeenCalled();
+  });
+
+  it('never lets a positive control cache entry admit the same marked token through the native assertion', async () => {
+    const service = owner(); const claims = controlClaims();
+    await service.assertActiveMeriControlCredentialSession(claims);
+    await expect(service.assertActiveApplicationAuthoritySession(claims)).rejects.toMatchObject({ status: 401 });
+    expect(mockGetSession).not.toHaveBeenCalled();
+    expect(mockGetSessionList).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     { name: 'unmarked token', delta: { meri_control_credential: undefined } },
     { name: 'false marker', delta: { meri_control_credential: false } },
