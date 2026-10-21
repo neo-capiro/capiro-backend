@@ -1,0 +1,7 @@
+{
+  "owned_checkout_only": true,
+  "unchanged_materialized_api_files_retired": 1977,
+  "git_objects_preserved": true,
+  "borrowed_targets_unchanged": true,
+  "reason": "checks complete; free disk for own Git index publication"
+}

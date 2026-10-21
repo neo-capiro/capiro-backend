@@ -1,0 +1,12 @@
+{
+  "sourceHygiene": "FAIL",
+  "base": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "checkedPaths": 29,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "rawArchivesClassified": [],
+  "checkedDiagnostics": "docs/preview-readonly-api-20261013/evidence/attempt0-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/preview-readonly-api-20261013/evidence/attempt0-jest.log:3: trailing whitespace.\n+  \ndocs/preview-readonly-api-20261013/evidence/attempt1-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/preview-readonly-api-20261013/evidence/attempt1-jest.log:3: trailing whitespace.\n+  \ndocs/preview-readonly-api-20261013/evidence/attempt2-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/preview-readonly-api-20261013/evidence/attempt2-jest.log:3: trailing whitespace.\n+  \ndocs/preview-readonly-api-20261013/evidence/attempt3-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/preview-readonly-api-20261013/evidence/attempt3-jest.log:3: trailing whitespace.\n+  \ndocs/preview-readonly-api-20261013/evidence/attempt4-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/preview-readonly-api-20261013/evidence/attempt4-jest.log:3: trailing whitespace.\n+  \ndocs/preview-readonly-api-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/preview-readonly-api-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+}

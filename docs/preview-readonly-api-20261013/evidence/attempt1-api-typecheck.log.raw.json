@@ -1,0 +1,9 @@
+{
+  "format": "lossless-raw-observation-v1",
+  "original_path": "docs/preview-readonly-api-20261013/evidence/attempt1-api-typecheck.log",
+  "bytes": 110,
+  "sha256": "8780c44565ad62119da46019a5e5e101a4e35265ff6895cc85f132f15338d306",
+  "git_blob": "31c709379492300b4dfdfb7adc0daef71348c3d3",
+  "encoding": "base64",
+  "data": "YXBwcy9hcGkvc3JjL3ByZXZpZXctcmVhZG9ubHkvcHJldmlldy1yZWFkb25seS5zcGVjLnRzKDE1Niw0NSk6IGVycm9yIFRTMjUzMjogT2JqZWN0IGlzIHBvc3NpYmx5ICd1bmRlZmluZWQnLgo="
+}

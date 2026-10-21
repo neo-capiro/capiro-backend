@@ -1,0 +1,1 @@
+Usage: node scripts/lib/reviewed-source-hygiene.mjs --run --base <exact-lowercase-40-hex-commit>

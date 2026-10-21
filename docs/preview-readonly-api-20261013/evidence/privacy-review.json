@@ -1,0 +1,8 @@
+{
+  "result": "PASS",
+  "finite_files_scanned": 26,
+  "lossless_raw_logs_decoded": 11,
+  "findings": [],
+  "customer_identity_inputs": "synthetic fixtures only",
+  "no_live_credential_contents": true
+}
