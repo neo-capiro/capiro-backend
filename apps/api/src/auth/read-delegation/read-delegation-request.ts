@@ -42,9 +42,14 @@ const SERVICE_POSTS = [
   new RegExp(`^${BASE}/read-delegation-consents/${UUID_PART}/state$`),
 ];
 
+/** Express removes the mount prefix from req.path while middleware runs. */
+function mountedRequestPath(req: Request): string {
+  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
+}
+
 /** Parsed target equal to the original, no query, normalized without `/api`. */
 function exactPath(req: Request): string | null {
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = req.originalUrl ?? req.url ?? '';
   if (typeof parsed !== 'string' || original.includes('?') || original.includes('#') || parsed !== original) return null;
   return parsed.startsWith('/api/') ? parsed.slice(4) : parsed;

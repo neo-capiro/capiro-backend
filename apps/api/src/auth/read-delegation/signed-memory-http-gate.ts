@@ -2,6 +2,11 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import type { Request } from 'express';
 import type { OperationRef } from './read-delegation.contract.js';
 
+/** Express removes the mount prefix from req.path while middleware runs. */
+function mountedRequestPath(req: Request): string {
+  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
+}
+
 /** Source registration only. No environment variable or request may activate
  * either transport. A later owner must qualify the matching Meri wire, Core
  * role/migration and runtime readback before changing these two decisions. */
@@ -27,7 +32,7 @@ export function assertSignedMemorySourceEnabled(operation: OperationRef | null |
  * token verifier and can never borrow this bearer-less middleware branch. */
 export function isSignedMemoryHelperPost(req: Request): boolean {
   const original = req.originalUrl ?? req.url ?? '';
-  const path = req.path;
+  const path = mountedRequestPath(req);
   return req.method === 'POST' && typeof path === 'string' && path === original &&
     !original.includes('?') && !original.includes('#') &&
     (path.startsWith('/api/') ? path : `/api${path}`) === '/api/clio/tools/search_memory_eligibility';
@@ -35,7 +40,7 @@ export function isSignedMemoryHelperPost(req: Request): boolean {
 
 export function isSignedMemoryPagePost(req: Request): boolean {
   const original = req.originalUrl ?? req.url ?? '';
-  const path = req.path;
+  const path = mountedRequestPath(req);
   return req.method === 'POST' && typeof path === 'string' && path === original &&
     !original.includes('?') && !original.includes('#') &&
     (path.startsWith('/api/') ? path : `/api${path}`) === '/api/clio/tools/search_memory';
@@ -43,7 +48,7 @@ export function isSignedMemoryPagePost(req: Request): boolean {
 
 export function isSignedMemoryProposalPost(req: Request): boolean {
   const original = req.originalUrl ?? req.url ?? '';
-  const path = req.path;
+  const path = mountedRequestPath(req);
   return req.method === 'POST' && typeof path === 'string' && path === original &&
     !original.includes('?') && !original.includes('#') &&
     (path.startsWith('/api/') ? path : `/api${path}`) === '/api/clio/tools/memory.list_own_proposals';

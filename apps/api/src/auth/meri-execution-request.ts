@@ -1,6 +1,11 @@
 import type { Request } from 'express';
 import { isMeriExecutionBearer } from './core-ed25519-key-config.js';
 
+/** Express removes the mount prefix from req.path while middleware runs. */
+function mountedRequestPath(req: Request): string {
+  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
+}
+
 /**
  * The single Core route that accepts a Meri execution capability as its
  * bearer: Meri's executor posts the approved `task.create` command's tool body
@@ -24,7 +29,7 @@ const requests = new WeakMap<Request, MeriExecutionRequestIdentity>();
  * execution capability token type in the Bearer header. */
 export function isMeriExecutionCapabilityPost(req: Request): boolean {
   if (req.method !== 'POST') return false;
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
   if (parsed !== original || (req.originalUrl ?? '').includes('?')) return false;
   if ((parsed.startsWith('/api/') ? parsed.slice(4) : parsed) !== MERI_EXECUTION_RECEIVER_PATH) return false;
@@ -39,7 +44,7 @@ export const MERI_ROUTINE_UNATTENDED_GRANT_PATH = '/clio/routines/unattended-gra
 
 export function isMeriRoutineUnattendedGrantPost(req: Request): boolean {
   if (req.method !== 'POST' || req.headers.authorization !== undefined) return false;
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
   if (parsed !== original || (req.originalUrl ?? '').includes('?')) return false;
   return (parsed.startsWith('/api/') ? parsed.slice(4) : parsed) === MERI_ROUTINE_UNATTENDED_GRANT_PATH;
