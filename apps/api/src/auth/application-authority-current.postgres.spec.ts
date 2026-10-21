@@ -175,19 +175,19 @@ describePostgres('current authority on real local PostgreSQL (requires /tmp/capi
       .set('Authorization', 'Bearer synthetic-local-fixture').send(body);
   }
 
-  function assertReadOnlySnapshot() {
+  function assertReadOnlySnapshot(terminal: 'COMMIT' | 'ROLLBACK' = 'COMMIT') {
     const readOnlyIndex = queries.findIndex((sql) => /^SET TRANSACTION READ ONLY$/i.test(sql.trim()));
     expect(readOnlyIndex).toBeGreaterThan(0);
     expect(queries.filter((sql) => /^SET TRANSACTION READ ONLY$/i.test(sql.trim()))).toHaveLength(1);
     const start = queries.slice(0, readOnlyIndex).map((sql) => sql.trim().toUpperCase()).lastIndexOf('BEGIN');
-    const end = queries.findIndex((sql, index) => index > readOnlyIndex && /^COMMIT$/i.test(sql.trim()));
+    const end = queries.findIndex((sql, index) => index > readOnlyIndex && sql.trim().toUpperCase() === terminal);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(readOnlyIndex);
     const snapshot = queries.slice(start, end + 1);
     expect(snapshot).toContain('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
     // Prisma's BEGIN and isolation setup precede the interactive callback.
     // READ ONLY must be that callback's first statement, before its GUC/read.
-    expect(snapshot.filter((sql) => !/^(BEGIN|COMMIT|SET TRANSACTION ISOLATION LEVEL)/i.test(sql.trim()))[0])
+    expect(snapshot.filter((sql) => !/^(BEGIN|COMMIT|ROLLBACK|SET TRANSACTION ISOLATION LEVEL)/i.test(sql.trim()))[0])
       .toBe('SET TRANSACTION READ ONLY');
     expect(queries[readOnlyIndex + 1]).toContain("set_config('app.bypass_rls', 'on', true)");
     expect(snapshot.some((sql) => /\bFOR SHARE\b|\b(?:INSERT|UPDATE|DELETE)\s/i.test(sql))).toBe(false);
@@ -227,7 +227,7 @@ describePostgres('current authority on real local PostgreSQL (requires /tmp/capi
     expect(result.state).toEqual([{ isolation: 'repeatable read', readOnly: 'on' }]);
     expect(result.conversation).toMatchObject({ id: portfolioConversationId, clientId: null,
       metadata: { researchPortfolioScope: scope } });
-    expect(queries.some((sql) => /\bFOR SHARE\b/i.test(sql))).toBe(false);
+    assertReadOnlySnapshot();
     // A PostgreSQL 25006 error would reject the operation above; success here
     // proves that no forbidden row-lock statement was hidden by a fake driver.
   });
@@ -253,17 +253,16 @@ describePostgres('current authority on real local PostgreSQL (requires /tmp/capi
     expect(queries.some((sql) => /\bFOR SHARE\b/i.test(sql))).toBe(false);
   });
 
-  it('serves a genuinely clientless RP current200 over HTTP using its real current grant', async () => {
-    const response = await post('current', { conversationId: portfolioConversationId, clientId: null }).expect(200);
-    expect(response.body).toMatchObject({ principal: { tenantId, actorId }, role: 'standard_user',
-      clientIds: [clientId], conversationId: portfolioConversationId, selectedClientId: null });
-    expect(response.body.identityRevision).toMatch(/^[0-9a-f]{64}$/);
-    expect(response.body.membershipRevision).toMatch(/^[0-9a-f]{64}$/);
-    expect(response.body.contextRevision).toMatch(/^[0-9a-f]{64}$/);
+  it('refuses a genuinely clientless RP current request as403 just as context, using a real read-only snapshot', async () => {
+    const input = { conversationId: portfolioConversationId, clientId };
+    const response = await post('current', input).expect(403);
+    expect(response.body.message).toBe('Application authority unavailable');
     expect(response.headers['cache-control']).toBe('no-store');
     expect(online).toHaveBeenCalledTimes(1);
-    assertReadOnlySnapshot();
+    assertReadOnlySnapshot('ROLLBACK');
     expect(queries.some((sql) => /\bFOR SHARE\b/i.test(sql))).toBe(false);
+    const oldContext = await post('context', { ...input, identitySha256: 'a'.repeat(64) }).expect(403);
+    expect(oldContext.body.message).toBe(response.body.message);
   });
 
   it.each(['grant', 'membership'])('refuses revoked RP %s through the real current HTTP path as403', async (kind) => {
@@ -276,14 +275,16 @@ describePostgres('current authority on real local PostgreSQL (requires /tmp/capi
         return session;
       });
     }
-    const response = await post('current', { conversationId: portfolioConversationId, clientId: null }).expect(403);
+    const response = await post('current', { conversationId: portfolioConversationId, clientId }).expect(403);
     expect(response.body.message).toBe('Application authority unavailable');
     expect(queries.some((sql) => /\bFOR SHARE\b/i.test(sql))).toBe(false);
   });
 
-  it('refuses a client-bound RP selector and preserves the old context null-client400 contract', async () => {
-    await post('current', { conversationId: portfolioConversationId, clientId }).expect(403);
-    await post('current', { conversationId, clientId: null }).expect(403);
+  it('refuses null client selectors as400 on current and context even for an authorized RP', async () => {
+    await post('current', { conversationId: portfolioConversationId, clientId: null }).expect(400);
+    await post('current', { conversationId, clientId: null }).expect(400);
     await post('context', { conversationId: portfolioConversationId, clientId: null, identitySha256: 'a'.repeat(64) }).expect(400);
+    expect(online).not.toHaveBeenCalled();
+    expect(queries.some((sql) => /^SET TRANSACTION READ ONLY$/i.test(sql.trim()))).toBe(false);
   });
 });

@@ -353,33 +353,26 @@ describe('combined current authority registered HTTP boundary', () => {
     expect(response.body.message).toBe('Application authority unavailable');
   });
 
-  it('permits a clientless Research Portfolio only after its current owner checks on the same read-only snapshot', async () => {
+  it('refuses a clientless Research Portfolio on current just as on context, after read-only owner checks', async () => {
     f.researchPortfolioScope();
-    const response = await f.request('current', { conversationId, clientId: null });
-    expect(response.statusCode).toBe(200);
-    expect(response.body.selectedClientId).toBeNull();
+    const response = await f.request('current', input);
+    expect(response.statusCode).toBe(403);
+    expect(response.body.message).toBe('Application authority unavailable');
     expect(f.observations.some(({ operation }) => operation === 'researchPortfolio.findFirst')).toBe(true);
     expect(f.observations.some(({ operation }) => operation === 'client.findFirst' || operation === 'client.findMany')).toBe(false);
+    expect(f.observations[0]).toMatchObject({ operation: '$executeRaw', sql: 'SET TRANSACTION READ ONLY' });
     expect(f.observations.some(({ sql }) => /FOR SHARE/i.test(sql ?? ''))).toBe(false);
     expect(new Set(f.observations.map(({ tx }) => tx)).size).toBe(1);
-    expect((await f.request('current', { conversationId, clientId: null,
-      expect: { contextRevision: response.body.contextRevision } })).statusCode).toBe(200);
-    f.researchPortfolioScope(otherClientId, 2);
-    const changed = await f.request('current', { conversationId, clientId: null });
-    expect(changed.statusCode).toBe(200);
-    expect(changed.body.contextRevision).not.toBe(response.body.contextRevision);
-    const mismatch = await f.request('current', { conversationId, clientId: null,
-      expect: { contextRevision: response.body.contextRevision } });
-    expect(mismatch.statusCode).toBe(409);
-    expect(mismatch.body).toEqual({ error: 'CHANGED' });
+    const context = await f.request('context', { ...input, identitySha256: 'a'.repeat(64) });
+    expect(context.statusCode).toBe(403);
+    expect(context.body.message).toBe(response.body.message);
   });
 
-  it.each(['plain null client', 'forged receipt', 'revoked grant', 'dual prospect scope', 'UUID selector',
+  it.each(['plain null client', 'forged receipt', 'revoked grant', 'dual prospect scope',
     'foreign owner', 'foreign tenant', 'archived conversation', 'inactive conversation', 'revoked membership'])(
     'refuses clientless portfolio authority for %s', async (kind) => {
       f.researchPortfolioScope();
-      const request = { conversationId, clientId: kind === 'UUID selector' ? clientId : null };
-      const response = await f.request('current', request, { afterAuthentication() {
+      const response = await f.request('current', input, { afterAuthentication() {
         if (kind === 'plain null client') f.row.metadata = {};
         if (kind === 'forged receipt') f.row.metadata.researchPortfolioScope.scopeVersion = 'f'.repeat(64);
         if (kind === 'revoked grant') f.revokePortfolioGrant();
@@ -399,17 +392,13 @@ describe('combined current authority registered HTTP boundary', () => {
     },
   );
 
-  it('keeps the existing context contract UUID-only and requires the current client selector key', async () => {
+  it('keeps current and context UUID-only even for valid Research Portfolio metadata', async () => {
     f.researchPortfolioScope();
     expect((await f.request('context', { conversationId, clientId: null, identitySha256: 'a'.repeat(64) })).statusCode).toBe(400);
+    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(400);
+    expect(f.nativeSession).not.toHaveBeenCalled();
+    expect(f.transactions).toEqual([]);
     expect((await f.request('current', { conversationId })).statusCode).toBe(400);
-  });
-
-  it('does not reuse a portfolio proof when a later read returns ordinary metadata on the same object', async () => {
-    f.researchPortfolioScope();
-    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(200);
-    f.row.metadata = {};
-    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(403);
   });
 
   it('preserves answered authentication refusal as401 and missing bearer as401 with no-store', async () => {
@@ -484,6 +473,7 @@ describe('combined current authority registered HTTP boundary', () => {
 
   it.each([
     ['unknown key', { ...input, unknown: true }], ['bad UUID', { ...input, conversationId: 'not-a-uuid' }],
+    ['null client', { ...input, clientId: null }], ['missing client', { conversationId }],
     ['bad hash', { ...input, expect: { identityRevision: 'A'.repeat(64) } }],
     ['unknown expectation', { ...input, expect: { unknown: 'a'.repeat(64) } }],
     ['null expectation', { ...input, expect: null }], ['array expectation', { ...input, expect: [] }],

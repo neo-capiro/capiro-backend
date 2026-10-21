@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
 import { ContextSecurityScopeService } from '../context/context-security-scope.service.js';
-import { assertCurrentClientVisible, loadOwnedActiveClioConversation, readApplicationAuthorityResearchPortfolioScope } from '../context/application-authority-resource.helpers.js';
+import { assertCurrentClientVisible, loadOwnedActiveClioConversation } from '../context/application-authority-resource.helpers.js';
 import { BizDevMeriScopeService } from '../business-development/bizdev-meri-scope.service.js';
 import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import { Roles } from './roles.decorator.js';
@@ -69,7 +69,6 @@ export class ApplicationAuthorityController {
         identity: () => session.readCurrent(tx),
         membership: () => this.membership.readInTransaction(ctx, tx),
         conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id, tx),
-        researchPortfolioScope: (conversation) => readApplicationAuthorityResearchPortfolioScope(conversation),
         conversationScope: async (conversation) => {
           const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata, tx);
           if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');

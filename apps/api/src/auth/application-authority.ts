@@ -32,15 +32,14 @@ export interface ApplicationAuthorityContextReceipt extends ApplicationAuthority
 }
 export interface ApplicationAuthorityCurrentRequest {
   conversationId: string;
-  /** Null is authorized only for a current, owned Research Portfolio conversation. */
-  clientId: string | null;
+  clientId: string;
   expect?: Partial<Record<'identityRevision' | 'membershipRevision' | 'contextRevision', string>>;
 }
 export type ApplicationAuthorityCurrentMembership = Pick<ApplicationMembershipReceipt,
   'role' | 'permissions' | 'clientIds' | 'membershipRevision'>;
 export interface ApplicationAuthorityCurrentReceipt extends ApplicationAuthorityIdentityReceipt, ApplicationAuthorityCurrentMembership {
   conversationId: string;
-  selectedClientId: string | null;
+  selectedClientId: string;
   contextRevision: string;
 }
 /** Only the explicit revision precondition yields the wire-level 409. */
@@ -70,7 +69,7 @@ export function parseApplicationAuthorityCurrentBody(body: unknown): Application
   const record = closedBody(body, ['conversationId', 'clientId'], ['expect']);
   const { conversationId, clientId } = record;
   if (typeof conversationId !== 'string' || !UUID.test(conversationId) ||
-      (clientId !== null && (typeof clientId !== 'string' || !UUID.test(clientId)))) {
+      typeof clientId !== 'string' || !UUID.test(clientId)) {
     throw new BadRequestException('Invalid application authority request');
   }
   const result: ApplicationAuthorityCurrentRequest = { conversationId, clientId };
@@ -177,7 +176,6 @@ export async function readApplicationAuthorityCurrent(
     membership(): Promise<ApplicationAuthorityCurrentMembership>;
     conversation(id: string): Promise<ApplicationAuthorityConversation>;
     conversationScope(conversation: ApplicationAuthorityConversation): Promise<unknown>;
-    researchPortfolioScope?(conversation: ApplicationAuthorityConversation): readonly unknown[] | null;
     clientVisible(id: string): Promise<unknown>;
     clientAuthority(id: string): Promise<unknown>;
   },
@@ -186,18 +184,9 @@ export async function readApplicationAuthorityCurrent(
   const membership = await ports.membership();
   const conversation = await ports.conversation(input.conversationId);
   assertCurrentConversation(conversation, input, evidence.principal);
-  let scope = await ports.conversationScope(conversation);
-  let client: unknown = null;
-  if (input.clientId === null) {
-    const portfolioScope = ports.researchPortfolioScope?.(conversation);
-    // A null client is not a general unscoped authority receipt. The exact
-    // loaded row must carry this request's successful portfolio-owner proof.
-    if (!portfolioScope || scope !== null) throw new ForbiddenException('Application authority unavailable');
-    scope = portfolioScope;
-  } else {
-    await ports.clientVisible(input.clientId);
-    client = await ports.clientAuthority(input.clientId);
-  }
+  const scope = await ports.conversationScope(conversation);
+  await ports.clientVisible(input.clientId);
+  const client = await ports.clientAuthority(input.clientId);
   const checkedAtMs = Date.now();
   const identity = applicationAuthorityIdentityReceipt({
     ...evidence, expiresAtMs: Math.min(evidence.expiresAtMs, checkedAtMs + 120_000),
