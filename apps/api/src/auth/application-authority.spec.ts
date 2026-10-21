@@ -11,6 +11,7 @@ import type { ApplicationAuthorityIdentityProof } from './application-authority.
 // Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
 import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
+import * as mountedRequest from './mounted-request-path.js';
 import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
 
 // Actual owner closures only: no application/bootstrap, Prisma client or SDK.
@@ -44,7 +45,7 @@ function load(source: string, ports: Record<string, unknown>, timers = { setTime
 const contract = load(sources('auth/application-authority.ts'), {
   '@nestjs/common': nest, 'node:crypto': { createHash }, 'node:util': { types: nodeTypes },
 });
-const previewNativeReadMode = load(sources('auth/preview-native-read-mode.ts'), {});
+const previewNativeReadMode = load(sources('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest });
 const retainedNativeAuthority = load(sources('auth/retained-native-authority.ts'), {
   '@nestjs/common': nest, '@capiro/shared': { ROLE_RANK }, 'node:util': { types: nodeTypes },
 });
@@ -114,6 +115,7 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
     '../auth/core-ed25519-key-config.js': executionKeyConfig,
     '../auth/meri-execution-request.js': executionRequest,
     '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
+    '../auth/mounted-request-path.js': mountedRequest,
   }).TenantContextMiddleware;
   let activeContext: any;
   const clerkPort = { verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {

@@ -8,6 +8,7 @@ import ts from 'typescript';
 // Pure, SDK-free modules the middleware imports for Meri's execution capability (R21).
 import * as executionKeyConfig from './core-ed25519-key-config.js';
 import * as executionRequest from './meri-execution-request.js';
+import * as mountedRequest from './mounted-request-path.js';
 import * as readDelegationRequest from './read-delegation/read-delegation-request.js';
 
 const root = resolve(__dirname, '../../../..');
@@ -46,7 +47,8 @@ function owners() {
     '../auth/retained-native-authority.js': native,
     '../auth/core-ed25519-key-config.js': executionKeyConfig, '../auth/meri-execution-request.js': executionRequest,
     '../auth/read-delegation/read-delegation-request.js': readDelegationRequest,
-    '../auth/clerk.service.js': {}, '../auth/preview-native-read-mode.js': load(source('auth/preview-native-read-mode.ts'), {}),
+    '../auth/mounted-request-path.js': mountedRequest,
+    '../auth/clerk.service.js': {}, '../auth/preview-native-read-mode.js': load(source('auth/preview-native-read-mode.ts'), { './mounted-request-path.js': mountedRequest }),
     '../auth/clerk-role.util.js': { mapClerkRoleToCapiro() { throw new Error('No self-heal in this fixture'); } },
   }).TenantContextMiddleware;
   const json = <T>(value: T): T => new Script(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`).runInContext(vm);

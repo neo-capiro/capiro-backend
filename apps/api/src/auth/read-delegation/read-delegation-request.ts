@@ -1,3 +1,4 @@
+import { mountedRequestPath } from '../mounted-request-path.js';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import {
@@ -44,7 +45,7 @@ const SERVICE_POSTS = [
 
 /** Parsed target equal to the original, no query, normalized without `/api`. */
 function exactPath(req: Request): string | null {
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = req.originalUrl ?? req.url ?? '';
   if (typeof parsed !== 'string' || original.includes('?') || original.includes('#') || parsed !== original) return null;
   return parsed.startsWith('/api/') ? parsed.slice(4) : parsed;

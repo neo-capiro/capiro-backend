@@ -10,6 +10,7 @@
 // Investigate read-only and PROPOSE first; wait for go-ahead before editing,
 // merging, or deploying.
 // ============================================================================
+import { mountedRequestPath } from '../auth/mounted-request-path.js';
 import {
   ForbiddenException,
   HttpException,
@@ -86,11 +87,6 @@ const MERI_CONTROL_POST_PATHS = new Set([
   '/clio/application-authority/current',
 ]);
 
-/** Express removes the mount prefix from req.path while middleware runs. */
-function mountedRequestPath(req: Request): string {
-  return (req.baseUrl ?? '') + (req.baseUrl && req.path === '/' ? '' : req.path);
-}
-
 /** A marked, sidless Meri control token is limited to allowlisted authority POSTs.
  * Check both Express' parsed path and the original target: a rewritten or
  * absolute-form target must never widen the credential's route authority. */
@@ -126,7 +122,7 @@ const RETAINED_SIGNED_POSTS = new Map([
  * and refuses (503) when trust is not configured. */
 function isRetainedSignedPost(req: Request): boolean {
   if (req.method !== 'POST') return false;
-  const parsed = req.path;
+  const parsed = mountedRequestPath(req);
   const original = (req.originalUrl ?? req.url ?? '').split('?')[0];
   if (parsed !== original) return false;
   const scheme = RETAINED_SIGNED_POSTS.get(parsed.startsWith('/api/') ? parsed.slice(4) : parsed);
@@ -752,7 +748,7 @@ export class TenantContextMiddleware implements NestMiddleware {
    * the first history batch slice only; ordinary authentication is unchanged. */
   private historyReleaseProvenance(req: Request, ctx: TenantContext): ApplicationAuthorityRequestProvenance {
     const provenance = applicationAuthorityRequests.get(req);
-    const path = req.path;
+    const path = mountedRequestPath(req);
     const target = req.originalUrl ?? req.url ?? '';
     const authorization = req.headers.authorization;
     if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub ||
