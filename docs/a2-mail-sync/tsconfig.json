@@ -1,0 +1,20 @@
+{
+  "extends": "../../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "incremental": false,
+    "noEmit": true,
+    "types": ["node", "jest"],
+    "typeRoots": ["../../apps/api/node_modules/@types"],
+    "baseUrl": "../..",
+    "paths": {
+      "@capiro/shared": ["packages/shared/src/index.ts"],
+      "@capiro/shared/*": ["packages/shared/src/*"]
+    }
+  },
+  "include": [
+    "../../apps/api/src/engagement/mail-sync-failure.ts",
+    "../../apps/api/src/engagement/mail-sync-reconnect.a2.spec.ts"
+  ],
+  "exclude": []
+}

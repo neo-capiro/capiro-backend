@@ -28,6 +28,7 @@ import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { GOOGLE_SCOPES } from './google-oauth.service.js';
 import { TokenCryptoService } from '../microsoft/token-crypto.service.js';
+import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
@@ -101,7 +102,8 @@ export class GoogleTokenService {
 
     this.assertConfigured();
     if (!token.refreshTokenCiphertext || !token.refreshTokenIv || !token.refreshTokenAuthTag) {
-      throw new ServiceUnavailableException(
+      await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      throw new MailboxReconnectRequiredError(
         'Google refresh token is missing; reconnect Google Workspace',
       );
     }
@@ -128,8 +130,8 @@ export class GoogleTokenService {
       // (e.g. app still in Testing publishing status, 7-day expiry). Mark the
       // connection for reconnect rather than looping.
       if (response.status === 400 && /invalid_grant/i.test(text)) {
-        await this.markConnectionNeedsReconnect(tenantId, connectionId, token, text);
-        throw new BadRequestException('Reconnect Google Workspace in Settings to continue syncing');
+        await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+        throw new MailboxReconnectRequiredError('Reconnect Google Workspace in Settings to continue syncing');
       }
       throw new ServiceUnavailableException(
         `Google token refresh failed (${response.status}): ${text.slice(0, 300)}`,
@@ -178,7 +180,6 @@ export class GoogleTokenService {
     tenantId: string,
     connectionId: string,
     snapshot: IntegrationConnectionToken,
-    detail: string,
   ) {
     await this.prisma.withTenant(tenantId, async (tx) => {
       await admitMailboxRefresh(
@@ -188,15 +189,10 @@ export class GoogleTokenService {
         EngagementProvider.google_workspace,
         snapshot,
       );
-      await tx.integrationConnection
-        .update({
-          where: { id: connectionId },
-          data: {
-            status: EngagementConnectionStatus.needs_configuration,
-            lastError: `Reconnect Google Workspace to continue. ${detail.slice(0, 850)}`,
-          },
-        })
-        .catch(() => undefined);
+      await tx.integrationConnection.update({
+        where: { id: connectionId },
+        data: mailSyncFailureData('needs_reconnect', 'Google Workspace'),
+      });
     });
   }
 

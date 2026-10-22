@@ -11,6 +11,7 @@
 // EngagementSource.google, so Radar / Engagement / Intel / Meri surface Google
 // data with zero consumer changes. Do NOT edit without Neo's approval.
 // ============================================================================
+import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -1599,16 +1600,14 @@ export class GoogleSyncService {
   }
 
   private async markSyncError(tenantId: string, connectionId: string, err: unknown) {
-    const message = err instanceof Error ? err.message : 'Google sync failed';
+    if (err instanceof MailboxReconnectRequiredError) return;
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.integrationConnection
-        .update({
-          where: { id: connectionId },
-          data: {
-            status: EngagementConnectionStatus.error,
-            lastError: message.slice(0, 1000),
-            nextSyncAt: new Date(Date.now() + 15 * 60 * 1000),
-          },
+        .updateMany({
+          where: { id: connectionId, status: { in: ['connected', 'error'] } },
+          data: mailSyncFailureData(
+            isPermanentMailFailure(err) ? 'permission_denied' : 'transient', 'Google Workspace',
+          ),
         })
         .catch(() => undefined),
     );
