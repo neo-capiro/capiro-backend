@@ -339,6 +339,41 @@ test('Microsoft mailbox-not-enabled remains held with a specific safe diagnosis'
   expect(h.row().lastError).not.toContain('synthetic-provider-detail');
 });
 
+test.each([false, true])(
+  'Microsoft calendar-window mailbox absence stays retryable (reconnected: %s)',
+  async (reconnected) => {
+    const h = syncHarness('microsoft_365');
+    h.row().token.expiresAt = new Date(Date.now() + 3_600_000);
+    const oldState = structuredClone(h.row().syncState);
+    h.service.graphGet = jest.fn().mockResolvedValue({ value: [] });
+    h.service.graphGet.mockImplementationOnce(async () => {
+      if (reconnected) {
+        const attempt = await h.start();
+        await h.callback(attempt.state);
+        expect(h.row().status).toBe('connected');
+      }
+      throw new Error('MailboxNotEnabledForRESTAPI synthetic obsolete calendar-window request');
+    });
+    const runWindow = () => h.service.syncCalendarWindow(
+      { tenantId: tenant, userId: h.row().createdByUserId }, 'connection-A',
+      { from: '2026-10-01T00:00:00Z', to: '2026-10-02T00:00:00Z' },
+    );
+    await expect(runWindow()).rejects.toThrow('MailboxNotEnabledForRESTAPI');
+    const currentAccess = reconnected ? 'returned-access' : 'access-account-A';
+    expect(h.row().token.accessTokenCiphertext).toBe(currentAccess);
+    expect(h.row().syncState).toEqual(oldState);
+    expect(h.row().status).toBe('error');
+    expect(h.row().nextSyncAt).toBeInstanceOf(Date);
+    await expect(runWindow()).resolves.toMatchObject({ scanned: 0, pages: 1, hasMore: false });
+    expect(h.row()).toMatchObject({ status: 'connected', lastError: null });
+    expect(h.service.graphGet).toHaveBeenLastCalledWith(
+      expect.any(String), currentAccess, expect.anything(),
+    );
+    expect(h.fetch).not.toHaveBeenCalled();
+    expect(h.exchange).not.toHaveBeenCalled();
+  },
+);
+
 test.each(['interaction_required', 'consent_required', 'login_required'])(
   'Microsoft typed %s error requires reconnect even without matching error prose',
   async (errorCode) => {

@@ -824,7 +824,9 @@ export class MicrosoftGraphSyncService {
 
       return result;
     } catch (err) {
-      await this.markSyncError(tenantId, connectionId, err);
+      // Keep the inherited mailbox-absence hold scoped to connection sync;
+      // calendar-window sync has always retained generic retry eligibility.
+      await this.markSyncError(tenantId, connectionId, err, { holdMailboxAbsence: true });
       throw err;
     }
   }
@@ -1963,9 +1965,14 @@ export class MicrosoftGraphSyncService {
     return (await response.json()) as T;
   }
 
-  private async markSyncError(tenantId: string, connectionId: string, err: unknown) {
+  private async markSyncError(
+    tenantId: string,
+    connectionId: string,
+    err: unknown,
+    options: { holdMailboxAbsence?: boolean } = {},
+  ) {
     if (err instanceof MailboxReconnectRequiredError) return;
-    const kind = err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')
+    const kind = options.holdMailboxAbsence && err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')
       ? 'mailbox_not_enabled' : isPermanentMailFailure(err) ? 'permission_denied' : 'transient';
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.integrationConnection

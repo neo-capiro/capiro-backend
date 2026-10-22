@@ -23,7 +23,7 @@
   {
     "name": "microsoft-swallowed-error",
     "exitCode": 1,
-    "passed": 0,
+    "passed": 2,
     "failed": 19,
     "assertionFailures": [
       "ML-13 microsoft_365 top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
@@ -125,6 +125,16 @@
     ]
   },
   {
+    "name": "calendar-window-inherits-mailbox-hold",
+    "exitCode": 1,
+    "passed": 0,
+    "failed": 2,
+    "assertionFailures": [
+      "Microsoft calendar-window mailbox absence stays retryable (reconnected: false)",
+      "Microsoft calendar-window mailbox absence stays retryable (reconnected: true)"
+    ]
+  },
+  {
     "name": "exact-base-red-check",
     "exitCode": 1,
     "passed": 0,
@@ -138,6 +148,13 @@
     "name": "exact-base-regressions",
     "exitCode": 0,
     "passed": 4,
+    "failed": 0,
+    "assertionFailures": []
+  },
+  {
+    "name": "exact-base-calendar-window",
+    "exitCode": 0,
+    "passed": 2,
     "failed": 0,
     "assertionFailures": []
   }

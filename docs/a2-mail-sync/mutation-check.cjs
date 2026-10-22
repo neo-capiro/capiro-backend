@@ -14,8 +14,8 @@ const mutations = [
     .map(([file, pattern]) => ({
       name: file === google ? 'google-swallowed-error' : 'microsoft-swallowed-error',
       file, pattern,
-      from: 'await this.markSyncError(tenantId, connectionId, err);\n      throw err;',
-      to: 'await this.markSyncError(tenantId, connectionId, err);\n      return { connectionId };',
+      from: `await this.markSyncError(tenantId, connectionId, err${file === microsoft ? ', { holdMailboxAbsence: true }' : ''});\n      throw err;`,
+      to: `await this.markSyncError(tenantId, connectionId, err${file === microsoft ? ', { holdMailboxAbsence: true }' : ''});\n      return { connectionId };`,
     })),
   {
     name: 'reconnect-becomes-transient', file: policy,
@@ -45,6 +45,12 @@ const mutations = [
     pattern: 'resource permission|access-token expiry',
     from: "const requiresReconnect = kind === 'needs_reconnect' || kind === 'mailbox_not_enabled';",
     to: "const requiresReconnect = kind !== 'transient';",
+  },
+  {
+    name: 'calendar-window-inherits-mailbox-hold', file: microsoft,
+    pattern: 'calendar-window mailbox absence',
+    from: "options.holdMailboxAbsence && err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')",
+    to: "err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')",
   },
 ];
 
@@ -80,7 +86,8 @@ if (require.main === module) {
   config.transform = { [expression]: [__filename, options] };
   const checks = [...mutations,
     { name: 'exact-base-red-check', pattern: 'invalid grant remains', expectFailure: true },
-    { name: 'exact-base-regressions', pattern: 'late resource permission|access-token expiry', expectFailure: false },
+    { name: 'exact-base-regressions', pattern: 'late resource permission|access-token expiry', expectedPassed: 4 },
+    { name: 'exact-base-calendar-window', pattern: 'calendar-window mailbox absence', expectedPassed: 2 },
   ];
   const results = [];
   for (const check of checks) {
@@ -98,10 +105,10 @@ if (require.main === module) {
       failed: report.numFailedTests, assertionFailures: failures });
     fs.writeFileSync(path.join(evidence, 'mutation-summary.json'), JSON.stringify(results, null, 2) + '\n');
     console.log(`${check.name}: ${report.numPassedTests} passed; ${failures.length} assertion failures`);
-    const expectFailure = check.expectFailure !== false;
+    const expectFailure = check.expectedPassed === undefined;
     if (report.numRuntimeErrorTestSuites || (expectFailure
       ? !failures.length || run.status !== 1
-      : failures.length || run.status !== 0 || report.numPassedTests !== 4)) {
+      : failures.length || run.status !== 0 || report.numPassedTests !== check.expectedPassed)) {
       throw new Error(`Unexpected mutation/base comparison result: ${check.name}`);
     }
   }
