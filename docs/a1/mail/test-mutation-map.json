@@ -1,0 +1,106 @@
+{
+  "single mail direct service boundary direct HTTP send without a durable request identity is refused before provider work": [
+    "request-key-required"
+  ],
+  "single mail direct service boundary direct HTTP send and recovery reject inaccessible client without attachments or provider calls": [
+    "remove-current-admission",
+    "request-key-required"
+  ],
+  "single mail direct service boundary direct HTTP send and recovery reject inaccessible member without attachments or provider calls": [
+    "remove-current-admission",
+    "request-key-required"
+  ],
+  "single mail direct service boundary direct HTTP send and recovery reject inaccessible mailbox without attachments or provider calls": [
+    "remove-current-admission",
+    "request-key-required"
+  ],
+  "single mail direct service boundary revocation during attachment fetch is rechecked before claim/send": [
+    "remove-current-admission"
+  ],
+  "single mail direct service boundary an attachment removed during byte loading cannot cross the provider boundary": [
+    "remove-attachment-recheck"
+  ],
+  "single mail direct service boundary a duplicate existing intent returns owned status without a second provider call": [
+    "ignore-existing-intent"
+  ],
+  "single mail direct service boundary dispatch failure records unknown and never retries the provider": [
+    "misclassify-dispatch-unknown"
+  ],
+  "single mail direct service boundary a definite provider rejection records a failed receipt without a retry": [
+    "ignore-definite-rejection"
+  ],
+  "single mail direct service boundary provider acceptance is saved even when client access is revoked during dispatch, and details are withheld": [
+    "remove-current-admission"
+  ],
+  "MicrosoftGraphSyncService.graphFetch retry bound read retry preserves parseJson=false": [
+    "disable-read-retry"
+  ],
+  "Graph mutation dispatch fence send POST with Retry-After and 429 is dispatched once": [
+    "graph-post-replay"
+  ],
+  "Graph mutation dispatch fence send POST with Retry-After and 500 is dispatched once": [
+    "graph-post-replay"
+  ],
+  "Graph mutation dispatch fence send POST with Retry-After and 503 is dispatched once": [
+    "graph-post-replay"
+  ],
+  "Graph mutation dispatch fence real draft/send HTTP transport preserves rejection, ambiguity, and no-content acceptance without replay": [
+    "graph-post-replay"
+  ],
+  "ML-07 current single-mail admission removed-member refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission foreign-mailbox refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission absent-client refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission revoked-wall refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission foreign-person refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission foreign-thread refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission wrong-mailbox refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission different-client refuses before dispatch": [
+    "remove-current-admission"
+  ],
+  "ML-07 current single-mail admission null-client history needs existing recipient association and retains owner predicates": [
+    "remove-current-admission"
+  ],
+  "ML-03 durable claim and request identity changed Bcc, mailbox, reply, signature policy and attachments change the frozen request hash": [
+    "hash-ignores-input"
+  ],
+  "ML-03 durable claim and request identity current authority rejection prevents the pending-to-sending write": [
+    "claim-skips-admission"
+  ],
+  "ML-03 durable claim and request identity a non-winning claim cannot dispatch and outcome writes remain actor-scoped without re-admission": [
+    "claim-always-wins"
+  ],
+  "ML-09 mailbox collision fence outlook rejects same provider ID from another mailbox before any write": [
+    "graph-identity-check-removed",
+    "removal-lineage-removed"
+  ],
+  "ML-09 mailbox collision fence google rejects same provider ID from another mailbox before any write": [
+    "google-identity-check-removed",
+    "removal-lineage-removed"
+  ],
+  "outlook mailbox predicates refuse concurrent collision writes": [
+    "graph-write-scope-removed",
+    "removal-scope-removed"
+  ],
+  "google mailbox predicates refuse concurrent collision writes": [
+    "google-write-scope-removed",
+    "removal-scope-removed"
+  ],
+  "single-mail PostgreSQL ledger concurrent duplicates have one durable claim and unknown remains fenced after re-opening the ledger": [
+    "claim-always-wins",
+    "read-omits-actor"
+  ]
+}

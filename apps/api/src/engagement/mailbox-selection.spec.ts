@@ -1,3 +1,4 @@
+import { singleMailTestState } from './__fixtures__/single-mail-ledger.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from './engagement.service.js';
@@ -15,6 +16,7 @@ const ctx: TenantContext = {
 const A = '33333333-3333-4333-8333-333333333333';
 const B = '44444444-4444-4444-8444-444444444444';
 const input = {
+  requestKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   to: [{ email: 'recipient@example.test' }],
   subject: 'Synthetic only',
   bodyHtml: '<p>Hello</p>',
@@ -72,12 +74,13 @@ function harness(provider: 'google_workspace' | 'microsoft_365' = 'google_worksp
     }),
   };
   const runtime = { assertExternalAction: jest.fn() };
+  const augment = singleMailTestState();
   const service = Object.create(EngagementService.prototype) as EngagementService;
   Object.assign(service, {
     prisma: {
       withTenant: jest.fn(async (tenant: string, fn: (tx: unknown) => unknown) => {
         expect(tenant).toBe(ctx.tenantId);
-        return fn(tx);
+        return fn(augment(tx));
       }),
     },
     mailSender: new EngagementMailSender(microsoft as never, google as never, runtime as never),
@@ -157,24 +160,31 @@ describe('exact single-mail selection', () => {
       row.id === where.id &&
       row.tenantId === where.tenantId &&
       row.createdByUserId === where.createdByUserId &&
-      row.status === where.status &&
+      (where.status === undefined || row.status === where.status) &&
       (where.token?.isNot !== null || row.token !== null) &&
-      where.provider.in.includes(row.provider)
+      (!where.provider || where.provider.in.includes(row.provider))
         ? row
         : null,
     );
+    const losesOwnership = _label === 'foreign actor' || _label === 'foreign tenant';
     await expect(
       h.service.sendSingleMail(ctx, { ...input, senderConnectionId: B }),
-    ).rejects.toThrow('selected sending mailbox');
-    expect(h.tx.integrationConnection.findFirst).toHaveBeenCalledTimes(1);
-    expect(h.tx.integrationConnection.findFirst.mock.calls[0]![0].where).toEqual({
-      id: B,
-      tenantId: ctx.tenantId,
-      createdByUserId: ctx.userId,
-      status: 'connected',
-      token: { isNot: null },
-      provider: { in: ['microsoft_365', 'google_workspace'] },
+    ).rejects.toThrow(losesOwnership ? 'Sending mailbox not found' : 'selected sending mailbox');
+    expect(h.tx.integrationConnection.findFirst).toHaveBeenCalledTimes(losesOwnership ? 1 : 2);
+    expect(h.tx.integrationConnection.findFirst.mock.calls[0]![0]).toEqual({
+      where: { id: B, tenantId: ctx.tenantId, createdByUserId: ctx.userId },
+      select: { id: true },
     });
+    if (!losesOwnership) {
+      expect(h.tx.integrationConnection.findFirst.mock.calls[1]![0].where).toEqual({
+        id: B,
+        tenantId: ctx.tenantId,
+        createdByUserId: ctx.userId,
+        status: 'connected',
+        token: { isNot: null },
+        provider: { in: ['microsoft_365', 'google_workspace'] },
+      });
+    }
     expect(h.google.sendMail).not.toHaveBeenCalled();
     expect(h.microsoft.sendMail).not.toHaveBeenCalled();
     expect(h.tx.mailMessage.upsert).not.toHaveBeenCalled();
@@ -218,7 +228,7 @@ describe('exact single-mail selection', () => {
         h.service.sendSingleMail(ctx, { ...input, threadId: 'thread-a', senderConnectionId }),
       ).resolves.toMatchObject({ senderConnectionId: A });
       expect(h.google.sendMail).toHaveBeenCalledWith(ctx, A, expect.any(Object));
-      expect(h.tx.mailThread.findFirst).toHaveBeenLastCalledWith({
+      expect(h.tx.mailThread.findFirst).toHaveBeenCalledWith({
         where: {
           id: 'thread-a',
           tenantId: ctx.tenantId,
@@ -230,7 +240,7 @@ describe('exact single-mail selection', () => {
       });
     },
   );
-  it('refuses thread A with explicit B before resolving a connection or attachments', async () => {
+  it('refuses thread A with explicit B before selecting credentials or attachments', async () => {
     const h = harness();
     await expect(
       h.service.sendSingleMail(ctx, {
@@ -239,8 +249,12 @@ describe('exact single-mail selection', () => {
         senderConnectionId: B,
         attachmentIds: ['file'],
       }),
-    ).rejects.toThrow('originating thread mailbox');
-    expect(h.tx.integrationConnection.findFirst).not.toHaveBeenCalled();
+    ).rejects.toThrow('Mail thread not found');
+    expect(h.tx.integrationConnection.findFirst).toHaveBeenCalledWith({
+      where: { id: B, tenantId: ctx.tenantId, createdByUserId: ctx.userId },
+      select: { id: true },
+    });
+    expect(h.tx.integrationConnection.findFirst.mock.calls.some(([query]) => query.where.status)).toBe(false);
     expect(h.tx.engagementAttachment.findMany).not.toHaveBeenCalled();
     expect(h.google.sendMail).not.toHaveBeenCalled();
   });
@@ -253,7 +267,7 @@ describe('exact single-mail selection', () => {
     expect(h.tx.integrationConnection.findFirst.mock.calls[0]![0].where.id).toBe(A);
     expect(h.google.sendMail).not.toHaveBeenCalled();
   });
-  it('keeps reply authorization before any mailbox or provider work', async () => {
+  it('keeps reply authorization before selecting credentials or calling a provider', async () => {
     const h = harness();
     h.tx.mailThread.findFirst.mockResolvedValue(null);
     await expect(
@@ -263,7 +277,11 @@ describe('exact single-mail selection', () => {
         senderConnectionId: B,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
-    expect(h.tx.integrationConnection.findFirst).not.toHaveBeenCalled();
+    expect(h.tx.integrationConnection.findFirst).toHaveBeenCalledWith({
+      where: { id: B, tenantId: ctx.tenantId, createdByUserId: ctx.userId },
+      select: { id: true },
+    });
+    expect(h.tx.integrationConnection.findFirst.mock.calls.some(([query]) => query.where.status)).toBe(false);
     expect(h.google.sendMail).not.toHaveBeenCalled();
   });
   it('refuses a missing originating connection before provider work', async () => {
@@ -316,9 +334,11 @@ describe('exact single-mail selection', () => {
   });
   it('preserves the transactional reply recheck and reports receipt uncertainty if ownership changed', async () => {
     const h = harness();
-    h.tx.mailThread.findFirst
-      .mockResolvedValueOnce({ id: 'thread-a', connectionId: A })
-      .mockResolvedValueOnce(null);
+    // Current preflight and claim each re-read the thread. Revoke only after
+    // provider acceptance so this remains a post-dispatch receipt regression.
+    h.tx.mailThread.findFirst.mockImplementation(async () =>
+      h.google.sendMail.mock.calls.length ? null : { id: 'thread-a', connectionId: A },
+    );
     await expect(
       h.service.sendSingleMail(ctx, { ...input, threadId: 'thread-a' }),
     ).rejects.toMatchObject({

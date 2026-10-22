@@ -1,3 +1,4 @@
+import { singleMailTestState } from '../__fixtures__/single-mail-ledger.js';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { EngagementAttachment } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -46,6 +47,7 @@ const ctx: TenantContext = {
 };
 const bytes = Buffer.from('Synthetic attachment bytes');
 const input: SendSingleMailInput = {
+  requestKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   clientId: 'client-1',
   to: [{ email: 'recipient@example.test' }],
   subject: 'Synthetic attachment review',
@@ -100,11 +102,12 @@ function harness(rows = [row()]) {
     providerMessageId: 'provider-1',
     providerConversationId: 'conversation-1',
   });
+  const augment = singleMailTestState();
   const service = Object.create(EngagementService.prototype) as EngagementService;
   Object.assign(service, {
     prisma: {
       withTenant: jest.fn(async (_tenant: string, fn: (transaction: typeof tx) => unknown) =>
-        fn(tx),
+        fn(augment(tx)),
       ),
     },
     attachmentContent: new AttachmentContentService(),
@@ -261,7 +264,7 @@ describe('whole-selection scope and parent preflight', () => {
     h.tx.client.findFirst.mockResolvedValue(null);
     await expect(h.service.sendSingleMail(ctx, input)).rejects.toThrow('Client not found');
     expect(h.tx.client.findFirst).toHaveBeenCalledWith({
-      where: { id: 'client-1', tenantId: ctx.tenantId },
+      where: { id: 'client-1', tenantId: ctx.tenantId, status: { not: 'archived' } },
       select: { id: true },
     });
     expect(h.readAttachmentBytes).not.toHaveBeenCalled();

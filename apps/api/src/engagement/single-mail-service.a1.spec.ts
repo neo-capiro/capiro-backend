@@ -1,0 +1,277 @@
+// Exercise the actual service boundary. Unrelated document/AI/provider constructors
+// are mocked; current admission and the send orchestration remain production code.
+jest.doMock('@nestjs/throttler', () => ({ Throttle: () => () => {} }), { virtual: true });
+for (const module of [
+  '../ai-credentials/ai-credential-resolver.service.js',
+  './attachment-pdf-vision.js',
+  './generation/generation-gateway.service.js',
+  './generation/outreach-truth.service.js',
+  './generation/evidence-source.service.js',
+  './attachment-content.service.js',
+  './attachment-scanner.service.js',
+  './outreach-draft.service.js',
+  '../quality-telemetry/quality-telemetry-capture.service.js',
+  '../directory/directory.service.js',
+  '../lobby-intel/lobby-intel.service.js',
+  '../federal-spending/federal-spending.service.js',
+  './client-association.service.js',
+  './engagement-ai.service.js',
+  './meeting-notes-crypto.service.js',
+  '../embeddings/client-kb.service.js',
+  './generation/alert-packet-client.service.js',
+  '../prisma/prisma.service.js',
+  './xlsx-extract.js',
+  './pptx-extract.js',
+  './meeting-prep-pdf.js',
+  './attachment-context-extract.js',
+  './meeting-prep-job.service.js',
+  './outreach-job.service.js',
+  './notetaker/notetaker.service.js',
+  './outreach-send-intent.service.js',
+])
+  jest.doMock(module, () => new Proxy({}, { get: () => class {} }));
+for (const module of [
+  '@aws-sdk/client-s3',
+  '@aws-sdk/s3-presigned-post',
+  '@aws-sdk/s3-request-presigner',
+  '@capiro/meriv2-core',
+  'mammoth',
+]) {
+  jest.doMock(module, () => new Proxy({}, { get: () => class {} }), { virtual: true });
+}
+jest.doMock('./mail-sender.service.js', () => ({
+  EngagementMailSender: class {},
+  sendProviderSlug: () => 'gmail',
+}));
+jest.doMock('../common/sanitize-signature.js', () => ({
+  sanitizeSignatureHtml: (value: string) => value,
+}));
+jest.doMock('./outreach-email-renderer.js', () => ({
+  renderOutreachBody: (content: string) => ({ content }),
+  appendOutreachSignature: (body: unknown) => body,
+}));
+
+const ledger = {
+  validateKey: jest.fn((key) => key),
+  read: jest.fn(),
+  assertRequest: jest.fn(),
+  begin: jest.fn(),
+  claim: jest.fn(),
+  outcome: jest.fn(),
+  receipt: jest.fn(),
+  view: jest.fn(),
+};
+jest.doMock('./single-mail-ledger.js', () => ({
+  SingleMailLedger: jest.fn(() => ledger),
+  singleMailHash: () => 'hash',
+}));
+const { EngagementService } =
+  require('./engagement.service.js') as typeof import('./engagement.service.js');
+const { EngagementController } = require('./engagement.controller.js');
+const { Test } = require('@nestjs/testing');
+const { ValidationPipe } = require('@nestjs/common');
+
+const ctx = { tenantId: 'tenant', userId: 'actor', role: 'standard_user' } as never;
+const input = {
+  requestKey: '11111111-1111-4111-8111-111111111111',
+  clientId: '22222222-2222-4222-8222-222222222222',
+  senderConnectionId: '33333333-3333-4333-8333-333333333333',
+  to: [{ email: 'target@example.test' }],
+  subject: 'Private',
+  bodyHtml: '<p>Private</p>',
+};
+function fixture() {
+  const tx = {
+    tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership' }) },
+    integrationConnection: { findFirst: jest.fn().mockResolvedValue({ id: 'mailbox' }) },
+    client: { findFirst: jest.fn().mockResolvedValue({ id: 'client' }) },
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
+  };
+  const service = Object.create(EngagementService.prototype) as any;
+  service.prisma = { withTenant: async (_: string, run: any) => run(tx) };
+  service.findCampaignSendConnection = jest.fn().mockResolvedValue({
+    id: 'mailbox',
+    provider: 'google_workspace',
+    accountEmail: 'sender@example.test',
+  });
+  service.resolveSenderSignatureHtml = jest.fn().mockResolvedValue({ signatureHtml: null });
+  service.loadGraphAttachments = jest.fn().mockResolvedValue(undefined);
+  service.mailSender = { sendMail: jest.fn().mockRejectedValue(new Error('socket closed')) };
+  ledger.read.mockResolvedValue(null);
+  ledger.begin.mockResolvedValue({ created: true, intent: { id: 'intent' } });
+  ledger.claim.mockImplementation(
+    async (_ctx: unknown, _intent: unknown, authorize: (tx: unknown) => Promise<void>) => {
+      await authorize(tx);
+      return true;
+    },
+  );
+  ledger.outcome.mockResolvedValue(undefined);
+  return { tx, service };
+}
+async function api(service: unknown) {
+  const dependencies: unknown[] = Reflect.getMetadata('design:paramtypes', EngagementController);
+  const mod = await Test.createTestingModule({
+    controllers: [EngagementController],
+    providers: dependencies.map((provide, index) => ({
+      provide,
+      useValue: index === 0 ? service : {},
+    })),
+  }).compile();
+  const app = mod.createNestApplication();
+  app.useGlobalPipes(
+    new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }),
+  );
+  // Auth middleware is outside this harness; retain real controller, DTO and RolesGuard.
+  app.use((req: any, _res: any, next: () => void) => {
+    req.tenantContext = ctx;
+    next();
+  });
+  await app.listen(0, '127.0.0.1');
+  return { app, base: await app.getUrl() };
+}
+beforeEach(() => {
+  jest.clearAllMocks();
+  ledger.validateKey.mockImplementation((key) => key);
+});
+describe('single mail direct service boundary', () => {
+  test('direct HTTP send without a durable request identity is refused before provider work', async () => {
+    const h = fixture();
+    const { app, base } = await api(h.service);
+    try {
+      const { requestKey: _key, ...withoutKey } = input;
+      const response = await fetch(`${base}/engagement/mail/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withoutKey),
+      });
+      expect(response.status).toBe(400);
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+      expect(ledger.begin).not.toHaveBeenCalled();
+    } finally { await app.close(); }
+  });
+  test.each(['client', 'member', 'mailbox'])(
+    'direct HTTP send and recovery reject inaccessible %s without attachments or provider calls',
+    async (kind) => {
+      const h = fixture();
+      if (kind === 'client') h.tx.client.findFirst.mockResolvedValue(null);
+      if (kind === 'member') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+      if (kind === 'mailbox') h.tx.integrationConnection.findFirst.mockResolvedValue(null);
+      const { app, base } = await api(h.service);
+      try {
+        const sent = await fetch(`${base}/engagement/mail/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        });
+        expect(sent.status).toBe(kind === 'member' ? 403 : 404);
+        ledger.read.mockResolvedValue({
+          client_id: input.clientId,
+          connection_id: input.senderConnectionId,
+          snapshot: {},
+        });
+        const recovered = await fetch(`${base}/engagement/mail/send-intents/${input.requestKey}`);
+        expect(recovered.status).toBe(kind === 'member' ? 403 : 404);
+      } finally {
+        await app.close();
+      }
+      expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+      expect(ledger.begin).not.toHaveBeenCalled();
+    },
+  );
+  test('revocation during attachment fetch is rechecked before claim/send', async () => {
+    const h = fixture();
+    h.service.loadGraphAttachments.mockImplementation(async () => {
+      h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+      return undefined;
+    });
+    await expect(h.service.sendSingleMail(ctx, input)).rejects.toThrow('Client not found');
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test('an attachment removed during byte loading cannot cross the provider boundary', async () => {
+    const h = fixture();
+    Object.assign(h.tx, { engagementAttachment: { findMany: jest.fn().mockResolvedValue([]) } });
+    h.service.loadGraphAttachments.mockResolvedValue([{ name: 'private.txt', contentType: 'text/plain', contentBytes: 'cHJpdmF0ZQ==' }]);
+    await expect(h.service.sendSingleMail(ctx, { ...input, attachmentIds: ['44444444-4444-4444-8444-444444444444'] }))
+      .rejects.toMatchObject({ response: { error: 'ATTACHMENT_MISSING' } });
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+  });
+  test('a duplicate existing intent returns owned status without a second provider call', async () => {
+    const h = fixture();
+    ledger.read.mockResolvedValue({ request_key: input.requestKey });
+    h.service.getSingleMailIntent = jest
+      .fn()
+      .mockResolvedValue({ state: 'unknown', requestKey: input.requestKey });
+    await expect(h.service.sendSingleMail(ctx, input)).resolves.toMatchObject({ state: 'unknown' });
+    expect(h.service.mailSender.sendMail).not.toHaveBeenCalled();
+    expect(ledger.begin).not.toHaveBeenCalled();
+  });
+  test('dispatch failure records unknown and never retries the provider', async () => {
+    const h = fixture();
+    await expect(h.service.sendSingleMail(ctx, input)).rejects.toThrow();
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(ledger.outcome).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ id: 'intent' }),
+      'unknown',
+      expect.any(Object),
+    );
+  });
+  test('a definite provider rejection records a failed receipt without a retry', async () => {
+    const h = fixture();
+    const { definiteMailSendRejection } = require('./mail-send-result.js');
+    h.service.mailSender.sendMail.mockRejectedValue(
+      definiteMailSendRejection(new Error('HTTP 429 refused')),
+    );
+    await expect(h.service.sendSingleMail(ctx, input)).rejects.toMatchObject({
+      response: {
+        error: 'MAIL_SEND_REJECTED',
+        state: 'failed',
+        requestKey: input.requestKey,
+        retryable: false,
+      },
+    });
+    expect(ledger.outcome).toHaveBeenCalledWith(
+      ctx,
+      expect.anything(),
+      'failed',
+      expect.anything(),
+    );
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+  });
+  test('provider acceptance is saved even when client access is revoked during dispatch, and details are withheld', async () => {
+    const h = fixture();
+    h.service.mailSender.sendMail.mockImplementation(async () => {
+      h.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+      return {
+        ok: true,
+        provider: 'gmail',
+        providerMessageId: 'remote',
+        providerThreadId: 'remote-thread',
+        correlationId: 'intent',
+      };
+    });
+    Object.assign(h.tx, {
+      mailThread: {
+        upsert: jest.fn().mockResolvedValue({ id: 'thread', connectionId: 'mailbox' }),
+      },
+      mailMessage: {
+        upsert: jest
+          .fn()
+          .mockResolvedValue({ id: 'message', threadId: 'thread', connectionId: 'mailbox' }),
+      },
+    });
+    ledger.read.mockResolvedValueOnce(null).mockResolvedValue({
+      id: 'intent',
+      client_id: 'client',
+      connection_id: 'mailbox',
+      snapshot: {},
+    });
+    await expect(h.service.sendSingleMail(ctx, input)).rejects.toThrow('Client not found');
+    expect(h.service.mailSender.sendMail).toHaveBeenCalledTimes(1);
+    expect(ledger.outcome).toHaveBeenCalledWith(
+      ctx,
+      expect.anything(),
+      'accepted',
+      expect.objectContaining({ providerMessageId: 'remote' }),
+    );
+    expect(ledger.receipt).toHaveBeenCalled();
+  });
+});

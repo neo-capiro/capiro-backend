@@ -1,0 +1,287 @@
+{
+  "scope": "A1 Portfolio review: three pre-existing suite fixtures only",
+  "changes": [
+    "Active membership fixture is tenant/user/Clerk-bound and supplies its stored role; standard cases remain standard_user, original admin cases explicitly fixture user_admin.",
+    "Add withTenantUser fixture callbacks, explicit null client bindings on unassigned parent rows and updatedAt Date on projected artifact rows.",
+    "Exact library AND expectations now include the client visibility predicate while retaining all existing owner, artifact and search predicates."
+  ],
+  "validation": "Behavioral fallback using the pre-existing docs/a1/jest.portfolio.config.cjs; real EngagementService/resource authority/ACL/projection/lifecycle execute over mocked database rows. Unrelated provider/import dependencies remain isolated by the pre-existing setup file.",
+  "command": "node node_modules/jest/bin/jest.js --config docs/a1/jest.portfolio.config.cjs --runInBand --testMatch '**/+(engagement-meetings|meeting-artifact-lifecycle|meeting-artifact-sharing).spec.ts'",
+  "before_fixture_corrections": {
+    "passed": 10,
+    "failed": 50,
+    "total": 60
+  },
+  "after_fixture_corrections": {
+    "passed": 60,
+    "failed": 0,
+    "total": 60
+  },
+  "assertion_names_unchanged": true,
+  "after_assertions": [
+    {
+      "name": "getClientMeeting resolves a null-client meeting through the canonical contact association and current wall",
+      "status": "passed"
+    },
+    {
+      "name": "getClientMeeting fails closed for a current parent/link mismatch or wall revocation",
+      "status": "passed"
+    },
+    {
+      "name": "shareMeeting refuses to share a meeting with no associated client",
+      "status": "passed"
+    },
+    {
+      "name": "shareMeeting throws when the meeting is not found / not owned",
+      "status": "passed"
+    },
+    {
+      "name": "shareMeeting first share stamps sharedAt/sharedByUserId and returns the decorated record",
+      "status": "passed"
+    },
+    {
+      "name": "shareMeeting re-share preserves the FIRST sharer (does not overwrite the stamp)",
+      "status": "passed"
+    },
+    {
+      "name": "unshareMeeting returns the record to private and clears the sharer stamp",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary builds the owner-scoped + approved-artifact where and paginates",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary search AND-s an OR over subject and client name, without touching the owner OR",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary search undefined adds no predicate",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary search \"\" adds no predicate",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary search \"   \" adds no predicate",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary defaults page/limit and matches ANY approved artifact when no type given",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary EM-08 \u2014 libraryQualifiedBy (why a row is actually in the Library) a meeting whose ONLY qualifying artifact is a superseded (no-longer-current) approved prep gets current:false",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary EM-08 \u2014 libraryQualifiedBy (why a row is actually in the Library) a meeting whose current prep IS the approved one gets current:true",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary EM-08 \u2014 libraryQualifiedBy (why a row is actually in the Library) approved notes/debriefs are always current (they update in place, never mint a new row)",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingLibrary EM-08 \u2014 libraryQualifiedBy (why a row is actually in the Library) a meeting with no qualifying artifact at all gets an empty libraryQualifiedBy, never undefined",
+      "status": "passed"
+    },
+    {
+      "name": "listSharedMeetingsForClient is tenant-scoped (NOT owner-scoped) and filters to shared, newest-shared first",
+      "status": "passed"
+    },
+    {
+      "name": "decorateMeetings (via listSharedMeetingsForClient) a contributor whose only material is notes lists only \"notes\"; meri null when no session",
+      "status": "passed"
+    },
+    {
+      "name": "decorateMeetings (via listSharedMeetingsForClient) meri: denied_consent / error: null surfaces as failed with an explanation",
+      "status": "passed"
+    },
+    {
+      "name": "decorateMeetings (via listSharedMeetingsForClient) meri: no_show / error: null surfaces as failed with an explanation",
+      "status": "passed"
+    },
+    {
+      "name": "decorateMeetings (via listSharedMeetingsForClient) meri: failed / error: Recall reported a fatal error mid-call. surfaces as failed with an explanation",
+      "status": "passed"
+    },
+    {
+      "name": "decorateMeetings (via listSharedMeetingsForClient) meri: failed / error: null surfaces as failed with an explanation",
+      "status": "passed"
+    },
+    {
+      "name": "decorateMeetings (via listSharedMeetingsForClient) meri: removed (user-cancelled) stays null with no meriError",
+      "status": "passed"
+    },
+    {
+      "name": "Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCrossUser flag) collapses same-iCalUId shared rows into one record; first-sharer primary; notes canonical",
+      "status": "passed"
+    },
+    {
+      "name": "Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCrossUser flag) flag OFF \u2192 no grouping (two rows stay two records)",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts refuses an empty artifact list",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts throws when the meeting is not found / not owned",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts refuses a meeting with no associated client",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts rejects when a requested artifact does not exist on this meeting",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts only approved artifacts can be shared \u2014 an unapproved note blocks the whole call",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts stamps sharedAt/sharedByUserId on each approved artifact and flips meeting visibility to shared",
+      "status": "passed"
+    },
+    {
+      "name": "shareArtifacts is idempotent \u2014 an artifact already shared is not re-stamped, and meeting.visibility is left alone if already shared",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts refuses an empty artifact list",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts throws when the meeting does not exist in this tenant",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts tenant-scoped, not owner-scoped \u2014 an admin can act on a meeting they do not personally own",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts rejects when a requested artifact does not exist on this meeting",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts a standard user may unshare an artifact they personally shared",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts a standard user may unshare a note/debrief they authored, even if someone else shared it",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts a standard user CANNOT unshare a prep they neither shared nor have any author concept for",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts all-or-nothing: one unauthorized artifact in the batch rejects the WHOLE batch \u2014 the authorized one is not unshared either",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts unsharing the LAST shared artifact resets Meeting.visibility to private",
+      "status": "passed"
+    },
+    {
+      "name": "unshareArtifacts leaves Meeting.visibility as shared when another artifact is still shared",
+      "status": "passed"
+    },
+    {
+      "name": "note existence is not approval createMeetingNote never forces status \u2014 new notes rely on the column DEFAULT (draft)",
+      "status": "passed"
+    },
+    {
+      "name": "note existence is not approval createMeetingNote opens withTenant with extended timeout headroom",
+      "status": "passed"
+    },
+    {
+      "name": "note existence is not approval generateMeetingDebriefDraft context load opens withTenant with extended timeout headroom",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingNote throws when the note does not exist on this meeting",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingNote the author can approve their own note \u2014 stamps status/approvedAt/approvedByUserId",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingNote a standard user who is neither author nor admin cannot approve someone else\u2019s note",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingNote a user_admin can approve a note authored by someone else",
+      "status": "passed"
+    },
+    {
+      "name": "updateMeetingNote \u2014 editing resets approval + share state editing a note sets status=edited and clears approvedAt/approvedByUserId/sharedAt/sharedByUserId",
+      "status": "passed"
+    },
+    {
+      "name": "updateMeetingNote \u2014 editing resets approval + share state a non-author, non-admin cannot edit someone else\u2019s note",
+      "status": "passed"
+    },
+    {
+      "name": "updateMeetingDebrief \u2014 editing clears the (new) share stamp editing a debrief resets status=edited (existing behavior) and now also clears sharedAt/sharedByUserId",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingAttachment \u2014 single-user approval (Neo decision) throws when the attachment is not found on this meeting",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingAttachment \u2014 single-user approval (Neo decision) the uploader can approve their own upload \u2014 no second reviewer required",
+      "status": "passed"
+    },
+    {
+      "name": "approveMeetingAttachment \u2014 single-user approval (Neo decision) a different user (not the uploader) can also approve \u2014 single-user, not self-only",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingNotes serialization \u2014 EM-05: the panel must see the same approval state as the tab/Library/Share dialog an approved note is serialized with its approval lifecycle fields \u2014 never flattened to Draft",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingNotes serialization \u2014 EM-05: the panel must see the same approval state as the tab/Library/Share dialog a draft note serializes status \"draft\" and unstamped approval fields \u2014 the panel pill and Approve button then reflect the real state",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingNotes serialization \u2014 EM-05: the panel must see the same approval state as the tab/Library/Share dialog a shared approved note carries sharedAt/sharedByUserId so the pill can show Shared over Approved",
+      "status": "passed"
+    },
+    {
+      "name": "listMeetingNotes serialization \u2014 EM-05: the panel must see the same approval state as the tab/Library/Share dialog an edited note (approved then hand-edited) serializes status \"edited\" so the panel labels the re-approval state explicitly",
+      "status": "passed"
+    }
+  ],
+  "canonical_attempt": {
+    "config": "apps/api/jest.config.cjs",
+    "status": "blocked before test collection",
+    "reason": "Cached dependency environment lacks sanitize-html, required by jest.native-runtime-environment.cjs.",
+    "executed_tests": 0
+  },
+  "limits": [
+    "No clean frozen install, canonical full-suite, or TypeScript qualification is claimed.",
+    "No SQL, databases, cloud calls, dependency changes, commits or deployment."
+  ],
+  "files": [
+    {
+      "path": "apps/api/src/engagement/engagement-meetings.spec.ts",
+      "sha256": "bfaca3dbfe8ba09506624e825a598695f8690f28f01ebefe5dcd6286e921311a"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-artifact-lifecycle.spec.ts",
+      "sha256": "3cde5656fdb68f81fa7d9fb7bd70c6394e35b07b05cb7d6350e0dade0ebed9d9"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-artifact-sharing.spec.ts",
+      "sha256": "47143bef51a1b9251e7acd6af3fb1b1bf441a7a78a23a7f62f931c7344d50553"
+    }
+  ]
+}

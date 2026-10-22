@@ -32,6 +32,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { markMailMessageRemovedInTx } from '../mail-message-state.js';
+import { MailboxIdentityMismatchError } from '../mailbox-identity-mismatch.js';
 import { MAIL_CAPTURE_VERSION } from '../mail-sync-coverage.js';
 import { GoogleTokenService } from './google-token.service.js';
 
@@ -213,6 +214,8 @@ export interface SyncStats {
   matched: number;
   skipped: number;
   removed: number;
+  // Existing provider IDs owned by another/unknown mailbox; no row was changed.
+  held: number;
   // Messages that threw while being fetched/persisted and were skipped rather
   // than aborting the whole run (per-message resilience).
   failed: number;
@@ -921,7 +924,7 @@ export class GoogleSyncService {
             // Labels can change between listing and fetch. Apply the same
             // removal contract as incremental sync instead of restoring trash.
             if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
-              await this.markGmailMessageRemoved(tenantId, id, 'trashed');
+              await this.markGmailMessageRemoved(tenantId, id, 'trashed', connection.id);
               stats.removed += 1;
               continue;
             }
@@ -934,7 +937,14 @@ export class GoogleSyncService {
             stats.matched += outcome === 'matched' ? 1 : 0;
             stats.skipped += outcome === 'skipped' ? 1 : 0;
           } catch (err) {
-            // ONLY skip a genuinely gone message (deleted between list and
+            // Catch outside the transaction so even a late removal mismatch
+            // has rolled back before this provider reference is held.
+            if (err instanceof MailboxIdentityMismatchError) {
+              stats.held += 1;
+              this.logger.warn('Gmail mail message held: mailbox identity mismatch');
+              continue;
+            }
+            // Otherwise ONLY skip a genuinely gone message (deleted between list and
             // fetch). Transient/infra errors (429, 5xx, DB pool/timeout) MUST
             // propagate: aborting here leaves the cursor un-advanced so the
             // scheduler re-fetches this page next cycle. Swallowing them
@@ -1075,7 +1085,7 @@ export class GoogleSyncService {
       stats.scanned += 1;
       try {
         if (op.action === 'remove') {
-          await this.markGmailMessageRemoved(tenantId, id, op.reason ?? 'deleted');
+          await this.markGmailMessageRemoved(tenantId, id, op.reason ?? 'deleted', connection.id);
           stats.removed += 1;
           continue;
         }
@@ -1083,7 +1093,7 @@ export class GoogleSyncService {
         // Re-check live labels: the message may have moved into an excluded
         // label after the history entry was written.
         if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
-          await this.markGmailMessageRemoved(tenantId, id, 'trashed');
+          await this.markGmailMessageRemoved(tenantId, id, 'trashed', connection.id);
           stats.removed += 1;
           continue;
         }
@@ -1096,7 +1106,12 @@ export class GoogleSyncService {
         stats.matched += outcome === 'matched' ? 1 : 0;
         stats.skipped += outcome === 'skipped' ? 1 : 0;
       } catch (err) {
-        // Unchanged rule: skip only a GONE message; let transient/infra errors
+        if (err instanceof MailboxIdentityMismatchError) {
+          stats.held += 1;
+          this.logger.warn('Gmail mail message held: mailbox identity mismatch');
+          continue;
+        }
+        // Otherwise skip only a GONE message; let transient/infra errors
         // propagate so historyId is NOT advanced past unpersisted work
         // (gmailHistory would never re-emit them).
         if (!isMessageGoneError(err)) throw err;
@@ -1137,6 +1152,7 @@ export class GoogleSyncService {
     tenantId: string,
     externalId: string,
     reason: 'deleted' | 'trashed' | 'spam',
+    connectionId: string,
   ): Promise<'removed'> {
     await this.prisma.withTenantRetry(tenantId, async (tx) => {
       await lockTenantForEngagementSync(tx, tenantId);
@@ -1144,6 +1160,7 @@ export class GoogleSyncService {
       await markMailMessageRemovedInTx(tx, {
         tenantId,
         source: EngagementSource.google,
+        connectionId,
         externalId,
         reason,
         removedAt,
@@ -1227,7 +1244,7 @@ export class GoogleSyncService {
           },
           include: {
             thread: {
-              select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
             },
           },
         });
@@ -1241,8 +1258,14 @@ export class GoogleSyncService {
                   externalId: threadExternalId,
                 },
               },
-              select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
             });
+        // Provider IDs are mailbox-local evidence, never permission to transfer rows.
+        // Keep legacy ambiguous identities held until the mailbox-key migration.
+        if ((existingMessage && existingMessage.connectionId !== connectionId) ||
+            (existingThread && existingThread.connectionId !== connectionId)) {
+          throw new MailboxIdentityMismatchError();
+        }
         const association = await this.association.associate(tx, tenantId, {
           subject,
           body: bodyText,
@@ -1272,7 +1295,7 @@ export class GoogleSyncService {
         const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
         const thread = existingThread
           ? await tx.mailThread.update({
-              where: { id: existingThread.id },
+              where: { id: existingThread.id, connectionId },
               data: {
                 clientId,
                 connectionId,
@@ -1312,6 +1335,7 @@ export class GoogleSyncService {
 
         await tx.mailMessage.upsert({
           where: {
+            connectionId,
             tenantId_source_externalId: {
               tenantId,
               source: EngagementSource.google,
@@ -1751,7 +1775,7 @@ function readSyncState(value: Prisma.JsonValue): GoogleSyncState {
 }
 
 function emptyStats(): SyncStats {
-  return { scanned: 0, matched: 0, skipped: 0, removed: 0, failed: 0, pages: 0, hasMore: false };
+  return { scanned: 0, matched: 0, skipped: 0, removed: 0, held: 0, failed: 0, pages: 0, hasMore: false };
 }
 
 function combineStats(stats: SyncStats[]): SyncStats {
@@ -1761,6 +1785,7 @@ function combineStats(stats: SyncStats[]): SyncStats {
       matched: total.matched + stat.matched,
       skipped: total.skipped + stat.skipped,
       removed: total.removed + stat.removed,
+      held: (total.held ?? 0) + (stat.held ?? 0),
       failed: total.failed + stat.failed,
       pages: total.pages + stat.pages,
       hasMore: total.hasMore || stat.hasMore,

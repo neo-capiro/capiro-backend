@@ -22,7 +22,7 @@ function fakeTx() {
     mailThread: {
       findUnique: jest
         .fn<(...args: unknown[]) => Promise<unknown>>()
-        .mockResolvedValue({ metadata: {} }),
+        .mockResolvedValue({ connectionId: 'connection', metadata: {} }),
       update: jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({}),
     },
   };
@@ -51,6 +51,8 @@ describe('markMailMessageRemovedInTx', () => {
     const tx = fakeTx();
     tx.mailMessage.findUnique.mockResolvedValue({
       id: MESSAGE,
+      connectionId: 'connection',
+      thread: { connectionId: 'connection' },
       threadId: THREAD,
       metadata: { labels: ['INBOX'] },
     });
@@ -58,6 +60,7 @@ describe('markMailMessageRemovedInTx', () => {
 
     const result = await markMailMessageRemovedInTx(asTx(tx), {
       tenantId: TENANT,
+      connectionId: 'connection',
       source: EngagementSource.google,
       externalId: 'gmail-1',
       reason: 'trashed',
@@ -74,14 +77,20 @@ describe('markMailMessageRemovedInTx', () => {
           externalId: 'gmail-1',
         },
       },
-      select: { id: true, threadId: true, metadata: true },
+      select: {
+        id: true,
+        connectionId: true,
+        threadId: true,
+        metadata: true,
+        thread: { select: { connectionId: true } },
+      },
     });
 
     const updateCall = tx.mailMessage.update.mock.calls[0]?.[0] as {
       where: { id: string };
       data: { removedAt: Date; removedReason: string; metadata: Record<string, unknown> };
     };
-    expect(updateCall.where).toEqual({ id: MESSAGE });
+    expect(updateCall.where).toEqual({ id: MESSAGE, connectionId: 'connection' });
     expect(updateCall.data.removedAt).toBe(removedAt);
     expect(updateCall.data.removedReason).toBe('trashed');
     expect(updateCall.data.metadata).toEqual({
@@ -96,6 +105,8 @@ describe('markMailMessageRemovedInTx', () => {
     const tx = fakeTx();
     tx.mailMessage.findUnique.mockResolvedValue({
       id: MESSAGE,
+      connectionId: 'connection',
+      thread: { connectionId: 'connection' },
       threadId: THREAD,
       metadata: { folder: 'inbox' },
     });
@@ -103,6 +114,7 @@ describe('markMailMessageRemovedInTx', () => {
 
     const result = await markMailMessageRemovedInTx(asTx(tx), {
       tenantId: TENANT,
+      connectionId: 'connection',
       source: EngagementSource.outlook,
       externalId: 'graph-1',
       reason: 'provider_removed',
@@ -128,6 +140,7 @@ describe('markMailMessageRemovedInTx', () => {
 
     const result = await markMailMessageRemovedInTx(asTx(tx), {
       tenantId: TENANT,
+      connectionId: 'connection',
       source: EngagementSource.google,
       externalId: 'unknown-message',
       reason: 'deleted',
@@ -145,12 +158,15 @@ describe('markMailMessageRemovedInTx', () => {
     const tx = fakeTx();
     tx.mailMessage.findUnique.mockResolvedValue({
       id: MESSAGE,
+      connectionId: 'connection',
+      thread: { connectionId: 'connection' },
       threadId: THREAD,
       metadata: 'not-an-object',
     });
 
     await markMailMessageRemovedInTx(asTx(tx), {
       tenantId: TENANT,
+      connectionId: 'connection',
       source: EngagementSource.google,
       externalId: 'gmail-2',
       reason: 'spam',
@@ -176,12 +192,15 @@ describe('recomputeMailThreadSummaryInTx', () => {
       sentAt: null,
       createdAt: new Date('2026-07-26T00:00:00.000Z'),
     });
-    tx.mailThread.findUnique.mockResolvedValue({ metadata: { deleted: true, labels: ['INBOX'] } });
+    tx.mailThread.findUnique.mockResolvedValue({
+      connectionId: 'connection',
+      metadata: { deleted: true, labels: ['INBOX'] },
+    });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     expect(tx.mailMessage.findFirst).toHaveBeenCalledWith({
-      where: { tenantId: TENANT, threadId: THREAD, removedAt: null },
+      where: { tenantId: TENANT, threadId: THREAD, connectionId: 'connection', removedAt: null },
       orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
       select: { bodyText: true, subject: true, receivedAt: true, sentAt: true, createdAt: true },
     });
@@ -203,7 +222,7 @@ describe('recomputeMailThreadSummaryInTx', () => {
       createdAt: new Date('2026-07-20T00:00:00.000Z'),
     });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     const updateCall = tx.mailThread.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     expect(updateCall.data.snippet).toBe('No body here');
@@ -220,7 +239,7 @@ describe('recomputeMailThreadSummaryInTx', () => {
       createdAt: new Date('2026-07-27T00:00:00.000Z'),
     });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     const updateCall = tx.mailThread.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     expect((updateCall.data.snippet as string).length).toBe(1000);
@@ -236,7 +255,7 @@ describe('recomputeMailThreadSummaryInTx', () => {
       createdAt: new Date('2026-07-27T00:00:00.000Z'),
     });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     const updateCall = tx.mailThread.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     expect(updateCall.data).not.toHaveProperty('subject');
@@ -245,9 +264,12 @@ describe('recomputeMailThreadSummaryInTx', () => {
   it('clears snippet/lastMessageAt and marks the thread deleted when every message is removed (all-removed thread)', async () => {
     const tx = fakeTx();
     tx.mailMessage.findFirst.mockResolvedValue(null);
-    tx.mailThread.findUnique.mockResolvedValue({ metadata: { labels: ['INBOX'] } });
+    tx.mailThread.findUnique.mockResolvedValue({
+      connectionId: 'connection',
+      metadata: { labels: ['INBOX'] },
+    });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     const updateCall = tx.mailThread.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     expect(updateCall.data.snippet).toBeNull();
@@ -264,9 +286,12 @@ describe('recomputeMailThreadSummaryInTx', () => {
       sentAt: null,
       createdAt: new Date('2026-07-27T00:00:00.000Z'),
     });
-    tx.mailThread.findUnique.mockResolvedValue({ metadata: { deleted: true, labels: ['INBOX'] } });
+    tx.mailThread.findUnique.mockResolvedValue({
+      connectionId: 'connection',
+      metadata: { deleted: true, labels: ['INBOX'] },
+    });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     const updateCall = tx.mailThread.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     expect(updateCall.data.metadata).toEqual({ deleted: false, labels: ['INBOX'] });
@@ -281,9 +306,12 @@ describe('recomputeMailThreadSummaryInTx', () => {
       sentAt: null,
       createdAt: new Date('2026-07-27T00:00:00.000Z'),
     });
-    tx.mailThread.findUnique.mockResolvedValue({ metadata: { manualAssociation: true } });
+    tx.mailThread.findUnique.mockResolvedValue({
+      connectionId: 'connection',
+      metadata: { manualAssociation: true },
+    });
 
-    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD);
+    await recomputeMailThreadSummaryInTx(asTx(tx), TENANT, THREAD, 'connection');
 
     const updateCall = tx.mailThread.update.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     for (const field of [

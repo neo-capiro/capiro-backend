@@ -49,20 +49,18 @@ describe('selectRefreshTokenForAccount', () => {
     expect(selectRefreshTokenForAccount(serialized, 'tenantA.userA')).toBe('RT_A');
   });
 
-  test('falls back to the sole/last entry when no home_account_id is available', () => {
+  test('fails closed when no home_account_id is available', () => {
     const serialized = cacheWith([
       { key: 'only-key', homeAccountId: 'tenantA.userA', secret: 'RT_A' },
     ]);
-    expect(selectRefreshTokenForAccount(serialized, null)).toBe('RT_A');
+    expect(selectRefreshTokenForAccount(serialized, null)).toBeUndefined();
   });
 
-  test('falls back to the last entry when the requested account is not present', () => {
+  test('fails closed when the requested account is not present', () => {
     const serialized = cacheWith([
       { key: 'a-key', homeAccountId: 'tenantA.userA', secret: 'RT_A' },
     ]);
-    // Defensive fallback only — with a fresh per-callback client the cache holds
-    // just this exchange's account, so "last" is that account.
-    expect(selectRefreshTokenForAccount(serialized, 'someone.else')).toBe('RT_A');
+    expect(selectRefreshTokenForAccount(serialized, 'someone.else')).toBeUndefined();
   });
 
   test('returns undefined for an empty or absent RefreshToken cache', () => {

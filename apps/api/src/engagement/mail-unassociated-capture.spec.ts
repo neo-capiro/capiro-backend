@@ -107,6 +107,7 @@ describe.each(['google', 'microsoft'] as const)(
     it('preserves a manually assigned client when replaying an existing thread', async () => {
       const { service, tx } = harness(provider, {
         id: 'thread-1',
+        connectionId: CONNECTION.id,
         clientId: 'manual-client',
         associationSignals: { manual: true },
         lastMessageAt: null,
@@ -441,6 +442,7 @@ describe('Gmail versioned mail replay', () => {
       TENANT,
       'old-deleted-mail',
       'deleted',
+      CONNECTION.id,
     );
     expect(state.mail).toEqual(
       expect.objectContaining({
@@ -472,6 +474,7 @@ describe('Gmail versioned mail replay', () => {
       TENANT,
       'deleted-during-replay',
       'deleted',
+      CONNECTION.id,
     );
     expect(state.mail).toEqual(
       expect.objectContaining({ captureReplayCatchupPending: false, historyId: 'after-replay' }),
@@ -518,7 +521,12 @@ describe('Gmail versioned mail replay', () => {
     service.markGmailMessageRemoved = jest.fn().mockResolvedValue('removed');
     const result = await service.syncMail(TENANT, CONNECTION, {}, 'test-token', {});
     expect(result.ALL.removed).toBe(1);
-    expect(service.markGmailMessageRemoved).toHaveBeenCalledWith(TENANT, 'trashed-mail', 'trashed');
+    expect(service.markGmailMessageRemoved).toHaveBeenCalledWith(
+      TENANT,
+      'trashed-mail',
+      'trashed',
+      CONNECTION.id,
+    );
     expect(service.persistGmailMessage).not.toHaveBeenCalled();
   });
 });

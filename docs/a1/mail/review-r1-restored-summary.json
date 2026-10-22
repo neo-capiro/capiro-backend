@@ -1,0 +1,68 @@
+{
+  "success": true,
+  "numTotalTests": 75,
+  "numPassedTests": 75,
+  "numFailedTests": 0,
+  "suites": [
+    {
+      "name": "src/engagement/mail-unassociated-capture.spec.ts",
+      "status": "passed",
+      "tests": 17
+    },
+    {
+      "name": "src/engagement/mailbox-oauth.a1.spec.ts",
+      "status": "passed",
+      "tests": 43
+    },
+    {
+      "name": "src/engagement/mail-replay-preservation.spec.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "name": "src/engagement/mailbox-oauth.add-reuse.spec.ts",
+      "status": "passed",
+      "tests": 10
+    }
+  ],
+  "newTestCount": 10,
+  "mutationCoverage": {
+    "ML-08 Add reuse microsoft_365 two Connect clicks and one completed flow leave one new mailbox and consume only the latest nonce": [
+      "always-create"
+    ],
+    "ML-08 Add reuse microsoft_365 chooses the newest fresh actor/provider row and skips unbound rows with prior history": [
+      "always-create",
+      "skip-fresh-history-check",
+      "oldest-first"
+    ],
+    "ML-08 Add reuse microsoft_365 skips a no-token row with retained message history without rewriting it": [
+      "skip-fresh-history-check"
+    ],
+    "ML-08 Add reuse microsoft_365 rechecks the candidate under its row lock when a callback establishes an account": [
+      "omit-row-lock"
+    ],
+    "ML-08 Add reuse microsoft_365 concurrent Add starts serialize the empty lookup and leave one placeholder": [
+      "always-create",
+      "omit-add-serialization"
+    ],
+    "ML-08 Add reuse google_workspace two Connect clicks and one completed flow leave one new mailbox and consume only the latest nonce": [
+      "always-create"
+    ],
+    "ML-08 Add reuse google_workspace chooses the newest fresh actor/provider row and skips unbound rows with prior history": [
+      "always-create",
+      "skip-fresh-history-check",
+      "oldest-first"
+    ],
+    "ML-08 Add reuse google_workspace skips a no-token row with retained message history without rewriting it": [
+      "skip-fresh-history-check"
+    ],
+    "ML-08 Add reuse google_workspace rechecks the candidate under its row lock when a callback establishes an account": [
+      "omit-row-lock"
+    ],
+    "ML-08 Add reuse google_workspace concurrent Add starts serialize the empty lookup and leave one placeholder": [
+      "always-create",
+      "omit-add-serialization"
+    ]
+  },
+  "restoredHelperHashMatches": true
+}

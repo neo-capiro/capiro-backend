@@ -1,0 +1,103 @@
+FAIL apps/api/src/engagement/portfolio-a1.safety.spec.ts (10.662 s)
+  A1 Portfolio authoritative boundaries
+    ✕ PF-10 denies hidden/archived/revoked client and removed membership before notes/debrief reads (147 ms)
+    ✕ PF-11 unchanged assignment preserves provenance; real changes require a current revision and wall (6 ms)
+    ✕ PF-12 returns debrief lifecycle metadata and withholds actors after a role downgrade (13 ms)
+    ✕ PF-22 settles and reopens dated or undated commitments/requests only, preserving metadata (3 ms)
+
+  ● A1 Portfolio authoritative boundaries › PF-10 denies hidden/archived/revoked client and removed membership before notes/debrief reads
+
+    assert.rejects(received, expected)
+
+    Expected value rejects to:
+      /Meeting not found/
+    Received:
+      undefined
+
+    Message:
+      Missing expected rejection.
+
+    Difference:
+
+      Comparing two different types of values. Expected regexp but received undefined.
+
+      85 |       for (const deny of ['wall', 'client', 'member', 'owner'] as const) {
+      86 |         const f = fixture(); f.state[deny] = false;
+    > 87 |         await assert.rejects(f.service[action](ctx, 'm1'), /Meeting not found/);
+         |         ^
+      88 |         expect(f.tx.meetingNote.findMany).not.toHaveBeenCalled();
+      89 |         expect(f.tx.meetingDebrief.findMany).not.toHaveBeenCalled();
+      90 |         expect(f.service.notesCrypto.decrypt).not.toHaveBeenCalled();
+
+      at Object.<anonymous> (apps/api/src/engagement/portfolio-a1.safety.spec.ts:87:9)
+
+  ● A1 Portfolio authoritative boundaries › PF-11 unchanged assignment preserves provenance; real changes require a current revision and wall
+
+    assert.strictEqual(received, expected)
+
+    Expected value to strictly be equal to:
+      1
+    Received:
+      2
+
+    Message:
+      unchanged assignment writes only ordinary meeting fields
+
+    2 !== 1
+
+      158 |       const f = fixture(); f.state.clientId = internal ? null : 'c1'; f.row.isInternal = internal;
+      159 |       const receipt = await f.service.updateMeeting(ctx, 'm1', { subject: 'Changed', clientId: f.state.clientId });
+    > 160 |       assert.equal(f.tx.meeting.update.mock.calls.length, 1, 'unchanged assignment writes only ordinary meeting fields');
+          |              ^
+      161 |       expect(f.tx.meeting.update.mock.calls[0][0].data).not.toHaveProperty('associationReason');
+      162 |       expect(receipt.associationReason).toBe('Automatic match');
+      163 |       expect(receipt.associationScore).toBe(0.8);
+
+      at Object.<anonymous> (apps/api/src/engagement/portfolio-a1.safety.spec.ts:160:14)
+
+  ● A1 Portfolio authoritative boundaries › PF-12 returns debrief lifecycle metadata and withholds actors after a role downgrade
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 3
+    + Received  + 0
+
+      Object {
+    -   "approvalKnown": true,
+    -   "metadataVersion": 1,
+        "sharedAt": null,
+    -   "sharingKnown": true,
+      }
+
+      211 |       life.tx.meeting.update.mockImplementation(async ({data}: any) => Object.assign(parent, data));
+      212 |       const created = await life.service[`createMeeting${suffix}`](ctx, 'm1', { body: 'Private content' });
+    > 213 |       expect(created).toMatchObject({ metadataVersion: 1, approvalKnown: true, sharingKnown: true, sharedAt: null });
+          |                       ^
+      214 |       const approved = await life.service[`approveMeeting${suffix}`](ctx, 'm1', 'artifact-1');
+      215 |       expect(approved.approvedAt).toBeInstanceOf(Date);
+      216 |       expect(approved.approvedByUserId).toBe(ctx.userId);
+
+      at Object.<anonymous> (apps/api/src/engagement/portfolio-a1.safety.spec.ts:213:23)
+
+  ● A1 Portfolio authoritative boundaries › PF-22 settles and reopens dated or undated commitments/requests only, preserving metadata
+
+    BadRequestException: Only a commitment or request can be settled
+
+      364 |
+      365 |       if (input.settled != null && !existing.dueAt) {
+    > 366 |         throw new BadRequestException('Only a commitment or request can be settled');
+          |               ^
+      367 |       }
+      368 |
+      369 |       const row = await tx.clientActivity.update({
+
+      at apps/api/src/clients/client-activity.service.ts:366:15
+      at Object.<anonymous> (apps/api/src/engagement/portfolio-a1.safety.spec.ts:249:34)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 4 total
+Snapshots:   0 total
+Time:        10.858 s
+Ran all test suites within paths "apps/api/src/engagement/portfolio-a1.safety.spec.ts".
+Test results written to: ../portfolio-evidence/backend-red.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

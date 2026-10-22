@@ -18,6 +18,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { admitMailboxRefresh } from '../mailbox-oauth-authority.js';
 import {
   EngagementConnectionStatus,
   EngagementProvider,
@@ -87,6 +88,9 @@ export class GoogleTokenService {
     connectionId: string,
     token: IntegrationConnectionToken,
   ): Promise<string> {
+    await this.prisma.withTenant(tenantId, (tx) =>
+      admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.google_workspace, token),
+    );
     if (token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
       return this.tokenCrypto.decrypt({
         ciphertext: token.accessTokenCiphertext,
@@ -124,7 +128,7 @@ export class GoogleTokenService {
       // (e.g. app still in Testing publishing status, 7-day expiry). Mark the
       // connection for reconnect rather than looping.
       if (response.status === 400 && /invalid_grant/i.test(text)) {
-        await this.markConnectionNeedsReconnect(tenantId, connectionId, text);
+        await this.markConnectionNeedsReconnect(tenantId, connectionId, token, text);
         throw new BadRequestException('Reconnect Google Workspace in Settings to continue syncing');
       }
       throw new ServiceUnavailableException(
@@ -140,6 +144,13 @@ export class GoogleTokenService {
     // only persist the new access token and leave the stored refresh token as-is.
     const encrypted = this.tokenCrypto.encrypt(refreshed.access_token);
     await this.prisma.withTenant(tenantId, async (tx) => {
+      await admitMailboxRefresh(
+        tx,
+        tenantId,
+        connectionId,
+        EngagementProvider.google_workspace,
+        token,
+      );
       await tx.integrationConnectionToken.update({
         where: { connectionId },
         data: {
@@ -166,9 +177,17 @@ export class GoogleTokenService {
   private async markConnectionNeedsReconnect(
     tenantId: string,
     connectionId: string,
+    snapshot: IntegrationConnectionToken,
     detail: string,
   ) {
     await this.prisma.withTenant(tenantId, async (tx) => {
+      await admitMailboxRefresh(
+        tx,
+        tenantId,
+        connectionId,
+        EngagementProvider.google_workspace,
+        snapshot,
+      );
       await tx.integrationConnection
         .update({
           where: { id: connectionId },

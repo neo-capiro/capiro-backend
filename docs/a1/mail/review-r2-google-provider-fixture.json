@@ -1,0 +1,42 @@
+{
+  "scope": "Only Google provider contract mock correction",
+  "source": "apps/api/src/engagement/google/google-provider-contract.spec.ts",
+  "source_sha256": "4e0f4d3aac6854b1199d639b39a49f3bf8c05241cce2a14ffa58ec9ae8e39c3c",
+  "invariants": {
+    "test_declarations_before": 10,
+    "test_declarations_after": 10,
+    "expect_calls_before": 20,
+    "expect_calls_after": 20,
+    "expect_source_lines_identical": true
+  },
+  "reviewer_report": {
+    "provenance": "Relayed by coordinating parent; not rerun locally",
+    "reviewed_remote_head": "6b58d0e6",
+    "api_typecheck_errors": 62,
+    "earlier_engagement_regressions_removed": 57,
+    "mutants_killed": 13,
+    "new_failure": "GoogleOAuthService.start auth URL contract: integrationConnection.findMany missing"
+  },
+  "local_canonical_attempt": {
+    "exit": 1,
+    "elapsed_seconds": 5,
+    "command": [
+      "node",
+      "node_modules/jest/bin/jest.js",
+      "--config",
+      "apps/api/jest.config.cjs",
+      "--runInBand",
+      "--runTestsByPath",
+      "apps/api/src/engagement/google/google-provider-contract.spec.ts",
+      "--cacheDirectory=/dev/shm/a1-mail-r2-google-jest-cache",
+      "--json",
+      "--outputFile=/dev/shm/a1-mail-r2-google-canonical.json"
+    ],
+    "tests_collected": 0,
+    "suite_failed_before_collection": true,
+    "error": "Cannot find module 'sanitize-html' from jest.native-runtime-environment.cjs"
+  },
+  "adaptation": "Retain existing active membership row for tenant_memberships tagged query; return [] for advisory lock and no reusable Add rows from findMany.",
+  "new_dependencies": false,
+  "production_changes_by_this_task": false
+}

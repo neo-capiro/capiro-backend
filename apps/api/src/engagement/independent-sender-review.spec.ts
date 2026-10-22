@@ -1,3 +1,4 @@
+import { singleMailTestState } from './__fixtures__/single-mail-ledger.js';
 import { EngagementService } from './engagement.service.js';
 import { EngagementMailSender } from './mail-sender.service.js';
 import type { TenantContext } from '@capiro/shared';
@@ -9,6 +10,7 @@ const ctx = {
 } as TenantContext;
 const B = '44444444-4444-4444-8444-444444444444';
 const input = {
+  requestKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   to: [{ email: 'recipient@example.test' }],
   subject: 'Synthetic independent review',
   bodyHtml: '<p>Body</p>',
@@ -54,6 +56,7 @@ function harness() {
         correlationId: '',
       }),
   };
+  const augment = singleMailTestState();
   const service = Object.create(EngagementService.prototype) as EngagementService;
   Object.assign(service, {
     prisma: {
@@ -61,7 +64,7 @@ function harness() {
         expect(tenant).toBe(ctx.tenantId);
         const before = { ...saved };
         try {
-          return await fn(tx);
+          return await fn(augment(tx));
         } catch (error) {
           saved = before;
           throw error;

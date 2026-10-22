@@ -353,16 +353,24 @@ export class ClientActivityService {
     input: { pinned?: boolean; settled?: boolean; title?: string; body?: string | null },
   ) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const member = await tx.tenantMembership.findFirst({
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active', user: { clerkUserId: ctx.clerkUserId } },
+        select: { id: true },
+      });
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } }, select: { id: true },
+      });
+      if (!member || !client) throw new NotFoundException('Activity not found');
       await this.requireClientWall(tx, ctx, clientId);
       const existing = await tx.clientActivity.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
-        select: { id: true, dueAt: true },
+        select: { id: true, kind: true },
       });
       // A derived row has no id in this table, so this is also the guard that
       // stops anyone trying to pin a meeting through the activity endpoint.
       if (!existing) throw new NotFoundException('Activity not found');
 
-      if (input.settled != null && !existing.dueAt) {
+      if (input.settled != null && !['commitment', 'request'].includes(existing.kind)) {
         throw new BadRequestException('Only a commitment or request can be settled');
       }
 

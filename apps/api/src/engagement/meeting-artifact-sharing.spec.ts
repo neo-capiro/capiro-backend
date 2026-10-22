@@ -23,9 +23,37 @@ const ctx: TenantContext = {
 const otherUserCtx: TenantContext = { ...ctx, userId: 'user-2' };
 const adminCtx: TenantContext = { ...ctx, role: 'user_admin' };
 
-function serviceWith(tx: Record<string, unknown>): EngagementService {
+// Current-member rows are bound to this test actor, not to whichever request
+// happens to arrive. Admin cases must explicitly supply their active admin.
+function transactionFixture(tx: Record<string, unknown>, actor: TenantContext = ctx) {
+  return {
+    tenantMembership: {
+      findFirst: async ({
+        where,
+      }: {
+        where: { tenantId: string; userId: string; status: string; user: { clerkUserId: string } };
+      }) =>
+        where.tenantId === actor.tenantId &&
+        where.userId === actor.userId &&
+        where.status === 'active' &&
+        where.user.clerkUserId === actor.clerkUserId
+          ? { role: actor.role }
+          : null,
+    },
+    client: { findFirst: async () => ({ id: 'c1', primaryContactEmail: null }) },
+    clientPerson: { findMany: async () => [] },
+    $queryRaw: async () => [],
+    $queryRawUnsafe: async () => [{ allowed: true }],
+    ...tx,
+  };
+}
+
+function serviceWith(tx: Record<string, unknown>, actor: TenantContext = ctx): EngagementService {
+  const scoped = transactionFixture(tx, actor);
   const prisma = {
-    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn(tx),
+    withTenant: (_tenantId: string, fn: (value: unknown) => unknown) => fn(scoped),
+    withTenantUser: (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) =>
+      fn(scoped),
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
   (service as unknown as { prisma: unknown }).prisma = prisma;
@@ -72,18 +100,18 @@ describe('shareArtifacts', () => {
 
   test('throws when the meeting is not found / not owned', async () => {
     const service = serviceWith({ meeting: { findFirst: async () => null } });
-    await expect(
-      service.shareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }]),
-    ).rejects.toThrow('Meeting not found');
+    await expect(service.shareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }])).rejects.toThrow(
+      'Meeting not found',
+    );
   });
 
   test('refuses a meeting with no associated client', async () => {
     const service = serviceWith({
       meeting: { findFirst: async () => ({ id: 'm1', clientId: null, visibility: 'private' }) },
     });
-    await expect(
-      service.shareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }]),
-    ).rejects.toThrow(/associated with a client/i);
+    await expect(service.shareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }])).rejects.toThrow(
+      /associated with a client/i,
+    );
   });
 
   test('rejects when a requested artifact does not exist on this meeting', async () => {
@@ -108,9 +136,9 @@ describe('shareArtifacts', () => {
         }),
       },
     });
-    await expect(
-      service.shareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }]),
-    ).rejects.toThrow(/only approved artifacts can be shared/i);
+    await expect(service.shareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }])).rejects.toThrow(
+      /only approved artifacts can be shared/i,
+    );
   });
 
   test('stamps sharedAt/sharedByUserId on each approved artifact and flips meeting visibility to shared', async () => {
@@ -193,41 +221,44 @@ describe('unshareArtifacts', () => {
 
   test('throws when the meeting does not exist in this tenant', async () => {
     const service = serviceWith({ meeting: { findFirst: async () => null } });
-    await expect(
-      service.unshareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }]),
-    ).rejects.toThrow('Meeting not found');
+    await expect(service.unshareArtifacts(ctx, 'm1', [{ type: 'note', id: 'n1' }])).rejects.toThrow(
+      'Meeting not found',
+    );
   });
 
   test('tenant-scoped, not owner-scoped — an admin can act on a meeting they do not personally own', async () => {
     let findArgs: Record<string, unknown> | undefined;
-    const service = serviceWith({
-      meeting: {
-        findFirst: (() => {
-          let calls = 0;
-          return async (args: Record<string, unknown>) => {
-            calls += 1;
-            if (calls === 1) {
-              findArgs = args;
-              return { id: 'm1' };
-            }
-            return meetingRow();
-          };
-        })(),
+    const service = serviceWith(
+      {
+        meeting: {
+          findFirst: (() => {
+            let calls = 0;
+            return async (args: Record<string, unknown>) => {
+              calls += 1;
+              if (calls === 1) {
+                findArgs = args;
+                return { id: 'm1', clientId: null };
+              }
+              return meetingRow();
+            };
+          })(),
+        },
+        meetingNote: {
+          findFirst: async () => ({
+            status: 'approved',
+            sharedAt: new Date(),
+            sharedByUserId: 'user-2',
+            authorUserId: 'user-2',
+          }),
+          update: async () => ({}),
+        },
+        meetingPrep: { findFirst: async () => null },
+        meetingDebrief: { findFirst: async () => null },
+        engagementAttachment: { findFirst: async () => null },
+        ...decorateStubs,
       },
-      meetingNote: {
-        findFirst: async () => ({
-          status: 'approved',
-          sharedAt: new Date(),
-          sharedByUserId: 'user-2',
-          authorUserId: 'user-2',
-        }),
-        update: async () => ({}),
-      },
-      meetingPrep: { findFirst: async () => null },
-      meetingDebrief: { findFirst: async () => null },
-      engagementAttachment: { findFirst: async () => null },
-      ...decorateStubs,
-    });
+      adminCtx,
+    );
 
     await service.unshareArtifacts(adminCtx, 'm1', [{ type: 'note', id: 'n1' }]);
 
@@ -237,7 +268,7 @@ describe('unshareArtifacts', () => {
 
   test('rejects when a requested artifact does not exist on this meeting', async () => {
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: { findFirst: async () => null },
     });
     await expect(
@@ -247,7 +278,7 @@ describe('unshareArtifacts', () => {
 
   test('a standard user may unshare an artifact they personally shared', async () => {
     const service = serviceWith({
-      meeting: { findFirst: sequencedMeetingFindFirst({ id: 'm1' }, meetingRow()) },
+      meeting: { findFirst: sequencedMeetingFindFirst({ id: 'm1', clientId: null }, meetingRow()) },
       meetingNote: {
         findFirst: async () => ({
           status: 'approved',
@@ -270,7 +301,7 @@ describe('unshareArtifacts', () => {
 
   test('a standard user may unshare a note/debrief they authored, even if someone else shared it', async () => {
     const service = serviceWith({
-      meeting: { findFirst: sequencedMeetingFindFirst({ id: 'm1' }, meetingRow()) },
+      meeting: { findFirst: sequencedMeetingFindFirst({ id: 'm1', clientId: null }, meetingRow()) },
       meetingNote: {
         findFirst: async () => ({
           status: 'approved',
@@ -293,7 +324,7 @@ describe('unshareArtifacts', () => {
 
   test('a standard user CANNOT unshare a prep they neither shared nor have any author concept for', async () => {
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingPrep: {
         findFirst: async () => ({
           status: 'approved',
@@ -303,15 +334,15 @@ describe('unshareArtifacts', () => {
       },
     });
 
-    await expect(
-      service.unshareArtifacts(ctx, 'm1', [{ type: 'prep', id: 'p1' }]),
-    ).rejects.toThrow(/not authorized to unshare/i);
+    await expect(service.unshareArtifacts(ctx, 'm1', [{ type: 'prep', id: 'p1' }])).rejects.toThrow(
+      /not authorized to unshare/i,
+    );
   });
 
   test('all-or-nothing: one unauthorized artifact in the batch rejects the WHOLE batch — the authorized one is not unshared either', async () => {
     let noteUpdateCalled = false;
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: {
         findFirst: async () => ({
           status: 'approved',
@@ -346,7 +377,10 @@ describe('unshareArtifacts', () => {
     let meetingUpdateArgs: Record<string, unknown> | undefined;
     const service = serviceWith({
       meeting: {
-        findFirst: sequencedMeetingFindFirst({ id: 'm1' }, meetingRow({ visibility: 'private' })),
+        findFirst: sequencedMeetingFindFirst(
+          { id: 'm1', clientId: null },
+          meetingRow({ visibility: 'private' }),
+        ),
         update: async (args: Record<string, unknown>) => {
           meetingUpdateArgs = args;
           return meetingRow();
@@ -358,7 +392,12 @@ describe('unshareArtifacts', () => {
         // post-unshare check for ANY still-shared note — null, since n1 (the
         // only note) was just unshared.
         findFirst: sequencedMeetingFindFirst(
-          { status: 'approved', sharedAt: new Date(), sharedByUserId: 'user-1', authorUserId: null },
+          {
+            status: 'approved',
+            sharedAt: new Date(),
+            sharedByUserId: 'user-1',
+            authorUserId: null,
+          },
           null,
         ),
         update: async () => ({}),
@@ -382,7 +421,10 @@ describe('unshareArtifacts', () => {
     let meetingUpdateCalled = false;
     const service = serviceWith({
       meeting: {
-        findFirst: sequencedMeetingFindFirst({ id: 'm1' }, meetingRow({ visibility: 'shared' })),
+        findFirst: sequencedMeetingFindFirst(
+          { id: 'm1', clientId: null },
+          meetingRow({ visibility: 'shared' }),
+        ),
         update: async () => {
           meetingUpdateCalled = true;
           return meetingRow();
@@ -393,7 +435,12 @@ describe('unshareArtifacts', () => {
         // still-shared check — non-null, simulating a different note (n2)
         // remains shared.
         findFirst: sequencedMeetingFindFirst(
-          { status: 'approved', sharedAt: new Date(), sharedByUserId: 'user-1', authorUserId: null },
+          {
+            status: 'approved',
+            sharedAt: new Date(),
+            sharedByUserId: 'user-1',
+            authorUserId: null,
+          },
           { id: 'n2' },
         ),
         update: async () => ({}),
