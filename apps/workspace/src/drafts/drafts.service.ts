@@ -1,3 +1,4 @@
+import { isHeldDraftClientAssociation, nextDraftClient, requireDraftClient, withDraftClientAssociation } from './draft-client-access.js';
 import { createProspectDraft } from '../prospect-resources/prospect-draft-create.js';
 import {
   withProspectDraft,
@@ -50,7 +51,16 @@ export class DraftsService {
       return createProspectDraft(this.prisma, tenantId, ownerId, dto, (tx) =>
         this.create(tenantId, ownerId, dto, tx),
       );
-    const db = transaction ?? this.prisma;
+    if (!transaction) return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+      return this.create(tenantId, ownerId, dto, tx);
+    });
+    const db = transaction;
+    const clientId = dto.clientId ?? null;
+    if (dto.prospectId && clientId) throw new ConflictException('Prospect drafts cannot acquire client association');
+    if (!dto.prospectId && !clientId && dto.client?.trim())
+      throw new ConflictException('Select an explicit client UUID; a client name cannot establish association');
+    const canonicalClient = await requireDraftClient(this.prisma, db, tenantId, ownerId, clientId);
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
     const sections = product ? WSC.suggestedSections(product) : [];
@@ -60,7 +70,8 @@ export class DraftsService {
     const config: Record<string, unknown> = {
       industry: dto.industry ?? null,
       product: product || null,
-      client: dto.client ?? null,
+      client: canonicalClient?.name ?? dto.client ?? null,
+      clientId,
       pathways: [],
       committees: [],
       personalize: meta?.personalize ?? false,
@@ -91,7 +102,8 @@ export class DraftsService {
         docTitle: dto.docTitle ?? (product ? `${product} draft` : 'Untitled draft'),
         industry: dto.industry ?? null,
         product: product || null,
-        client: dto.client ?? null,
+        client: canonicalClient?.name ?? dto.client ?? null,
+        clientId,
         config: config as never,
         ask: funding ? { amount: '', pb: '', delta: '' } : 'n/a',
         isPacket: meta?.cover ?? false,
@@ -253,7 +265,7 @@ export class DraftsService {
       if (!role) throw new NotFoundException('Draft not found');
     }
     await assertProspectDraft(this.prisma, draft, actorId);
-    return draft;
+    return withDraftClientAssociation(draft);
   }
 
   /**
@@ -276,6 +288,7 @@ export class DraftsService {
     const where: Record<string, unknown> = { tenantId };
     if (q.sector) where.industry = q.sector;
     if (q.prospectId) where.prospectId = q.prospectId;
+    if (q.clientId) where.clientId = q.clientId;
     if (q.scope === 'mine') {
       where.ownerId = ownerId;
     } else if (q.scope === 'shared') {
@@ -302,6 +315,7 @@ export class DraftsService {
         industry: true,
         product: true,
         client: true,
+        clientId: true,
         prospectId: true,
         versions: {
           select: { id: true, createdAt: true },
@@ -322,6 +336,7 @@ export class DraftsService {
     // status is the draft column (not agent run-status).
     const allowed = [];
     for (const row of rows) {
+      if (q.clientId && row.clientId !== q.clientId) continue;
       if (!(await this.collaborators.sourceAccess(tenantId, row.id, ownerId))) continue;
       try {
         await assertProspectDraft(this.prisma, row, ownerId);
@@ -333,7 +348,7 @@ export class DraftsService {
     const drafts = allowed.map((row) => {
       const { config: _config, ...rest } = row as typeof row & { config?: unknown };
       return {
-        ...rest,
+        ...withDraftClientAssociation(rest),
         phase: undefined as string | undefined,
         qualityScore: null as number | null,
       };
@@ -354,8 +369,11 @@ export class DraftsService {
       include: { documents: { select: { id: true } } },
     });
     if (!existing) throw new NotFoundException('Draft not found');
+    if (isHeldDraftClientAssociation(existing) && existing.ownerId !== actorId)
+      throw new NotFoundException('Draft not found');
     // Editing the draft is owner + editor only (role matrix).
-    await this.collaborators.assertCan(
+    const associatingLegacy = !existing.prospectId && !existing.clientId && Boolean(dto.clientId) && existing.ownerId === actorId;
+    if (!associatingLegacy) await this.collaborators.assertCan(
       tenantId,
       id,
       actorId,
@@ -363,18 +381,42 @@ export class DraftsService {
       'Only owners and editors can edit this document',
     );
 
-    return withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', async (db) => {
+    const run = <T>(operation: (db: Prisma.TransactionClient) => Promise<T>) => existing.prospectId
+      ? withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', operation)
+      : this.prisma.$transaction(async tx => {
+          await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+          await tx.$queryRaw`SELECT id FROM ws_draft WHERE tenant_id=${tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+          return operation(tx);
+        });
+    return run(async (db) => {
       // Prospect writes hold the parent lock. Re-read before merging so a queued
       // legacy autosave cannot restore config/doc counts read before a copy save.
-      const current = existing.prospectId
-        ? await db.wsDraft.findFirstOrThrow({
-            where: { id, tenantId },
-            include: { documents: { select: { id: true } } },
-          })
-        : existing;
+      const current = await db.wsDraft.findFirstOrThrow({
+        where: { id, tenantId }, include: { documents: { select: { id: true } } },
+      });
+      if (isHeldDraftClientAssociation(current) && current.ownerId !== actorId)
+        throw new NotFoundException('Draft not found');
+      if (associatingLegacy) {
+        const sources = await db.$queryRaw<Array<{ id: string }>>`
+          SELECT draft_id AS id FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${id}::uuid`;
+        if (sources.length) throw new ConflictException('Source-bound drafts cannot be reassociated');
+      }
+      const clientId = nextDraftClient(current, actorId, dto.clientId);
+      const remainsHeld = isHeldDraftClientAssociation(current) && clientId === null;
+      if (dto.config && Object.prototype.hasOwnProperty.call(dto.config, 'clientId') && dto.config.clientId !== clientId)
+        throw new ConflictException('Use the explicit client association field');
+      // Prospect membership, linked-client walls and copied-source authority
+      // were checked by withProspectDraft in this same locked transaction. A
+      // null prospect binding is not an ordinary client association to resolve.
+      const canonicalClient = current.prospectId && clientId === null
+        ? undefined
+        : await requireDraftClient(this.prisma, db, tenantId, actorId, clientId);
       const mergedConfig: Record<string, unknown> = {
         ...(current.config as Record<string, unknown>),
         ...(dto.config ?? {}),
+        ...(!current.prospectId ? { clientId } : {}),
+        ...(remainsHeld ? { client: current.client } : {}),
+        ...(canonicalClient ? { client: canonicalClient.name } : {}),
       };
 
       const product = dto.product ?? current.product ?? '';
@@ -399,7 +441,8 @@ export class DraftsService {
           ...(dto.docTitle !== undefined ? { docTitle: dto.docTitle } : {}),
           ...(dto.industry !== undefined ? { industry: dto.industry } : {}),
           ...(dto.product !== undefined ? { product: dto.product } : {}),
-          ...(dto.client !== undefined ? { client: dto.client } : {}),
+          clientId,
+          ...(canonicalClient ? { client: canonicalClient.name } : remainsHeld ? { client: current.client } : dto.client !== undefined ? { client: dto.client } : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
           lastEditedById: actorId, // stamp who last edited (for the Documents list)
           config: mergedConfig as never,
@@ -408,10 +451,11 @@ export class DraftsService {
           docCount,
         },
       });
-      return db.wsDraft.findFirstOrThrow({
+      const result = await db.wsDraft.findFirstOrThrow({
         where: { tenantId, id: updated.id },
         include: { documents: { orderBy: { ordinal: 'asc' } } },
       });
+      return withDraftClientAssociation(result);
     });
   }
 
@@ -421,10 +465,16 @@ export class DraftsService {
    * The web modal lets the user approve/reject + set scope/replacement per item;
    * this only surfaces the candidates and their occurrence counts.
    */
-  async detectAnonymizeNames(tenantId: string, id: string, actorId?: string) {
+  async detectAnonymizeNames(tenantId: string, id: string, actorId: string) {
+    await this.collaborators.assertReadable(tenantId, id, actorId);
+    const origin = await this.prisma.wsDraft.findFirst({
+      where: { id, tenantId },
+      select: { id: true, tenantId: true, prospectId: true },
+    });
+    if (!origin) throw new NotFoundException('Draft not found');
+    await assertProspectDraft(this.prisma, origin, actorId);
     const draft = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
     if (!draft) throw new NotFoundException('Draft not found');
-    await assertProspectDraft(this.prisma, draft, actorId);
     const cfg = draft.config as Record<string, unknown>;
     const sectionContent = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
     const sections = (cfg.sections as string[] | undefined) ?? [];

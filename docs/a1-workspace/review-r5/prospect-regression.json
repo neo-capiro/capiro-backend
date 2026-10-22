@@ -1,0 +1,97 @@
+{
+  "review": "A1 R5 prospect regression correction",
+  "brief": "https://github.com/neo-capiro/capiro-backend/pull/105#issuecomment-6342196826",
+  "requestedBase": "efd03f1997ef61b99bee315706f39dc1fa341f54",
+  "rebasedLocalParent": "a1615c5a51592f6c36946f47f882a46aa9516734",
+  "scope": "Prospect null-binding PATCH/restore reuse existing transaction-native prospect authority; ordinary and non-null client association checks remain.",
+  "identityApiCorrection": {
+    "withSystemExistsAtRequestedBase": true,
+    "baseAndCandidatePrismaServiceGitBlob": "f11ecf87c93fbf1526f16d62dda3602e933df5a4",
+    "fixtureStubAdded": false
+  },
+  "sourceSha256": {
+    "apps/workspace/src/drafts/drafts.service.ts": "eb77fcc4ff41e8e3e6ba1209c81c2f7086a12ca47391e078844e89c3e6822cac",
+    "apps/workspace/src/versions/versions.service.ts": "02fbfcd3094efa18b20898dcdcaa6688f6a22dca0977722312b9a361e95e22ad",
+    "apps/workspace/src/documents/prospect-brief-copy.spec.ts": "b4ba0095023994a70f8da8c2120abc415884d1906863044bdd4ffa1bfdba735b"
+  },
+  "preservedExistingProspectTestSource": true,
+  "addedProspectCases": 8,
+  "runtime": {
+    "node": "v24.19.0",
+    "jest": "29.7.0",
+    "tsJest": "29.2.5",
+    "typescript": "5.5.4",
+    "dependencies": "reused cached closure; not frozen clean install",
+    "prisma": "existing generated Workspace client matching the unchanged schema"
+  },
+  "commandTemplate": "NODE_PATH=/workspace/scratch/7cdb10b10884/workspace-backend/node_modules NODE_OPTIONS=--max-old-space-size=1536 node node_modules/jest/bin/jest.js --config apps/workspace/jest.config.cjs --runInBand --runTestsByPath <testPath> --cacheDirectory=/dev/shm/a1-r5-identity/jest-cache --json --outputFile=<rawJsonPath>",
+  "finalRuns": [
+    {
+      "name": "prospect-final",
+      "testPath": "apps/workspace/src/documents/prospect-brief-copy.spec.ts",
+      "exitCode": 0,
+      "success": true,
+      "tests": 28,
+      "passed": 28,
+      "failed": 0,
+      "pending": 0,
+      "runtimeErrorSuites": 0,
+      "failedNames": [],
+      "rawJsonSha256": "4933a420d090186305419648e94a3795aa6ba872d06732455210f75bbca49dbb",
+      "rawJsonPath": "/dev/shm/a1-r5-identity/prospect-final.json",
+      "rawLogPath": "/dev/shm/a1-r5-identity/prospect-final.log"
+    },
+    {
+      "name": "ordinary-final",
+      "testPath": "apps/workspace/src/drafts/legacy-client-recovery.spec.ts",
+      "exitCode": 0,
+      "success": true,
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "pending": 0,
+      "runtimeErrorSuites": 0,
+      "failedNames": [],
+      "rawJsonSha256": "4f6571a763c4c2ac720bbc5f05a32f0da82066058d79117cfb32488670dadc06",
+      "rawJsonPath": "/dev/shm/a1-r5-identity/ordinary-final.json",
+      "rawLogPath": "/dev/shm/a1-r5-identity/ordinary-final.log"
+    },
+    {
+      "name": "version-final",
+      "testPath": "apps/workspace/test/ws03-version-admission-order.spec.ts",
+      "exitCode": 0,
+      "success": true,
+      "tests": 22,
+      "passed": 22,
+      "failed": 0,
+      "pending": 0,
+      "runtimeErrorSuites": 0,
+      "failedNames": [],
+      "rawJsonSha256": "92e4a3be7506fdbbd10c81493ed73ceb2ef9e703bac513df72d18c0e2763010a",
+      "rawJsonPath": "/dev/shm/a1-r5-identity/version-final.json",
+      "rawLogPath": "/dev/shm/a1-r5-identity/version-final.log"
+    }
+  ],
+  "aggregateOfThreeSeparateProcesses": {
+    "tests": 66,
+    "passed": 66,
+    "failed": 0,
+    "pending": 0,
+    "runtimeErrorSuites": 0
+  },
+  "unsuccessfulSetup": [
+    {
+      "exitCode": 137,
+      "scope": "initial combined selection of the same three suites at max-old-space-size=4096",
+      "logPath": "/dev/shm/a1-r5-identity/focused.log",
+      "result": "prospect suite printed PASS; process was killed before JSON/aggregate completion during shared memory pressure. Not counted as an aggregate pass."
+    }
+  ],
+  "limits": [
+    "Synthetic Prisma/identity fixtures, not native database proof.",
+    "No current full Workspace/API base-vs-head failing-name parity, clean-install build/typecheck, HTTP/JWT/RLS or image qualification ran in this receipt.",
+    "Fable must run full canonical qualification at the published rebased head against efd03f19.",
+    "The earlier 17-diagnostic cached compiler comparison is historical and is not a current R5 typecheck result.",
+    "No live database, SQL, migration, merge or deployment was executed by these tests."
+  ]
+}

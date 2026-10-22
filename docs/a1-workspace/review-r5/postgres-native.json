@@ -1,0 +1,70 @@
+{
+  "scope": "WS-03 disposable PostgreSQL16 harness; native execution remains Fable-run",
+  "nativeExecuted": false,
+  "databaseContacted": false,
+  "skipCollection": {
+    "command": "node node_modules/jest/bin/jest.js --config apps/workspace/jest.config.cjs --runInBand --runTestsByPath apps/workspace/test/ws03-postgres.int-spec.ts --json --outputFile=/dev/shm/a1-r5-workspace-native/no-db-skip.json",
+    "exit": 0,
+    "numTotalTests": 37,
+    "numPassedTests": 0,
+    "numFailedTests": 0,
+    "numPendingTests": 37,
+    "numRuntimeErrorTestSuites": 0,
+    "reason": "A1_NATIVE_PG_URL is unset; disposable PostgreSQL 16 qualification is Fable-run."
+  },
+  "semanticCheck": {
+    "command": "node --max-old-space-size=1536 /dev/shm/a1-r5-workspace-native/semantic-check.cjs",
+    "exit": 2,
+    "method": "TypeScript createProgram: exact Workspace tsconfig options; new native entry/harness roots; noEmit; no suppression",
+    "diagnostics": [
+      {
+        "code": 6059,
+        "category": "Error",
+        "file": null,
+        "line": null,
+        "column": null,
+        "message": "File '/dev/shm/a1-r5-settings/apps/workspace/test/ws03-postgres.int-spec.ts' is not under 'rootDir' '/dev/shm/a1-r5-settings/apps/workspace/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/dev/shm/a1-r5-settings/apps/workspace/package.json' does not have field \"type\""
+      },
+      {
+        "code": 6059,
+        "category": "Error",
+        "file": "apps/workspace/test/ws03-postgres.int-spec.ts",
+        "line": 7,
+        "column": 38,
+        "message": "File '/dev/shm/a1-r5-settings/apps/workspace/test/support/ws03-descendant-harness.ts' is not under 'rootDir' '/dev/shm/a1-r5-settings/apps/workspace/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Imported via './support/ws03-descendant-harness.js' from file '/dev/shm/a1-r5-settings/apps/workspace/test/ws03-postgres.int-spec.ts'\n    Imported via './ws03-descendant-harness.js' from file '/dev/shm/a1-r5-settings/apps/workspace/test/support/ws03-postgres-harness.ts'\n  File is CommonJS module because '/dev/shm/a1-r5-settings/apps/workspace/package.json' does not have field \"type\""
+      },
+      {
+        "code": 6059,
+        "category": "Error",
+        "file": "apps/workspace/test/ws03-postgres.int-spec.ts",
+        "line": 24,
+        "column": 35,
+        "message": "File '/dev/shm/a1-r5-settings/apps/workspace/test/support/ws03-postgres-harness.ts' is not under 'rootDir' '/dev/shm/a1-r5-settings/apps/workspace/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Imported via './support/ws03-postgres-harness.js' from file '/dev/shm/a1-r5-settings/apps/workspace/test/ws03-postgres.int-spec.ts'\n    Root file specified for compilation\n  File is CommonJS module because '/dev/shm/a1-r5-settings/apps/workspace/package.json' does not have field \"type\""
+      }
+    ],
+    "rootDirBoundaryCount": 3,
+    "nonBoundaryDiagnosticCount": 0,
+    "interpretation": "Three TS6059 test-root boundary errors only. Zero field/constructor/native fixture or other semantic diagnostics. Not a clean project typecheck."
+  },
+  "sourceHashes": {
+    "apps/workspace/test/ws03-postgres.int-spec.ts": "ddf713a78bab6fabb4f3bc1758b3106c5f3e37370a37e32578543f9cee3cc89b",
+    "apps/workspace/test/support/ws03-postgres-harness.ts": "89db17e2b3132b278543b9e9d8aec496fd5b0e04718d3ab79bfca41da8a09f2f",
+    "apps/workspace/test/support/ws-source-action.fixture.prisma": "6d5555ab758582ca6af75d19283c6e1bb9fbd6e26a636d8ca844a9d855e23ea0"
+  },
+  "nativeCoverage": {
+    "directRefusalCases": 18,
+    "directOwnerCases": 18,
+    "gatewaySelectedCases": 7,
+    "gatewayRequests": 42,
+    "gatewayFilteredCases": 50,
+    "originalOpaque404Routes": 13,
+    "adjacentOpaque404Routes": 2,
+    "retainedVersion403Routes": 3
+  },
+  "limits": [
+    "Partial cached dependency and generated-client closure.",
+    "db push does not reproduce migration RLS, grants, triggers or locking contention.",
+    "External Clerk signature verification and generation are fixture providers.",
+    "No native assertions executed locally; clean install, native execution, image and release gates remain."
+  ]
+}

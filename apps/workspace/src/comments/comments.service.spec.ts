@@ -31,7 +31,7 @@ describe('CommentsService.remove', () => {
   it("requires canReview to delete ANOTHER person's comment", async () => {
     const comment = { id: 'c-1', authorId: 'user-other', tenantId: 'tenant-1', documentId: 'doc-1' };
     const prisma = makeMockPrisma(doc, comment);
-    const collaborators = { assertCan } as unknown as { assertCan: typeof assertCan };
+    const collaborators = { assertReadable: jest.fn(async () => 'reviewer'), assertCan } as unknown as { assertCan: typeof assertCan };
     const service = new CommentsService(prisma as never, generation as never, collaborators as never);
 
     await service.remove('tenant-1', 'doc-1', 'c-1', 'user-1');
@@ -56,7 +56,7 @@ describe('CommentsService.remove', () => {
     const failingAssertCan = jest.fn(async () => {
       throw new ForbiddenException('nope');
     });
-    const collaborators = { assertCan: failingAssertCan } as unknown as { assertCan: typeof failingAssertCan };
+    const collaborators = { assertReadable: jest.fn(async () => 'commenter'), assertCan: failingAssertCan } as unknown as { assertCan: typeof failingAssertCan };
     const service = new CommentsService(prisma as never, generation as never, collaborators as never);
 
     await expect(service.remove('tenant-1', 'doc-1', 'c-1', 'user-1')).rejects.toThrow(ForbiddenException);
@@ -66,7 +66,7 @@ describe('CommentsService.remove', () => {
   it('allows an author to delete their OWN comment without requiring canReview', async () => {
     const comment = { id: 'c-1', authorId: 'user-1', tenantId: 'tenant-1', documentId: 'doc-1' };
     const prisma = makeMockPrisma(doc, comment);
-    const collaborators = { assertCan } as unknown as { assertCan: typeof assertCan };
+    const collaborators = { assertReadable: jest.fn(async () => 'reviewer'), assertCan } as unknown as { assertCan: typeof assertCan };
     const service = new CommentsService(prisma as never, generation as never, collaborators as never);
 
     const result = await service.remove('tenant-1', 'doc-1', 'c-1', 'user-1');

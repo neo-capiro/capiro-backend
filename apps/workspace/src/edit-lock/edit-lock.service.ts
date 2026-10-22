@@ -1,4 +1,4 @@
-import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
+import { withProspectDraft, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
@@ -45,13 +45,17 @@ export class EditLockService {
     private readonly collaborators: CollaboratorsService,
   ) {}
 
-  private async assertDraft(tenantId: string, draftId: string) {
-    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+  private async assertDraft(tenantId: string, draftId: string, actorId: string) {
+    await this.collaborators.assertReadable(tenantId, draftId, actorId);
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: draftId, tenantId },
+      select: { id: true, tenantId: true, prospectId: true },
+    });
     if (!draft) throw new NotFoundException('Draft not found');
     return draft;
   }
 
-  /** Holding the edit-lock (acquire/take-over) is owner + editor only. */
+  /** Holding or requesting the edit-lock is owner + editor only. */
   private async assertCanHoldLock(tenantId: string, draftId: string, actorId: string) {
     await this.collaborators.assertCan(
       tenantId,
@@ -97,7 +101,7 @@ export class EditLockService {
   }
 
   async status(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {
-    const draft = await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId, selfId);
     return withProspectDraft(this.prisma, draft, selfId, canRead, 'read', async (db) => {
       const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
       return this.toStatus(lock, selfId);
@@ -116,7 +120,7 @@ export class EditLockService {
     selfId: string,
     selfName: string,
   ): Promise<LockStatus> {
-    const draft = await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId, selfId);
     return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
       await this.assertCanHoldLock(tenantId, draftId, selfId);
       const existing = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
@@ -161,8 +165,9 @@ export class EditLockService {
 
   /** Heartbeat: only the active holder may extend the lock. */
   async heartbeat(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {
-    const draft = await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId, selfId);
     return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
+      await this.assertCanHoldLock(tenantId, draftId, selfId);
       const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
       if (!lock || lock.holderId !== selfId) {
         // Not the holder — return current status (the client will flip to viewer).
@@ -183,19 +188,25 @@ export class EditLockService {
    * is deleted (lock becomes free).
    */
   async release(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {
-    const draft = await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId, selfId);
     return withProspectDraft(this.prisma, draft, selfId, canRead, 'read', async (db) => {
       const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
       if (!lock || lock.holderId !== selfId) {
         return this.toStatus(lock, selfId);
       }
       let transferAllowed = true;
-      if (draft.prospectId && lock.requestedById) {
-        try {
-          await requireProspectDraftInTx(db, draft, lock.requestedById, canEdit, 'write');
-        } catch (error) {
-          if (!(error instanceof NotFoundException)) throw error;
-          transferAllowed = false;
+      if (lock.requestedById) {
+        if (draft.prospectId) {
+          try {
+            await requireProspectDraftInTx(db, draft, lock.requestedById, canEdit, 'write');
+          } catch (error) {
+            if (!(error instanceof NotFoundException)) throw error;
+            transferAllowed = false;
+          }
+        } else {
+          transferAllowed = canEdit(await this.collaborators.resolveRole(
+            tenantId, draftId, lock.requestedById,
+          ));
         }
       }
       if (transferAllowed && lock.requestedById && lock.requestedByName) {
@@ -220,7 +231,7 @@ export class EditLockService {
   }
 
   /**
-   * A viewer requests edit access. Records the request on the lock so the holder
+   * An owner or editor requests the current editing turn. Records the request on the lock so the holder
    * sees it on its next poll. No-op if the caller is the holder or no one holds
    * it (the caller should just acquire in that case).
    */
@@ -230,8 +241,9 @@ export class EditLockService {
     selfId: string,
     selfName: string,
   ): Promise<LockStatus> {
-    const draft = await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId, selfId);
     return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
+      await this.assertCanHoldLock(tenantId, draftId, selfId);
       const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
       if (!lock) throw new NotFoundException('No active editor to request from');
       if (lock.holderId === selfId) return this.toStatus(lock, selfId);
@@ -254,7 +266,7 @@ export class EditLockService {
     selfId: string,
     selfName: string,
   ): Promise<LockStatus> {
-    const draft = await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId, selfId);
     return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
       await this.assertCanHoldLock(tenantId, draftId, selfId);
       const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });

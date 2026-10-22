@@ -1,0 +1,17 @@
+// Disposable fixture only. The production raw-SQL table is absent from the
+// Prisma datamodel. Shape mirrors Workspace migration
+// 20260913020000_legiwatch_preparation_actions; this is not a migration or a
+// claim to reproduce its grants/immutable trigger.
+model A1NativeWsSourceAction {
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  sourceType String @map("source_type")
+  sourceKey String @map("source_key")
+  inputHash String @map("input_hash")
+  draftId String @map("draft_id") @db.Uuid
+  contextItemId String @map("context_item_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([tenantId, ownerId, sourceType, sourceKey])
+  @@map("ws_source_action")
+}

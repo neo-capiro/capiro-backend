@@ -1,0 +1,502 @@
+{
+  "date": "2026-10-22",
+  "baselineRemote": "ad71e416b7380303c06e21c0a3181913df80b3d1",
+  "baselineLocalEquivalent": "04844204ca4e8537a0bfbc8a0271980bffbcc90d",
+  "frontendCompanionHead": "b6f0fd74c981e76e9b5063aa44d298148e11f50c",
+  "restoredCanonicalRun": {
+    "command": [
+      "node",
+      "node_modules/jest/bin/jest.js",
+      "--config",
+      "apps/workspace/jest.config.cjs",
+      "--cacheDirectory",
+      "/dev/shm/a1-r1-jest-cache",
+      "--runInBand",
+      "--runTestsByPath",
+      "apps/workspace/src/comments/comments.service.spec.ts",
+      "apps/workspace/src/checks/checks.verification.spec.ts",
+      "apps/workspace/src/checks/draft-descendant-read.spec.ts",
+      "apps/workspace/src/edit-lock/edit-lock.service.spec.ts",
+      "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "--json",
+      "--outputFile=/dev/shm/ws03-restored.json"
+    ],
+    "exitCode": 0,
+    "passed": 339,
+    "failed": 0,
+    "pending": 0,
+    "runtimeErrorSuites": 0,
+    "suites": [
+      {
+        "path": "apps/workspace/src/checks/draft-descendant-read.spec.ts",
+        "status": "passed",
+        "assertions": 21
+      },
+      {
+        "path": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+        "status": "passed",
+        "assertions": 267
+      },
+      {
+        "path": "apps/workspace/src/edit-lock/edit-lock.service.spec.ts",
+        "status": "passed",
+        "assertions": 37
+      },
+      {
+        "path": "apps/workspace/src/comments/comments.service.spec.ts",
+        "status": "passed",
+        "assertions": 3
+      },
+      {
+        "path": "apps/workspace/src/checks/checks.verification.spec.ts",
+        "status": "passed",
+        "assertions": 11
+      }
+    ]
+  },
+  "joined": [
+    {
+      "name": "frontend",
+      "exitCode": 0,
+      "passed": 34,
+      "failed": 0,
+      "pending": 0,
+      "rawSha256": "5244f01d229cdcfe9533888bb55c742ee0cfcd9e7213da09fae888b9328f910c"
+    },
+    {
+      "name": "wrapper",
+      "exitCode": 0,
+      "passed": 1,
+      "failed": 0,
+      "pending": 0,
+      "rawSha256": "deb78a98d70ef468ef733c0546bd9a11807b67ec921eedd69f84732357348194"
+    }
+  ],
+  "typecheckComparison": [
+    {
+      "label": "prior",
+      "command": [
+        "node",
+        "--max-old-space-size=3072",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "apps/workspace/tsconfig.json",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "/dev/shm/ws03-prior.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 2,
+      "diagnostics": [
+        "apps/workspace/src/export/export.service.ts(15,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.",
+        "apps/workspace/src/export/export.service.ts(247,27): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/export/export.service.ts(254,8): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/export/export.service.ts(293,8): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/export/export.service.ts(869,10): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/hillday/hillday-export.service.ts(3,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.",
+        "apps/workspace/src/hillday/hillday-file.controller.spec.ts(4,21): error TS2307: Cannot find module 'supertest' or its corresponding type declarations.",
+        "apps/workspace/src/hillday/hillday-file.controller.spec.ts(41,15): error TS7006: Parameter 'r' implicitly has an 'any' type.",
+        "apps/workspace/src/hillday/hillday-file.controller.spec.ts(41,18): error TS7006: Parameter 'cb' implicitly has an 'any' type.",
+        "apps/workspace/src/newsletters/newsletter-link-preview.service.ts(3,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts(5,21): error TS2307: Cannot find module 'supertest' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-validation.ts(2,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-validation.ts(79,11): error TS7006: Parameter '_tag' implicitly has an 'any' type.",
+        "apps/workspace/src/newsletters/newsletter-validation.ts(79,17): error TS7006: Parameter 'attrs' implicitly has an 'any' type.",
+        "apps/workspace/src/newsletters/newsletter-video.service.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-video.spec.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.",
+        "apps/workspace/src/versions/objective-destination.spec.ts(6,21): error TS2307: Cannot find module 'supertest' or its corresponding type declarations."
+      ]
+    },
+    {
+      "label": "candidate",
+      "command": [
+        "node",
+        "--max-old-space-size=3072",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "apps/workspace/tsconfig.json",
+        "--noEmit",
+        "--tsBuildInfoFile",
+        "/dev/shm/ws03-candidate.tsbuildinfo",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 2,
+      "diagnostics": [
+        "apps/workspace/src/export/export.service.ts(15,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.",
+        "apps/workspace/src/export/export.service.ts(247,27): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/export/export.service.ts(254,8): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/export/export.service.ts(293,8): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/export/export.service.ts(869,10): error TS2503: Cannot find namespace 'PDFKit'.",
+        "apps/workspace/src/hillday/hillday-export.service.ts(3,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.",
+        "apps/workspace/src/hillday/hillday-file.controller.spec.ts(4,21): error TS2307: Cannot find module 'supertest' or its corresponding type declarations.",
+        "apps/workspace/src/hillday/hillday-file.controller.spec.ts(41,15): error TS7006: Parameter 'r' implicitly has an 'any' type.",
+        "apps/workspace/src/hillday/hillday-file.controller.spec.ts(41,18): error TS7006: Parameter 'cb' implicitly has an 'any' type.",
+        "apps/workspace/src/newsletters/newsletter-link-preview.service.ts(3,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts(5,21): error TS2307: Cannot find module 'supertest' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-validation.ts(2,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-validation.ts(79,11): error TS7006: Parameter '_tag' implicitly has an 'any' type.",
+        "apps/workspace/src/newsletters/newsletter-validation.ts(79,17): error TS7006: Parameter 'attrs' implicitly has an 'any' type.",
+        "apps/workspace/src/newsletters/newsletter-video.service.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.",
+        "apps/workspace/src/newsletters/newsletter-video.spec.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.",
+        "apps/workspace/src/versions/objective-destination.spec.ts(6,21): error TS2307: Cannot find module 'supertest' or its corresponding type declarations."
+      ]
+    }
+  ],
+  "addedTypecheckDiagnostics": [],
+  "removedTypecheckDiagnostics": [],
+  "mutantsKilled": 15,
+  "mutations": [
+    {
+      "mutation": "anonymize-prospect-receipt",
+      "source": "apps/workspace/src/drafts/drafts.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "794ecb69824956904e8e1083d804dba992d79e87bce1b971bd17a996b12b3ec9",
+      "restoredSha256": "794ecb69824956904e8e1083d804dba992d79e87bce1b971bd17a996b12b3ec9",
+      "replace": "    await assertProspectDraft(this.prisma, origin, actorId);\n",
+      "with": "",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "refuses an invalid copied-brief receipt at anonymization before full content reads",
+      "failedAssertions": 1,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses an invalid copied-brief receipt at anonymization before full content reads"
+      ],
+      "rawReceiptSha256": "c1178663dc65e4aeb7646f4cd524230b6d64448def466cb010b82607ee08e914"
+    },
+    {
+      "mutation": "anonymize-readable",
+      "source": "apps/workspace/src/drafts/drafts.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "794ecb69824956904e8e1083d804dba992d79e87bce1b971bd17a996b12b3ec9",
+      "restoredSha256": "794ecb69824956904e8e1083d804dba992d79e87bce1b971bd17a996b12b3ec9",
+      "replace": "    await this.collaborators.assertReadable(tenantId, id, actorId);\n",
+      "with": "",
+      "suite": "apps/workspace/src/checks/draft-descendant-read.spec.ts",
+      "testNamePattern": "anonymize draft read admission",
+      "failedAssertions": 2,
+      "failureNameSample": [
+        "anonymize draft read admission conceals a same-tenant draft from an unrelated actor before reading content",
+        "anonymize draft read admission refuses a missing actor before reading content"
+      ],
+      "rawReceiptSha256": "4ad23d4f9cc1c845c359a7d93c45b266d816d59fd674ec4ba1a277498c448af0"
+    },
+    {
+      "mutation": "checks-prospect-receipt",
+      "source": "apps/workspace/src/checks/checks.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "6c4e477e56300bb3ed2e9e7ba6d75bdf6274ff27ae871e77864df0dcdda05d48",
+      "restoredSha256": "6c4e477e56300bb3ed2e9e7ba6d75bdf6274ff27ae871e77864df0dcdda05d48",
+      "replace": "    await assertProspectDraft(this.prisma, origin, actorId);\n",
+      "with": "",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "refuses an invalid copied-brief receipt at checks before full content reads",
+      "failedAssertions": 1,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses an invalid copied-brief receipt at checks before full content reads"
+      ],
+      "rawReceiptSha256": "1f5667c26bb8ba0b534aa48544afe29fbf2ef0deb2992322ccad873235e32438"
+    },
+    {
+      "mutation": "checks-readable",
+      "source": "apps/workspace/src/checks/checks.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "6c4e477e56300bb3ed2e9e7ba6d75bdf6274ff27ae871e77864df0dcdda05d48",
+      "restoredSha256": "6c4e477e56300bb3ed2e9e7ba6d75bdf6274ff27ae871e77864df0dcdda05d48",
+      "replace": "    await this.collaborators.assertReadable(tenantId, draftId, actorId);\n",
+      "with": "",
+      "suite": "apps/workspace/src/checks/draft-descendant-read.spec.ts",
+      "testNamePattern": "checks draft read admission",
+      "failedAssertions": 2,
+      "failureNameSample": [
+        "checks draft read admission conceals a same-tenant draft from an unrelated actor before reading content",
+        "checks draft read admission refuses a missing actor before reading content"
+      ],
+      "rawReceiptSha256": "9ce9baf6c0b697a6a2d45fc5abf7c26379ad180b9cb55beb646cc11c7ae0b241"
+    },
+    {
+      "mutation": "handoff-recipient-role",
+      "source": "apps/workspace/src/edit-lock/edit-lock.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "restoredSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "replace": "          transferAllowed = canEdit(await this.collaborators.resolveRole(\n            tenantId, draftId, lock.requestedById,\n          ));",
+      "with": "          transferAllowed = true;",
+      "suite": "apps/workspace/src/edit-lock/edit-lock.service.spec.ts",
+      "testNamePattern": "clears a pending handoff",
+      "failedAssertions": 4,
+      "failureNameSample": [
+        "EditLockService draft authority clears a pending handoff when recipient role is null",
+        "EditLockService draft authority clears a pending handoff when recipient role is reviewer",
+        "EditLockService draft authority clears a pending handoff when recipient role is commenter",
+        "EditLockService draft authority clears a pending handoff when recipient role is viewer"
+      ],
+      "rawReceiptSha256": "ffc3d21531e9975e33a633f86dc29346174ee8486e141648cab33eb55a9d2b3d"
+    },
+    {
+      "mutation": "heartbeat-edit-role",
+      "source": "apps/workspace/src/edit-lock/edit-lock.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "restoredSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "replace": "  async heartbeat(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {\n    const draft = await this.assertDraft(tenantId, draftId, selfId);\n    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {\n      await this.assertCanHoldLock(tenantId, draftId, selfId);",
+      "with": "  async heartbeat(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {\n    const draft = await this.assertDraft(tenantId, draftId, selfId);\n    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {",
+      "suite": "apps/workspace/src/edit-lock/edit-lock.service.spec.ts",
+      "testNamePattern": "cannot heartbeat",
+      "failedAssertions": 3,
+      "failureNameSample": [
+        "EditLockService draft authority reviewer role cannot heartbeat or inspect the lock through that mutation",
+        "EditLockService draft authority commenter role cannot heartbeat or inspect the lock through that mutation",
+        "EditLockService draft authority viewer role cannot heartbeat or inspect the lock through that mutation"
+      ],
+      "rawReceiptSha256": "d3487b17170572bbfdd93d430ba42632e7864fd4b6da599828520fc994f648b1"
+    },
+    {
+      "mutation": "lock-readable",
+      "source": "apps/workspace/src/edit-lock/edit-lock.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "restoredSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "replace": "    await this.collaborators.assertReadable(tenantId, draftId, actorId);\n",
+      "with": "",
+      "suite": "apps/workspace/src/edit-lock/edit-lock.service.spec.ts",
+      "testNamePattern": "returns 404 to an unrelated",
+      "failedAssertions": 6,
+      "failureNameSample": [
+        "EditLockService draft authority status returns 404 to an unrelated tenant member before lock access",
+        "EditLockService draft authority release returns 404 to an unrelated tenant member before lock access",
+        "EditLockService draft authority acquire returns 404 to an unrelated tenant member before lock access",
+        "EditLockService draft authority heartbeat returns 404 to an unrelated tenant member before lock access",
+        "EditLockService draft authority request returns 404 to an unrelated tenant member before lock access"
+      ],
+      "rawReceiptSha256": "023f3829fd5ae8acd09474fc1a3c3c683538d07a64c6d528e91842d62831bf42"
+    },
+    {
+      "mutation": "quality-adapter-actor",
+      "source": "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "06f8417f245448be481df821f1e0869f2be48a247351bf23084c2d3d97208ded",
+      "restoredSha256": "06f8417f245448be481df821f1e0869f2be48a247351bf23084c2d3d97208ded",
+      "replace": "const existing = await this.checks.evaluate(tenantId, draftId, actorId);",
+      "with": "const existing = await this.checks.evaluate(tenantId, draftId, undefined as never);",
+      "suite": "apps/workspace/src/checks/draft-descendant-read.spec.ts",
+      "testNamePattern": "agent-quality draft read admission.*preserves",
+      "failedAssertions": 5,
+      "failureNameSample": [
+        "agent-quality draft read admission preserves the owner read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the editor read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the reviewer read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the commenter read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the viewer read role and returns the authorized draft content"
+      ],
+      "rawReceiptSha256": "da1ed18121d3870a55329177dcbc6dd10a4be28725241cb5819b8de88e5bd282"
+    },
+    {
+      "mutation": "quality-controller-actor",
+      "source": "apps/workspace/src/document-agent/document-agent.controller.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "3568b0e85bc54aa8bfd8cf0610a5c2fafd9fa957e00942d3c4ed879f7dd270fe",
+      "restoredSha256": "3568b0e85bc54aa8bfd8cf0610a5c2fafd9fa957e00942d3c4ed879f7dd270fe",
+      "replace": "return this.quality.evaluate(ctx.tenantId, draftId, ctx.clerkUserId);",
+      "with": "return this.quality.evaluate(ctx.tenantId, draftId, undefined as never);",
+      "suite": "apps/workspace/src/checks/draft-descendant-read.spec.ts",
+      "testNamePattern": "agent-quality draft read admission.*preserves",
+      "failedAssertions": 5,
+      "failureNameSample": [
+        "agent-quality draft read admission preserves the owner read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the editor read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the reviewer read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the commenter read role and returns the authorized draft content",
+        "agent-quality draft read admission preserves the viewer read role and returns the authorized draft content"
+      ],
+      "rawReceiptSha256": "3818c7a28a0936b17d3701fe42f8e570160c9f485abdfb7d60ddfc4b6db1a4c3"
+    },
+    {
+      "mutation": "request-edit-role",
+      "source": "apps/workspace/src/edit-lock/edit-lock.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "restoredSha256": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca",
+      "replace": "  async request(\n    tenantId: string,\n    draftId: string,\n    selfId: string,\n    selfName: string,\n  ): Promise<LockStatus> {\n    const draft = await this.assertDraft(tenantId, draftId, selfId);\n    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {\n      await this.assertCanHoldLock(tenantId, draftId, selfId);",
+      "with": "  async request(\n    tenantId: string,\n    draftId: string,\n    selfId: string,\n    selfName: string,\n  ): Promise<LockStatus> {\n    const draft = await this.assertDraft(tenantId, draftId, selfId);\n    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {",
+      "suite": "apps/workspace/src/edit-lock/edit-lock.service.spec.ts",
+      "testNamePattern": "cannot request",
+      "failedAssertions": 3,
+      "failureNameSample": [
+        "EditLockService draft authority reviewer role cannot request or inspect the lock through that mutation",
+        "EditLockService draft authority commenter role cannot request or inspect the lock through that mutation",
+        "EditLockService draft authority viewer role cannot request or inspect the lock through that mutation"
+      ],
+      "rawReceiptSha256": "fcb0eef86f1c06db7151a46b5f69d963a7f21cf2e38838dad30f7005dff82e38"
+    },
+    {
+      "mutation": "canonical-read-gate",
+      "source": "apps/workspace/src/collaborators/collaborators.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "bbd632fdcca14a73ce6456f9d173b6e82894149a7fb718dccdfadabb3402e050",
+      "restoredSha256": "bbd632fdcca14a73ce6456f9d173b6e82894149a7fb718dccdfadabb3402e050",
+      "replace": "    if (!canRead(role)) throw new NotFoundException('Draft not found');\n",
+      "with": "",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "WS-03 direct",
+      "failedAssertions": 119,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment list before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment create before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment update before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment delete before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment suggestion before descendant reads or effects"
+      ],
+      "rawReceiptSha256": "f9a5c93b311453776e23d051063342f3897be38db3e7d177c0da9b54baf328dd"
+    },
+    {
+      "mutation": "comments-admission",
+      "source": "apps/workspace/src/comments/comments.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "restoredSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "replace": "    const accessRole = await this.collaborators.assertReadable(tenantId, doc.draftId, actorId);",
+      "with": "    const accessRole = 'reviewer' as const;",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "WS-03 direct",
+      "failedAssertions": 52,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment list before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment create before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment update before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment delete before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment suggestion before descendant reads or effects"
+      ],
+      "rawReceiptSha256": "fee2a7dc47fec5cb5f9edac0e7a8c23bebdfbda2fda7269ae207b469c2aeab2f"
+    },
+    {
+      "mutation": "comments-content-before-admission",
+      "source": "apps/workspace/src/comments/comments.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "restoredSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "replace": "      select: { id: true, draftId: true, draft: { select: { id: true, tenantId: true, prospectId: true } } },",
+      "with": "      include: { draft: { select: { id: true, tenantId: true, prospectId: true } } },",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "WS-03 direct",
+      "failedAssertions": 68,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment list before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment create before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment update before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment delete before descendant reads or effects",
+        "WS-03 direct Workspace descendant authority (synthetic database) refuses unrelated member at comment suggestion before descendant reads or effects"
+      ],
+      "rawReceiptSha256": "7ccea3c5ac25a8c94aa2cf255a788be5068af77cb188b893229682b9a42c8ee2"
+    },
+    {
+      "mutation": "comments-existence-oracle",
+      "source": "apps/workspace/src/comments/comments.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "restoredSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "replace": "    if (!doc) throw new NotFoundException('Draft not found');",
+      "with": "    if (!doc) throw new NotFoundException('Document not found');",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "same opaque refusal",
+      "failedAssertions": 5,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) gives the same opaque refusal for inaccessible, absent and wrong-tenant parents at comment list",
+        "WS-03 direct Workspace descendant authority (synthetic database) gives the same opaque refusal for inaccessible, absent and wrong-tenant parents at comment create",
+        "WS-03 direct Workspace descendant authority (synthetic database) gives the same opaque refusal for inaccessible, absent and wrong-tenant parents at comment update",
+        "WS-03 direct Workspace descendant authority (synthetic database) gives the same opaque refusal for inaccessible, absent and wrong-tenant parents at comment delete",
+        "WS-03 direct Workspace descendant authority (synthetic database) gives the same opaque refusal for inaccessible, absent and wrong-tenant parents at comment suggestion"
+      ],
+      "rawReceiptSha256": "b92532745c768b7c1f164232aa9021d41843d17b28b500f12d6cfcf12de58f4d"
+    },
+    {
+      "mutation": "viewer-delete-precheck",
+      "source": "apps/workspace/src/comments/comments.service.ts",
+      "exitCode": 1,
+      "runtimeErrorSuites": 0,
+      "killed": true,
+      "restored": true,
+      "beforeSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "restoredSha256": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+      "replace": "    if (!canComment(doc.accessRole)) throw new ForbiddenException('You do not have permission to delete comments');\n",
+      "with": "",
+      "suite": "apps/workspace/test/ws03-descendant-authority.spec.ts",
+      "testNamePattern": "retains viewer permissions",
+      "failedAssertions": 1,
+      "failureNameSample": [
+        "WS-03 direct Workspace descendant authority (synthetic database) retains viewer permissions for comment delete"
+      ],
+      "rawReceiptSha256": "299d325313a61ec9f5f35bf3e37ab42fd88a5259ebe43c7f47d757fbdb5b3237"
+    }
+  ],
+  "productionSha256": {
+    "apps/workspace/src/checks/checks.module.ts": "30ab0e8bb7dda2517a9d6f4b92fc102bae569c682518db00aa0574006b03b246",
+    "apps/workspace/src/checks/checks.service.ts": "6c4e477e56300bb3ed2e9e7ba6d75bdf6274ff27ae871e77864df0dcdda05d48",
+    "apps/workspace/src/collaborators/collaborators.service.ts": "bbd632fdcca14a73ce6456f9d173b6e82894149a7fb718dccdfadabb3402e050",
+    "apps/workspace/src/comments/comments.service.ts": "209fa0b7148e63a459e2b5f5a5d7776e7dd8b1640b4b09ebd9feaeb8953a84d3",
+    "apps/workspace/src/document-agent/document-agent-quality.service.ts": "06f8417f245448be481df821f1e0869f2be48a247351bf23084c2d3d97208ded",
+    "apps/workspace/src/document-agent/document-agent.controller.ts": "3568b0e85bc54aa8bfd8cf0610a5c2fafd9fa957e00942d3c4ed879f7dd270fe",
+    "apps/workspace/src/drafts/drafts.service.ts": "794ecb69824956904e8e1083d804dba992d79e87bce1b971bd17a996b12b3ec9",
+    "apps/workspace/src/edit-lock/edit-lock.service.ts": "47df250cc9ad65997f04b3b68cbfbb6ab764d9557cccd8cc02881b828f0a45ca"
+  },
+  "dependencyProfile": {
+    "cleanInstall": false,
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "NODE_PATH": "existing Workspace cached node_modules",
+    "auth": "Unchanged @capiro/auth source built into isolated temporary output with original exports",
+    "jestConfig": "apps/workspace/jest.config.cjs",
+    "diagnosticOverrides": false
+  },
+  "blockedExistingSuite": {
+    "path": "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+    "executed": 0,
+    "reason": "Missing cached PDFKit namespace/types in export.service.ts"
+  },
+  "nativePostgreSQL": {
+    "owner": "Fable-run",
+    "executed": false
+  },
+  "releaseHold": "#105 Workspace ACL deployment HOLD remains; no ship request."
+}

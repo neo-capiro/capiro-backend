@@ -46,7 +46,7 @@ interface FakeMeeting {
 }
 
 function makeHarness(meetings: FakeMeeting[]) {
-  const doc = { id: 'doc-1', tenantId: 't', ownerId: 'user-1', clientId: 'client-1', clientName: 'Kela Systems', resolutionStatus: null as string | null };
+  const doc = { id: '33333333-3333-4333-8333-333333333333', tenantId: 't', ownerId: 'user-1', clientId: 'client-1', clientName: 'Kela Systems', resolutionStatus: null as string | null };
   const prisma = {
     wsHillDayDocument: {
       findFirst: jest.fn(async () => doc),
@@ -80,6 +80,7 @@ function makeHarness(meetings: FakeMeeting[]) {
     },
   };
   const source = {
+    requireClient: jest.fn(async () => ({ id: 'client-1' })),
     tenantMemberEmails: jest.fn(async () => new Set(['neo@maven.example'])),
     clientPeopleEmails: jest.fn(async () => new Set(['ceo@kela.example'])),
     upsertEngagementContact: jest.fn(async () => 'contact-1'),
@@ -147,7 +148,7 @@ describe('HillDayResolutionService.resolveDocument', () => {
         event: event('e-4', ['brett.kalmar@mail.house.gov'], { location: 'Rayburn 2449' }) },
     ];
     const { service, doc } = makeHarness(meetings);
-    const result = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const result = await service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
 
     expect(result.status).toBe('partial');
     expect(doc.resolutionStatus).toBe('partial');
@@ -206,7 +207,7 @@ describe('HillDayResolutionService.resolveDocument', () => {
         ],
       },
     });
-    const result = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const result = await service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
     const m = result.meetings[0]!;
     expect(m.attendees[0]!.state).toBe('scheduler');
     expect(m.attendees[0]!.role).toBeNull();
@@ -224,7 +225,7 @@ describe('HillDayResolutionService.resolveDocument', () => {
     ];
     const { service, bridge } = makeHarness(meetings);
     bridge.matchEmails.mockResolvedValueOnce({ ok: false, status: 'unavailable', detail: 'Directory timed out' });
-    const result = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const result = await service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
     expect(result.sources.find((s) => s.source === 'directory')?.status).toBe('unavailable');
     expect(result.meetings[0]!.attendees[0]!.state).toBe('unresolved');
     expect(result.meetings[0]!.attendees[0]!.detail).toContain('Directory unavailable');
@@ -241,14 +242,14 @@ describe('HillDayResolutionService.correct', () => {
         event: event('e-4', ['brett.kalmar@mail.house.gov'], { location: 'Rayburn 2449' }) },
     ];
     const h = makeHarness(meetings);
-    await h.service.resolveDocument('t', 'user-1', 'doc-1');
+    await h.service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
     return h;
   }
 
   it('applies a manual attendee (name + role) and marks it confirmed', async () => {
     const { service, meetings } = await resolved();
     const attendeeId = meetings[0]!.resolution!.attendees[0]!.attendeeId;
-    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
+    const { resolution: next } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-2', {
       kind: 'manual_attendee',
       attendeeId,
       name: 'Tunde Okonjo',
@@ -266,7 +267,7 @@ describe('HillDayResolutionService.correct', () => {
   it('creates the tenant Directory record for an unresolved address', async () => {
     const { service, source, meetings } = await resolved();
     const attendeeId = meetings[0]!.resolution!.attendees[0]!.attendeeId;
-    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
+    const { resolution: next } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-2', {
       kind: 'create_directory_record',
       attendeeId,
       name: 'Tunde Okonjo',
@@ -279,7 +280,7 @@ describe('HillDayResolutionService.correct', () => {
   it('accepts a stale association and lets the chosen office govern the meeting', async () => {
     const { service, meetings } = await resolved();
     const attendeeId = meetings[1]!.resolution!.attendees[0]!.attendeeId;
-    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-4', {
+    const { resolution: next } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-4', {
       kind: 'accept_stale',
       attendeeId,
       useOffice: 'directory',
@@ -291,13 +292,13 @@ describe('HillDayResolutionService.correct', () => {
 
   it('changes the office on request and keeps the correction across a re-run', async () => {
     const { service, meetings } = await resolved();
-    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-4', { kind: 'change_office', memberId: 'member-3' });
+    const { resolution: next } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-4', { kind: 'change_office', memberId: 'member-3' });
     expect(next.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
     expect(next.office.derivedFrom).toBe('user_correction');
     expect(next.office.correctedBy).toBe('user-1');
     expect(next.office.alternatives.map((a) => a.memberId)).toEqual(['member-4']);
 
-    const rerun = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const rerun = await service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
     const m4 = rerun.meetings.find((m) => m.meetingId === 'm-4')!;
     expect(m4.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
     expect(m4.office.derivedFrom).toBe('user_correction');
@@ -307,9 +308,9 @@ describe('HillDayResolutionService.correct', () => {
   it('applies edit_meeting_facts and updates both the event snapshot and the office room', async () => {
     const h = await resolved();
     const { service, meetings } = h;
-    const before = (await service.getResolution('t', 'doc-1')).meetings.find((m) => m.meetingId === 'm-4')!;
+    const before = (await service.getResolution('t', '33333333-3333-4333-8333-333333333333', 'user-1')).meetings.find((m) => m.meetingId === 'm-4')!;
 
-    const { resolution: next, event: nextEvent } = await service.correct('t', 'user-1', 'doc-1', 'm-4', {
+    const { resolution: next, event: nextEvent } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-4', {
       kind: 'edit_meeting_facts',
       subject: 'Rescheduled — Courtney industrial base follow-up',
       startsAt: '2026-09-17T14:00:00.000Z',
@@ -336,7 +337,7 @@ describe('HillDayResolutionService.correct', () => {
 
   it('edits meeting facts on a meeting with no office correction yet, without disturbing derivedFrom', async () => {
     const { service } = await resolved();
-    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
+    const { resolution: next } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-2', {
       kind: 'edit_meeting_facts',
       location: 'Rayburn 2454, 3rd floor',
     });
@@ -346,7 +347,7 @@ describe('HillDayResolutionService.correct', () => {
   it('rejects edit_meeting_facts when endsAt is not after startsAt', async () => {
     const { service } = await resolved();
     await expect(
-      service.correct('t', 'user-1', 'doc-1', 'm-4', {
+      service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-4', {
         kind: 'edit_meeting_facts',
         startsAt: '2026-09-17T14:30:00.000Z',
         endsAt: '2026-09-17T14:00:00.000Z',
@@ -358,7 +359,7 @@ describe('HillDayResolutionService.correct', () => {
 describe('HillDayResolutionService.addManualMeeting', () => {
   it('creates a meeting with a placeholder event and an office derived from the picked member', async () => {
     const { service, meetings } = makeHarness([]);
-    const { resolution, event: created } = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+    const { resolution, event: created } = await service.addManualMeeting('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'member-3');
 
     expect(created.source).toBe('manual');
     expect(created.eventId).toMatch(/^manual-/);
@@ -381,23 +382,23 @@ describe('HillDayResolutionService.addManualMeeting', () => {
 
   it('rejects when the caller is not the document owner', async () => {
     const { service } = makeHarness([]);
-    await expect(service.addManualMeeting('t', 'intruder', 'doc-1', 'member-3')).rejects.toThrow(
-      'Only the document owner',
+    await expect(service.addManualMeeting('t', 'intruder', '33333333-3333-4333-8333-333333333333', 'member-3')).rejects.toThrow(
+      'Document not found',
     );
   });
 
   it('is idempotent by member — a retried add does not create a duplicate', async () => {
     const { service, meetings } = makeHarness([]);
-    const first = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
-    const second = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+    const first = await service.addManualMeeting('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'member-3');
+    const second = await service.addManualMeeting('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'member-3');
     expect(meetings).toHaveLength(1);
     expect(second.event.eventId).toBe(first.event.eventId);
   });
 
   it('survives a full resolveDocument re-run without losing the picked office', async () => {
     const { service } = makeHarness([]);
-    await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
-    const rerun = await service.resolveDocument('t', 'user-1', 'doc-1');
+    await service.addManualMeeting('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'member-3');
+    const rerun = await service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
     const m = rerun.meetings[0]!;
     expect(m.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
     expect(m.office.derivedFrom).toBe('manual_selection');
@@ -420,8 +421,8 @@ describe('HillDayResolutionService.addManualMeeting', () => {
         },
       },
     });
-    const { resolution: created } = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
-    const { resolution: withAttendee } = await service.correct('t', 'user-1', 'doc-1', created.meetingId, {
+    const { resolution: created } = await service.addManualMeeting('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'member-3');
+    const { resolution: withAttendee } = await service.correct('t', 'user-1', '33333333-3333-4333-8333-333333333333', created.meetingId, {
       kind: 'assign_staffer',
       stafferId: 'staff-9',
     });
@@ -429,7 +430,7 @@ describe('HillDayResolutionService.addManualMeeting', () => {
     expect(withAttendee.attendees[0]!.address).toBeNull();
     expect(withAttendee.attendees[0]!.manual).toBe(false);
 
-    const rerun = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const rerun = await service.resolveDocument('t', 'user-1', '33333333-3333-4333-8333-333333333333');
     const m = rerun.meetings[0]!;
     expect(m.attendees).toHaveLength(1);
     expect(m.attendees[0]!.stafferId).toBe('staff-9');
@@ -447,7 +448,7 @@ describe('HillDayResolutionService.clientRelationships', () => {
       { id: 'contact-1', fullName: 'Jordan Reyes', email: 'jordan@kela.example', phone: null, organization: 'Kela Systems', title: 'VP Government Affairs' },
     ] as never);
 
-    const result = await service.clientRelationships('t', 'doc-1');
+    const result = await service.clientRelationships('t', '33333333-3333-4333-8333-333333333333', 'user-1');
 
     expect(source.listClientTargetStaffers).toHaveBeenCalledWith('t', 'client-1');
     expect(source.listClientEngagementContacts).toHaveBeenCalledWith('t', 'client-1');
@@ -464,7 +465,7 @@ describe('HillDayResolutionService.clientRelationships', () => {
     const { service, source } = makeHarness([]);
     source.listClientTargetStaffers.mockRejectedValueOnce(new Error('db down') as never);
 
-    const result = await service.clientRelationships('t', 'doc-1');
+    const result = await service.clientRelationships('t', '33333333-3333-4333-8333-333333333333', 'user-1');
 
     expect(result.targets).toEqual([]);
     expect(result.contacts).toEqual([]);
@@ -472,8 +473,22 @@ describe('HillDayResolutionService.clientRelationships', () => {
   });
 
   it('rejects an unknown document', async () => {
-    const { service, prisma } = makeHarness([]);
+    const { service, prisma, source } = makeHarness([]);
     prisma.wsHillDayDocument.findFirst.mockResolvedValueOnce(null as never);
-    await expect(service.clientRelationships('t', 'missing-doc')).rejects.toThrow();
+    await expect(
+      service.clientRelationships('t', '33333333-3333-4333-8333-333333333333', 'user-1'),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(prisma.wsHillDayDocument.findFirst).toHaveBeenCalled();
+    expect(source.listClientTargetStaffers).not.toHaveBeenCalled();
+    expect(source.listClientEngagementContacts).not.toHaveBeenCalled();
+  });
+
+  it('rejects another actor independently of document existence', async () => {
+    const { service, source } = makeHarness([]);
+    await expect(
+      service.clientRelationships('t', '33333333-3333-4333-8333-333333333333', 'user-other'),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(source.listClientTargetStaffers).not.toHaveBeenCalled();
+    expect(source.listClientEngagementContacts).not.toHaveBeenCalled();
   });
 });

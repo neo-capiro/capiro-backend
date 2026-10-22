@@ -1,8 +1,8 @@
 import { describe, expect, it, jest, afterEach } from '@jest/globals';
-import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { HillDayGenerationService } from './hillday-generation.service.js';
 
-const doc = { id: 'doc-1', tenantId: 't', ownerId: 'user-1', clientId: 'client-1', timeZone: 'America/New_York', lookbackDays: 90 };
+const doc = { id: '33333333-3333-4333-8333-333333333333', tenantId: 't', ownerId: 'user-1', clientId: 'client-1', timeZone: 'America/New_York', lookbackDays: 90 };
 const meeting = {
   id: 'm-1',
   eventId: 'e-1',
@@ -21,7 +21,7 @@ function makeHarness(opts: { credential?: { provider: 'anthropic'; secret: strin
   const credentials = {
     resolveAnthropic: jest.fn(async () => (opts.credential === undefined ? { provider: 'anthropic' as const, secret: 'sk-test', model: 'claude-sonnet-4-6', usedTenantKey: false } : opts.credential)),
   };
-  const service = new HillDayGenerationService(prisma as never, {} as never, credentials as never);
+  const service = new HillDayGenerationService(prisma as never, { requireClient: jest.fn(async () => ({ id: 'client-1' })) } as never, credentials as never);
   return { service, prisma, credentials };
 }
 
@@ -32,23 +32,23 @@ describe('HillDayGenerationService.refineText', () => {
 
   it('rejects when the caller is not the document owner', async () => {
     const { service } = makeHarness();
-    await expect(service.refineText('t', 'intruder', 'doc-1', 'm-1', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.refineText('t', 'intruder', '33333333-3333-4333-8333-333333333333', 'm-1', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects an unknown section', async () => {
     const { service, prisma } = makeHarness();
     prisma.wsHillDayMeeting.findFirst.mockResolvedValueOnce(null as never);
-    await expect(service.refineText('t', 'user-1', 'doc-1', 'missing', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.refineText('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'missing', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects empty text', async () => {
     const { service } = makeHarness();
-    await expect(service.refineText('t', 'user-1', 'doc-1', 'm-1', 'focus', '   ')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.refineText('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-1', 'focus', '   ')).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('surfaces a clear error when no model credential is configured', async () => {
     const { service } = makeHarness({ credential: null });
-    await expect(service.refineText('t', 'user-1', 'doc-1', 'm-1', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(service.refineText('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-1', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
   it('sends the draft to the model and returns the refined text', async () => {
@@ -63,7 +63,7 @@ describe('HillDayGenerationService.refineText', () => {
       };
     }) as unknown as typeof fetch;
 
-    const result = await service.refineText('t', 'user-1', 'doc-1', 'm-1', 'focus', 'a rough draft with some typos');
+    const result = await service.refineText('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-1', 'focus', 'a rough draft with some typos');
     expect(result.text).toBe('A tighter, cleaner version of the draft.');
     expect(captured.body?.messages?.[0]?.content).toContain('a rough draft with some typos');
     expect(captured.body?.messages?.[0]?.content).toContain('Sen. Roger Wicker (R-MS)');
@@ -73,6 +73,6 @@ describe('HillDayGenerationService.refineText', () => {
   it('surfaces a clear error when the provider call fails', async () => {
     const { service } = makeHarness();
     global.fetch = (async () => ({ ok: false, status: 503, json: async () => ({}) })) as unknown as typeof fetch;
-    await expect(service.refineText('t', 'user-1', 'doc-1', 'm-1', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(service.refineText('t', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-1', 'focus', 'Some draft text.')).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 });

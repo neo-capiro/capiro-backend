@@ -409,6 +409,8 @@ export interface LibraryRow {
   kind: 'hillday' | 'draft';
   name: string;
   blueprint: string;
+  clientId?: string | null;
+  clientAssociation?: 'held';
   client: string | null;
   status: string;
   updatedAt: string;

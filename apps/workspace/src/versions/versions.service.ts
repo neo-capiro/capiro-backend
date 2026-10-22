@@ -1,3 +1,4 @@
+import { requireDraftClient } from '../drafts/draft-client-access.js';
 import {
   workspaceSavedOutreachRevisionWithinTx,
   WorkspaceRevisionUnavailable,
@@ -47,7 +48,8 @@ export class VersionsService {
    * private-draft ACL (GAI-31): version history exposes full document snapshots,
    * and restore destructively overwrites the live draft, so tenant scope alone
    * is not authorization. `predicate` is canRead for listing, canEdit for
-   * create/restore. Internal callers omit actorId.
+   * create/restore. The optional actor signature is retained; audited production
+   * callers (VersionsController and GenerationRunWorker) supply the actor.
    */
   private async loadDraft(
     tenantId: string,
@@ -55,11 +57,13 @@ export class VersionsService {
     actorId?: string,
     predicate: (role: ResolvedRole) => boolean = canRead,
   ) {
-    const draft = await this.prisma.wsDraft.findFirst({
+    // Resolve only the parent origin before admission. Full draft config and
+    // document bodies belong after both existing ACL and prospect checks.
+    const origin = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
-      include: { documents: { orderBy: { ordinal: 'asc' } } },
+      select: { id: true, tenantId: true, prospectId: true },
     });
-    if (!draft) throw new NotFoundException('Draft not found');
+    if (!origin) throw new NotFoundException('Draft not found');
     if (actorId) {
       await this.collaborators.assertCan(
         tenantId,
@@ -69,7 +73,12 @@ export class VersionsService {
         'You do not have permission to access this document',
       );
     }
-    await assertProspectDraft(this.prisma, draft, actorId, predicate);
+    await assertProspectDraft(this.prisma, origin, actorId, predicate);
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: draftId, tenantId },
+      include: { documents: { orderBy: { ordinal: 'asc' } } },
+    });
+    if (!draft) throw new NotFoundException('Draft not found');
     return draft;
   }
 
@@ -174,7 +183,7 @@ export class VersionsService {
       const byDocument = new Map(sources.map((source) => [source.id, source.sourceBriefVersion]));
       const snapshot = {
         docTitle: draft.docTitle,
-        config: draft.config,
+        config: { ...(draft.config as Record<string, unknown>), clientId: draft.clientId ?? null },
         ask: draft.ask,
         documents: draft.documents.map((d) => ({
           id: d.id,
@@ -213,8 +222,18 @@ export class VersionsService {
     if (!version) throw new NotFoundException('Version not found');
 
     const snap = (version.snapshot as Snapshot) ?? {};
+    const snapshotClient = (snap.config as Record<string, unknown> | undefined)?.clientId ?? null;
+    if (snapshotClient !== (draft.clientId ?? null))
+      throw new ConflictException('Saved revision belongs to a different client association');
     await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+      if (!actorId) throw new NotFoundException('Draft not found');
       await requireProspectDraftInTx(tx, draft, actorId, canEdit, 'write');
+      // The prospect scope above rechecks current membership, linked-client
+      // walls and copied-source authority inside this transaction. Resolve an
+      // ordinary association only for ordinary drafts or a non-null binding.
+      if (!draft.prospectId || draft.clientId)
+        await requireDraftClient(this.prisma, tx, tenantId, actorId, draft.clientId ?? null);
       if (draft.prospectId) await assertNoBoundBriefCopy(tx, tenantId, draftId);
       await tx.wsDraft.update({
         where: { id: draftId },

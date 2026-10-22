@@ -1,0 +1,51 @@
+{
+  "review": "https://github.com/neo-capiro/capiro-backend/pull/105#issuecomment-6328251335",
+  "runner": "apps/workspace/jest.config.cjs",
+  "privateConfigRemoved": "docs/a1-workspace/jest.config.cjs",
+  "command": "NODE_PATH=<existing cached dependency directory> node node_modules/jest/bin/jest.js --config apps/workspace/jest.config.cjs --cacheDirectory <temporary cache> --runInBand --runTestsByPath <five suite paths>",
+  "environment": {
+    "node": "24.19.0",
+    "jest": "29.7.0",
+    "tsJest": "29.2.5",
+    "typescript": "5.5.4",
+    "lockedInstall": false,
+    "newDependenciesAdded": false,
+    "prismaSqlExecuted": false
+  },
+  "dependencyPreparation": "Current packages/shared built successfully to isolated temporary output; current meriv2-core emitted to isolated output with four missing OpenTelemetry declarations outside these test paths. Workspace-local untracked package links resolve current source, not the stale cached internal package. No production module mocks or Jest diagnostics overrides were added for this run.",
+  "testsPassed": 95,
+  "testsFailed": 0,
+  "suites": [
+    {
+      "path": "apps/workspace/src/hillday/hillday-resolution.service.spec.ts",
+      "status": "passed",
+      "executedTests": 35
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+      "status": "failed",
+      "executedTests": 0
+    },
+    {
+      "path": "apps/workspace/src/delivery/a1-authority.spec.ts",
+      "status": "passed",
+      "executedTests": 44
+    },
+    {
+      "path": "apps/workspace/src/template-studio/template-studio.spec.ts",
+      "status": "passed",
+      "executedTests": 8
+    },
+    {
+      "path": "apps/workspace/src/delivery/delivery.spec.ts",
+      "status": "passed",
+      "executedTests": 8
+    }
+  ],
+  "blockingEnvironment": "prospect-draft-access.spec.ts cannot compile because cached dependencies lack the already-declared pdfkit/@types/pdfkit package (PDFKit namespace TS2503). Its fixture correction is present, but this environment cannot prove full Workspace failing-name parity.",
+  "limitations": [
+    "Not a clean frozen install or full Workspace baseline/head comparison.",
+    "No real PostgreSQL, provider, browser or deployed acceptance.",
+    "Final combined integration verification is recorded separately."
+  ]
+}

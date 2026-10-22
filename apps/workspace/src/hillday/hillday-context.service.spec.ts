@@ -120,15 +120,15 @@ describe('HillDayContextService.write', () => {
   it('stores the note verbatim and drops unit ids that do not exist for the meeting', async () => {
     const update = jest.fn(async () => ({}));
     const prisma = {
-      wsHillDayDocument: { findFirst: jest.fn(async () => ({ id: 'doc-1', ownerId: 'user-1', clientId: 'client-1', lookbackDays: 90 })) },
+      wsHillDayDocument: { findFirst: jest.fn(async () => ({ id: '33333333-3333-4333-8333-333333333333', ownerId: 'user-1', clientId: 'client-1', lookbackDays: 90 })) },
       wsHillDayMeeting: {
         findFirst: jest.fn(async () => ({ id: 'm-1', resolution: resolution(), context: null })),
         update,
       },
     };
-    const service = new HillDayContextService(prisma as never, {} as never);
+    const service = new HillDayContextService(prisma as never, { requireClient: jest.fn(async () => ({ id: 'client-1' })) } as never);
     const note = '  Perrine asked for unit cost at rate in June.  ';
-    const result = await service.write('tenant-1', 'user-1', 'doc-1', 'm-1', {
+    const result = await service.write('tenant-1', 'user-1', '33333333-3333-4333-8333-333333333333', 'm-1', {
       note,
       carry: { committees: true, bio: false, issueAreas: ['issue:shipbuilding', 'issue:bogus'], staffers: ['known', 'ghost'] },
       threadIds: ['t1', 't1', 't2'],
@@ -144,16 +144,16 @@ describe('HillDayContextService.write', () => {
 
   it('refuses writes from anyone but the owner', async () => {
     const prisma = {
-      wsHillDayDocument: { findFirst: jest.fn(async () => ({ id: 'doc-1', ownerId: 'owner', clientId: 'client-1', lookbackDays: 90 })) },
+      wsHillDayDocument: { findFirst: jest.fn(async () => ({ id: '33333333-3333-4333-8333-333333333333', ownerId: 'owner', clientId: 'client-1', lookbackDays: 90 })) },
       wsHillDayMeeting: { findFirst: jest.fn(async () => ({ id: 'm-1', resolution: resolution(), context: null })), update: jest.fn() },
     };
-    const service = new HillDayContextService(prisma as never, {} as never);
+    const service = new HillDayContextService(prisma as never, { requireClient: jest.fn(async () => ({ id: 'client-1' })) } as never);
     await expect(
-      service.write('tenant-1', 'intruder', 'doc-1', 'm-1', {
+      service.write('tenant-1', 'intruder', '33333333-3333-4333-8333-333333333333', 'm-1', {
         note: '',
         carry: { committees: true, bio: false, issueAreas: [], staffers: [] },
         threadIds: [],
       }),
-    ).rejects.toThrow('Only the document owner');
+    ).rejects.toThrow('Document not found');
   });
 });

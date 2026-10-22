@@ -58,10 +58,6 @@ function validDefinition(): WorkspaceBlueprintDefinition {
       requiredDisclaimers: [],
       instructions: [],
     },
-    approvalPolicy: {
-      clientFacingApprovalRequired: false,
-      permittedApproverRoles: ['editor'],
-    },
     defaultTheme: { id: 'default', name: 'Default', settings: {} },
   };
 }
@@ -386,6 +382,13 @@ describe('TemplateStudioService', () => {
     // The validator's hash is deterministic and order-independent.
     const reordered = { ...defV1, defaultTheme: defV1.defaultTheme, sections: defV1.sections };
     expect(validator.computeDefinitionHash(reordered)).toBe(pinnedHash);
+  });
+
+  it('ignores retained legacy blueprint policy keys without rewriting them', () => {
+    const definition = { ...validDefinition(), approvalPolicy: { historical: 'retained' } };
+    const before = JSON.stringify(definition);
+    expect(new TemplateValidator().validate(definition)).toEqual({ valid: true, errors: [] });
+    expect(JSON.stringify(definition)).toBe(before);
   });
 
   it('validates definitions and rejects incomplete ones', () => {

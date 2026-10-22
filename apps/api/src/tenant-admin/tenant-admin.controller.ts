@@ -106,14 +106,6 @@ class UpdateBrandingDto {
   @IsString()
   @MinLength(2)
   name?: string;
-
-  @IsOptional()
-  @IsString()
-  logoS3Key?: string;
-
-  @IsOptional()
-  @IsString()
-  logoContentType?: string;
 }
 
 /** Customer audit-trail query (#3d). No actorUserId filter — a Capiro-internal

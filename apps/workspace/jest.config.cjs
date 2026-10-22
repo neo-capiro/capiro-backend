@@ -41,7 +41,7 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
-    '^(\.{1,2}/.*)\.js$': '$1',
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     // Jest cannot resolve package-`imports` subpaths; map @clerk/backend's
     // #crypto to its node CJS runtime. Must be an ABSOLUTE path — see
     // clerkNodeCrypto above for why the obvious '@clerk/backend/dist/...'

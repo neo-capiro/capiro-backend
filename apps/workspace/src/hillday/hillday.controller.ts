@@ -126,7 +126,7 @@ export class HillDayController {
 
   @Get('documents/:id/resolution')
   getResolution(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.resolution.getResolution(ctx.tenantId, id);
+    return this.resolution.getResolution(ctx.tenantId, id, ctx.clerkUserId);
   }
 
   @Patch('documents/:id/resolution/:meetingId')
@@ -188,7 +188,7 @@ export class HillDayController {
    *  the sponsor's own Portfolio relationship history for this document's client. */
   @Get('documents/:id/relationships')
   clientRelationships(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.resolution.clientRelationships(ctx.tenantId, id);
+    return this.resolution.clientRelationships(ctx.tenantId, id, ctx.clerkUserId);
   }
 
   // ── Context ───────────────────────────────────────────────────────────────
@@ -242,7 +242,7 @@ export class HillDayController {
     @Param('id') id: string,
     @Param('jobId') jobId: string,
   ) {
-    return this.generation.jobStatus(ctx.tenantId, id, jobId);
+    return this.generation.jobStatus(ctx.tenantId, id, jobId, ctx.clerkUserId);
   }
 
   /**
@@ -263,7 +263,7 @@ export class HillDayController {
     let lastSeq =
       intOrNull(after) ?? intOrNull(typeof lastHeader === 'string' ? lastHeader : undefined) ?? 0;
     // Validate access before committing to the stream (404s as JSON).
-    await this.generation.jobStatus(ctx.tenantId, id, jobId);
+    await this.generation.jobStatus(ctx.tenantId, id, jobId, ctx.clerkUserId);
 
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream');
@@ -279,7 +279,7 @@ export class HillDayController {
     const deadline = Date.now() + SSE_MAX_MS;
     let ticks = 0;
     while (!closed && Date.now() < deadline) {
-      const { status, events } = await this.generation.jobEvents(ctx.tenantId, id, jobId, lastSeq);
+      const { status, events } = await this.generation.jobEvents(ctx.tenantId, id, jobId, lastSeq, ctx.clerkUserId);
       for (const ev of events) {
         res.write(`id: ${ev.seq}\nevent: ${ev.event}\ndata: ${JSON.stringify(ev.data)}\n\n`);
         lastSeq = ev.seq;
@@ -315,7 +315,7 @@ export class HillDayController {
 
   @Get('documents/:id')
   getDocument(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.documents.get(ctx.tenantId, id);
+    return this.documents.get(ctx.tenantId, id, ctx.clerkUserId);
   }
 
   @Patch('documents/:id')
@@ -329,7 +329,7 @@ export class HillDayController {
 
   @Get('documents/:id/quality')
   quality(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.documents.quality(ctx.tenantId, id);
+    return this.documents.quality(ctx.tenantId, id, ctx.clerkUserId);
   }
 
   // ── Exports ───────────────────────────────────────────────────────────────
@@ -349,6 +349,6 @@ export class HillDayController {
     @Param('id') id: string,
     @Param('exportId') exportId: string,
   ) {
-    return this.exports.get(ctx.tenantId, id, exportId);
+    return this.exports.get(ctx.tenantId, id, exportId, ctx.clerkUserId);
   }
 }
