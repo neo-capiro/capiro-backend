@@ -1,0 +1,302 @@
+{
+  "scope": "Neo-approved bounded ML-09 collision hold/continue, preserving identity and access; no send/recovery action",
+  "canonical": {
+    "command": "node node_modules/jest/bin/jest.js --config apps/api/jest.config.cjs --runInBand --runTestsByPath <five focused files> --cacheDirectory=/dev/shm/a1-r2-mailcollision-canonical-cache",
+    "exit": 1,
+    "error": "Missing sanitize-html in local cached installation; all five suites failed before collection",
+    "summary": {
+      "success": false,
+      "numTotalTestSuites": 5,
+      "numPassedTestSuites": 0,
+      "numFailedTestSuites": 5,
+      "numTotalTests": 0,
+      "numPassedTests": 0,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    }
+  },
+  "focused": {
+    "config": "docs/a1/mail/jest.config.cjs",
+    "dependencyQualification": "Existing cached dependency overlay, transpile-only ts-jest, existing MSAL constructor blocker and source package mappings; not canonical full API or locked clean-install proof",
+    "collisionAndReplay": {
+      "success": true,
+      "numTotalTestSuites": 5,
+      "numPassedTestSuites": 5,
+      "numFailedTestSuites": 0,
+      "numTotalTests": 87,
+      "numPassedTests": 87,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "providerRegressions": {
+      "success": true,
+      "numTotalTestSuites": 15,
+      "numPassedTestSuites": 15,
+      "numFailedTestSuites": 0,
+      "numTotalTests": 123,
+      "numPassedTests": 123,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "disjointTotal": {
+      "suites": 20,
+      "passedTests": 210,
+      "newLoopCases": 48
+    },
+    "files": [
+      "apps/api/src/engagement/mail-unassociated-capture.spec.ts",
+      "apps/api/src/engagement/mailbox-collision-sync.a1.spec.ts",
+      "apps/api/src/engagement/mail-message-state.spec.ts",
+      "apps/api/src/engagement/mail-replay-preservation.spec.ts",
+      "apps/api/src/engagement/mailbox-persistence.a1.spec.ts",
+      "apps/api/src/engagement/google/google-sync.reset-state.spec.ts",
+      "apps/api/src/engagement/google/google-sync.history.spec.ts",
+      "apps/api/src/engagement/google/google-sync.quota-budget.spec.ts",
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.notification-bound.spec.ts",
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.knowledge-body.spec.ts",
+      "apps/api/src/engagement/google/google-sync.backfill-state.spec.ts",
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.retry.spec.ts",
+      "apps/api/src/engagement/google/google-sync.spec.ts",
+      "apps/api/src/engagement/google/google-sync.knowledge-body.spec.ts",
+      "apps/api/src/engagement/google/google-sync.gmail-attachment.spec.ts",
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.association-outside-lock.spec.ts",
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.series-master-skip.spec.ts",
+      "apps/api/src/engagement/google/google-sync.retry.spec.ts",
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.scopes.spec.ts",
+      "apps/api/src/engagement/google/google-sync.labels.spec.ts"
+    ],
+    "finalRestoredCorrectedSource": {
+      "success": true,
+      "numTotalTestSuites": 20,
+      "numPassedTestSuites": 20,
+      "numFailedTestSuites": 0,
+      "numTotalTests": 210,
+      "numPassedTests": 210,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "finalCommand": "node node_modules/jest/bin/jest.js --config docs/a1/mail/jest.config.cjs --runInBand --runTestsByPath <the twenty listed files> --cacheDirectory=/dev/shm/a1-r2-mailcollision-final-cache --json --outputFile=/dev/shm/a1-r2-mailcollision-final.json"
+  },
+  "mutations": {
+    "killed": 11,
+    "total": 11,
+    "restored": true,
+    "hashesBefore": {
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts": "d6caa72bd6d995bc99f2070a191b83c78a59d2c920142d370e5367dc582331e2",
+      "apps/api/src/engagement/google/google-sync.service.ts": "2778c56246bf0c4d401b5fb0b8fb2f3096ba28311a501d73274c2425f6e4d739",
+      "apps/api/src/engagement/mail-message-state.ts": "59017df0d758a45733d04320f3837dc45698e4431068374a35f13d15de3dba9c"
+    },
+    "hashesAfter": {
+      "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts": "d6caa72bd6d995bc99f2070a191b83c78a59d2c920142d370e5367dc582331e2",
+      "apps/api/src/engagement/google/google-sync.service.ts": "2778c56246bf0c4d401b5fb0b8fb2f3096ba28311a501d73274c2425f6e4d739",
+      "apps/api/src/engagement/mail-message-state.ts": "59017df0d758a45733d04320f3837dc45698e4431068374a35f13d15de3dba9c"
+    },
+    "results": [
+      {
+        "name": "graph-hold-removed",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 11,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress holds message-null upsert without changing old rows and continues after reconnect",
+          "graph mailbox collision progress holds message-other upsert without changing old rows and continues after reconnect"
+        ]
+      },
+      {
+        "name": "gmail-backfill-hold-removed",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 11,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "gmail-backfill mailbox collision progress holds message-null upsert without changing old rows and continues after reconnect",
+          "gmail-backfill mailbox collision progress holds message-other upsert without changing old rows and continues after reconnect"
+        ]
+      },
+      {
+        "name": "gmail-incremental-hold-removed",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 11,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "gmail-incremental mailbox collision progress holds message-null upsert without changing old rows and continues after reconnect",
+          "gmail-incremental mailbox collision progress holds message-other upsert without changing old rows and continues after reconnect"
+        ]
+      },
+      {
+        "name": "graph-catches-generic-errors",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 5,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress does not swallow an unclassified error (database unavailable) or advance its cursor",
+          "graph mailbox collision progress does not swallow an unclassified error (Mail mailbox identity mismatch) or advance its cursor"
+        ]
+      },
+      {
+        "name": "gmail-catches-generic-errors",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 10,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "gmail-backfill mailbox collision progress does not swallow an unclassified error (database unavailable) or advance its cursor",
+          "gmail-backfill mailbox collision progress does not swallow an unclassified error (Mail mailbox identity mismatch) or advance its cursor"
+        ]
+      },
+      {
+        "name": "graph-identity-guard-removed",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 7,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress holds message-null upsert without changing old rows and continues after reconnect",
+          "graph mailbox collision progress holds message-other upsert without changing old rows and continues after reconnect"
+        ]
+      },
+      {
+        "name": "gmail-identity-guard-removed",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 13,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "gmail-backfill mailbox collision progress holds message-null upsert without changing old rows and continues after reconnect",
+          "gmail-backfill mailbox collision progress holds message-other upsert without changing old rows and continues after reconnect"
+        ]
+      },
+      {
+        "name": "removal-identity-guard-removed",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 14,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress holds message-null removal with rollback before advancing the cursor",
+          "graph mailbox collision progress holds message-other removal with rollback before advancing the cursor"
+        ]
+      },
+      {
+        "name": "late-removal-mismatch-commits",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 3,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress holds late-removal removal with rollback before advancing the cursor",
+          "gmail-backfill mailbox collision progress holds late-removal removal with rollback before advancing the cursor"
+        ]
+      },
+      {
+        "name": "missing-summary-misclassified",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 3,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress does not classify missing-summary as an observed mailbox collision",
+          "gmail-backfill mailbox collision progress does not classify missing-summary as an observed mailbox collision"
+        ]
+      },
+      {
+        "name": "missing-relation-misclassified",
+        "exit": 1,
+        "tests": 65,
+        "failedTests": 3,
+        "killedByAssertions": true,
+        "exampleFailingTests": [
+          "graph mailbox collision progress does not classify missing-relation as an observed mailbox collision",
+          "gmail-backfill mailbox collision progress does not classify missing-relation as an observed mailbox collision"
+        ]
+      }
+    ]
+  },
+  "typecheck": {
+    "method": "Strict compiler comparison using actual apps/api/tsconfig.json options and changed production/test roots; real transitive imports. Baseline source supplied byte-exact from local HEAD. This is not full-project or clean-install qualification.",
+    "typescriptVersion": "5.5.4",
+    "baselineCommit": "35fef48c4eb9d85e8f922a330face13303b0618e",
+    "seconds": 48,
+    "baseline": {
+      "diagnosticCount": 3,
+      "changedSourceDiagnostics": [
+        {
+          "file": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+          "line": 16,
+          "code": 2307,
+          "message": "Cannot find module '@azure/msal-node' or its corresponding type declarations."
+        }
+      ],
+      "allDiagnostics": [
+        {
+          "file": "apps/api/src/config/config.schema.ts",
+          "line": 1,
+          "code": 2307,
+          "message": "Cannot find module '@capiro/shared/ai-model-policy' or its corresponding type declarations."
+        },
+        {
+          "file": "apps/api/src/engagement/mail-sync-coverage.ts",
+          "line": 1,
+          "code": 2305,
+          "message": "Module '\"@capiro/shared\"' has no exported member 'MERI_MAIL_MAX_STALENESS_MS'."
+        },
+        {
+          "file": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+          "line": 16,
+          "code": 2307,
+          "message": "Cannot find module '@azure/msal-node' or its corresponding type declarations."
+        }
+      ]
+    },
+    "current": {
+      "diagnosticCount": 3,
+      "changedSourceDiagnostics": [
+        {
+          "file": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+          "line": 16,
+          "code": 2307,
+          "message": "Cannot find module '@azure/msal-node' or its corresponding type declarations."
+        }
+      ],
+      "allDiagnostics": [
+        {
+          "file": "apps/api/src/config/config.schema.ts",
+          "line": 1,
+          "code": 2307,
+          "message": "Cannot find module '@capiro/shared/ai-model-policy' or its corresponding type declarations."
+        },
+        {
+          "file": "apps/api/src/engagement/mail-sync-coverage.ts",
+          "line": 1,
+          "code": 2305,
+          "message": "Module '\"@capiro/shared\"' has no exported member 'MERI_MAIL_MAX_STALENESS_MS'."
+        },
+        {
+          "file": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+          "line": 16,
+          "code": 2307,
+          "message": "Cannot find module '@azure/msal-node' or its corresponding type declarations."
+        }
+      ]
+    },
+    "newChangedSourceDiagnostics": [],
+    "priorBroadAttempt": "Superseded before classification correction; interrupted with exit130, no typecheck pass claimed."
+  },
+  "sourceSha256": {
+    "apps/api/src/engagement/mailbox-identity-mismatch.ts": "db601a4bce4e7b21e6a37ffcba09cb86aec078c1ca8000a30d7c59fe3607e8ba",
+    "apps/api/src/engagement/mail-message-state.ts": "59017df0d758a45733d04320f3837dc45698e4431068374a35f13d15de3dba9c",
+    "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts": "d6caa72bd6d995bc99f2070a191b83c78a59d2c920142d370e5367dc582331e2",
+    "apps/api/src/engagement/google/google-sync.service.ts": "2778c56246bf0c4d401b5fb0b8fb2f3096ba28311a501d73274c2425f6e4d739",
+    "apps/api/src/engagement/mailbox-collision-sync.a1.spec.ts": "655a2c67db21b7eaa40875c022e585596601119b88ad18bd045cbf188be03c20"
+  },
+  "limits": [
+    "No native PostgreSQL locking/rollback/contention qualification; transaction rollback is a test fixture port.",
+    "No provider OAuth/mail/network calls, SQL, new dependency, merge or deployment.",
+    "held is a per-run count/log, not durable quarantine; no full mailbox-qualified key migration or reconciliation behavior added.",
+    "Current mail coverage helper does not yet treat held counts as a separate coverage status."
+  ],
+  "classification": "Positive returned NULL/other mailbox identity is held. Invalid input context, matching-message missing relation, missing connection-qualified summary, generic same-text errors and conditional-write races still abort/retain cursor."
+}

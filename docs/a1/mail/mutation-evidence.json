@@ -1,0 +1,171 @@
+[
+  {
+    "mutant": "remove-current-admission",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "single mail direct service boundary direct HTTP send and recovery reject inaccessible client without attachments or provider calls",
+      "single mail direct service boundary direct HTTP send and recovery reject inaccessible member without attachments or provider calls",
+      "single mail direct service boundary direct HTTP send and recovery reject inaccessible mailbox without attachments or provider calls",
+      "single mail direct service boundary revocation during attachment fetch is rechecked before claim/send",
+      "single mail direct service boundary provider acceptance is saved even when client access is revoked during dispatch, and details are withheld",
+      "ML-07 current single-mail admission removed-member refuses before dispatch",
+      "ML-07 current single-mail admission foreign-mailbox refuses before dispatch",
+      "ML-07 current single-mail admission absent-client refuses before dispatch",
+      "ML-07 current single-mail admission revoked-wall refuses before dispatch",
+      "ML-07 current single-mail admission foreign-person refuses before dispatch",
+      "ML-07 current single-mail admission foreign-thread refuses before dispatch",
+      "ML-07 current single-mail admission wrong-mailbox refuses before dispatch",
+      "ML-07 current single-mail admission different-client refuses before dispatch",
+      "ML-07 current single-mail admission null-client history needs existing recipient association and retains owner predicates"
+    ]
+  },
+  {
+    "mutant": "remove-attachment-recheck",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "single mail direct service boundary an attachment removed during byte loading cannot cross the provider boundary"
+    ]
+  },
+  {
+    "mutant": "ignore-existing-intent",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "single mail direct service boundary a duplicate existing intent returns owned status without a second provider call"
+    ]
+  },
+  {
+    "mutant": "misclassify-dispatch-unknown",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "single mail direct service boundary dispatch failure records unknown and never retries the provider"
+    ]
+  },
+  {
+    "mutant": "ignore-definite-rejection",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "single mail direct service boundary a definite provider rejection records a failed receipt without a retry"
+    ]
+  },
+  {
+    "mutant": "hash-ignores-input",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "ML-03 durable claim and request identity changed Bcc, mailbox, reply, signature policy and attachments change the frozen request hash"
+    ]
+  },
+  {
+    "mutant": "claim-skips-admission",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "ML-03 durable claim and request identity current authority rejection prevents the pending-to-sending write"
+    ]
+  },
+  {
+    "mutant": "graph-post-replay",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "Graph mutation dispatch fence send POST with Retry-After and 429 is dispatched once",
+      "Graph mutation dispatch fence send POST with Retry-After and 500 is dispatched once",
+      "Graph mutation dispatch fence send POST with Retry-After and 503 is dispatched once",
+      "Graph mutation dispatch fence real draft/send HTTP transport preserves rejection, ambiguity, and no-content acceptance without replay"
+    ]
+  },
+  {
+    "mutant": "graph-identity-check-removed",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "ML-09 mailbox collision fence outlook rejects same provider ID from another mailbox before any write"
+    ]
+  },
+  {
+    "mutant": "graph-write-scope-removed",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "outlook mailbox predicates refuse concurrent collision writes"
+    ]
+  },
+  {
+    "mutant": "google-identity-check-removed",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "ML-09 mailbox collision fence google rejects same provider ID from another mailbox before any write"
+    ]
+  },
+  {
+    "mutant": "google-write-scope-removed",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "google mailbox predicates refuse concurrent collision writes"
+    ]
+  },
+  {
+    "mutant": "removal-scope-removed",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "outlook mailbox predicates refuse concurrent collision writes",
+      "google mailbox predicates refuse concurrent collision writes"
+    ]
+  },
+  {
+    "mutant": "removal-lineage-removed",
+    "killed": true,
+    "exit": 1,
+    "failedTests": [
+      "ML-09 mailbox collision fence outlook rejects same provider ID from another mailbox before any write",
+      "ML-09 mailbox collision fence google rejects same provider ID from another mailbox before any write"
+    ]
+  },
+  {
+    "mutant": "request-key-required",
+    "exit": 1,
+    "killed": true,
+    "failedTests": [
+      "single mail direct service boundary direct HTTP send without a durable request identity is refused before provider work",
+      "single mail direct service boundary direct HTTP send and recovery reject inaccessible client without attachments or provider calls",
+      "single mail direct service boundary direct HTTP send and recovery reject inaccessible member without attachments or provider calls",
+      "single mail direct service boundary direct HTTP send and recovery reject inaccessible mailbox without attachments or provider calls"
+    ]
+  },
+  {
+    "mutant": "disable-read-retry",
+    "exit": 1,
+    "killed": true,
+    "failedTests": [
+      "MicrosoftGraphSyncService.graphFetch retry bound 429 with retry-after:1 forever rejects after exactly 3 attempts",
+      "MicrosoftGraphSyncService.graphFetch retry bound 429 with retry-after:1 then 200 resolves after 2 attempts",
+      "MicrosoftGraphSyncService.graphFetch retry bound read retry preserves parseJson=false"
+    ]
+  },
+  {
+    "mutant": "claim-always-wins",
+    "exit": 1,
+    "killed": true,
+    "failedTests": [
+      "single-mail PostgreSQL ledger concurrent duplicates have one durable claim and unknown remains fenced after re-opening the ledger",
+      "ML-03 durable claim and request identity a non-winning claim cannot dispatch and outcome writes remain actor-scoped without re-admission"
+    ],
+    "qualification": "Unit assertion failed in original broad sweep (two cases). SQL case rechecked separately after sparse checkout restored the proposal; final 190-test run includes both."
+  },
+  {
+    "mutant": "read-omits-actor",
+    "exit": 1,
+    "killed": true,
+    "failedTests": [
+      "single-mail PostgreSQL ledger concurrent duplicates have one durable claim and unknown remains fenced after re-opening the ledger"
+    ]
+  }
+]

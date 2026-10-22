@@ -14,6 +14,7 @@ describe.each(['google', 'microsoft'] as const)(
     it('preserves a manual-signal-only client assignment through two successive replays', async () => {
       let savedThread = {
         id: 'thread-replay',
+        connectionId: CONNECTION,
         clientId: 'manually-selected-client',
         lastMessageAt: null as Date | null,
         associationSignals: { manual: true },

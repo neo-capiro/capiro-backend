@@ -1,3 +1,5 @@
+import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { SingleMailLedger, singleMailHash } from './single-mail-ledger.js';
 import {
   assertProspectParent,
   beginProspectUpload,
@@ -151,7 +153,7 @@ import {
 } from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
-import { AmbiguousMailSendError, type EngagementMailSendResult } from './mail-send-result.js';
+import { AmbiguousMailSendError, isDefiniteMailSendRejection, type EngagementMailSendResult } from './mail-send-result.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { docChunkSourceIdPrefix } from '../embeddings/client-kb.helpers.js';
 import { editRatio } from '../common/text-distance.js';
@@ -178,6 +180,8 @@ import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import { currentMeetingActor, visibleMeetingClientWhere, assertMeetingClient } from './meeting-resource-authority.js';
+import { projectMeetingArtifactMetadata, type MeetingArtifactMetadata } from './meeting-artifact-metadata.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -247,6 +251,7 @@ export interface UpdateMeetingPrepInput {
 }
 
 export interface AssociationOverrideInput {
+  expectedRevision?: string;
   entityType: AssociationEntityType;
   entityId: string;
   clientId?: string;
@@ -261,6 +266,8 @@ export interface SingleMailRecipientInput {
 }
 
 export interface SendSingleMailInput {
+  /** Stable per reviewed message, reused for lookup after timeout/reload. */
+  requestKey?: string;
   /** Exact caller-owned sending mailbox. Replies must use their originating connection. */
   senderConnectionId?: string;
   clientId?: string;
@@ -1400,12 +1407,13 @@ export class EngagementService {
         }
       : {};
     const take = query.limit ? Math.max(1, Math.min(101, query.limit)) : undefined;
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const baseWhere: Prisma.MeetingWhereInput = {
         tenantId: ctx.tenantId,
         ...ownMeetingWhere(ctx.userId),
         startsAt: { gte: from, lt: to },
-        ...(cursorStartsAt ? { AND: [cursorWhere] } : {}),
+        AND: [visibleMeetingClientWhere(ctx), ...(cursorStartsAt ? [cursorWhere] : [])],
       };
 
       if (!query.clientId) {
@@ -1418,11 +1426,11 @@ export class EngagementService {
         return this.decorateMeetings(tx, ctx, rows);
       }
 
+      await assertMeetingClient(tx, ctx, query.clientId);
       const clientAssociationWhere = await this.clientMeetingAssociationWhere(
         tx,
         ctx.tenantId,
         query.clientId,
-        query.recipientEmails ?? [],
       );
       const where: Prisma.MeetingWhereInput = { AND: [baseWhere, clientAssociationWhere] };
 
@@ -1436,13 +1444,21 @@ export class EngagementService {
     });
   }
 
-  async getMeeting(ctx: TenantContext, id: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async getMeeting(ctx: TenantContext, id: string, clientId?: string) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const meeting = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
         include: meetingInclude(),
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, meeting.clientId);
+      if (clientId) {
+        await assertMeetingClient(tx, ctx, clientId);
+        const association = await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId);
+        const associated = await tx.meeting.findFirst({ where: { AND: [{ id, tenantId: ctx.tenantId }, association] }, select: { id: true } });
+        if (!associated) throw new NotFoundException('Meeting not found');
+      }
       return (await this.decorateMeetings(tx, ctx, [meeting]))[0];
     });
   }
@@ -1450,6 +1466,7 @@ export class EngagementService {
   /** Resolve one meeting through the same current client association used by listMeetings. */
   async getClientMeeting(ctx: TenantContext, clientId: string, id: string) {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
         select: { id: true },
@@ -1554,12 +1571,17 @@ export class EngagementService {
   async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
     const attachmentIds: string[] = [];
     const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       if ('clientId' in input || input.expectedRevision)
         await this.lockMeetingClientAssignment(tx, ctx, id);
       const existing = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
       if (!existing) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, existing.clientId);
+      const assignmentChanged = 'clientId' in input && (input.clientId ?? null) !== existing.clientId;
+      if (assignmentChanged && !input.expectedRevision) throw new BadRequestException('expectedRevision is required to change a meeting client');
+      if (assignmentChanged) await assertMeetingClient(tx, ctx, input.clientId ?? null);
       assertExpectedRevision(input.expectedRevision, existing.updatedAt, 'meeting', id, {
         id: existing.id,
         subject: existing.subject,
@@ -1567,7 +1589,7 @@ export class EngagementService {
         clientId: existing.clientId,
       });
 
-      if ('clientId' in input) {
+      if (assignmentChanged) {
         attachmentIds.push(
           ...(await this.reassignMeetingClient(
             tx,
@@ -1660,6 +1682,10 @@ export class EngagementService {
     isInternal: boolean,
     reason: string,
   ): Promise<string[]> {
+    const changed = existing.clientId !== clientId || Boolean(existing.isInternal) !== isInternal;
+    if (!changed) return [];
+    await assertMeetingClient(tx, ctx, existing.clientId);
+    await assertMeetingClient(tx, ctx, clientId);
     if (clientId) {
       await ensureExists(
         tx.client.findFirst({
@@ -1669,7 +1695,6 @@ export class EngagementService {
         'Client not found',
       );
     }
-    const changed = existing.clientId !== clientId || Boolean(existing.isInternal) !== isInternal;
     await tx.meeting.update({
       where: { id: existing.id, tenantId: ctx.tenantId },
       data: {
@@ -1835,11 +1860,14 @@ export class EngagementService {
   async shareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
     if (!refs.length) throw new BadRequestException('artifacts must not be empty');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
         select: { id: true, clientId: true, visibility: true },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, meeting.clientId);
       if (!meeting.clientId) {
         throw new BadRequestException(
           'This meeting must be associated with a client before it can be shared',
@@ -1904,11 +1932,14 @@ export class EngagementService {
   async unshareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
     if (!refs.length) throw new BadRequestException('artifacts must not be empty');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId },
-        select: { id: true },
+        select: { id: true, clientId: true },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, meeting.clientId);
 
       const loaded = await Promise.all(
         refs.map(async (ref) => ({
@@ -1967,9 +1998,9 @@ export class EngagementService {
       case 'note': {
         const row = await tx.meetingNote.findFirst({
           where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
-          select: { status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+          select: { status: true, sharedAt: true, sharedByUserId: true, authorUserId: true, confidential: true, accessLevel: true },
         });
-        if (!row) return null;
+        if (!row || !canReadEncryptedEntry(ctx, row)) return null;
         return {
           approved: row.status === 'approved',
           sharedAt: row.sharedAt,
@@ -1980,9 +2011,9 @@ export class EngagementService {
       case 'debrief': {
         const row = await tx.meetingDebrief.findFirst({
           where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
-          select: { status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+          select: { status: true, sharedAt: true, sharedByUserId: true, authorUserId: true, confidential: true, accessLevel: true },
         });
-        if (!row) return null;
+        if (!row || !canReadEncryptedEntry(ctx, row)) return null;
         return {
           approved: row.status === MeetingDebriefStatus.approved,
           sharedAt: row.sharedAt,
@@ -2220,10 +2251,12 @@ export class EngagementService {
           }
         : {}),
       ...(query.from || query.to ? { startsAt } : {}),
-      AND: [libraryArtifactWhere(query.artifactType), ...searchWhere],
+      AND: [visibleMeetingClientWhere(ctx), libraryArtifactWhere(query.artifactType), ...searchWhere],
     };
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
+      if (query.clientId) await assertMeetingClient(tx, ctx, query.clientId);
       const [total, rows] = await Promise.all([
         tx.meeting.count({ where }),
         tx.meeting.findMany({
@@ -2349,6 +2382,8 @@ export class EngagementService {
    */
   async listSharedMeetingsForClient(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
+      await assertMeetingClient(tx, ctx, clientId);
       const [tenant, rows] = await Promise.all([
         tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
         tx.meeting.findMany({
@@ -2420,8 +2455,8 @@ export class EngagementService {
       id: string;
       createdByUserId: string | null;
       sharedByUserId: string | null;
-      notes: Array<{ status: string }>;
-      debriefs: Array<{ status: MeetingDebriefStatus }>;
+      notes: MeetingArtifactMetadata[];
+      debriefs: MeetingArtifactMetadata[];
       preps: Array<{ status: MeetingPrepStatus }>;
     },
   >(tx: Prisma.TransactionClient, ctx: TenantContext, rows: T[]) {
@@ -2507,6 +2542,8 @@ export class EngagementService {
         return {
           ...row,
           preps: visiblePreps as T['preps'],
+          notes: row.notes.map((entry) => projectMeetingArtifactMetadata(ctx, entry)),
+          debriefs: row.debriefs.map((entry) => projectMeetingArtifactMetadata(ctx, entry)),
           notesApproved: hasApprovedNote,
           meri: coarseMeriState(latestSession?.status ?? null),
           meriError: meriFailureReason(latestSession?.status ?? null, latestSession?.error ?? null),
@@ -5828,12 +5865,14 @@ export class EngagementService {
     return this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
+        ctx = await currentMeetingActor(tx, ctx);
         await this.lockMeetingClientAssignment(tx, ctx, meetingId);
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
-        return tx.meetingNote.create({
+        await assertMeetingClient(tx, ctx, meeting.clientId);
+        return projectMeetingArtifactMetadata(ctx, await tx.meetingNote.create({
           data: {
             tenantId: ctx.tenantId,
             meetingId,
@@ -5850,7 +5889,7 @@ export class EngagementService {
               : {}),
           },
           select: noteMetadataSelect(),
-        });
+        }));
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
@@ -5869,7 +5908,9 @@ export class EngagementService {
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      ctx = await currentMeetingActor(tx, ctx);
+      const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
+      await assertMeetingClient(tx, ctx, parent.clientId);
       const note = await tx.meetingNote.findFirst({
         where: { id: noteId, tenantId: ctx.tenantId, meetingId },
         select: {
@@ -5892,7 +5933,7 @@ export class EngagementService {
         accessLevel: note.accessLevel,
       });
 
-      return tx.meetingNote.update({
+      return projectMeetingArtifactMetadata(ctx, await tx.meetingNote.update({
         where: { id: noteId },
         data: {
           bodyCiphertext: encrypted.bodyCiphertext,
@@ -5913,7 +5954,7 @@ export class EngagementService {
           ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
         },
         select: noteMetadataSelect(),
-      });
+      }));
     });
   }
 
@@ -5924,12 +5965,14 @@ export class EngagementService {
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
-      return tx.meetingDebrief.create({
+      await assertMeetingClient(tx, ctx, meeting.clientId);
+      return projectMeetingArtifactMetadata(ctx, await tx.meetingDebrief.create({
         data: {
           tenantId: ctx.tenantId,
           meetingId,
@@ -5941,10 +5984,10 @@ export class EngagementService {
           keyVersion: encrypted.keyVersion,
           confidential: input.confidential ?? true,
           accessLevel: input.accessLevel ?? 'tenant_members',
-          ...(input.approved ? { status: MeetingDebriefStatus.approved } : {}),
+          ...(input.approved ? { status: MeetingDebriefStatus.approved, approvedAt: new Date(), approvedByUserId: ctx.userId } : {}),
         },
         select: debriefMetadataSelect(),
-      });
+      }));
     });
   }
 
@@ -5961,7 +6004,9 @@ export class EngagementService {
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      ctx = await currentMeetingActor(tx, ctx);
+      const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
+      await assertMeetingClient(tx, ctx, parent.clientId);
       const debrief = await tx.meetingDebrief.findFirst({
         where: { id: debriefId, tenantId: ctx.tenantId, meetingId },
         select: {
@@ -5990,7 +6035,7 @@ export class EngagementService {
         },
       );
 
-      return tx.meetingDebrief.update({
+      return projectMeetingArtifactMetadata(ctx, await tx.meetingDebrief.update({
         where: { id: debriefId },
         data: {
           bodyCiphertext: encrypted.bodyCiphertext,
@@ -6002,13 +6047,15 @@ export class EngagementService {
           // reaches the Library / is shareable. Phase 2 §d: also clears any
           // prior share stamp — an edited debrief must be explicitly re-shared.
           status: MeetingDebriefStatus.edited,
+          approvedAt: null,
+          approvedByUserId: null,
           sharedAt: null,
           sharedByUserId: null,
           ...(input.confidential === undefined ? {} : { confidential: input.confidential }),
           ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
         },
         select: debriefMetadataSelect(),
-      });
+      }));
     });
   }
 
@@ -6020,7 +6067,9 @@ export class EngagementService {
    */
   async approveMeetingDebrief(ctx: TenantContext, meetingId: string, debriefId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      ctx = await currentMeetingActor(tx, ctx);
+      const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
+      await assertMeetingClient(tx, ctx, parent.clientId);
       const debrief = await tx.meetingDebrief.findFirst({
         where: { id: debriefId, tenantId: ctx.tenantId, meetingId },
         select: { id: true, authorUserId: true },
@@ -6029,11 +6078,11 @@ export class EngagementService {
       if (!canEditEncryptedEntry(ctx, debrief)) {
         throw new ForbiddenException('You can only approve your own meeting debriefs');
       }
-      return tx.meetingDebrief.update({
+      return projectMeetingArtifactMetadata(ctx, await tx.meetingDebrief.update({
         where: { id: debriefId },
-        data: { status: MeetingDebriefStatus.approved },
+        data: { status: MeetingDebriefStatus.approved, approvedAt: new Date(), approvedByUserId: ctx.userId },
         select: debriefMetadataSelect(),
-      });
+      }));
     });
   }
 
@@ -6048,7 +6097,9 @@ export class EngagementService {
    */
   async approveMeetingNote(ctx: TenantContext, meetingId: string, noteId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      ctx = await currentMeetingActor(tx, ctx);
+      const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
+      await assertMeetingClient(tx, ctx, parent.clientId);
       const note = await tx.meetingNote.findFirst({
         where: { id: noteId, tenantId: ctx.tenantId, meetingId },
         select: { id: true, authorUserId: true },
@@ -6057,11 +6108,11 @@ export class EngagementService {
       if (!canEditEncryptedEntry(ctx, note)) {
         throw new ForbiddenException('You can only approve your own meeting notes');
       }
-      return tx.meetingNote.update({
+      return projectMeetingArtifactMetadata(ctx, await tx.meetingNote.update({
         where: { id: noteId },
         data: { status: 'approved', approvedAt: new Date(), approvedByUserId: ctx.userId },
         select: noteMetadataSelect(),
-      });
+      }));
     });
   }
 
@@ -6220,18 +6271,27 @@ export class EngagementService {
     return generated;
   }
 
-  async listMeetingNotes(ctx: TenantContext, meetingId: string) {
-    const notes = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async listMeetingNotes(ctx: TenantContext, meetingId: string, clientId?: string) {
+    const notes = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        select: { id: true },
+        select: { id: true, clientId: true },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, meeting.clientId);
+      if (clientId) {
+        await assertMeetingClient(tx, ctx, clientId);
+        const association = await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId);
+        if (!(await tx.meeting.findFirst({ where: { AND: [{ id: meetingId, tenantId: ctx.tenantId }, association] }, select: { id: true } }))) throw new NotFoundException('Meeting not found');
+      }
 
       return tx.meetingNote.findMany({
-        where: { tenantId: ctx.tenantId, meetingId },
+        where: { tenantId: ctx.tenantId, meetingId, clientId: meeting.clientId },
         include: {
           author: { select: { id: true, email: true, firstName: true, lastName: true } },
+          approvedBy: { select: { id: true, firstName: true, lastName: true } },
+          sharedBy: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -6240,54 +6300,36 @@ export class EngagementService {
     return notes.map((note) => {
       const canReadBody = canReadEncryptedEntry(ctx, note);
       return {
-        id: note.id,
-        meetingId: note.meetingId,
-        clientId: note.clientId,
-        body: canReadBody
-          ? this.notesCrypto.decrypt({
-              bodyCiphertext: note.bodyCiphertext,
-              iv: note.iv,
-              authTag: note.authTag,
-            })
-          : null,
-        confidential: note.confidential,
-        accessLevel: note.accessLevel,
-        // Phase 2 §d / EM-05: the client's MeetingNote type declares
-        // status/approvedAt/approvedByUserId/sharedAt/sharedByUserId and the
-        // per-note Draft/Edited/Approved/Shared pill (NotesTab) keys off
-        // them, but this serializer never sent them — every note rendered as
-        // "Draft" with an enabled Approve button even when the server-side
-        // decorateMeetings projection (tab dot, Library, Share dialog) said
-        // Approved. Serialize the same approval/share lifecycle fields
-        // noteMetadataSelect() exposes on the meeting payload so all four
-        // surfaces agree on one version and approval state.
-        status: note.status,
-        approvedAt: note.approvedAt,
-        approvedByUserId: note.approvedByUserId,
-        sharedAt: note.sharedAt,
-        sharedByUserId: note.sharedByUserId,
-        keyVersion: note.keyVersion,
-        authorUserId: note.authorUserId,
-        author: note.author,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
+        ...projectMeetingArtifactMetadata(ctx, note),
+        body: canReadBody ? this.notesCrypto.decrypt({
+          bodyCiphertext: note.bodyCiphertext, iv: note.iv, authTag: note.authTag,
+        }) : null,
         restricted: !canReadBody,
       };
     });
   }
 
-  async listMeetingDebriefs(ctx: TenantContext, meetingId: string) {
-    const debriefs = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async listMeetingDebriefs(ctx: TenantContext, meetingId: string, clientId?: string) {
+    const debriefs = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        select: { id: true },
+        select: { id: true, clientId: true },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      await assertMeetingClient(tx, ctx, meeting.clientId);
+      if (clientId) {
+        await assertMeetingClient(tx, ctx, clientId);
+        const association = await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId);
+        if (!(await tx.meeting.findFirst({ where: { AND: [{ id: meetingId, tenantId: ctx.tenantId }, association] }, select: { id: true } }))) throw new NotFoundException('Meeting not found');
+      }
 
       return tx.meetingDebrief.findMany({
-        where: { tenantId: ctx.tenantId, meetingId },
+        where: { tenantId: ctx.tenantId, meetingId, clientId: meeting.clientId },
         include: {
           author: { select: { id: true, email: true, firstName: true, lastName: true } },
+          approvedBy: { select: { id: true, firstName: true, lastName: true } },
+          sharedBy: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -6296,24 +6338,10 @@ export class EngagementService {
     return debriefs.map((debrief) => {
       const canReadBody = canReadEncryptedEntry(ctx, debrief);
       return {
-        id: debrief.id,
-        meetingId: debrief.meetingId,
-        clientId: debrief.clientId,
-        body: canReadBody
-          ? this.notesCrypto.decrypt({
-              bodyCiphertext: debrief.bodyCiphertext,
-              iv: debrief.iv,
-              authTag: debrief.authTag,
-            })
-          : null,
-        confidential: debrief.confidential,
-        accessLevel: debrief.accessLevel,
-        status: debrief.status,
-        keyVersion: debrief.keyVersion,
-        authorUserId: debrief.authorUserId,
-        author: debrief.author,
-        createdAt: debrief.createdAt,
-        updatedAt: debrief.updatedAt,
+        ...projectMeetingArtifactMetadata(ctx, debrief),
+        body: canReadBody ? this.notesCrypto.decrypt({
+          bodyCiphertext: debrief.bodyCiphertext, iv: debrief.iv, authTag: debrief.authTag,
+        }) : null,
         restricted: !canReadBody,
       };
     });
@@ -7287,79 +7315,38 @@ export class EngagementService {
     const attachmentIds: string[] = [];
     const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       if (input.entityType === AssociationEntityType.meeting) {
+        ctx = await currentMeetingActor(tx, ctx);
         await this.lockMeetingClientAssignment(tx, ctx, input.entityId);
-      }
-      // Marking a meeting "internal" clears its client and is a meetings-only path.
-      if (input.internal) {
-        if (input.entityType !== AssociationEntityType.meeting) {
-          throw new BadRequestException('Only meetings can be marked internal');
+        const existing = await tx.meeting.findFirst({
+          where: { id: input.entityId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        });
+        if (!existing) throw new NotFoundException('Meeting not found');
+        await assertMeetingClient(tx, ctx, existing.clientId);
+        if (input.internal && input.clientId) throw new BadRequestException('Choose internal or a client');
+        if (!input.internal && !input.clientId) throw new BadRequestException('clientId is required unless marking internal');
+        const clientId = input.internal ? null : input.clientId!;
+        await assertMeetingClient(tx, ctx, clientId);
+        const changed = existing.clientId !== clientId || Boolean(existing.isInternal) !== Boolean(input.internal);
+        if (!changed) return existing;
+        if (!input.expectedRevision) throw new BadRequestException('expectedRevision is required to change a meeting client');
+        assertExpectedRevision(input.expectedRevision, existing.updatedAt, 'meeting', existing.id, {
+          clientId: existing.clientId,
+        });
+        const reason = input.reason ?? (input.internal ? 'Meeting marked internal.' : 'Manual association override.');
+        attachmentIds.push(...await this.reassignMeetingClient(tx, ctx, existing, clientId, Boolean(input.internal), reason));
+        if (clientId) {
+          return tx.clientAssociationOverride.create({ data: {
+            tenantId: ctx.tenantId, entityType: input.entityType, entityId: input.entityId,
+            clientId, previousClientId: existing.clientId, confidenceBefore: existing.associationScore,
+            reason, userId: ctx.userId,
+          } });
         }
-        const existing = await tx.meeting.findFirst({
-          where: {
-            id: input.entityId,
-            tenantId: ctx.tenantId,
-            ...ownMeetingWhere(ctx.userId),
-          },
-        });
-        if (!existing) throw new NotFoundException('Meeting not found');
-        await this.reassignMeetingClient(
-          tx,
-          ctx,
-          existing,
-          null,
-          true,
-          input.reason ?? 'Meeting marked internal.',
-        );
-        return tx.meeting.findFirst({
-          where: { id: input.entityId, tenantId: ctx.tenantId },
-        });
+        return tx.meeting.findFirst({ where: { id: input.entityId, tenantId: ctx.tenantId } });
       }
-
-      if (!input.clientId) {
-        throw new BadRequestException('clientId is required unless marking internal');
-      }
+      if (input.internal) throw new BadRequestException('Only meetings can be marked internal');
+      if (!input.clientId) throw new BadRequestException('clientId is required unless marking internal');
       const clientId = input.clientId;
-      await ensureExists(
-        tx.client.findFirst({
-          where: { id: clientId, tenantId: ctx.tenantId },
-          select: { id: true },
-        }),
-        'Client not found',
-      );
-
-      if (input.entityType === AssociationEntityType.meeting) {
-        const existing = await tx.meeting.findFirst({
-          where: {
-            id: input.entityId,
-            tenantId: ctx.tenantId,
-            ...ownMeetingWhere(ctx.userId),
-          },
-        });
-        if (!existing) throw new NotFoundException('Meeting not found');
-        // Same transaction and child propagation as the meeting edit form.
-        attachmentIds.push(
-          ...(await this.reassignMeetingClient(
-            tx,
-            ctx,
-            existing,
-            clientId,
-            false,
-            input.reason ?? 'Manual association override.',
-          )),
-        );
-        return tx.clientAssociationOverride.create({
-          data: {
-            tenantId: ctx.tenantId,
-            entityType: input.entityType,
-            entityId: input.entityId,
-            clientId,
-            previousClientId: existing.clientId,
-            confidenceBefore: existing.associationScore,
-            reason: input.reason ?? 'Manual association override.',
-            userId: ctx.userId,
-          },
-        });
-      }
+      await ensureExists(tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId }, select: { id: true } }), 'Client not found');
 
       if (input.entityType === AssociationEntityType.mail_thread) {
         const existing = await tx.mailThread.findFirst({
@@ -9372,7 +9359,50 @@ export class EngagementService {
    * back. Attachments reuse `loadGraphAttachments`, the same resolver the
    * campaign send path uses.
    */
+  private async assertSingleMailPreflight(ctx: TenantContext, input: SendSingleMailInput, tx?: Prisma.TransactionClient) {
+    const authorize = (transaction: Prisma.TransactionClient) => assertSingleMailAuthority(
+      transaction, ctx, input,
+      (clientId) => this.clientMailThreadAssociationWhere(transaction, ctx.tenantId, clientId),
+    );
+    if (tx) await authorize(tx);
+    else await this.prisma.withTenant(ctx.tenantId, authorize);
+  }
+
+  async getSingleMailIntent(ctx: TenantContext, requestKey: string) {
+    const ledger = new SingleMailLedger(this.prisma);
+    const row = await ledger.read(ctx, requestKey);
+    if (!row) throw new NotFoundException('Mail intent not found');
+    await this.assertSingleMailPreflight(ctx, {
+      clientId: row.client_id ?? undefined,
+      threadId: typeof row.snapshot.threadId === 'string' ? row.snapshot.threadId : undefined,
+      senderConnectionId: row.connection_id, to: [], subject: '', bodyHtml: '',
+    });
+    return ledger.view(row);
+  }
+
+  private async assertSingleMailAttachmentsInTx(ctx: TenantContext, input: SendSingleMailInput, tx: Prisma.TransactionClient) {
+    if (!input.attachmentIds?.length) return;
+    const rows = await tx.engagementAttachment.findMany({
+      where: { tenantId: ctx.tenantId, prospectId: null, id: { in: input.attachmentIds },
+        supersededByAttachmentId: null, OR: attachmentViewerWhere(ctx.userId) },
+    });
+    await assertOutboundAttachmentAccess(input.attachmentIds, rows, input.clientId ?? null, {
+      parents: (row) => this.validateAttachmentParents(ctx, row),
+      usable: (row) => this.assertAttachmentUsable(row),
+      distribute: (row) => assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute'),
+    });
+  }
+
   async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
+    const ledger = new SingleMailLedger(this.prisma);
+    const requestKey = ledger.validateKey(input.requestKey);
+    await this.assertSingleMailPreflight(ctx, input);
+    const requestHash = singleMailHash(input);
+    const existing = await ledger.read(ctx, requestKey);
+    if (existing) {
+      ledger.assertRequest(existing, requestHash);
+      return this.getSingleMailIntent(ctx, requestKey);
+    }
     let senderConnectionId = input.senderConnectionId;
     // Authorization must precede the irreversible provider call. The transaction
     // below checks again before persistence, but rejecting there alone is too
@@ -9427,10 +9457,37 @@ export class EngagementService {
     // these agree — but the resolved list is the one that describes the email
     // that was really sent.
     const sentWithAttachments = (attachments?.length ?? 0) > 0;
+    const begun = await ledger.begin(ctx, {
+      requestKey: requestKey, requestHash, connectionId: connection.id,
+      clientId: input.clientId ?? null,
+      snapshot: {
+        senderConnectionId: connection.id, senderEmail: sender.email,
+        threadId: input.threadId ?? null, to: input.to, cc: input.cc ?? [], bcc: input.bcc ?? [],
+        subject: input.subject, body: body.content, signaturePolicy: 'actor',
+        signatureAppended: Boolean(signature.signatureHtml),
+        attachments: (attachments ?? []).map((a) => ({
+          name: a.name, contentType: a.contentType,
+          sha256: createHash('sha256').update(Buffer.from(a.contentBytes, 'base64')).digest('hex'),
+        })),
+      },
+    });
+    if (!begun.created) return this.getSingleMailIntent(ctx, requestKey);
+    // Commit pending, then atomically claim under current authority before any provider call.
+    const claimed = await ledger.claim(ctx, begun.intent, async (tx) => {
+      await this.assertSingleMailPreflight(ctx, { ...input, senderConnectionId: connection.id }, tx);
+      await this.assertSingleMailAttachmentsInTx(ctx, input, tx);
+      const current = await tx.integrationConnection.findFirst({
+        where: { ...ownedSendingMailboxWhere(ctx), id: connection.id, accountEmail: sender.email },
+        select: { id: true },
+      });
+      if (!current) throw new NotFoundException('Sending mailbox not found');
+    });
+    if (!claimed) return this.getSingleMailIntent(ctx, requestKey);
 
     let sendResult: EngagementMailSendResult;
     try {
       sendResult = await this.mailSender.sendMail(ctx, connection, {
+        correlationId: begun.intent.id,
         subject: input.subject,
         body: body.content,
         bodyContentType: 'HTML',
@@ -9440,6 +9497,20 @@ export class EngagementService {
         attachments,
       });
     } catch (error) {
+      // Conservatively fence every dispatched failure. Only a separate, explicit
+      // reconciliation may establish a safely rejected outcome; never reset it.
+      if (isDefiniteMailSendRejection(error)) {
+        await ledger.outcome(ctx, begun.intent, 'failed', { code: 'MAIL_SEND_REJECTED' });
+        throw new BadRequestException({
+          error: 'MAIL_SEND_REJECTED', requestKey: requestKey,
+          intentId: begun.intent.id, state: 'failed', retryable: false,
+          message: 'The mailbox rejected this message before acceptance. Review the error before starting a new send.',
+        });
+      }
+      await ledger.outcome(ctx, begun.intent, 'unknown', {
+        code: error instanceof AmbiguousMailSendError ? 'MAIL_SEND_OUTCOME_UNKNOWN' : 'MAIL_SEND_FAILED',
+        ...(error instanceof AmbiguousMailSendError ? { providerDraftId: error.providerDraftId ?? null } : {}),
+      }).catch(() => undefined); // A lost outcome write leaves durable 'sending', also fenced.
       if (error instanceof AmbiguousMailSendError) {
         // At-most-once send: the outcome is genuinely undetermined (timeout /
         // socket failure after the request left this process). The message
@@ -9451,10 +9522,25 @@ export class EngagementService {
           senderConnectionId: connection.id,
           senderEmail: sender.email,
           retryable: false,
+          intentId: begun.intent.id,
+          requestKey: requestKey,
         });
       }
-      throw new BadRequestException(emailSendErrorMessage(error));
+      throw new ServiceUnavailableException({
+        error: 'MAIL_SEND_OUTCOME_UNKNOWN', retryable: false,
+        intentId: begun.intent.id, requestKey: requestKey,
+        message: 'Delivery could not be confirmed. Reconcile this request; do not resend.',
+      });
     }
+
+    // Acceptance survives a later wall revocation or timeline-receipt failure.
+    await ledger.outcome(ctx, begun.intent, 'accepted', { ...sendResult }).catch(() => {
+      throw new ServiceUnavailableException({
+        error: 'MAIL_SEND_RECEIPT_UNAVAILABLE', retryable: false,
+        intentId: begun.intent.id, requestKey: requestKey,
+        message: 'Mailbox acceptance could not be saved. Reconcile this request; do not resend.',
+      });
+    });
 
     const providerSlug = sendProviderSlug(connection.provider);
     const now = new Date();
@@ -9551,7 +9637,7 @@ export class EngagementService {
             });
             if (!existing) throw new NotFoundException('Mail thread not found');
             return tx.mailThread.update({
-              where: { id: existing.id },
+              where: { id: existing.id, connectionId: connection.id },
               data: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
             });
           })()
@@ -9562,6 +9648,7 @@ export class EngagementService {
             // `mail_messages_tenant_source_external_key`'s thread equivalent;
             // appending to the existing thread is also the correct outcome.
             where: {
+              connectionId: connection.id,
               tenantId_source_externalId: {
                 tenantId: ctx.tenantId,
                 source: threadSource,
@@ -9646,6 +9733,8 @@ export class EngagementService {
       // `hasAttachments` is the only thing left worth asserting here.
       const message = await tx.mailMessage.upsert({
         where: {
+          connectionId: connection.id,
+          threadId: thread.id,
           tenantId_source_externalId: { tenantId: ctx.tenantId, source: messageSource, externalId },
         },
         create: { tenantId: ctx.tenantId, source: messageSource, externalId, ...messageData },
@@ -9687,7 +9776,7 @@ export class EngagementService {
       });
     });
 
-    return {
+    const receipt = {
       ok: true as const,
       threadId: thread.id,
       messageId: message.id,
@@ -9698,6 +9787,8 @@ export class EngagementService {
       signaturePolicy: 'actor' as const,
       signatureAppended: Boolean(signature.signatureHtml),
     };
+    await ledger.receipt(ctx, begun.intent, receipt);
+    return this.getSingleMailIntent(ctx, requestKey);
   }
 
   /** "Rewrite with Meri" — thin delegate; EngagementAiService owns LLM credentialing. */
@@ -10764,8 +10855,10 @@ function noteMetadataSelect() {
     status: true,
     approvedAt: true,
     approvedByUserId: true,
+    approvedBy: { select: { id: true, firstName: true, lastName: true } },
     sharedAt: true,
     sharedByUserId: true,
+    sharedBy: { select: { id: true, firstName: true, lastName: true } },
     createdAt: true,
     updatedAt: true,
   };
@@ -10782,9 +10875,12 @@ function debriefMetadataSelect() {
     accessLevel: true,
     status: true,
     keyVersion: true,
-    // Phase 2 §d — sharing only; approval already lives in `status` above.
+    approvedAt: true,
+    approvedByUserId: true,
+    approvedBy: { select: { id: true, firstName: true, lastName: true } },
     sharedAt: true,
     sharedByUserId: true,
+    sharedBy: { select: { id: true, firstName: true, lastName: true } },
     createdAt: true,
     updatedAt: true,
   };

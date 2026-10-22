@@ -1,0 +1,337 @@
+{
+  "suitesPassed": 6,
+  "testsPassed": 75,
+  "failed": 0,
+  "cases": [
+    {
+      "file": "src/engagement/mailbox-oauth.a1.http.spec.ts",
+      "assertions": [
+        {
+          "name": "ML-08/10 direct HTTP microsoft_365 start rejects another mailbox owner before saving any attempt",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08/10 direct HTTP microsoft_365 sync rejects revoked membership before using a cached provider token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08/10 direct HTTP microsoft_365 callback refuses revoked membership before provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08/10 direct HTTP google_workspace start rejects another mailbox owner before saving any attempt",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08/10 direct HTTP google_workspace sync rejects revoked membership before using a cached provider token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08/10 direct HTTP google_workspace callback refuses revoked membership before provider exchange",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/engagement/mailbox-oauth.a1.spec.ts",
+      "assertions": [
+        {
+          "name": "ML-08 microsoft_365 empty Connect adds an independent mailbox and preserves existing history",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 same-account reconnect preserves refresh token/cursors and consumes callback once",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects a changed stable identity with different-email before token writes",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects a changed stable identity with same-email before token writes",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 registered email mismatch and duplicate existing mailbox both refuse token writes",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 a missing token cannot rebind historical mailbox data",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 newer start invalidates an older callback before exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects wrong-owner before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects wrong-tenant before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects wrong-provider before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects removed-member before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 rejects deleted before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 replacement start during exchange denies the older finalization",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 membership revoked during exchange denies finalization",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 microsoft_365 obsolete, expired, wrong-provider and suffix-appended state cannot reach exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace empty Connect adds an independent mailbox and preserves existing history",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace same-account reconnect preserves refresh token/cursors and consumes callback once",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects a changed stable identity with different-email before token writes",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects a changed stable identity with same-email before token writes",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace registered email mismatch and duplicate existing mailbox both refuse token writes",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace a missing token cannot rebind historical mailbox data",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace newer start invalidates an older callback before exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects wrong-owner before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects wrong-tenant before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects wrong-provider before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects removed-member before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace rejects deleted before the provider exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace replacement start during exchange denies the older finalization",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace membership revoked during exchange denies finalization",
+          "status": "passed"
+        },
+        {
+          "name": "ML-08 google_workspace obsolete, expired, wrong-provider and suffix-appended state cannot reach exchange",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence both selectors require an exact expected account, including absent and unmatched IDs",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence each Microsoft exchange owns a fresh MSAL client",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence rejects wrong-account after exchange without persisting or returning the response token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence rejects missing-scope after exchange without persisting or returning the response token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence rejects rotated after exchange without persisting or returning the response token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence rejects disconnected after exchange without persisting or returning the response token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence rejects removed-member after exchange without persisting or returning the response token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence transient sync error allows recovery while reconnect-required status stays blocked",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence removed actor and active reconnect deny even a cached token; expired attempt does not block refresh",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence successful refresh advances only the bound mailbox token",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence concurrent Microsoft account refreshes keep separate caches and rotated tokens",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence partial Google consent cannot revoke a grant for an unadmitted account",
+          "status": "passed"
+        },
+        {
+          "name": "ML-10 refresh isolation and durable stale-response fence Google late refresh cannot overwrite a newer reconnect",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/engagement/microsoft/microsoft-graph-sync.scopes.spec.ts",
+      "assertions": [
+        {
+          "name": "hasRequiredResourceScopes accepts the canonical requested scope set",
+          "status": "passed"
+        },
+        {
+          "name": "hasRequiredResourceScopes accepts a refresh response that omits offline_access (the storm regression)",
+          "status": "passed"
+        },
+        {
+          "name": "hasRequiredResourceScopes accepts full Graph resource-URI scope forms",
+          "status": "passed"
+        },
+        {
+          "name": "hasRequiredResourceScopes is case-insensitive",
+          "status": "passed"
+        },
+        {
+          "name": "hasRequiredResourceScopes rejects when a real resource scope is genuinely missing",
+          "status": "passed"
+        },
+        {
+          "name": "hasRequiredResourceScopes rejects empty / undefined scope sets",
+          "status": "passed"
+        },
+        {
+          "name": "normalizeScopeNames lower-cases and strips the Graph resource-URI prefix",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/engagement/google/google-provider-contract.spec.ts",
+      "assertions": [
+        {
+          "name": "GoogleOAuthService.start builds an auth URL carrying access_type=offline, prompt=consent, all six scopes, and a two-segment state",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleOAuthService state signing (signState/verifyState) rejects a tampered signature",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleOAuthService state signing (signState/verifyState) rejects an expired payload",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleOAuthService state signing (signState/verifyState) accepts a validly signed, unexpired state",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleOAuthService.capabilities reports configured:false when the client id/secret are missing",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleOAuthService.capabilities reports configured:true when everything required is present",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleTokenService.getValidAccessToken returns the cached access token when expiresAt is beyond the 5-minute refresh skew",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleTokenService.getValidAccessToken refreshes via the network when the cached token is within the skew window",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleTokenService.getValidAccessToken a 400 invalid_grant refresh flips the connection to needs_configuration and throws",
+          "status": "passed"
+        },
+        {
+          "name": "GoogleTokenService.getValidAccessToken a non-invalid_grant failure throws ServiceUnavailableException without changing connection status",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/engagement/microsoft/microsoft-oauth.refresh-token.spec.ts",
+      "assertions": [
+        {
+          "name": "selectRefreshTokenForAccount returns the token bound to home_account_id, NOT the last cache entry",
+          "status": "passed"
+        },
+        {
+          "name": "selectRefreshTokenForAccount returns the single account token when there is exactly one entry",
+          "status": "passed"
+        },
+        {
+          "name": "selectRefreshTokenForAccount fails closed when no home_account_id is available",
+          "status": "passed"
+        },
+        {
+          "name": "selectRefreshTokenForAccount fails closed when the requested account is not present",
+          "status": "passed"
+        },
+        {
+          "name": "selectRefreshTokenForAccount returns undefined for an empty or absent RefreshToken cache",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/engagement/google/google-oauth.scope-validation.spec.ts",
+      "assertions": [
+        {
+          "name": "missingGoogleGrants the full canonical scope list grants everything required",
+          "status": "passed"
+        },
+        {
+          "name": "missingGoogleGrants a grant missing gmail.readonly returns exactly that one scope",
+          "status": "passed"
+        },
+        {
+          "name": "missingGoogleGrants undefined or empty scope is missing all required grants",
+          "status": "passed"
+        },
+        {
+          "name": "missingGoogleGrants a superset grant (include_granted_scopes) still passes \u2014 subset test, not equality",
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}

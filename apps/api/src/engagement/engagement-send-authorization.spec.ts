@@ -1,3 +1,4 @@
+import { singleMailTestState } from './__fixtures__/single-mail-ledger.js';
 import { describe, expect, jest, test } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -13,6 +14,7 @@ const ctx: TenantContext = {
 const resolving = <T>(value: T) =>
   jest.fn<(...args: unknown[]) => Promise<T>>().mockResolvedValue(value);
 function harness(thread: { id: string; connectionId: string } | null) {
+  const augment = singleMailTestState();
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
   const findFirst = resolving(thread);
@@ -28,7 +30,7 @@ function harness(thread: { id: string; connectionId: string } | null) {
     .mockRejectedValue(new Error('Synthetic provider failure'));
   const withTenant = jest
     .fn<(tenantId: string, run: (tx: unknown) => Promise<unknown>) => Promise<unknown>>()
-    .mockImplementation((_tenantId, run) => run({ mailThread: { findFirst } }));
+    .mockImplementation((_tenantId, run) => run(augment({ mailThread: { findFirst } })));
   patch.prisma = { withTenant };
   patch.findCampaignSendConnection = connect;
   patch.resolveSenderSignatureHtml = resolving({
@@ -41,6 +43,7 @@ function harness(thread: { id: string; connectionId: string } | null) {
   return { service, findFirst, withTenant, connect, attachments, send };
 }
 const input = {
+  requestKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   to: [{ email: 'recipient@example.test' }],
   subject: 'Synthetic test',
   bodyHtml: '<p>Test</p>',
@@ -59,7 +62,7 @@ describe('sendSingleMail pre-send reply authorization', () => {
         connection: { createdByUserId: ctx.userId },
         messages: { some: { removedAt: null } },
       },
-      select: { id: true, connectionId: true },
+      select: { id: true, clientId: true, connectionId: true },
     });
     expect(h.connect).not.toHaveBeenCalled();
     expect(h.attachments).not.toHaveBeenCalled();

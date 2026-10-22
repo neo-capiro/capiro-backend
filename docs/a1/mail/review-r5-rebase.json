@@ -1,0 +1,23 @@
+{
+  "requestedBase": "efd03f1997ef61b99bee315706f39dc1fa341f54",
+  "baseTree": "0456960a2fae828afd491d518ac2348ae820fa36",
+  "priorPublishedHead": "89f99aa7c61be8596cc11af48a2711100a20ff9e",
+  "priorPublishedTree": "54b430d7af388f978ed110cc97896a12608858a0",
+  "priorLocalEquivalentHead": "b5c4a20fe0c4155b6b4589a68adff18caea53743",
+  "rebasedLocalCheckpoint": "aaa0442a1f8e23a6f8d5d7b216266ab5fa734307",
+  "rebasedTree": "e1926d1e2bc5b3ba2d40982a07d8a465fa000d4a",
+  "method": "Local git rebase --onto exact requested base from 8d9958f7, clean. Publication records exact final tree with requested base as parent; leased replacement of prior draft branch. No merge/deploy.",
+  "nativeDatabaseContacted": false,
+  "helperSafetyTests": {
+    "passed": 24,
+    "failed": 0,
+    "sha256": "66382d0785986708c4dd53638afa15942863231d632ad5e0a59f847ecf0e20fb"
+  },
+  "mergedFixtureSchemaValidation": {
+    "exit": 0,
+    "models": 532,
+    "enums": 45,
+    "nativeProof": false
+  },
+  "qualification": "Full frozen clean-install baseline parity, actual PG16 cases, RLS, concurrency, migration clone and image qualification remain Fable-run. Frontend117/118 held until corrected backend live."
+}

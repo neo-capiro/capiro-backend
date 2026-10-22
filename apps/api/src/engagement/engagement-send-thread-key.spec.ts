@@ -1,3 +1,4 @@
+import { singleMailTestState } from './__fixtures__/single-mail-ledger.js';
 // Thread-level dedup with the inbound sync pipeline.
 //
 // Both sync jobs key a MailThread on the provider's own CONVERSATION id —
@@ -48,6 +49,7 @@ function makeService(
   provider: 'microsoft_365' | 'google_workspace',
   sendResult: EngagementMailSendResult,
 ) {
+  const augment = singleMailTestState();
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
 
@@ -77,17 +79,18 @@ function makeService(
   patch.recomputeMailThreadSummaryInTx = resolving(undefined);
   patch.prisma = {
     withTenant: (_tenantId: string, fn: (tx: unknown) => unknown) =>
-      fn({
+      fn(augment({
         mailThread: { upsert: threadUpsert, update: jest.fn(), findFirst: jest.fn() },
         mailMessage: { upsert: messageUpsert },
         engagementAttachment: { updateMany: attachmentUpdateMany },
-      }),
+      })),
   };
 
   return { service, threadUpsert };
 }
 
 const input = {
+  requestKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   clientId: '44444444-4444-4444-4444-444444444444',
   to: [{ email: 'pat@example.com', name: 'Pat Client' }],
   subject: 'Following up',

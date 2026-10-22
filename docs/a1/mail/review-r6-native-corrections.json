@@ -1,0 +1,66 @@
+{
+  "priorPublishedHead": "3ec8aa105dbf0d623e0a553276da79f6a4e51d74",
+  "priorTree": "c6df4d67d26f65b1c0bfa6dd1d36fbe218dc745b",
+  "sourceDeltaVerified": "Exactly two typed lock projections and one separate-parameter fixture statement; all other bytes unchanged",
+  "files": [
+    {
+      "path": "apps/api/src/engagement/mailbox-oauth-authority.ts",
+      "priorSha256": "eedc2d6505e8cd288404f8d3033a3b1ee1693412a9aabe890d2851503d89cdb6",
+      "currentSha256": "36db00356044bede0193938a3b3f4a3dbe076d984b09fbcb3f0dc04dc1463947",
+      "byteIdentical": false
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-debrief-approval-migration.postgres.spec.ts",
+      "priorSha256": "4de677ed4ebcfd1f537eb2eae76cc1f2d0a539a51da7f1138efddfd57ef6ca76",
+      "currentSha256": "c6b1fe537caee56146fc4ff5cf733984a86b5a75849bba1b21ac1fe43d84da1f",
+      "byteIdentical": false
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-collision.postgres.spec.ts",
+      "priorSha256": "5179f7ad680be269e2737fda55ca5923e525f55d5c66d2af5a2a3694942b4c37",
+      "currentSha256": "5179f7ad680be269e2737fda55ca5923e525f55d5c66d2af5a2a3694942b4c37",
+      "byteIdentical": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281022010000_meeting_debrief_approval_metadata/migration.sql",
+      "priorSha256": "96e39a78f3139045649abf5f48f990f3d56f02708719d3e241693c31eb5f002d",
+      "currentSha256": "96e39a78f3139045649abf5f48f990f3d56f02708719d3e241693c31eb5f002d",
+      "byteIdentical": true
+    }
+  ],
+  "reviewSources": [
+    "https://github.com/neo-capiro/capiro-backend/pull/106#issuecomment-6344103647",
+    "https://github.com/neo-capiro/capiro-backend/pull/106#issuecomment-6344115433"
+  ],
+  "focusedJest": {
+    "success": true,
+    "numTotalTests": 53,
+    "numPassedTests": 53,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTotalTestSuites": 2,
+    "numPassedTestSuites": 2,
+    "numFailedTestSuites": 0,
+    "numRuntimeErrorTestSuites": 0
+  },
+  "focusedConfig": "docs/a1/mail/jest.config.cjs (unchanged, cached dependencies, transpile-only, mocked ports)",
+  "rawJestSha256": "2ac5b93cae01cf0af1ab7a92ae45f3a41d3dc0fa559fb08d66cbcf3405fb7667",
+  "syntaxDiagnostics": 0,
+  "semanticTypecheck": "Not rerun for SQL-string-only changes; syntax checking is not semantic qualification",
+  "native": {
+    "status": "unrun / Fable-run",
+    "reason": "No docker/postgres/psql executable; A1_NATIVE_PG_URL unset; cached canonical API runtime cannot resolve sanitize-html",
+    "passesClaimed": 0,
+    "skipsClaimed": 0,
+    "databaseContacted": false,
+    "sqlExecuted": false
+  },
+  "node": "v24.19.0",
+  "holds": [
+    "dot exact-head delta review",
+    "Fable native 6-case mailbox and 9-case migration re-gate",
+    "cutover and release qualification",
+    "frontend117/118 until corrected backend live",
+    "live acceptance stopped at 2/6"
+  ]
+}

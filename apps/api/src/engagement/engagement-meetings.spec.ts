@@ -17,11 +17,37 @@ const ctx: TenantContext = {
   role: 'standard_user',
 } as TenantContext;
 
-function serviceWith(tx: Record<string, unknown>): EngagementService {
+// Current-member rows are bound to this test actor, not to whichever request
+// happens to arrive. Admin cases must explicitly supply their active admin.
+function transactionFixture(tx: Record<string, unknown>, actor: TenantContext = ctx) {
+  return {
+    tenantMembership: {
+      findFirst: async ({
+        where,
+      }: {
+        where: { tenantId: string; userId: string; status: string; user: { clerkUserId: string } };
+      }) =>
+        where.tenantId === actor.tenantId &&
+        where.userId === actor.userId &&
+        where.status === 'active' &&
+        where.user.clerkUserId === actor.clerkUserId
+          ? { role: actor.role }
+          : null,
+    },
+    client: { findFirst: async () => ({ id: 'c1', primaryContactEmail: null }) },
+    clientPerson: { findMany: async () => [] },
+    $queryRaw: async () => [],
+    $queryRawUnsafe: async () => [{ allowed: true }],
+    ...tx,
+  };
+}
+
+function serviceWith(tx: Record<string, unknown>, actor: TenantContext = ctx): EngagementService {
+  const scoped = transactionFixture(tx, actor);
   const prisma = {
-    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn(tx),
+    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn(scoped),
     withTenantUser: (_tenantId: string, _userId: string, fn: (scoped: unknown) => unknown) =>
-      fn(tx),
+      fn(scoped),
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
   (service as unknown as { prisma: unknown }).prisma = prisma;
@@ -30,19 +56,27 @@ function serviceWith(tx: Record<string, unknown>): EngagementService {
 
 // A meeting row shaped like meetingInclude() output, enough for decorateMeetings.
 function meetingRow(overrides: Record<string, unknown> = {}) {
-  return {
+  const row = {
     id: 'm1',
     createdByUserId: 'user-1',
     sharedByUserId: null,
     clientId: 'c1',
     visibility: 'private',
-    notes: [],
-    debriefs: [],
+    notes: [] as Array<Record<string, unknown>>,
+    debriefs: [] as Array<Record<string, unknown>>,
     preps: [],
     // Phase 2 §d — filterToSharedArtifacts (run on every row inside
     // listSharedMeetingsForClient) narrows this down to sharedAt != null.
     attachments: [],
     ...overrides,
+  };
+  return {
+    ...row,
+    notes: row.notes.map((entry) => ({ updatedAt: new Date('2026-10-21T12:00:00Z'), ...entry })),
+    debriefs: row.debriefs.map((entry) => ({
+      updatedAt: new Date('2026-10-21T12:00:00Z'),
+      ...entry,
+    })),
   };
 }
 
@@ -197,7 +231,7 @@ describe('unshareMeeting', () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
     const service = serviceWith({
       meeting: {
-        findFirst: async () => ({ id: 'm1' }),
+        findFirst: async () => ({ id: 'm1', clientId: null }),
         update: async (args: { data: Record<string, unknown> }) => {
           updateArgs = args;
           return meetingRow({ visibility: 'private' });
@@ -217,6 +251,24 @@ describe('unshareMeeting', () => {
 });
 
 describe('listMeetingLibrary', () => {
+  const visibleClientPredicate = {
+    OR: [
+      { clientId: null },
+      {
+        client: {
+          is: {
+            tenantId: ctx.tenantId,
+            status: { not: 'archived' },
+            OR: [
+              { memoryWall: false },
+              { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+            ],
+          },
+        },
+      },
+    ],
+  };
+
   test('builds the owner-scoped + approved-artifact where and paginates', async () => {
     let findArgs: Record<string, unknown> | undefined;
     let countArgs: Record<string, unknown> | undefined;
@@ -255,7 +307,10 @@ describe('listMeetingLibrary', () => {
     expect(where.visibility).toBe('shared');
     expect((where.startsAt as { gte: Date; lt: Date }).gte).toBeInstanceOf(Date);
     expect((where.startsAt as { gte: Date; lt: Date }).lt).toBeInstanceOf(Date);
-    expect(where.AND).toEqual([{ debriefs: { some: { status: 'approved' } } }]);
+    expect(where.AND).toEqual([
+      visibleClientPredicate,
+      { debriefs: { some: { status: 'approved' } } },
+    ]);
     expect(findArgs!.skip).toBe(10);
     expect(findArgs!.take).toBe(10);
     expect(findArgs!.orderBy).toEqual({ startsAt: 'desc' });
@@ -299,6 +354,7 @@ describe('listMeetingLibrary', () => {
     // Trimmed, case-insensitive, and over metadata only — never artifact bodies,
     // which are stored encrypted and are not decrypted on list endpoints.
     expect(where.AND).toEqual([
+      visibleClientPredicate,
       {
         OR: [
           { preps: { some: { status: 'approved' } } },
@@ -333,10 +389,11 @@ describe('listMeetingLibrary', () => {
 
     await service.listMeetingLibrary(ctx, { search, artifactType: 'notes' });
 
-    // Exactly one AND entry: the artifact filter. A whitespace-only search must
+    // Only the client visibility and artifact filters. A whitespace-only search must
     // not become `contains: ''`, which matches every row and would make the
     // query look filtered while filtering nothing.
     expect((findArgs!.where as Record<string, unknown>).AND).toEqual([
+      visibleClientPredicate,
       { notes: { some: { status: 'approved' } } },
     ]);
   });
@@ -360,6 +417,7 @@ describe('listMeetingLibrary', () => {
     expect(where).not.toHaveProperty('visibility');
     expect(where).not.toHaveProperty('startsAt');
     expect(where.AND).toEqual([
+      visibleClientPredicate,
       {
         OR: [
           { preps: { some: { status: 'approved' } } },

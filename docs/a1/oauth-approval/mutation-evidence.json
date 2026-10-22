@@ -1,0 +1,365 @@
+{
+  "newCases": 49,
+  "allNewCasesKillRelevantMutants": true,
+  "runs": [
+    {
+      "cases": 42,
+      "mutants": [
+        {
+          "mutant": "reuse-existing-mailbox",
+          "killedBy": [
+            "ML-08 microsoft_365 empty Connect adds an independent mailbox and preserves existing history",
+            "ML-08 microsoft_365 registered email mismatch and duplicate existing mailbox both refuse token writes",
+            "ML-08 google_workspace empty Connect adds an independent mailbox and preserves existing history",
+            "ML-08 google_workspace registered email mismatch and duplicate existing mailbox both refuse token writes"
+          ]
+        },
+        {
+          "mutant": "discard-cursors",
+          "killedBy": [
+            "ML-08 microsoft_365 same-account reconnect preserves refresh token/cursors and consumes callback once",
+            "ML-08 google_workspace same-account reconnect preserves refresh token/cursors and consumes callback once"
+          ]
+        },
+        {
+          "mutant": "permit-account-replacement",
+          "killedBy": [
+            "ML-08 microsoft_365 rejects a changed stable identity with different-email before token writes",
+            "ML-08 microsoft_365 rejects a changed stable identity with same-email before token writes",
+            "ML-08 google_workspace rejects a changed stable identity with different-email before token writes",
+            "ML-08 google_workspace rejects a changed stable identity with same-email before token writes"
+          ]
+        },
+        {
+          "mutant": "ignore-registered-email",
+          "killedBy": [
+            "ML-08 microsoft_365 registered email mismatch and duplicate existing mailbox both refuse token writes",
+            "ML-08 google_workspace registered email mismatch and duplicate existing mailbox both refuse token writes"
+          ]
+        },
+        {
+          "mutant": "ignore-duplicate-mailbox",
+          "killedBy": [
+            "ML-08 microsoft_365 registered email mismatch and duplicate existing mailbox both refuse token writes",
+            "ML-08 google_workspace registered email mismatch and duplicate existing mailbox both refuse token writes"
+          ]
+        },
+        {
+          "mutant": "skip-preexchange-admission",
+          "killedBy": [
+            "ML-08 microsoft_365 empty Connect adds an independent mailbox and preserves existing history",
+            "ML-08 microsoft_365 same-account reconnect preserves refresh token/cursors and consumes callback once",
+            "ML-08 microsoft_365 rejects a changed stable identity with different-email before token writes",
+            "ML-08 microsoft_365 rejects a changed stable identity with same-email before token writes",
+            "ML-08 microsoft_365 registered email mismatch and duplicate existing mailbox both refuse token writes",
+            "ML-08 microsoft_365 newer start invalidates an older callback before exchange",
+            "ML-08 microsoft_365 rejects wrong-owner before the provider exchange",
+            "ML-08 microsoft_365 rejects wrong-tenant before the provider exchange",
+            "ML-08 microsoft_365 rejects wrong-provider before the provider exchange",
+            "ML-08 microsoft_365 rejects removed-member before the provider exchange",
+            "ML-08 microsoft_365 rejects deleted before the provider exchange",
+            "ML-08 google_workspace empty Connect adds an independent mailbox and preserves existing history",
+            "ML-08 google_workspace same-account reconnect preserves refresh token/cursors and consumes callback once",
+            "ML-08 google_workspace rejects a changed stable identity with different-email before token writes",
+            "ML-08 google_workspace rejects a changed stable identity with same-email before token writes",
+            "ML-08 google_workspace registered email mismatch and duplicate existing mailbox both refuse token writes",
+            "ML-08 google_workspace newer start invalidates an older callback before exchange",
+            "ML-08 google_workspace rejects wrong-owner before the provider exchange",
+            "ML-08 google_workspace rejects wrong-tenant before the provider exchange",
+            "ML-08 google_workspace rejects wrong-provider before the provider exchange",
+            "ML-08 google_workspace rejects removed-member before the provider exchange",
+            "ML-08 google_workspace rejects deleted before the provider exchange",
+            "ML-10 refresh isolation and durable stale-response fence partial Google consent cannot revoke a grant for an unadmitted account"
+          ]
+        },
+        {
+          "mutant": "skip-current-finalization",
+          "killedBy": [
+            "ML-08 microsoft_365 replacement start during exchange denies the older finalization",
+            "ML-08 microsoft_365 membership revoked during exchange denies finalization",
+            "ML-08 google_workspace replacement start during exchange denies the older finalization",
+            "ML-08 google_workspace membership revoked during exchange denies finalization"
+          ]
+        },
+        {
+          "mutant": "ignore-historical-lineage",
+          "killedBy": [
+            "ML-08 microsoft_365 a missing token cannot rebind historical mailbox data",
+            "ML-08 google_workspace a missing token cannot rebind historical mailbox data"
+          ]
+        },
+        {
+          "mutant": "accept-state-suffix",
+          "killedBy": [
+            "ML-08 microsoft_365 obsolete, expired, wrong-provider and suffix-appended state cannot reach exchange",
+            "ML-08 google_workspace obsolete, expired, wrong-provider and suffix-appended state cannot reach exchange"
+          ]
+        },
+        {
+          "mutant": "wrong-account-cache-fallback",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence both selectors require an exact expected account, including absent and unmatched IDs"
+          ]
+        },
+        {
+          "mutant": "shared-refresh-client",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence each Microsoft exchange owns a fresh MSAL client",
+            "ML-10 refresh isolation and durable stale-response fence concurrent Microsoft account refreshes keep separate caches and rotated tokens"
+          ]
+        },
+        {
+          "mutant": "ignore-returned-account-and-scopes",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence rejects wrong-account after exchange without persisting or returning the response token",
+            "ML-10 refresh isolation and durable stale-response fence rejects missing-scope after exchange without persisting or returning the response token"
+          ]
+        },
+        {
+          "mutant": "skip-refresh-outcome-fence",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence rejects rotated after exchange without persisting or returning the response token",
+            "ML-10 refresh isolation and durable stale-response fence rejects disconnected after exchange without persisting or returning the response token",
+            "ML-10 refresh isolation and durable stale-response fence rejects removed-member after exchange without persisting or returning the response token"
+          ]
+        },
+        {
+          "mutant": "skip-cached-token-admission",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence removed actor and active reconnect deny even a cached token; expired attempt does not block refresh"
+          ]
+        },
+        {
+          "mutant": "lose-rotated-token",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence successful refresh advances only the bound mailbox token",
+            "ML-10 refresh isolation and durable stale-response fence concurrent Microsoft account refreshes keep separate caches and rotated tokens"
+          ]
+        },
+        {
+          "mutant": "skip-google-refresh-outcome-fence",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence Google late refresh cannot overwrite a newer reconnect"
+          ]
+        },
+        {
+          "mutant": "skip-google-returned-identity",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence partial Google consent cannot revoke a grant for an unadmitted account"
+          ]
+        }
+      ]
+    },
+    {
+      "cases": 7,
+      "mutants": [
+        {
+          "mutant": "block-transient-recovery",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence transient sync error allows recovery while reconnect-required status stays blocked"
+          ]
+        },
+        {
+          "mutant": "allow-reconnect-required-token",
+          "killedBy": [
+            "ML-10 refresh isolation and durable stale-response fence transient sync error allows recovery while reconnect-required status stays blocked"
+          ]
+        },
+        {
+          "mutant": "skip-google-cached-token-admission",
+          "killedBy": [
+            "ML-08/10 direct HTTP google_workspace sync rejects revoked membership before using a cached provider token"
+          ]
+        },
+        {
+          "mutant": "ignore-start-owner",
+          "killedBy": [
+            "ML-08/10 direct HTTP microsoft_365 start rejects another mailbox owner before saving any attempt",
+            "ML-08/10 direct HTTP google_workspace start rejects another mailbox owner before saving any attempt"
+          ]
+        },
+        {
+          "mutant": "skip-preexchange-admission",
+          "killedBy": [
+            "ML-08/10 direct HTTP microsoft_365 callback refuses revoked membership before provider exchange",
+            "ML-08/10 direct HTTP google_workspace callback refuses revoked membership before provider exchange"
+          ]
+        },
+        {
+          "mutant": "skip-cached-token-admission",
+          "killedBy": [
+            "ML-08/10 direct HTTP microsoft_365 sync rejects revoked membership before using a cached provider token",
+            "ML-10 refresh isolation and durable stale-response fence transient sync error allows recovery while reconnect-required status stays blocked"
+          ]
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "ML-08 microsoft_365 empty Connect adds an independent mailbox and preserves existing history": [
+      "reuse-existing-mailbox",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 same-account reconnect preserves refresh token/cursors and consumes callback once": [
+      "discard-cursors",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects a changed stable identity with different-email before token writes": [
+      "permit-account-replacement",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects a changed stable identity with same-email before token writes": [
+      "permit-account-replacement",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 registered email mismatch and duplicate existing mailbox both refuse token writes": [
+      "reuse-existing-mailbox",
+      "ignore-registered-email",
+      "ignore-duplicate-mailbox",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 a missing token cannot rebind historical mailbox data": [
+      "ignore-historical-lineage"
+    ],
+    "ML-08 microsoft_365 newer start invalidates an older callback before exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects wrong-owner before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects wrong-tenant before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects wrong-provider before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects removed-member before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 rejects deleted before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 microsoft_365 replacement start during exchange denies the older finalization": [
+      "skip-current-finalization"
+    ],
+    "ML-08 microsoft_365 membership revoked during exchange denies finalization": [
+      "skip-current-finalization"
+    ],
+    "ML-08 microsoft_365 obsolete, expired, wrong-provider and suffix-appended state cannot reach exchange": [
+      "accept-state-suffix"
+    ],
+    "ML-08 google_workspace empty Connect adds an independent mailbox and preserves existing history": [
+      "reuse-existing-mailbox",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace same-account reconnect preserves refresh token/cursors and consumes callback once": [
+      "discard-cursors",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects a changed stable identity with different-email before token writes": [
+      "permit-account-replacement",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects a changed stable identity with same-email before token writes": [
+      "permit-account-replacement",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace registered email mismatch and duplicate existing mailbox both refuse token writes": [
+      "reuse-existing-mailbox",
+      "ignore-registered-email",
+      "ignore-duplicate-mailbox",
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace a missing token cannot rebind historical mailbox data": [
+      "ignore-historical-lineage"
+    ],
+    "ML-08 google_workspace newer start invalidates an older callback before exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects wrong-owner before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects wrong-tenant before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects wrong-provider before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects removed-member before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace rejects deleted before the provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08 google_workspace replacement start during exchange denies the older finalization": [
+      "skip-current-finalization"
+    ],
+    "ML-08 google_workspace membership revoked during exchange denies finalization": [
+      "skip-current-finalization"
+    ],
+    "ML-08 google_workspace obsolete, expired, wrong-provider and suffix-appended state cannot reach exchange": [
+      "accept-state-suffix"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence both selectors require an exact expected account, including absent and unmatched IDs": [
+      "wrong-account-cache-fallback"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence each Microsoft exchange owns a fresh MSAL client": [
+      "shared-refresh-client"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence rejects wrong-account after exchange without persisting or returning the response token": [
+      "ignore-returned-account-and-scopes"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence rejects missing-scope after exchange without persisting or returning the response token": [
+      "ignore-returned-account-and-scopes"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence rejects rotated after exchange without persisting or returning the response token": [
+      "skip-refresh-outcome-fence"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence rejects disconnected after exchange without persisting or returning the response token": [
+      "skip-refresh-outcome-fence"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence rejects removed-member after exchange without persisting or returning the response token": [
+      "skip-refresh-outcome-fence"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence removed actor and active reconnect deny even a cached token; expired attempt does not block refresh": [
+      "skip-cached-token-admission"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence successful refresh advances only the bound mailbox token": [
+      "lose-rotated-token"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence concurrent Microsoft account refreshes keep separate caches and rotated tokens": [
+      "shared-refresh-client",
+      "lose-rotated-token"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence partial Google consent cannot revoke a grant for an unadmitted account": [
+      "skip-preexchange-admission",
+      "skip-google-returned-identity"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence Google late refresh cannot overwrite a newer reconnect": [
+      "skip-google-refresh-outcome-fence"
+    ],
+    "ML-10 refresh isolation and durable stale-response fence transient sync error allows recovery while reconnect-required status stays blocked": [
+      "block-transient-recovery",
+      "allow-reconnect-required-token",
+      "skip-cached-token-admission"
+    ],
+    "ML-08/10 direct HTTP microsoft_365 start rejects another mailbox owner before saving any attempt": [
+      "ignore-start-owner"
+    ],
+    "ML-08/10 direct HTTP microsoft_365 sync rejects revoked membership before using a cached provider token": [
+      "skip-cached-token-admission"
+    ],
+    "ML-08/10 direct HTTP microsoft_365 callback refuses revoked membership before provider exchange": [
+      "skip-preexchange-admission"
+    ],
+    "ML-08/10 direct HTTP google_workspace start rejects another mailbox owner before saving any attempt": [
+      "ignore-start-owner"
+    ],
+    "ML-08/10 direct HTTP google_workspace sync rejects revoked membership before using a cached provider token": [
+      "skip-google-cached-token-admission"
+    ],
+    "ML-08/10 direct HTTP google_workspace callback refuses revoked membership before provider exchange": [
+      "skip-preexchange-admission"
+    ]
+  }
+}

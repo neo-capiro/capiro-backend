@@ -20,6 +20,7 @@ import { GoogleTokenService } from './google-token.service.js';
 import type { EngagementSendMailInput } from '../mail-sender.service.js';
 import {
   AmbiguousMailSendError,
+  definiteMailSendRejection,
   isAmbiguousTransportFailure,
   type EngagementMailSendResult,
 } from '../mail-send-result.js';
@@ -95,13 +96,17 @@ export class GmailSendService {
         response.status === 403 &&
         /insufficient|scope|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(text)
       ) {
-        throw new BadRequestException(
-          'Reconnect Google Workspace in Settings to grant Capiro permission to send email on your behalf.',
+        throw definiteMailSendRejection(
+          new BadRequestException(
+            'Reconnect Google Workspace in Settings to grant Capiro permission to send email on your behalf.',
+          ),
         );
       }
       if (response.status === 401) {
-        throw new BadRequestException(
-          'Reconnect Google Workspace in Settings to continue sending email.',
+        throw definiteMailSendRejection(
+          new BadRequestException(
+            'Reconnect Google Workspace in Settings to continue sending email.',
+          ),
         );
       }
       // §g5 / Open Decision 6.3 — a 5xx is Gmail's OWN failure while handling
@@ -116,8 +121,10 @@ export class GmailSendService {
           correlationId,
         );
       }
-      throw new ServiceUnavailableException(
-        `Gmail send failed (${response.status}): ${text.slice(0, 300)}`,
+      throw definiteMailSendRejection(
+        new ServiceUnavailableException(
+          `Gmail send failed (${response.status}): ${text.slice(0, 300)}`,
+        ),
       );
     }
 

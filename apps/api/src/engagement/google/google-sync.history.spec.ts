@@ -136,7 +136,7 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
       }
     ).syncMailIncremental('t1', connection, mailState, 'token');
 
-    expect(patch.markGmailMessageRemoved).toHaveBeenCalledWith('t1', 'm1', 'deleted');
+    expect(patch.markGmailMessageRemoved).toHaveBeenCalledWith('t1', 'm1', 'deleted', 'conn-1');
     expect(patch.gmailGet).not.toHaveBeenCalled();
     expect(patch.persistGmailMessage).not.toHaveBeenCalled();
     expect(stats.removed).toBe(1);
@@ -200,7 +200,7 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
       }
     ).syncMailIncremental('t1', connection, mailState, 'token');
 
-    expect(patch.markGmailMessageRemoved).toHaveBeenCalledWith('t1', 'm1', 'trashed');
+    expect(patch.markGmailMessageRemoved).toHaveBeenCalledWith('t1', 'm1', 'trashed', 'conn-1');
     expect(patch.persistGmailMessage).not.toHaveBeenCalled();
     expect(stats.removed).toBe(1);
     expect(stats.matched).toBe(0);

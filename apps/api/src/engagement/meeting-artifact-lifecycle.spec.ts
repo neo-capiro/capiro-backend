@@ -18,15 +18,44 @@ const ctx: TenantContext = {
   role: 'standard_user',
 } as TenantContext;
 
-const otherUserCtx: TenantContext = { ...ctx, userId: 'user-2' };
+const otherUserCtx: TenantContext = { ...ctx, userId: 'user-2', clerkUserId: 'clerk-2' };
 const adminCtx: TenantContext = { ...ctx, role: 'user_admin' };
+
+// Current-member rows are bound to this test actor, not to whichever request
+// happens to arrive. Admin cases must explicitly supply their active admin.
+function transactionFixture(tx: Record<string, unknown>, actor: TenantContext = ctx) {
+  return {
+    tenantMembership: {
+      findFirst: async ({
+        where,
+      }: {
+        where: { tenantId: string; userId: string; status: string; user: { clerkUserId: string } };
+      }) =>
+        where.tenantId === actor.tenantId &&
+        where.userId === actor.userId &&
+        where.status === 'active' &&
+        where.user.clerkUserId === actor.clerkUserId
+          ? { role: actor.role }
+          : null,
+    },
+    client: { findFirst: async () => ({ id: 'c1', primaryContactEmail: null }) },
+    clientPerson: { findMany: async () => [] },
+    $queryRaw: async () => [],
+    $queryRawUnsafe: async () => [{ allowed: true }],
+    ...tx,
+  };
+}
 
 function serviceWith(
   tx: Record<string, unknown>,
   patch: Record<string, unknown> = {},
+  actor: TenantContext = ctx,
 ): EngagementService {
+  const scoped = transactionFixture(tx, actor);
   const prisma = {
-    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn({ $queryRaw: async () => [], ...tx }),
+    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn(scoped),
+    withTenantUser: (_tenantId: string, _userId: string, fn: (value: unknown) => unknown) =>
+      fn(scoped),
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const s = service as unknown as Record<string, unknown>;
@@ -48,7 +77,7 @@ describe('note existence is not approval', () => {
       meetingNote: {
         create: async (args: { data: Record<string, unknown> }) => {
           createArgs = args;
-          return { id: 'n1' };
+          return { updatedAt: new Date('2026-10-21T12:00:00Z'), id: 'n1' };
         },
       },
     });
@@ -71,11 +100,15 @@ describe('note existence is not approval', () => {
         opts?: { timeoutMs?: number },
       ) => {
         capturedOpts = opts;
-        return fn({
-          $queryRaw: async () => [],
-          meeting: { findFirst: async () => ({ id: 'm1', clientId: 'c1' }) },
-          meetingNote: { create: async () => ({ id: 'n1' }) },
-        });
+        return fn(
+          transactionFixture({
+            $queryRaw: async () => [],
+            meeting: { findFirst: async () => ({ id: 'm1', clientId: 'c1' }) },
+            meetingNote: {
+              create: async () => ({ id: 'n1', updatedAt: new Date('2026-10-21T12:00:00Z') }),
+            },
+          }),
+        );
       },
     };
     const service = Object.create(EngagementService.prototype) as EngagementService;
@@ -102,22 +135,24 @@ describe('note existence is not approval', () => {
         opts?: { timeoutMs?: number },
       ) => {
         capturedOpts = opts;
-        return fn({
-          meeting: {
-            findFirst: async () => ({
-              id: 'm1',
-              clientId: null,
-              client: null,
-              attendees: [],
-              attachments: [],
-              preps: [],
-              tasks: [],
-              subject: 'x',
-              startsAt: new Date(),
-              endsAt: new Date(),
-            }),
-          },
-        });
+        return fn(
+          transactionFixture({
+            meeting: {
+              findFirst: async () => ({
+                id: 'm1',
+                clientId: null,
+                client: null,
+                attendees: [],
+                attachments: [],
+                preps: [],
+                tasks: [],
+                subject: 'x',
+                startsAt: new Date(),
+                endsAt: new Date(),
+              }),
+            },
+          }),
+        );
       },
     };
     const service = Object.create(EngagementService.prototype) as EngagementService;
@@ -151,7 +186,7 @@ describe('note existence is not approval', () => {
 describe('approveMeetingNote', () => {
   test('throws when the note does not exist on this meeting', async () => {
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: { findFirst: async () => null },
     });
     await expect(service.approveMeetingNote(ctx, 'm1', 'n1')).rejects.toThrow(
@@ -162,12 +197,12 @@ describe('approveMeetingNote', () => {
   test('the author can approve their own note — stamps status/approvedAt/approvedByUserId', async () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: {
         findFirst: async () => ({ id: 'n1', authorUserId: 'user-1' }),
         update: async (args: { data: Record<string, unknown> }) => {
           updateArgs = args;
-          return { id: 'n1', status: 'approved' };
+          return { updatedAt: new Date('2026-10-21T12:00:00Z'), id: 'n1', status: 'approved' };
         },
       },
     });
@@ -181,7 +216,7 @@ describe('approveMeetingNote', () => {
 
   test('a standard user who is neither author nor admin cannot approve someone else’s note', async () => {
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: { findFirst: async () => ({ id: 'n1', authorUserId: 'user-2' }) },
     });
 
@@ -192,16 +227,20 @@ describe('approveMeetingNote', () => {
 
   test('a user_admin can approve a note authored by someone else', async () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
-    const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
-      meetingNote: {
-        findFirst: async () => ({ id: 'n1', authorUserId: 'user-2' }),
-        update: async (args: { data: Record<string, unknown> }) => {
-          updateArgs = args;
-          return { id: 'n1', status: 'approved' };
+    const service = serviceWith(
+      {
+        meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
+        meetingNote: {
+          findFirst: async () => ({ id: 'n1', authorUserId: 'user-2' }),
+          update: async (args: { data: Record<string, unknown> }) => {
+            updateArgs = args;
+            return { updatedAt: new Date('2026-10-21T12:00:00Z'), id: 'n1', status: 'approved' };
+          },
         },
       },
-    });
+      {},
+      adminCtx,
+    );
 
     await service.approveMeetingNote(adminCtx, 'm1', 'n1');
 
@@ -215,12 +254,12 @@ describe('updateMeetingNote — editing resets approval + share state', () => {
   test('editing a note sets status=edited and clears approvedAt/approvedByUserId/sharedAt/sharedByUserId', async () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: {
         findFirst: async () => ({ id: 'n1', authorUserId: 'user-1' }),
         update: async (args: { data: Record<string, unknown> }) => {
           updateArgs = args;
-          return { id: 'n1', status: 'edited' };
+          return { updatedAt: new Date('2026-10-21T12:00:00Z'), id: 'n1', status: 'edited' };
         },
       },
     });
@@ -236,7 +275,7 @@ describe('updateMeetingNote — editing resets approval + share state', () => {
 
   test('a non-author, non-admin cannot edit someone else’s note', async () => {
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingNote: { findFirst: async () => ({ id: 'n1', authorUserId: 'user-2' }) },
     });
     await expect(
@@ -249,12 +288,12 @@ describe('updateMeetingDebrief — editing clears the (new) share stamp', () => 
   test('editing a debrief resets status=edited (existing behavior) and now also clears sharedAt/sharedByUserId', async () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       meetingDebrief: {
         findFirst: async () => ({ id: 'd1', authorUserId: 'user-1' }),
         update: async (args: { data: Record<string, unknown> }) => {
           updateArgs = args;
-          return { id: 'd1', status: 'edited' };
+          return { updatedAt: new Date('2026-10-21T12:00:00Z'), id: 'd1', status: 'edited' };
         },
       },
     });
@@ -270,7 +309,7 @@ describe('updateMeetingDebrief — editing clears the (new) share stamp', () => 
 describe('approveMeetingAttachment — single-user approval (Neo decision)', () => {
   test('throws when the attachment is not found on this meeting', async () => {
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       engagementAttachment: { findFirst: async () => null },
     });
     await expect(service.approveMeetingAttachment(ctx, 'm1', 'a1')).rejects.toThrow(
@@ -281,7 +320,7 @@ describe('approveMeetingAttachment — single-user approval (Neo decision)', () 
   test('the uploader can approve their own upload — no second reviewer required', async () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
     const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
+      meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
       engagementAttachment: {
         // No author/uploader check anywhere in the lookup or the gate — any
         // user with access to the meeting may approve. This row IS the
@@ -303,16 +342,20 @@ describe('approveMeetingAttachment — single-user approval (Neo decision)', () 
 
   test('a different user (not the uploader) can also approve — single-user, not self-only', async () => {
     let updateArgs: { data: Record<string, unknown> } | undefined;
-    const service = serviceWith({
-      meeting: { findFirst: async () => ({ id: 'm1' }) },
-      engagementAttachment: {
-        findFirst: async () => ({ id: 'a1' }),
-        update: async (args: { data: Record<string, unknown> }) => {
-          updateArgs = args;
-          return { id: 'a1', approvedAt: new Date() };
+    const service = serviceWith(
+      {
+        meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
+        engagementAttachment: {
+          findFirst: async () => ({ id: 'a1' }),
+          update: async (args: { data: Record<string, unknown> }) => {
+            updateArgs = args;
+            return { id: 'a1', approvedAt: new Date() };
+          },
         },
       },
-    });
+      {},
+      otherUserCtx,
+    );
 
     await service.approveMeetingAttachment(otherUserCtx, 'm1', 'a1');
 
@@ -352,7 +395,7 @@ describe('listMeetingNotes serialization — EM-05: the panel must see the same 
   function listService(rows: Array<Record<string, unknown>>) {
     return serviceWith(
       {
-        meeting: { findFirst: async () => ({ id: 'm1' }) },
+        meeting: { findFirst: async () => ({ id: 'm1', clientId: null }) },
         meetingNote: { findMany: async () => rows },
       },
       {

@@ -1,0 +1,74 @@
+{
+  "scope": "A1 R1 independent review of OAuth Add placeholder reuse and generated Engagement route/dependency fixtures",
+  "reviewed_head": "1e2bdfc004c3d20ab2c9319d5608eec00a6f8484",
+  "oauth_review": {
+    "finding": "No blocking finding in the new Add reuse helper or the two provider call sites.",
+    "checks": [
+      "The transaction-scoped advisory key contains tenant, actor and provider and covers both candidate selection and fresh creation, including an empty lookup.",
+      "Candidate selection is tenant/creator/provider/status scoped and requires no token. Each candidate is locked and reread by tenant/id before token, owner and provider are rechecked.",
+      "The existing freshness guard rejects established status, last sync, cursors/webhooks and retained meeting/thread/message history. Historical rows are skipped without writes.",
+      "The new signed attempt stores a replacement nonce in the locked row; prior callbacks are rejected before code exchange, and the callback rechecks nonce, phase and token/account fingerprints before persistence.",
+      "Only explicit connectionId reconnects an established mailbox. Add serialization and callback identity advisory locks use separate keys; callbacks do not acquire the Add lock."
+    ],
+    "limits": "Source/fixture review; advisory and row locking are not qualified against a live PostgreSQL connection here.",
+    "files": [
+      {
+        "path": "apps/api/src/engagement/mailbox-oauth-authority.ts",
+        "sha256": "eedc2d6505e8cd288404f8d3033a3b1ee1693412a9aabe890d2851503d89cdb6"
+      },
+      {
+        "path": "apps/api/src/engagement/google/google-oauth.service.ts",
+        "sha256": "9d0214a6080995b09532090f2b70138d6d59ef854c256c1c2652aa5eb51e86d7"
+      },
+      {
+        "path": "apps/api/src/engagement/microsoft/microsoft-oauth.service.ts",
+        "sha256": "1f800b4f5fc10cdd3a1bf192f78df1db5dddeb972aa6f3ce6589afac39b0c4ba"
+      }
+    ]
+  },
+  "routes": {
+    "fixture": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+    "sha256": "fd71a04fce069aabdd3747afddb08fb7952a0a870a85cd95f7a8a8d3daf40d08",
+    "count": 145,
+    "byte_equal_to_generator": true,
+    "semantic_delta": [
+      "Add GET /api/engagement/mail/send-intents/:requestKey.",
+      "Add clientId query metadata to GET /api/engagement/meetings/:id, /meetings/:id/notes and /meetings/:id/debriefs.",
+      "Remaining changes are generated sourceLine values; no routes removed."
+    ],
+    "generator": "node --require <require.resolve(tsx/cjs)> apps/api/scripts/engagement-phase0-route-manifest.ts (no --write)",
+    "route_suite": {
+      "passed": 14,
+      "failed": 0,
+      "assertions": [
+        "Engagement route manifest fixture integrity exists and parses",
+        "Engagement route manifest fixture integrity global prefix is /api",
+        "Engagement route manifest fixture integrity generatedAt is null",
+        "Engagement route manifest route invariants has no duplicate method/path pairs",
+        "Engagement route manifest route invariants has nonempty controller and handler names",
+        "Engagement route manifest route invariants uses recognized classifications",
+        "Engagement route manifest route invariants does not classify mutating routes as reads",
+        "Engagement route manifest route invariants keeps Recall outside the /api prefix",
+        "Engagement route manifest route invariants contains OAuth callbacks",
+        "Engagement route manifest route invariants classifies internal AI credential routes as internal_secret",
+        "Engagement route manifest route invariants is sorted deterministically by path and method",
+        "Engagement route manifest route invariants represents every required controller",
+        "Engagement route manifest snapshot comparison matches the current controller source exactly",
+        "Engagement route manifest negative controls detects a synthetic route change"
+      ]
+    }
+  },
+  "dependency_baseline": {
+    "fixture": "apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json",
+    "restore_command": "git show HEAD:apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json > apps/api/src/engagement/__fixtures__/engagement-dependency-manifest.v1.json",
+    "byte_equal_to_HEAD": true,
+    "sha256": "7f3fa91ad281220ce3285cfe51199de6cb73255ba496e47e66a5673b141d87e7",
+    "reason": "The dependency suite explicitly preserves v1 as a historical Phase 0 baseline; it checks invariants on newly generated source separately and does not compare current output with that historical fixture. The combined update command had introduced unrelated drift (153 to 199 external importers, including Meri and other lanes)."
+  },
+  "validation_limits": [
+    "Canonical tsx CLI could not open its IPC socket (EPERM). The identical generators were run through installed tsx/cjs registration without an IPC server; no dependencies or repository runner changed.",
+    "Unchanged route tests used docs/a1/mail/jest.config.cjs and a temporary preload adapting only the two exact generator spawn commands to tsx/cjs. All 14 route tests passed, including exact regeneration and negative control.",
+    "Dependency suite was attempted after restoring its historical fixture; its current-source generator hit the existing 30-second spawn timeout before collection. No dependency-suite pass claimed. Earlier attempts also retained socket and local disk-full failures.",
+    "No SQL, cloud operations, dependency additions, commits, merge or deployment."
+  ]
+}

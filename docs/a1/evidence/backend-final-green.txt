@@ -1,0 +1,10 @@
+PASS apps/api/src/engagement/portfolio-a1.safety.spec.ts (7.091 s)
+PASS apps/api/src/engagement/meeting-client-reassignment.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       25 passed, 25 total
+Snapshots:   0 total
+Time:        7.896 s, estimated 9 s
+Ran all test suites.
+Test results written to: ../portfolio-evidence/backend-final-green.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

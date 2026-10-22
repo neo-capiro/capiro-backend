@@ -59,6 +59,17 @@ export class AmbiguousMailSendError extends Error {
   }
 }
 
+// Only provider adapters may brand a response as a definite pre-acceptance rejection.
+// Preserve their existing exception/status contracts for all other callers.
+const definiteRejections = new WeakSet<object>();
+export function definiteMailSendRejection<T extends object>(error: T): T {
+  definiteRejections.add(error);
+  return error;
+}
+export function isDefiniteMailSendRejection(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && definiteRejections.has(error);
+}
+
 /**
  * Transport-level failures whose send outcome CANNOT be determined.
  *

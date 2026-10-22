@@ -11,6 +11,7 @@ const ctx = {
 };
 const B = '44444444-4444-4444-8444-444444444444';
 const input = {
+  requestKey: '55555555-5555-4555-8555-555555555555',
   to: [{ email: 'recipient@example.test' }],
   subject: 'Synthetic only',
   bodyHtml: '<p>Hello</p>',

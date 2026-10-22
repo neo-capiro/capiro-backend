@@ -6,6 +6,7 @@
 import { describe, expect, test, jest, beforeEach, afterEach } from '@jest/globals';
 import { ServiceUnavailableException } from '@nestjs/common';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
+import { AmbiguousMailSendError, isDefiniteMailSendRejection } from '../mail-send-result.js';
 
 function makeService(fetchImpl: () => Promise<Response>) {
   const service = Object.create(MicrosoftGraphSyncService.prototype) as MicrosoftGraphSyncService;
@@ -98,7 +99,7 @@ describe('MicrosoftGraphSyncService.graphFetch retry bound', () => {
     }
   });
 
-  test('a retried call with parseJson=false returning 202 on the second attempt resolves to undefined (guards the parseJson-drop bug)', async () => {
+  test('read retry preserves parseJson=false', async () => {
     const calls = jest.fn();
     let call = 0;
     const { service, restore } = makeService(async () => {
@@ -109,13 +110,60 @@ describe('MicrosoftGraphSyncService.graphFetch retry bound', () => {
     });
     try {
       const graphFetch = (service as unknown as { graphFetch: GraphFetchFn }).graphFetch.bind(service);
-      const invocation = graphFetch('POST', '/me/sendMail', 'token', { hello: 'world' }, {}, false);
+      const invocation = graphFetch('GET', '/me/messages', 'token', undefined, {}, false);
       await jest.advanceTimersByTimeAsync(5000);
       const result = await invocation;
       expect(result).toBeUndefined();
       expect(calls).toHaveBeenCalledTimes(2);
     } finally {
       restore();
+    }
+  });
+});
+
+// ML-02 exercises the real HTTP helper, never graphPost stubs.
+describe('Graph mutation dispatch fence', () => {
+  test.each([429, 500, 503])('send POST with Retry-After and %s is dispatched once', async (status) => {
+    jest.useFakeTimers();
+    const calls = jest.fn();
+    const { service, restore } = makeService(async () => {
+      calls(); return jsonResponse({ error: 'synthetic' }, status, { 'retry-after': '1' });
+    });
+    try {
+      const invocation = (service as any).graphFetch('POST', '/me/messages/draft/send', 'token', {}, {}, false);
+      const assertion = expect(invocation).rejects.toBeInstanceOf(ServiceUnavailableException);
+      await jest.advanceTimersByTimeAsync(5000);
+      await assertion;
+      expect(calls).toHaveBeenCalledTimes(1);
+    } finally { restore(); jest.useRealTimers(); }
+  });
+  test('real draft/send HTTP transport preserves rejection, ambiguity, and no-content acceptance without replay', async () => {
+    for (const scenario of ['429', '500', 'socket', 'unclassified', '202', 'malformed-draft'] as const) {
+      const calls: string[] = [];
+      const original = globalThis.fetch;
+      const service = Object.create(MicrosoftGraphSyncService.prototype) as any;
+      service.assertConnectionAccess = async () => {};
+      service.loadConnection = async () => ({ token: {} });
+      service.getValidAccessToken = async () => 'synthetic-token';
+      globalThis.fetch = (async (url: string) => {
+        calls.push(url);
+        if (!url.endsWith('/send')) return new Response(JSON.stringify(scenario === 'malformed-draft' ? {} : { id: 'draft' }), { status: 201 });
+        if (scenario === 'socket') throw new TypeError('fetch failed');
+        if (scenario === 'unclassified') throw new Error('unexpected response handler');
+        return new Response(null, { status: Number(scenario), headers: { 'Retry-After': '1' } });
+      }) as typeof fetch;
+      try {
+        const result = await service.sendMail({ tenantId: 'tenant', userId: 'actor' }, 'mailbox', {
+          subject: 'Synthetic', body: 'Synthetic', toRecipients: [{ email: 'a@example.test' }], correlationId: 'intent',
+        }).then((value: unknown) => ({ value, error: undefined }), (error: unknown) => ({ value: undefined, error }));
+        expect(calls.filter((url) => url.endsWith('/send'))).toHaveLength(scenario === 'malformed-draft' ? 0 : 1);
+        if (scenario === '202') expect(result.value).toMatchObject({ ok: true, providerDraftId: 'draft' });
+        else {
+          expect(result.error).toBeDefined();
+          expect(isDefiniteMailSendRejection(result.error)).toBe(scenario === '429');
+          if (scenario === '500' || scenario === 'socket') expect(result.error).toBeInstanceOf(AmbiguousMailSendError);
+        }
+      } finally { globalThis.fetch = original; }
     }
   });
 });

@@ -25,6 +25,20 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  admitMailboxOAuthAttempt,
+  assertActiveMailboxActor,
+  assertMailboxOAuthState,
+  assertUnboundMailboxIsFresh,
+  findFreshMailboxForAdd,
+  assertReturnedMailboxIdentity,
+  completedMailboxOAuthState,
+  lockMailboxConnection,
+  saveMailboxOAuthAttempt,
+  tokenFingerprint,
+  type MailboxOAuthState,
+} from '../mailbox-oauth-authority.js';
+
 import { EngagementConnectionStatus, EngagementProvider, Prisma } from '@prisma/client';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { GOOGLE_WORKSPACE_REQUIRED_GRANTS, GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
@@ -71,12 +85,7 @@ export interface GoogleAuthStartResult {
   connectionId: string;
 }
 
-interface StatePayload {
-  c: string; // connection id
-  t: string; // tenant id
-  n: string; // nonce
-  e: number; // expires at (unix seconds)
-}
+type StatePayload = MailboxOAuthState;
 
 interface GoogleTokenResponse {
   access_token?: string;
@@ -133,57 +142,65 @@ export class GoogleOAuthService {
   async start(ctx: TenantContext, input: GoogleAuthStartInput): Promise<GoogleAuthStartResult> {
     this.assertConfigured();
 
-    const connection = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (input.connectionId) {
-        const existing = await tx.integrationConnection.findUnique({
-          where: { id: input.connectionId },
-        });
-        if (!existing) throw new NotFoundException('Integration connection not found');
-        if (existing.provider !== EngagementProvider.google_workspace) {
-          throw new BadRequestException('Connection is not a Google Workspace integration');
-        }
-        if (existing.createdByUserId !== ctx.userId) {
-          throw new ForbiddenException('You can only connect your own Google account');
-        }
-        return existing;
+    const { connection, payload } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertActiveMailboxActor(tx, ctx.tenantId, ctx.userId);
+      // Only an explicit connectionId can reconnect an established mailbox.
+      const connection = input.connectionId
+        ? await lockMailboxConnection(tx, ctx.tenantId, input.connectionId)
+        : ((await findFreshMailboxForAdd(
+            tx,
+            ctx.tenantId,
+            ctx.userId,
+            EngagementProvider.google_workspace,
+          )) ??
+          (await tx.integrationConnection.create({
+            data: {
+              tenantId: ctx.tenantId,
+              provider: EngagementProvider.google_workspace,
+              accountEmail: null,
+              displayName: input.displayName?.trim() || null,
+              status: EngagementConnectionStatus.needs_configuration,
+              scopes: GOOGLE_SCOPES,
+              syncState: {
+                calendar: { syncToken: null, updatedAt: null },
+                mail: { historyId: null, updatedAt: null },
+                webhooks: { configured: false },
+              },
+              createdByUserId: ctx.userId,
+            },
+            include: { token: true },
+          })));
+      if (
+        connection.provider !== EngagementProvider.google_workspace ||
+        connection.createdByUserId !== ctx.userId
+      ) {
+        throw new ForbiddenException('Integration connection is not available');
       }
-
-      const accountEmail = input.accountEmail?.trim().toLowerCase() || undefined;
-      const existing = await tx.integrationConnection.findFirst({
-        where: {
-          tenantId: ctx.tenantId,
-          provider: EngagementProvider.google_workspace,
-          createdByUserId: ctx.userId,
-          ...(accountEmail ? { accountEmail } : {}),
-        },
-        orderBy: { updatedAt: 'desc' },
-      });
-      if (existing) return existing;
-
-      return tx.integrationConnection.create({
-        data: {
-          tenantId: ctx.tenantId,
-          provider: EngagementProvider.google_workspace,
-          accountEmail: accountEmail ?? null,
-          displayName: input.displayName?.trim() || null,
-          status: EngagementConnectionStatus.needs_configuration,
-          scopes: GOOGLE_SCOPES,
-          syncState: {
-            calendar: { syncToken: null, updatedAt: null },
-            mail: { historyId: null, updatedAt: null },
-            webhooks: { configured: false },
-          },
-          createdByUserId: ctx.userId,
-        },
-      });
+      if (connection.token && !connection.token.homeAccountId) {
+        throw new BadRequestException(
+          'Mailbox identity is unavailable; disconnect and add the mailbox again',
+        );
+      }
+      if (input.connectionId && !connection.token)
+        await assertUnboundMailboxIsFresh(tx, connection);
+      const payload: StatePayload = {
+        c: connection.id,
+        t: ctx.tenantId,
+        u: ctx.userId,
+        p: EngagementProvider.google_workspace,
+        i: connection.token ? 'reconnect' : 'add',
+        h: connection.token?.homeAccountId ?? null,
+        q: tokenFingerprint(connection.token),
+        a: connection.token
+          ? null
+          : (input.accountEmail ?? connection.accountEmail)?.trim().toLowerCase() || null,
+        n: randomBytes(16).toString('base64url'),
+        e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
+      };
+      await saveMailboxOAuthAttempt(tx, payload, connection.syncState);
+      return { connection, payload };
     });
-
-    const state = this.signState({
-      c: connection.id,
-      t: ctx.tenantId,
-      n: randomBytes(16).toString('base64url'),
-      e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
-    });
+    const state = this.signState(payload);
 
     const params = new URLSearchParams({
       client_id: this.clientId!,
@@ -211,10 +228,29 @@ export class GoogleOAuthService {
     this.assertConfigured();
 
     const decoded = this.verifyState(params.state);
+    await this.prisma.withTenant(decoded.t, (tx) =>
+      admitMailboxOAuthAttempt(tx, decoded, EngagementProvider.google_workspace, 'pending'),
+    );
     const token = await this.exchangeCode(params.code);
     if (!token.access_token) {
       throw new BadRequestException('Google did not return an access token');
     }
+
+    const claims = this.decodeIdToken(token.id_token);
+    await this.prisma.withTenant(decoded.t, async (tx) => {
+      await admitMailboxOAuthAttempt(
+        tx,
+        decoded,
+        EngagementProvider.google_workspace,
+        'exchanging',
+      );
+      await assertReturnedMailboxIdentity(
+        tx,
+        decoded,
+        claims.sub ?? null,
+        claims.email?.toLowerCase() ?? null,
+      );
+    });
 
     // Validate the ACTUAL grant before persisting anything. `include_granted_scopes`
     // means token.scope can be a superset (previously-granted scopes from other
@@ -224,18 +260,16 @@ export class GoogleOAuthService {
       this.logger.warn(
         `Google callback for connection ${decoded.c} granted only [${token.scope ?? ''}]; missing [${missing.join(', ')}]`,
       );
-      // Best-effort revoke the token we were just handed — we are refusing it,
-      // so leaving a live grant dangling at Google would be wrong.
-      await this.revokeGoogleGrant(token.access_token);
-      await this.markConnectionInsufficientScope(decoded.t, decoded.c, missing);
+      // Refuse this token without revoking a provider grant: the returned
+      // account has not passed identity admission and may belong to a different
+      // existing mailbox. Dropping the token has no cross-mailbox side effect.
+      await this.markConnectionInsufficientScope(decoded, missing);
       throw new BadRequestException(
         `Google Workspace connection needs all requested permissions. Missing: ${missing.join(', ')}`,
       );
     }
     const expiresAt = new Date(Date.now() + (token.expires_in ?? 3600) * 1000);
-    const claims = this.decodeIdToken(token.id_token);
-
-    await this.persistToken(decoded.t, decoded.c, token, expiresAt, claims);
+    await this.persistToken(decoded, token, expiresAt, claims);
 
     return { tenantId: decoded.t, connectionId: decoded.c };
   }
@@ -324,11 +358,12 @@ export class GoogleOAuthService {
 
   /** Record WHY the connect failed so the integrations page can explain it. */
   private async markConnectionInsufficientScope(
-    tenantId: string,
-    connectionId: string,
+    state: StatePayload,
     missing: string[],
   ): Promise<void> {
+    const { t: tenantId, c: connectionId } = state;
     await this.prisma.withTenant(tenantId, async (tx) => {
+      await admitMailboxOAuthAttempt(tx, state, EngagementProvider.google_workspace, 'exchanging');
       await tx.integrationConnection
         .update({
           where: { id: connectionId },
@@ -389,12 +424,12 @@ export class GoogleOAuthService {
   }
 
   private async persistToken(
-    tenantId: string,
-    connectionId: string,
+    state: StatePayload,
     token: GoogleTokenResponse,
     expiresAt: Date,
     claims: GoogleIdTokenClaims,
   ): Promise<void> {
+    const { t: tenantId, c: connectionId } = state;
     const accessEnvelope = this.tokenCrypto.encrypt(token.access_token!);
     // Google returns refresh_token only on an explicit consent grant. We force
     // prompt=consent so it should always be present, but if a future flow omits
@@ -406,6 +441,18 @@ export class GoogleOAuthService {
     const displayName = claims.name ?? null;
 
     await this.prisma.withTenant(tenantId, async (tx) => {
+      const current = await admitMailboxOAuthAttempt(
+        tx,
+        state,
+        EngagementProvider.google_workspace,
+        'exchanging',
+      );
+      await assertReturnedMailboxIdentity(tx, state, claims.sub ?? null, accountEmail);
+      if (!token.refresh_token && !current.token?.refreshTokenCiphertext) {
+        throw new BadRequestException(
+          'Provider did not return a refresh token; restart mailbox connection',
+        );
+      }
       await tx.integrationConnectionToken.upsert({
         where: { connectionId },
         update: {
@@ -448,6 +495,7 @@ export class GoogleOAuthService {
           displayName: displayName ?? undefined,
           scopes: GOOGLE_SCOPES,
           lastError: null,
+          syncState: completedMailboxOAuthState(current.syncState),
         },
       });
     });
@@ -474,8 +522,8 @@ export class GoogleOAuthService {
 
   private verifyState(state: string): StatePayload {
     if (!this.stateSecret) throw new ServiceUnavailableException('OAUTH_STATE_SECRET is not set');
-    const [body, sig] = state.split('.');
-    if (!body || !sig) throw new BadRequestException('Malformed state');
+    const [body, sig, extra] = state.split('.');
+    if (!body || !sig || extra !== undefined) throw new BadRequestException('Malformed state');
     const expected = createHmac('sha256', this.stateSecret).update(body).digest('base64url');
     const a = Buffer.from(sig);
     const b = Buffer.from(expected);
@@ -488,9 +536,7 @@ export class GoogleOAuthService {
     } catch {
       throw new BadRequestException('Malformed state payload');
     }
-    if (payload.e < Math.floor(Date.now() / 1000)) {
-      throw new BadRequestException('State has expired; restart the flow');
-    }
+    assertMailboxOAuthState(payload, EngagementProvider.google_workspace);
     return payload;
   }
 }

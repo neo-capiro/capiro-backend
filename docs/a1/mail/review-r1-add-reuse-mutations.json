@@ -1,0 +1,59 @@
+{
+  "scope": "R1 OAuth Add orphan correction",
+  "runner": "docs/a1/mail/jest.config.cjs; cached dependencies; canonical runner blocked before collection by missing sanitize-html",
+  "productionSha256": "eedc2d6505e8cd288404f8d3033a3b1ee1693412a9aabe890d2851503d89cdb6",
+  "restored": true,
+  "mutations": [
+    {
+      "mutant": "always-create",
+      "exitCode": 1,
+      "failedTests": [
+        "ML-08 Add reuse microsoft_365 two Connect clicks and one completed flow leave one new mailbox and consume only the latest nonce",
+        "ML-08 Add reuse microsoft_365 chooses the newest fresh actor/provider row and skips unbound rows with prior history",
+        "ML-08 Add reuse microsoft_365 concurrent Add starts serialize the empty lookup and leave one placeholder",
+        "ML-08 Add reuse google_workspace two Connect clicks and one completed flow leave one new mailbox and consume only the latest nonce",
+        "ML-08 Add reuse google_workspace chooses the newest fresh actor/provider row and skips unbound rows with prior history",
+        "ML-08 Add reuse google_workspace concurrent Add starts serialize the empty lookup and leave one placeholder"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "skip-fresh-history-check",
+      "exitCode": 1,
+      "failedTests": [
+        "ML-08 Add reuse microsoft_365 chooses the newest fresh actor/provider row and skips unbound rows with prior history",
+        "ML-08 Add reuse microsoft_365 skips a no-token row with retained message history without rewriting it",
+        "ML-08 Add reuse google_workspace chooses the newest fresh actor/provider row and skips unbound rows with prior history",
+        "ML-08 Add reuse google_workspace skips a no-token row with retained message history without rewriting it"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "omit-row-lock",
+      "exitCode": 1,
+      "failedTests": [
+        "ML-08 Add reuse microsoft_365 rechecks the candidate under its row lock when a callback establishes an account",
+        "ML-08 Add reuse google_workspace rechecks the candidate under its row lock when a callback establishes an account"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "omit-add-serialization",
+      "exitCode": 1,
+      "failedTests": [
+        "ML-08 Add reuse microsoft_365 concurrent Add starts serialize the empty lookup and leave one placeholder",
+        "ML-08 Add reuse google_workspace concurrent Add starts serialize the empty lookup and leave one placeholder"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "oldest-first",
+      "exitCode": 1,
+      "failedTests": [
+        "ML-08 Add reuse microsoft_365 chooses the newest fresh actor/provider row and skips unbound rows with prior history",
+        "ML-08 Add reuse google_workspace chooses the newest fresh actor/provider row and skips unbound rows with prior history"
+      ],
+      "killed": true
+    }
+  ]
+}

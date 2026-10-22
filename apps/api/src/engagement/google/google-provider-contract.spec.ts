@@ -27,7 +27,18 @@ const ctx: TenantContext = {
   role: 'standard_user',
 } as TenantContext;
 
-type StatePayload = { c: string; t: string; n: string; e: number };
+type StatePayload = {
+  c: string;
+  t: string;
+  u: string;
+  p: string;
+  i: 'add';
+  h: null;
+  q: null;
+  a: null;
+  n: string;
+  e: number;
+};
 type OAuthTestSurface = {
   signState(payload: StatePayload): string;
   verifyState(state: string): StatePayload;
@@ -50,9 +61,17 @@ function makeOAuthService(overrides: Record<string, unknown> = {}) {
   patch.prisma = {
     withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
       fn({
+        $queryRaw: jest.fn(async (query: TemplateStringsArray) =>
+          query.join('').includes('tenant_memberships') ? [{ id: 'membership' }] : [],
+        ),
         integrationConnection: {
+          findMany: jest.fn(async () => []),
           findFirst: async () => null,
-          create: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'conn-1', ...data }),
+          update: async () => undefined,
+          create: async ({ data }: { data: Record<string, unknown> }) => ({
+            id: 'conn-1',
+            ...data,
+          }),
         },
       }),
   };
@@ -86,6 +105,12 @@ describe('GoogleOAuthService state signing (signState/verifyState)', () => {
     const valid = service.signState({
       c: 'conn-1',
       t: 't1',
+      u: 'u1',
+      p: 'google_workspace',
+      i: 'add',
+      h: null,
+      q: null,
+      a: null,
       n: 'nonce',
       e: Math.floor(Date.now() / 1000) + 600,
     });
@@ -98,6 +123,12 @@ describe('GoogleOAuthService state signing (signState/verifyState)', () => {
     const expired = service.signState({
       c: 'conn-1',
       t: 't1',
+      u: 'u1',
+      p: 'google_workspace',
+      i: 'add',
+      h: null,
+      q: null,
+      a: null,
       n: 'nonce',
       e: Math.floor(Date.now() / 1000) - 10,
     });
@@ -109,12 +140,24 @@ describe('GoogleOAuthService state signing (signState/verifyState)', () => {
     const valid = service.signState({
       c: 'conn-1',
       t: 't1',
+      u: 'u1',
+      p: 'google_workspace',
+      i: 'add',
+      h: null,
+      q: null,
+      a: null,
       n: 'nonce',
       e: Math.floor(Date.now() / 1000) + 600,
     });
     expect(service.verifyState(valid)).toEqual({
       c: 'conn-1',
       t: 't1',
+      u: 'u1',
+      p: 'google_workspace',
+      i: 'add',
+      h: null,
+      q: null,
+      a: null,
       n: 'nonce',
       e: expect.any(Number),
     });
@@ -181,8 +224,20 @@ function makeTokenService(opts: {
   patch.prisma = {
     withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
       fn({
+        $queryRaw: async () => [{ id: 'membership' }],
         integrationConnectionToken: { update: tokenUpdate },
-        integrationConnection: { update: connectionUpdate },
+        integrationConnection: {
+          update: connectionUpdate,
+          findFirst: async () => ({
+            id: 'conn-1',
+            tenantId: 't1',
+            createdByUserId: 'u1',
+            provider: 'google_workspace',
+            status: 'connected',
+            token: makeToken(),
+            syncState: {},
+          }),
+        },
       }),
   };
   const originalFetch = globalThis.fetch;
@@ -231,7 +286,10 @@ describe('GoogleTokenService.getValidAccessToken', () => {
 
   test('a 400 invalid_grant refresh flips the connection to needs_configuration and throws', async () => {
     const fetchImpl = jest.fn(async () =>
-      errorResponse(400, 'error=invalid_grant&error_description=Token has been expired or revoked.'),
+      errorResponse(
+        400,
+        'error=invalid_grant&error_description=Token has been expired or revoked.',
+      ),
     );
     const connectionUpdate = jest.fn(async (_args: { data: { status: string } }) => undefined);
     const { service, restoreFetch } = makeTokenService({ fetchImpl, connectionUpdate });

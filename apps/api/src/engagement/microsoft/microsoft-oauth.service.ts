@@ -20,6 +20,20 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  admitMailboxOAuthAttempt,
+  assertActiveMailboxActor,
+  assertMailboxOAuthState,
+  assertUnboundMailboxIsFresh,
+  findFreshMailboxForAdd,
+  assertReturnedMailboxIdentity,
+  completedMailboxOAuthState,
+  lockMailboxConnection,
+  saveMailboxOAuthAttempt,
+  tokenFingerprint,
+  type MailboxOAuthState,
+} from '../mailbox-oauth-authority.js';
+
+import {
   ConfidentialClientApplication,
   type AuthenticationResult,
   type Configuration,
@@ -30,7 +44,10 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TokenCryptoService } from './token-crypto.service.js';
-import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
+import {
+  hasRequiredResourceScopes,
+  MicrosoftGraphSyncService,
+} from './microsoft-graph-sync.service.js';
 import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 
 // Re-exported for existing importers (e.g. microsoft-graph-sync.scopes.spec.ts)
@@ -50,20 +67,14 @@ export interface MicrosoftAuthStartResult {
   connectionId: string;
 }
 
-interface StatePayload {
-  c: string; // connection id
-  t: string; // tenant id
-  n: string; // nonce
-  e: number; // expires at (unix seconds)
-}
+type StatePayload = MailboxOAuthState;
 
 /**
  * Select the refresh token bound to `homeAccountId` from a serialized MSAL token
  * cache. Matching on home_account_id is authoritative — it guarantees we never
  * return another account's token even if the cache holds more than one entry
  * (which can happen when a client instance is reused across OAuth exchanges). The
- * fallback to the sole/last entry only applies when there is no account id to
- * match against. Pure and exported so this account-binding is unit-testable
+ * expected-account mismatch or absent identity fails closed. Pure and exported so this account-binding is unit-testable
  * without a live MSAL cache.
  */
 export function selectRefreshTokenForAccount(
@@ -77,7 +88,7 @@ export function selectRefreshTokenForAccount(
   const matched = homeAccountId
     ? entries.find((entry) => entry.home_account_id === homeAccountId)
     : undefined;
-  return (matched ?? entries[entries.length - 1])?.secret;
+  return matched?.secret;
 }
 
 @Injectable()
@@ -114,11 +125,11 @@ export class MicrosoftOAuthService {
   capabilities() {
     const ready = Boolean(
       this.clientId &&
-      this.tenantId &&
-      this.thumbprint &&
-      this.privateKey &&
-      this.stateSecret &&
-      this.tokenCrypto.isConfigured(),
+        this.tenantId &&
+        this.thumbprint &&
+        this.privateKey &&
+        this.stateSecret &&
+        this.tokenCrypto.isConfigured(),
     );
     return {
       configured: ready,
@@ -137,57 +148,65 @@ export class MicrosoftOAuthService {
   ): Promise<MicrosoftAuthStartResult> {
     this.assertConfigured();
 
-    const connection = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (input.connectionId) {
-        const existing = await tx.integrationConnection.findUnique({
-          where: { id: input.connectionId },
-        });
-        if (!existing) throw new NotFoundException('Integration connection not found');
-        if (existing.provider !== EngagementProvider.microsoft_365) {
-          throw new BadRequestException('Connection is not a Microsoft 365 integration');
-        }
-        if (existing.createdByUserId !== ctx.userId) {
-          throw new ForbiddenException('You can only connect your own Microsoft account');
-        }
-        return existing;
+    const { connection, payload } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertActiveMailboxActor(tx, ctx.tenantId, ctx.userId);
+      // Only an explicit connectionId can reconnect an established mailbox.
+      const connection = input.connectionId
+        ? await lockMailboxConnection(tx, ctx.tenantId, input.connectionId)
+        : ((await findFreshMailboxForAdd(
+            tx,
+            ctx.tenantId,
+            ctx.userId,
+            EngagementProvider.microsoft_365,
+          )) ??
+          (await tx.integrationConnection.create({
+            data: {
+              tenantId: ctx.tenantId,
+              provider: EngagementProvider.microsoft_365,
+              accountEmail: null,
+              displayName: input.displayName?.trim() || null,
+              status: EngagementConnectionStatus.needs_configuration,
+              scopes: MICROSOFT_SCOPES,
+              syncState: {
+                calendar: { cursor: null, updatedAt: null },
+                mail: { cursor: null, updatedAt: null },
+                webhooks: { configured: false },
+              },
+              createdByUserId: ctx.userId,
+            },
+            include: { token: true },
+          })));
+      if (
+        connection.provider !== EngagementProvider.microsoft_365 ||
+        connection.createdByUserId !== ctx.userId
+      ) {
+        throw new ForbiddenException('Integration connection is not available');
       }
-
-      const accountEmail = input.accountEmail?.trim().toLowerCase() || undefined;
-      const existing = await tx.integrationConnection.findFirst({
-        where: {
-          tenantId: ctx.tenantId,
-          provider: EngagementProvider.microsoft_365,
-          createdByUserId: ctx.userId,
-          ...(accountEmail ? { accountEmail } : {}),
-        },
-        orderBy: { updatedAt: 'desc' },
-      });
-      if (existing) return existing;
-
-      return tx.integrationConnection.create({
-        data: {
-          tenantId: ctx.tenantId,
-          provider: EngagementProvider.microsoft_365,
-          accountEmail: accountEmail ?? null,
-          displayName: input.displayName?.trim() || null,
-          status: EngagementConnectionStatus.needs_configuration,
-          scopes: MICROSOFT_SCOPES,
-          syncState: {
-            calendar: { cursor: null, updatedAt: null },
-            mail: { cursor: null, updatedAt: null },
-            webhooks: { configured: false },
-          },
-          createdByUserId: ctx.userId,
-        },
-      });
+      if (connection.token && !connection.token.homeAccountId) {
+        throw new BadRequestException(
+          'Mailbox identity is unavailable; disconnect and add the mailbox again',
+        );
+      }
+      if (input.connectionId && !connection.token)
+        await assertUnboundMailboxIsFresh(tx, connection);
+      const payload: StatePayload = {
+        c: connection.id,
+        t: ctx.tenantId,
+        u: ctx.userId,
+        p: EngagementProvider.microsoft_365,
+        i: connection.token ? 'reconnect' : 'add',
+        h: connection.token?.homeAccountId ?? null,
+        q: tokenFingerprint(connection.token),
+        a: connection.token
+          ? null
+          : (input.accountEmail ?? connection.accountEmail)?.trim().toLowerCase() || null,
+        n: randomBytes(16).toString('base64url'),
+        e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
+      };
+      await saveMailboxOAuthAttempt(tx, payload, connection.syncState);
+      return { connection, payload };
     });
-
-    const state = this.signState({
-      c: connection.id,
-      t: ctx.tenantId,
-      n: randomBytes(16).toString('base64url'),
-      e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
-    });
+    const state = this.signState(payload);
 
     const authUrl = await this.getMsal().getAuthCodeUrl({
       scopes: MICROSOFT_SCOPES,
@@ -212,6 +231,9 @@ export class MicrosoftOAuthService {
     this.assertConfigured();
 
     const decoded = this.verifyState(params.state);
+    await this.prisma.withTenant(decoded.t, (tx) =>
+      admitMailboxOAuthAttempt(tx, decoded, EngagementProvider.microsoft_365, 'pending'),
+    );
     // Fresh per-callback client: its token cache holds ONLY the account exchanged
     // in this request. A shared client would let two tenants' concurrent callbacks
     // populate one cache, and selecting the "last" cache entry could then bind the
@@ -225,14 +247,20 @@ export class MicrosoftOAuthService {
       redirectUri: this.redirectUri,
     });
 
-    if (!result?.accessToken) {
-      throw new BadRequestException('Microsoft did not return an access token');
+    if (
+      !result?.accessToken ||
+      !result.account?.homeAccountId ||
+      !hasRequiredResourceScopes(result.scopes)
+    ) {
+      throw new BadRequestException(
+        'Microsoft did not return the required account and permissions',
+      );
     }
 
     const refreshToken = this.extractRefreshToken(msal, result.account?.homeAccountId ?? null);
     const expiresAt = result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000);
 
-    await this.persistToken(decoded.t, decoded.c, result, refreshToken, expiresAt);
+    await this.persistToken(decoded, result, refreshToken, expiresAt);
 
     return { tenantId: decoded.t, connectionId: decoded.c };
   }
@@ -293,12 +321,12 @@ export class MicrosoftOAuthService {
   }
 
   private async persistToken(
-    tenantId: string,
-    connectionId: string,
+    state: StatePayload,
     result: AuthenticationResult,
     refreshToken: string | undefined,
     expiresAt: Date,
   ): Promise<void> {
+    const { t: tenantId, c: connectionId } = state;
     const accessEnvelope = this.tokenCrypto.encrypt(result.accessToken);
     const refreshEnvelope = refreshToken ? this.tokenCrypto.encrypt(refreshToken) : null;
     const homeAccountId = result.account?.homeAccountId ?? null;
@@ -306,6 +334,18 @@ export class MicrosoftOAuthService {
     const displayName = result.account?.name ?? null;
 
     await this.prisma.withTenant(tenantId, async (tx) => {
+      const current = await admitMailboxOAuthAttempt(
+        tx,
+        state,
+        EngagementProvider.microsoft_365,
+        'exchanging',
+      );
+      await assertReturnedMailboxIdentity(tx, state, homeAccountId, accountEmail);
+      if (!refreshToken && !current.token?.refreshTokenCiphertext) {
+        throw new BadRequestException(
+          'Provider did not return a refresh token; restart mailbox connection',
+        );
+      }
       await tx.integrationConnectionToken.upsert({
         where: { connectionId },
         update: {
@@ -348,11 +388,7 @@ export class MicrosoftOAuthService {
           displayName: displayName ?? undefined,
           scopes: MICROSOFT_SCOPES,
           lastError: null,
-          syncState: {
-            calendar: { cursor: null, updatedAt: null },
-            mail: { cursor: null, updatedAt: null },
-            webhooks: { configured: false },
-          } as Prisma.InputJsonValue,
+          syncState: completedMailboxOAuthState(current.syncState),
         },
       });
     });
@@ -431,8 +467,8 @@ export class MicrosoftOAuthService {
 
   private verifyState(state: string): StatePayload {
     if (!this.stateSecret) throw new ServiceUnavailableException('OAUTH_STATE_SECRET is not set');
-    const [body, sig] = state.split('.');
-    if (!body || !sig) throw new BadRequestException('Malformed state');
+    const [body, sig, extra] = state.split('.');
+    if (!body || !sig || extra !== undefined) throw new BadRequestException('Malformed state');
     const expected = createHmac('sha256', this.stateSecret).update(body).digest('base64url');
     const a = Buffer.from(sig);
     const b = Buffer.from(expected);
@@ -445,10 +481,7 @@ export class MicrosoftOAuthService {
     } catch {
       throw new BadRequestException('Malformed state payload');
     }
-    if (payload.e < Math.floor(Date.now() / 1000)) {
-      throw new BadRequestException('State has expired; restart the flow');
-    }
+    assertMailboxOAuthState(payload, EngagementProvider.microsoft_365);
     return payload;
   }
 }
-

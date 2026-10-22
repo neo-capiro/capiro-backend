@@ -9,6 +9,7 @@
  * queries exclude removed content with one predicate instead of two.
  */
 import { Prisma, type EngagementSource } from '@prisma/client';
+import { MailboxIdentityMismatchError } from './mailbox-identity-mismatch.js';
 
 export type MailRemovalReason = 'deleted' | 'trashed' | 'spam' | 'provider_removed';
 
@@ -47,6 +48,7 @@ export async function markMailMessageRemovedInTx(
     tenantId: string;
     source: EngagementSource;
     externalId: string;
+    connectionId: string;
     reason: MailRemovalReason;
     removedAt: Date;
     providerMetadata: Record<string, unknown>;
@@ -60,12 +62,31 @@ export async function markMailMessageRemovedInTx(
         externalId: input.externalId,
       },
     },
-    select: { id: true, threadId: true, metadata: true },
+    select: {
+      id: true,
+      connectionId: true,
+      threadId: true,
+      metadata: true,
+      thread: { select: { connectionId: true } },
+    },
   });
 
   if (!existing) {
     return { found: false, threadId: null };
   }
+
+  // Missing context/relation is not positive evidence of another mailbox.
+  // It may be a disappearance or visibility race; keep the cursor retryable.
+  if (!input.connectionId) {
+    throw new Error('Mail mailbox identity unavailable');
+  }
+  if (
+    existing.connectionId !== input.connectionId ||
+    (existing.thread && existing.thread.connectionId !== input.connectionId)
+  ) {
+    throw new MailboxIdentityMismatchError();
+  }
+  if (!existing.thread) throw new Error('Mail mailbox identity unavailable');
 
   const mergedMetadata = {
     ...asMetadataObject(existing.metadata),
@@ -73,7 +94,7 @@ export async function markMailMessageRemovedInTx(
   };
 
   await tx.mailMessage.update({
-    where: { id: existing.id },
+    where: { id: existing.id, connectionId: input.connectionId },
     data: {
       removedAt: input.removedAt,
       removedReason: input.reason,
@@ -81,7 +102,7 @@ export async function markMailMessageRemovedInTx(
     },
   });
 
-  await recomputeMailThreadSummaryInTx(tx, input.tenantId, existing.threadId);
+  await recomputeMailThreadSummaryInTx(tx, input.tenantId, existing.threadId, input.connectionId);
 
   return { found: true, threadId: existing.threadId };
 }
@@ -96,11 +117,13 @@ export async function recomputeMailThreadSummaryInTx(
   tx: Prisma.TransactionClient,
   tenantId: string,
   threadId: string,
+  connectionId: string,
 ): Promise<void> {
   const activeMessage = await tx.mailMessage.findFirst({
     where: {
       tenantId,
       threadId,
+      connectionId,
       removedAt: null,
     },
     orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
@@ -114,14 +137,19 @@ export async function recomputeMailThreadSummaryInTx(
   });
 
   const thread = await tx.mailThread.findUnique({
-    where: { id: threadId },
-    select: { metadata: true },
+    where: { id: threadId, connectionId },
+    select: { metadata: true, connectionId: true },
   });
-  const baseMetadata = asMetadataObject(thread?.metadata);
+  // This lookup is connection-qualified: a missing result cannot distinguish
+  // disappearance from a concurrent lineage change, so it must still abort.
+  if (!thread) throw new Error('Mail thread unavailable');
+  if (thread.connectionId !== connectionId)
+    throw new MailboxIdentityMismatchError();
+  const baseMetadata = asMetadataObject(thread.metadata);
 
   if (!activeMessage) {
     await tx.mailThread.update({
-      where: { id: threadId },
+      where: { id: threadId, connectionId },
       data: {
         snippet: null,
         lastMessageAt: null,
@@ -134,10 +162,10 @@ export async function recomputeMailThreadSummaryInTx(
   const trimmedBody = activeMessage.bodyText?.trim();
   const snippet = trimmedBody
     ? normalizeSnippet(activeMessage.bodyText as string)
-    : activeMessage.subject ?? null;
+    : (activeMessage.subject ?? null);
 
   await tx.mailThread.update({
-    where: { id: threadId },
+    where: { id: threadId, connectionId },
     data: {
       lastMessageAt: activeMessage.receivedAt ?? activeMessage.sentAt ?? activeMessage.createdAt,
       snippet,

@@ -347,6 +347,8 @@ class SingleMailRecipientDto {
 }
 
 class SendSingleMailDto {
+  @IsUUID()
+  requestKey!: string;
   @ValidateIf((_object, value) => value !== undefined)
   @IsUUID()
   senderConnectionId?: string;
@@ -624,6 +626,10 @@ class UpdateTaskDto {
 }
 
 class AssociationOverrideDto {
+  @IsOptional()
+  @IsDateString()
+  expectedRevision?: string;
+
   @IsEnum(AssociationEntityType)
   entityType!: AssociationEntityType;
 
@@ -2076,8 +2082,8 @@ export class EngagementController {
   }
 
   @Get('meetings/:id')
-  meeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.service.getMeeting(ctx, id);
+  meeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Query('clientId') clientId?: string) {
+    return this.service.getMeeting(ctx, id, clientId);
   }
 
   @Post('meetings')
@@ -2139,8 +2145,8 @@ export class EngagementController {
   }
 
   @Get('meetings/:id/notes')
-  meetingNotes(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
-    return this.service.listMeetingNotes(ctx, meetingId);
+  meetingNotes(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Query('clientId') clientId?: string) {
+    return this.service.listMeetingNotes(ctx, meetingId, clientId);
   }
 
   @Patch('meetings/:id/notes/:noteId')
@@ -2175,8 +2181,8 @@ export class EngagementController {
   }
 
   @Get('meetings/:id/debriefs')
-  meetingDebriefs(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
-    return this.service.listMeetingDebriefs(ctx, meetingId);
+  meetingDebriefs(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Query('clientId') clientId?: string) {
+    return this.service.listMeetingDebriefs(ctx, meetingId, clientId);
   }
 
   @Patch('meetings/:id/debriefs/:debriefId')
@@ -2370,6 +2376,11 @@ export class EngagementController {
       ...rest,
       personIds: rest.personIds?.length ? rest.personIds : personId ? [personId] : undefined,
     });
+  }
+
+  @Get('mail/send-intents/:requestKey')
+  singleMailIntent(@CurrentTenant() ctx: TenantContext, @Param('requestKey') requestKey: string) {
+    return this.service.getSingleMailIntent(ctx, requestKey);
   }
 
   /**

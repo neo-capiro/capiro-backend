@@ -1,0 +1,158 @@
+✖ ML-10 OAuth: unmatched expected account never selects a different account (4129.421044ms)
+✖ ML-10 OAuth: absent account with multiple cache entries fails closed (66.494498ms)
+✖ ML-10 refresh: unmatched expected account never selects a different account (555.873115ms)
+✖ ML-08 Microsoft: empty top-level Connect creates an independent connection (271.533642ms)
+✖ ML-08 Microsoft: callback persistence rejects changing A's stable identity to B (81.308769ms)
+✖ ML-08 Google: empty top-level Connect creates an independent connection (104.231004ms)
+✖ ML-08 Google: callback persistence rejects changing A's stable identity to B (59.194109ms)
+✖ ML-10 refresh: a late response cannot overwrite a newer rotated token (239.031726ms)
+✔ control: OAuth selector returns the exact account when it exists (63.381148ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 1
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10396.397486
+
+✖ failing tests:
+
+test at docs/a1/oauth-approval/reproduce.cjs:77:1
+✖ ML-10 OAuth: unmatched expected account never selects a different account (4129.421044ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'token-B'
+  - undefined
+  
+      at TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:78:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'token-B',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs/a1/oauth-approval/reproduce.cjs:81:1
+✖ ML-10 OAuth: absent account with multiple cache entries fails closed (66.494498ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'token-B'
+  - undefined
+  
+      at TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:82:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'token-B',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs/a1/oauth-approval/reproduce.cjs:85:1
+✖ ML-10 refresh: unmatched expected account never selects a different account (555.873115ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'b' !== undefined
+  
+      at TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:90:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'b',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs/a1/oauth-approval/reproduce.cjs:97:3
+✖ ML-08 Microsoft: empty top-level Connect creates an independent connection (271.533642ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'existing-A'
+  - 'new-B'
+  
+      at TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:110:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'existing-A',
+    expected: 'new-B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs/a1/oauth-approval/reproduce.cjs:114:3
+✖ ML-08 Microsoft: callback persistence rejects changing A's stable identity to B (81.308769ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:145:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at docs/a1/oauth-approval/reproduce.cjs:97:3
+✖ ML-08 Google: empty top-level Connect creates an independent connection (104.231004ms)
+  ReferenceError: GOOGLE_AUTH_URL is not defined
+      at Subject.start (eval at compile (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:49:3), <anonymous>:74:30)
+      at async TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:109:20)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at docs/a1/oauth-approval/reproduce.cjs:114:3
+✖ ML-08 Google: callback persistence rejects changing A's stable identity to B (59.194109ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:145:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at docs/a1/oauth-approval/reproduce.cjs:150:1
+✖ ML-10 refresh: a late response cannot overwrite a newer rotated token (239.031726ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'older-late-rotation'
+  - 'newer-rotation'
+  
+      at TestContext.<anonymous> (/workspace/scratch/7cdb10b10884/mail-oauth-backend/docs/a1/oauth-approval/reproduce.cjs:170:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'older-late-rotation',
+    expected: 'newer-rotation',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

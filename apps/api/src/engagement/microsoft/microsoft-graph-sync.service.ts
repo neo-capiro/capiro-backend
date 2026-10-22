@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { admitMailboxRefresh } from '../mailbox-oauth-authority.js';
 import {
   ConfidentialClientApplication,
   type AuthenticationResult,
@@ -30,6 +31,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { markMailMessageRemovedInTx } from '../mail-message-state.js';
+import { MailboxIdentityMismatchError } from '../mailbox-identity-mismatch.js';
 import { MAIL_CAPTURE_VERSION } from '../mail-sync-coverage.js';
 import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 import {
@@ -41,6 +43,7 @@ import {
 import { TokenCryptoService } from './token-crypto.service.js';
 import {
   AmbiguousMailSendError,
+  definiteMailSendRejection,
   isAmbiguousTransportFailure,
   type EngagementMailSendResult,
 } from '../mail-send-result.js';
@@ -150,6 +153,8 @@ export interface SyncStats {
   matched: number;
   skipped: number;
   removed: number;
+  // Existing provider IDs owned by another/unknown mailbox; no row was changed.
+  held: number;
   // Messages that threw while being persisted and were skipped rather than
   // aborting the whole run (per-message resilience).
   failed: number;
@@ -286,7 +291,6 @@ export class MicrosoftGraphSyncService {
   private readonly privateKey?: string;
   private readonly stateSecret?: Buffer;
   private readonly notificationUrl?: string;
-  private msal?: ConfidentialClientApplication;
 
   // Bounded notification-sync queue (see enqueueNotificationSync). Per-instance,
   // so the bound is per API task — total concurrency is this × task count.
@@ -610,6 +614,11 @@ export class MicrosoftGraphSyncService {
           correlationId,
           draftId,
         );
+      }
+      // Only an explicit provider HTTP rejection proves non-acceptance.
+      // An unclassified exception must retain the durable unknown fence.
+      if (err instanceof GraphHttpError && err.graphStatus >= 400 && err.graphStatus < 500) {
+        throw definiteMailSendRejection(err);
       }
       throw err;
     }
@@ -1037,7 +1046,14 @@ export class MicrosoftGraphSyncService {
             stats.skipped += outcome === 'skipped' ? 1 : 0;
             stats.removed += outcome === 'removed' ? 1 : 0;
           } catch (err) {
-            // ONLY skip a genuinely gone message (404/410). Transient/infra
+            // The transaction has rolled back before a collision is held. Do
+            // not classify unknown/race failures as safe to advance past.
+            if (err instanceof MailboxIdentityMismatchError) {
+              stats.held += 1;
+              this.logger.warn('Graph mail message held: mailbox identity mismatch');
+              continue;
+            }
+            // Otherwise ONLY skip a genuinely gone message (404/410). Transient/infra
             // errors (DB pool/timeout, 429, 5xx) MUST propagate so the delta
             // cursor is NOT advanced past never-persisted messages (Graph delta
             // won't re-emit them → silent drop). Aborting lets the scheduler
@@ -1456,6 +1472,7 @@ export class MicrosoftGraphSyncService {
         await markMailMessageRemovedInTx(tx, {
           tenantId,
           source: EngagementSource.outlook,
+          connectionId,
           externalId: message.id!,
           reason: 'provider_removed',
           removedAt: new Date(),
@@ -1512,7 +1529,7 @@ export class MicrosoftGraphSyncService {
           },
           include: {
             thread: {
-              select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
             },
           },
         });
@@ -1526,8 +1543,14 @@ export class MicrosoftGraphSyncService {
                   externalId: threadExternalId,
                 },
               },
-              select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
             });
+        // Provider IDs are mailbox-local evidence, never permission to transfer rows.
+        // Keep legacy ambiguous identities held until the mailbox-key migration.
+        if ((existingMessage && existingMessage.connectionId !== connectionId) ||
+            (existingThread && existingThread.connectionId !== connectionId)) {
+          throw new MailboxIdentityMismatchError();
+        }
         const hasManualOverride = existingThread
           ? await hasManualAssociationOverride(
               tx,
@@ -1553,7 +1576,7 @@ export class MicrosoftGraphSyncService {
         const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
         const thread = existingThread
           ? await tx.mailThread.update({
-              where: { id: existingThread.id },
+              where: { id: existingThread.id, connectionId },
               data: {
                 clientId,
                 connectionId,
@@ -1600,6 +1623,7 @@ export class MicrosoftGraphSyncService {
 
         await tx.mailMessage.upsert({
           where: {
+            connectionId,
             tenantId_source_externalId: {
               tenantId,
               source: EngagementSource.outlook,
@@ -1745,6 +1769,11 @@ export class MicrosoftGraphSyncService {
     connectionId: string,
     token: IntegrationConnectionToken,
   ): Promise<string> {
+    await this.prisma.withTenant(tenantId, (tx) =>
+      admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, token));
+    if (!token.homeAccountId) {
+      throw new BadRequestException('Microsoft account identity is missing; reconnect Microsoft 365');
+    }
     const hasRequiredScopes = hasRequiredResourceScopes(token.scopes);
     if (hasRequiredScopes && token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
       return this.tokenCrypto.decrypt({
@@ -1766,15 +1795,16 @@ export class MicrosoftGraphSyncService {
       iv: token.refreshTokenIv,
       authTag: token.refreshTokenAuthTag,
     });
+    const msal = this.buildMsalClient();
     let result: AuthenticationResult | null;
     try {
-      result = await this.getMsal().acquireTokenByRefreshToken({
+      result = await msal.acquireTokenByRefreshToken({
         refreshToken,
         scopes: MICROSOFT_SCOPES,
       });
     } catch (error) {
       if (requiresInteractiveMicrosoftConsent(error)) {
-        await this.markConnectionNeedsReconnect(tenantId, connectionId, error);
+        await this.markConnectionNeedsReconnect(tenantId, connectionId, token, error);
         throw new BadRequestException(
           'Reconnect Microsoft 365 in Settings to grant the updated Outlook permissions',
         );
@@ -1786,17 +1816,22 @@ export class MicrosoftGraphSyncService {
         'Microsoft token refresh failed; reconnect Microsoft 365',
       );
     }
-    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token.homeAccountId);
+    if (result.account?.homeAccountId !== token.homeAccountId || !hasRequiredResourceScopes(result.scopes)) {
+      throw new BadRequestException('Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365');
+    }
+    await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal);
     return result.accessToken;
   }
 
   private async markConnectionNeedsReconnect(
     tenantId: string,
     connectionId: string,
+    snapshot: IntegrationConnectionToken,
     error: unknown,
   ) {
     const message = error instanceof Error ? error.message : String(error);
     await this.prisma.withTenant(tenantId, async (tx) => {
+      await admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, snapshot);
       await tx.integrationConnection
         .update({
           where: { id: connectionId },
@@ -1816,31 +1851,20 @@ export class MicrosoftGraphSyncService {
     tenantId: string,
     connectionId: string,
     result: AuthenticationResult,
-    homeAccountId: string | null,
+    snapshot: IntegrationConnectionToken,
+    msal: ConfidentialClientApplication,
   ) {
     const encrypted = this.tokenCrypto.encrypt(result.accessToken);
-    // Azure never echoes offline_access (nor openid/profile) in a refresh response, and returns
-    // resource scopes inconsistently (short name vs full Graph URI). Only warn when a real
-    // RESOURCE scope is missing — a genuine signal consent was reduced. Critically, do NOT derive
-    // the persisted scope set from result.scopes: dropping offline_access here previously made
-    // getValidAccessToken() believe the token lacked a required scope and forced a token refresh on
-    // every sync (a refresh storm against Azure for already-connected mailboxes).
-    if (!hasRequiredResourceScopes(result.scopes)) {
-      const granted = normalizeScopeNames(result.scopes);
-      const missing = REQUIRED_RESOURCE_SCOPES.filter((scope) => !granted.has(scope));
-      this.logger.warn(
-        `Refreshed Microsoft token is missing required scopes for connection ${connectionId} (tenant ${tenantId}): ${missing.join(', ')}`,
-      );
-    }
-    // Persist the canonical scope set we requested (a successful refresh confirms it) so the next
-    // getValidAccessToken() scope gate stays stable.
+    // Account and actual resource grants were checked at the provider boundary.
+    // Retain canonical offline_access, which Azure omits from refresh scopes.
     const persistedScopes = MICROSOFT_SCOPES;
     // Azure rotates refresh tokens on every redemption. Capture the freshly issued one (matched to
     // this account) and persist it, so we advance the token chain instead of replaying the original
     // refresh token from connect time forever.
-    const rotatedRefresh = this.extractRotatedRefreshToken(homeAccountId);
+    const rotatedRefresh = this.extractRotatedRefreshToken(msal, snapshot.homeAccountId);
     const refreshEnvelope = rotatedRefresh ? this.tokenCrypto.encrypt(rotatedRefresh) : null;
     await this.prisma.withTenant(tenantId, async (tx) => {
+      await admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, snapshot);
       await tx.integrationConnectionToken.update({
         where: { connectionId },
         data: {
@@ -1873,13 +1897,12 @@ export class MicrosoftGraphSyncService {
   /**
    * Read the freshly rotated refresh token out of the MSAL in-memory cache after a successful
    * acquireTokenByRefreshToken. AuthenticationResult does not expose the refresh token, so we
-   * serialize the cache and pick the entry for this account (home_account_id), falling back to the
-   * most recent entry. Best-effort: if nothing is found we keep the existing stored refresh token.
+   * serialize this exchange's isolated cache and select only the exact home_account_id. Best-effort: if nothing is found we keep the existing stored refresh token.
    */
-  private extractRotatedRefreshToken(homeAccountId: string | null): string | undefined {
-    if (!this.msal) return undefined;
+  private extractRotatedRefreshToken(msal: ConfidentialClientApplication, homeAccountId: string | null): string | undefined {
+    if (!homeAccountId) return undefined;
     try {
-      const cache = JSON.parse(this.msal.getTokenCache().serialize()) as {
+      const cache = JSON.parse(msal.getTokenCache().serialize()) as {
         RefreshToken?: Record<string, { secret?: string; home_account_id?: string }>;
       };
       const entries = Object.values(cache.RefreshToken ?? {});
@@ -1887,7 +1910,7 @@ export class MicrosoftGraphSyncService {
       const matched = homeAccountId
         ? entries.find((entry) => entry.home_account_id === homeAccountId)
         : undefined;
-      return (matched ?? entries[entries.length - 1])?.secret;
+      return matched?.secret;
     } catch (err) {
       this.logger.warn(
         `Failed to read rotated Microsoft refresh token from MSAL cache: ${(err as Error).message}`,
@@ -1937,7 +1960,8 @@ export class MicrosoftGraphSyncService {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    if (response.status === 429 || response.status >= 500) {
+    // Only reads are replay-safe. The caller's durable intent owns mutation retries.
+    if (method === 'GET' && (response.status === 429 || response.status >= 500)) {
       const retryAfter = Number(response.headers.get('retry-after') ?? '0');
       if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
         await sleep(retryAfter * 1000);
@@ -2052,8 +2076,7 @@ export class MicrosoftGraphSyncService {
       .slice(0, 96);
   }
 
-  private getMsal(): ConfidentialClientApplication {
-    if (this.msal) return this.msal;
+  private buildMsalClient(): ConfidentialClientApplication {
     const config: Configuration = {
       auth: {
         clientId: this.clientId!,
@@ -2066,8 +2089,7 @@ export class MicrosoftGraphSyncService {
         },
       },
     };
-    this.msal = new ConfidentialClientApplication(config);
-    return this.msal;
+    return new ConfidentialClientApplication(config);
   }
 
   private assertTokenRefreshConfigured() {
@@ -2198,7 +2220,7 @@ function readSyncState(value: Prisma.JsonValue): MicrosoftSyncState {
 }
 
 function emptyStats(): SyncStats {
-  return { scanned: 0, matched: 0, skipped: 0, removed: 0, failed: 0, pages: 0, hasMore: false };
+  return { scanned: 0, matched: 0, skipped: 0, removed: 0, held: 0, failed: 0, pages: 0, hasMore: false };
 }
 
 function combineStats(stats: SyncStats[]): SyncStats {
@@ -2208,6 +2230,7 @@ function combineStats(stats: SyncStats[]): SyncStats {
       matched: total.matched + stat.matched,
       skipped: total.skipped + stat.skipped,
       removed: total.removed + stat.removed,
+      held: (total.held ?? 0) + (stat.held ?? 0),
       failed: total.failed + stat.failed,
       pages: total.pages + stat.pages,
       hasMore: total.hasMore || stat.hasMore,

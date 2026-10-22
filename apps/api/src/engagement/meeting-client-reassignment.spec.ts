@@ -33,23 +33,25 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
   const writes: Row[] = [];
   const events: string[] = [];
   const tx: Row = {
+    tenantMembership: { findFirst: jest.fn(async () => ({role: ctx.role})) },
+    $queryRawUnsafe: jest.fn(async () => [{allowed: true}]),
     $queryRaw: jest.fn(async () => { events.push('lock'); return [{ id: 'm1' }]; }),
     $executeRaw: jest.fn(async () => 1),
     meeting: {
       findFirst: jest.fn(async (_args: Row) => { events.push('read'); return options.missingMeeting ? null : { ...state.meeting }; }),
       update: jest.fn(async ({ where, data }: Row) => {
         writes.push({ model: 'meeting', where, data });
-        Object.assign(state.meeting, data);
+        Object.assign(state.meeting, data, {updatedAt: new Date(state.meeting.updatedAt.getTime() + 1)});
         return { ...state.meeting };
       }),
     },
-    client: { findFirst: jest.fn(async (args: Row) => options.missingClient ? null : ({ id: args.where.id })) },
+    client: { findFirst: jest.fn(async (args: Row) => options.missingClient && args.where.id === 'foreign-client' ? null : ({ id: args.where.id })) },
     clientAssociationOverride: { create: jest.fn(async ({ data }: Row) => { state.overrides.push(data); return data; }) },
     $executeRawUnsafe: jest.fn(async (...args: unknown[]) => { writes.push({ model: 'chunks', args }); state.chunks = []; return 1; }),
   };
   for (const model of ['meetingPrep', 'meetingNote', 'meetingDebrief', 'engagementAttachment', 'engagementTask', 'meetingBotSession']) {
     tx[model] = {
-      create: jest.fn(async ({ data }: Row) => { events.push('create'); const row = { id: `${model}-new`, ...data }; state[model].push(row); return row; }),
+      create: jest.fn(async ({ data }: Row) => { events.push('create'); const row = { id: `${model}-new`, createdAt: new Date(), updatedAt: new Date(), sharedAt: null, sharedByUserId: null, status: 'draft', ...data }; state[model].push(row); return row; }),
       findMany: jest.fn(async (_args: Row) => state[model].map((row: Row) => ({ ...row }))),
       updateMany: jest.fn(async ({ where, data }: Row) => {
         if (options.failOn === model) throw new Error('child update failed');
@@ -82,8 +84,8 @@ describe('meeting client reassignment', () => {
   test.each(['edit', 'override'])('%s moves every child, revokes sharing and rebuilds document evidence after commit', async (entrypoint) => {
     const h = harness();
     const before = structuredClone(h.state.meetingPrep[0]);
-    if (entrypoint === 'edit') await h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b' });
-    else await h.service.overrideAssociation(ctx, { entityType: AssociationEntityType.meeting, entityId: 'm1', clientId: 'client-b' });
+    if (entrypoint === 'edit') await h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b', expectedRevision: '2026-09-23T12:00:00.000Z' });
+    else await h.service.overrideAssociation(ctx, { entityType: AssociationEntityType.meeting, entityId: 'm1', clientId: 'client-b', expectedRevision: '2026-09-23T12:00:00.000Z' });
 
     expect(h.withTenant).toHaveBeenCalledTimes(1);
     expect(h.events.slice(0, 2)).toEqual(['lock', 'read']);
@@ -108,8 +110,8 @@ describe('meeting client reassignment', () => {
 
   test.each(['clear', 'internal'])('%s removes client attribution and sharing without deleting artifacts', async (mode) => {
     const h = harness();
-    if (mode === 'clear') await h.service.updateMeeting(ctx, 'm1', { clientId: null });
-    else await h.service.overrideAssociation(ctx, { entityType: AssociationEntityType.meeting, entityId: 'm1', internal: true });
+    if (mode === 'clear') await h.service.updateMeeting(ctx, 'm1', { clientId: null, expectedRevision: '2026-09-23T12:00:00.000Z' });
+    else await h.service.overrideAssociation(ctx, { entityType: AssociationEntityType.meeting, entityId: 'm1', internal: true, expectedRevision: '2026-09-23T12:00:00.000Z' });
     expect(h.state.meeting).toMatchObject({ clientId: null, isInternal: mode === 'internal', visibility: 'private' });
     expect(h.state.meeting.associationSignals.manual).toBe(true);
     for (const model of ['meetingPrep', 'meetingNote', 'meetingDebrief', 'engagementAttachment', 'engagementTask', 'meetingBotSession']) {
@@ -121,7 +123,7 @@ describe('meeting client reassignment', () => {
 
   test('assigning an internal meeting makes the client association external again', async () => {
     const h = harness({ clientId: null, isInternal: true });
-    await h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b' });
+    await h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b', expectedRevision: '2026-09-23T12:00:00.000Z' });
     expect(h.state.meeting).toMatchObject({ clientId: 'client-b', isInternal: false });
   });
 
@@ -134,7 +136,7 @@ describe('meeting client reassignment', () => {
     expect(h.index).not.toHaveBeenCalled();
   });
 
-  test('concurrent A→B and A→A requests leave parent and every child at the final client', async () => {
+  test('concurrent A→B and stale A→A preserves the winning client and every child', async () => {
     const h = harness();
     let lockTail = Promise.resolve();
     const releases: Array<() => void> = [];
@@ -147,27 +149,28 @@ describe('meeting client reassignment', () => {
     h.withTenant.mockImplementation(async (_tenantId, fn) => {
       try { return await fn(h.tx); } finally { releases.shift()?.(); }
     });
-    await Promise.all([
-      h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b' }),
-      h.service.updateMeeting(ctx, 'm1', { clientId: 'client-a' }),
+    const results = await Promise.allSettled([
+      h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b', expectedRevision: '2026-09-23T12:00:00.000Z' }),
+      h.service.updateMeeting(ctx, 'm1', { clientId: 'client-a', expectedRevision: '2026-09-23T12:00:00.000Z' }),
     ]);
-    expect(h.state.meeting.clientId).toBe('client-a');
+    expect(results.map((result) => result.status)).toEqual(['fulfilled', 'rejected']);
+    expect(h.state.meeting.clientId).toBe('client-b');
     for (const model of ['meetingPrep', 'meetingNote', 'meetingDebrief', 'engagementAttachment']) {
-      expect(h.state[model][0].clientId).toBe('client-a');
+      expect(h.state[model][0].clientId).toBe('client-b');
     }
   });
 
   test('rejects another tenant client before changing any meeting or child', async () => {
     const h = harness({ missingClient: true });
-    await expect(h.service.updateMeeting(ctx, 'm1', { clientId: 'foreign-client' })).rejects.toThrow('Client not found');
-    expect(h.tx.client.findFirst).toHaveBeenCalledWith({ where: { id: 'foreign-client', tenantId: ctx.tenantId }, select: { id: true } });
+    await expect(h.service.updateMeeting(ctx, 'm1', { clientId: 'foreign-client', expectedRevision: '2026-09-23T12:00:00.000Z' })).rejects.toThrow('Meeting not found');
+    expect(h.tx.client.findFirst).toHaveBeenCalledWith({ where: { id: 'foreign-client', tenantId: ctx.tenantId, status: {not: 'archived'} }, select: { id: true } });
     expect(h.writes).toEqual([]);
     expect(h.index).not.toHaveBeenCalled();
   });
 
   test('rejects an inaccessible meeting before inspecting its artifacts', async () => {
     const h = harness({ missingMeeting: true });
-    await expect(h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b' })).rejects.toThrow('Meeting not found');
+    await expect(h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b', expectedRevision: '2026-09-23T12:00:00.000Z' })).rejects.toThrow('Meeting not found');
     expect(h.tx.meeting.findFirst.mock.calls[0][0].where).toMatchObject({ tenantId: ctx.tenantId, OR: [{ createdByUserId: ctx.userId }, { connection: { createdByUserId: ctx.userId } }] });
     expect(h.writes).toEqual([]);
   });
@@ -187,7 +190,7 @@ describe('meeting client reassignment', () => {
   test('propagates a child failure through the transaction and never queues reindexing', async () => {
     const h = harness({ failOn: 'meetingDebrief' });
     const before = structuredClone(h.state);
-    await expect(h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b' })).rejects.toThrow('child update failed');
+    await expect(h.service.updateMeeting(ctx, 'm1', { clientId: 'client-b', expectedRevision: '2026-09-23T12:00:00.000Z' })).rejects.toThrow('child update failed');
     expect(h.state).toEqual(before);
     expect(h.index).not.toHaveBeenCalled();
     expect(h.tx.clientAssociationOverride.create).not.toHaveBeenCalled();
