@@ -44,7 +44,7 @@ const reviewedStage1Sha256 = 'f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6
 const heldHelperMigration = 'apps/api/prisma/migrations/20281018100000_meri_memory_eligibility_helper';
 const migrationFiles = [
   'apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql',
-  'apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql',
+  'apps/api/prisma/reserved-migrations/20281018060000_meri_read_delegation/migration.sql',
   'apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql',
   reviewedStage1Migration,
 ];

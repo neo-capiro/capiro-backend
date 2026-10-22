@@ -48,7 +48,7 @@ test('reviewed project pins select one derived archive key and immutable image t
   assert.match(buildspec, /test "\$observed_version" = "\$APPROVED_SOURCE_VERSION_ID"/);
   assert.match(buildspec, /sha256sum -c -/);
   assert.match(buildspec, /test -z "\$\{CODEBUILD_RESOLVED_SOURCE_VERSION:-\}"/);
-  assert.match(buildspec, /test -f apps\/api\/prisma\/migrations\/20281018060000_meri_read_delegation\/migration\.sql/);
+  assert.match(buildspec, /test -f apps\/api\/prisma\/reserved-migrations\/20281018060000_meri_read_delegation\/migration\.sql/);
   assert.doesNotMatch(buildspec, /objective-migration-absence|SOURCE_SHA=13d12a7d7/);
 
   for (const metadataUrl of [`s3://${bucket}/${key}`, `${bucket}/${key}`]) {

@@ -58,7 +58,7 @@ phases:
         stage=receipt-migration-presence
         test -f apps/api/prisma/migrations/20281016020000_clio_conversation_bootstrap_receipts/migration.sql
         stage=integrated-source-presence
-        test -f apps/api/prisma/migrations/20281018060000_meri_read_delegation/migration.sql
+        test -f apps/api/prisma/reserved-migrations/20281018060000_meri_read_delegation/migration.sql
         test -f apps/api/src/meri/execution-capability/meri-execution-receiver.service.ts
         stage=reviewed-stage1-migration
         printf '%s  %s\n' \
