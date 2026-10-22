@@ -32,7 +32,7 @@ BEGIN
   END IF;
 
   -- Existing rows alone cannot prove the required guard still protects future
-  -- writes. Preserve Boolean grouping when comparing the canonical expression.
+  -- writes. Compare canonical output exactly, preserving grouping and literals.
   IF NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_constraint c
     WHERE c.conrelid = '"clio_memory"'::regclass
@@ -49,13 +49,11 @@ BEGIN
           WHERE a.attrelid = c.conrelid AND a.attname = 'client_id'
             AND a.attnum > 0 AND NOT a.attisdropped)
       ]::smallint[]
-      AND regexp_replace(
-        pg_catalog.pg_get_expr(c.conbin, c.conrelid), '[[:space:]"]', '', 'g'
-      ) = regexp_replace($scope_shape$
-        (((scope = 'firm'::text) AND (owner_user_id IS NULL) AND (client_id IS NULL))
-        OR ((scope = 'user_private'::text) AND (owner_user_id IS NOT NULL) AND (client_id IS NULL))
-        OR ((scope = 'client'::text) AND (owner_user_id IS NULL) AND (client_id IS NOT NULL)))
-      $scope_shape$, '[[:space:]"]', '', 'g')
+      AND pg_catalog.pg_get_expr(c.conbin, c.conrelid, false) = (
+        $scope_shape$(((scope = 'firm'::text) AND (owner_user_id IS NULL) AND (client_id IS NULL))$scope_shape$ ||
+        $scope_shape$ OR ((scope = 'user_private'::text) AND (owner_user_id IS NOT NULL) AND (client_id IS NULL))$scope_shape$ ||
+        $scope_shape$ OR ((scope = 'client'::text) AND (owner_user_id IS NULL) AND (client_id IS NOT NULL)))$scope_shape$
+      )
   ) THEN
     RAISE EXCEPTION 'expected client-aware clio_memory_scope_owner_check is absent or changed';
   END IF;

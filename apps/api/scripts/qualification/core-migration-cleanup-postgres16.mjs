@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
+import { ownedPostgresContainer } from './owned-postgres-container.mjs';
 
 // Operator-run fixtures only. This script never accepts a database URL, host,
 // existing container, host mount, or network port. It is not a deploy runner.
@@ -38,6 +39,7 @@ CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql AS 'SELECT false';
 CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql AS 'SELECT NULL::uuid';
 `;
 let containerId;
+let containerLifecycle;
 
 function docker(args, input, requireSuccess = true) {
   // Pin the local daemon explicitly: inherited DOCKER_HOST/CONTEXT cannot
@@ -156,6 +158,8 @@ function scopeCases() {
     ['memory_scope_absent', null, true, false],
     ['memory_scope_unvalidated', exact, false, false],
     ['memory_scope_weaker', weaker, true, false],
+    ['memory_scope_literal_space', exact.replace("'firm'", "'fi rm'"), true, false],
+    ['memory_scope_literal_quote', exact.replace("'firm'", "'fi\"rm'"), true, false],
   ]) {
     newDatabase(name, `CREATE TABLE clio_memory(tenant_id uuid NOT NULL,
       scope text NOT NULL,key text NOT NULL,owner_user_id uuid,client_id uuid);
@@ -223,17 +227,11 @@ try {
   assert.match(image.Id, /^sha256:[a-f0-9]{64}$/);
   receipt.image = { requested: 'postgres:16', id: image.Id, repoDigests: image.RepoDigests ?? [] };
   const name = `core108-fixtures-${randomUUID()}`;
-  assert.notEqual(docker(['container', 'inspect', name], undefined, false).status, 0,
-    'Refusing an existing container');
-  containerId = docker(['run', '--pull=never', '-d', '--name', name, '--network', 'none',
-    '--label', 'capiro.qualification=core108-disposable',
-    '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', image.Id]).stdout.trim();
-  assert.match(containerId, /^[a-f0-9]{64}$/);
-  const [container] = JSON.parse(docker(['container', 'inspect', containerId]).stdout);
-  assert.equal(container.Image, image.Id);
-  assert.equal(container.HostConfig.NetworkMode, 'none');
-  assert.ok(!container.HostConfig.Binds?.length);
-  assert.ok(!Object.keys(container.HostConfig.PortBindings ?? {}).length);
+  receipt.containerName = name;
+  containerLifecycle = ownedPostgresContainer({
+    docker, imageId: image.Id, name, ownershipToken: randomUUID(),
+  });
+  containerId = containerLifecycle.start();
   receipt.containerId = containerId;
   let ready = false;
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -256,10 +254,12 @@ try {
   receipt.error = error instanceof Error ? error.message : String(error);
   process.exitCode = 1;
 } finally {
-  if (/^[a-f0-9]{64}$/.test(containerId ?? '')) {
+  if (containerLifecycle) {
+    receipt.containerId = containerLifecycle.id ?? null;
     try {
-      docker(['rm', '-f', '-v', containerId]);
-      receipt.ownedContainerRemoved = true;
+      receipt.containerCleanup = containerLifecycle.cleanup();
+      receipt.containerId = containerLifecycle.id ?? null;
+      receipt.ownedContainerRemoved = receipt.containerCleanup.removed;
     } catch (error) {
       receipt.ownedContainerRemoved = false;
       receipt.cleanupError = error instanceof Error ? error.message : String(error);

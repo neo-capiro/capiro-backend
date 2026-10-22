@@ -4990,8 +4990,8 @@
         "detail": "MERI-CONSUMERS.md"
       },
       "current_path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql",
-      "current_git_blob_sha": "8c95f188d10ee6973ea660703e0a41366b2e590a",
-      "current_sha256": "64cea1963c2edcff4d1de88ab9ef6dd41a250aaa8d4a4c3794900fd9c2da598d"
+      "current_git_blob_sha": "ecba93c2c70159886b22f7d34edaf0536a3c4865",
+      "current_sha256": "6cb48367c6149eb5237236a8ed31c1ef9d0817cf7a8a38e912fc295859b9860a"
     },
     {
       "name": "20281018090000_clio_meri_memory_submissions_content_free",
