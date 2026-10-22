@@ -4,6 +4,8 @@ Integration branch is backend-import, never main. Core API lives in apps/api; Pr
 
 ## Coordination setup, 22 October 2026
 
+AWS profile on EC2AMAZ-M7CDRPT: use explicit `--profile default` (or `AWS_PROFILE=default` for scripts honoring it), region us-east-1, PYTHONUTF8=1. Neo directly selected this profile; STS verified account967807252336, IAM user jump-cli. This supersedes historical capiro-dev instructions for this host. Inspect/regenerate hardcoded kit profile settings before any future authorized execution; environment variables do not override explicit --profile arguments. Secret permissions remain unverified; Wave 2 remains held.
+
 Neo selected EC2AMAZ-M7CDRPT as the coordination host. Latest direct instruction: leave Wave 1 as is; prepare for Wave 2 but DO NOT START until Neo directly says to start. Fable finishes Wave 1 and posts WAVE-1-HANDOFF.md; Codex begins at Wave 2 only. No automatic briefs, task assignments, gates, merges, deployments or live acceptance while held. Setup documentation and draft setup PRs are authorized.
 
 Codex replaces Fable as coordinator and shipper; Codex writes no product code and does not review agent PRs. dot relays verbatim with receipts, reviews exact heads, runs browser qualification and posts ship-requests. Agents 1–4 implement; astra 6 verifies live acceptance. Neo owns scope, security decisions, credentials and session restarts. This current role map supersedes historical Fable/dot allocations.
