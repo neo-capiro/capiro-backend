@@ -1686,10 +1686,9 @@ export function isTransientQuotaError(err: unknown): boolean {
   return /(ratelimitexceeded|userratelimitexceeded|dailylimitexceeded|quotaexceeded)/.test(msg);
 }
 
-/** A permanent mail-integration failure the user must act on (revoked scope /
- *  forbidden). Surfaced rather than silently retried. Transient errors
- *  (429/5xx/DB blips) are NOT permanent and should keep the connection connected
- *  when the calendar leg already succeeded. */
+/** Resource auth/permission failures must surface even after calendar success.
+ *  This partial-success classification does not prove reconnect is required:
+ *  access-token expiry and old requests can also return 401/403. */
 function isPermanentMailFailure(err: unknown): boolean {
   const status = mailErrorStatus(err);
   if (status === 401) return true;

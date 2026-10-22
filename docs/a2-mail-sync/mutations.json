@@ -3,7 +3,7 @@
     "name": "google-swallowed-error",
     "exitCode": 1,
     "passed": 0,
-    "failed": 11,
+    "failed": 13,
     "assertionFailures": [
       "ML-13 google_workspace top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
       "ML-13 google_workspace top-level sync missing refresh material requires reconnect without attempting provider redemption",
@@ -13,7 +13,9 @@
       "ML-13 google_workspace top-level sync a late transient failure cannot overwrite needs_configuration",
       "ML-13 google_workspace top-level sync a late transient failure cannot overwrite disabled",
       "ML-13 google_workspace top-level sync a late transient failure cannot overwrite deleted",
-      "ML-13 google_workspace top-level sync provider permission denial holds sync without a retry hint",
+      "ML-13 google_workspace top-level sync resource permission denial is surfaced without preventing a later retry",
+      "ML-13 google_workspace top-level sync late resource permission refusal cannot permanently hold a successful OAuth reconnect",
+      "ML-13 google_workspace top-level sync access-token expiry during sync preserves the next invocation refresh and recovery",
       "ML-13 google_workspace top-level sync held connections are excluded by the scheduler claim and OAuth reconnect re-enables eligibility",
       "Google quota 403 remains transient rather than requiring new OAuth"
     ]
@@ -22,7 +24,7 @@
     "name": "microsoft-swallowed-error",
     "exitCode": 1,
     "passed": 0,
-    "failed": 17,
+    "failed": 19,
     "assertionFailures": [
       "ML-13 microsoft_365 top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
       "ML-13 microsoft_365 top-level sync missing refresh material requires reconnect without attempting provider redemption",
@@ -32,7 +34,9 @@
       "ML-13 microsoft_365 top-level sync a late transient failure cannot overwrite needs_configuration",
       "ML-13 microsoft_365 top-level sync a late transient failure cannot overwrite disabled",
       "ML-13 microsoft_365 top-level sync a late transient failure cannot overwrite deleted",
-      "ML-13 microsoft_365 top-level sync provider permission denial holds sync without a retry hint",
+      "ML-13 microsoft_365 top-level sync resource permission denial is surfaced without preventing a later retry",
+      "ML-13 microsoft_365 top-level sync late resource permission refusal cannot permanently hold a successful OAuth reconnect",
+      "ML-13 microsoft_365 top-level sync access-token expiry during sync preserves the next invocation refresh and recovery",
       "ML-13 microsoft_365 top-level sync held connections are excluded by the scheduler claim and OAuth reconnect re-enables eligibility",
       "Microsoft mailbox-not-enabled remains held with a specific safe diagnosis",
       "Microsoft typed interaction_required error requires reconnect even without matching error prose",
@@ -47,14 +51,12 @@
     "name": "reconnect-becomes-transient",
     "exitCode": 1,
     "passed": 0,
-    "failed": 13,
+    "failed": 11,
     "assertionFailures": [
       "ML-13 google_workspace top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
       "ML-13 google_workspace top-level sync missing refresh material requires reconnect without attempting provider redemption",
-      "ML-13 google_workspace top-level sync provider permission denial holds sync without a retry hint",
       "ML-13 microsoft_365 top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
       "ML-13 microsoft_365 top-level sync missing refresh material requires reconnect without attempting provider redemption",
-      "ML-13 microsoft_365 top-level sync provider permission denial holds sync without a retry hint",
       "Microsoft mailbox-not-enabled remains held with a specific safe diagnosis",
       "Microsoft typed interaction_required error requires reconnect even without matching error prose",
       "Microsoft typed consent_required error requires reconnect even without matching error prose",
@@ -71,9 +73,9 @@
     "failed": 5,
     "assertionFailures": [
       "ML-13 google_workspace top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
-      "ML-13 google_workspace top-level sync provider permission denial holds sync without a retry hint",
+      "ML-13 google_workspace top-level sync missing refresh material requires reconnect without attempting provider redemption",
       "ML-13 microsoft_365 top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
-      "ML-13 microsoft_365 top-level sync provider permission denial holds sync without a retry hint",
+      "ML-13 microsoft_365 top-level sync missing refresh material requires reconnect without attempting provider redemption",
       "Microsoft mailbox-not-enabled remains held with a specific safe diagnosis"
     ]
   },
@@ -109,24 +111,34 @@
     ]
   },
   {
-    "name": "google-quota-is-permanent",
+    "name": "resource-denial-becomes-reconnect-hold",
     "exitCode": 1,
     "passed": 0,
-    "failed": 1,
+    "failed": 6,
     "assertionFailures": [
-      "Google quota 403 remains transient rather than requiring new OAuth"
+      "ML-13 google_workspace top-level sync resource permission denial is surfaced without preventing a later retry",
+      "ML-13 google_workspace top-level sync late resource permission refusal cannot permanently hold a successful OAuth reconnect",
+      "ML-13 google_workspace top-level sync access-token expiry during sync preserves the next invocation refresh and recovery",
+      "ML-13 microsoft_365 top-level sync resource permission denial is surfaced without preventing a later retry",
+      "ML-13 microsoft_365 top-level sync late resource permission refusal cannot permanently hold a successful OAuth reconnect",
+      "ML-13 microsoft_365 top-level sync access-token expiry during sync preserves the next invocation refresh and recovery"
     ]
   },
   {
     "name": "exact-base-red-check",
     "exitCode": 1,
     "passed": 0,
-    "failed": 4,
+    "failed": 2,
     "assertionFailures": [
       "ML-13 google_workspace top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
-      "ML-13 google_workspace top-level sync provider permission denial holds sync without a retry hint",
-      "ML-13 microsoft_365 top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again",
-      "ML-13 microsoft_365 top-level sync provider permission denial holds sync without a retry hint"
+      "ML-13 microsoft_365 top-level sync invalid grant remains held after the outer catch and repeated sync cannot redeem again"
     ]
+  },
+  {
+    "name": "exact-base-regressions",
+    "exitCode": 0,
+    "passed": 4,
+    "failed": 0,
+    "assertionFailures": []
   }
 ]

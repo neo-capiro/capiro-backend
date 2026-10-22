@@ -21,14 +21,16 @@ export function mailSyncFailureData(
     needs_reconnect: `Reconnect ${provider} in Settings to continue syncing.`,
     mailbox_not_enabled:
       'This Microsoft account has no Exchange Online mailbox. Reconnect with a licensed mailbox account.',
-    permission_denied: `${provider} denied the required mailbox permissions. Reconnect in Settings or ask your administrator to review access.`,
+    permission_denied: `${provider} denied a sync request. Retry sync; if it persists, review account access in Settings.`,
   };
+  // Resource 401/403 responses may concern an expired access token or a request
+  // predating a successful reconnect. They do not establish a consent failure.
+  const requiresReconnect = kind === 'needs_reconnect' || kind === 'mailbox_not_enabled';
   return {
-    status:
-      kind === 'transient'
-        ? EngagementConnectionStatus.error
-        : EngagementConnectionStatus.needs_configuration,
+    status: requiresReconnect
+      ? EngagementConnectionStatus.needs_configuration
+      : EngagementConnectionStatus.error,
     lastError: reasons[kind],
-    nextSyncAt: kind === 'transient' ? new Date(Date.now() + 15 * 60 * 1000) : null,
+    nextSyncAt: requiresReconnect ? null : new Date(Date.now() + 15 * 60 * 1000),
   };
 }

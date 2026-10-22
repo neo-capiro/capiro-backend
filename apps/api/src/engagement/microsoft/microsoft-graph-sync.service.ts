@@ -798,9 +798,9 @@ export class MicrosoftGraphSyncService {
           // calendar meetings are committed, the mail cursor was NOT advanced
           // (syncMail throws before persisting state), and the scheduler retries
           // next cycle — killing the misleading "failed to sync" banner. A
-          // PERMANENT failure (revoked scope / forbidden / mailbox-not-enabled,
-          // which the outer catch routes to needs_configuration) or a mail-only
-          // run still surfaces via re-throw.
+          // resource auth/permission or mailbox-not-enabled failure, or a
+          // mail-only run, still surfaces via re-throw. A resource 401/403 alone
+          // does not prove that the current credentials require reconnect.
           if (!calendarSynced || isPermanentMailFailure(err)) throw err;
           this.logger.warn(
             `Microsoft mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
@@ -2264,10 +2264,9 @@ function isMessageGoneError(err: unknown): boolean {
   return status === 404 || status === 410;
 }
 
-/** A permanent mail-integration failure the user must act on (revoked scope /
- *  forbidden / no Exchange mailbox). Surfaced rather than silently retried;
- *  transient errors (429/5xx/DB blips) keep the connection connected when the
- *  calendar leg already succeeded. */
+/** Resource auth/permission and mailbox-absence failures must surface even
+ *  after calendar success. This partial-success classification does not prove
+ *  reconnect is required: access-token expiry and old requests can return 401/403. */
 function isPermanentMailFailure(err: unknown): boolean {
   const status = mailErrorStatus(err);
   if (status === 401 || status === 403) return true;

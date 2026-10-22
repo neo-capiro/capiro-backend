@@ -174,7 +174,7 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       },
     );
 
-    test('provider permission denial holds sync without a retry hint', async () => {
+    test('resource permission denial is surfaced without preventing a later retry', async () => {
       const h = syncHarness(provider);
       h.row().token.expiresAt = new Date(Date.now() + 3_600_000);
       h.fetch.mockResolvedValue(
@@ -197,8 +197,70 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
           : h.service.graphFetch('GET', '/me/calendar/events', 'synthetic-access'),
       );
       await expect(h.run()).rejects.toThrow();
-      expect(h.row()).toMatchObject({ status: 'needs_configuration', nextSyncAt: null });
-      expect(h.row().lastError).toContain('denied the required mailbox permissions');
+      expect(h.row().status).toBe('error');
+      expect(h.row().nextSyncAt).toBeInstanceOf(Date);
+      expect(h.row().lastError).toContain('denied a sync request');
+      expect(h.row().lastError).not.toContain('ErrorAccessDenied');
+    });
+
+    test('late resource permission refusal cannot permanently hold a successful OAuth reconnect', async () => {
+      const h = syncHarness(provider);
+      h.row().token.expiresAt = new Date(Date.now() + 3_600_000);
+      const oldState = structuredClone(h.row().syncState);
+      h.service.syncCalendar.mockImplementationOnce(async () => {
+        const attempt = await h.start();
+        await h.callback(attempt.state);
+        expect(h.row().status).toBe('connected');
+        expect(h.row().token.accessTokenCiphertext).toBe('returned-access');
+        throw new Error('Synthetic obsolete-token request failed (403): access denied');
+      });
+      await expect(h.run()).rejects.toThrow('failed (403)');
+      expect(h.row().token.accessTokenCiphertext).toBe('returned-access');
+      expect(h.row().syncState).toEqual(oldState);
+      // Whole-sync generation fencing is ML-16. The inherited transient error
+      // observation may remain, but must not strand the new credentials.
+      expect(h.row().status).toBe('error');
+      expect(h.row().nextSyncAt).toBeInstanceOf(Date);
+      await expect(h.run()).resolves.toMatchObject({ connectionId: 'connection-A' });
+      expect(h.row()).toMatchObject({ status: 'connected', lastError: null });
+      expect(h.service.syncCalendar).toHaveBeenLastCalledWith(
+        tenant, expect.anything(), expect.anything(), 'returned-access', expect.anything(),
+      );
+      expect(h.fetch).not.toHaveBeenCalled();
+      expect(h.exchange).not.toHaveBeenCalled();
+    });
+
+    test('access-token expiry during sync preserves the next invocation refresh and recovery', async () => {
+      const h = syncHarness(provider);
+      const now = Date.now();
+      h.row().token.expiresAt = new Date(now + 6 * 60_000);
+      h.service.syncCalendar.mockImplementationOnce(async () => {
+        jest.spyOn(Date, 'now').mockReturnValue(now + 7 * 60_000);
+        throw new Error('Synthetic resource request failed (401): access token expired');
+      });
+      await expect(h.run()).rejects.toThrow('failed (401)');
+      expect(h.row().status).toBe('error');
+      expect(h.row().nextSyncAt).toBeInstanceOf(Date);
+      expect(h.fetch).not.toHaveBeenCalled();
+      expect(h.exchange).not.toHaveBeenCalled();
+      h.fetch.mockResolvedValue(new Response(JSON.stringify({
+        access_token: 'synthetic-refreshed-access', expires_in: 3600,
+      })));
+      h.exchange.mockResolvedValue({
+        accessToken: 'synthetic-refreshed-access',
+        expiresOn: new Date(now + 67 * 60_000),
+        account: { homeAccountId: 'account-A' },
+        scopes: h.row().token.scopes,
+      } as never);
+      await expect(h.run()).resolves.toMatchObject({ connectionId: 'connection-A' });
+      expect(h.row()).toMatchObject({ status: 'connected', lastError: null });
+      expect(h.row().token.accessTokenCiphertext).toBe('synthetic-refreshed-access');
+      expect(h.tx.integrationConnectionToken.update).toHaveBeenCalledTimes(1);
+      expect(h.service.syncCalendar).toHaveBeenLastCalledWith(
+        tenant, expect.anything(), expect.anything(), 'synthetic-refreshed-access', expect.anything(),
+      );
+      expect(h.fetch).toHaveBeenCalledTimes(provider === 'google_workspace' ? 1 : 0);
+      expect(h.exchange).toHaveBeenCalledTimes(provider === 'microsoft_365' ? 1 : 0);
     });
 
     test('held connections are excluded by the scheduler claim and OAuth reconnect re-enables eligibility', async () => {
