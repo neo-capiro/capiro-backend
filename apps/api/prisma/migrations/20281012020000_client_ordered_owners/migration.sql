@@ -1,7 +1,32 @@
 -- Source preparation only: not executed, including against ephemeral databases.
 -- Reserved after Objectives 20281011010000 and Quick Log 20281012010000.
-ALTER TABLE clients ADD COLUMN account_owner_version integer NOT NULL DEFAULT 0
-  CONSTRAINT clients_account_owner_version_nonnegative CHECK (account_owner_version >= 0);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS account_owner_version integer NOT NULL DEFAULT 0;
+
+-- Reuse only the exact compatible column already present on the clone.
+DO $owner_version_shape$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_attribute a
+    JOIN pg_catalog.pg_attrdef d
+      ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+    WHERE a.attrelid = 'clients'::regclass
+      AND a.attname = 'account_owner_version'
+      AND a.attnum > 0 AND NOT a.attisdropped
+      AND a.atttypid = 'pg_catalog.int4'::regtype
+      AND a.atttypmod = -1 AND a.attnotnull
+      AND a.attidentity = '' AND a.attgenerated = ''
+      AND pg_catalog.pg_get_expr(d.adbin, d.adrelid) = '0'
+  ) THEN
+    RAISE EXCEPTION 'account_owner_version must be integer NOT NULL DEFAULT 0'
+      USING ERRCODE = '55000';
+  END IF;
+END
+$owner_version_shape$;
+
+ALTER TABLE clients ADD CONSTRAINT clients_account_owner_version_nonnegative
+  CHECK (account_owner_version >= 0) NOT VALID;
+ALTER TABLE clients VALIDATE CONSTRAINT clients_account_owner_version_nonnegative;
 
 CREATE TABLE client_ordered_owners (
   tenant_id uuid NOT NULL,

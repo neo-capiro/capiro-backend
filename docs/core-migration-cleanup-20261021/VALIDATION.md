@@ -1,3 +1,55 @@
+# Clone source completion — execution qualification pending
+
+Current correction baseline: PR108 `ca079eb4c55acce756c8294a96a7fba555f01def`, tree `b05aa2de777ae03ee428464ffeae84650931414a`. Direct Neo approval was relayed by dot as Sentinel_97ad001b79488191a96b05845c67d991 for the bounded [brief6338869276](https://github.com/neo-capiro/meri-greenfield/issues/202#issuecomment-6338869276). Publication head/tree are recorded in the PR body. This source packet targets only `capiro-newstack-preview-clone`; agents do not execute SQL, merge or deploy.
+
+## Current source correction
+
+- Ordered-owner migration: replace only the initial ADD COLUMN/CHECK statement with IF NOT EXISTS, exact catalog shape refusal, and separate NOT VALID/VALIDATE of the named nonnegative CHECK. Header and complete owner-table/backfill/trigger/RLS/grant remainder unchanged.
+- Memory080000: assertion-only addition for the existing named, validated scope/owner/client CHECK, including column binding and grouping-preserving expression comparison. Existing index/row-shape/duplicate checks and index-swap operations unchanged.
+- Memory090000: assertion-only addition for exact PK, review uniqueness and tenant FK columns, nondeferrability, referenced tenant key and FK match/actions. Existing original020000 checksum/column/CHECK/trigger/RLS guards and nullable-candidate ALTER unchanged.
+- All 463 FINISHED SQL paths/blobs, four moved SQL blobs and sixteen other retained pending migrations are preserved. No source-header rewrite. Original source hashes in the inventory remain historical evidence; changed current hashes are separate fields.
+- README and machine-readable inventory mark all nineteen retained pending migrations RUN ON CLONE (Neo 2026-10-22), with `deploy_folder_ready: true`. This declares the approved source selection, **not completed PostgreSQL/image qualification or agent execution authority**. Historical consumer audits, live conflict evidence and all 83 source/ledger gaps remain.
+
+## Actual local checks
+
+- Prisma **5.22.0 validate PASS** on the unchanged canonical schema using the documented dummy offline URL. No database connection/SQL.
+- Existing closure generator recomputed byte-identically: SHA256 `a7c1a4243eefc3750d08a18bd7d6437b98c907f77f240e66921f383836ff3505`, **516 nodes / 1022 edges / zero unresolved edges**. No contract or pins changed.
+- All API/root qualification `*.test.cjs`: **120/120 PASS**, zero failed/skipped, Node24.19.0. This includes recomputation of both raw image-local schema hashes and the Prisma5.22-formatted generated companion hashes for x64/arm64; all current pins match. No Docker image, native engine or fresh generated-client execution is claimed.
+- Existing `memory-submission-stage1-migration.spec.mjs`: **3/3 PASS**, zero skipped. These are source assertions, not PostgreSQL behavior proof.
+- New `core-migration-cleanup-postgres16.mjs`: **node --check PASS**. The script was not executed. Its fifteen cases are operator-run, listed below.
+- Exact source-tree preservation, bounded-prefix/addition comparisons, inventory consistency and whitespace: PASS. Every other tracked path outside the declared correction is preserved in the publication tree.
+- Full Core Jest **BLOCKED before collection**, not a pass: the canonical package command `node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --runInBand` exited1 with `MODULE_NOT_FOUND` for `apps/api/node_modules/jest/bin/jest.js`. Core dependencies are absent, and shared scratch is full. No install, custom Jest config, exclusion or test weakening. The default configuration also includes database specs; its full execution requires the authorized operator's isolated runner.
+
+## Fable-run PostgreSQL16 fixtures
+
+After supplying a local `postgres:16` image, the separately authorized operator runs:
+
+```sh
+node apps/api/scripts/qualification/core-migration-cleanup-postgres16.mjs --run
+```
+
+The script accepts no database URL, existing container, host mount or exposed port. It pins the local Docker socket and inspected image ID, creates a unique network-none container, checks PostgreSQL16, runs whole actual migration bytes in fresh synthetic databases, emits source/image/server/case receipts, and removes only its owned container. It never targets the clone or live service. No opt-in means NOT RUN, not PASS.
+
+| Fixture group | Cases | Required result |
+|---|---:|---|
+| Ordered owners | 7 | Absent and matching columns succeed with validated CHECK, unchanged existing value and rank-one backfill; wrong type, nullable, wrong/missing default fail exact-shape guard; existing negative data fails validation. Successful fixtures also reject later negative writes. |
+| Memory080000 | 4 | Exact original CHECK permits swap; absent, unvalidated or weaker same-column CHECK refuses before index replacement. |
+| Memory090000 | 4 | Original020000 receipt shape permits nullable candidate; same-named wrong PK, review unique or tenant FK refuses before ALTER. Existing candidate payload remains byte-equivalent as JSON text. |
+
+All fifteen are **NOT RUN / Fable-run**. In particular, PostgreSQL16's canonical CHECK deparsing must pass the exact positive080000 fixture; a positive failure is a source blocker, not permission to loosen the expected CHECK.
+
+## Remaining mandatory gates
+
+1. Full Core unit/native suite from a clean locked installation on the permitted isolated runner. Missing local dependencies do not satisfy this gate.
+2. The fifteen fixtures above, then a disposable PostgreSQL16 clone with the supplied FINISHED ledger and corresponding baseline schema: `prisma migrate deploy` must apply exactly the nineteen `clone_execution_decision.pending_in_order` entries in inventory, in order. Capture before/after names/checksums and all prerequisite refusals. The fixture harness does not perform or replace this whole-folder proof. Never synthesize missing migration history or infer schema facts from names alone.
+3. Exact-head review and new image/runtime qualification by the authorized operator. Prior107 receipts do not qualify this tree; full API startup remains unverified.
+
+No SQL/database action, Docker invocation, AWS action, merge or deployment ran here. All independent frontend, release and no-early-Wave-2 holds persist.
+
+## Initial cleanup evidence (historical, unchanged)
+
+The following receipts describe the original source before this approved completion. Their HOLD and unchanged-SQL statements apply to that historical snapshot; the current source disposition above supersedes them only within Neo's bounded clone approval.
+
 # Validation receipt — no SQL execution
 
 Source baseline: published `51e265bd5b5170abffb32a62ffc39a52a788fe60`, local equivalent `eecccecdc99620a25aed665578fc553938684e8a`, common tree `4ac54093d3dc477e08249ded10bc7a07972637e6`.

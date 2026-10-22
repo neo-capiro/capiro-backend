@@ -2128,7 +2128,7 @@
       "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
       "source_git_blob_sha": "e3445102a7ff5f06021704cea272bbb559b8f03f",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f",
       "consumer_review": {
         "header": "source-only",
@@ -3377,7 +3377,7 @@
       "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
       "source_git_blob_sha": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
       "consumer_review": {
         "header": "no explicit source-only/reserved execution hold in header",
@@ -3609,7 +3609,7 @@
       "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
       "source_git_blob_sha": "4248a97787b6a6546f02b4e183141679338b7638",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892",
       "consumer_review": {
         "header": "source-preparation-only",
@@ -3652,7 +3652,7 @@
       "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
       "source_git_blob_sha": "fc61f8599f8056ca9cc438bb36a5320d28b581e3",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4",
       "consumer_review": {
         "header": "source-preparation-only",
@@ -3698,14 +3698,16 @@
         },
         "detail": "PORTFOLIO-CONSUMERS.md"
       },
-      "current_path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql"
+      "current_path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "current_git_blob_sha": "1f11f1b9e62acc4b6f729e131b80671d63141e04",
+      "current_sha256": "e567aa59b18e501d1e7341d1624500ca0f8f87e1301ed7df515eab51059dfbba"
     },
     {
       "name": "20281012030000_prospect_resource_origin",
       "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
       "source_git_blob_sha": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052",
       "consumer_review": {
         "header": "source-only",
@@ -3753,7 +3755,7 @@
       "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
       "source_git_blob_sha": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5",
       "consumer_review": {
         "header": "source-only",
@@ -3800,7 +3802,7 @@
       "path": "apps/api/prisma/migrations/20281015010000_client_objective_work_intents/migration.sql",
       "source_git_blob_sha": "c8870624c126ef5e1412f3d892358dd6ccec9b63",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "9076f6e73462caed2006e97b22fdb9ce4ead47b718f0f6b0c0c09f16caea31db",
       "consumer_review": {
         "header": "no comment header / no explicit execution hold",
@@ -3931,7 +3933,7 @@
       "path": "apps/api/prisma/migrations/20281015020000_client_objective_canonical_plans/migration.sql",
       "source_git_blob_sha": "79223a80ab95fb63979d539208d21d4dfc07917b",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "475b56421caf9206124597d78bc44a1cb111361ba5d2ff6030dad11d1f3aba26",
       "consumer_review": {
         "header": "source-only",
@@ -4059,7 +4061,7 @@
       "path": "apps/api/prisma/migrations/20281015030000_client_objective_operational_links/migration.sql",
       "source_git_blob_sha": "0a5124859159669d6a6e15d683fe5afd5a87fbdb",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "3720dfa83dc0ad73c24cd0cfddcf0900ece56a59e3e1ef9290ddd9836f817422",
       "consumer_review": {
         "header": "source-only",
@@ -4205,7 +4207,7 @@
       "path": "apps/api/prisma/migrations/20281015040000_engagement_plans/migration.sql",
       "source_git_blob_sha": "715a18221007ae696f8377811af5a89d5e67d8dd",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "40a37eb33562beb70fb6195738822361d640241fc35af3fd2632421e7688413a",
       "consumer_review": {
         "header": "candidate-only/reserved",
@@ -4255,7 +4257,7 @@
       "path": "apps/api/prisma/migrations/20281015050000_client_objective_work_reconsent/migration.sql",
       "source_git_blob_sha": "6a479d02c90063158dcccc32af6cdc34e0c94db7",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "2eda48200f871d88afb40ae7556d45cd9efb2312f3977fbe9d34308c580bbafc",
       "consumer_review": {
         "header": "reserved",
@@ -4634,7 +4636,7 @@
       "path": "apps/api/prisma/migrations/20281017010000_client_objective_strategy_intake/migration.sql",
       "source_git_blob_sha": "61013d54f708b073d6ceabf5b1f6b15b6a5e499b",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "06fa8b3039c8f97030eea1da811df67bf6b4e13c3c12ad3e4c11c71915fb0025",
       "consumer_review": {
         "header": "no explicit source-only/reserved execution hold in header",
@@ -4751,7 +4753,7 @@
       "path": "apps/api/prisma/migrations/20281018010000_clio_meri_approval_decisions/migration.sql",
       "source_git_blob_sha": "c465bee1972edcdebb7e13e079f7050837ce56c4",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "23c42f67a06755f70868e9232de58a6b692f1be2bbee9b95455a3cc1c3f50714",
       "consumer_review": {
         "header": "Normal creation; no source-only/reserved declaration (SQL:1-3)",
@@ -4783,7 +4785,7 @@
       "path": "apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql",
       "source_git_blob_sha": "aa720c7ae035eb1ade94e46b149e0922fbbb00e7",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "090b3140156c8cb40630101e6fd3b8bb5135a846a6d79528fa2fc4d523f0c2c5",
       "consumer_review": {
         "header": "Normal W8 receipt creation; no source-only/reserved declaration (SQL:1-6)",
@@ -4816,7 +4818,7 @@
       "path": "apps/api/prisma/migrations/20281018030000_clio_meri_routine_authority/migration.sql",
       "source_git_blob_sha": "0dcc7927c7ca391c4d34e5a144d1d80721495b4b",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "3bc316dff996fe1cc1ca11944dfd2d5a711f91ba30c91d110b6e463fa666ed53",
       "consumer_review": {
         "header": "DRAFT; reserved and NOT applied (SQL:1-4)",
@@ -4849,7 +4851,7 @@
       "path": "apps/api/prisma/migrations/20281018040000_clio_meri_execution_authority/migration.sql",
       "source_git_blob_sha": "2372b6b9a22b3046231885adec6a7882d38acf6c",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "3e2ba9705bc560164636df418d4d612c49630a59a915bcd15067caab739010a1",
       "consumer_review": {
         "header": "reserved and NOT applied (SQL:1)",
@@ -4882,7 +4884,7 @@
       "path": "apps/api/prisma/migrations/20281018050000_clio_meri_routine_unattended/migration.sql",
       "source_git_blob_sha": "889e9f1830f29c8e25d2bcbc7b79e3eedaf3f45a",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "734d3ec7e004e14dd14c511f3a485d91b81aed46d2f5648fe479ef5669472a74",
       "consumer_review": {
         "header": "reserved and NOT applied; runs after030000 (SQL:1-2)",
@@ -4962,7 +4964,7 @@
       "path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql",
       "source_git_blob_sha": "72c1477579dbd23512c6ef7354702eb78dd13240",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "07d4b52ee712a4e0d302aef3c463d55b983c9a3b1d735d87d31a0c905ade2f9a",
       "consumer_review": {
         "header": "Forward schema repair / conditional source migration; explicit target ledger, CHECK, old index and duplicate readback prerequisites (SQL:1-6), not reserved-NOT-applied wording",
@@ -4987,14 +4989,16 @@
         },
         "detail": "MERI-CONSUMERS.md"
       },
-      "current_path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql"
+      "current_path": "apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql",
+      "current_git_blob_sha": "8c95f188d10ee6973ea660703e0a41366b2e590a",
+      "current_sha256": "64cea1963c2edcff4d1de88ab9ef6dd41a250aaa8d4a4c3794900fd9c2da598d"
     },
     {
       "name": "20281018090000_clio_meri_memory_submissions_content_free",
       "path": "apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql",
       "source_git_blob_sha": "9db45c14f097ca7f83add069fa137bbabd04a54d",
       "live_status": "PENDING",
-      "source_disposition": "RETAIN_BLOCKED_PENDING_RESOLUTION",
+      "source_disposition": "RUN_ON_CLONE_NEO_20261022",
       "source_sha256": "f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51",
       "consumer_review": {
         "header": "Stage1compatibility only; header explicitly not payload erasure and requires targetledger/table readback first (SQL:1-11)",
@@ -5021,10 +5025,45 @@
         },
         "detail": "MERI-CONSUMERS.md"
       },
-      "current_path": "apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql"
+      "current_path": "apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql",
+      "current_git_blob_sha": "d670fa3c4d923971da664cae19c1bd16962a7c7f",
+      "current_sha256": "c1b28e22e1bd87bdc385c0a6462b97039e6fc6b79440e766330699d347d85df5"
     }
   ],
   "moved_unchanged": 4,
   "retained_pending": 19,
-  "deploy_folder_ready": false
+  "deploy_folder_ready": true,
+  "clone_execution_decision": {
+    "authority": "Neo direct confirmation relayed by dot",
+    "evidence_id": "Sentinel_97ad001b79488191a96b05845c67d991",
+    "date": "2026-10-22",
+    "brief_url": "https://github.com/neo-capiro/meri-greenfield/issues/202#issuecomment-6338869276",
+    "target": "capiro-newstack-preview-clone",
+    "live_database_permitted": false,
+    "agent_sql_execution_permitted": false,
+    "qualification_complete": false,
+    "execution_owner": "separately authorized operator",
+    "pending_in_order": [
+      "20261014050000_user_portfolio_layout",
+      "20281011010000_client_objectives",
+      "20281012010000_client_activity_commands",
+      "20281012020000_client_ordered_owners",
+      "20281012030000_prospect_resource_origin",
+      "20281012060000_federal_register_effective_evidence",
+      "20281015010000_client_objective_work_intents",
+      "20281015020000_client_objective_canonical_plans",
+      "20281015030000_client_objective_operational_links",
+      "20281015040000_engagement_plans",
+      "20281015050000_client_objective_work_reconsent",
+      "20281017010000_client_objective_strategy_intake",
+      "20281018010000_clio_meri_approval_decisions",
+      "20281018020000_clio_meri_memory_submissions",
+      "20281018030000_clio_meri_routine_authority",
+      "20281018040000_clio_meri_execution_authority",
+      "20281018050000_clio_meri_routine_unattended",
+      "20281018080000_clio_memory_scope_unique",
+      "20281018090000_clio_meri_memory_submissions_content_free"
+    ],
+    "historical_consumer_reviews": "Unmodified frozen-source evidence; current source_disposition supersedes prior HOLD decisions only for the approved clone."
+  }
 }

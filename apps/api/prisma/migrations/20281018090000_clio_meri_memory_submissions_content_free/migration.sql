@@ -134,6 +134,41 @@ BEGIN
       USING ERRCODE = '55000';
   END IF;
 
+  -- Constraint names alone do not establish the original replay/tenant keys.
+  IF (
+    SELECT count(*)
+    FROM (
+      VALUES
+        ('clio_meri_memory_submissions_pkey', 'p', ARRAY['tenant_id', 'candidate_id']),
+        ('clio_meri_memory_submissions_review_id_key', 'u', ARRAY['review_id']),
+        ('clio_meri_memory_submissions_tenant_fkey', 'f', ARRAY['tenant_id'])
+    ) AS expected(name, kind, columns)
+    JOIN pg_catalog.pg_constraint c
+      ON c.conrelid = receipt_oid AND c.conname = expected.name
+    WHERE c.contype = expected.kind::"char" AND c.convalidated
+      AND NOT c.condeferrable AND NOT c.condeferred
+      AND c.conkey = ARRAY(
+        SELECT a.attnum
+        FROM unnest(expected.columns) WITH ORDINALITY AS column_name(name, position)
+        JOIN pg_catalog.pg_attribute a
+          ON a.attrelid = receipt_oid AND a.attname = column_name.name
+          AND a.attnum > 0 AND NOT a.attisdropped
+        ORDER BY column_name.position
+      )::smallint[]
+      AND (expected.kind <> 'f' OR (
+        c.confrelid = 'public.tenants'::regclass
+        AND c.confkey = ARRAY[
+          (SELECT a.attnum FROM pg_catalog.pg_attribute a
+            WHERE a.attrelid = c.confrelid AND a.attname = 'id'
+              AND a.attnum > 0 AND NOT a.attisdropped)
+        ]::smallint[]
+        AND c.confmatchtype = 's' AND c.confupdtype = 'a' AND c.confdeltype = 'c'
+      ))
+  ) <> 3 THEN
+    RAISE EXCEPTION 'Stage 1 requires the original primary, review-unique and tenant foreign keys'
+      USING ERRCODE = '55000';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_constraint c
     JOIN pg_catalog.pg_attribute a
