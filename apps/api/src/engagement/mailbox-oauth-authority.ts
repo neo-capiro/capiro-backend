@@ -134,7 +134,7 @@ export async function findFreshMailboxForAdd(
   provider: IntegrationConnection['provider'],
 ) {
   // A row lock alone cannot serialize two starts when no placeholder exists.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`mailbox-add:${tenantId}:${actorId}:${provider}`}, 0))`;
+  await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${`mailbox-add:${tenantId}:${actorId}:${provider}`}, 0))`;
   const candidates = await tx.integrationConnection.findMany({
     where: {
       tenantId,
@@ -242,7 +242,7 @@ export async function assertReturnedMailboxIdentity(
   }
   // Serialize duplicate-subject callbacks across different pending connections.
   // The existing email uniqueness is not a stable provider-identity guarantee.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${state.t}:${state.p}:${accountId}`}, 0))`;
+  await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${`${state.t}:${state.p}:${accountId}`}, 0))`;
   const duplicate = await tx.integrationConnection.findFirst({
     where: {
       tenantId: state.t,

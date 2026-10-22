@@ -50,7 +50,8 @@ nativeSuite(`PF-12 forward migration on PostgreSQL 16${readiness.available ? '' 
     const tenant = randomUUID();
     const meeting = randomUUID();
     const debrief = randomUUID();
-    await query('INSERT INTO tenants(id,slug,name,updated_at) VALUES ($1,$2,$2,now())', [tenant, `pf12-${tenant}`]);
+    await query('INSERT INTO tenants(id,slug,name,updated_at) VALUES ($1,$2,$3,now())',
+      [tenant, `pf12-${tenant}`, `pf12-${tenant}`]);
     await query(`INSERT INTO meetings(id,tenant_id,subject,starts_at,ends_at,updated_at)
       VALUES ($1,$2,'migration fixture',now(),now(),now())`, [meeting, tenant]);
     await query(`INSERT INTO meeting_debriefs(id,tenant_id,meeting_id,body_ciphertext,iv,auth_tag,status,updated_at)
