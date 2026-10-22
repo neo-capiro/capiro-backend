@@ -1,0 +1,44 @@
+{
+  "sourceHead": "eecccecdc99620a25aed665578fc553938684e8a",
+  "sourceTree": "4ac54093d3dc477e08249ded10bc7a07972637e6",
+  "canonicalSchemaSHA256": "834823af673157ade5a474c5e12e06cb48f14b0e84e7c3e5d4806c7e071c4cc3",
+  "contractConstantsFile": "apps/api/scripts/qualification/runtime-closure-contract.cjs",
+  "contractConstantsFileSHA256": "c071aedef178c35a8c87fdad1a90f6f3357fbca1208ba244e6b1408de5405055",
+  "rewriteTool": "apps/api/scripts/qualification/prisma-musl-target.cjs",
+  "rewriteToolSHA256": "6864a7015b21f974e89569ec3ac6a239d0c8c3c51b020d4663d243f1e4cf4da0",
+  "prismaVersion": "5.22.0",
+  "nodeVersion": "v24.19.0",
+  "comparisons": {
+    "x64": {
+      "imageLocal": {
+        "actual": "136b5ba3abba41f39e654d9b10ce33db9e87b7c18825b87aa870066454f436dc",
+        "expected": "136b5ba3abba41f39e654d9b10ce33db9e87b7c18825b87aa870066454f436dc",
+        "matches": true
+      },
+      "generatedFormatted": {
+        "actual": "d01f5803643b3d1f58c53d7bda1913cb844d067b98c87d7ceb67fd464d88c5a2",
+        "expected": "d01f5803643b3d1f58c53d7bda1913cb844d067b98c87d7ceb67fd464d88c5a2",
+        "matches": true
+      },
+      "rewriteOutput": "Selected image-local Prisma musl x64 OpenSSL3 target; models unchanged",
+      "formatOutput": "Prisma schema loaded from schema-x64.prisma\nFormatted schema-x64.prisma in 1.86s \ud83d\ude80"
+    },
+    "arm64": {
+      "imageLocal": {
+        "actual": "9255ff9fad2aa1af84ae08c66d99bfe2ca74de1f21e276aaa2a843a0eee92ab9",
+        "expected": "9255ff9fad2aa1af84ae08c66d99bfe2ca74de1f21e276aaa2a843a0eee92ab9",
+        "matches": true
+      },
+      "generatedFormatted": {
+        "actual": "064a6790228f328443c6c65481cc850d569f94d02a6ad0fa58a33498c01496f4",
+        "expected": "064a6790228f328443c6c65481cc850d569f94d02a6ad0fa58a33498c01496f4",
+        "matches": true
+      },
+      "rewriteOutput": "Selected image-local Prisma musl arm64 OpenSSL3 target; models unchanged",
+      "formatOutput": "Prisma schema loaded from schema-arm64.prisma\nFormatted schema-arm64.prisma in 900ms \ud83d\ude80"
+    }
+  },
+  "pass": true,
+  "method": "Reimplemented only the first architecture loop of regenerate-pins.cjs. Read exact LF Git HEAD schema, verified working schema matches, copied it into /dev/shm for each architecture, ran existing unchanged prisma-musl-target.cjs with CAPIRO_QUALIFICATION_ARCH, SHA256-hashed raw rewritten copy, ran installed Prisma 5.22.0 CLI format --schema on that copy, then SHA256-hashed formatted copy and compared against current IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 and GENERATED_PRISMA_SCHEMA_SHA256 constants.",
+  "limits": "Formatting equivalence only. Did not run full regeneration helper, prisma generate, Prisma migrations, database operations, installs, Docker, runtime probes or API startup. The formatted companion hash is not fresh generated-client artifact proof. All created schemas and receipt are in /dev/shm; repository schema, qualification tool and constants were not edited."
+}

@@ -47,7 +47,7 @@ test('candidate SQL supports the full accepted vocabulary without updating rows/
   const sql = readFileSync(
     join(
       __dirname,
-      '../../prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql',
+      '../../prisma/reserved-migrations/20281011020000_portfolio_prospect_stages/migration.sql',
     ),
     'utf8',
   );
