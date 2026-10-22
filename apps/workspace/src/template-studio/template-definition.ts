@@ -4,7 +4,7 @@
 //
 // A WorkspaceBlueprintDefinition is the full, self-contained description of how
 // a document of a given product type is authored: intake questions, section
-// structure, evidence policy, content rules, approval policy, and theme. It is
+// structure, evidence policy, content rules, and theme. It is
 // stored verbatim as JSON on WsBlueprintVersion.definition. A published version
 // is IMMUTABLE — its definitionHash is the pin an existing WsDraft carries, so
 // editing the blueprint later (a new draft version) never retroactively
@@ -65,12 +65,6 @@ export interface ContentRules {
   instructions: string[];
 }
 
-/** Who must approve a document built from this blueprint. */
-export interface ApprovalPolicy {
-  clientFacingApprovalRequired: boolean;
-  permittedApproverRoles: string[];
-}
-
 /** The default theme applied to a document built from this blueprint. */
 export interface BlueprintTheme {
   id: string;
@@ -90,6 +84,5 @@ export interface WorkspaceBlueprintDefinition {
   sections: BlueprintSection[];
   evidencePolicy: EvidencePolicy;
   contentRules: ContentRules;
-  approvalPolicy: ApprovalPolicy;
   defaultTheme: BlueprintTheme;
 }

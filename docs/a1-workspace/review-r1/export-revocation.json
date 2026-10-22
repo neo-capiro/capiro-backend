@@ -1,0 +1,44 @@
+{
+  "item": "WS-02 / review item 5: signed-file serve-time admission",
+  "implementation": "Existing HillDayDocumentService.assertDoc delegates to admitHillDayDocument; file uses the persisted export tenant and actor after validating signature and expiry.",
+  "command": "node node_modules/jest/bin/jest.js --config apps/workspace/jest.config.cjs --runInBand --runTestsByPath apps/workspace/src/hillday/a1-export-revocation.spec.ts apps/workspace/src/hillday/hillday-export.service.spec.ts",
+  "green": [
+    {
+      "name": "A1 Hill Day signed file revocation refuses the same signed URL after client wall is revoked",
+      "status": "passed"
+    },
+    {
+      "name": "A1 Hill Day signed file revocation refuses the same signed URL after membership is revoked",
+      "status": "passed"
+    },
+    {
+      "name": "A1 Hill Day signed file revocation refuses the same signed URL after ownership is revoked",
+      "status": "passed"
+    }
+  ],
+  "mutation": {
+    "change": "remove file() call to documents.assertDoc(row.tenantId, documentId, row.actorId)",
+    "results": [
+      {
+        "name": "A1 Hill Day signed file revocation refuses the same signed URL after client wall is revoked",
+        "status": "failed"
+      },
+      {
+        "name": "A1 Hill Day signed file revocation refuses the same signed URL after membership is revoked",
+        "status": "failed"
+      },
+      {
+        "name": "A1 Hill Day signed file revocation refuses the same signed URL after ownership is revoked",
+        "status": "failed"
+      }
+    ],
+    "restored_byte_exact": true
+  },
+  "validation_limits": [
+    "Repo Jest config, cached Jest/ts-jest dependencies with locally built current shared packages; not frozen clean-install qualification.",
+    "Real document admission and source membership/client guards execute over mocked Prisma rows. No database, SQL, provider or PDF renderer runs in the new tests.",
+    "The existing hillday-export.service.spec.ts renderer suite was attempted but failed to load because cached dependencies lack pdfkit; the new authority suite passed all three cases.",
+    "Signature and expiry logic is unchanged; legacy signed-URL fixture now supplies the required issuer-admission seam."
+  ],
+  "source_sha256": "692c48d76e9470c3e19751a49c14c0c8d734f3da9c6a92e6385e4f733623c7ef"
+}

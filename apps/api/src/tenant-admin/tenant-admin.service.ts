@@ -25,10 +25,6 @@ interface InviteTeamMemberInput {
 
 interface UpdateBrandingInput {
   name?: string;
-  // Logo upload itself is a separate presigned-URL flow - this only updates
-  // the row metadata once the client has finished uploading.
-  logoS3Key?: string;
-  logoContentType?: string;
 }
 
 export interface ContactInfoInput {
@@ -298,6 +294,9 @@ export class TenantAdminService {
   }
 
   async removeMember(ctx: TenantContext, userId: string) {
+    if (ctx.role !== 'user_admin' && ctx.role !== 'capiro_admin') {
+      throw new ForbiddenException('Only an administrator can remove members');
+    }
     if (userId === ctx.userId) {
       throw new BadRequestException('Cannot remove yourself');
     }
@@ -313,11 +312,35 @@ export class TenantAdminService {
     // having changed nothing — while holding a pool connection across an
     // external HTTPS call.
     const { jobId } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Keep the actor/target facts stable until removal and outbox commit.
+      // Capiro staff impersonation is admitted by the existing Core middleware;
+      // ordinary administrators additionally recheck their current local role.
+      await tx.$queryRaw`
+        SELECT id FROM tenant_memberships
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND user_id IN (${ctx.userId}::uuid, ${userId}::uuid)
+        ORDER BY id FOR UPDATE
+      `;
+      if (ctx.role === 'user_admin') {
+        const actor = await tx.tenantMembership.findUnique({
+          where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+          select: { role: true, status: true },
+        });
+        if (actor?.status !== 'active' || actor.role !== 'user_admin') {
+          throw new ForbiddenException('Administrator membership is no longer active');
+        }
+      }
       const membership = await tx.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId: ctx.tenantId, userId } },
         include: { user: true, tenant: true },
       });
       if (!membership) throw new NotFoundException('Membership not found');
+      // Staff lifecycle belongs to HQ, including when the caller is staff.
+      // Check inside the transaction before local or identity-outbox effects.
+      if (membership.role === 'capiro_admin') {
+        throw new ForbiddenException('Capiro admin memberships are managed separately');
+      }
+      if (membership.status === 'removed') return { jobId: null };
       await tx.tenantMembership.update({
         where: { id: membership.id },
         data: { status: 'removed' },
@@ -379,14 +402,14 @@ export class TenantAdminService {
   }
 
   async updateBranding(ctx: TenantContext, input: UpdateBrandingInput) {
+    // Do not rely only on HTTP whitelisting: internal callers must use the
+    // authoritative BrandingService finalizer for all object metadata.
+    if (Object.keys(input).some((key) => key !== 'name')) {
+      throw new BadRequestException('Only the branding name may be updated here');
+    }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const data: Record<string, unknown> = {};
       if (input.name !== undefined) data.name = input.name;
-      if (input.logoS3Key !== undefined) {
-        data.logoS3Key = input.logoS3Key;
-        data.logoContentType = input.logoContentType ?? null;
-        data.logoUploadedAt = new Date();
-      }
       const updated = await tx.tenant.update({
         where: { id: ctx.tenantId },
         data,

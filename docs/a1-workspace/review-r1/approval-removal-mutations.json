@@ -1,0 +1,60 @@
+{
+  "runner": "apps/workspace/jest.config.cjs",
+  "method": "One source mutation at a time for each targeted suite/pattern; cached dependency environment described in workspace-runner.json. A killed mutant requires intended assertion failures and no runtime-error suite. All real-tree mutations restored before combined verification.",
+  "results": [
+    {
+      "mutation": "restore-workspace-share-approval",
+      "source": "apps/workspace/src/delivery/release-version.ts",
+      "failedTests": [
+        "A1 direct service authority legacy blueprint policy keys do not gate sharing a current saved revision"
+      ],
+      "runtimeErrorSuites": 0,
+      "killed": true
+    },
+    {
+      "mutation": "remove-frozen-share-revision-check",
+      "source": "apps/workspace/src/delivery/release-version.ts",
+      "failedTests": [
+        "A1 direct service authority sharing still refuses a saved revision after the draft content changes"
+      ],
+      "runtimeErrorSuites": 0,
+      "killed": true
+    },
+    {
+      "mutation": "restore-retired-workspace-routes",
+      "source": "apps/workspace/src/delivery/delivery.controller.ts",
+      "failedTests": [
+        "A1 HTTP authority boundaries removed delivery route preflight returns 404",
+        "A1 HTTP authority boundaries removed delivery route approval-requests returns 404",
+        "A1 HTTP authority boundaries removed delivery route approval-requests/request/decision returns 404"
+      ],
+      "runtimeErrorSuites": 0,
+      "killed": true
+    },
+    {
+      "mutation": "restore-blueprint-policy-validation",
+      "source": "apps/workspace/src/template-studio/template-validator.ts",
+      "failedTests": [
+        "TemplateStudioService ignores retained legacy blueprint policy keys without rewriting them"
+      ],
+      "runtimeErrorSuites": 0,
+      "killed": true
+    }
+  ],
+  "excludedAttempts": [
+    "Restoring the original blueprint validator block without a legacy-property cast failed TypeScript compilation; excluded and rerun with a compiling mutant.",
+    "A tool reset interrupted the first frozen-revision mutant; source restored byte-exact and only this unfinished mutant rerun using a persistent source backup."
+  ],
+  "restoredReleaseVersionGitBlob": "9c1b0ffb87c1ab6c1b87358c8b589a1149cdba36",
+  "productionSourceAudit": {
+    "scope": "Indexed Workspace production TypeScript source, using final worktree file content and excluding staged deleted paths and tests",
+    "matches": [],
+    "retainedOutsideScope": "Prisma approval enum/model retained; canReview and reviewer roles remain used by comment resolution and Meri suggestions.",
+    "removedDeadWrapper": "DeliveryService/shareLinkService had no tracked apps/packages/scripts consumers beyond its own definition and module wiring; wrapper and import/provider/export removed."
+  },
+  "schemaRetention": "Existing Workspace approval enum/model and stored blueprint keys are retained; no migration or SQL executed.",
+  "limits": [
+    "These are focused mutation checks, not a clean locked install or full Workspace base/head comparison.",
+    "Final combined canonical verification recorded in workspace-combined.json."
+  ]
+}

@@ -1,3 +1,5 @@
+import { admitHillDayDocument } from './hillday-access.js';
+import { isHeldDraftClientAssociation } from '../drafts/draft-client-access.js';
 import {
   BadRequestException,
   ConflictException,
@@ -266,7 +268,8 @@ export class HillDayDocumentService {
     const cursor = decodeCursor(opts.cursor);
     const before = cursor?.u ? new Date(cursor.u) : null;
     const beforeId = cursor?.i ?? null;
-    const clientId = opts.clientId && isUuid(opts.clientId) ? opts.clientId : null;
+    if (opts.clientId && !isUuid(opts.clientId)) throw new NotFoundException('Client not found');
+    const clientId = opts.clientId ?? null;
     let clientName: string | null = null;
     if (clientId) {
       const userId = await this.source.resolveUserId(actorId);
@@ -288,6 +291,7 @@ export class HillDayDocumentService {
       : await this.prisma.wsHillDayDocument.findMany({
       where: {
         tenantId,
+        ownerId: actorId,
         ...(clientId ? { clientId } : {}),
         ...(hillStatus ? { status: hillStatus as never } : {}),
         ...cursorWhere,
@@ -305,12 +309,12 @@ export class HillDayDocumentService {
       ? []
       : await this.prisma.wsDraft.findMany({
       where: {
-        // This library associates clients by display name. Canonical prospect
-        // drafts stay in the prospect-aware drafts list, never name-matched here.
+        // Client surfaces use the canonical UUID. Legacy held drafts remain
+        // available only in the unfiltered owner library for recovery.
         prospectId: null,
         tenantId,
         AND: [{ OR: [{ ownerId: actorId }, { id: { in: shared.map((r) => r.draftId) } }] }],
-        ...(clientName ? { client: clientName } : {}),
+        ...(clientId ? { clientId } : {}),
         ...(opts.status && (opts.status === 'draft' || opts.status === 'complete')
           ? { status: opts.status }
           : opts.status
@@ -320,7 +324,7 @@ export class HillDayDocumentService {
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
-      select: { id: true, docTitle: true, product: true, client: true, status: true, updatedAt: true, ownerId: true },
+      select: { id: true, docTitle: true, product: true, client: true, clientId: true, status: true, updatedAt: true, ownerId: true },
     });
 
     const owners = await this.source
@@ -335,6 +339,7 @@ export class HillDayDocumentService {
         name: d.name,
         blueprint: HILL_DAY_BLUEPRINT_NAME,
         client: d.clientName,
+        clientId: d.clientId,
         status: d.status,
         updatedAt: d.updatedAt.toISOString(),
         owner: { id: d.ownerId, name: owner(d.ownerId).name, initials: owner(d.ownerId).initials },
@@ -346,10 +351,12 @@ export class HillDayDocumentService {
         name: d.docTitle,
         blueprint: d.product ?? 'Document',
         client: d.client,
+        clientId: d.clientId,
         status: d.status,
         updatedAt: d.updatedAt.toISOString(),
         owner: { id: d.ownerId, name: owner(d.ownerId).name, initials: owner(d.ownerId).initials },
         route: `/workspace/${d.id}`,
+        ...(isHeldDraftClientAssociation(d) ? { clientAssociation: 'held' as const } : {}),
       })),
     ].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : b.id.localeCompare(a.id)));
 
@@ -360,7 +367,9 @@ export class HillDayDocumentService {
     const accessBudget = AbortSignal.timeout(12_000);
     for (let i = 0; i < window.length; i += 8) {
       const batch = await Promise.all(window.slice(i, i + 8).map(async (row) =>
-        row.kind !== 'draft' || await this.collaborators.sourceAccess(tenantId, row.id, actorId, accessBudget) ? row : null));
+        row.kind === 'draft'
+          ? (!clientId || row.clientId === clientId) && await this.collaborators.sourceAccess(tenantId, row.id, actorId, accessBudget) ? row : null
+          : await this.assertDoc(tenantId, row.id, actorId).then(() => row, (error: unknown) => { if (error instanceof NotFoundException) return null; throw error; })));
       for (const row of batch) if (row) items.push(row);
     }
     const last = window[window.length - 1];
@@ -376,8 +385,7 @@ export class HillDayDocumentService {
     if (!blueprint.implemented) {
       throw new BadRequestException(`${blueprint.name} is not implemented yet — only Hill Day Schedule is.`);
     }
-    const userId = await this.source.resolveUserId(actorId).catch(() => null);
-    const client = await this.source.getClient(tenantId, userId, dto.clientId);
+    const client = await this.source.requireClient(tenantId, actorId, dto.clientId);
     if (!client) throw new NotFoundException('Client not found');
     if (!client.wallAllowed) throw new ForbiddenException('You do not have access to this client');
     const doc = await this.prisma.wsHillDayDocument.create({
@@ -482,7 +490,7 @@ export class HillDayDocumentService {
         await tx.wsHillDayDocument.update({ where: { id: documentId }, data: data as never });
       }
     });
-    return this.get(tenantId, documentId);
+    return this.get(tenantId, documentId, actorId);
   }
 
   // ── Sponsor picker + calendar ─────────────────────────────────────────────
@@ -733,8 +741,8 @@ export class HillDayDocumentService {
 
   // ── Assembled document ────────────────────────────────────────────────────
 
-  async get(tenantId: string, documentId: string): Promise<HillDayDocumentView> {
-    const doc = await this.assertDoc(tenantId, documentId);
+  async get(tenantId: string, documentId: string, actorId: string): Promise<HillDayDocumentView> {
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
     const meetings = (await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
       orderBy: { ordinal: 'asc' },
@@ -742,7 +750,7 @@ export class HillDayDocumentService {
     const [firmName, owners, client, lastJob] = await Promise.all([
       this.source.tenantName(tenantId).catch(() => null),
       this.source.userDisplays([doc.ownerId]).catch(() => new Map()),
-      this.source.getClient(tenantId, null, doc.clientId).catch(() => null),
+      this.source.requireClient(tenantId, actorId, doc.clientId).catch(() => null),
       this.prisma.wsHillDayJob.findFirst({ where: { tenantId, documentId }, orderBy: { createdAt: 'desc' } }),
     ]);
     const owner = owners.get(doc.ownerId) ?? { name: 'Unknown', initials: '?' };
@@ -818,8 +826,8 @@ export class HillDayDocumentService {
     };
   }
 
-  async quality(tenantId: string, documentId: string): Promise<QualityResponse> {
-    const doc = await this.assertDoc(tenantId, documentId);
+  async quality(tenantId: string, documentId: string, actorId: string): Promise<QualityResponse> {
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
     const meetings = (await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
       orderBy: { ordinal: 'asc' },
@@ -939,14 +947,12 @@ export class HillDayDocumentService {
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
-  async assertDoc(tenantId: string, documentId: string) {
-    const doc = await this.prisma.wsHillDayDocument.findFirst({ where: { id: documentId, tenantId } });
-    if (!doc) throw new NotFoundException('Document not found');
-    return doc;
+  async assertDoc(tenantId: string, documentId: string, actorId: string) {
+    return admitHillDayDocument(this.prisma, this.source, tenantId, actorId, documentId);
   }
 
   async assertOwner(tenantId: string, actorId: string, documentId: string) {
-    const doc = await this.assertDoc(tenantId, documentId);
+    const doc = await this.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can change it');
     return doc;
   }

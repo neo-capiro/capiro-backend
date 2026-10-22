@@ -27,7 +27,7 @@ type Internals = {
   } | null;
 };
 
-const service = new ChecksService({} as never) as unknown as Internals;
+const service = new ChecksService({} as never, {} as never) as unknown as Internals;
 
 const GENERATED_AT = '2026-07-28T12:00:00.000Z';
 

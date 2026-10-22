@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -411,6 +411,7 @@ export class CapiroAdminService {
   }
 
   async resendAdminInvitation(tenantId: string, email: string, redirectUrl?: string) {
+    const normalizedEmail = email.trim().toLowerCase();
     const tenant = await this.prisma.withSystem(async (tx) => {
       const t = await tx.tenant.findUnique({ where: { id: tenantId } });
       if (!t) throw new NotFoundException('Tenant not found');
@@ -425,7 +426,7 @@ export class CapiroAdminService {
       status: ['pending'],
     });
     const existing = pending.data.find(
-      (inv) => inv.emailAddress.toLowerCase() === email.toLowerCase(),
+      (inv) => inv.emailAddress.trim().toLowerCase() === normalizedEmail,
     );
     if (existing) {
       await this.clerk.backend.organizations.revokeOrganizationInvitation({
@@ -436,7 +437,7 @@ export class CapiroAdminService {
     }
     const inv = await this.clerk.backend.organizations.createOrganizationInvitation({
       organizationId: orgId,
-      emailAddress: email,
+      emailAddress: normalizedEmail,
       role: 'org:admin',
       // Invitation links must point at /sign-up, not /sign-in: new invitees
       // don't have a Clerk account yet, so the SignUp component is what
@@ -450,7 +451,18 @@ export class CapiroAdminService {
           this.config.get('APP_SIGN_IN_URL', { infer: true }) ?? 'https://app.capiro.ai/sign-in'
         ).replace(/\/sign-in\/?$/, '/sign-up'),
     });
-    return { invitationId: inv.id };
+    const deliveredEmail = inv.emailAddress?.trim().toLowerCase();
+    if (!inv.id || inv.organizationId !== orgId || deliveredEmail !== normalizedEmail || inv.role !== 'org:admin') {
+      // The provider may have performed a write: report uncertainty, never an
+      // unqualified success that the Settings UI could attribute to another target.
+      throw new BadGatewayException('Invitation receipt could not be verified');
+    }
+    return {
+      invitationId: inv.id,
+      tenantId: tenant.id,
+      email: deliveredEmail,
+      role: 'user_admin' as const,
+    };
   }
 
   async removeUserFromTenant(actorUserId: string, tenantId: string, userId: string) {

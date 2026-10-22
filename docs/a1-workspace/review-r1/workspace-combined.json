@@ -1,0 +1,97 @@
+{
+  "status": "completed",
+  "command": [
+    "node",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "apps/workspace/jest.config.cjs",
+    "--cacheDirectory",
+    "/dev/shm/a1-r1-jest-cache",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/workspace/src/hillday/hillday-resolution.service.spec.ts",
+    "apps/workspace/src/delivery/a1-authority.spec.ts",
+    "apps/workspace/src/delivery/delivery.spec.ts",
+    "apps/workspace/src/template-studio/template-studio.spec.ts",
+    "apps/workspace/src/hillday/a1-source-authority.spec.ts",
+    "apps/workspace/src/hillday/a1-export-revocation.spec.ts",
+    "apps/workspace/src/drafts/a1-client-name.spec.ts",
+    "apps/workspace/src/drafts/legacy-client-recovery.spec.ts",
+    "apps/workspace/src/hillday/hillday-export.service.spec.ts",
+    "--json",
+    "--outputFile=/dev/shm/a1-r1-workspace-combined.json"
+  ],
+  "exitCode": 1,
+  "numPassedTests": 123,
+  "numFailedTests": 0,
+  "numPassedTestSuites": 8,
+  "numFailedTestSuites": 1,
+  "numRuntimeErrorTestSuites": 1,
+  "suites": [
+    {
+      "path": "apps/workspace/src/delivery/a1-authority.spec.ts",
+      "status": "passed",
+      "executedTests": 44
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-export.service.spec.ts",
+      "status": "failed",
+      "executedTests": 0,
+      "blocker": "Cached local dependencies cannot resolve the already-declared pdfkit runtime. No tests executed in this suite."
+    },
+    {
+      "path": "apps/workspace/src/drafts/legacy-client-recovery.spec.ts",
+      "status": "passed",
+      "executedTests": 16
+    },
+    {
+      "path": "apps/workspace/src/hillday/a1-source-authority.spec.ts",
+      "status": "passed",
+      "executedTests": 8
+    },
+    {
+      "path": "apps/workspace/src/hillday/a1-export-revocation.spec.ts",
+      "status": "passed",
+      "executedTests": 3
+    },
+    {
+      "path": "apps/workspace/src/drafts/a1-client-name.spec.ts",
+      "status": "passed",
+      "executedTests": 1
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-resolution.service.spec.ts",
+      "status": "passed",
+      "executedTests": 35
+    },
+    {
+      "path": "apps/workspace/src/delivery/delivery.spec.ts",
+      "status": "passed",
+      "executedTests": 8
+    },
+    {
+      "path": "apps/workspace/src/template-studio/template-studio.spec.ts",
+      "status": "passed",
+      "executedTests": 8
+    }
+  ],
+  "runner": "apps/workspace/jest.config.cjs",
+  "environmentReceipt": "workspace-runner.json",
+  "omittedPreviouslyAttemptedSuite": {
+    "path": "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+    "reason": "Prior canonical attempt failed compilation with TS2503 PDFKit namespace because the cached declared pdfkit/@types/pdfkit dependency is absent. See workspace-runner.json."
+  },
+  "classification": "123 executed tests pass across eight suites. Canonical process exits 1 because the existing Hill Day export suite cannot load pdfkit; this is not a full green run.",
+  "sourceState": "All temporary real-tree mutations restored before this run. During the run the unused DeliveryService wrapper was deleted and its module import/provider/export removed after a tracked cross-consumer scan found none. Share service behavior did not change.",
+  "limits": [
+    "Cached dependency overlay, not a clean frozen install.",
+    "Full Workspace base/head failing-name parity and full build remain unqualified here.",
+    "No new dependencies, database operations, cloud, merge or deployment."
+  ],
+  "stableSourceSha256": {
+    "apps/workspace/src/delivery/release-version.ts": "1b10a3d17b95fe482b15272a67a8a0b3298b64b3bb3a25c1e73fd3621d72bd38",
+    "apps/workspace/src/delivery/delivery.controller.ts": "63995de721383275a1fcc23a6b96209c669e450f9306a0a8cad1dcf9694b8d14",
+    "apps/workspace/src/delivery/delivery.module.ts": "38e2b22b07d0bfb79a2229a05e7a0aec7f6f81aa0f74281dce5b04ed6cab7fda",
+    "apps/workspace/src/template-studio/template-validator.ts": "9a4004c24aad4e9ca5bb81b4ab69d5703f7dc4c4dd991ed8fa4cd7b2ea41076f"
+  }
+}

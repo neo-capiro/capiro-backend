@@ -131,7 +131,7 @@ function manualEvent(eventId: string, subject: string): CalendarEvent {
 function makeSetMeetingsHarness(initial: FakeMeetingRow[]) {
   const meetings = [...initial];
   const doc = {
-    id: 'doc-1',
+    id: '33333333-3333-4333-8333-333333333333',
     tenantId: 't',
     ownerId: 'user-1',
     clientId: 'client-1',
@@ -170,6 +170,7 @@ function makeSetMeetingsHarness(initial: FakeMeetingRow[]) {
     }),
   };
   const source = {
+    requireClient: jest.fn(async () => ({ id: 'client-1' })),
     resolveUserId: jest.fn(async () => 'user-1'),
     tenantMemberEmails: jest.fn(async () => new Set<string>()),
     clientPeopleEmails: jest.fn(async () => new Set<string>()),
@@ -197,7 +198,7 @@ describe('HillDayDocumentService.setMeetings', () => {
       {
         id: 'row-calendar-old',
         tenantId: 't',
-        documentId: 'doc-1',
+        documentId: '33333333-3333-4333-8333-333333333333',
         eventId: 'evt-old',
         ordinal: 0,
         event: row({ id: 'evt-old' }) as never,
@@ -206,7 +207,7 @@ describe('HillDayDocumentService.setMeetings', () => {
       {
         id: 'row-manual',
         tenantId: 't',
-        documentId: 'doc-1',
+        documentId: '33333333-3333-4333-8333-333333333333',
         eventId: 'manual-abc',
         ordinal: 1000,
         event: manualEvent('manual-abc', 'Meeting with Sen. Susan Collins (R-ME)'),
@@ -214,7 +215,7 @@ describe('HillDayDocumentService.setMeetings', () => {
       },
     ]);
 
-    const result = await service.setMeetings('t', 'user-1', 'doc-1', { eventIds: ['evt-new'] });
+    const result = await service.setMeetings('t', 'user-1', '33333333-3333-4333-8333-333333333333', { eventIds: ['evt-new'] });
 
     const eventIds = meetings.map((m) => m.eventId);
     expect(eventIds).toContain('manual-abc'); // survived, even though it was never in the new selection
@@ -228,14 +229,14 @@ describe('HillDayDocumentService.setMeetings', () => {
       {
         id: 'row-manual',
         tenantId: 't',
-        documentId: 'doc-1',
+        documentId: '33333333-3333-4333-8333-333333333333',
         eventId: 'manual-abc',
         ordinal: 1000,
         event: manualEvent('manual-abc', 'Meeting with Sen. Susan Collins (R-ME)'),
         resolution: null,
       },
     ]);
-    await service.setMeetings('t', 'user-1', 'doc-1', { eventIds: [] });
+    await service.setMeetings('t', 'user-1', '33333333-3333-4333-8333-333333333333', { eventIds: [] });
     expect(meetings.map((m) => m.eventId)).toEqual(['manual-abc']);
   });
 });
@@ -257,7 +258,7 @@ describe('HillDayDocumentService.quality', () => {
     const failedSection: MeetingSection = { ...doneSection, sectionId: 'm-2', status: 'unavailable', focus: null, background: null, reason: 'provider_timeout', flags: [] };
     const sourceSet: SourceSet = { assembledAt: 'now', model: 'm', calendar: { eventId: 'e-1', subject: 's' }, directory: { memberId: 'member-1', committees: true, issueAreas: [], bio: false, staffers: [] }, excluded: { issueAreas: [], staffers: [], committees: false, bio: false }, objectives: { count: 2, ids: ['s1', 's2'], status: 'ok' }, note: { included: true, chars: 10 }, correspondence: { threadIds: ['t1'], messages: 3, status: 'ok' }, priorEngagement: { count: 1 }, promptChars: 100 };
     const prisma = {
-      wsHillDayDocument: { findFirst: jest.fn(async () => ({ id: 'doc-1', tenantId: 't', lookbackDays: 90, clientName: 'Kela Systems' })) },
+      wsHillDayDocument: { findFirst: jest.fn(async () => ({ id: '33333333-3333-4333-8333-333333333333', tenantId: 't', ownerId: 'user-1', clientId: 'client-1', lookbackDays: 90, clientName: 'Kela Systems' })) },
       wsHillDayMeeting: {
         findMany: jest.fn(async () => [
           { id: 'm-1', resolution: okResolution, section: doneSection, context: { threadIds: ['t1'] }, sourceSet },
@@ -265,8 +266,8 @@ describe('HillDayDocumentService.quality', () => {
         ]),
       },
     };
-    const service = new HillDayDocumentService(prisma as never, {} as never, {} as never, {} as never);
-    const quality = await service.quality('t', 'doc-1');
+    const service = new HillDayDocumentService(prisma as never, { requireClient: jest.fn(async () => ({ id: 'client-1' })) } as never, {} as never, {} as never);
+    const quality = await service.quality('t', '33333333-3333-4333-8333-333333333333', 'user-1');
     const byId = new Map(quality.checks.map((c) => [c.id, c]));
     expect(byId.get('offices_resolved')?.state).toBe('warn');
     expect(byId.get('offices_resolved')?.detail).toContain('1 of 2');

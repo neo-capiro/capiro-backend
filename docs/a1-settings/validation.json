@@ -1,0 +1,160 @@
+{
+  "base": "8d9958f75ba2fefe8edcf5e21a459ae97187ac8a",
+  "baseline": {
+    "serviceTests": {
+      "failed": 10,
+      "passed": 2
+    },
+    "directHttpTests": {
+      "failed": 3,
+      "passed": 0
+    },
+    "followupAgainstCheckpoint": {
+      "commit": "213374bcaec250a93805a293e3a19e51bdfab1ac",
+      "failed": 3,
+      "passed": 0,
+      "directHttpNegatives": 2
+    }
+  },
+  "final": {
+    "suites": 5,
+    "passed": 22,
+    "failed": 0,
+    "newTests": 18,
+    "existingTests": 4
+  },
+  "mutationChecks": [
+    {
+      "mutant": "upload-uniqueness",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-01 branding object admission issues an exact unique tenant upload with signed ownership and a nonempty size policy"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "key-admission",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-01 branding object admission rejects foreign, unrelated and forged upload keys before storage access",
+        "ST-01 branding object admission withholds foreign or corrupted persisted keys but retains safe legacy own-tenant logos"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "head-validation",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-01 branding object admission rejects missing objects and false MIME, invalid size or ownership metadata without persisting",
+        "A1 Settings direct HTTP negative boundaries ST-01 direct confirm rejects a false HEAD MIME before persisting the logo"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "upload-expiry",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-01 branding object admission refuses an expired upload and an extension/content-type substitution"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "finalized-key",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-01 branding object admission confirms a verified upload and signs only the exact own-tenant object"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "generic-logo-write",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries ST-01 rejects logo metadata on generic PUT before any write, including service callers"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "generic-route",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries ST-01 rejects logo metadata on generic PUT before any write, including service callers",
+        "A1 Settings direct HTTP negative boundaries ST-01 generic branding rejects forged logo metadata at the direct PUT route"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "name-update",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries ST-01 permits name changes without changing stored logo attribution"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "protected-target",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries ST-02 refuses protected Capiro targets for tenant admins and staff before local or outbox changes",
+        "A1 Settings direct HTTP negative boundaries ST-02 direct DELETE rejects a protected target and standard-user callers with no effects"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "caller-role",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries ST-02 refuses self, foreign-tenant targets and ordinary users without effects"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "current-admin",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries X-04 rechecks removed or downgraded local admin at the removal transaction"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "idempotent-remove",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 authoritative tenant-admin service safety boundaries ST-02 commits ordinary local removal despite a failed Clerk delivery and keeps retry idempotent"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "superseded-logo",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 Settings direct HTTP negative boundaries ST-01 direct confirm refuses a superseded upload even inside its five-minute window"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "hq-provider-scope",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-24 HQ invitation receipts direct HTTP rejects nonstaff before effects and refuses empty, foreign-organization, wrong-recipient or wrong-role provider receipts"
+      ],
+      "killed": true
+    },
+    {
+      "mutant": "hq-receipt-attribution",
+      "exitCode": 1,
+      "failedTests": [
+        "ST-24 HQ invitation receipts qualifies a provider receipt against the current tenant, normalized recipient and role"
+      ],
+      "killed": true
+    }
+  ],
+  "allNewTestsKilledByAtLeastOneMutant": true,
+  "notRun": [
+    "Real PostgreSQL row-lock/concurrency qualification",
+    "Full repository typecheck/build",
+    "Live AWS S3 IAM/CORS and upload flow",
+    "Existing persisted-key operational review",
+    "Staging/current-session and full-flow chat acceptance"
+  ]
+}

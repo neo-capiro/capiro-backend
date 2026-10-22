@@ -82,6 +82,10 @@ function fixture() {
     ),
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: any[]) => {
       const sql = strings.join('?');
+      if (sql.includes('FROM users u JOIN tenant_memberships'))
+        return state.member && !values.includes('user_foreign')
+          ? [{ id: '22222222-2222-4222-8222-222222222222' }]
+          : [];
       if (sql.includes('FROM ws_document') && sql.includes('source_brief_version')) return [];
       if (sql.includes('FROM ws_source_action')) return state.sourceRows;
       if (sql.includes('FROM ws_draft'))
@@ -197,6 +201,7 @@ function fixture() {
     },
   };
   tx.$transaction = jest.fn(async (fn: any) => fn(tx));
+  tx.withSystem = jest.fn(async (fn: any) => fn(tx));
   const prisma = tx as any;
   const notifications = {
     create: jest.fn(async () => ({})),
@@ -315,7 +320,7 @@ describe('prospect Workspace resource boundaries (synthetic only)', () => {
         new CommentsService(h.prisma, {} as never, h.collaborators).list(tenantId, 'doc', actor),
       () => new VersionsService(h.prisma, h.collaborators).list(tenantId, draftId, actor),
       () => new ContextService(h.prisma, h.collaborators).listItems(tenantId, draftId, actor),
-      () => new ChecksService(h.prisma).evaluate(tenantId, draftId, actor),
+      () => new ChecksService(h.prisma, h.collaborators).evaluate(tenantId, draftId, actor),
       () =>
         new DraftsService(h.prisma, h.collaborators).detectAnonymizeNames(tenantId, draftId, actor),
     ];

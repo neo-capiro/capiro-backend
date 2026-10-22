@@ -1,3 +1,4 @@
+import { admitHillDayDocument } from './hillday-access.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -71,8 +72,8 @@ export class HillDayResolutionService {
     private readonly bridge: DirectoryBridgeClient,
   ) {}
 
-  async getResolution(tenantId: string, documentId: string): Promise<DocumentResolution> {
-    const doc = await this.assertDocument(tenantId, documentId);
+  async getResolution(tenantId: string, documentId: string, actorId: string): Promise<DocumentResolution> {
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     const meetings = await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
       orderBy: { ordinal: 'asc' },
@@ -102,7 +103,7 @@ export class HillDayResolutionService {
     actorId: string,
     documentId: string,
   ): Promise<DocumentResolution> {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     const meetings = (await this.prisma.wsHillDayMeeting.findMany({
       where: { tenantId, documentId },
       orderBy: { ordinal: 'asc' },
@@ -209,7 +210,7 @@ export class HillDayResolutionService {
     documentId: string,
     memberId: string,
   ): Promise<{ resolution: MeetingResolution; event: CalendarEvent }> {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) {
       throw new ForbiddenException('Only the document owner can add a meeting');
     }
@@ -308,7 +309,7 @@ export class HillDayResolutionService {
     meetingId: string,
     dto: ResolutionCorrectionDto,
   ): Promise<{ resolution: MeetingResolution; event: CalendarEvent }> {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     const row = await this.prisma.wsHillDayMeeting.findFirst({
       where: { id: meetingId, tenantId, documentId },
     });
@@ -523,8 +524,8 @@ export class HillDayResolutionService {
    * the document's own sponsor — no new correction kind, the picker just
    * feeds one of these into the existing assign_staffer / manual_attendee.
    */
-  async clientRelationships(tenantId: string, documentId: string) {
-    const doc = await this.assertDocument(tenantId, documentId);
+  async clientRelationships(tenantId: string, documentId: string, actorId: string) {
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     const [targets, contacts] = await Promise.all([
       this.source.listClientTargetStaffers(tenantId, doc.clientId).catch((err) => {
         this.logger.warn(`client targets read failed: ${(err as Error).message}`);
@@ -604,10 +605,8 @@ export class HillDayResolutionService {
 
   // ── internals ─────────────────────────────────────────────────────────────
 
-  private async assertDocument(tenantId: string, documentId: string) {
-    const doc = await this.prisma.wsHillDayDocument.findFirst({ where: { id: documentId, tenantId } });
-    if (!doc) throw new NotFoundException('Document not found');
-    return doc;
+  private async assertDocument(tenantId: string, documentId: string, actorId: string) {
+    return admitHillDayDocument(this.prisma, this.source, tenantId, actorId, documentId);
   }
 
   private async refreshDocumentStatus(tenantId: string, documentId: string): Promise<void> {

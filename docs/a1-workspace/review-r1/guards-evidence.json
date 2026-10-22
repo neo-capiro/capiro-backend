@@ -1,0 +1,123 @@
+{
+  "reviewedBackendHead": "e4b6040bc472fa5711271926ffcbbc5ad2b7861d",
+  "scope": "A1 review items 2 and 4: existing guards, new behavior tests; no policy change in this evidence unit",
+  "runner": "apps/workspace/jest.config.cjs",
+  "runtime": {
+    "node": "24.19.0",
+    "jest": "29.7.0",
+    "tsJest": "29.2.5",
+    "typescript": "5.5.4",
+    "dependencies": "existing cache; actual repository shared package compiled to an isolated app-local test build"
+  },
+  "command": "node node_modules/jest/bin/jest.js --config apps/workspace/jest.config.cjs --runInBand --runTestsByPath apps/workspace/src/hillday/a1-source-authority.spec.ts apps/workspace/src/drafts/a1-client-name.spec.ts apps/workspace/src/hillday/hillday-resolution.service.spec.ts",
+  "restoredRun": {
+    "suites": 3,
+    "passed": 44,
+    "failed": 0,
+    "newCases": 9,
+    "modifiedOrAddedResolutionCasesMutationChecked": 2
+  },
+  "newTests": [
+    {
+      "path": "apps/workspace/src/hillday/a1-source-authority.spec.ts",
+      "sha256": "9277d89cd9ca07d321313b2f83670f9490f3eb8c5792ad3c665c11df9dc0d506"
+    },
+    {
+      "path": "apps/workspace/src/drafts/a1-client-name.spec.ts",
+      "sha256": "8b93ccd0a4e3e68112a7b9307ab4208bc93dc4f7d11ebb7a80aebf6b08862237"
+    }
+  ],
+  "mutations": [
+    {
+      "id": "B8",
+      "change": "Remove wallAllowed denial, retaining the missing-client null check for TypeScript narrowing.",
+      "failedTests": 4,
+      "failures": [
+        {
+          "test": "A1 real Hill Day source admission get refuses a revoked wall through requireClient",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"blueprint\": {\"name\": \"Hill Day Schedule\", \"slug\": \"hill-day-schedule\"}, \"client\": {\"hasLogo\": false, \"id\": \"22222222-2222-4222-8222-222222222222\", \"mono\": \"CL\", \"name\": \"Client\"}, \"cover\": {\"dateline\": \"Dates to be confirmed \u00b7 0 cong"
+        },
+        {
+          "test": "A1 real Hill Day source admission list refuses a revoked wall through requireClient",
+          "failure": "- Expected  -  1\n+ Received  + 18"
+        },
+        {
+          "test": "A1 real Hill Day source admission job refuses a revoked wall through requireClient",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"completedAt\": null, \"documentId\": \"33333333-3333-4333-8333-333333333333\", \"error\": null, \"jobId\": \"job\", \"quality\": null, \"startedAt\": null, \"status\": \"running\", \"units\": []}\n    at expect (/workspace/scratch/ba5823e89967/dn-test-dep"
+        },
+        {
+          "test": "A1 real Hill Day source admission export refuses a revoked wall through requireClient",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"createdAt\": \"2026-10-21T12:00:00.000Z\", \"documentId\": \"33333333-3333-4333-8333-333333333333\", \"error\": null, \"expiresAt\": \"2026-10-21T23:58:02.791Z\", \"exportId\": \"export\", \"filename\": \"packet.pdf\", \"format\": \"pdf\", \"pageSize\": \"lette"
+        }
+      ],
+      "sourceRestoredExactly": true
+    },
+    {
+      "id": "B9",
+      "change": "Remove missing active membership denial; use a non-null assertion at getClient only to keep the mutant type-correct.",
+      "failedTests": 3,
+      "failures": [
+        {
+          "test": "A1 real Hill Day source admission requireClient refuses removed even when the client wall permits access",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"description\": null, \"hasLogo\": false, \"id\": \"22222222-2222-4222-8222-222222222222\", \"name\": \"Client\", \"officeCount\": 0, \"productDescription\": null, \"sectorTag\": null, \"wallAllowed\": true}\n    at expect (/workspace/scratch/ba5823e8996"
+        },
+        {
+          "test": "A1 real Hill Day source admission requireClient refuses suspended even when the client wall permits access",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"description\": null, \"hasLogo\": false, \"id\": \"22222222-2222-4222-8222-222222222222\", \"name\": \"Client\", \"officeCount\": 0, \"productDescription\": null, \"sectorTag\": null, \"wallAllowed\": true}\n    at expect (/workspace/scratch/ba5823e8996"
+        },
+        {
+          "test": "A1 real Hill Day source admission requireClient refuses inactive-tenant even when the client wall permits access",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"description\": null, \"hasLogo\": false, \"id\": \"22222222-2222-4222-8222-222222222222\", \"name\": \"Client\", \"officeCount\": 0, \"productDescription\": null, \"sectorTag\": null, \"wallAllowed\": true}\n    at expect (/workspace/scratch/ba5823e8996"
+        }
+      ],
+      "sourceRestoredExactly": true
+    },
+    {
+      "id": "B10",
+      "change": "Remove only the per-unit assertDoc in the generation loop.",
+      "failedTests": 1,
+      "failures": [
+        {
+          "test": "A1 real Hill Day source admission stops remaining generation units when the wall is revoked after the first admitted batch",
+          "failure": "- Expected  - 0\n+ Received  + 4"
+        }
+      ],
+      "sourceRestoredExactly": true
+    },
+    {
+      "id": "B22b",
+      "change": "Remove the ordinary draft name-without-UUID creation refusal.",
+      "failedTests": 1,
+      "failures": [
+        {
+          "test": "A1 ordinary draft client identity refuses a display name without a client UUID before any draft or document write",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"documents\": [], \"id\": \"draft\"}\n    at expect (/workspace/scratch/ba5823e89967/dn-test-deps/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/scratch/7cdb10b10884/app-safety-backend/apps/workspace/src/dr"
+        }
+      ],
+      "sourceRestoredExactly": true
+    },
+    {
+      "id": "resolution-owner-missing",
+      "change": "Remove document-existence/actor guard from admitHillDayDocument; retain only erased TypeScript assertions so runtime behavior is tested.",
+      "failedTests": 2,
+      "failures": [
+        {
+          "test": "HillDayResolutionService.clientRelationships rejects an unknown document",
+          "failure": "- Expected  - 3\n+ Received  + 1"
+        },
+        {
+          "test": "HillDayResolutionService.clientRelationships rejects another actor independently of document existence",
+          "failure": "Received promise resolved instead of rejected\nResolved to value: {\"contacts\": [], \"sources\": [{\"detail\": null, \"source\": \"portfolio\", \"status\": \"ok\"}], \"targets\": []}\n    at expect (/workspace/scratch/ba5823e89967/dn-test-deps/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/wo"
+        }
+      ],
+      "sourceRestoredExactly": true
+    }
+  ],
+  "limits": [
+    "Prisma callback row seams; no PostgreSQL or SQL execution.",
+    "Real requireClient/getClient/admitHillDayDocument and caller admission execute; requireClient is not mocked.",
+    "Generation uses inert context/model seams but executes the real run loop and per-unit current authority.",
+    "PDF rendering is mocked; signed-file serve-time tests are recorded separately.",
+    "This is not a clean locked-dependency install, native auth, RLS, contention, full build, or deployment qualification."
+  ]
+}

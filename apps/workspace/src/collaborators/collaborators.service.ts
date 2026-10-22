@@ -1,3 +1,4 @@
+import { draftClientSourceAccess } from '../drafts/draft-client-access.js';
 import { withProspectDraft, prospectDraftSourceAccess, withProspectInvitation, requireProspectInvitee } from '../prospect-resources/prospect-draft-access.js';
 import {
   BadRequestException,
@@ -73,6 +74,19 @@ export class CollaboratorsService {
     return row?.role ?? null;
   }
 
+  /** Admit a descendant through the same draft authority, without exposing its existence. */
+  async assertReadable(
+    tenantId: string,
+    draftId: string,
+    actorId?: string,
+    signal?: AbortSignal,
+  ): Promise<ResolvedRole> {
+    if (!actorId) throw new NotFoundException('Draft not found');
+    const role = await this.resolveRole(tenantId, draftId, actorId, signal);
+    if (!canRead(role)) throw new NotFoundException('Draft not found');
+    return role;
+  }
+
   /** Immutable origin receipts remain authoritative even after a draft is edited.
    * Research stays private to its author and rechecks the current Intel folder/client wall. */
   async sourceAccess(
@@ -83,9 +97,9 @@ export class CollaboratorsService {
   ): Promise<boolean> {
     const origin = await this.prisma.wsDraft.findFirst({
       where: { tenantId, id: draftId },
-      select: { id: true, tenantId: true, prospectId: true },
+      select: { id: true, tenantId: true, ownerId: true, prospectId: true, clientId: true, client: true, config: true },
     });
-    if (!origin || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId)))
+    if (!origin || !(await draftClientSourceAccess(this.prisma, origin, clerkUserId)) || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId)))
       return false;
     const rows = await this.prisma.$queryRaw<
       Array<{ source_key: string; owner_id: string; source_type: string }>

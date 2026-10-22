@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { applyFirstPage, validateFirstPage } from './first-page.js';
 import { HillDayDocumentService } from './hillday-document.service.js';
@@ -54,13 +54,13 @@ describe('first-page presentation boundary', () => {
 function harness() {
   const updatedAt = new Date('2026-09-11T10:00:00Z');
   const doc = {
-    id: 'doc', tenantId: 'tenant', ownerId: 'owner', clientId: 'client', clientName: 'Synthetic client',
+    id: '33333333-3333-4333-8333-333333333333', tenantId: 'tenant', ownerId: 'owner', clientId: 'client', clientName: 'Synthetic client',
     name: 'Schedule', timeZone: 'America/New_York', status: 'generated', lookbackDays: 90,
     weekStart: null, resolutionStatus: null, firstPage: null as FirstPageEdits | null,
     provenance: { model: 'test' }, generatedAt: updatedAt, updatedAt, createdAt: updatedAt,
   };
   const meetings = ['meeting-1', 'meeting-2'].map((id, ordinal) => ({
-    id, eventId: `event-${id}`, tenantId: 'tenant', documentId: 'doc', ordinal, updatedAt,
+    id, eventId: `event-${id}`, tenantId: 'tenant', documentId: '33333333-3333-4333-8333-333333333333', ordinal, updatedAt,
     event: { subject: id, startsAt: '2026-10-05T17:00:00Z', endsAt: '2026-10-05T17:30:00Z', location: 'Original room', attendees: [] },
     resolution: null, context: null, sourceSet: null,
     section: { sectionId: id, status: 'done', focus: 'Original focus', background: 'Original background', reason: null, flags: [], generatedAt: updatedAt.toISOString(), model: 'test', edited: { focus: false, background: false, at: null } } as MeetingSection,
@@ -87,7 +87,7 @@ function harness() {
       Object.assign(doc, savedDoc); meetings.forEach((m, i) => { m.section = savedSections[i]!; }); throw err;
     }
   }) };
-  const source = { tenantName: async () => 'Firm', userDisplays: async () => new Map([['owner', { name: 'Owner', initials: 'O' }]]), getClient: async () => ({ hasLogo: false }) };
+  const source = { tenantName: async () => 'Firm', userDisplays: async () => new Map([['owner', { name: 'Owner', initials: 'O' }]]), getClient: async () => ({ hasLogo: false }), requireClient: async () => ({ hasLogo: false }) };
   return { service: new HillDayDocumentService(prisma as never, source as never, {} as never, {} as never), doc, meetings, prisma };
 }
 
@@ -96,45 +96,45 @@ describe('HillDayDocumentService first-page saves', () => {
     const { service, doc, meetings } = harness();
     const sourceBefore = JSON.stringify(meetings);
     const before = doc.updatedAt.toISOString();
-    const saved = await service.patch('tenant', 'owner', 'doc', { firstPage: edited, expectedUpdatedAt: before });
+    const saved = await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited, expectedUpdatedAt: before });
     expect(saved.firstPage).toEqual(edited);
     expect(saved.cover.title).toBe(edited.title);
     expect(saved.cover.facts.find((f) => f.k === 'Revision')?.v).toBe('2 · edited');
     expect(saved.summaryColumns).toEqual(['time', 'member', 'room']);
     expect(saved.updatedAt).not.toBe(before);
     expect(JSON.stringify(meetings)).toBe(sourceBefore);
-    await service.patch('tenant', 'owner', 'doc', { name: 'Renamed' });
+    await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { name: 'Renamed' });
     // Generation replaces provenance, which must never contain the user edits.
     doc.provenance = { model: 'new model' };
-    const reopened = await service.get('tenant', 'doc');
+    const reopened = await service.get('tenant', '33333333-3333-4333-8333-333333333333', 'owner');
     expect(reopened.firstPage).toEqual(edited);
     expect(reopened.summary[0]?.room).toBe('Visitor center');
   });
 
   it('requires a fresh version and rolls back a combined section edit when stale', async () => {
     const { service, doc, meetings } = harness();
-    await expect(service.patch('tenant', 'owner', 'doc', { firstPage: edited })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(service.patch('tenant', 'owner', 'doc', { firstPage: edited, expectedUpdatedAt: '2026-09-10T10:00:00Z', section: { sectionId: 'meeting-1', focus: 'Lost update' } })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited, expectedUpdatedAt: '2026-09-10T10:00:00Z', section: { sectionId: 'meeting-1', focus: 'Lost update' } })).rejects.toBeInstanceOf(ConflictException);
     expect(meetings[0]?.section.focus).toBe('Original focus');
     expect(doc.firstPage).toBeNull();
     doc.status = 'generating';
-    await expect(service.patch('tenant', 'owner', 'doc', { firstPage: edited, expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited, expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('enforces tenant/owner boundaries and rejects foreign meeting IDs', async () => {
     const { service, doc, prisma } = harness();
-    await expect(service.patch('other-tenant', 'owner', 'doc', { firstPage: edited })).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.patch('tenant', 'other-owner', 'doc', { firstPage: edited })).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.patch('tenant', 'owner', 'doc', { firstPage: { rows: [{ meetingId: 'foreign' }] }, expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.patch('other-tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.patch('tenant', 'other-owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: { rows: [{ meetingId: 'foreign' }] }, expectedUpdatedAt: doc.updatedAt.toISOString() })).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.wsHillDayDocument.updateMany).not.toHaveBeenCalled();
   });
 
   it('resets to source defaults and reopens a delivered document after edits', async () => {
     const { service, doc } = harness();
     doc.status = 'delivered';
-    const saved = await service.patch('tenant', 'owner', 'doc', { firstPage: edited, expectedUpdatedAt: doc.updatedAt.toISOString() });
+    const saved = await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited, expectedUpdatedAt: doc.updatedAt.toISOString() });
     expect(saved.status).toBe('generated');
-    const reset = await service.patch('tenant', 'owner', 'doc', { firstPage: null, expectedUpdatedAt: saved.updatedAt });
+    const reset = await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: null, expectedUpdatedAt: saved.updatedAt });
     expect(reset.firstPage).toBeNull();
     expect(reset.cover.title).toBe('Hill Day Schedule');
     expect(reset.summary[0]?.room).toBe('Original room');
@@ -144,17 +144,17 @@ describe('HillDayDocumentService first-page saves', () => {
   it('touches the parent on a section edit so an older first-page save conflicts', async () => {
     const { service, doc } = harness();
     const before = doc.updatedAt.toISOString();
-    await service.patch('tenant', 'owner', 'doc', { section: { sectionId: 'meeting-1', focus: 'Edited focus' } });
+    await service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { section: { sectionId: 'meeting-1', focus: 'Edited focus' } });
     expect(doc.updatedAt.toISOString()).not.toBe(before);
-    await expect(service.patch('tenant', 'owner', 'doc', { firstPage: edited, expectedUpdatedAt: before })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: edited, expectedUpdatedAt: before })).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('omits removed meeting overrides from GET so reopening can be saved again', async () => {
     const { service, doc, meetings } = harness();
     doc.firstPage = edited;
     meetings.splice(0, 1);
-    const reopened = await service.get('tenant', 'doc');
+    const reopened = await service.get('tenant', '33333333-3333-4333-8333-333333333333', 'owner');
     expect(reopened.firstPage?.rows).toEqual([]);
-    await expect(service.patch('tenant', 'owner', 'doc', { firstPage: reopened.firstPage, expectedUpdatedAt: reopened.updatedAt })).resolves.toMatchObject({ cover: { title: edited.title } });
+    await expect(service.patch('tenant', 'owner', '33333333-3333-4333-8333-333333333333', { firstPage: reopened.firstPage, expectedUpdatedAt: reopened.updatedAt })).resolves.toMatchObject({ cover: { title: edited.title } });
   });
 });

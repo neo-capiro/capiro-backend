@@ -1,0 +1,185 @@
+{
+  "status": "complete; intended real and isolated source hashes verified after restoration",
+  "canonicalConfig": "apps/workspace/jest.config.cjs",
+  "finalLegacySuite": {
+    "passed": 16,
+    "failed": 0,
+    "source": "real restored tree in combined Workspace run",
+    "combinedReceiptSha256": "aa371c26f052f5ab148bef6e5d2c20afbe32c5d3529049e0eef97050cda6eb3e"
+  },
+  "combinedGateLimitation": {
+    "passedTests": 123,
+    "failedTests": 0,
+    "passedSuites": 8,
+    "runtimeErrorSuites": 1,
+    "detail": "hillday-export.service.spec.ts could not load absent cached pdfkit; this receipt does not claim the combined gate passes"
+  },
+  "behavioralMutantsKilled": 15,
+  "mutants": [
+    {
+      "name": "recovery-disabled",
+      "failed": 2,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery returns the held draft to its active owner through read and both unfiltered lists",
+        "WS-04 legacy owner recovery allows owner edits but preserves the unresolved association when labels are cleared"
+      ]
+    },
+    {
+      "name": "held-owner-guard-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery refuses collaborator access without exposing the held row"
+      ]
+    },
+    {
+      "name": "held-label-erased",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery allows owner edits but preserves the unresolved association when labels are cleared"
+      ]
+    },
+    {
+      "name": "draft-client-filter-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery excludes the held row from the client-filtered draft list"
+      ]
+    },
+    {
+      "name": "library-client-filter-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery excludes the held row from the client-filtered library"
+      ]
+    },
+    {
+      "name": "release-held-guard-removed",
+      "failed": 3,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery refuses create share while the client is held",
+        "WS-04 legacy owner recovery refuses public read while the client is held",
+        "WS-04 legacy owner recovery refuses guest comment while the client is held"
+      ]
+    },
+    {
+      "name": "share-index-held-guard-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery omits held titles and comment counts from the share index"
+      ]
+    },
+    {
+      "name": "binding-client-guard-removed",
+      "failed": 2,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery refuses binding to a walled client with no write",
+        "WS-04 legacy owner recovery refuses binding to a missing or archived client with no write"
+      ]
+    },
+    {
+      "name": "binding-noop",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery binds through the existing wall check and returns canonical identity without a held flag"
+      ],
+      "isolated": true
+    },
+    {
+      "name": "locked-owner-guard-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery rechecks held ownership under the write lock before editing"
+      ],
+      "isolated": true
+    },
+    {
+      "name": "staging-legacy-guard-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery retains the canonical staging owner refusal for unresolved legacy client names"
+      ],
+      "isolated": true
+    },
+    {
+      "name": "held-wire-flag-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery returns the held draft to its active owner through read and both unfiltered lists"
+      ],
+      "isolated": true
+    },
+    {
+      "name": "membership-guard-removed-behavioral",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery refuses removed owner access without exposing the held row"
+      ],
+      "isolated": true
+    },
+    {
+      "name": "held-update-opacity-removed",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "WS-04 legacy owner recovery refuses collaborator edits with an opaque 404 and no write"
+      ],
+      "isolated": true
+    },
+    {
+      "name": "authority-recovery-disabled",
+      "failed": 1,
+      "runtimeErrors": 0,
+      "failedTests": [
+        "A1 direct service authority held name-only legacy drafts remain readable to their active owner"
+      ],
+      "isolated": true
+    }
+  ],
+  "excludedAttempts": [
+    {
+      "name": "membership-guard-removed",
+      "reason": "Removing guard removed TypeScript narrowing; compile-only TS2532 attempt excluded. Corrected behavioral retry adds only non-null type assertion at bound-client use."
+    },
+    {
+      "name": "initial binding-noop",
+      "reason": "Tool session reset interrupted before a result. Exact intended return restored and source-audited; isolated retry qualified."
+    }
+  ],
+  "sourceSha256": {
+    "apps/workspace/src/drafts/draft-client-access.ts": "5ababaec5825c38f9d5757682eed49a83b5589e5d70d9278b329236de086277c",
+    "apps/workspace/src/drafts/drafts.service.ts": "e917c6ab142ef1911c974bc4a336dfcaf684a6f5fbf432580e1f11dc0f25beb4",
+    "apps/workspace/src/hillday/hillday-document.service.ts": "4245127217c6114f61658e31b156af2389f363c2cf7c274b6d7319462a2d223c",
+    "apps/workspace/src/drafts/legacy-client-recovery.spec.ts": "8b6581c55729111a8c527376ab80301c93211b57255abbd5743a4a829481711f",
+    "apps/workspace/jest.config.cjs": "87c5fab25bbf5888f16423299387d9eb5056be41920f87e0c25270c9963a2213"
+  },
+  "isolation": {
+    "root": "/dev/shm/a1-legacy-isolate",
+    "byteBackups": "/dev/shm/a1-legacy-final-backups",
+    "statusReceipt": "/dev/shm/a1-legacy-evidence/isolated-status.json",
+    "note": "Residual 7 mutants used the unchanged canonical config, copied actual service source, and actual compiled shared implementation; dependencies linked to existing cached toolchain. No real-tree mutations in this phase."
+  },
+  "sharedStagingImplementationSha256": "afa6558cd2e4d053e2b64c9e45b78c98c44b2e418c17375f41220108366fc2c8",
+  "sqlProposal": {
+    "path": "docs/a1-workspace/ws04-unique-client-backfill.sql",
+    "executed": false,
+    "sha256": "ff799fdc0e24436a4853d6941f253df8c19ec059417cfc29dd8e2b3edf1b3322"
+  },
+  "limits": [
+    "Synthetic Prisma seam; no PostgreSQL/RLS/concurrency qualification",
+    "Cached dependencies, not a fresh frozen install",
+    "No SQL, provider, AWS, live API, merge or deployment performed"
+  ]
+}

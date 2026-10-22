@@ -1,26 +1,20 @@
-// Delivery spec — tests approval preflight, share token hashing,
+// Delivery spec — tests share token hashing,
 // expiration, revocation, and rate limiting. Mocks PrismaService.
 
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
-import { ApprovalService } from './approval.service.js';
 import { ShareLinkService } from './share-link.service.js';
 
 // ── Mock Prisma ─────────────────────────────────────────────────────────
 
 function makeMockPrisma() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const approvals = new Map<string, Record<string, unknown>>();
   const shareLinks = new Map<string, Record<string, unknown>>();
   const drafts = new Map<string, Record<string, unknown>>();
-  const blueprintVersions = new Map<string, Record<string, unknown>>();
   const docVersions = new Map<string, Record<string, unknown>>();
   const guestComments = new Map<string, Record<string, unknown>>();
 
   return {
-    _approvals: approvals,
     _shareLinks: shareLinks,
     _drafts: drafts,
-    _blueprintVersions: blueprintVersions,
     _docVersions: docVersions,
     _guestComments: guestComments,
     wsDraft: {
@@ -28,28 +22,7 @@ function makeMockPrisma() {
         const d = drafts.get(where.id);
         if (!d) return null;
         if (where.tenantId && d.tenantId !== where.tenantId) return null;
-        return { ...d, updatedAt: d.updatedAt ?? new Date() };
-      }),
-    },
-    wsApprovalRequest: {
-      findFirst: jest.fn(async ({ where }: { where: { tenantId: string; draftId: string; status?: string } }) => {
-        for (const [, v] of approvals) {
-          if (v.tenantId === where.tenantId && v.draftId === where.draftId) {
-            if (where.status && v.status !== where.status) continue;
-            return v;
-          }
-        }
-        return null;
-      }),
-      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
-        const id = 'approval-' + approvals.size;
-        approvals.set(id, { id, ...data });
-        return approvals.get(id);
-      }),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-        const existing = approvals.get(where.id);
-        if (existing) approvals.set(where.id, { ...existing, ...data });
-        return approvals.get(where.id);
+        return { docTitle: "Title", config: {}, ask: null, documents: [], ...d, updatedAt: d.updatedAt ?? new Date() };
       }),
     },
     wsShareLink: {
@@ -78,13 +51,14 @@ function makeMockPrisma() {
         return shareLinks.get(where.id);
       }),
     },
-    wsBlueprintVersion: {
-      findFirst: jest.fn(async ({ where }: { where: { id: string } }) =>
-        blueprintVersions.get(where.id) ?? null,
-      ),
-    },
     wsDocVersion: {
       findFirst: jest.fn(async ({ where }: { where: { id: string; tenantId?: string; draftId?: string } }) => {
+        if (where.id === 'current-version') {
+          const d = drafts.get(where.draftId!);
+          if (!d || d.tenantId !== where.tenantId) return null;
+          return { id: where.id, tenantId: where.tenantId, draftId: where.draftId,
+            snapshot: { docTitle: d.docTitle ?? 'Title', config: d.config ?? {}, ask: d.ask ?? null, documents: d.documents ?? [] } };
+        }
         const v = docVersions.get(where.id);
         if (!v) return null;
         if (where.tenantId && v.tenantId !== where.tenantId) return null;
@@ -113,80 +87,6 @@ function makeMockCollaborators() {
   } as unknown as Record<string, unknown>
 }
 
-// ── Approval Service tests ──────────────────────────────────────────────
-
-describe('ApprovalService', () => {
-  let prisma: ReturnType<typeof makeMockPrisma>;
-  let service: ApprovalService;
-
-  beforeEach(() => {
-    prisma = makeMockPrisma();
-    service = new ApprovalService(prisma as never, makeMockCollaborators() as never);
-  });
-
-  it('preflight returns requiresApproval=false when no blueprint pinned', async () => {
-    (prisma as any)._drafts.set('draft-1', {
-      id: 'draft-1',
-      tenantId: 'tenant-1',
-      config: {},
-      updatedAt: new Date(),
-    });
-    const result = await service.preflight('tenant-1', 'draft-1', 'user-1');
-    expect(result.requiresApproval).toBe(false);
-  });
-
-  it('preflight returns requiresApproval=true when blueprint requires it', async () => {
-    (prisma as any)._drafts.set('draft-1', {
-      id: 'draft-1',
-      tenantId: 'tenant-1',
-      config: {
-        documentAgent: {
-          schemaVersion: 1,
-          revision: 1,
-          blueprintPin: { blueprintId: 'bp-1', versionId: 'bv-1', version: 1, definitionHash: 'h' },
-        },
-      },
-      updatedAt: new Date(),
-    });
-    (prisma as any)._blueprintVersions.set('bv-1', {
-      id: 'bv-1',
-      tenantId: 'tenant-1',
-      definition: {
-        approvalPolicy: { clientFacingApprovalRequired: true, permittedApproverRoles: ['owner'] },
-      },
-    });
-    const result = await service.preflight('tenant-1', 'draft-1', 'user-1');
-    expect(result.requiresApproval).toBe(true);
-    expect(result.approvalPolicy.permittedApproverRoles).toEqual(['owner']);
-  });
-
-  it('creates an approval request', async () => {
-    (prisma as any)._drafts.set('draft-1', {
-      id: 'draft-1',
-      tenantId: 'tenant-1',
-      config: {},
-      updatedAt: new Date(),
-    });
-    const result = await service.createRequest('tenant-1', 'draft-1', 'user-1', {
-      notes: 'Please review',
-    });
-    expect(result.status).toBe('pending');
-    expect(result.requestId).toBeDefined();
-  });
-
-  it('decides on an approval request', async () => {
-    (prisma as any)._drafts.set('draft-1', {
-      id: 'draft-1',
-      tenantId: 'tenant-1',
-      config: {},
-      updatedAt: new Date(),
-    });
-    await service.createRequest('tenant-1', 'draft-1', 'user-1', {});
-    const result = await service.decide('tenant-1', 'draft-1', 'approval-0', 'user-1', 'approved');
-    expect(result.status).toBe('approved');
-  });
-});
-
 // ── Share Link Service tests ────────────────────────────────────────────
 
 describe('ShareLinkService', () => {
@@ -206,7 +106,7 @@ describe('ShareLinkService', () => {
       updatedAt: new Date(),
     });
     const result = await service.createShareLink('tenant-1', 'draft-1', 'user-1', {
-      expiresInDays: 7,
+      expiresInDays: 7, versionId: 'current-version',
     });
     expect(result.token).toHaveLength(64); // 32 bytes hex
     expect(result.shareId).toBeDefined();
@@ -224,7 +124,7 @@ describe('ShareLinkService', () => {
       id: 'share-1',
       tokenHash,
       draftId: 'draft-1',
-      versionId: null,
+      versionId: 'current-version',
       expiresAt: new Date(Date.now() - 1000), // expired
       revokedAt: null,
     });
@@ -244,7 +144,7 @@ describe('ShareLinkService', () => {
       id: 'share-2',
       tokenHash,
       draftId: 'draft-1',
-      versionId: null,
+      versionId: 'current-version',
       expiresAt: null,
       revokedAt: new Date(), // revoked
     });
@@ -262,9 +162,11 @@ describe('ShareLinkService', () => {
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-3', {
       id: 'share-3',
+      tenantId: 'tenant-SECRET',
+      createdById: 'user-1',
       tokenHash,
       draftId: 'draft-1',
-      versionId: null,
+      versionId: 'current-version',
       expiresAt: null,
       revokedAt: null,
     });
@@ -340,7 +242,7 @@ describe('ShareLinkService', () => {
       tokenHash,
       tenantId: 'tenant-1',
       draftId: 'draft-1',
-      versionId: null,
+      versionId: 'current-version',
       expiresAt: null,
       revokedAt: null,
     });

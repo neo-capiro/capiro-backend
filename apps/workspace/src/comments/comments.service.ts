@@ -1,4 +1,4 @@
-import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
+import { withProspectDraft, denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GenerationService } from '../generation/generation.service.js';
@@ -23,17 +23,18 @@ export class CommentsService {
     private readonly collaborators: CollaboratorsService,
   ) {}
 
-  private async assertDocument(tenantId: string, documentId: string) {
+  private async assertDocument(tenantId: string, documentId: string, actorId?: string) {
     const doc = await this.prisma.wsDocument.findFirst({
       where: { id: documentId, tenantId },
-      include: { draft: { select: { id: true, tenantId: true, prospectId: true } } },
+      select: { id: true, draftId: true, draft: { select: { id: true, tenantId: true, prospectId: true } } },
     });
-    if (!doc) throw new NotFoundException('Document not found');
-    return doc;
+    if (!doc) throw new NotFoundException('Draft not found');
+    const accessRole = await this.collaborators.assertReadable(tenantId, doc.draftId, actorId);
+    return { ...doc, accessRole };
   }
 
   async list(tenantId: string, documentId: string, actorId?: string) {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     return withProspectDraft(
       this.prisma,
       doc.draft ?? { id: doc.draftId, tenantId },
@@ -52,7 +53,7 @@ export class CommentsService {
   }
 
   async create(tenantId: string, documentId: string, authorId: string, dto: CreateCommentDto) {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, authorId);
     return withProspectDraft(
       this.prisma,
       doc.draft ?? { id: doc.draftId, tenantId },
@@ -97,7 +98,7 @@ export class CommentsService {
     actorId: string,
     dto: UpdateCommentDto,
   ) {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     return withProspectDraft(
       this.prisma,
       doc.draft ?? { id: doc.draftId, tenantId },
@@ -105,10 +106,6 @@ export class CommentsService {
       canReview,
       'write',
       async (db) => {
-        const existing = await db.wsComment.findFirst({
-          where: { id: commentId, tenantId, documentId },
-        });
-        if (!existing) throw new NotFoundException('Comment not found');
         // Resolving a thread is a review action: owner + editor + reviewer only
         // (commenter/viewer cannot resolve). Editing the body is gated the same way
         // here (body edits ride alongside resolve on this endpoint).
@@ -119,6 +116,10 @@ export class CommentsService {
           canReview,
           'Only owners, editors and reviewers can resolve comments',
         );
+        const existing = await db.wsComment.findFirst({
+          where: { id: commentId, tenantId, documentId },
+        });
+        if (!existing) throw new NotFoundException('Comment not found');
         return db.wsComment.update({
           where: { id: commentId },
           data: {
@@ -137,7 +138,7 @@ export class CommentsService {
    * client renders in a SuggestionCard. Requires the comment to carry a quote.
    */
   async suggestEdit(tenantId: string, documentId: string, commentId: string, actorId: string) {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
     denyProspectTransfer(doc.draft);
     // Drafting/approving a Meri suggestion is a review action.
     await this.collaborators.assertCan(
@@ -183,7 +184,8 @@ export class CommentsService {
     commentId: string,
     actorId: string,
   ): Promise<{ deleted: boolean }> {
-    const doc = await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId, actorId);
+    if (!canComment(doc.accessRole)) throw new ForbiddenException('You do not have permission to delete comments');
     return withProspectDraft(
       this.prisma,
       doc.draft ?? { id: doc.draftId, tenantId },

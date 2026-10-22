@@ -1,0 +1,257 @@
+{
+  "base": "8d9958f75ba2fefe8edcf5e21a459ae97187ac8a",
+  "green": {
+    "suites": 8,
+    "tests": 154
+  },
+  "baseline": {
+    "failed": 46,
+    "passed": 2
+  },
+  "targeted_mutants": [
+    "remove Hill Day tenant predicate",
+    "reject all firm/null draft associations"
+  ],
+  "new_tests": [
+    {
+      "name": "A1 direct service authority share denies editor before token persistence",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share denies reviewer before token persistence",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share denies viewer before token persistence",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share denies null before token persistence",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority revoke denies unrelated actor before update",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share index excludes unauthorized titles and comment counts",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority preflight denies a removed collaborator",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority createRequest denies a removed collaborator",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share refuses missing saved version",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share refuses another-draft saved version",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share refuses an unapproved exact frozen revision",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority approval rejects a role excluded by the frozen blueprint",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority approval rejects changed content even within one second",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority ordinary owner is denied for removed authority",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority ordinary owner is denied for revoked authority",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority ordinary owner is denied for mismatch authority",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day get denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day quality denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day job denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day events denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day context denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day resolution denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day relationships denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day export denies revoked client before returning data",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day direct document denies foreign-tenant",
+      "baseline": "passed",
+      "targeted_mutant": "failed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day direct document denies wrong-owner",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day direct document denies removed-member",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority draft creation denies a hidden client before writes",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority draft creation persists canonical UUID and authoritative name",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority autosave cannot smuggle another client through config",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority restore cannot replace current client with another revision association",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority firm drafts with no client remain readable to their active owner",
+      "baseline": "passed",
+      "targeted_mutant": "failed"
+    },
+    {
+      "name": "A1 direct service authority ambiguous name-only legacy drafts stay held",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority an already bound draft cannot be reassigned to another client",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority share idempotency cannot return a receipt for a different revision",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority approval idempotency cannot return a receipt for a different revision",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority public token read stops after its issuer loses current authority",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority public token comment stops after its issuer loses current authority",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority approval rechecks frozen permitted role after a role downgrade",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day library holds revoked rows with client filter undefined",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority Hill Day library holds revoked rows with client filter 22222222-2222-4222-8222-222222222222",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority invalid Hill Day IDs fail before a database read",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority export URL issuance rechecks authority after loading the export",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 direct service authority approval request rechecks current role before persistence",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 HTTP authority boundaries share rejects without storage effects",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 HTTP authority boundaries revoke rejects without storage effects",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 HTTP authority boundaries approval rejects without storage effects",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    },
+    {
+      "name": "A1 HTTP authority boundaries hillday rejects without storage effects",
+      "baseline": "failed",
+      "targeted_mutant": "passed"
+    }
+  ]
+}

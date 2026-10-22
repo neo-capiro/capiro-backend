@@ -1,3 +1,5 @@
+import { releaseVersion } from './release-version.js';
+import { isHeldDraftClientAssociation } from '../drafts/draft-client-access.js';
 import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 // Share Link Service — manages secure share links.
 // Stores ONLY the hash of the token. Tokens are returned once.
@@ -6,12 +8,13 @@ import { denyProspectTransfer } from '../prospect-resources/prospect-draft-acces
 import {
   HttpException,
   HttpStatus,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
-import { canRead } from '../collaborators/role-policy.js';
+import { canRead, canManageCollaborators } from '../collaborators/role-policy.js';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import type { WsShareLink } from '../../generated/prisma-client/index.js';
 
@@ -54,6 +57,10 @@ export class ShareLinkService {
     }
     const origin = await this.prisma.wsDraft.findFirst({ where: { id: link.draftId, tenantId: link.tenantId }, select: { prospectId: true } });
     if (!origin || origin.prospectId) throw new NotFoundException('Share link not found');
+    // A grant is revoked when its issuing actor loses current source access.
+    // It never falls back to an authenticated tenant-only read.
+    await this.collaborators.assertCan(link.tenantId, link.draftId, link.createdById, canManageCollaborators);
+    await releaseVersion(this.prisma, link.tenantId, link.draftId, link.versionId, false);
     return link;
   }
 
@@ -68,12 +75,16 @@ export class ShareLinkService {
   ): Promise<{ shareId: string; token: string; expiresAt: string | null }> {
     denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
 
+    await this.collaborators.assertCan(tenantId, draftId, createdById, canManageCollaborators);
+    const { version } = await releaseVersion(this.prisma, tenantId, draftId, params.versionId);
+
     // Idempotency check.
     if (params.idempotencyKey) {
       const existing = await this.prisma.wsShareLink.findFirst({
         where: { tenantId, draftId, label: params.idempotencyKey },
       });
       if (existing) {
+        if (existing.versionId !== version.id) throw new ConflictException('Share request belongs to a different saved revision');
         return { shareId: existing.id, token: '', expiresAt: existing.expiresAt?.toISOString() ?? null };
       }
     }
@@ -84,6 +95,8 @@ export class ShareLinkService {
       ? new Date(Date.now() + params.expiresInDays * 24 * 60 * 60 * 1000)
       : null;
 
+    await this.collaborators.assertCan(tenantId, draftId, createdById, canManageCollaborators);
+    await releaseVersion(this.prisma, tenantId, draftId, version.id);
     const link = await this.prisma.wsShareLink.create({
       data: {
         tenantId,
@@ -102,9 +115,10 @@ export class ShareLinkService {
   /**
    * Revoke a share link.
    */
-  async revoke(tenantId: string, draftId: string, shareLinkId: string): Promise<void> {
+  async revoke(tenantId: string, draftId: string, shareLinkId: string, actorId: string): Promise<void> {
     denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
 
+    await this.collaborators.assertCan(tenantId, draftId, actorId, canManageCollaborators);
     const link = await this.prisma.wsShareLink.findFirst({
       where: { id: shareLinkId, tenantId, draftId },
     });
@@ -131,7 +145,7 @@ export class ShareLinkService {
 
     // Load the draft and sanitize the payload.
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { prospectId: null, id: link.draftId },
+      where: { prospectId: null, id: link.draftId, tenantId: link.tenantId },
     });
     if (!draft) throw new NotFoundException('Document not found');
 
@@ -239,7 +253,7 @@ export class ShareLinkService {
    * for the /workspace/shares page). Returns non-revoked links with the
    * associated draft title and guest-comment count.
    */
-  async listShares(tenantId: string): Promise<{
+  async listShares(tenantId: string, actorId: string): Promise<{
     shares: Array<{
       id: string;
       draftId: string;
@@ -259,13 +273,18 @@ export class ShareLinkService {
     const draftIds = [...new Set(links.map((l) => l.draftId))];
     const drafts = await this.prisma.wsDraft.findMany({
       where: { prospectId: null, id: { in: draftIds }, tenantId },
-      select: { id: true, docTitle: true },
+      select: { id: true, docTitle: true, clientId: true, client: true, config: true, prospectId: true },
     });
-    const draftMap = new Map(drafts.map((d) => [d.id, d.docTitle]));
+    const draftMap = new Map<string, string>();
+    for (const draft of drafts) {
+      if (isHeldDraftClientAssociation(draft)) continue;
+      const role = await this.collaborators.resolveRole(tenantId, draft.id, actorId);
+      if (canRead(role)) draftMap.set(draft.id, draft.docTitle);
+    }
 
     const commentCounts = await this.prisma.wsGuestComment.groupBy({
       by: ['shareLinkId'],
-      where: { tenantId, shareLinkId: { in: links.map((l) => l.id) } },
+      where: { tenantId, shareLinkId: { in: links.filter(l => draftMap.has(l.draftId)).map((l) => l.id) } },
       _count: { _all: true },
     });
     const commentMap = new Map(

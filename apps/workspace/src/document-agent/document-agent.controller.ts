@@ -348,7 +348,7 @@ export class DocumentAgentController {
 
   @Get('quality')
   getQuality(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.quality.evaluate(ctx.tenantId, draftId);
+    return this.quality.evaluate(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   @Post('quality/issues/:issueId/fix')

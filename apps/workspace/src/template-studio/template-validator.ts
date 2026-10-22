@@ -113,19 +113,6 @@ export class TemplateValidator {
       if (!Array.isArray(cr.instructions)) errors.push('contentRules.instructions must be an array');
     }
 
-    // ── approvalPolicy ────────────────────────────────────────────────────
-    const ap = d.approvalPolicy;
-    if (!ap || typeof ap !== 'object') {
-      errors.push('approvalPolicy is required');
-    } else {
-      if (typeof ap.clientFacingApprovalRequired !== 'boolean') {
-        errors.push('approvalPolicy.clientFacingApprovalRequired must be boolean');
-      }
-      if (!Array.isArray(ap.permittedApproverRoles)) {
-        errors.push('approvalPolicy.permittedApproverRoles must be an array');
-      }
-    }
-
     // ── defaultTheme ──────────────────────────────────────────────────────
     const th = d.defaultTheme;
     if (!th || typeof th !== 'object') {

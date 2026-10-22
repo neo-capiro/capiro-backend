@@ -62,9 +62,9 @@ export class HillDayExportService {
     documentId: string,
     pageSize: 'letter' | 'a4',
   ): Promise<ExportView> {
-    const doc = await this.documents.assertDoc(tenantId, documentId);
+    const doc = await this.documents.assertDoc(tenantId, documentId, actorId);
     if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can export it');
-    const view = await this.documents.get(tenantId, documentId);
+    const view = await this.documents.get(tenantId, documentId, actorId);
     const row = await this.prisma.wsHillDayExport.create({
       data: { tenantId, documentId, actorId, format: 'pdf', pageSize, status: 'queued' },
     });
@@ -72,12 +72,15 @@ export class HillDayExportService {
       const branding = await this.fetchBranding(tenantId, view.client.id);
       const buffer = await this.renderPdf(view, { pageSize, logo: branding.clientLogo });
       const filename = `${safeFilename(view.name)}.pdf`;
+      await this.documents.assertDoc(tenantId, documentId, actorId);
       const ready = await this.prisma.wsHillDayExport.update({
         where: { id: row.id },
         data: { status: 'ready', file: buffer, sizeBytes: buffer.length, filename, readyAt: new Date() },
       });
+      await this.documents.assertDoc(tenantId, documentId, actorId);
       return this.toView(ready);
     } catch (err) {
+      if (err instanceof NotFoundException || err instanceof ForbiddenException) throw err;
       this.logger.error(`Hill Day export ${row.id} failed: ${(err as Error).message}`);
       const failed = await this.prisma.wsHillDayExport.update({
         where: { id: row.id },
@@ -87,13 +90,15 @@ export class HillDayExportService {
     }
   }
 
-  async get(tenantId: string, documentId: string, exportId: string): Promise<ExportView> {
+  async get(tenantId: string, documentId: string, exportId: string, actorId: string): Promise<ExportView> {
+    await this.documents.assertDoc(tenantId, documentId, actorId);
     const row = await this.prisma.wsHillDayExport.findFirst({ where: { id: exportId, tenantId, documentId } });
     if (!row) throw new NotFoundException('Export not found');
+    await this.documents.assertDoc(tenantId, documentId, actorId);
     return this.toView(row);
   }
 
-  /** Serve the file for a signed URL (no session — the signature is the grant). */
+  /** A signed URL also requires the export issuer's current document access. */
   async file(
     documentId: string,
     exportId: string,
@@ -112,6 +117,7 @@ export class HillDayExportService {
     }
     const row = await this.prisma.wsHillDayExport.findFirst({ where: { id: exportId, documentId } });
     if (!row || row.status !== 'ready' || !row.file) throw new NotFoundException('Export not ready');
+    await this.documents.assertDoc(row.tenantId, documentId, row.actorId);
     return { buffer: Buffer.from(row.file), filename: row.filename ?? 'hill-day-schedule.pdf' };
   }
 

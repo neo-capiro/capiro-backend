@@ -70,7 +70,12 @@ export class DocumentsService {
   }
 
   async list(tenantId: string, draftId: string, actorId?: string) {
-    const draft = await this.assertDraft(tenantId, draftId);
+    await this.collaborators.assertReadable(tenantId, draftId, actorId);
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: draftId, tenantId },
+      select: { id: true, tenantId: true, prospectId: true },
+    });
+    if (!draft) throw new NotFoundException('Draft not found');
     return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', async (db) => {
       return db.wsDocument.findMany({
         where: { tenantId, draftId },

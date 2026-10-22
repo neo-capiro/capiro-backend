@@ -1,3 +1,4 @@
+import { admitHillDayDocument } from './hillday-access.js';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { PutMeetingContextDto } from './dto/hillday.dto.js';
@@ -175,7 +176,7 @@ export class HillDayContextService {
     meetingId: string,
     lookbackOverride: number | null,
   ): Promise<MeetingContextCandidates> {
-    const { doc, row } = await this.loadMeeting(tenantId, documentId, meetingId);
+    const { doc, row } = await this.loadMeeting(tenantId, documentId, meetingId, actorId);
     const resolution = row.resolution as MeetingResolution | null;
     const record = row.context as MeetingContextRecord | null;
     const lookbackDays = lookbackOverride ?? record?.lookbackDays ?? doc.lookbackDays ?? DEFAULT_LOOKBACK_DAYS;
@@ -204,7 +205,7 @@ export class HillDayContextService {
     meetingId: string,
     dto: PutMeetingContextDto,
   ): Promise<{ record: MeetingContextRecord; sourceCount: number; units: CarryUnit[] }> {
-    const { doc, row } = await this.loadMeeting(tenantId, documentId, meetingId);
+    const { doc, row } = await this.loadMeeting(tenantId, documentId, meetingId, actorId);
     if (doc.ownerId !== actorId) {
       throw new BadRequestException('Only the document owner can change its context');
     }
@@ -245,8 +246,7 @@ export class HillDayContextService {
     meetingId: string | null,
     lookbackOverride: number | null,
   ): Promise<ThreadsResponse> {
-    const doc = await this.prisma.wsHillDayDocument.findFirst({ where: { id: documentId, tenantId } });
-    if (!doc) throw new NotFoundException('Document not found');
+    const doc = await admitHillDayDocument(this.prisma, this.source, tenantId, actorId, documentId);
     let resolution: MeetingResolution | null = null;
     let lookback = lookbackOverride ?? doc.lookbackDays ?? DEFAULT_LOOKBACK_DAYS;
     if (meetingId) {
@@ -291,9 +291,8 @@ export class HillDayContextService {
     return { lookbackDays, windowStart: since.toISOString(), threads, sources };
   }
 
-  private async loadMeeting(tenantId: string, documentId: string, meetingId: string) {
-    const doc = await this.prisma.wsHillDayDocument.findFirst({ where: { id: documentId, tenantId } });
-    if (!doc) throw new NotFoundException('Document not found');
+  private async loadMeeting(tenantId: string, documentId: string, meetingId: string, actorId: string) {
+    const doc = await admitHillDayDocument(this.prisma, this.source, tenantId, actorId, documentId);
     const row = await this.prisma.wsHillDayMeeting.findFirst({
       where: { id: meetingId, tenantId, documentId },
     });

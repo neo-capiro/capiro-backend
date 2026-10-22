@@ -66,6 +66,7 @@ model WsDraft {
   industry  String?
   product   String?
   client    String?
+  clientId  String? @map("client_id") @db.Uuid
   // Canonical immutable Core origin; free-text client never grants authority.
   prospectId String? @map("prospect_id") @db.Uuid
   status    WsDocStatus @default(draft)
@@ -94,6 +95,7 @@ model WsDraft {
   guestComments WsGuestComment[]
 
   @@index([tenantId])
+  @@index([tenantId, clientId, updatedAt], map: "ws_draft_client_idx")
   @@index([tenantId, prospectId, updatedAt], map: "ws_draft_prospect_idx")
   @@index([tenantId, ownerId])
   @@index([tenantId, updatedAt])
@@ -216,7 +218,8 @@ model WsAgentProposal {
   @@map("ws_agent_proposal")
 }
 
-// ── Delivery: approval requests + secure share links ──────────────────────
+// ── Delivery: retained approval data + secure share links ─────────────────
+/// Retained: stored Workspace approval data; drop requires an approved migration (Neo 2026-10-21)
 enum WsApprovalStatus {
   pending
   approved
@@ -226,6 +229,7 @@ enum WsApprovalStatus {
   @@map("ws_approval_status")
 }
 
+/// Retained: stored Workspace approval data; drop requires an approved migration (Neo 2026-10-21)
 model WsApprovalRequest {
   id            String           @id @default(uuid()) @db.Uuid
   tenantId      String           @map("tenant_id") @db.Uuid

@@ -102,10 +102,12 @@ describe('Workspace library private drafts', () => {
     expect(next.nextCursor).toBeNull();
   });
   it('lists Hill Day packets only, and pages over them alone, when kind=hillday', async () => {
+    const id = (n: string) => `11111111-1111-4111-8111-11111111111${n.slice(-1)}`;
     const at = (iso: string) => new Date(iso);
-    const hill = (id: string, iso: string) => ({
-      id,
-      name: id,
+    const hill = (key: string, iso: string) => ({
+      id: id(key),
+      name: key,
+      clientId: '11111111-1111-4111-8111-111111111111',
       clientName: null,
       status: 'generated',
       updatedAt: at(iso),
@@ -113,6 +115,7 @@ describe('Workspace library private drafts', () => {
     });
     const prisma = {
       wsHillDayDocument: {
+        findFirst: jest.fn(async ({where}: any) => ({ id: where.id, ownerId: 'actor', clientId: '11111111-1111-4111-8111-111111111111' })),
         findMany: jest.fn(async () => [
           hill('h3', '2026-09-14T12:00:00Z'),
           hill('h2', '2026-09-14T11:00:00Z'),
@@ -125,24 +128,24 @@ describe('Workspace library private drafts', () => {
     const collaborators = { sourceAccess: jest.fn(async () => true) };
     const service = new HillDayDocumentService(
       prisma as never,
-      { userDisplays: jest.fn(async () => new Map()) } as never,
+      { userDisplays: jest.fn(async () => new Map()), requireClient: jest.fn(async () => ({wallAllowed:true})) } as never,
       {} as never,
       collaborators as never,
     );
     const page = await service.listDocuments('tenant', 'actor', { kind: 'hillday', limit: '2' });
     expect(page.items.map((d) => [d.kind, d.id])).toEqual([
-      ['hillday', 'h3'],
-      ['hillday', 'h2'],
+      ['hillday', id('h3')],
+      ['hillday', id('h2')],
     ]);
-    expect(decodeCursor(page.nextCursor!)).toEqual({ u: '2026-09-14T11:00:00.000Z', i: 'h2' });
+    expect(decodeCursor(page.nextCursor!)).toEqual({ u: '2026-09-14T11:00:00.000Z', i: id('h2') });
     expect(prisma.wsDraft.findMany).not.toHaveBeenCalled();
     expect(prisma.wsCollaborator.findMany).not.toHaveBeenCalled();
     expect(collaborators.sourceAccess).not.toHaveBeenCalled();
   });
   it('never aliases a canonical prospect draft into a client library by display name', async () => {
     const rows = [
-      { id: 'prospect-draft', prospectId: 'prospect', client: 'Same name' },
-      { id: 'legacy-draft', prospectId: null, client: 'Same name' },
+      { id: 'prospect-draft', prospectId: 'prospect', client: 'Same name', clientId: '11111111-1111-4111-8111-111111111111' },
+      { id: 'legacy-draft', prospectId: null, client: 'Same name', clientId: '11111111-1111-4111-8111-111111111111' },
     ].map((row) => ({
       ...row,
       ownerId: 'actor',
@@ -159,7 +162,7 @@ describe('Workspace library private drafts', () => {
           rows.filter(
             (row) =>
               (where.prospectId === undefined || row.prospectId === where.prospectId) &&
-              (!where.client || row.client === where.client),
+              (!where.clientId || row.clientId === where.clientId),
           ),
         ),
       },

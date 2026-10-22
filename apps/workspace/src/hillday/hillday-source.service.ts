@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -259,10 +260,26 @@ export class HillDaySourceService {
                )) AS "wallAllowed"
         FROM clients c
         WHERE c.tenant_id = ${tenantId}::uuid AND c.id = ${clientId}::uuid
+          AND c.status = 'active' AND COALESCE(c.profile_status, 'ACTIVE') <> 'ARCHIVED'
         LIMIT 1
       `,
     );
     return rows[0] ?? null;
+  }
+
+  /** Domain admission, independent of a cached request identity. */
+  async requireClient(tenantId: string, actorId: string, clientId: string) {
+    const members = actorId ? await this.prisma.withSystem(tx => tx.$queryRaw<Array<{ id: string }>>`
+      SELECT u.id::text AS id FROM users u JOIN tenant_memberships m ON m.user_id=u.id
+      JOIN tenants t ON t.id=m.tenant_id
+      WHERE m.tenant_id=${tenantId}::uuid AND u.clerk_user_id=${actorId}
+        AND m.status::text='active' AND t.status::text='active'
+        AND m.role::text IN ('standard_user','user_admin','capiro_admin')`) : [];
+    const userId = members[0]?.id;
+    if (!userId) throw new NotFoundException('Client not found');
+    const client = await this.getClient(tenantId, userId, clientId);
+    if (!client?.wallAllowed) throw new NotFoundException('Client not found');
+    return client;
   }
 
   /** Live strategy counts per client (Strategies layer). Throws when the layer is unreadable. */

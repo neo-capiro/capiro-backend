@@ -555,6 +555,41 @@ describe('pinned Core brief Workspace copy and atomic history', () => {
     await service.update(tenantId, draftId, actorId, { config: { tone: 'formal' } });
     expect(f.draft().config).toEqual({ sections: [], concurrent: 'retained', tone: 'formal' });
   });
+  it.each([
+    ['PATCH', 'membership'],
+    ['PATCH', 'prospect entitlement'],
+    ['PATCH', 'linked-client wall'],
+    ['PATCH', 'copied source'],
+    ['restore', 'membership'],
+    ['restore', 'prospect entitlement'],
+    ['restore', 'linked-client wall'],
+    ['restore', 'copied source'],
+  ] as const)('refuses prospect %s after revoked %s without a write', async (operation, gate) => {
+    const f = fixture();
+    await f.copy();
+    const writes = f.writes();
+    const before = structuredClone({
+      draft: f.draft(), documents: f.documents(), versions: f.versions(),
+    });
+    if (gate === 'membership') f.controls.member = false;
+    if (gate === 'prospect entitlement') f.controls.prospectFlag = false;
+    if (gate === 'copied source') f.controls.versionExists = false;
+    if (gate === 'linked-client wall') {
+      f.controls.linkedClientId = clientId;
+      f.controls.wall = true;
+      f.controls.grant = false;
+    }
+    const collaborators = { assertCan: async () => 'owner' };
+    const call = operation === 'PATCH'
+      ? new DraftsService(f.prisma, collaborators as never)
+          .update(tenantId, draftId, actorId, { config: { tone: 'formal' } })
+      : new VersionsService(f.prisma, collaborators as never)
+          .restore(tenantId, draftId, requestId, actorId);
+    await expect(call).rejects.toBeInstanceOf(NotFoundException);
+    expect(f.writes()).toBe(writes);
+    expect({ draft: f.draft(), documents: f.documents(), versions: f.versions() }).toEqual(before);
+  });
+
   it('requires explicit nullable client and rejects malformed ordered blocks before persistence', async () => {
     const f = fixture();
     const input: any = { requestId, expectedStateHash: 'a'.repeat(64), source: f.source };

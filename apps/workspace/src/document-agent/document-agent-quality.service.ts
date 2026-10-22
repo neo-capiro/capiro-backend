@@ -4,8 +4,10 @@ import { denyProspectTransfer } from '../prospect-resources/prospect-draft-acces
 // document-agent workflow. A "fix" operation creates a revision proposal;
 // it never silently edits the document.
 
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit } from '../collaborators/role-policy.js';
 import { ChecksService, type WsCheckResult } from '../checks/checks.service.js';
 import { readAgentState } from './document-agent-state.js';
 import type { DocumentAgentRevisionService } from './document-agent-revision.service.js';
@@ -30,15 +32,16 @@ export class DocumentAgentQualityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly checks: ChecksService,
+    private readonly collaborators: CollaboratorsService,
   ) {}
 
   /**
    * Evaluate the document quality. Wraps the existing ChecksService and adds
    * agent-specific checks.
    */
-  async evaluate(tenantId: string, draftId: string): Promise<AgentQualityResult> {
+  async evaluate(tenantId: string, draftId: string, actorId: string): Promise<AgentQualityResult> {
     // Run the existing checks (backward-compatible).
-    const existing = await this.checks.evaluate(tenantId, draftId);
+    const existing = await this.checks.evaluate(tenantId, draftId, actorId);
 
     // Load the agent state.
     const draft = await this.prisma.wsDraft.findFirst({
@@ -220,7 +223,19 @@ export class DocumentAgentQualityService {
     baseHash: string;
     instruction?: string;
   }): Promise<{ proposalId: string }> {
-    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: params.tenantId, id: params.draftId }, select: { prospectId: true } }));
+    const role = await this.collaborators.assertReadable(
+      params.tenantId,
+      params.draftId,
+      params.createdById,
+    );
+    if (!canEdit(role))
+      throw new ForbiddenException('Only owners and editors can create a quality fix');
+    const origin = await this.prisma.wsDraft.findFirst({
+      where: { tenantId: params.tenantId, id: params.draftId },
+      select: { prospectId: true },
+    });
+    if (!origin) throw new NotFoundException('Draft not found');
+    denyProspectTransfer(origin);
 
     const proposal = await this.prisma.wsAgentProposal.create({
       data: {

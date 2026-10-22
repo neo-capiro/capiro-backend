@@ -167,10 +167,11 @@ describe('HillDayExportService signed URLs', () => {
     const file = Buffer.from('%PDF-1.7 test');
     const prisma = {
       wsHillDayExport: {
-        findFirst: jest.fn(async () => ({ id: 'exp-1', documentId: 'doc-1', status: 'ready', file, filename: 'x.pdf' })),
+        findFirst: jest.fn(async () => ({ id: 'exp-1', tenantId: 'tenant', actorId: 'owner', documentId: 'doc-1', status: 'ready', file, filename: 'x.pdf' })),
       },
     };
-    const service = new HillDayExportService(prisma as never, {} as never, {} as never);
+    const documents = { assertDoc: async () => ({ ownerId: 'owner' }) };
+    const service = new HillDayExportService(prisma as never, documents as never, {} as never);
     const exp = Date.now() + 60_000;
     const path = service.signedPath('doc-1', 'exp-1', exp);
     const sig = new URL(`https://x${path}`).searchParams.get('sig')!;
