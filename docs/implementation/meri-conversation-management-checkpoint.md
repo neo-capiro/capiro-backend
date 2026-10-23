@@ -1,0 +1,13 @@
+# Meri conversation management source checkpoint
+
+Core owns versioned titles, owner-title search, status, metadata revision and immutable request receipts. Rename uses the same canonical conversation fence as other mutations. Archive, Trash and Restore require the Meri terminal-run fence. The optional trusted in-process port is deliberately absent from ordinary Nest composition: missing composition returns `MANAGEMENT_UNAVAILABLE`, and list receipts report management unavailable. There is no HTTP fence token or success fallback.
+
+Trash suppresses through the existing Meri retention owner before committing metadata; an unknown commit stays suppressed. Restore commits the exact request receipt within 30 days before retention release. A retry cannot release a later Trash or an unrelated suppression from Archive. Meri owns the retention transition lock before its conversation lock; Core then locks its separate native conversation row. Neither callback reacquires the Meri advisory lock.
+
+Metadata/list operations check current membership, immutable bootstrap ownership and the current client wall. General remains an explicit persisted binding; legacy null-client conversations are excluded. Existing unversioned mutation routes refuse bound conversations. Titles and search are native owner-scoped data, never model-generated labels or a local message index.
+
+Migration `20281023020000_meri_conversation_management` is source only and atomic. Exact reruns validate columns, constraints, immutable trigger/function and tenant RLS policy. Canonical conversation deletion sets the receipt foreign key to null and strips receipt content, retaining the consumed request identity/digest. Direct tombstone rewrites while the conversation exists fail; tenant cascade remains valid. No second purger is introduced. The disposable PostgreSQL 16 runner is `apps/api/scripts/verify-meri-conversation-management.mjs`; only root executes that gate.
+
+Focused synthetic service tests cover missing composition, suppression/commit/release ordering, unknown outcomes, owner/CAS failures, exact retry, stale Restore versus later Trash, Archive Restore, expiry, request substitution, deleted replay and retention ownership. Native database evidence and immutable commit equivalence must be attached separately.
+
+Remaining Wave2 work includes R's trusted co-location composition and packaging decision, runtime admission integration, reserved General read-delegation restoration/qualification, the frozen gateway receiving patch, full frontend browser checks and canonical skill availability/window integration. This checkpoint does not activate a runtime or claim complete Wave2 delivery.

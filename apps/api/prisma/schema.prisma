@@ -237,6 +237,7 @@ model Tenant {
   outreachJobItems                   OutreachJobItem[]
   clioConversations                  ClioConversation[]
   clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
+  clioConversationManagementReceipts ClioConversationManagementReceipt[]
   clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
   clioMeriMemorySubmissions          ClioMeriMemorySubmission[]
   clioMeriRoutineApprovals           ClioMeriRoutineApproval[]
@@ -2273,6 +2274,9 @@ model ClioConversation {
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt           DateTime? @map("archived_at") @db.Timestamptz(6)
+  metadataRevision     BigInt    @default(0) @map("metadata_revision")
+  trashedAt            DateTime? @map("trashed_at") @db.Timestamptz(3)
+  restoreUntil         DateTime? @map("restore_until") @db.Timestamptz(3)
 
   tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -2282,11 +2286,27 @@ model ClioConversation {
   artifacts ClioArtifact[]
   notes     ClioNote[]
   bootstrapReceipt ClioConversationBootstrapReceipt?
+  managementReceipts ClioConversationManagementReceipt[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
   @@index([tenantId, userId, workspaceId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_workspace_updated_idx")
   @@map("clio_conversations")
+}
+
+/// Immutable owner-scoped management request receipts survive conversation deletion.
+model ClioConversationManagementReceipt {
+  tenantId       String @map("tenant_id") @db.Uuid
+  actorUserId    String @map("actor_user_id") @db.Uuid
+  requestId      String @map("request_id") @db.Uuid
+  conversationId String? @map("conversation_id") @db.Uuid
+  requestSha256  String @map("request_sha256") @db.Char(64)
+  receipt        Json
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_management_receipts_tenant_fkey")
+  conversation ClioConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull, map: "clio_management_receipts_conversation_fkey")
+  @@id([tenantId, actorUserId, requestId], map: "clio_management_receipts_pkey")
+  @@map("clio_conversation_management_receipts")
 }
 
 /// Durable first-chat intent key. The optional conversation link is cleared on

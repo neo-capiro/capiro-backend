@@ -1,4 +1,6 @@
 import { bootstrapConversation as bootstrapNativeConversation, readBootstrapCapability } from './meri-conversation-bootstrap.js';
+import { assertLegacyManagementAllowed, manageConversation, MERI_CONVERSATION_MANAGEMENT_PORT, type ManagementPort } from './conversation-management/service.js';
+import { listManagedConversations } from './conversation-management/list.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { randomUUID } from 'node:crypto';
@@ -8,6 +10,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
   Logger,
   NotFoundException,
   Optional,
@@ -335,7 +338,15 @@ export class MeriService implements MeriTurnMaintenance {
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
+    @Optional() @Inject(MERI_CONVERSATION_MANAGEMENT_PORT) private readonly managementPort?: ManagementPort,
   ) {}
+
+  listManagedConversations(ctx: TenantContext, body: unknown) {
+    return listManagedConversations(this.prisma, ctx, body, Boolean(this.managementPort));
+  }
+  manageConversation(ctx: TenantContext, body: unknown) {
+    return manageConversation(this.prisma, ctx, body, this.managementPort);
+  }
 
   async status(ctx: TenantContext) {
     const profile = await this.currentProfile(ctx);
@@ -547,6 +558,7 @@ export class MeriService implements MeriTurnMaintenance {
     }
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertLegacyManagementAllowed(tx, ctx.tenantId, conversationId);
       if (input.clientId !== undefined) {
         // Lock this conversation before reading its current membership. A
         // concurrent workspace assignment must validate the updated client.
@@ -604,25 +616,27 @@ export class MeriService implements MeriTurnMaintenance {
 
   async archiveConversation(ctx: TenantContext, conversationId: string) {
     await this.ensureConversation(ctx, conversationId);
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.update({
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertLegacyManagementAllowed(tx, ctx.tenantId, conversationId);
+      return tx.clioConversation.update({
         where: { id: conversationId },
         data: { archivedAt: new Date(), status: 'archived' },
-      }),
-    );
+      });
+    });
     return { ok: true, id: conversationId };
   }
 
   async restoreConversation(ctx: TenantContext, conversationId: string) {
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
     if (!conversation.archivedAt) return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
-    const restored = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.update({
+    const restored = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await assertLegacyManagementAllowed(tx, ctx.tenantId, conversationId);
+      return tx.clioConversation.update({
         where: { id: conversationId },
         data: { archivedAt: null, status: 'active', updatedAt: new Date() },
         include: { client: { select: { id: true, name: true } } },
-      }),
-    );
+      });
+    });
     return { ...restored, metadata: publicConversationMetadata(restored.metadata) };
   }
 

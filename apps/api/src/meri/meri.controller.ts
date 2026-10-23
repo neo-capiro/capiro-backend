@@ -386,6 +386,20 @@ export class MeriController {
     return this.service.createConversation(ctx, body);
   }
 
+  @Post('conversations/management/v1/list')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  listManagedConversations(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.listManagedConversations(ctx, body);
+  }
+
+  @Post('conversations/management/v1/change')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  manageConversation(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.manageConversation(ctx, body);
+  }
+
   // One Core-owned conversation per authenticated New Chat intent. Keep this
   // literal route ahead of the parameterized conversation routes.
   @Post('conversations/bootstrap-capability')
