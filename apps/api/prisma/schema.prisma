@@ -873,6 +873,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  fileBatchMoveReceipts ClientFileBatchMoveReceipt[]
   engagementPlans EngagementPlan[]
   notetakerPreferences      ClientNotetakerPreference[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
@@ -1643,6 +1644,8 @@ model EngagementAttachment {
   /// Client CRM vNext file folder. NULL = unfiled. Moving a file rewrites this
   /// column only; the stored S3 object is never copied (contract §12).
   folder            String?   @db.VarChar(120)
+  /// Incremented by the database for changes affecting a reviewed batch move.
+  metadataRevision  Int       @default(0) @map("metadata_revision")
   /// Who on the tenant may VIEW this file in the client Files tab.
   /// 'all' (default) = every tenant member; 'restricted' = only the user ids in
   /// viewerUserIds (plus the uploader, who always retains access). Empty
@@ -1724,6 +1727,22 @@ model EngagementAttachment {
   @@index([tenantId, lifecycleStatus, createdAt], map: "engagement_attachments_tenant_lifecycle_created_idx")
   @@index([tenantId, sharedAt], map: "engagement_attachments_tenant_shared_idx")
   @@map("engagement_attachments")
+}
+
+/// Immutable metadata-only batch result. Current access is checked again on read/replay.
+model ClientFileBatchMoveReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  command Json
+  receipt Json
+  committedAt DateTime @default(dbgenerated("clock_timestamp()")) @map("committed_at") @db.Timestamptz(6)
+  client Client @relation(fields: [tenantId,clientId], references: [tenantId,id], onDelete: Cascade, onUpdate: NoAction, map: "client_file_batch_move_receipts_client_fk")
+  @@unique([tenantId,actorUserId,requestId], map: "client_file_batch_move_receipts_request_key")
+  @@map("client_file_batch_move_receipts")
 }
 
 model MeetingNote {
