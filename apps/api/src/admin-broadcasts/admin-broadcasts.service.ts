@@ -196,17 +196,19 @@ export class AdminBroadcastsService {
   /** Unacknowledged, unarchived broadcasts addressed to the caller, oldest first. */
   async listPendingForUser(ctx: TenantContext) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.requireRecipientMembership(tx, ctx);
       const rows = await tx.adminBroadcastRecipient.findMany({
         where: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           acknowledgedAt: null,
-          broadcast: { archivedAt: null },
+          broadcast: { tenantId: ctx.tenantId, archivedAt: null },
         },
         include: {
           broadcast: { select: { id: true, title: true, body: true, createdAt: true } },
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 100,
       });
       return rows.map((r) => r.broadcast);
     });
@@ -215,21 +217,47 @@ export class AdminBroadcastsService {
   /** Idempotent: acknowledging twice keeps the first timestamp. */
   async acknowledge(ctx: TenantContext, broadcastId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Keep membership and archive eligibility stable until the receipt commits.
+      // Order: membership -> broadcast -> recipient. Ordinary updates/deletes
+      // acquire these same row locks; concurrent acknowledgements serialize.
+      await tx.$queryRaw`SELECT id FROM tenant_memberships
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND user_id = ${ctx.userId}::uuid FOR UPDATE`;
+      await this.requireRecipientMembership(tx, ctx);
+      await tx.$queryRaw`SELECT id FROM admin_broadcasts
+        WHERE id = ${broadcastId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`;
+      const broadcast = await tx.adminBroadcast.findFirst({
+        where: { id: broadcastId, tenantId: ctx.tenantId, archivedAt: null },
+        select: { id: true },
+      });
+      if (!broadcast) throw new NotFoundException('Broadcast not found');
+      await tx.$queryRaw`SELECT id FROM admin_broadcast_recipients
+        WHERE broadcast_id = ${broadcastId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid FOR UPDATE`;
       const recipient = await tx.adminBroadcastRecipient.findFirst({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, broadcastId },
         select: { id: true, acknowledgedAt: true },
       });
       if (!recipient) throw new NotFoundException('Broadcast not found');
       if (recipient.acknowledgedAt) {
-        return { ok: true as const, acknowledgedAt: recipient.acknowledgedAt };
+        return { ok: true as const, broadcastId, acknowledgedAt: recipient.acknowledgedAt };
       }
       const updated = await tx.adminBroadcastRecipient.update({
         where: { id: recipient.id },
         data: { acknowledgedAt: new Date() },
         select: { acknowledgedAt: true },
       });
-      return { ok: true as const, acknowledgedAt: updated.acknowledgedAt };
+      return { ok: true as const, broadcastId, acknowledgedAt: updated.acknowledgedAt };
     });
+  }
+
+  private async requireRecipientMembership(tx: Tx, ctx: TenantContext) {
+    const membership = await tx.tenantMembership.findUnique({
+      where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+      select: { status: true },
+    });
+    if (!membership || !RECIPIENT_STATUSES.some((status) => status === membership.status)) {
+      throw new NotFoundException('Broadcast not found');
+    }
   }
 
   private async requireTenant(tx: Tx, tenantId: string) {
