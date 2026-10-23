@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { HttpException } from '@nestjs/common';
 import type {
   OperationalCommand,
+  OperationalAssociationsRequest,
   OperationalCycle,
   OperationalError,
   OperationalErrorCode,
@@ -263,6 +264,27 @@ export function parseOperationalReceiptQuery(
     requestId: identity,
     clientId: uuid(pathClientId, identity),
     objectiveId: uuid(input.objectiveId, identity),
+  };
+}
+
+export function parseOperationalAssociationsQuery(
+  pathClientId: string,
+  raw: unknown,
+): OperationalAssociationsRequest {
+  const input = record(raw);
+  closed(input, ['schemaVersion', 'objectiveId', 'limit'], ['cursor']);
+  if (
+    input.schemaVersion !== '1' ||
+    typeof input.limit !== 'string' ||
+    !/^(?:[1-9]|[1-9][0-9]|100)$/.test(input.limit)
+  )
+    malformed();
+  return {
+    schemaVersion: 1,
+    clientId: uuid(pathClientId),
+    objectiveId: uuid(input.objectiveId),
+    limit: Number(input.limit),
+    cursor: cursor(input, 'cursor'),
   };
 }
 

@@ -23,7 +23,12 @@ const command = {
 /** Transport/guard fixtures only. Real current authority and SQL are separate suites. */
 describe('Objective operational closed HTTP boundary', () => {
   let app: INestApplication;
-  const service = { read: jest.fn(), command: jest.fn(), receipt: jest.fn() };
+  const service = {
+    read: jest.fn(),
+    command: jest.fn(),
+    receipt: jest.fn(),
+    associations: jest.fn(),
+  };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [ObjectiveOperationalController],
@@ -51,11 +56,33 @@ describe('Objective operational closed HTTP boundary', () => {
     service.read.mockResolvedValue({ read: true });
     service.command.mockResolvedValue({ receipt: true });
     service.receipt.mockResolvedValue({ historical: true });
+    service.associations.mockResolvedValue({ items: [] });
   });
   afterAll(async () => {
     await app.close();
   });
   const path = `/clients/${client}/objectives`;
+  test('manual association inventory uses the existing guard and strict bounded no-store route', async () => {
+    const url = `${path}/operational-associations?schemaVersion=1&objectiveId=${objective}&limit=20`;
+    await request(app.getHttpServer()).get(url).expect(401);
+    expect(service.associations).not.toHaveBeenCalled();
+    const response = await request(app.getHttpServer())
+      .get(url)
+      .set('x-fixture-user', 'yes')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(service.associations.mock.calls[0]![1]).toEqual({
+      schemaVersion: 1,
+      clientId: client,
+      objectiveId: objective,
+      limit: 20,
+      cursor: null,
+    });
+    await request(app.getHttpServer())
+      .get(url + '&actorUserId=' + id(99))
+      .set('x-fixture-user', 'yes')
+      .expect(400);
+  });
   test('exact registered routes decode strict fixed inputs and return 200 private no-store', async () => {
     const post = await request(app.getHttpServer())
       .post(`${path}/operational-associations`)

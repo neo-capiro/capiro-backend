@@ -13,6 +13,7 @@ import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../../../tenant/current-tenant.decorator.js';
 import {
   parseOperationalCommand,
+  parseOperationalAssociationsQuery,
   parseOperationalReadQuery,
   parseOperationalReceiptQuery,
 } from './objective-operational.rules.js';
@@ -41,6 +42,15 @@ export class ObjectiveOperationalController {
     @Body() body: unknown,
   ) {
     return this.service.command(ctx, parseOperationalCommand(body, clientId));
+  }
+  @Get('operational-associations')
+  @Header('Cache-Control', 'private, no-store')
+  associations(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Query() query: unknown,
+  ) {
+    return this.service.associations(ctx, parseOperationalAssociationsQuery(clientId, query));
   }
   @Get('operational-associations/:requestId')
   @Header('Cache-Control', 'private, no-store')

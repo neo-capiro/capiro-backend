@@ -18,7 +18,11 @@ import {
 } from './objective-local-resources.js';
 import { ObjectiveOperationalCursors } from './objective-operational.cursor.js';
 import { assembleOperationalProjection } from './objective-operational.projection.js';
-import { OperationalBoundaryError, operationalFailure } from './objective-operational.rules.js';
+import {
+  OperationalBoundaryError,
+  operationalDigest,
+  operationalFailure,
+} from './objective-operational.rules.js';
 import {
   commitOperationalCommand,
   findOperationalReceipt,
@@ -26,9 +30,12 @@ import {
   loadCurrentOperationalScopeWithinTx,
   matchOperationalReplay,
   readOperationalSetVersion,
+  type OperationalLinkRecord,
 } from './objective-operational.store.js';
 import type {
   OperationalCommand,
+  OperationalAssociationsRequest,
+  OperationalAssociationsPage,
   OperationalReadRequest,
   OperationalReceiptRequest,
   OperationalScope,
@@ -73,6 +80,36 @@ async function readSource(
   return gate
     ? readObjectiveLocalResource(tx, actor, binding(scope), selection, observedAt, asOf, gate)
     : readObjectiveLocalResource(tx, actor, binding(scope), selection, observedAt, asOf);
+}
+
+async function readableAssociationItems(
+  tx: ObjectiveOperationalTx,
+  actor: ObjectiveOperationalActor,
+  scope: OperationalScope,
+  links: OperationalLinkRecord[],
+  observedAt: string,
+  asOf: string,
+) {
+  const items: OperationalAssociationsPage['items'] = [];
+  let pageCoverage: 'complete' | 'partial' = 'complete';
+  for (const link of links) {
+    const selection = { kind: link.resourceKind, id: link.resourceId };
+    let source = await readSource(tx, actor, scope, selection, observedAt, asOf);
+    for (const cycle of link.cycles)
+      if (cycle.context && !(await validateObjectiveCycleContext(tx, actor, cycle))) source = null;
+    if (!source) {
+      pageCoverage = 'partial';
+      continue;
+    }
+    items.push({
+      associationId: link.id,
+      linkedRevision: { id: link.linkedRevisionId, version: link.linkedObjectiveVersion },
+      linkedAt: new Date(link.linkedAt).toISOString(),
+      resource: source.resource,
+      cycles: link.cycles,
+    });
+  }
+  return { items, pageCoverage };
 }
 /** No HTTP/provider calls, scheduler or generated-applied publication in this service. */
 @Injectable()
@@ -233,6 +270,78 @@ export class ObjectiveOperationalService {
         },
         this.cursors,
       );
+    });
+  }
+
+  /** Bounded manual-link inventory, independent of pending/upcoming projections.
+   * A hidden source yields no association/resource metadata in this response. */
+  async associations(
+    ctx: TenantContext,
+    request: OperationalAssociationsRequest,
+  ): Promise<OperationalAssociationsPage> {
+    const actor = actorFrom(ctx);
+    const asOf = request.cursor
+      ? this.cursors.decode(request.cursor).asOf
+      : new Date().toISOString();
+    return this.transaction(actor, async (tx) => {
+      const scope = await loadCurrentOperationalScopeWithinTx(
+        tx,
+        actor,
+        request.clientId,
+        request.objectiveId,
+      );
+      await this.setGate(tx, actor, scope, false);
+      const set = await readOperationalSetVersion(tx, actor, scope);
+      const snapshot = operationalDigest({ view: 'manual-associations', version: 1 });
+      const offset = request.cursor
+        ? this.cursors.check(
+            request.cursor,
+            actor.tenantId,
+            actor.userId,
+            scope,
+            set,
+            'associations',
+            snapshot,
+            asOf,
+            request.limit,
+          )
+        : 0;
+      const links = await listOperationalLinks(tx, actor, scope, {
+        limit: request.limit + 1,
+        offset,
+      });
+      const observedAt = new Date().toISOString();
+      const { items, pageCoverage } = await readableAssociationItems(
+        tx,
+        actor,
+        scope,
+        links.slice(0, request.limit),
+        observedAt,
+        asOf,
+      );
+      return {
+        schemaVersion: 1,
+        scope,
+        associationSetVersion: set,
+        observedAt,
+        asOf,
+        pageCoverage,
+        items,
+        nextCursor:
+          links.length > request.limit
+            ? this.cursors.encode(
+                actor.tenantId,
+                actor.userId,
+                scope,
+                set,
+                'associations',
+                snapshot,
+                asOf,
+                request.limit,
+                offset + request.limit,
+              )
+            : null,
+      };
     });
   }
 }
