@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, HttpException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { ApplicationAuthorityIdentityProof } from '../auth/application-authority.js';
 import { applicationAuthorityIdentityReceipt } from '../auth/application-authority.js';
@@ -9,6 +9,7 @@ import {
   type PortfolioLayoutReceipt, type SavedPortfolioLayout,
 } from './portfolio-layout.helpers.js';
 
+const logger = new Logger('PortfolioLayout');
 type Tx = Prisma.TransactionClient;
 type Owner = { tenantId: string; userId: string };
 const rowColumns = `tenant_id::text AS "tenantId", user_id::text AS "userId", version,
@@ -69,8 +70,8 @@ export async function transactPortfolioLayout(
   tx: Tx, owner: Owner, proof: ApplicationAuthorityIdentityProof, input?: PortfolioLayoutInput,
 ): Promise<PortfolioLayoutReceipt> {
   // Separate native tenant/user compound key; mutex never grants resource authority.
-  await tx.$queryRawUnsafe(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
-    `capiro:portfolio-layout:v1:${owner.tenantId}:${owner.userId}`);
+  // $executeRaw: Prisma's raw query reader cannot deserialize the lock's void result (P2010).
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro:portfolio-layout:v1:${owner.tenantId}:${owner.userId}`}, 0))`;
   await lockAuthorityFacts(tx, owner);
   await recheckPortfolioLayoutAuthority(proof, owner);
   const catalog = await readVisibleCatalog(tx, owner);
@@ -102,8 +103,12 @@ export async function transactPortfolioLayout(
 
 /** Only a connector's explicit confirmed-abort code becomes a save conflict. */
 export function portfolioLayoutFailure(error: unknown, writing: boolean): never {
-  if (error instanceof ForbiddenException || error instanceof ConflictException || error instanceof ServiceUnavailableException) throw error;
   const native = error as { code?: unknown; meta?: { code?: unknown } } | null;
+  // Codes only: no identifiers, messages or query text reach the log.
+  const response = error instanceof HttpException ? error.getResponse() as { code?: unknown } : null;
+  logger.warn(`portfolio-layout ${writing ? 'write' : 'read'} failed: ${(error as Error | null)?.constructor?.name ?? typeof error}` +
+    ` code=${String(response?.code ?? native?.code ?? '')} db=${String(native?.meta?.code ?? '')}`);
+  if (error instanceof ForbiddenException || error instanceof ConflictException || error instanceof ServiceUnavailableException) throw error;
   if (writing && (native?.code === 'P2034' ||
       (native?.code === 'P2010' && ['40001', '40P01'].includes(native.meta?.code as string)))) conflict();
   // Includes unknown commit outcomes: no automatic callback or request replay.
