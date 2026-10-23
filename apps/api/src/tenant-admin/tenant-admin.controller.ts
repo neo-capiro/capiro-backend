@@ -226,6 +226,11 @@ export class TenantAdminController {
     return this.service.updateBranding(ctx, body);
   }
 
+  @Post('branding/sync')
+  retryBrandingSync(@CurrentTenant() ctx: TenantContext, @Body() body?: unknown) {
+    return this.service.retryBrandingSync(ctx, body);
+  }
+
   @Get('billing')
   billing(@CurrentTenant() ctx: TenantContext) {
     return this.service.getBilling(ctx);

@@ -29,6 +29,8 @@ interface UpdateBrandingInput {
   name?: string;
 }
 
+type BrandingSyncStatus = 'confirmed' | 'failed' | 'unknown' | 'not_linked' | 'superseded' | 'not_requested';
+
 export interface ContactInfoInput {
   name?: string;
   phone?: string;
@@ -435,21 +437,81 @@ export class TenantAdminService {
     if (Object.keys(input).some((key) => key !== 'name')) {
       throw new BadRequestException('Only the branding name may be updated here');
     }
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const data: Record<string, unknown> = {};
       if (input.name !== undefined) data.name = input.name;
-      const updated = await tx.tenant.update({
+      return tx.tenant.update({
         where: { id: ctx.tenantId },
         data,
       });
-      // Mirror display name to Clerk (best-effort).
-      if (input.name && updated.clerkOrgId) {
-        await this.clerk.backend.organizations
-          .updateOrganization(updated.clerkOrgId, { name: input.name })
-          .catch(() => undefined);
-      }
-      return updated;
     });
+    // Local commit is authoritative. Provider failure cannot roll it back.
+    let clerkSync: BrandingSyncStatus = 'not_requested';
+    if (input.name !== undefined) {
+      try {
+        const current = await this.brandingSyncTarget(ctx);
+        clerkSync = current.name !== updated.name || current.clerkOrgId !== updated.clerkOrgId
+          ? 'superseded'
+          : await this.mirrorBrandingName(current);
+      } catch {
+        clerkSync = 'unknown';
+        this.logger.warn('branding_clerk_sync_current_read_failed');
+      }
+    }
+    return { ...updated, clerkSync };
+  }
+
+  /** Explicit retry mirrors only the current server-owned name, never a browser draft. */
+  async retryBrandingSync(ctx: TenantContext, body?: unknown) {
+    if (body !== undefined && (
+      !body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 0
+    )) {
+      throw new BadRequestException('Branding sync accepts no fields');
+    }
+    const current = await this.brandingSyncTarget(ctx);
+    return { id: current.id, name: current.name, clerkSync: await this.mirrorBrandingName(current) };
+  }
+
+  private async brandingSyncTarget(ctx: TenantContext) {
+    if (ctx.role !== 'user_admin' && ctx.role !== 'capiro_admin') {
+      throw new ForbiddenException('Branding requires an administrator');
+    }
+    const current = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { id: true, name: true, clerkOrgId: true, status: true },
+      }),
+    );
+    if (!current || current.status !== 'active') throw new ForbiddenException('Branding unavailable');
+    return current;
+  }
+
+  private async mirrorBrandingName(
+    current: { name: string; clerkOrgId: string | null },
+  ): Promise<BrandingSyncStatus> {
+    const organizationId = current.clerkOrgId;
+    if (!organizationId) return 'not_linked';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The existing SDK has no per-call cancellation. A deadline reports uncertainty;
+    // it neither cancels a remote write nor promises convergence with concurrent saves.
+    const attempt = Promise.resolve()
+      .then(() => this.clerk.backend.organizations.updateOrganization(organizationId, { name: current.name }))
+      .then(
+        (organization): BrandingSyncStatus => organization?.id === organizationId && organization?.name === current.name
+          ? 'confirmed' : 'unknown',
+        (): BrandingSyncStatus => 'failed',
+      );
+    try {
+      const outcome = await Promise.race([
+        attempt,
+        new Promise<BrandingSyncStatus>((resolve) => { timer = setTimeout(() => resolve('unknown'), 5_000); }),
+      ]);
+      // Fixed values only: never log provider errors, names, identities or credentials.
+      if (outcome !== 'confirmed') this.logger.warn(`branding_clerk_sync_${outcome}`);
+      return outcome;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async getContactInfo(ctx: TenantContext) {
