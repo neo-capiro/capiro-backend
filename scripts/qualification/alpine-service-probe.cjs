@@ -10,6 +10,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { execFileSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
 
 const service = process.argv[2];
 if (process.argv.length !== 3 || !['intel-api', 'api-strategy', 'workspace', 'engagement-api'].includes(service)) {
@@ -20,6 +21,32 @@ const local = createRequire(path.join(process.cwd(), 'package.json'));
 const run = (file, args) => execFileSync(file, args, {
   encoding: 'utf8', timeout: 20_000, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
 });
+let serviceCheck = Promise.resolve();
+
+async function strategyPdfCheck() {
+  assert.equal(process.env.HOME, '/app/tmp', 'Chromium requires the image-owned writable HOME');
+  fs.accessSync(process.env.HOME, fs.constants.W_OK);
+  const { ConfigService } = local('@nestjs/config');
+  const { PdfBrowserDriver } = local('./dist/reports/pdf-browser.driver.js');
+  const disabled = new PdfBrowserDriver(new ConfigService({ STRATEGY_PDF_ENABLED: 'false' }));
+  assert.equal(disabled.available, false);
+  await assert.rejects(disabled.print({ html: '<p>disabled</p>', footerTemplate: '<div></div>' }), /disabled/);
+  const driver = new PdfBrowserDriver(new ConfigService({
+    STRATEGY_PDF_ENABLED: 'true', STRATEGY_PDF_CHROMIUM_PATH: process.env.STRATEGY_PDF_CHROMIUM_PATH,
+  }));
+  assert.equal(driver.available, true);
+  const pdf = await driver.print({
+    html: '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:"Liberation Sans",sans-serif}td{padding:8px;border:1px solid #8996a0}</style></head><body><h1>Synthetic Strategy qualification</h1><p>Offline Chromium render; no tenant data.</p><table><tr><td>Objective</td><td>Verify runtime PDF output</td></tr></table></body></html>',
+    footerTemplate: '<div style="font-size:9px;width:100%;text-align:center">Synthetic gate <span class="pageNumber"></span></div>',
+  });
+  assert(Buffer.isBuffer(pdf) && pdf.length > 1000);
+  assert.match(pdf.subarray(0, 16).toString('ascii'), /^%PDF-/);
+  assert.match(pdf.subarray(-128).toString('ascii'), /%%EOF/);
+  assert.match(pdf.toString('latin1'), /\/Type\s*\/Page\b/);
+  if (process.env.PDF_GATE_OUTPUT) fs.writeFileSync(process.env.PDF_GATE_OUTPUT, pdf);
+  console.log(JSON.stringify({ strategyPdf: 'PASS', driver: 'canonical compiled PdfBrowserDriver',
+    bytes: pdf.length, sha256: createHash('sha256').update(pdf).digest('hex'), disabledControl: 'PASS' }));
+}
 
 assert.equal(process.platform, 'linux');
 assert.equal(process.getuid(), 1001, 'runtime must run as capiro');
@@ -68,6 +95,7 @@ if (service === 'workspace') {
   local('@capiro/strategy-verifier');
   local('playwright-core');
   assert.match(run(process.env.STRATEGY_PDF_CHROMIUM_PATH || '/usr/bin/chromium', ['--version']), /Chromium 155\./);
+  serviceCheck = strategyPdfCheck();
 } else if (service === 'engagement-api') {
   // engagement-main.ts compiles at dist/ and imports the sibling app module.
   // Loading that module validates real production config at import time; use
@@ -121,4 +149,9 @@ if (service === 'workspace') {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 }
-console.log(JSON.stringify({ service, architecture: process.arch, prismaTarget: musl, offlinePackaging: 'PASS' }));
+serviceCheck.then(() => {
+  console.log(JSON.stringify({ service, architecture: process.arch, prismaTarget: musl, offlinePackaging: 'PASS' }));
+}).catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

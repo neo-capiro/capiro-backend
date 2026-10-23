@@ -1,10 +1,10 @@
 # Four-service Alpine image qualification
 
-Status: repair candidate after the orchestrator's first image gate at
-`5bf9e058912569ba8206a2c71450001dc26a142c`. Intel, Strategy and Workspace built
-and passed their offline probes but scans reported respectively 1/20, 1/21 and
-1/19 CRITICAL/HIGH. Engagement failed on an incorrect probe module path. The
-changes below need fresh exact-head image gates; no security acceptance is claimed.
+Status: repair candidate after independent review of `11edb7775` identified
+missing Engagement qualification inputs, and the orchestrator's actual Strategy
+PDF render on `44443edf` identified its unwritable default HOME. Both repairs are
+described below. Fresh exact-head image gates remain required; no security or
+shipping acceptance is claimed. Earlier gate failures/evidence remain retained.
 
 Base: `db96ad310fa1c3cc43278ff9c2d59e750581bac3` (`backend-import`). Briefs:
 [original](https://github.com/neo-capiro/meri-greenfield/issues/202#issuecomment-6355187204)
@@ -20,7 +20,7 @@ Reuse Core's exact Node 22.23.3 / Alpine 3.24 amd64 pin and its image-local Pris
 generator helper. Node 22 also satisfies the frozen `sanitize-html` dependency's
 Node >=22.12 requirement already recorded in Core and Workspace Dockerfiles;
 Intel and Engagement's old Debian defaults still say Node 20. The reviewed
-root manifest/lockfile repair changes only six parent-scoped dependency paths
+root manifest/lockfile repair changes only ten parent-scoped dependency paths
 listed below. Global npm/Corepack are removed from runtime stages; all existing
 entrypoint verbs use Node directly, and their local Prisma CLI remains installed.
 
@@ -33,7 +33,7 @@ entrypoint verbs use Node directly, and their local Prisma CLI remains installed
 | Prisma musl | Existing helper changes only copied generator target to host image architecture; fresh production generation | Probe loads exact `.so.node` engine; real isolated PG16 checks still required |
 | Production graph | Empty frozen `--prod` workspace, generated Prisma and pnpm workspace links retained | Runtime import probes + scanner inventory |
 | Intel hearing tools | Pinned ffmpeg 8.1.2-r0 includes ffmpeg and ffprobe | Existing hearing/audio suites plus actual synthetic WebM/PCM probe |
-| Strategy PDF | Chromium 155.0.8059.84-r0, Liberation 2.1.5-r2, existing configured executable path | Existing report/PDF specs and real synthetic PDF render |
+| Strategy PDF | Chromium 155.0.8059.84-r0, Liberation 2.1.5-r2, existing configured executable path; writable image HOME at `/app/tmp` | Probe performs real canonical-driver render and disabled-export control; fresh image result still required |
 | amd64 | Exact Core-qualified image manifest default | All four builds/tests/scans |
 | arm64 | Explicit known Core ARM64 pin supported; musl selection follows actual Node arch | Not built; never claim cross-architecture acceptance |
 | 0 HIGH / 0 CRITICAL | Required threshold unchanged; first gate failed | Fresh scans of repaired exact images required |
@@ -118,6 +118,31 @@ workspace dependency links, Prisma clients and checked-in docs; Workspace WS03
 also receives its existing disposable-PG helper, Core schema and pg/Prisma closure.
 Runtime stages receive none of those test-only inputs.
 
+Engagement qualification now also contains the seven exact root inputs used by
+its selected suites: the three `scripts/{run-engagement-phase1-local,
+run-engagement-phase1-post-acceptance,verify-engagement-phase1-local}.mjs` files,
+the two `tests/support/legacy-web/engagement-phase1-{browser-parity,
+post-acceptance}.mjs` files, `scripts/testing/a1-disposable-postgres.cjs`, and
+`docs/a1/mail/single-mail-intents.sql`. No host fixture mount is required. These
+files are copied only after `FROM build AS qualification`; production dependency
+and runtime stages do not inherit them. The existing source assertions remain
+unchanged. To reproduce the reviewed input defect's positive control after the
+qualification build above:
+
+```bash
+docker run --rm --network none "$(cat "$out/engagement-api.tests.id")" \
+  node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit \
+  --runTestsByPath \
+  src/engagement/runtime/engagement-phase1-browser-acceptance.spec.ts \
+  src/engagement/engagement-route-manifest.spec.ts \
+  src/engagement/engagement-dependency-manifest.spec.ts \
+  src/engagement/engagement-side-effect-registry.spec.ts \
+  >"$out/engagement-api.qualification-inputs.log" 2>&1
+```
+
+This focused input check supplements the unchanged full selection above. It
+does not omit or waive failures from that broader selection.
+
 Run the dependency compatibility fixture on each production image, with a writable
 temporary directory. `--network none` retains loopback sockets used by synthetic
 multipart and WebSocket requests; no provider or database is contacted:
@@ -126,6 +151,32 @@ multipart and WebSocket requests; no provider or database is contacted:
 docker run --rm --network none --read-only --tmpfs /app/tmp:uid=1001,gid=1001 \
   --entrypoint node "$image" /qualification/alpine-dependency-compatibility.cjs "$service"
 ```
+
+Strategy's packaging probe now launches its actual compiled `PdfBrowserDriver`
+at UID 1001, checks the disabled-export refusal, then validates PDF header, EOF,
+page marker and nonempty output. It reports byte count and SHA256 and fails the
+whole probe on any render error. The image supplies `HOME=/app/tmp`; do not
+override HOME in the gate. To retain the synthetic artifact, bind the output
+directory while the container is alive (copying after tmpfs teardown loses it):
+
+```bash
+mkdir -p "$out/strategy-pdf"
+chmod 0777 "$out/strategy-pdf"
+docker run --rm --network none --read-only --tmpfs /app/tmp:uid=1001,gid=1001 \
+  --mount "type=bind,src=$out/strategy-pdf,dst=/evidence" \
+  -e PDF_GATE_OUTPUT=/evidence/strategy-synthetic.pdf \
+  --entrypoint node "$(cat "$out/api-strategy.runtime.id")" \
+  /qualification/alpine-service-probe.cjs api-strategy \
+  >"$out/strategy-pdf/render.log" 2>&1
+```
+
+The source driver, its sandbox/launch arguments and Debian recipe are unchanged.
+Root's same-image `44443edf` controls failed with Crashpad `--database is required`
+under both writable and read-only root filesystems, then passed with only
+`HOME=/app/tmp` on a read-only root plus the existing tmpfs. That render produced
+23,504 bytes and passed the disabled-export control. Its successful receipt is
+`20261023T042507Z-alpine-44443edf/strategy-real-pdf-tmp-home-a25bf4a2`. The new
+default-image HOME and integrated probe still require a fresh root-owned gate.
 
 For the Engagement probe, the unchanged `serve` command runs
 `dist/engagement-main.js`, whose relative import is
@@ -208,6 +259,11 @@ Exact package metadata/integrities were read from the npm registry on 2026-10-23
 the lockfile. This shared lock repair also affects other services that consume
 those exact parents; their unchanged Debian recipes do not isolate dependency
 resolution. No acceptance is claimed for those out-of-scope service images.
+Independent reverse-graph review specifically identified Defense API, Meri
+orchestrator and Onboard API (Nest/Express/Clerk parents), Onboard Web (Clerk
+cookie closure), and `packages/auth` (Clerk/Nest config closure) as collateral
+production consumers of the first six selectors. Four-service image results
+must never be presented as qualification of those consumers.
 
 The [published PptxGenJS 3.12.0 tarball](https://registry.npmjs.org/pptxgenjs/-/pptxgenjs-3.12.0.tgz)
 has lock-matching SHA512
@@ -329,3 +385,83 @@ upgrade, risk acceptance or scanner suppression is included in this change.
 Fresh full scans, source-suite disposition against exact baselines, disposable
 PG16 coverage, complete runtime/failure controls and independent exact-head
 Astra review are still required. This native checkpoint is not full qualification.
+
+## Qualification-input audit and native repair evidence
+
+The selected Jest patterns were audited for filesystem reads, repository-root
+paths, cross-service imports and helper-spawned manifest generators. Engagement's
+runtime route/boundary scans and generators require the entire existing Core
+`src` tree, already copied by the build stage. Strategy's signed wire fixture
+JSONs/Core imports, Intel's Core/Workspace imports plus ownership inventory and
+shared sources, and Workspace's A1 helper/Core datamodel are already included
+in their qualification stages. Service-local source, schemas, templates, eval
+files and test fixtures are covered by each existing COPY block. This audit
+does not claim that every selected assertion passes.
+
+A native preload models the tracked COPY inputs from each Dockerfile; it is not
+a Docker execution. With the old Engagement recipe it reproduced exactly 31
+browser-contract failures and four passes. With the repaired recipe the same
+suite passed 35/35. All seven added files were readable under the model; the A1
+helper correctly reported unavailable with no disposable URL, without a DB call.
+Across ten related Engagement source-contract suites, 4,200 distinct tracked
+reads had no missing COPY input. Final results were 109 passed / two failed;
+the unchanged controller/route-manifest mismatches remain open and match the
+two named failures already retained in root's baseline analysis. The first
+preload denied tsx's local named-pipe IPC as well as TCP; after allowing only
+that pipe form, the three affected generator suites passed 33/33. All TCP
+remained refused. Original results and reruns are retained in
+`d-dependency-evidence/qualification-input-summary.json` and adjacent receipts.
+
+Existing Strategy PDF-document and DOCX/PPTX renderer source suites passed
+34/34 with network refused. They do not launch Chromium and do not substitute
+for the new real-image PDF probe. Both probe syntax and unsupported-service
+refusal were checked natively. No Docker or database operation ran in lane D.
+
+## Database and external-acceptance prerequisites
+
+The existing [disposable bootstrap](../../scripts/ci/bootstrap-disposable-databases.sh)
+requires the complete API → Intel → Workspace migration chains on their shared
+`capiro` database, plus Workspace's separate `capiro_workspace` ledger. It then
+creates fresh, closed `capiro_worker_1`/`capiro_worker_2` clones of the fully
+migrated shared template for the API worker-binding contract. Intel's
+`hearing-recording-postgres.spec.ts` explicitly requires the full API+Intel
+chains, a loopback `DATABASE_URL` and `LEGIWATCH_RECORDING_TEST_DATABASE=disposable`.
+An empty schema or Prisma `db push` does not qualify that suite.
+
+Read the bootstrap's actual guards before any separately authorized mutation:
+`CI=true`, `CI_DISPOSABLE_POSTGRES=1`, and either its GitHub Actions service or
+`CLEANUP1_OWNED_PG=1` with a non-5432 loopback connect port. The local path also
+requires the exact container name/64-hex ID/ownership label and matching
+5432/tcp loopback binding, plus `psql`, frozen workspace dependencies and exact
+database/worker names. It verifies the server role/port/superuser identity before
+DDL. A forwarded container may require `CI_POSTGRES_SERVER_PORT=5432` while the
+host connect port remains non-5432. Do not run this bootstrap merely to turn
+offline failures green. Fresh inherited migration-chain failure is a separate,
+still-open gate; no migration repair or replay is included here.
+
+The [A1 native guide](../../scripts/testing/A1-NATIVE-POSTGRES.md) instead permits
+its helper to create an owned random `a1_native_<nonce>` schema in a **new local
+PG16 + pgvector instance**, using a checked-in datamodel with `prisma db push
+--skip-generate`. It requires explicit `A1_NATIVE_PG_ALLOW_DISPOSABLE=1` and
+`A1_NATIVE_PG_URL` naming loopback, port 1024–65535 and an
+`a1_disposable_<8–48 lowercase letters/digits/underscores>` database, with no
+query/fragment. It has no ordinary `DATABASE_URL` fallback. Core requires
+`vector`, `pg_trgm`, `citext`, and `uuid-ossp`; locked builds/generated clients
+must exist. Containerized tests share the disposable DB's network namespace.
+Ownership-marked schema cleanup and final instance removal are mandatory.
+
+That helper supports mailbox collision (six cases), PF-12 debrief (nine cases)
+and Workspace WS03 (37 cases) according to their existing guide. WS03's joined
+gateway additionally requires `WS03_FRONTEND_CHECKOUT` at unchanged frontend
+head `67b71caaf5994465c5162c320cda02a3e588d413`, tree
+`f27b5f7ede8ee5fc02cc025152da70d6ff68b455`, its locked install and existing
+`@capiro/meri-client` build. A1 does not establish full-chain RLS, grants,
+triggers, concurrency or migration-ledger behavior. Root's earlier 37 passing
+Engagement PG16 cases at `44443edf` (plans 18, mailbox 6, debrief 9, prep 4) are
+prior-head receipts only and do not clear the complete migration-chain gate.
+
+Intel `src/hearing/capture/e2e-senate-smoke.spec.ts` uses an actual public Senate
+hearing source. It belongs to held external acceptance, not merely the DB tier;
+do not enable public network access to make the offline suite pass. Missing
+prerequisites, skips and existing failures stay explicit. No database or external
+acceptance command was executed for this prerequisite audit.

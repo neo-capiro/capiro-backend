@@ -90,6 +90,9 @@ RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \
  && chown capiro:capiro /app/tmp
 ENV TMPDIR=/app/tmp
+# Chromium Crashpad requires a writable HOME even with a read-only rootfs.
+# Reuse the existing capiro-owned temporary directory; driver flags stay intact.
+ENV HOME=/app/tmp
 # Headless Chromium for executive PDF export (Alpine package; exact version pinned above).
 ENV STRATEGY_PDF_CHROMIUM_PATH=/usr/bin/chromium
 WORKDIR /app

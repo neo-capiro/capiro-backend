@@ -54,6 +54,13 @@ FROM build AS qualification
 COPY apps/api/jest* apps/api/
 COPY apps/api/test apps/api/test
 COPY apps/api/scripts apps/api/scripts
+# Existing browser-contract suites inspect these exact tracked root fixtures.
+# The A1 ledger/PG suites also load a root SQL fixture and disposable-PG helper.
+# Keep all seven inputs in qualification only; runtime remains serve-only.
+COPY scripts/run-engagement-phase1-local.mjs scripts/run-engagement-phase1-post-acceptance.mjs scripts/verify-engagement-phase1-local.mjs scripts/
+COPY tests/support/legacy-web/engagement-phase1-browser-parity.mjs tests/support/legacy-web/engagement-phase1-post-acceptance.mjs tests/support/legacy-web/
+COPY scripts/testing/a1-disposable-postgres.cjs scripts/testing/a1-disposable-postgres.cjs
+COPY docs/a1/mail/single-mail-intents.sql docs/a1/mail/single-mail-intents.sql
 WORKDIR /workspace/apps/api
 CMD ["pnpm", "exec", "jest", "--runInBand"]
 
