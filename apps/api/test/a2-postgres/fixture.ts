@@ -4,6 +4,7 @@ import { Pool, type PoolClient } from 'pg';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { AdminBroadcastsService } from '../../src/admin-broadcasts/admin-broadcasts.service.js';
 import { ClientFileBatchService } from '../../src/clients/client-file-batch.service.js';
+import { installObjectiveSchema } from './associations-schema.js';
 
 export const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 export const tenant = id(1),
@@ -44,7 +45,7 @@ function guardedUrl() {
 }
 
 /** Actual PrismaService, current owner helpers and service methods; no service/model mocks. */
-export async function fixture(kind: 'broadcasts' | 'files' | 'admissions') {
+export async function fixture(kind: 'broadcasts' | 'files' | 'admissions' | 'associations') {
   const url = guardedUrl(),
     schema = `a2_${kind}`;
   const admin = new Pool({
@@ -70,7 +71,7 @@ export async function fixture(kind: 'broadcasts' | 'files' | 'admissions') {
       throw new Error('Fixture requires PostgreSQL16 and isolated bootstrap superuser.');
     }
     const unrelated = await admin.query(
-      `SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','a2_broadcasts','a2_files','a2_admissions') LIMIT 1`,
+      `SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','a2_broadcasts','a2_files','a2_admissions','a2_associations') LIMIT 1`,
     );
     if (unrelated.rowCount) {
       await admin.end();
@@ -115,6 +116,7 @@ export async function fixture(kind: 'broadcasts' | 'files' | 'admissions') {
         await owner.query(migration('20281023050000_prospect_conversion_receipts'));
         await owner.query(migration('20281023050000_prospect_conversion_receipts'));
       }
+      if (kind === 'associations') await installObjectiveSchema(owner, schema);
     } finally {
       owner.release();
     }
