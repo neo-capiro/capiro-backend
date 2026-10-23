@@ -18,6 +18,7 @@ function verifyImporterManifest(lock, rootManifest, importer, manifest) {
       // Other parents, ranges and unrelated overrides cannot admit a mismatch.
       const selector = `${manifest.name}@${manifest.version}>${name}`;
       const expected = Object.hasOwn(overrides, selector) ? overrides[selector] : specifier;
+      assert(typeof expected === 'string' && expected.length > 0, 'Malformed dependency specifier');
       assert.equal(locked[name].specifier, expected, `${importer} ${name} manifest/lock drift`);
     }
   }

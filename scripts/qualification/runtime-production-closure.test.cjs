@@ -15,6 +15,14 @@ test('exact importer overrides require matching root and lock declarations', () 
   assert.throws(() => verifyImporterManifest({ ...lock, overrides: wrongScope },
     { pnpm: { overrides: wrongScope } }, 'api', manifest), /manifest\/lock drift/);
   assert.throws(() => verifyImporterManifest(lock, root, 'api', { ...manifest, version: '2.0.0' }), /manifest\/lock drift/);
+  for (const selector of ['@fixture/api@*>sdk', '@fixture/api@1.0.0>>sdk']) {
+    const invalid = { [selector]: '1.2.0' };
+    assert.throws(() => verifyImporterManifest({ ...lock, overrides: invalid },
+      { pnpm: { overrides: invalid } }, 'api', manifest), /manifest\/lock drift/);
+  }
+  const malformed = { '@fixture/api@1.0.0>sdk': 12 };
+  assert.throws(() => verifyImporterManifest({ ...lock, overrides: malformed },
+    { pnpm: { overrides: malformed } }, 'api', manifest), /Malformed/);
   lock.importers.api.dependencies.sdk.specifier = '1.3.0';
   assert.throws(() => verifyImporterManifest(lock, root, 'api', manifest), /manifest\/lock drift/);
 });
