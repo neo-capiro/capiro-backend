@@ -10,4 +10,6 @@ Migration `20281023020000_meri_conversation_management` is source only and atomi
 
 Focused synthetic service tests cover missing composition, suppression/commit/release ordering, unknown outcomes, owner/CAS failures, exact retry, stale Restore versus later Trash, Archive Restore, expiry, request substitution, deleted replay and retention ownership. Native database evidence and immutable commit equivalence must be attached separately.
 
+The native runner now applies the actual historical bootstrap receipt migration and corrected General binding migration before management. Both a General and a client binding are present during canonical conversation/tenant deletion. This supersedes the earlier bootstrap-table approximation; a new root-owned pinned rehearsal is required.
+
 Remaining Wave2 work includes R's trusted co-location composition and packaging decision, runtime admission integration, reserved General read-delegation restoration/qualification, the frozen gateway receiving patch, full frontend browser checks and canonical skill availability/window integration. This checkpoint does not activate a runtime or claim complete Wave2 delivery.

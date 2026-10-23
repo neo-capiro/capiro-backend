@@ -2,6 +2,53 @@
 -- also permits an exact rerun and refuses conflicting pre-existing definitions.
 -- Legacy null-client prospect/research rows are never backfilled as General.
 BEGIN;
+-- The historical receipt guard remains installed. Its client equality must be
+-- null-safe for General FK tombstones; a second trigger cannot override it.
+-- Upgrade only the exact known predecessor (or accept this exact repaired body).
+DO $baseline_guard$
+DECLARE
+  old_body text := $old$
+BEGIN
+  IF OLD.conversation_id IS NOT NULL AND NEW.conversation_id IS NULL
+     AND NEW.tenant_id=OLD.tenant_id
+     AND NEW.actor_user_id=OLD.actor_user_id
+     AND NEW.request_id=OLD.request_id
+     AND NEW.client_id=OLD.client_id
+     AND NEW.created_at=OLD.created_at THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'Clio bootstrap receipt is immutable' USING ERRCODE='23514';
+END $old$;
+  new_body text;
+  guard oid := to_regprocedure('clio_bootstrap_receipt_update_guard()');
+  definition record;
+  installed_trigger record;
+BEGIN
+  old_body := replace(old_body,E'\r\n',E'\n');
+  new_body := replace(replace(old_body,
+    'AND NEW.client_id=OLD.client_id',
+    'AND NEW.client_id IS NOT DISTINCT FROM OLD.client_id'),
+    'AND NEW.conversation_id IS NULL',
+    'AND NEW.conversation_id IS NULL AND pg_trigger_depth()>1 AND NOT EXISTS (SELECT 1 FROM clio_conversations c WHERE c.id=OLD.conversation_id)');
+  SELECT p.*,l.lanname INTO definition FROM pg_proc p JOIN pg_language l ON p.prolang=l.oid WHERE p.oid=guard;
+  IF NOT FOUND OR definition.lanname<>'plpgsql' OR definition.prosecdef OR definition.proisstrict
+     OR definition.proleakproof OR definition.prokind<>'f' OR definition.provolatile<>'v' OR definition.proparallel<>'u'
+     OR definition.proconfig IS NOT NULL OR definition.prorettype<>'trigger'::regtype
+     OR replace(definition.prosrc,E'\r\n',E'\n') NOT IN (old_body,new_body) THEN
+    RAISE EXCEPTION 'Conflicting or missing historical Meri receipt guard';
+  END IF;
+  SELECT * INTO installed_trigger FROM pg_trigger
+    WHERE tgrelid='clio_conversation_bootstrap_receipts'::regclass AND tgname='clio_bootstrap_receipt_immutable';
+  IF NOT FOUND OR installed_trigger.tgfoid<>guard OR installed_trigger.tgtype<>19 OR installed_trigger.tgenabled<>'O'
+     OR installed_trigger.tgisinternal OR installed_trigger.tgqual IS NOT NULL OR installed_trigger.tgnargs<>0
+     OR installed_trigger.tgattr::text<>'' OR installed_trigger.tgconstraint<>0 THEN
+    RAISE EXCEPTION 'Conflicting or disabled historical Meri receipt trigger';
+  END IF;
+  IF replace(definition.prosrc,E'\r\n',E'\n')=old_body THEN
+    EXECUTE format('CREATE OR REPLACE FUNCTION clio_bootstrap_receipt_update_guard() RETURNS trigger LANGUAGE plpgsql AS %L',new_body);
+  END IF;
+END;
+$baseline_guard$;
 DO $migration$
 DECLARE
   wanted_body text := $function$BEGIN
