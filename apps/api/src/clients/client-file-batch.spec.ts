@@ -45,7 +45,7 @@ function fixture() {
     $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.join('?');
       statements.push({ sql, values });
-      if (sql.includes('pg_advisory')) return [];
+      if (sql.includes('pg_advisory')) throw new Error('Prisma cannot deserialize void');
       if (sql.includes('FROM client_file_batch_move_receipts')) return receipts;
       if (sql.includes('FROM engagement_attachments')) return structuredClone(rows);
       if (sql.includes('UPDATE engagement_attachments')) {
@@ -59,7 +59,12 @@ function fixture() {
       if (sql.includes('clock_timestamp')) return [{ at: new Date('2026-10-23T00:00:00.000Z') }];
       throw new Error('Unexpected query');
     }),
-    $executeRaw: jest.fn(async (_parts: TemplateStringsArray, ...values: unknown[]) => {
+    $executeRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = parts.join('?');
+      statements.push({ sql, values });
+      if (sql.includes('pg_advisory')) return 1;
+      if (!sql.includes('INSERT INTO client_file_batch_move_receipts'))
+        throw new Error('Unexpected write');
       receipts.push({
         clientId: values[1],
         payloadDigest: values[4],
@@ -162,7 +167,7 @@ describe('batch file move owner (synthetic transaction, no database)', () => {
         failure === 'stale' ? 'changed' : 'unavailable',
       );
       expect(h.statements.some((row) => row.sql.startsWith('\n          UPDATE'))).toBe(false);
-      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+      expect(h.statements.some((row) => row.sql.includes('INSERT INTO'))).toBe(false);
       expect(h.rows[0]!.folder).toBeNull();
     }
   });
@@ -189,7 +194,7 @@ describe('batch file move owner (synthetic transaction, no database)', () => {
     h.rows[0]!.revision = 2;
     expect(await h.service.move(ctx, client, command())).toEqual(receipt);
     expect(await h.service.receipt(ctx, client, command().requestId)).toEqual(receipt);
-    expect(h.tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(h.statements.filter((row) => row.sql.includes('INSERT INTO'))).toHaveLength(1);
     await expect(h.service.move(ctx, client, { ...command(), folder: 'Other' })).rejects.toThrow(
       'request ID',
     );

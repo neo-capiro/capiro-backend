@@ -42,7 +42,7 @@ export class ClientFileBatchService {
       digest = fileBatchDigest(command);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await requireOwnerClient(tx, ctx, clientId);
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`client-file-move:${ctx.tenantId}:${ctx.userId}:${command.requestId}`},0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`client-file-move:${ctx.tenantId}:${ctx.userId}:${command.requestId}`},0))`;
       const existing = await this.findReceipt(tx, ctx, command.requestId);
       if (existing && (existing.clientId !== clientId || existing.payloadDigest !== digest))
         throw new ConflictException('This request ID belongs to another batch move');
