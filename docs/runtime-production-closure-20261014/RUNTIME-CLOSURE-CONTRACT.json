@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "inputSHA256": {
-    "package.json": "c741f83a89dc2dec311688022faa72f318d467ea81b92049c8fa8a8db85d4cfb",
-    "pnpm-lock.yaml": "651d8a1a48e461208fea09698f9ee0aa5d3cb35f5f493a71bcf0bec3158b4c86",
+    "package.json": "7e0bdf43fc28fdf4638f673344c79dc73cefcc33eb073f1bd388fd50918f1e40",
+    "pnpm-lock.yaml": "a7a3905448add1741fd19767e34425fbd65e80afb9696d070bc1b607b5df2d8b",
     "apps/api/package.json": "558ba9a1ea7206bedc2128bcaa6b69bc1f4b472ec390513cfde8d3c843a7eea8",
     "packages/shared/package.json": "18ed3388e7fa6a7d8d8e864b763879a2a612fae69b8e6866f7546dd86370a235",
     "packages/meriv2-core/package.json": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
@@ -4050,25 +4050,6 @@
       }
     },
     {
-      "key": "deepmerge@4.3.1",
-      "name": "deepmerge",
-      "version": "4.3.1",
-      "peerContext": "",
-      "resolution": {
-        "integrity": "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A=="
-      },
-      "os": null,
-      "cpu": null,
-      "libc": null,
-      "hasBin": false,
-      "requiresBuild": false,
-      "engines": {
-        "node": ">=0.10.0"
-      },
-      "peerDependencies": {},
-      "peerDependenciesMeta": {}
-    },
-    {
       "key": "depd@2.0.0",
       "name": "depd",
       "version": "2.0.0",
@@ -7746,25 +7727,6 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "qs@6.15.1",
-      "name": "qs",
-      "version": "6.15.1",
-      "peerContext": "",
-      "resolution": {
-        "integrity": "sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg=="
-      },
-      "os": null,
-      "cpu": null,
-      "libc": null,
-      "hasBin": false,
-      "requiresBuild": false,
-      "engines": {
-        "node": ">=0.6"
-      },
-      "peerDependencies": {},
-      "peerDependenciesMeta": {}
-    },
-    {
       "key": "qs@6.16.0",
       "name": "qs",
       "version": "6.16.0",
@@ -8091,12 +8053,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "sanitize-html@2.18.0",
+      "key": "sanitize-html@2.18.1",
       "name": "sanitize-html",
-      "version": "2.18.0",
+      "version": "2.18.1",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-CvY+PV+NBhxe3BnjFI5f//vEDKLULm9OlZArso7gdgVsWvanBuq9PNDx+/2llfL+8XFYa/UNBxvqRBg3TWU2Ug=="
+        "integrity": "sha512-2X5lC8fYla8YaT8g73Nj+HcLWXan5dLyCWLgVvaOmfw7JI78IRsyNtIDytTHdn7hBQbIkCah7Zbmd5jabzeDig=="
       },
       "os": null,
       "cpu": null,
@@ -8393,25 +8355,6 @@
       "peerContext": "",
       "resolution": {
         "integrity": "sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A=="
-      },
-      "os": null,
-      "cpu": null,
-      "libc": null,
-      "hasBin": false,
-      "requiresBuild": false,
-      "engines": {
-        "node": ">= 0.4"
-      },
-      "peerDependencies": {},
-      "peerDependenciesMeta": {}
-    },
-    {
-      "key": "side-channel@1.1.0",
-      "name": "side-channel",
-      "version": "1.1.0",
-      "peerContext": "",
-      "resolution": {
-        "integrity": "sha512-ZX99e6tRweoUXqR+VBrslhda51Nh5MTQwou5tnUDgbtyM0dBgmhEDtWGP/xbKn6hqfPRHujUNwz5fy/wbbhnpw=="
       },
       "os": null,
       "cpu": null,
@@ -9888,7 +9831,7 @@
       "from": "importer:apps/api",
       "dependencyName": "sanitize-html",
       "kind": "dependencies",
-      "to": "sanitize-html@2.18.0"
+      "to": "sanitize-html@2.18.1"
     },
     {
       "from": "importer:apps/api",
@@ -11391,43 +11334,37 @@
       "to": "tslib@2.8.1"
     },
     {
-      "from": "sanitize-html@2.18.0",
-      "dependencyName": "deepmerge",
-      "kind": "dependencies",
-      "to": "deepmerge@4.3.1"
-    },
-    {
-      "from": "sanitize-html@2.18.0",
+      "from": "sanitize-html@2.18.1",
       "dependencyName": "escape-string-regexp",
       "kind": "dependencies",
       "to": "escape-string-regexp@4.0.0"
     },
     {
-      "from": "sanitize-html@2.18.0",
+      "from": "sanitize-html@2.18.1",
       "dependencyName": "htmlparser2",
       "kind": "dependencies",
       "to": "htmlparser2@12.0.0"
     },
     {
-      "from": "sanitize-html@2.18.0",
+      "from": "sanitize-html@2.18.1",
       "dependencyName": "is-plain-object",
       "kind": "dependencies",
       "to": "is-plain-object@5.1.0"
     },
     {
-      "from": "sanitize-html@2.18.0",
+      "from": "sanitize-html@2.18.1",
       "dependencyName": "launder",
       "kind": "dependencies",
       "to": "launder@1.7.2"
     },
     {
-      "from": "sanitize-html@2.18.0",
+      "from": "sanitize-html@2.18.1",
       "dependencyName": "parse-srcset",
       "kind": "dependencies",
       "to": "parse-srcset@1.0.2"
     },
     {
-      "from": "sanitize-html@2.18.0",
+      "from": "sanitize-html@2.18.1",
       "dependencyName": "postcss",
       "kind": "dependencies",
       "to": "postcss@8.5.28"
@@ -11460,7 +11397,7 @@
       "from": "stripe@17.7.0",
       "dependencyName": "qs",
       "kind": "dependencies",
-      "to": "qs@6.15.1"
+      "to": "qs@6.16.0"
     },
     {
       "from": "svix@1.92.2",
@@ -13407,12 +13344,6 @@
       "to": "undici-types@6.21.0"
     },
     {
-      "from": "qs@6.15.1",
-      "dependencyName": "side-channel",
-      "kind": "dependencies",
-      "to": "side-channel@1.1.0"
-    },
-    {
       "from": "standardwebhooks@1.0.0",
       "dependencyName": "@stablelib/base64",
       "kind": "dependencies",
@@ -14881,36 +14812,6 @@
       "dependencyName": "domhandler",
       "kind": "dependencies",
       "to": "domhandler@6.0.1"
-    },
-    {
-      "from": "side-channel@1.1.0",
-      "dependencyName": "es-errors",
-      "kind": "dependencies",
-      "to": "es-errors@1.3.0"
-    },
-    {
-      "from": "side-channel@1.1.0",
-      "dependencyName": "object-inspect",
-      "kind": "dependencies",
-      "to": "object-inspect@1.13.4"
-    },
-    {
-      "from": "side-channel@1.1.0",
-      "dependencyName": "side-channel-list",
-      "kind": "dependencies",
-      "to": "side-channel-list@1.0.1"
-    },
-    {
-      "from": "side-channel@1.1.0",
-      "dependencyName": "side-channel-map",
-      "kind": "dependencies",
-      "to": "side-channel-map@1.0.1"
-    },
-    {
-      "from": "side-channel@1.1.0",
-      "dependencyName": "side-channel-weakmap",
-      "kind": "dependencies",
-      "to": "side-channel-weakmap@1.0.2"
     },
     {
       "from": "fd-slicer@1.1.0",

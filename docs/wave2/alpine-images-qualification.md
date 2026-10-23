@@ -87,6 +87,18 @@ is no sanitizer stub or parser downgrade. The existing `jest*` qualification COP
 includes these files. Two other suite-load failures, two assertion failures and
 the skipped database tier remain separate from this harness repair.
 
+The follow-up Windows checks pass 44 compatibility cases and 52 closure/platform
+checks. Prior-version controls reproduce the sanitizer stack/depth failures and
+Stripe's qs constructor/comma failures. Two real-module harness cases pass;
+removing the bridge restores the expected ESM failure. Of the 12 previously
+ESM-blocked suites, three pass 27 cases locally and nine reach missing generated
+Workspace Prisma-client type members. Those failures are retained, without
+disabling diagnostics. The final image must rerun them with its generated client.
+The regenerated graph has 505 nodes, 989 edges and zero unresolved references;
+the removed old qs also removes its unused side-channel root, and the new
+sanitizer removes deepmerge. Retained nodes, unrelated edges and Prisma pins
+are unchanged.
+
 ## Source archive and test disposition
 
 The old ARM source manifest is not byte-identical to Git: 3,245 files, including
