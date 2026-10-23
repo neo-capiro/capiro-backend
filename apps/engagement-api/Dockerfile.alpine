@@ -73,6 +73,9 @@ RUN pnpm --filter @capiro/api exec prisma generate
 FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
+# Serve-only entrypoint uses node; no package manager is a runtime dependency.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S -g 1001 capiro \
  && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
  && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1"
@@ -111,7 +114,7 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/api/scripts/lib/pe-compo
 COPY --chown=capiro:capiro apps/engagement-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
-COPY scripts/qualification/alpine-service-probe.cjs /qualification/alpine-service-probe.cjs
+COPY scripts/qualification/alpine-service-probe.cjs scripts/qualification/alpine-dependency-compatibility.cjs /qualification/
 USER capiro
 WORKDIR /app/apps/api
 EXPOSE 4500

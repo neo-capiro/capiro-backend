@@ -42,6 +42,25 @@ RUN apk add --no-cache ffmpeg=8.1.2-r0
 COPY apps/intel-api/jest* apps/intel-api/
 COPY apps/intel-api/test apps/intel-api/test
 COPY apps/intel-api/scripts apps/intel-api/scripts
+# Cross-service fixtures import Core/Workspace source and their actual Prisma
+# clients. These inputs and tools exist only in the qualification stage.
+COPY apps/api/package.json apps/api/tsconfig.json apps/api/
+COPY apps/api/src apps/api/src
+COPY apps/api/prisma apps/api/prisma
+COPY apps/workspace/package.json apps/workspace/tsconfig.json apps/workspace/
+COPY apps/workspace/src apps/workspace/src
+COPY apps/workspace/prisma apps/workspace/prisma
+COPY packages/auth packages/auth
+COPY packages/defense-domain packages/defense-domain
+COPY packages/defense-contracts packages/defense-contracts
+COPY docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/intel-api... --filter=@capiro/api... --filter=@capiro/workspace...
+RUN pnpm --filter @capiro/auth build && pnpm --filter @capiro/defense-domain build && pnpm --filter @capiro/defense-contracts build
+RUN CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/api/prisma/schema.prisma \
+ && CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/workspace/prisma/schema.prisma \
+ && pnpm --filter @capiro/api exec prisma generate \
+ && pnpm --filter @capiro/workspace exec prisma generate
 WORKDIR /workspace/apps/intel-api
 CMD ["pnpm", "exec", "jest", "--runInBand"]
 
@@ -59,6 +78,10 @@ RUN pnpm --filter @capiro/intel-api exec prisma generate
 FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
+# Every entrypoint verb invokes node directly; local Prisma remains installed.
+# Package managers are build/test tooling, not part of this runtime contract.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S -g 1001 capiro \
  && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
  && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" ffmpeg=8.1.2-r0
@@ -85,7 +108,7 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/tsconfig.json 
 COPY --chown=capiro:capiro apps/intel-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-COPY scripts/qualification/alpine-service-probe.cjs /qualification/alpine-service-probe.cjs
+COPY scripts/qualification/alpine-service-probe.cjs scripts/qualification/alpine-dependency-compatibility.cjs /qualification/
 USER capiro
 WORKDIR /app/apps/intel-api
 EXPOSE 4300

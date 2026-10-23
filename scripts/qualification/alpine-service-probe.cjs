@@ -29,6 +29,17 @@ assert(musl, 'unsupported architecture');
 assert(fs.existsSync(process.arch === 'x64' ? '/lib/ld-musl-x86_64.so.1' : '/lib/ld-musl-aarch64.so.1'));
 assert(fs.existsSync('/usr/bin/dumb-init'));
 assert.match(run('openssl', ['version']), /^OpenSSL 3\./);
+for (const manager of ['npm', 'corepack']) {
+  assert(!fs.existsSync(`/usr/local/lib/node_modules/${manager}`), `${manager} must not ship`);
+  assert(!fs.existsSync(`/usr/local/bin/${manager}`), `${manager} command must not ship`);
+}
+if (service !== 'engagement-api') {
+  // The unchanged migrate verbs need the local CLI, never global npm/npx.
+  assert.match(run(process.execPath, [local.resolve('prisma/build/index.js'), '--help']), /migrate/);
+}
+for (const match of fs.readFileSync('/usr/local/bin/entrypoint.sh', 'utf8').matchAll(/\bnode (dist\/[^\s"'$;]+)/g)) {
+  run(process.execPath, ['--check', local.resolve(`./${match[1]}`)]);
+}
 
 const clientPath = service === 'engagement-api'
   ? local.resolve('.prisma/client/default', { paths: [path.dirname(local.resolve('@prisma/client'))] })
@@ -56,7 +67,29 @@ if (service === 'workspace') {
   local('playwright-core');
   assert.match(run(process.env.STRATEGY_PDF_CHROMIUM_PATH || '/usr/bin/chromium', ['--version']), /Chromium 155\./);
 } else if (service === 'engagement-api') {
-  local('./dist/engagement-api/engagement-api.module.js');
+  // engagement-main.ts compiles at dist/ and imports the sibling app module.
+  // Loading that module validates real production config at import time; use
+  // explicit nonsecret shadow fixtures without constructing Nest or a DB pool.
+  Object.assign(process.env, {
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:1/synthetic',
+    CLERK_SECRET_KEY: 'synthetic-packaging-probe-not-a-credential',
+    CLERK_JWT_ISSUER: 'https://synthetic.invalid',
+    CAPIRO_SERVICE_NAME: 'engagement-api',
+    ENGAGEMENT_PROCESS_MODE: 'shadow',
+    ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'false',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+  });
+  const entrypoint = local.resolve('./dist/engagement-main.js');
+  run(process.execPath, ['--check', entrypoint]);
+  assert.match(fs.readFileSync(entrypoint, 'utf8'), /require\(["']\.\/engagement-api\.app\.module\.js["']\)/);
+  const { EngagementApiAppModule } = local('./dist/engagement-api.app.module.js');
+  assert.equal(typeof EngagementApiAppModule, 'function');
+  local('./dist/bootstrap/configure-api-http-app.js');
+  const { assertEngagementRuntimeEnvironment } = local('./dist/engagement/runtime/engagement-runtime-env.js');
+  assert.equal(assertEngagementRuntimeEnvironment(process.env).serviceName, 'engagement-api');
 } else {
   local('./dist/hearing/capture/ffmpeg-audio-command.js');
   assert.match(run('ffmpeg', ['-version']), /^ffmpeg version 8\.1\.2/);

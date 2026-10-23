@@ -1,7 +1,10 @@
 # Four-service Alpine image qualification
 
-Status: source candidate; image builds, native service tests and scans await the
-orchestrator's single Docker gate. This is not a deployment or security acceptance.
+Status: repair candidate after the orchestrator's first image gate at
+`5bf9e058912569ba8206a2c71450001dc26a142c`. Intel, Strategy and Workspace built
+and passed their offline probes but scans reported respectively 1/20, 1/21 and
+1/19 CRITICAL/HIGH. Engagement failed on an incorrect probe module path. The
+changes below need fresh exact-head image gates; no security acceptance is claimed.
 
 Base: `db96ad310fa1c3cc43278ff9c2d59e750581bac3` (`backend-import`). Briefs:
 [original](https://github.com/neo-capiro/meri-greenfield/issues/202#issuecomment-6355187204)
@@ -12,12 +15,14 @@ starts, ECR pushes, AWS writes, migrations, deploys or live acceptance are autho
 ## Implementation outline and requirement audit
 
 Each service owns its new `Dockerfile.alpine`; existing Debian recipes, entrypoint
-scripts, application code, manifests, lockfile and schema files remain unchanged.
+scripts, application code, service manifests and schema files remain unchanged.
 Reuse Core's exact Node 22.23.3 / Alpine 3.24 amd64 pin and its image-local Prisma
 generator helper. Node 22 also satisfies the frozen `sanitize-html` dependency's
 Node >=22.12 requirement already recorded in Core and Workspace Dockerfiles;
-Intel and Engagement's old Debian defaults still say Node 20. No npm upgrade is
-included. Four ordinary multi-stage recipes avoid a new build framework.
+Intel and Engagement's old Debian defaults still say Node 20. The reviewed
+root manifest/lockfile repair changes only six parent-scoped dependency paths
+listed below. Global npm/Corepack are removed from runtime stages; all existing
+entrypoint verbs use Node directly, and their local Prisma CLI remains installed.
 
 | Requirement | Source result | Remaining proof |
 |---|---|---|
@@ -31,7 +36,7 @@ included. Four ordinary multi-stage recipes avoid a new build framework.
 | Strategy PDF | Chromium 155.0.8059.84-r0, Liberation 2.1.5-r2, existing configured executable path | Existing report/PDF specs and real synthetic PDF render |
 | amd64 | Exact Core-qualified image manifest default | All four builds/tests/scans |
 | arm64 | Explicit known Core ARM64 pin supported; musl selection follows actual Node arch | Not built; never claim cross-architecture acceptance |
-| 0 HIGH / 0 CRITICAL | Required threshold unchanged | No counts available until exact images scanned |
+| 0 HIGH / 0 CRITICAL | Required threshold unchanged; first gate failed | Fresh scans of repaired exact images required |
 | MEDIUM | No acceptance inferred | Enumerate every finding, version, fix and disposition; do not silently accept |
 
 `ffmpeg-audio-command.ts` and `ffmpeg-deepgram-capture.runtime.ts` call ffmpeg for
@@ -104,6 +109,33 @@ docker run --rm --network none "$(cat "$out/engagement-api.tests.id")" pnpm exec
   >"$out/engagement-api.tests.log" 2>&1
 ```
 
+Keep three explicit test tiers: offline source/fixture suites; runtime packaging
+and loopback-only compatibility; disposable PostgreSQL 16 suites with synthetic
+configuration. Preserve the initial unfiltered failures and list each test moved
+to the DB tier. DB-required tests and existing skips are not waived by an offline
+pass. Qualification stages include the actual imported cross-service source,
+workspace dependency links, Prisma clients and checked-in docs; Workspace WS03
+also receives its existing disposable-PG helper, Core schema and pg/Prisma closure.
+Runtime stages receive none of those test-only inputs.
+
+Run the dependency compatibility fixture on each production image, with a writable
+temporary directory. `--network none` retains loopback sockets used by synthetic
+multipart and WebSocket requests; no provider or database is contacted:
+
+```bash
+docker run --rm --network none --read-only --tmpfs /app/tmp:uid=1001,gid=1001 \
+  --entrypoint node "$image" /qualification/alpine-dependency-compatibility.cjs "$service"
+```
+
+For the Engagement probe, the unchanged `serve` command runs
+`dist/engagement-main.js`, whose relative import is
+`./engagement-api.app.module.js`. The corrected probe checks the compiled entrypoint,
+imports that real module and its bootstrap dependencies with explicit synthetic
+production/shadow configuration, and runs the actual environment validator. It
+does not construct Nest or a Prisma pool. Image failure controls must hide the
+compiled app module or one required dependency and observe a nonzero exit; an
+absent package is not caught or ignored. Actual startup/health still needs PG16.
+
 Prioritize Intel `src/hearing/capture/ffmpeg-audio-command.spec.ts`,
 `ffmpeg-deepgram-capture.runtime.spec.ts`, recording/recovery specs, Strategy PDF
 driver/report specs, Workspace version/rendering specs and Engagement entrypoint,
@@ -148,3 +180,52 @@ Unsupported service invocation: bounded usage failure before allocation.
 checks, vulnerability scans, CodeBuild or provider-live checks were run by lane D.
 The probe's positive runtime checks require Linux images; Windows syntax checks
 are not evidence that the native binaries load.
+
+## Reviewed dependency repair and compatibility evidence
+
+The orchestrator allocated `package.json`, `pnpm-lock.yaml` and the compatibility
+fixture after reviewing each concrete need. No service manifest version, Debian
+recipe, entrypoint or application source was changed. pnpm 9.12.0's generated
+metadata/snapshots for the three new versions were retained while unrelated lock
+records/importers were preserved. A frozen install for all four service closures
+passed without resolution (10 workspace projects, 1,433 packages).
+
+| Exact parent | Repair | Runtime reason / evidence |
+|---|---|---|
+| `express@4.22.1` | `proxy-addr` 2.0.7 → 2.0.8 | Nest HTTP IP/trusted-proxy handling; trusted/untrusted chain and malformed range checks |
+| `@nestjs/platform-express@10.4.22` | `multer` 2.0.2 → 2.3.0 | Planner and newsletter uploads; actual Nest interceptor bytes, oversize, malformed, abort and subsequent-request checks |
+| `@clerk/shared@3.47.5` | `js-cookie` 3.0.5 → 3.0.7 | Clerk's shared runtime closure; Clerk import and delimiter-safe cookie round trip |
+| `@nestjs/config@3.3.0` | `lodash` 4.17.21 → 4.18.1 | Configuration lookup/merge; dotted paths, fallbacks and prototype protection. Registry marks 4.18.0 a bad deprecated release, so it was rejected. |
+| `@nestjs/platform-ws@10.4.22` | `ws` 8.18.0 → 8.21.0 | Intel Nest WebSocket adapter; actual loopback handshake, echo and orderly close. Direct `ws` 8.22.0 stays unchanged. |
+| `pptxgenjs@3.12.0` | remove unused `image-size` edge | Published PptxGenJS code never imports it; verified rendering detailed below. No major API override. |
+
+Exact package metadata/integrities were read from the npm registry on 2026-10-23
+([proxy-addr](https://registry.npmjs.org/proxy-addr/2.0.8),
+[multer](https://registry.npmjs.org/multer/2.3.0),
+[js-cookie](https://registry.npmjs.org/js-cookie/3.0.7),
+[lodash](https://registry.npmjs.org/lodash/4.18.1),
+[ws](https://registry.npmjs.org/ws/8.21.0)). The corresponding hashes are pinned in
+the lockfile. This shared lock repair also affects other services that consume
+those exact parents; their unchanged Debian recipes do not isolate dependency
+resolution. No acceptance is claimed for those out-of-scope service images.
+
+The [published PptxGenJS 3.12.0 tarball](https://registry.npmjs.org/pptxgenjs/-/pptxgenjs-3.12.0.tgz)
+has lock-matching SHA512
+`ZozkYKWb1MoPR4ucw3/aFYlHkVIJxo9czikEclcUVnS4Iw/M+r+TEwdlB3fyAWO9JY1USxJDt0Y0/r15IR/RUA==`.
+Its CJS, ES, bundle, minified JS and declarations contain no `image-size` import
+or use; the only declaration is package metadata. It was the lockfile's only
+incoming `image-size` edge. The new fixture checks resolution fails, proves a
+forced import trap rejects, then renders PNG bytes, an SVG and a local PNG path
+with that trap armed. It checks three picture elements, exact OOXML dimensions,
+media relationships and original PNG/SVG bytes. This removes unused code from the
+installed closure; it is not a scanner exclusion or an acceptance of the finding.
+
+Windows Node 24.22.1 native compatibility results: Intel 6/6, Strategy 6/6,
+Workspace 5/5 and Engagement 6/6. Existing Strategy report/image, planner upload/
+attachment and auth suites passed 45/45 after building their existing shared,
+auth and strategy-verifier prerequisites. The first attempt reported three
+missing `@capiro/strategy-verifier` build-output errors; rebuilding that unchanged
+workspace prerequisite fixed them. These native fixtures do not substitute for
+the orchestrator's Linux/musl source suites, runtime scans, startup, or PG16 gates.
+Existing Intel hearing-gateway capture and tenant/resolver auth suites also
+passed 52/52 with synthetic mocks; no provider request or database connection ran.

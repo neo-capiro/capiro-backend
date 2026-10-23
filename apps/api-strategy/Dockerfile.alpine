@@ -47,6 +47,20 @@ COPY apps/api-strategy/jest* apps/api-strategy/
 COPY apps/api-strategy/test apps/api-strategy/test
 COPY apps/api-strategy/scripts apps/api-strategy/scripts
 COPY apps/api-strategy/eval apps/api-strategy/eval
+# Existing native contract suites consume Core source plus signed wire fixtures.
+COPY apps/api/package.json apps/api/tsconfig.json apps/api/
+COPY apps/api/src apps/api/src
+COPY apps/api/prisma apps/api/prisma
+COPY packages/meriv2-core packages/meriv2-core
+COPY packages/defense-domain packages/defense-domain
+COPY packages/defense-contracts packages/defense-contracts
+COPY docs/objective-generation-backend/WIRE-EXAMPLES.json docs/objective-generation-backend/WIRE-EXAMPLES.json
+COPY docs/objective-workload-authority-20261015/CORE-MERI-RETAINED-READ-SIGNED-FIXTURES-20261016.json docs/objective-workload-authority-20261015/CORE-MERI-RETAINED-READ-SIGNED-FIXTURES-20261016.json
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/api-strategy... --filter=@capiro/api...
+RUN pnpm --filter @capiro/meriv2-core build && pnpm --filter @capiro/defense-domain build && pnpm --filter @capiro/defense-contracts build
+RUN CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/api/prisma/schema.prisma \
+ && pnpm --filter @capiro/api exec prisma generate
 WORKDIR /workspace/apps/api-strategy
 CMD ["pnpm", "exec", "jest", "--runInBand"]
 
@@ -65,6 +79,10 @@ RUN pnpm --filter @capiro/api-strategy exec prisma generate
 FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
+# Every entrypoint verb invokes node directly; local Prisma remains installed.
+# Package managers are build/test tooling, not part of this runtime contract.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S -g 1001 capiro \
  && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
  && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" chromium=155.0.8059.84-r0 font-liberation=2.1.5-r2
@@ -103,7 +121,7 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/tsconfig.js
 COPY --chown=capiro:capiro apps/api-strategy/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-COPY scripts/qualification/alpine-service-probe.cjs /qualification/alpine-service-probe.cjs
+COPY scripts/qualification/alpine-service-probe.cjs scripts/qualification/alpine-dependency-compatibility.cjs /qualification/
 USER capiro
 WORKDIR /app/apps/api-strategy
 EXPOSE 4400
