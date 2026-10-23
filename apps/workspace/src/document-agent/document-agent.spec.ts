@@ -312,7 +312,9 @@ import { DocumentAgentRevisionService } from './document-agent-revision.service.
 describe('DocumentAgentRevisionService', () => {
   it('creates a proposal', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'prop-1' } as never);
+    const findFirst = jest.fn().mockResolvedValue({ prospectId: null } as never);
     const service = new DocumentAgentRevisionService({
+      wsDraft: { findFirst },
       wsAgentProposal: { create },
     } as never);
     const result = await service.createProposal({
@@ -325,7 +327,25 @@ describe('DocumentAgentRevisionService', () => {
       payload: { instruction: 'fix' },
     });
     expect(result.proposalId).toBe('prop-1');
+    expect(findFirst).toHaveBeenCalledWith({ where: { tenantId: 't1', id: 'd1' }, select: { prospectId: true } });
+    expect(findFirst.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]!);
     expect(create).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith({ data: {
+      tenantId: 't1', draftId: 'd1', createdById: 'u1', type: 'outline_revision', status: 'pending',
+      baseRevision: 1, baseHash: 'hash', payload: { instruction: 'fix' },
+    } });
+  });
+
+  it('rejects a prospect-bound proposal before any proposal write', async () => {
+    const findFirst = jest.fn().mockResolvedValue({ prospectId: 'synthetic-prospect' } as never);
+    const create = jest.fn();
+    const service = new DocumentAgentRevisionService({ wsDraft: { findFirst }, wsAgentProposal: { create } } as never);
+    await expect(service.createProposal({
+      tenantId: 't2', draftId: 'd2', createdById: 'u2', type: 'outline_revision',
+      baseRevision: 1, baseHash: 'hash', payload: {},
+    })).rejects.toMatchObject({ response: { code: 'PROSPECT_RESOURCE_TRANSFER_UNSUPPORTED' }, status: 403 });
+    expect(findFirst).toHaveBeenCalledWith({ where: { tenantId: 't2', id: 'd2' }, select: { prospectId: true } });
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('detects stale proposals by hash mismatch', () => {

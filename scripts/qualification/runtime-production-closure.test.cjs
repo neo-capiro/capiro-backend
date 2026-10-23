@@ -1,6 +1,43 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { closure, resolveEdge, canonicalInputBytes, serializeAudit } = require('./runtime-production-closure.cjs');
+const { closure, resolveEdge, canonicalInputBytes, serializeAudit, verifyImporterManifest } = require('./runtime-production-closure.cjs');
+
+test('exact importer overrides require matching root and lock declarations', () => {
+  const manifest = { name: '@fixture/api', version: '1.0.0', dependencies: { sdk: '^1.0.0' } };
+  const overrides = { '@fixture/api@1.0.0>sdk': '1.2.0' };
+  const root = { pnpm: { overrides } };
+  const lock = { overrides: { ...overrides }, importers: { api: { dependencies: {
+    sdk: { specifier: '1.2.0', version: '1.2.0' },
+  } } } };
+  verifyImporterManifest(lock, root, 'api', manifest);
+  assert.throws(() => verifyImporterManifest(lock, {}, 'api', manifest), /override drift/);
+  const wrongScope = { '@fixture/other@1.0.0>sdk': '1.2.0' };
+  assert.throws(() => verifyImporterManifest({ ...lock, overrides: wrongScope },
+    { pnpm: { overrides: wrongScope } }, 'api', manifest), /manifest\/lock drift/);
+  assert.throws(() => verifyImporterManifest(lock, root, 'api', { ...manifest, version: '2.0.0' }), /manifest\/lock drift/);
+  for (const selector of ['@fixture/api@*>sdk', '@fixture/api@1.0.0>>sdk']) {
+    const invalid = { [selector]: '1.2.0' };
+    assert.throws(() => verifyImporterManifest({ ...lock, overrides: invalid },
+      { pnpm: { overrides: invalid } }, 'api', manifest), /manifest\/lock drift/);
+  }
+  const malformed = { '@fixture/api@1.0.0>sdk': 12 };
+  assert.throws(() => verifyImporterManifest({ ...lock, overrides: malformed },
+    { pnpm: { overrides: malformed } }, 'api', manifest), /Malformed/);
+  lock.importers.api.dependencies.sdk.specifier = '1.3.0';
+  assert.throws(() => verifyImporterManifest(lock, root, 'api', manifest), /manifest\/lock drift/);
+});
+
+test('ordinary manifests still reject missing, additional and changed dependencies', () => {
+  const manifest = { name: '@fixture/api', version: '1.0.0', dependencies: { sdk: '^1.0.0' } };
+  const lock = { importers: { api: { dependencies: { sdk: { specifier: '^1.0.0', version: '1.2.0' } } } } };
+  verifyImporterManifest(lock, {}, 'api', manifest);
+  delete lock.importers.api.dependencies.sdk;
+  assert.throws(() => verifyImporterManifest(lock, {}, 'api', manifest));
+  lock.importers.api.dependencies = { sdk: { specifier: '^2.0.0', version: '2.1.0' } };
+  assert.throws(() => verifyImporterManifest(lock, {}, 'api', manifest), /manifest\/lock drift/);
+  lock.importers.api.dependencies = { sdk: { specifier: '^1.0.0', version: '1.2.0' }, extra: { specifier: '1.0.0' } };
+  assert.throws(() => verifyImporterManifest(lock, {}, 'api', manifest));
+});
 function fixture() {
   return { importers: {
     'apps/api': { dependencies: { workspace: { version: 'link:../../packages/workspace' }, ordinary: { version: '1.0.0(peer@2)' } }, devDependencies: { tooling: { version: '9.0.0' } } },

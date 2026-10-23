@@ -34,6 +34,9 @@ const XM32_RDTE: AuthoritativePeRecord = {
   budgetActivity: '04',
   budgetActivityName: 'Advanced Component Development & Prototypes',
   status: 'active',
+  people: [],
+  contractors: [],
+  bills: [],
   years: [
     { fy: 2027, request: 42.5, enacted: null, hascMark: 50, sascMark: 45 },
     { fy: 2026, request: 38, enacted: 38, hascMark: null, sascMark: null },
@@ -64,6 +67,9 @@ describe('PeResolverService.groundingText', () => {
       budgetActivityName: null,
       status: null,
       years: [],
+      people: [],
+      contractors: [],
+      bills: [],
     };
     const out = svc.groundingText(bare);
     expect(out).toContain('PE 0604999Z');

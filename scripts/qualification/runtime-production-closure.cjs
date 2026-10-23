@@ -7,6 +7,22 @@ const { execFileSync } = require('node:child_process');
 const roots = ['apps/api', 'packages/shared', 'packages/meriv2-core', 'packages/defense-contracts', 'packages/defense-domain'];
 const targets = ['promptfoo', '@huggingface/transformers', 'onnxruntime-node', 'onnxruntime-web', '@openai/codex-security', 'sharp', 'libsql', '@libsql/client', '@swc/core'];
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+function verifyImporterManifest(lock, rootManifest, importer, manifest) {
+  const overrides = rootManifest.pnpm?.overrides || {};
+  assert.deepEqual(lock.overrides || {}, overrides, 'Root manifest/lock override drift');
+  for (const section of ['dependencies', 'optionalDependencies']) {
+    const declared = manifest[section] || {}, locked = lock.importers[importer][section] || {};
+    assert.deepEqual(Object.keys(declared).sort(), Object.keys(locked).sort());
+    for (const [name, specifier] of Object.entries(declared)) {
+      // pnpm 9 writes an exact importer override into the lock specifier.
+      // Other parents, ranges and unrelated overrides cannot admit a mismatch.
+      const selector = `${manifest.name}@${manifest.version}>${name}`;
+      const expected = Object.hasOwn(overrides, selector) ? overrides[selector] : specifier;
+      assert(typeof expected === 'string' && expected.length > 0, 'Malformed dependency specifier');
+      assert.equal(locked[name].specifier, expected, `${importer} ${name} manifest/lock drift`);
+    }
+  }
+}
 function resolveEdge(lock, parent, name, value) {
   const version = typeof value === 'string' ? value : value.version;
   assert.equal(typeof version, 'string');
@@ -86,11 +102,7 @@ function audit(root, yaml) {
   const rootManifest = JSON.parse(read('package.json'));
   for (const importer of roots) {
     const manifest = JSON.parse(read(`${importer}/package.json`));
-    for (const section of ['dependencies', 'optionalDependencies']) {
-      assert.deepEqual(Object.keys(manifest[section] || {}).sort(), Object.keys(lock.importers[importer][section] || {}).sort());
-      for (const [name, specifier] of Object.entries(manifest[section] || {}))
-        assert.equal(lock.importers[importer][section][name].specifier, specifier, `${importer} ${name} manifest/lock drift`);
-    }
+    verifyImporterManifest(lock, rootManifest, importer, manifest);
   }
   assert.equal(rootManifest.devDependencies.promptfoo, '0.123.1');
   const production = closure(lock, roots, ['dependencies', 'optionalDependencies']);
@@ -163,7 +175,7 @@ function canonicalInputBytes(checkout, canonical) {
 function serializeAudit(result, contractOnly = false) {
   return JSON.stringify(contractOnly ? result.runtimeClosureContract : result, null, 2) + '\n';
 }
-module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit };
+module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit, verifyImporterManifest };
 if (require.main === module) {
   const args = process.argv.slice(2);
   const outIndex = args.indexOf('--out');

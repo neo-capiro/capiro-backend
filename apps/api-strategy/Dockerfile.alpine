@@ -1,0 +1,136 @@
+# Alpine qualification candidate; the Debian Dockerfile remains unchanged.
+# Build context: repository root. Default pin is the Core-qualified amd64 image.
+# arm64 requires the explicit NODE_IMAGE override documented in the gate guide.
+# Fresh production install preserves pnpm links and musl Prisma without dev tools.
+ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22.23.3-alpine3.24@sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8
+FROM ${NODE_IMAGE} AS base
+ARG TARGETARCH
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN apk add --no-cache "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3"
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /workspace
+
+FROM base AS build
+RUN apk add --no-cache openssl ca-certificates python3 make g++
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
+COPY apps/api-strategy/package.json apps/api-strategy/package.json
+COPY packages/auth/package.json packages/auth/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/api-strategy... --filter=@capiro/auth... --filter=@capiro/strategy-verifier...
+
+COPY packages/auth/src packages/auth/src
+COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
+COPY packages/shared/src packages/shared/src
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/strategy-verifier/src packages/strategy-verifier/src
+COPY packages/strategy-verifier/tsconfig.json packages/strategy-verifier/tsconfig.json
+COPY apps/api-strategy/src apps/api-strategy/src
+COPY apps/api-strategy/prisma apps/api-strategy/prisma
+COPY apps/api-strategy/tsconfig.json apps/api-strategy/tsconfig.build.json apps/api-strategy/nest-cli.json apps/api-strategy/
+
+RUN pnpm --filter @capiro/auth build
+RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/strategy-verifier build
+# Generate the Prisma client (outputs to apps/api-strategy/generated/prisma-client)
+# BEFORE the Nest build, since src imports the generated client.
+COPY apps/api/scripts/qualification/prisma-musl-target.cjs apps/api/scripts/qualification/qualification-platform.cjs /qualification/
+RUN CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/api-strategy/prisma/schema.prisma
+RUN cd apps/api-strategy && pnpm exec prisma generate
+RUN pnpm --filter @capiro/api-strategy build
+
+FROM build AS qualification
+RUN apk add --no-cache chromium=155.0.8059.84-r0 font-liberation=2.1.5-r2
+COPY apps/api-strategy/jest* apps/api-strategy/
+COPY apps/api-strategy/test apps/api-strategy/test
+COPY apps/api-strategy/scripts apps/api-strategy/scripts
+COPY apps/api-strategy/eval apps/api-strategy/eval
+# Existing native contract suites consume Core source plus signed wire fixtures.
+COPY apps/api/package.json apps/api/tsconfig.json apps/api/
+COPY apps/api/src apps/api/src
+COPY apps/api/prisma apps/api/prisma
+COPY packages/meriv2-core packages/meriv2-core
+COPY packages/defense-domain packages/defense-domain
+COPY packages/defense-contracts packages/defense-contracts
+COPY docs/objective-generation-backend/WIRE-EXAMPLES.json docs/objective-generation-backend/WIRE-EXAMPLES.json
+COPY docs/objective-workload-authority-20261015/CORE-MERI-RETAINED-READ-SIGNED-FIXTURES-20261016.json docs/objective-workload-authority-20261015/CORE-MERI-RETAINED-READ-SIGNED-FIXTURES-20261016.json
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/api-strategy... --filter=@capiro/api...
+RUN pnpm --filter @capiro/meriv2-core build && pnpm --filter @capiro/defense-domain build && pnpm --filter @capiro/defense-contracts build
+RUN CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/api/prisma/schema.prisma \
+ && pnpm --filter @capiro/api exec prisma generate
+WORKDIR /workspace/apps/api-strategy
+CMD ["pnpm", "exec", "jest", "--runInBand"]
+
+FROM base AS production-dependencies
+RUN apk add --no-cache openssl ca-certificates python3 make g++
+COPY --from=build /workspace/pnpm-workspace.yaml /workspace/package.json /workspace/pnpm-lock.yaml ./
+COPY --from=build /workspace/apps/api-strategy/package.json apps/api-strategy/package.json
+COPY --from=build /workspace/packages/auth/package.json packages/auth/package.json
+COPY --from=build /workspace/packages/shared/package.json packages/shared/package.json
+COPY --from=build /workspace/packages/strategy-verifier/package.json packages/strategy-verifier/package.json
+COPY --from=build /workspace/apps/api-strategy/prisma apps/api-strategy/prisma
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter=@capiro/api-strategy... --filter=@capiro/auth... --filter=@capiro/shared... --filter=@capiro/strategy-verifier...
+RUN pnpm --filter @capiro/api-strategy exec prisma generate
+
+FROM ${NODE_IMAGE} AS runtime
+ENV NODE_ENV=production
+ENV NODE_OPTIONS=--enable-source-maps
+# Every entrypoint verb invokes node directly; local Prisma remains installed.
+# Package managers are build/test tooling, not part of this runtime contract.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+RUN addgroup -S -g 1001 capiro \
+ && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
+ && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3" chromium=155.0.8059.84-r0 font-liberation=2.1.5-r2
+RUN mkdir -p /app/tmp /tmp \
+ && chmod 1777 /tmp \
+ && chown capiro:capiro /app/tmp
+ENV TMPDIR=/app/tmp
+# Chromium Crashpad requires a writable HOME even with a read-only rootfs.
+# Reuse the existing capiro-owned temporary directory; driver flags stay intact.
+ENV HOME=/app/tmp
+# Headless Chromium for executive PDF export (Alpine package; exact version pinned above).
+ENV STRATEGY_PDF_CHROMIUM_PATH=/usr/bin/chromium
+WORKDIR /app
+
+# Copy the fresh production dependency store alongside the compiled dist.
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/node_modules /app/node_modules
+# @capiro/auth (shared Clerk guard): dist + manifest + its OWN node_modules —
+# root /app/node_modules/@capiro/auth is a pnpm symlink to here, and
+# packages/auth/dist require()s @nestjs/common / @clerk/backend from its own
+# node_modules (pnpm doesn't hoist). Without these three the service crashes at
+# boot with "Cannot find module '@capiro/auth'".
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+# @capiro/strategy-verifier (pure/zero-dep) — dist + manifest only, no node_modules needed.
+COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/dist /app/packages/strategy-verifier/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/package.json /app/packages/strategy-verifier/package.json
+COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/dist /app/apps/api-strategy/dist
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-strategy/node_modules /app/apps/api-strategy/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/package.json /app/apps/api-strategy/package.json
+# Generated Prisma client + schema + migrations (the migrate verb runs
+# `prisma migrate deploy` against prisma/migrations at task launch).
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-strategy/generated /app/apps/api-strategy/generated
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/api-strategy/prisma /app/apps/api-strategy/prisma
+COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
+COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/tsconfig.json /app/apps/api-strategy/tsconfig.json
+COPY --chown=capiro:capiro apps/api-strategy/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+COPY scripts/qualification/alpine-service-probe.cjs scripts/qualification/alpine-dependency-compatibility.cjs /qualification/
+USER capiro
+WORKDIR /app/apps/api-strategy
+EXPOSE 4400
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["serve"]
+
+# Preserve service health semantics; liveness is exercised by the local gate.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:4400/strategy-api/health || exit 1
+RUN --network=none node /qualification/alpine-service-probe.cjs api-strategy
