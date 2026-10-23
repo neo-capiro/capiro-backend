@@ -6906,18 +6906,13 @@ export class MeriToolsService {
     }
     // Reuse the endpoint's tenant, owner and active-message authorization. No
     // provider network call, read-receipt mutation, or message send is involved.
-    const thread = authorizedMailboxIds
-      ? await this.engagement.getMailThread(ctx, threadId, clientId || undefined,
-        authorizedMailboxIds)
-      : await this.engagement.getMailThread(ctx, threadId, clientId || undefined);
+    const thread = await this.engagement.getMailThread(ctx, threadId, clientId || undefined,
+      authorizedMailboxIds, { messageId: messageId || undefined, messageOffset, limit });
     if (clientId && thread.clientId !== clientId)
       throw new NotFoundException('Mail thread not found');
-    const matching = messageId
-      ? thread.messages.filter((message) => message.id === messageId)
-      : thread.messages;
-    if (messageId && !matching.length)
+    if (messageId && !thread.totalMessages)
       return { error: 'Message is not active in this authorized thread.' };
-    const messages = matching.slice(messageOffset, messageOffset + limit).map((message) => {
+    const messages = thread.messages.map((message) => {
       if (message.connectionId !== thread.connectionId) {
         throw new ServiceUnavailableException('Mail thread source lineage is inconsistent');
       }
@@ -6973,17 +6968,17 @@ export class MeriToolsService {
         },
       };
     });
-    const hasMore = messageOffset + messages.length < matching.length;
+    const hasMore = thread.hasMore;
     return {
       threadId,
       subject: thread.subject,
       mailbox: thread.connectionEmail,
       messageId: messageId || null,
       messageOffset,
-      totalMessages: matching.length,
+      totalMessages: thread.totalMessages,
       returned: messages.length,
       hasMore,
-      nextMessageOffset: hasMore ? messageOffset + messages.length : null,
+      nextMessageOffset: thread.nextMessageOffset,
       messages,
       mailboxInventory: [{
         sourceProof: {

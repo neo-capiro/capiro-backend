@@ -2335,22 +2335,31 @@ export class EngagementController {
     @CurrentTenant() ctx: TenantContext,
     @Query('clientId') clientId?: string,
     @Query('recipientEmails') recipientEmails?: string,
+    @Query('query') query?: string,
+    @Query('folder') folder?: string,
+    @Query('withinDays') withinDays?: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+    @Query('asOf') asOf?: string,
   ) {
-    return this.service.listMailThreads(ctx, {
-      clientId,
-      recipientEmails: recipientEmails
-        ? recipientEmails
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined,
-    });
+    return this.service.listMailThreadPage(ctx, { clientId, recipientEmails: recipientEmails?.split(','),
+      query, folder, withinDays, limit, cursor, asOf });
   }
 
-  /** Full message history for one thread — the list route caps each thread at 3. */
+  /** Bounded current thread/body pages; every continuation repeats the owner read. */
   @Get('mail-threads/:id')
-  mailThreadDetail(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.service.getMailThread(ctx, id);
+  mailThreadDetail(@CurrentTenant() ctx: TenantContext, @Param('id') id: string,
+    @Query('clientId') clientId?: string, @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string, @Query('asOf') asOf?: string,
+    @Query('messageId') messageId?: string, @Query('bodyOffset') bodyOffset?: string,
+    @Query('expectedBodySha256') expectedBodySha256?: string,
+    @Query('expectedUpdatedAt') expectedUpdatedAt?: string,
+    @Query('associationClientId') associationClientId?: string,
+    @Query('recipientEmails') recipientEmails?: string,
+  ) {
+    return this.service.getMailThreadHttpPage(ctx, id, clientId,
+      { limit, cursor, asOf, messageId, bodyOffset, expectedBodySha256, expectedUpdatedAt,
+        associationClientId, recipientEmails: recipientEmails?.split(',') });
   }
 
   /**

@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -41,84 +42,55 @@ type MailRow = {
   account_email: string | null;
 };
 
-/** Canonical bounded reads of the caller's synced mail. Interpretation stays with the provider. */
-export async function queryMailMessages(
-  prisma: PrismaService,
-  ctx: TenantContext,
-  input: Record<string, unknown>,
-  options: MailQueryOptions = {},
-) {
-  const suppliedMailboxIds = options.authorizedMailboxIds;
-  if (suppliedMailboxIds !== undefined &&
-      (!Array.isArray(suppliedMailboxIds) || suppliedMailboxIds.length === 0 ||
-        suppliedMailboxIds.length > 4096 ||
-        suppliedMailboxIds.some((id) => typeof id !== 'string' || !UUID.test(id)) ||
-        new Set(suppliedMailboxIds.map((id) => id.toLowerCase())).size !== suppliedMailboxIds.length)) {
-    return { error: 'Verified mailbox scopes are required for this mail read.' };
-  }
-  const authorizedMailboxIds = suppliedMailboxIds === undefined
-    ? undefined : [...suppliedMailboxIds].sort();
-  const mailboxList = authorizedMailboxIds?.map((id) => Prisma.sql`${id}::uuid`);
+export function normalizeMailReadFilters(input: Record<string, unknown>) {
   const term = (key: string, max = 200) =>
     typeof input[key] === 'string' ? (input[key] as string).trim().slice(0, max) : '';
-  const query = term('query');
-  const from = term('from');
-  const participant = term('participant');
-  const clientId = term('clientId', 200);
-  const folder = term('folder') || 'all';
+  const query = term('query'), from = term('from'), participant = term('participant');
+  const clientId = term('clientId'), folder = term('folder') || 'all';
   const withinDays = input.withinDays == null ? null : Number(input.withinDays);
-  const limit = input.limit == null ? (options.defaultLimit ?? 20) : Number(input.limit);
-  const offset = input.offset == null ? 0 : Number(input.offset);
   const asOf = input.asOf == null ? new Date() : new Date(String(input.asOf));
-  if (
-    clientId &&
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)
-  ) {
+  if (clientId && !UUID.test(clientId))
     return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
-  }
-  if (!['all', 'inbox', 'sent'].includes(folder)) {
-    return { error: 'folder must be inbox, sent, or all.' };
-  }
-  if (
-    withinDays !== null &&
-    (!Number.isInteger(withinDays) || withinDays < 1 || withinDays > 3650)
-  ) {
+  if (!['all', 'inbox', 'sent'].includes(folder)) return { error: 'folder must be inbox, sent, or all.' };
+  if (withinDays !== null && (!Number.isInteger(withinDays) || withinDays < 1 || withinDays > 3650))
     return { error: 'withinDays must be an integer from 1 through 3650.' };
-  }
-  if (
-    !Number.isInteger(limit) ||
-    limit < 1 ||
-    limit > 50 ||
-    !Number.isInteger(offset) ||
-    offset < 0 ||
-    offset > 10000
-  ) {
-    return { error: 'limit must be 1–50 and offset must be 0–10000.' };
-  }
-  if (
-    !Number.isFinite(asOf.getTime()) ||
-    asOf.getTime() > Date.now() + 1000 ||
-    (offset > 0 && !input.asOf)
-  ) {
-    return {
-      error:
-        'Use a valid, non-future asOf timestamp; continuation pages must reuse the first page’s asOf.',
-    };
-  }
-  if (
-    !options.allowUnfiltered &&
-    !query &&
-    !from &&
-    !participant &&
-    withinDays === null &&
-    folder === 'all'
-  ) {
-    return {
-      error:
-        "Provide at least one of 'query', 'from', or 'participant', or a withinDays/folder filter. Use list_emails for newest mail.",
-    };
-  }
+  if (!Number.isFinite(asOf.getTime()) || asOf.getTime() > Date.now() + 1000)
+    return { error: 'Use a valid, non-future asOf timestamp; continuation pages must reuse the first page’s asOf.' };
   const windowStart = withinDays === null ? null : new Date(asOf.getTime() - withinDays * 86400000);
+  return { query, from, participant, clientId, folder, withinDays, asOf, windowStart };
+}
+
+type MailReadFilters = Exclude<ReturnType<typeof normalizeMailReadFilters>, { error: string }>;
+
+export function normalizeMailReadRecipients(input?: unknown) {
+  if (input !== undefined && (!Array.isArray(input) || input.length > 100 ||
+      input.some(value => typeof value !== 'string' || value.length > 320)))
+    throw new BadRequestException('Use at most 100 bounded mail recipient addresses.');
+  return [...new Set(((input ?? []) as string[]).map(value => value.trim().toLowerCase()).filter(Boolean))].sort();
+}
+/** Fixed aliases only; email values stay bound, never interpolated SQL. */
+export function mailReadRecipientMatch(alias: 'm' | 'ma', emails: string[]) {
+  const from = Prisma.raw(`${alias}.from_email`), to = Prisma.raw(`${alias}.to_recipients_jsonb`), cc = Prisma.raw(`${alias}.cc_recipients_jsonb`);
+  return Prisma.sql`(lower(${from}::text) = ANY(${emails}::text[]) OR EXISTS (
+    SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(${to})='array' THEN ${to} ELSE '[]'::jsonb END) e
+    WHERE lower(e->>'email') = ANY(${emails}::text[])
+  ) OR EXISTS (
+    SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(${cc})='array' THEN ${cc} ELSE '[]'::jsonb END) e
+    WHERE lower(e->>'email') = ANY(${emails}::text[])))`;
+}
+export function activeMailAssociationMessage(emails: string[], asOf: Date) {
+  return Prisma.sql`EXISTS (SELECT 1 FROM mail_messages ma WHERE ma.thread_id=t.id AND ma.tenant_id=t.tenant_id
+    AND ma.connection_id=t.connection_id AND ma.removed_at IS NULL AND ma.created_at <= ${asOf}
+    AND ${mailReadRecipientMatch('ma', emails)})`;
+}
+/** The existing explicit-client or contact-email association, shared by list and HTTP detail. */
+export function mailReadClientAssociation(clientId: string, emails: string[], asOf: Date) {
+  return Prisma.sql`(t.client_id=${clientId}::uuid ${emails.length ? Prisma.sql`OR ${activeMailAssociationMessage(emails, asOf)}` : Prisma.empty})`;
+}
+
+/** Static aliases m/c/t belong to the canonical Mail owners; all request values stay bound. */
+export function mailReadMessageWhere(ctx: TenantContext, filters: MailReadFilters, mailboxList?: Prisma.Sql[]) {
+  const { query, from, participant, clientId, folder, asOf, windowStart } = filters;
   const pattern = (value: string) => `%${value.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
   // The same tenant + connection-owner boundary as engagement-access.helpers.
   // Raw SQL is needed for literal fragment matching inside recipient JSON arrays.
@@ -155,7 +127,54 @@ export async function queryMailMessages(
   if (folder === 'inbox') conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') = 'inbox'`);
   if (folder === 'sent')
     conds.push(Prisma.sql`lower(m.metadata_jsonb->>'folder') IN ('sent', 'sentitems')`);
-  const where = Prisma.join(conds, ' AND ');
+  return Prisma.join(conds, ' AND ');
+
+}
+
+/** Canonical bounded reads of the caller's synced mail. Interpretation stays with the provider. */
+export async function queryMailMessages(
+  prisma: PrismaService,
+  ctx: TenantContext,
+  input: Record<string, unknown>,
+  options: MailQueryOptions = {},
+) {
+  const suppliedMailboxIds = options.authorizedMailboxIds;
+  if (suppliedMailboxIds !== undefined &&
+      (!Array.isArray(suppliedMailboxIds) || suppliedMailboxIds.length === 0 ||
+        suppliedMailboxIds.length > 4096 ||
+        suppliedMailboxIds.some((id) => typeof id !== 'string' || !UUID.test(id)) ||
+        new Set(suppliedMailboxIds.map((id) => id.toLowerCase())).size !== suppliedMailboxIds.length)) {
+    return { error: 'Verified mailbox scopes are required for this mail read.' };
+  }
+  const authorizedMailboxIds = suppliedMailboxIds === undefined
+    ? undefined : [...suppliedMailboxIds].sort();
+  const mailboxList = authorizedMailboxIds?.map((id) => Prisma.sql`${id}::uuid`);
+  const filters = normalizeMailReadFilters(input);
+  if ('error' in filters) return filters;
+  const { query, from, participant, clientId, folder, withinDays, asOf, windowStart } = filters;
+  const limit = input.limit == null ? (options.defaultLimit ?? 20) : Number(input.limit);
+  const offset = input.offset == null ? 0 : Number(input.offset);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50 ||
+      !Number.isInteger(offset) || offset < 0 || offset > 10000) {
+    return { error: 'limit must be 1–50 and offset must be 0–10000.' };
+  }
+  if (offset > 0 && !input.asOf) {
+    return { error: 'Use a valid, non-future asOf timestamp; continuation pages must reuse the first page’s asOf.' };
+  }
+  if (
+    !options.allowUnfiltered &&
+    !query &&
+    !from &&
+    !participant &&
+    withinDays === null &&
+    folder === 'all'
+  ) {
+    return {
+      error:
+        "Provide at least one of 'query', 'from', or 'participant', or a withinDays/folder filter. Use list_emails for newest mail.",
+    };
+  }
+  const where = mailReadMessageWhere(ctx, filters, mailboxList);
   const { total, rows, coverage } = await withMailQueryDeadline(prisma, ctx.tenantId, async (query) => {
     const counted = await query<Array<{ n: number }>>(Prisma.sql`
       SELECT count(DISTINCT (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text)))::int AS n

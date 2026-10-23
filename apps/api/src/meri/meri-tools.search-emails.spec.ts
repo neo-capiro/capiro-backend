@@ -1,3 +1,9 @@
+// These read fixtures must never enter HTML sanitization. Throw if reached;
+// production sanitizer ESM import compatibility is qualified separately.
+jest.mock('sanitize-html', () => {
+  const fail = () => { throw new Error('Unexpected sanitizer in a mail read'); };
+  return Object.assign(fail, { simpleTransform: () => fail });
+});
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
 import { currentOwnerResultAuthorizesReplay } from './meri-research-replay-authorization.js';
@@ -30,6 +36,7 @@ describe('Meri canonical mailbox tools', () => {
       connectionEmail: 'owner@example.com',
       connectionStatus: 'connected',
       updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+      totalMessages: 1, hasMore: false, nextMessageOffset: null,
       messages: [{
         id: messageId,
         connectionId: '44444444-4444-4444-8444-444444444444',
@@ -49,7 +56,7 @@ describe('Meri canonical mailbox tools', () => {
     expect(currentOwnerResultAuthorizesReplay('get_email_thread', result, structuredClone(result)))
       .toBe(true);
     expect(result.messages[0].sourceProof.bodySha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined);
+    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined, undefined, { messageId: undefined, messageOffset: 0, limit: 3 });
   });
 
   it('reads stored details beyond the inventory preview through the canonical authorized thread reader', async () => {
@@ -65,6 +72,7 @@ describe('Meri canonical mailbox tools', () => {
       connectionEmail: 'owner@example.com',
       connectionStatus: 'connected',
       updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+      totalMessages: 1, hasMore: false, nextMessageOffset: null,
       messages: [
         {
           id: messageId,
@@ -78,7 +86,7 @@ describe('Meri canonical mailbox tools', () => {
       ],
     });
     const first = await tools.getEmailThread(ctx, { threadId, maxCharacters: 600 });
-    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined);
+    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined, undefined, { messageId: undefined, messageOffset: 0, limit: 3 });
     expect(first.messages[0]).toMatchObject({
       bodyTruncated: true,
       nextBodyOffset: 600,
@@ -118,20 +126,35 @@ describe('Meri canonical mailbox tools', () => {
       connectionEmail: 'owner@example.test',
       connectionStatus: 'connected',
       updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+      totalMessages: 1, hasMore: false, nextMessageOffset: null,
       messages: [],
     });
 
     await expect(tools.getEmailThread(ctx, { threadId, clientId: clientA })).resolves.toMatchObject({
       sourceProof: { clientId: clientA },
     });
-    expect(tools.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, threadId, clientA);
+    expect(tools.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, threadId, clientA, undefined, { messageId: undefined, messageOffset: 0, limit: 3 });
     await expect(tools.getEmailThread(ctx, { threadId, clientId: clientB })).rejects.toThrow(
       'Mail thread not found',
     );
     await expect(tools.getEmailThread(ctx, { threadId })).resolves.toMatchObject({
       sourceProof: { clientId: clientA },
     });
-    expect(tools.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, threadId, undefined);
+    expect(tools.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, threadId, undefined, undefined, { messageId: undefined, messageOffset: 0, limit: 3 });
+  });
+
+  it('returns a later owner page without slicing it again or inferring a total from the page', async () => {
+    const { tools } = service({});
+    const threadId = '11111111-1111-4111-8111-111111111111';
+    tools.engagement.getMailThread = jest.fn().mockResolvedValue({
+      id: threadId, connectionId: 'box', clientId: null, totalMessages: 60, hasMore: true,
+      nextMessageOffset: 53, messages: [{ id: 'message', connectionId: 'box', bodyText: 'exact page body', metadata: {} }],
+    });
+    const page = await tools.getEmailThread(ctx, { threadId, messageOffset: 52, limit: 1 });
+    expect(page).toMatchObject({ totalMessages: 60, hasMore: true, nextMessageOffset: 53,
+      returned: 1, messages: [{ bodyText: 'exact page body' }] });
+    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined, undefined,
+      { messageId: undefined, messageOffset: 52, limit: 1 });
   });
 
   it('requires an exact message for body continuation and rejects unbounded reads', async () => {

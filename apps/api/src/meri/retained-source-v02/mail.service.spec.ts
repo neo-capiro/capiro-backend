@@ -1,3 +1,14 @@
+// Unrelated injected program-element readers are never used by this mail fixture.
+jest.mock('../../program-element/program-element-read.service.js', () => ({
+  ProgramElementReadService: class {},
+}));
+jest.mock('../meri-defense-budget-tool.helpers.js', () => ({}));
+// These read fixtures must never enter HTML sanitization. Throw if reached;
+// production sanitizer ESM import compatibility is qualified separately.
+jest.mock('sanitize-html', () => {
+  const fail = () => { throw new Error('Unexpected sanitizer in a mail read'); };
+  return Object.assign(fail, { simpleTransform: () => fail });
+});
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from '../../engagement/engagement.service.js';
@@ -65,13 +76,18 @@ describe('retained mail owner mailbox fence', () => {
   });
 
   it('restricts thread and message loading in the canonical owner query', async () => {
-    const findFirst = jest.fn(async () => ({ id: threadId, connection: {
+    const findFirst = jest.fn(async () => ({ id: threadId, connectionId: mailboxId, updatedAt: new Date('2026-10-01'), connection: {
       id: mailboxId, tenantId, createdByUserId: actorId,
       accountEmail: 'owner@example.test', status: 'connected',
     }, messages: [] }));
     const service = Object.create(EngagementService.prototype) as EngagementService;
     Object.assign(service, { prisma: { withTenant: async (_tenant: string,
-      read: (tx: unknown) => Promise<unknown>) => read({ mailThread: { findFirst } }) } });
+      read: (tx: unknown) => Promise<unknown>) => read({
+        $executeRaw: jest.fn(async () => 1), $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
+        tenantMembership: { findFirst: jest.fn(async () => ({ id: 'member' })) },
+        client: { findFirst: jest.fn(async () => ({ id: clientId })) },
+        mailMessage: { count: jest.fn(async () => 0), findMany: jest.fn(async () => []) },
+        mailThread: { findFirst } }) } });
     await service.getMailThread(ctx, threadId, clientId, [mailboxId]);
     expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({

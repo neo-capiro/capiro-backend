@@ -20,7 +20,7 @@ const ids = {
 };
 const ctx = { tenantId: ids.tenant, userId: ids.user } as TenantContext;
 function harness() {
-  const thread = { id: ids.thread, subject: 'TAG advocacy request', clientId: ids.client, connectionEmail: 'neo@example.test', messages: [
+  const thread = { updatedAt: new Date('2026-09-02T12:30:00Z'), id: ids.thread, subject: 'TAG advocacy request', clientId: ids.client, connectionEmail: 'neo@example.test', messages: [
     { id: ids.first, subject: 'FortressHUMS', fromEmail: 'tom@example.test', fromName: 'Tom', toRecipients: ['neo@example.test'], ccRecipients: [],
       sentAt: new Date('2026-09-02T12:00:00Z'), receivedAt: new Date('2026-09-02T12:01:00Z'),
       bodyText: `${'A'.repeat(6400)}EXACT END CHECKSUM: UH-72 LUT / $7.5M / REQUEST ONLY`, metadata: { bodyCompleteness: 'full' } },
@@ -29,7 +29,15 @@ function harness() {
   ] };
   const tx = { $queryRawUnsafe: jest.fn(async () => [] as { id: string }[]), mailMessage: { findFirst: jest.fn(async () => ({ threadId: ids.thread })) } };
   const prisma = { withTenant: jest.fn(async (_: string, cb: any) => cb(tx)), withTenantUser: jest.fn(async (_: string, __: string, cb: any) => cb(tx)) };
-  const engagement = { getMailThread: jest.fn(async () => thread), extractAttachmentText: jest.fn(async () => ({
+  const engagement = { getMailThread: jest.fn(async (_ctx?: unknown, _threadId?: unknown, _clientId?: unknown,
+    _mailboxes?: unknown, page: { messageOffset?: number; requiredMessageId?: string; asOf?: string } = {}) => {
+    if (page.requiredMessageId && !thread.messages.some(message => message.id === page.requiredMessageId))
+      throw new NotFoundException('Mail thread not found');
+    const start = page.messageOffset ?? 0;
+    return { ...thread, messages: thread.messages.slice(start, start + 1), totalMessages: thread.messages.length,
+      hasMore: start + 1 < thread.messages.length, nextMessageOffset: start + 1 < thread.messages.length ? start + 1 : null,
+      asOf: page.asOf ?? '2026-10-01T12:00:00.000Z', coverage: { backfillComplete: false } };
+  }), extractAttachmentText: jest.fn(async () => ({
     attachmentId: ids.first, fileName: 'fixture.txt', text: 'A'.repeat(6500) + 'DOCUMENT END', contentHash: 'content-v1', section: 1, sectionCount: 1,
   })) };
   const clients = { get: jest.fn(async () => ({ id: ids.client, name: 'Sightline', updatedAt: new Date('2026-09-02T12:00:00Z') })) };
@@ -58,7 +66,10 @@ describe('Meri authorized source viewer', () => {
     expect(first.message.sentAt).toEqual(new Date('2026-09-02T12:00:00Z'));
     expect(first.message.receivedAt).toEqual(new Date('2026-09-02T12:01:00Z'));
     expect(h.engagement.getMailThread).toHaveBeenCalledTimes(3);
-    expect(h.engagement.getMailThread).toHaveBeenCalledWith(ctx, ids.thread);
+    expect(h.engagement.getMailThread).toHaveBeenCalledWith(ctx, ids.thread, undefined, undefined,
+      { limit: 1, messageOffset: 0, asOf: undefined, requiredMessageId: ids.first });
+    expect(h.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, ids.thread, undefined, undefined,
+      { limit: 1, messageOffset: 1, asOf: first.asOf, requiredMessageId: ids.first });
   });
   it('resolves old message-only citations through tenant, owner and active-message filters', async () => {
     const h = harness();
@@ -89,7 +100,29 @@ describe('Meri authorized source viewer', () => {
   it('binds continuation to actor and source, without granting access from the cursor', async () => {
     const h = harness(); const first = await h.service.read(ctx, mail);
     await expect(h.service.read({ ...ctx, userId: ids.second }, { ...mail, cursor: first.nextCursor })).rejects.toThrow('scope changed');
-    expect(h.engagement.getMailThread).toHaveBeenLastCalledWith({ ...ctx, userId: ids.second }, ids.thread);
+    expect(h.engagement.getMailThread).toHaveBeenLastCalledWith({ ...ctx, userId: ids.second }, ids.thread,
+      undefined, undefined, expect.objectContaining({ limit: 1, messageOffset: 0, asOf: first.asOf }));
+  });
+  it('rejects a changed thread timestamp before mixing later message pages', async () => {
+    const h = harness(); const first = await h.service.read(ctx, mail);
+    h.thread.updatedAt = new Date('2026-10-01T11:30:00Z');
+    await expect(h.service.read(ctx, { ...mail, cursor: first.nextCursor })).rejects.toThrow('changed');
+  });
+  it('keeps surrogate pairs intact across body continuation and hashes the selected original body', async () => {
+    const h = harness(); h.thread.messages[0]!.bodyText = 'A'.repeat(5999) + '😀end';
+    const first = await h.service.read(ctx, mail);
+    expect(first.message.bodyText).toHaveLength(5999);
+    const next = await h.service.read(ctx, { ...mail, cursor: first.nextCursor });
+    expect(first.message.bodyText + next.message.bodyText).toBe(h.thread.messages[0]!.bodyText);
+    expect(next.message.bodyText).toBe('😀end');
+  });
+  it('rejects an old or unbounded continuation before requesting any body rows', async () => {
+    const h = harness();
+    for (const position of [{ message: 0, offset: 0 }, { message: 10001, offset: 0, asOf: '2026-10-01' }]) {
+      await expect(h.service.read(ctx, { ...mail, cursor: Buffer.from(JSON.stringify(position)).toString('base64url') }))
+        .rejects.toBeInstanceOf(BadRequestException);
+    }
+    expect(h.engagement.getMailThread).not.toHaveBeenCalled();
   });
   it('labels current, matching and changed versions distinctly', async () => {
     const h = harness(); const first = await h.service.read(ctx, mail);
