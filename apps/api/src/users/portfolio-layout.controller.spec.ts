@@ -61,7 +61,7 @@ function host() {
       $queryRawUnsafe: jest.fn(async (sql: string, ...args: unknown[]) => {
         queries.push({ sql, args });
         if (sql.includes('FROM tenant_memberships')) return [{ tenantId: HOME }];
-        if (sql.includes('FROM users') || sql.includes('FROM tenants') || sql.includes('FROM impersonation_sessions') || sql.includes('pg_advisory')) return [];
+        if (sql.includes('FROM users') || sql.includes('FROM tenants') || sql.includes('FROM impersonation_sessions')) return [];
         if (sql.startsWith('SELECT a.id FROM client_memory_access a')) return [];
         if (sql.includes('FROM clients c')) return catalog.filter((client) => client.tenantId === args[0] && client.wall && !client.grant).map((client) => ({ id: client.id }));
         if (sql.includes('FROM clients')) return catalog.filter((client) => client.tenantId === args[0] && client.status !== 'archived').map((client) => ({ id: client.id })).sort((x, y) => x.id.localeCompare(y.id));

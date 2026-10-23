@@ -70,8 +70,8 @@ export async function transactPortfolioLayout(
   tx: Tx, owner: Owner, proof: ApplicationAuthorityIdentityProof, input?: PortfolioLayoutInput,
 ): Promise<PortfolioLayoutReceipt> {
   // Separate native tenant/user compound key; mutex never grants resource authority.
-  await tx.$queryRawUnsafe(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
-    `capiro:portfolio-layout:v1:${owner.tenantId}:${owner.userId}`);
+  // $executeRaw: Prisma's raw query reader cannot deserialize the lock's void result (P2010).
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`capiro:portfolio-layout:v1:${owner.tenantId}:${owner.userId}`}, 0))`;
   await lockAuthorityFacts(tx, owner);
   await recheckPortfolioLayoutAuthority(proof, owner);
   const catalog = await readVisibleCatalog(tx, owner);
