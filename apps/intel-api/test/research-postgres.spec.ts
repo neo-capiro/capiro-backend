@@ -66,7 +66,7 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
     await ws.$connect();
     await p.withSystem(async (tx) => {
       const user = randomUUID();
-      await tx.$executeRaw`INSERT INTO tenants(id,slug,name) VALUES(${tenant}::uuid,${tenant},'Synthetic Phase 7 research')`;
+      await tx.$executeRaw`INSERT INTO tenants(id,slug,name,status) VALUES(${tenant}::uuid,${tenant},'Synthetic Phase 7 research','active')`;
       await tx.$executeRaw`INSERT INTO users(id,clerk_user_id,email) VALUES(${user}::uuid,${actor},${actor + '@example.invalid'})`;
       await tx.$executeRaw`INSERT INTO tenant_memberships(tenant_id,user_id,role,status) VALUES(${tenant}::uuid,${user}::uuid,'standard_user','active')`;
       for (const feature of [

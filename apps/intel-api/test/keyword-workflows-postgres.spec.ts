@@ -67,7 +67,7 @@ describe('Phase 6 committed workflows and cross-service recovery', () => {
     });
     await p.withSystem(async (tx) => {
       const user = randomUUID();
-      await tx.$executeRaw`INSERT INTO tenants(id,slug,name) VALUES(${tenant}::uuid,${tenant},'Synthetic workflow')`;
+      await tx.$executeRaw`INSERT INTO tenants(id,slug,name,status) VALUES(${tenant}::uuid,${tenant},'Synthetic workflow','active')`;
       await tx.$executeRaw`INSERT INTO users(id,clerk_user_id,email) VALUES(${user}::uuid,${actor},${actor + '@example.invalid'})`;
       await tx.$executeRaw`INSERT INTO tenant_memberships(tenant_id,user_id,role,status) VALUES(${tenant}::uuid,${user}::uuid,'standard_user','active')`;
       for (const feature of [
@@ -149,6 +149,26 @@ describe('Phase 6 committed workflows and cross-service recovery', () => {
       requestKey: randomUUID(),
     });
   }
+  it.each(['pending', 'suspended'])(
+    'Workspace rejects a %s tenant without creating a draft',
+    async (status) => {
+      const before = await ws.wsDraft.count({ where: { tenantId: tenant } });
+      await p.withSystem(
+        (tx) =>
+          tx.$executeRaw`UPDATE tenants SET status=${status}::tenant_status WHERE id=${tenant}::uuid`,
+      );
+      try {
+        await expect(
+          drafts.create(tenant, actor, { docTitle: 'Unavailable tenant' }),
+        ).rejects.toThrow('Draft not found');
+        expect(await ws.wsDraft.count({ where: { tenantId: tenant } })).toBe(before);
+      } finally {
+        await p.withSystem(
+          (tx) => tx.$executeRaw`UPDATE tenants SET status='active' WHERE id=${tenant}::uuid`,
+        );
+      }
+    },
+  );
   it('preview has no effects and tenant/actor changes cannot read actions', async () => {
     await actions.preview(ctx, input());
     expect(await ws.wsDraft.count({ where: { tenantId: tenant } })).toBe(0);
