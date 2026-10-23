@@ -19,8 +19,9 @@ overrides:
   express@4.22.1>body-parser: 1.20.6
   body-parser@1.20.6>qs: 6.16.0
   express@4.22.1>qs: 6.16.0
-  '@capiro/api@0.0.0>sanitize-html': 2.18.0
-  '@capiro/workspace@0.0.0>sanitize-html': 2.18.0
+  '@capiro/api@0.0.0>sanitize-html': 2.18.1
+  '@capiro/workspace@0.0.0>sanitize-html': 2.18.1
+  stripe@17.7.0>qs: 6.16.0
   express-rate-limit@8.7.0>ip-address: 10.7.4
   socks@2.8.9>ip-address: 10.7.4
 
@@ -182,8 +183,8 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
       sanitize-html:
-        specifier: 2.18.0
-        version: 2.18.0
+        specifier: 2.18.1
+        version: 2.18.1
       shpjs:
         specifier: ^6.2.0
         version: 6.2.0
@@ -885,8 +886,8 @@ importers:
         specifier: 8.0.2
         version: 8.0.2
       sanitize-html:
-        specifier: 2.18.0
-        version: 2.18.0
+        specifier: 2.18.1
+        version: 2.18.1
       sharp:
         specifier: 0.35.5
         version: 0.35.5(@types/node@20.19.39)
@@ -10456,6 +10457,10 @@ packages:
 
   launder@1.7.2:
     resolution: {integrity: sha512-DLg3HPnHUfBi5/MxMLmJD12dmlMpFEC2HgMW6vkZ/9JR0RU00kXoRGvDxAvFmdO0o610OA77i4FgNTLucmhDVg==}
+
+  sanitize-html@2.18.1:
+    resolution: {integrity: sha512-2X5lC8fYla8YaT8g73Nj+HcLWXan5dLyCWLgVvaOmfw7JI78IRsyNtIDytTHdn7hBQbIkCah7Zbmd5jabzeDig==}
+    engines: {node: '>=22.12.0'}
 
 snapshots:
 
@@ -20731,7 +20736,7 @@ snapshots:
   stripe@17.7.0:
     dependencies:
       '@types/node': 22.19.21
-      qs: 6.15.1
+      qs: 6.16.0
 
   strnum@2.4.2:
     dependencies:
@@ -21774,3 +21779,12 @@ snapshots:
   launder@1.7.2:
     dependencies:
       dayjs: 1.11.23
+
+  sanitize-html@2.18.1:
+    dependencies:
+      escape-string-regexp: 4.0.0
+      htmlparser2: 12.0.0
+      is-plain-object: 5.1.0
+      launder: 1.7.2
+      parse-srcset: 1.0.2
+      postcss: 8.5.28

@@ -10,6 +10,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
+const { spawnSync } = require('node:child_process');
 const Module = require('node:module');
 const { test } = require('node:test');
 const local = Module.createRequire(path.join(process.cwd(), 'package.json'));
@@ -109,7 +110,7 @@ test('query parser preserves round trips and closes comma and constructor regres
 
 if (service === 'workspace' || service === 'engagement-api') {
   test('HTML sanitizer retains fragments and closes noscript/meta/SVG parser regressions', () => {
-    version(local, 'sanitize-html', '2.18.0');
+    version(local, 'sanitize-html', '2.18.1');
     const sanitize = local('sanitize-html');
     assert.equal(sanitize('<p>Hello <strong>fixture</strong><script>alert(1)</script></p>'),
       '<p>Hello <strong>fixture</strong></p>');
@@ -126,6 +127,58 @@ if (service === 'workspace' || service === 'engagement-api') {
       allowedTags: false, allowedAttributes: false, allowedSchemes: ['http', 'https'],
     });
     assert.doesNotMatch(svg, /javascript:/);
+  });
+
+  test('discarded iframe fallback terminates and preserves the global nesting limit', () => {
+    // A child-process timeout also bounds a synchronous parser regression.
+    const result = spawnSync(process.execPath, ['-e', `
+      const assert = require('node:assert/strict');
+      const sanitize = require(process.argv[1]);
+      const hostile = '<iframe>'.repeat(2_000);
+      const discarded = sanitize(hostile);
+      assert.equal(typeof discarded, 'string');
+      assert(discarded.length <= hostile.length * 2);
+      assert.doesNotMatch(discarded, /<iframe\\b/i);
+      const options = { allowedTags: ['b'], nestingLimit: 3 };
+      function maximumDepth(html) {
+        let depth = 0, maximum = 0;
+        for (const [tag] of html.matchAll(/<\\/?b>/g)) {
+          depth += tag === '<b>' ? 1 : -1;
+          assert(depth >= 0);
+          maximum = Math.max(maximum, depth);
+        }
+        assert.equal(depth, 0);
+        return maximum;
+      }
+      const normal = sanitize('<b>'.repeat(10) + 'fixture', options);
+      assert.match(normal, /fixture/);
+      assert.equal(maximumDepth(normal), 3);
+      const nested = sanitize(('<iframe>' + '<b>'.repeat(3)).repeat(50) + 'fixture', options);
+      assert(maximumDepth(nested) <= 3);
+      assert.equal(sanitize('<iframe><b>fixture</b>', options), '<b>fixture</b>');
+    `, local.resolve('sanitize-html')], { encoding: 'utf8', timeout: 5_000, maxBuffer: 64 * 1024 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+  });
+}
+
+if (service === 'engagement-api') {
+  test('Stripe serializer preserves form encoding and rejects the inherited qs regressions', () => {
+    const stripe = from('stripe');
+    version(stripe, 'qs', '6.16.0');
+    const qs = stripe('qs');
+    // This is the actual installed Stripe request serializer, not a copied implementation.
+    const { queryStringifyRequestData: serialize } = local(path.join(path.dirname(local.resolve('stripe')), 'utils.js'));
+    const data = { metadata: { note: 'a & b' }, items: ['first', 'second'],
+      created: new Date('2026-01-01T00:00:00.000Z'), empty: null };
+    assert.equal(serialize(data, 'v1'),
+      'metadata[note]=a%20%26%20b&items[0]=first&items[1]=second&created=1767225600&empty=');
+    assert.equal(serialize({ items: ['first', 'second'] }, 'v2'), 'items=first&items=second');
+    assert.throws(() => qs.parse('a[]=1,2,3,4', { comma: true, arrayLimit: 3, throwOnLimitExceeded: true }), RangeError);
+    assert.equal(qs.stringify({ a: [null, 'b'] }, { arrayFormat: 'comma', encodeValuesOnly: true }), 'a=,b');
+    const hostile = qs.parse('x[constructor][isBuffer]=not-callable', { plainObjects: true });
+    assert.equal(serialize(hostile, 'v1'), 'x[constructor][isBuffer]=not-callable');
+    assert.equal({}.isBuffer, undefined);
   });
 }
 

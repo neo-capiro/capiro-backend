@@ -1,10 +1,15 @@
 # Four-service Alpine image qualification
 
-Status: narrow security follow-up after native ARM qualification of `0eee084c`.
-The branch ordinarily merges Core `75a9069b` before this repair. Its four ARM
-runtime builds/probes, real Strategy PDF render and exact-digest ECR scans passed;
-Trivy reported zero HIGH/CRITICAL findings, with 21 remaining advisory/package
-version records. The approved repair and bounded dispositions are below. Fresh
+Status: narrow security follow-up after native ARM qualification of `c286c886`.
+The preceding `0eee084c` qualification and ordinary Core `75a9069b` merge remain
+recorded below. The `c286c886` four ARM builds, probes and compatibility checks
+passed; exact-digest ECR scans reported zero findings and Trivy zero HIGH/CRITICAL.
+That fresh scan identified sanitize-html 2.18.0's discarded-iframe recursion
+advisory and Stripe's remaining qs 6.15.1 edge. This follow-up repairs both.
+The earlier `0eee084c` four ARM builds/probes, real Strategy PDF render and
+exact-digest ECR scans passed; Trivy reported zero HIGH/CRITICAL findings, with
+21 remaining advisory/package version records. The approved repair and bounded
+dispositions are below. Fresh
 final-head qualification is required. Earlier failures and receipts remain
 history, including the missing Engagement inputs and Strategy HOME fixes.
 
@@ -27,8 +32,8 @@ without changing the pinned Node major or native-tool behavior.
 |---|---|---|
 | `@nestjs/platform-express@10.4.22` | `multer` 2.4.0 | Existing upload selector advances to the aborted-disk-write fix; inspected product storage is memory-based. |
 | `@nestjs/platform-express@10.4.22`, `express@4.22.1` | `body-parser` 1.20.6 | Reject invalid body-limit options while retaining positive/oversize/malformed request behavior. |
-| `body-parser@1.20.6`, `express@4.22.1` | `qs` 6.16.0 | Close comma-limit and stringify defects; body-parser still requests `~6.15.1` without this selector. |
-| `@capiro/api@0.0.0`, `@capiro/workspace@0.0.0` | `sanitize-html` 2.18.0 | Close noscript/meta/SVG parser defects on actual HTML-sanitizing service roots. |
+| `body-parser@1.20.6`, `express@4.22.1`, `stripe@17.7.0` | `qs` 6.16.0 | Close comma-limit and stringify defects; body-parser and Stripe still resolve 6.15.1 without their exact selectors. |
+| `@capiro/api@0.0.0`, `@capiro/workspace@0.0.0` | `sanitize-html` 2.18.1 | Retain noscript/meta/SVG fixes and close discarded-iframe recursion/global nesting-limit bypass on actual HTML-sanitizing service roots. |
 | `minimatch@3.1.5`, `minimatch@5.1.9` | `brace-expansion` 1.1.21, 2.1.7 respectively | Patch the existing ExcelJS/archive glob paths. |
 | `express-rate-limit@8.7.0`, `socks@2.8.9` | `ip-address` 10.7.4 | Patch Address6 percent/newline rejection. Rate-limit is in Core's MCP closure; the socks selector also affects other/dev consumers. |
 
@@ -38,6 +43,15 @@ unrelated importers, versions and records, including unused historical records;
 new `launder` 1.7.2 is sanitize-html's declared dependency. Root closure metadata
 and its exact pin are regenerated as required by AGENTS. Prisma schema bytes and
 existing architecture-specific generator pins are unchanged.
+
+The maintainer's [CVE-2026-113650 advisory](https://github.com/apostrophecms/apostrophe/security/advisories/GHSA-c9rx-x947-fp3h)
+identifies 2.18.1 as the iframe fix. It removes the deepmerge dependency while
+retaining the other locked sanitizer dependencies. A timeout-bounded child
+process exercises 2,000 discarded iframes and cross-iframe nesting limits, with
+ordinary fallback and permitted markup positive controls. Stripe's real installed
+request serializer is checked for nested parameters, arrays, dates and hostile
+constructor-shaped values; the fixture also exercises its exact qs dependency.
+Prior-version controls and first-attempt failures remain in the review evidence.
 
 Three affected packages remain present with explicit, bounded dispositions:
 
@@ -64,6 +78,14 @@ The compatibility fixture retains its previous real upload, WS, SDK, XLSX and
 PPTX checks and adds body-parser limits, qs regression cases, sanitizer cases and
 MCP rate-limit IPv6 checks, with non-loopback network refused. Windows native
 results are supplemental; all Linux/native ARM image gates remain root-owned.
+
+Workspace's prior ARM Jest run has 12 suite-load failures from requiring the
+sanitizer's ESM parser through Jest's VM. Its test-only native environment now
+loads the real Workspace-installed sanitizer and an exact-specifier bridge
+exposes that function to the suite. Missing/malformed exports fail closed; there
+is no sanitizer stub or parser downgrade. The existing `jest*` qualification COPY
+includes these files. Two other suite-load failures, two assertion failures and
+the skipped database tier remain separate from this harness repair.
 
 ## Source archive and test disposition
 
