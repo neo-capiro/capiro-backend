@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { MANAGEMENT_VERSION, TRASH_MS, managementDigest, parseManagementRequest,
   type ConversationMetadata, type ManagementReceipt, type ManagementRequest } from './contract.js';
+export { readConversationRetentionState, type ConversationRetentionIdentity, type ConversationRetentionState } from './retention.js';
 
 /** Trusted in-process composition only. Never deserialize a fence from HTTP.
  * Meri owns the shared conversation lock, authoritative terminal run check and
