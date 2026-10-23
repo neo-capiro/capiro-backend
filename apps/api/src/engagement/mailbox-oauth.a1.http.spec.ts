@@ -1,9 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
-import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller.js';
+import { MicrosoftIntegrationActionsController } from './microsoft/microsoft-integration-actions.controller.js';
+import { MicrosoftCallbacksController } from './microsoft/microsoft-callbacks.controller.js';
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
-import { GoogleOAuthController } from './google/google-oauth.controller.js';
+import { GoogleIntegrationActionsController } from './google/google-integration-actions.controller.js';
+import { GoogleCallbacksController } from './google/google-callbacks.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleTokenService } from './google/google-token.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
@@ -38,7 +40,9 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
       sync.syncCalendar = providerSync;
       sync.syncMail = providerSync;
       const mod = await Test.createTestingModule({
-        controllers: [microsoft ? MicrosoftOAuthController : GoogleOAuthController],
+        controllers: microsoft
+          ? [MicrosoftIntegrationActionsController, MicrosoftCallbacksController]
+          : [GoogleIntegrationActionsController, GoogleCallbacksController],
         providers: [
           { provide: microsoft ? MicrosoftOAuthService : GoogleOAuthService, useValue: h.service },
           { provide: microsoft ? MicrosoftGraphSyncService : GoogleSyncService, useValue: sync },
@@ -94,13 +98,10 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
           redirect: 'manual',
         },
       );
-      if (provider === 'google_workspace') {
-        expect(callback.status).toBe(302);
-        expect(callback.headers.get('location')).toContain('error=');
-        expect(callback.headers.get('location')).not.toContain('connected=1');
-      } else {
-        expect(callback.status).toBe(403);
-      }
+      expect(callback.status).toBe(302);
+      expect(callback.headers.get('location')).toBe(
+        `https://app.invalid/integrations?provider=${provider}&error=connection_failed`,
+      );
       expect(h.exchange).not.toHaveBeenCalled();
       expect(h.tx.integrationConnectionToken.upsert).not.toHaveBeenCalled();
     });

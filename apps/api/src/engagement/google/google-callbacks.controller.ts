@@ -16,26 +16,31 @@ export class GoogleCallbacksController {
     @Res() res: Response,
   ): Promise<void> {
     if (error) {
+      const reason = error === 'access_denied' ? 'access_denied'
+        : error === 'cancelled' || error === 'user_cancelled' ? 'cancelled'
+        : 'connection_failed';
       res.redirect(
         302,
-        `${this.oauth.getSuccessRedirect()}?provider=google_workspace&error=${encodeURIComponent(error)}`,
+        `${this.oauth.getSuccessRedirect()}?provider=google_workspace&error=${reason}`,
       );
       return;
     }
     if (!code || !state) throw new BadRequestException('Missing code or state');
+    let result: { tenantId: string; connectionId: string };
     try {
-      const result = await this.oauth.handleCallback({ code, state });
+      result = await this.oauth.handleCallback({ code, state });
+    } catch {
+      // Never serialize provider errors, including token-endpoint response
+      // bodies. The service's state and ownership refusal remains a failure.
       res.redirect(
         302,
-        `${this.oauth.getSuccessRedirect()}?provider=google_workspace&connectionId=${encodeURIComponent(result.connectionId)}&connected=1`,
+        `${this.oauth.getSuccessRedirect()}?provider=google_workspace&error=connection_failed`,
       );
-    } catch (errorValue) {
-      const reason =
-        errorValue instanceof Error ? errorValue.message : 'Google connection failed';
-      res.redirect(
-        302,
-        `${this.oauth.getSuccessRedirect()}?provider=google_workspace&error=${encodeURIComponent(reason)}`,
-      );
+      return;
     }
+    res.redirect(
+      302,
+      `${this.oauth.getSuccessRedirect()}?provider=google_workspace&connectionId=${encodeURIComponent(result.connectionId)}&connected=1`,
+    );
   }
 }

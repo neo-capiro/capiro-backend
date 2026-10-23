@@ -74,20 +74,24 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     refreshIntent: { action: 'outreach_v3_send' },
     cancelIntent: { action: 'outreach_v3_send' },
   },
-  MicrosoftOAuthController: {
+  MicrosoftIntegrationActionsController: {
     disconnect: { action: 'integration_disconnect' },
     start: { action: 'integration_oauth_start' },
     sync: { action: 'integration_sync' },
     syncCalendarWindow: { action: 'integration_sync' },
     subscriptions: { action: 'integration_subscription' },
+  },
+  MicrosoftCallbacksController: {
     validateGet: { action: 'integration_notification', requiresCallbacks: true },
     notifications: { action: 'integration_notification', requiresCallbacks: true },
     callback: { action: 'integration_oauth_callback', requiresCallbacks: true },
   },
-  GoogleOAuthController: {
+  GoogleIntegrationActionsController: {
     syncConnection: { action: 'integration_sync' },
     disconnect: { action: 'integration_disconnect' },
     start: { action: 'integration_oauth_start' },
+  },
+  GoogleCallbacksController: {
     callback: { action: 'integration_oauth_callback', requiresCallbacks: true },
   },
   InternalAiCredentialsController: {

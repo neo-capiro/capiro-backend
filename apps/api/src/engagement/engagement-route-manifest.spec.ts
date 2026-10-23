@@ -101,9 +101,24 @@ describe('Engagement route manifest', () => {
     it('contains OAuth callbacks', () => {
       expect(
         routes.filter(
-          (route: any) => route.path.includes('callback') && route.controller.includes('OAuth'),
+          (route: any) => route.path.endsWith('/callback') && route.controller.endsWith('CallbacksController'),
         ).length,
       ).toBeGreaterThan(0);
+    });
+
+
+    it('preserves all fourteen mailbox routes and their authenticated versus public boundaries', () => {
+      const mailbox = routes.filter((route) => /^\/api\/engagement\/integrations\/(microsoft|google)\//.test(route.path));
+      expect(mailbox).toHaveLength(14);
+      expect(mailbox.filter((route) => route.controller.endsWith('CallbacksController'))).toHaveLength(4);
+      for (const route of mailbox) {
+        expect(route.classification).toBe('oauth');
+        expect(route.controllerGuards).toEqual([]);
+        expect(route.controllerRoles).toEqual([]);
+        const callback = route.controller.endsWith('CallbacksController');
+        expect(route.handlerGuards).toEqual(callback ? [] : ['RolesGuard']);
+        expect(route.handlerRoles).toEqual(callback ? [] : ['standard_user']);
+      }
     });
 
     it('classifies internal AI credential routes as internal_secret', () => {
@@ -130,13 +145,50 @@ describe('Engagement route manifest', () => {
       const controllers = new Set(routes.map((route: any) => route.controller));
       for (const name of [
         'EngagementController',
-        'MicrosoftOAuthController',
-        'GoogleOAuthController',
+        'NewsletterOutreachController',
+        'NewsletterPublicController',
+        'MicrosoftIntegrationActionsController',
+        'MicrosoftCallbacksController',
+        'GoogleIntegrationActionsController',
+        'GoogleCallbacksController',
         'OutcomeController',
         'InternalAiCredentialsController',
         'RecallWebhookController',
       ]) {
         expect(controllers.has(name)).toBe(true);
+      }
+    });
+
+    it('includes every Newsletter route with its real read/write/send and access metadata', () => {
+      const authoring = routes.filter((route) => route.controller === 'NewsletterOutreachController');
+      const publicRoutes = routes.filter((route) => route.controller === 'NewsletterPublicController');
+      const signatures = (entries: any[]) => entries.map(
+        (route) => `${route.method} ${route.path} ${route.classification}`,
+      ).sort();
+      expect(signatures(authoring)).toEqual([
+        'GET /api/engagement/newsletters/stages/:id read',
+        'POST /api/engagement/newsletters/stages/:id/open write',
+        'GET /api/engagement/newsletters/:id read',
+        'POST /api/engagement/newsletters/:id/prepare write',
+        'POST /api/engagement/newsletters/:id/send external_send',
+        'POST /api/engagement/newsletters/:id/test external_send',
+      ].sort());
+      expect(signatures(publicRoutes)).toEqual([
+        'GET /api/engagement/newsletter-public/:token/archive read',
+        'GET /api/engagement/newsletter-public/:token/unsubscribe read',
+        'POST /api/engagement/newsletter-public/:token/unsubscribe write',
+        'GET /api/engagement/newsletter-public/:token/preferences read',
+        'POST /api/engagement/newsletter-public/:token/preferences write',
+        'GET /api/engagement/newsletter-public/:token/survey read',
+        'POST /api/engagement/newsletter-public/:token/survey write',
+      ].sort());
+      for (const route of authoring) {
+        expect(route.controllerGuards).toEqual(['RolesGuard']);
+        expect(route.controllerRoles).toEqual(['standard_user']);
+      }
+      for (const route of publicRoutes) {
+        expect(route.controllerGuards).toEqual([]);
+        expect(route.controllerRoles).toEqual([]);
       }
     });
   });

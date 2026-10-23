@@ -29,8 +29,12 @@ function getDefs(): ControllerDef[] {
     { absolutePath: path.join(API_ROOT, 'src/engagement/krisp/krisp-notetaker.controller.ts'), repoPath: 'apps/api/src/engagement/krisp/krisp-notetaker.controller.ts', controllerName: 'KrispNotetakerController', controllerPrefix: 'clio/krisp-notetaker', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/engagement.controller.ts'), repoPath: 'apps/api/src/engagement/engagement.controller.ts', controllerName: 'EngagementController', controllerPrefix: 'engagement', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/plans/engagement-plans.controller.ts'), repoPath: 'apps/api/src/engagement/plans/engagement-plans.controller.ts', controllerName: 'EngagementPlansController', controllerPrefix: 'engagement/plans', barePrefix: false },
-    { absolutePath: path.join(API_ROOT, 'src/engagement/microsoft/microsoft-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts', controllerName: 'MicrosoftOAuthController', controllerPrefix: 'engagement/integrations/microsoft', barePrefix: false },
-    { absolutePath: path.join(API_ROOT, 'src/engagement/google/google-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/google/google-oauth.controller.ts', controllerName: 'GoogleOAuthController', controllerPrefix: 'engagement/integrations/google', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/newsletter-outreach.controller.ts'), repoPath: 'apps/api/src/engagement/newsletter-outreach.controller.ts', controllerName: 'NewsletterOutreachController', controllerPrefix: 'engagement/newsletters', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/newsletter-outreach.controller.ts'), repoPath: 'apps/api/src/engagement/newsletter-outreach.controller.ts', controllerName: 'NewsletterPublicController', controllerPrefix: 'engagement/newsletter-public', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/microsoft/microsoft-integration-actions.controller.ts'), repoPath: 'apps/api/src/engagement/microsoft/microsoft-integration-actions.controller.ts', controllerName: 'MicrosoftIntegrationActionsController', controllerPrefix: 'engagement/integrations/microsoft', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/microsoft/microsoft-callbacks.controller.ts'), repoPath: 'apps/api/src/engagement/microsoft/microsoft-callbacks.controller.ts', controllerName: 'MicrosoftCallbacksController', controllerPrefix: 'engagement/integrations/microsoft', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/google/google-integration-actions.controller.ts'), repoPath: 'apps/api/src/engagement/google/google-integration-actions.controller.ts', controllerName: 'GoogleIntegrationActionsController', controllerPrefix: 'engagement/integrations/google', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/google/google-callbacks.controller.ts'), repoPath: 'apps/api/src/engagement/google/google-callbacks.controller.ts', controllerName: 'GoogleCallbacksController', controllerPrefix: 'engagement/integrations/google', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/outcome/outcome.controller.ts'), repoPath: 'apps/api/src/engagement/outcome/outcome.controller.ts', controllerName: 'OutcomeController', controllerPrefix: 'engagement/outcomes', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/ai-credentials/internal-ai-credentials.controller.ts'), repoPath: 'apps/api/src/ai-credentials/internal-ai-credentials.controller.ts', controllerName: 'InternalAiCredentialsController', controllerPrefix: 'internal/ai-credentials', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/webhooks/recall-webhook.controller.ts'), repoPath: 'apps/api/src/webhooks/recall-webhook.controller.ts', controllerName: 'RecallWebhookController', controllerPrefix: 'webhooks/recall', barePrefix: true },
@@ -82,7 +86,11 @@ function classify(method: string, fullPath: string, ctrl: string, handler: strin
   if (ctrl === 'KrispNotetakerController') return method === 'GET' ? 'read' : 'write';
   if (ctrl === 'RecallWebhookController') return 'webhook';
   if (fullPath.startsWith('/api/internal/')) return 'internal_secret';
-  if (ctrl.includes('OAuth')) return 'oauth';
+  if (/^(Microsoft|Google)(IntegrationActions|Callbacks)Controller$/.test(ctrl)) return 'oauth';
+  // This GET only reads the local intent under current mailbox/client authority.
+  if (method === 'GET' && ctrl === 'EngagementController' && handler === 'singleMailIntent') return 'read';
+  // Both handlers dispatch through the provider; test sends are not local writes.
+  if (method === 'POST' && ctrl === 'NewsletterOutreachController' && ['send', 'test'].includes(handler)) return 'external_send';
   if (fullPath.includes('notetaker') && handler !== 'getNotetaker') return 'notetaker';
   if (fullPath.includes('send')||handler.startsWith('send')||handler==='sendCampaign'||handler==='sendBatch') return 'external_send';
   if (fullPath.includes('generate')||handler.startsWith('generate')||fullPath.includes('draft-artifacts')||fullPath.includes('draft-versions')||handler==='generateDebriefDraft'||handler==='generateMeetingPrep') return 'generation';
@@ -167,7 +175,7 @@ function main() {
   if (errors.length) { console.error('ERROR: Parser errors:'); for(const e of errors) console.error(`  - ${e}`); process.exit(1); }
   const checks = [
     { d:'Recall webhook bare', f:(r:RouteEntry)=>r.path==='/webhooks/recall' },
-    { d:'OAuth callback', f:(r:RouteEntry)=>r.path.includes('callback')&&r.controller.includes('OAuth') },
+    { d:'OAuth callback', f:(r:RouteEntry)=>r.path.endsWith('/callback')&&r.classification==='oauth' },
     { d:'Internal AI secret', f:(r:RouteEntry)=>r.path.includes('internal/ai-credentials')&&r.classification==='internal_secret' },
   ];
   for (const c of checks) { if (!routes.some(c.f)) { console.error(`ERROR: Required check failed: ${c.d}`); process.exit(1); } }

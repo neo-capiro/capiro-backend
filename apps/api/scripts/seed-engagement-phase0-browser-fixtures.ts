@@ -29,6 +29,7 @@
 
 import { writeFile } from 'node:fs/promises';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { clearNewsletterPublicFixture, seedNewsletterPublicFixture } from './engagement-phase1-newsletter-fixture.js';
 
 const usage = 'Usage: tsx scripts/seed-engagement-phase0-browser-fixtures.ts --run';
 const argv = process.argv.slice(2);
@@ -81,6 +82,7 @@ async function main(): Promise<void> {
 
   try {
     // Clean up any previous run
+    await clearNewsletterPublicFixture(prisma, TENANT_ID);
     await prisma.$executeRawUnsafe(`DELETE FROM engagement_campaign_recipients WHERE campaign_id = '${CAMPAIGN_ID}'::uuid`);
     await prisma.$executeRawUnsafe(`DELETE FROM engagement_campaigns WHERE id = '${CAMPAIGN_ID}'::uuid`);
     await prisma.$executeRawUnsafe(`DELETE FROM outreach_audience_members WHERE audience_id IN ('${AUDIENCE_LIST_ID}'::uuid, '${AUDIENCE_GROUP_ID}'::uuid)`);
@@ -203,6 +205,9 @@ async function main(): Promise<void> {
           )
         `);
 
+    const newsletterPublic = await seedNewsletterPublicFixture(prisma, {
+      tenantId: TENANT_ID, userId: USER_ID, clerkUserId, outreachRecordId: OUTREACH_SENT_ID,
+    });
     // Write fixture IDs for the acceptance script
     const fixtures = {
       tenantId: TENANT_ID,
@@ -215,6 +220,7 @@ async function main(): Promise<void> {
       campaignId: CAMPAIGN_ID,
       taskId: TASK_ID,
       reportOfficeId: REPORT_OFFICE_ID,
+      newsletterPublic,
     };
 
     await writeFile(fixtureFile, JSON.stringify(fixtures, null, 2) + '\n');

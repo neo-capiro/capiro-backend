@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROLE_RANK } from '@capiro/shared';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { newsletterPublicFixture, type NewsletterPublicFixture } from './engagement-phase1-newsletter-fixture.js';
 import {
   registryEntries,
   runtimePolicyForHandler,
@@ -44,6 +45,7 @@ interface Fixtures {
   audienceIds: Record<string, string>;
   campaignId: string;
   taskId: string;
+  newsletterPublic: NewsletterPublicFixture;
 }
 
 interface ProbeResult {
@@ -113,6 +115,9 @@ function routePath(route: RouteEntry, fixtures: Fixtures): string {
     recipientId: MISSING_ID,
     id: idForRoute(route, fixtures),
   };
+  if (route.controller === 'NewsletterPublicController') {
+    values.token = newsletterPublicFixture(fixtures.newsletterPublic).token;
+  }
   return route.path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) => {
     const value = values[name];
     if (!value) {
@@ -137,6 +142,11 @@ function idForRoute(route: RouteEntry, fixtures: Fixtures): string {
 
 function queryForRoute(route: RouteEntry, fixtures: Fixtures): string {
   const params = new URLSearchParams();
+  if (route.controller === 'NewsletterPublicController' && route.handler === 'survey') {
+    const { survey } = newsletterPublicFixture(fixtures.newsletterPublic);
+    params.set('block', survey.block);
+    params.set('answer', survey.answer);
+  }
   if (route.handler === 'sharedMeetings' || route.handler === 'clientDebriefs') {
     params.set('clientId', fixtures.clientIds[0] ?? MISSING_ID);
   }
@@ -356,16 +366,24 @@ async function main(): Promise<void> {
 
     for (const route of reads) {
       const pathname = `${routePath(route, fixtures)}${queryForRoute(route, fixtures)}`;
-      const mainResult = await probe(MAIN_URL, pathname, { headers: authHeaders() });
+      const publicCapability = route.controller === 'NewsletterPublicController';
+      const headers = publicCapability ? {} : authHeaders();
+      // Do not write bearer capabilities into the evidence path or failure log.
+      const evidencePath = publicCapability ? route.path : pathname;
+      const mainResult = await probe(MAIN_URL, pathname, { headers });
       const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
-        headers: authHeaders(),
+        headers,
       });
+      if (publicCapability && (mainResult.status !== 200 || engagementResult.status !== 200)) {
+        throw new Error(`Seeded public read must succeed without a bearer: ${evidencePath} ` +
+          `(main=${mainResult.status}, engagement=${engagementResult.status})`);
+      }
       // An authenticated read must never be 401. A 401 means the bearer token itself was
       // rejected, and because both services reject identically, every read would then "match"
       // and the whole stage would pass while proving nothing. Fail loudly instead.
       if (mainResult.status === 401 || engagementResult.status === 401) {
         throw new Error(
-          `Authenticated read returned 401 for ${route.method} ${pathname} ` +
+          `Authenticated read returned 401 for ${route.method} ${evidencePath} ` +
             `(main=${mainResult.status}, engagement=${engagementResult.status}). The bearer ` +
             'token was rejected, so read parity here would be vacuous: two matching 401s ' +
             'satisfy the comparator. Clerk session tokens live ~60s, so mint one immediately ' +
@@ -374,7 +392,7 @@ async function main(): Promise<void> {
       }
       const matched = parity(mainResult, engagementResult);
       readResults.push({
-        route: `${route.method} ${pathname}`,
+        route: `${route.method} ${evidencePath}`,
         controller: route.controller,
         handler: route.handler,
         mainResult,
@@ -388,7 +406,7 @@ async function main(): Promise<void> {
           path.join(EVIDENCE_DIR, 'read-parity-mismatch.json'),
           JSON.stringify(
             {
-              route: `${route.method} ${pathname}`,
+              route: `${route.method} ${evidencePath}`,
               controller: route.controller,
               handler: route.handler,
               mainResult,
@@ -399,12 +417,28 @@ async function main(): Promise<void> {
           ),
         );
         throw new Error(
-          `Read parity mismatch: ${route.method} ${pathname}\n${describeMismatch(
+          `Read parity mismatch: ${route.method} ${evidencePath}\n${describeMismatch(
             mainResult,
             engagementResult,
           )}`,
         );
       }
+    }
+
+    const publicFixture = newsletterPublicFixture(fixtures.newsletterPublic);
+    for (const denial of [
+      { label: 'newsletter_malformed_capability', path: 'invalid-token/archive', allowed: [404] },
+      { label: 'newsletter_unknown_capability', path: `${'0'.repeat(64)}/archive`, allowed: [404] },
+      { label: 'newsletter_unpublished_capability', path: `${publicFixture.unpublishedToken}/archive`, allowed: [404] },
+      { label: 'newsletter_missing_survey', path: `${publicFixture.token}/survey`, allowed: [400] },
+      { label: 'newsletter_unknown_survey', path: `${publicFixture.token}/survey?block=phase1-missing&answer=missing`, allowed: [404] },
+    ]) {
+      const pathname = `/api/engagement/newsletter-public/${denial.path}`;
+      const mainResult = await probe(MAIN_URL, pathname);
+      const engagementResult = await probe(ENGAGEMENT_URL, pathname);
+      requireDeniedPair(denial.label, mainResult, engagementResult, denial.allowed);
+      authResults.push({ label: denial.label, expectedStatuses: denial.allowed,
+        mainResult, engagementResult, matched: true });
     }
 
     for (const authCase of [

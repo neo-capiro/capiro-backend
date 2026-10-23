@@ -125,7 +125,7 @@ production DNS write.
 ### 2.4 Create the OAuth 2.0 client
 - Type: **Web application**.
 - Redirect URIs (mirror the Microsoft integration's pattern —
-  [microsoft-oauth.controller.ts](../../apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts)):
+  [microsoft-callbacks.controller.ts](../../apps/api/src/engagement/microsoft/microsoft-callbacks.controller.ts)):
   `https://app.capiro.ai/api/engagement/integrations/google/callback` (prod),
   `https://app.staging.capiro.ai/api/engagement/integrations/google/callback` (staging),
   `http://localhost:4000/api/engagement/integrations/google/callback` (dev).
