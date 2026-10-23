@@ -506,6 +506,28 @@ const selectedClientRequest = () =>
   });
 
 describe('canonical institutional recall governance', () => {
+  it('binds an explicit empty General client envelope to every page and refuses client cursor replay', async () => {
+    const personal = approved({ id:'personal', clientId:null, ownerUserId:'user-1', visibility:'user', scope:'user_private', memoryClass:'user_preference', authority:'user_asserted' });
+    const firm = approved({ id:'firm', clientId:null, scope:'firm', memoryClass:'institutional_authoritative', authority:'firm_approved' });
+    const { adapter, dataset, queryRaw, withTenantUser } = setup({ governed:[approved({ id:'client-high-score' }),personal,firm] });
+    const general = memoryRequest({ pageSize:1, caller:{ tenantId:'tenant-1',userId:'user-1',clientIds:[],authorizedClientIds:[] } });
+    const first = await adapter.retrieve(dataset,general);
+    expect(first).toMatchObject({ total:2,recordsEvaluated:2,truncated:false,hasMore:true });
+    const next = await adapter.retrieve(dataset,general,first.nextCursor);
+    expect(next).toMatchObject({ total:2,hasMore:false,coverageComplete:true });
+    expect([...first.records,...next.records].map(row=>row.recordId).sort()).toEqual(['firm','personal']);
+    const sql=queryRaw.mock.calls[0]![0] as { text:string;values:unknown[] };
+    expect(sql.text.indexOf('mi.client_id IS NULL')).toBeLessThan(sql.text.indexOf('lexical_candidates AS'));
+    expect(sql.values.filter(Array.isArray)).toEqual([[],[]]);
+    const clientPage=await adapter.retrieve(dataset,{...selectedClientRequest(),pageSize:1});
+    const replay=await adapter.retrieve(dataset,general,clientPage.nextCursor);
+    expect(replay).toMatchObject({records:[],stopReason:'governed_memory_changed_restart_search'});
+    const before=withTenantUser.mock.calls.length;
+    const conflicting=await adapter.retrieve(dataset,{...general,caller:{...general.caller,clientIds:['client-1']}});
+    expect(conflicting).toMatchObject({records:[],sourceStatus:'unauthorized'});
+    expect(withTenantUser.mock.calls.length).toBe(before);
+  });
+
   it('recalls an older approved MA510 candidate beyond 500 newer eligible rows', async () => {
     const newer = Array.from({ length: 500 }, (_, index) =>
       approved({

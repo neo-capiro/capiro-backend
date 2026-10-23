@@ -2,6 +2,7 @@ import { createHash, randomUUID, verify as nodeVerify } from 'node:crypto';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import type { CoreEd25519KeyConfig } from '../core-ed25519-key-config.js';
 import type { CoreEd25519Signer } from '../core-ed25519-signer.js';
+import { assertGeneralReadTarget } from './read-delegation-general.js';
 import {
   MERI_CORRELATED_READ_TOOLS, READ_TOKEN_AUDIENCE, READ_TOKEN_KINDS, READ_TOKEN_SCHEME, READ_TOKEN_TYPE,
   isMeriCorrelatedReadOperationVersion, isSha, isUuid,
@@ -34,7 +35,9 @@ export interface ReadTokenClaims {
   referenceSha256: string | null;
   tenantId: string;
   actorId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'general';
+  targetClientId?: string | null;
   conversationId: string;
   runId: string;
   /** Present only for a correlation-bearing tool token. Bound to a separately
@@ -52,6 +55,10 @@ export const readTokenSha256 = (token: string) => createHash('sha256').update(to
 
 export async function signReadToken(signer: CoreEd25519Signer, claims: Omit<ReadTokenClaims, 'iss' | 'aud' | 'jti'>, signal?: AbortSignal):
   Promise<{ token: string; jti: string; tokenSha256: string }> {
+  if (claims.scopeKind === 'general') {
+    if (claims.clientId !== null) throw new Error('Invalid General token origin');
+    assertGeneralReadTarget(claims.kind, claims.operation, claims.targetClientId);
+  } else if (!isUuid(claims.clientId) || Object.hasOwn(claims, 'targetClientId')) throw new Error('Invalid client token origin');
   const source = claims.operation != null && MERI_CORRELATED_READ_TOOLS.has(claims.operation.id);
   if (source ? claims.kind !== 'tool' || !isMeriCorrelatedReadOperationVersion(claims.operation) ||
     !isSha(claims.correlationSha256)
@@ -101,7 +108,8 @@ export function verifyReadToken(token: string, config: CoreEd25519KeyConfig, now
     if (!p || typeof p !== 'object' || Array.isArray(p) || canonicalizeCoreRetainedJson(p) !== text) return null;
     if (!operation(p.operation)) return null;
     const source = p.operation !== null && MERI_CORRELATED_READ_TOOLS.has(p.operation.id);
-    const expectedKeys = source ? SOURCE_CLAIM_KEYS : CLAIM_KEYS;
+    const general = p.scopeKind === 'general' && p.clientId === null && (p.targetClientId === null || isUuid(p.targetClientId));
+    const expectedKeys = [...(source ? SOURCE_CLAIM_KEYS : CLAIM_KEYS), ...(general ? ['scopeKind', 'targetClientId'] : [])];
     const keys = Object.keys(p);
     if (keys.length !== expectedKeys.length || expectedKeys.some((k) => !Object.hasOwn(p, k)) ||
         (source ? p.kind !== 'tool' || !isMeriCorrelatedReadOperationVersion(p.operation) ||
@@ -111,10 +119,11 @@ export function verifyReadToken(token: string, config: CoreEd25519KeyConfig, now
     if (p.iss !== config.issuer || p.aud !== READ_TOKEN_AUDIENCE || !Number.isSafeInteger(p.iat) || p.nbf !== p.iat ||
         !Number.isSafeInteger(p.exp) || (p.iat as number) > now + SKEW_SECONDS || (p.exp as number) <= now ||
         (p.exp as number) - (p.iat as number) > READ_TOKEN_MAX_SECONDS || (p.exp as number) <= (p.iat as number)) return null;
-    if (![p.sub, p.jti, p.tenantId, p.actorId, p.clientId, p.conversationId, p.runId].every(isUuid) ||
+    if (![p.sub, p.jti, p.tenantId, p.actorId, p.conversationId, p.runId].every(isUuid) || (!general && !isUuid(p.clientId)) ||
         !READ_TOKEN_KINDS.includes(p.kind as ReadTokenKind) || typeof p.callKey !== 'string' || p.method !== 'POST' ||
         typeof p.path !== 'string' || !isSha(p.bodySha256) || !operation(p.operation) ||
         !nullableSha(p.toolRequestSha256) || !nullableSha(p.referenceSha256)) return null;
+    if (general) assertGeneralReadTarget(p.kind as ReadTokenKind, p.operation as OperationRef | null, p.targetClientId as string | null);
     return p as unknown as ReadTokenClaims;
   } catch {
     return null;

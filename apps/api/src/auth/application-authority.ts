@@ -22,24 +22,24 @@ export interface ApplicationAuthorityIdentityProof extends ApplicationAuthorityI
 export interface ApplicationAuthorityContextRequest {
   identitySha256: string;
   conversationId: string;
-  clientId: string;
+  clientId: string | null;
 }
 export interface ApplicationAuthorityContextReceipt extends ApplicationAuthorityIdentityReceipt {
   identitySha256: string;
   conversationId: string;
-  selectedClientId: string;
+  selectedClientId: string | null;
   contextRevision: string;
 }
 export interface ApplicationAuthorityCurrentRequest {
   conversationId: string;
-  clientId: string;
+  clientId: string | null;
   expect?: Partial<Record<'identityRevision' | 'membershipRevision' | 'contextRevision', string>>;
 }
 export type ApplicationAuthorityCurrentMembership = Pick<ApplicationMembershipReceipt,
   'role' | 'permissions' | 'clientIds' | 'membershipRevision'>;
 export interface ApplicationAuthorityCurrentReceipt extends ApplicationAuthorityIdentityReceipt, ApplicationAuthorityCurrentMembership {
   conversationId: string;
-  selectedClientId: string;
+  selectedClientId: string | null;
   contextRevision: string;
 }
 /** Only the explicit revision precondition yields the wire-level 409. */
@@ -59,7 +59,7 @@ export function parseApplicationAuthorityContextBody(body: unknown): Application
   const { identitySha256, conversationId, clientId } = record;
   if (typeof identitySha256 !== 'string' || !HASH.test(identitySha256) ||
       typeof conversationId !== 'string' || !UUID.test(conversationId) ||
-      typeof clientId !== 'string' || !UUID.test(clientId)) {
+      (clientId !== null && (typeof clientId !== 'string' || !UUID.test(clientId)))) {
     throw new BadRequestException('Invalid application authority request');
   }
   return { identitySha256, conversationId, clientId };
@@ -69,7 +69,7 @@ export function parseApplicationAuthorityCurrentBody(body: unknown): Application
   const record = closedBody(body, ['conversationId', 'clientId'], ['expect']);
   const { conversationId, clientId } = record;
   if (typeof conversationId !== 'string' || !UUID.test(conversationId) ||
-      typeof clientId !== 'string' || !UUID.test(clientId)) {
+      (clientId !== null && (typeof clientId !== 'string' || !UUID.test(clientId)))) {
     throw new BadRequestException('Invalid application authority request');
   }
   const result: ApplicationAuthorityCurrentRequest = { conversationId, clientId };
@@ -166,6 +166,10 @@ export interface ApplicationAuthorityConversation {
   clientId: string | null;
   status: string;
   archivedAt: Date | null;
+  bootstrapReceipt?: {
+    tenantId: string; actorUserId: string; conversationId: string | null;
+    scopeKind: string; clientId: string | null;
+  } | null;
 }
 
 /** Every port is read on the caller's single consistent database snapshot. */
@@ -185,8 +189,7 @@ export async function readApplicationAuthorityCurrent(
   const conversation = await ports.conversation(input.conversationId);
   assertCurrentConversation(conversation, input, evidence.principal);
   const scope = await ports.conversationScope(conversation);
-  await ports.clientVisible(input.clientId);
-  const client = await ports.clientAuthority(input.clientId);
+  const client = await currentSelectedClient(input.clientId, ports);
   const checkedAtMs = Date.now();
   const identity = applicationAuthorityIdentityReceipt({
     ...evidence, expiresAtMs: Math.min(evidence.expiresAtMs, checkedAtMs + 120_000),
@@ -197,7 +200,7 @@ export async function readApplicationAuthorityCurrent(
     selectedClientId: input.clientId,
     contextRevision: applicationAuthorityRevision('context', [
       identity.identityRevision,
-      [conversation.id, conversation.tenantId, conversation.userId, conversation.clientId, conversation.status, conversation.archivedAt],
+      [conversation.id, conversation.tenantId, conversation.userId, conversation.clientId, conversation.status, conversation.archivedAt, conversation.bootstrapReceipt ?? null],
       scope, client,
     ]),
   };
@@ -223,8 +226,7 @@ export async function readApplicationAuthorityContext(
   const conversation = await ports.conversation(input.conversationId);
   assertCurrentConversation(conversation, input, initial.principal);
   await ports.conversationScope(conversation);
-  await ports.clientVisible(input.clientId);
-  await ports.clientAuthority(input.clientId);
+  await currentSelectedClient(input.clientId, ports);
   // Re-read session and local identity after the asynchronous context owner reads.
   const current = await ports.identity();
   if (current.principal.tenantId !== initial.principal.tenantId ||
@@ -237,8 +239,7 @@ export async function readApplicationAuthorityContext(
   const latestConversation = await ports.conversation(input.conversationId);
   assertCurrentConversation(latestConversation, input, current.principal);
   const scope = await ports.conversationScope(latestConversation);
-  await ports.clientVisible(input.clientId);
-  const client = await ports.clientAuthority(input.clientId);
+  const client = await currentSelectedClient(input.clientId, ports);
   // Close local membership/impersonation changes during the context reads.
   // This uses the just-read session's original bounds, never a cached receipt.
   const finalIdentity = await current.recheckCurrent();
@@ -258,10 +259,19 @@ export async function readApplicationAuthorityContext(
     contextRevision: applicationAuthorityRevision('context', [
       current.identityRevision,
       [latestConversation.id, latestConversation.tenantId, latestConversation.userId, latestConversation.clientId,
-        latestConversation.status, latestConversation.archivedAt],
+        latestConversation.status, latestConversation.archivedAt, latestConversation.bootstrapReceipt ?? null],
       scope, client,
     ]),
   };
+}
+
+/** General has no client source; its explicit durable binding is checked below. */
+async function currentSelectedClient(clientId: string | null, ports: {
+  clientVisible(id: string): Promise<unknown>; clientAuthority(id: string): Promise<unknown>;
+}) {
+  if (clientId === null) return null;
+  await ports.clientVisible(clientId);
+  return ports.clientAuthority(clientId);
 }
 
 function assertCurrentConversation(
@@ -273,6 +283,13 @@ function assertCurrentConversation(
       conversation.tenantId !== principal.tenantId || conversation.userId !== principal.actorId ||
       conversation.clientId !== input.clientId || conversation.archivedAt !== null ||
       conversation.status !== 'active') throw new ForbiddenException('Application authority unavailable');
+  const binding = conversation.bootstrapReceipt;
+  if (input.clientId === null && !binding)
+    throw new ForbiddenException('Application authority unavailable');
+  if (binding && (binding.tenantId !== principal.tenantId || binding.actorUserId !== principal.actorId ||
+      binding.conversationId !== conversation.id || binding.clientId !== input.clientId ||
+      binding.scopeKind !== (input.clientId === null ? 'general' : 'client')))
+    throw new ForbiddenException('Application authority unavailable');
 }
 
 /**
@@ -379,7 +396,7 @@ export async function readApplicationAuthorityArtifact(
     principal: { tenantId: context.principal.tenantId, actorId: context.principal.actorId },
     identityRevision: context.identityRevision,
     conversationId: context.conversationId,
-    selectedClientId: context.selectedClientId,
+    selectedClientId: input.clientId,
     contextRevision: context.contextRevision,
     intent: input.intent,
     requestSha256: input.requestSha256,

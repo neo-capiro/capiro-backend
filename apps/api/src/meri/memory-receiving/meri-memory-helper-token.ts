@@ -39,7 +39,8 @@ export interface MemoryHelperClaims {
   proofDeadlineMs: number;
   tenantId: string;
   actorId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'general';
   conversationId: string;
   runId: string;
   attemptId: string;
@@ -62,6 +63,7 @@ export async function signMemoryHelperToken(
   claims: Omit<MemoryHelperClaims, 'iss' | 'aud' | 'jti'>,
   signal?: AbortSignal,
 ): Promise<{ token: string; jti: string; tokenSha256: string }> {
+  if (claims.scopeKind === 'general' ? claims.clientId !== null : !isUuid(claims.clientId)) throw new Error('Invalid memory helper scope');
   const jti = randomUUID();
   const payload = canonicalizeCoreRetainedJson({ ...claims, iss: signer.issuer, aud: MEMORY_HELPER_AUDIENCE, jti });
   const input = `${b64(header(signer.kid))}.${b64(payload)}`;
@@ -92,9 +94,11 @@ export function verifyMemoryHelperToken(
     if (signature.length !== 64 || !nodeVerify(null, Buffer.from(`${parts[0]}.${parts[1]}`, 'ascii'), config.publicKey, signature)) return null;
     const encoded = Buffer.from(parts[1]!, 'base64url').toString('utf8');
     const parsed = JSON.parse(encoded) as Record<string, unknown>;
+    const general = parsed?.scopeKind === 'general' && parsed.clientId === null;
+    const keys = [...CLAIM_KEYS, ...(general ? ['scopeKind'] : [])];
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
         canonicalizeCoreRetainedJson(parsed) !== encoded ||
-        Object.keys(parsed).length !== CLAIM_KEYS.length || CLAIM_KEYS.some((key) => !Object.hasOwn(parsed, key))) return null;
+        Object.keys(parsed).length !== keys.length || keys.some((key) => !Object.hasOwn(parsed, key))) return null;
     const now = Math.floor(nowMs / 1000);
     if (parsed.iss !== config.issuer || parsed.aud !== MEMORY_HELPER_AUDIENCE ||
         parsed.kind !== MEMORY_HELPER_KIND || parsed.method !== 'POST' || parsed.path !== MEMORY_HELPER_PATH ||
@@ -103,8 +107,9 @@ export function verifyMemoryHelperToken(
         (parsed.exp as number) <= (parsed.iat as number) || (parsed.exp as number) - (parsed.iat as number) > MAX_SECONDS ||
         !Number.isSafeInteger(parsed.writerFence) || (parsed.writerFence as number) < 1 ||
         !Number.isSafeInteger(parsed.proofDeadlineMs) || (parsed.proofDeadlineMs as number) < (parsed.exp as number) * 1000 ||
-        ![parsed.sub, parsed.jti, parsed.parentJti, parsed.tenantId, parsed.actorId, parsed.clientId,
+        ![parsed.sub, parsed.jti, parsed.parentJti, parsed.tenantId, parsed.actorId,
           parsed.conversationId, parsed.runId, parsed.attemptId].every(isUuid) ||
+        (!general && !isUuid(parsed.clientId)) ||
         typeof parsed.callKey !== 'string' || !CALL_KEY.test(parsed.callKey) ||
         ![parsed.bodySha256, parsed.parentBodySha256, parsed.argumentsSha256, parsed.requestSha256,
           parsed.correlationSha256, parsed.resultSha256, parsed.recordsSha256, parsed.bindingSha256].every(isSha)) return null;

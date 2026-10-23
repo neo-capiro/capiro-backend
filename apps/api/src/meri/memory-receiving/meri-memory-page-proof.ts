@@ -32,7 +32,8 @@ export interface MemoryPageProofClaims {
   policyRevision: string;
   tenantId: string;
   actorId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'general';
   conversationId: string;
   runId: string;
   attemptId: string;
@@ -54,6 +55,7 @@ export async function signMemoryPageProof(
   claims: Omit<MemoryPageProofClaims, 'iss' | 'aud' | 'jti'>,
   signal?: AbortSignal,
 ): Promise<string> {
+  if (claims.scopeKind === 'general' ? claims.clientId !== null : !isUuid(claims.clientId)) throw new Error('Invalid memory page scope');
   const payload = canonicalizeCoreRetainedJson({ ...claims, iss: signer.issuer,
     aud: MEMORY_PAGE_PROOF_AUDIENCE, jti: randomUUID() });
   const input = `${b64(header(signer.kid))}.${b64(payload)}`;
@@ -75,8 +77,10 @@ export function verifyMemoryPageProof(
     if (signature.length !== 64 || !nodeVerify(null, Buffer.from(`${parts[0]}.${parts[1]}`, 'ascii'), config.publicKey, signature)) return null;
     const encoded = Buffer.from(parts[1]!, 'base64url').toString('utf8');
     const p = JSON.parse(encoded) as Record<string, unknown>;
+    const general = p?.scopeKind === 'general' && p.clientId === null;
+    const keys = [...KEYS, ...(general ? ['scopeKind'] : [])];
     if (!p || typeof p !== 'object' || Array.isArray(p) || canonicalizeCoreRetainedJson(p) !== encoded ||
-        Object.keys(p).length !== KEYS.length || KEYS.some((key) => !Object.hasOwn(p, key))) return null;
+        Object.keys(p).length !== keys.length || keys.some((key) => !Object.hasOwn(p, key))) return null;
     const now = Math.floor(nowMs / 1000);
     if (p.iss !== config.issuer || p.aud !== MEMORY_PAGE_PROOF_AUDIENCE ||
         !Number.isSafeInteger(p.iat) || p.nbf !== p.iat || !Number.isSafeInteger(p.exp) ||
@@ -84,8 +88,9 @@ export function verifyMemoryPageProof(
         (p.exp as number) <= (p.iat as number) || (p.exp as number) - (p.iat as number) > MAX_SECONDS ||
         !Number.isSafeInteger(p.deadlineMs) || (p.deadlineMs as number) !== (p.exp as number) * 1000 ||
         !Number.isSafeInteger(p.writerFence) || (p.writerFence as number) < 1 ||
-        ![p.sub, p.jti, p.parentJti, p.tenantId, p.actorId, p.clientId,
+        ![p.sub, p.jti, p.parentJti, p.tenantId, p.actorId,
           p.conversationId, p.runId, p.attemptId].every(isUuid) ||
+        (!general && !isUuid(p.clientId)) ||
         typeof p.callKey !== 'string' || !CALL_KEY.test(p.callKey) ||
         typeof p.policyRevision !== 'string' || p.policyRevision.length < 1 || p.policyRevision.length > 128 ||
         ![p.parentBodySha256, p.argumentsSha256, p.requestSha256, p.correlationSha256,

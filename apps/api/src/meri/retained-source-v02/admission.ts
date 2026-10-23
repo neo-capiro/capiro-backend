@@ -70,7 +70,7 @@ function snapshot<T>(value: T): T {
   try { return JSON.parse(canonicalizeCoreRetainedJson(value)) as T; }
   catch { throw denied(); }
 }
-function checkSelectors(input: Record<string, unknown>, grant: MeriReadDelegationGrant, personal: boolean): void {
+function checkSelectors(input: Record<string, unknown>, grant: MeriReadDelegationGrant & { clientId: string }, personal: boolean): void {
   const seen = new Set<object>();
   let count = 0;
   const equal = (value: unknown, wanted: string) => {
@@ -111,6 +111,9 @@ export function assertRetainedSourceV02Admission(
   if (!grant || grant.kind !== 'tool' || !grant.operation ||
       !Number.isSafeInteger(options.nowMs) || options.nowMs >= grant.hardExpiryMs ||
       !isMeriRetainedSourceOperationVersion(grant.operation)) throw denied();
+  const clientId = grant.clientId;
+  if (!isUuid(clientId)) throw denied();
+  const clientGrant = { ...grant, clientId };
   const wire = snapshot(exact(protocol, ['input', 'metadata']));
   if (!record(wire.input)) throw denied();
   let correlationJson: string;
@@ -138,6 +141,9 @@ export function assertRetainedSourceV02Admission(
       subject.policyRevision !== grant.policyRevision || !Array.isArray(subject.entityIds) || subject.entityIds.length !== 1 ||
       !Array.isArray(subject.scopes) || subject.scopes.length === 0 || subject.scopes.length > 4096) throw denied();
   const personal = subject.kind === 'personal';
+  if (grant.scopeKind === 'general' && (personal || subject.scopes.length !== 1 ||
+      !record(subject.scopes[0]) || subject.scopes[0].kind !== 'client' ||
+      subject.scopes[0].resourceId !== clientId || subject.rosterVersionId !== null)) throw denied();
   if (personal) {
     if (options.personalOwnerAuthorized !== true || CLIENT_ONLY.has(grant.operation.id) ||
         subject.entityType !== 'user' || subject.entityIds[0] !== grant.actorId) throw denied();
@@ -152,7 +158,7 @@ export function assertRetainedSourceV02Admission(
   const argumentsSha256 = canonicalSha256(input);
   if (!isSha(grant.argumentsSha256) || grant.argumentsSha256 !== argumentsSha256 ||
       Buffer.byteLength(canonicalizeCoreRetainedJson({ input, metadata }), 'utf8') > READ_DELEGATION_LIMITS.maxBodyBytes) throw denied();
-  checkSelectors(input, grant, personal);
+  checkSelectors(input, clientGrant, personal);
   if (CLIENT_ONLY.has(grant.operation.id) && input.clientId !== grant.clientId) throw denied();
   const inputSubject = input.subject;
   if (personal && inputSubject === undefined) throw denied();
@@ -172,7 +178,7 @@ export function assertRetainedSourceV02Admission(
     binding: snapshot(binding) as unknown as RetainedSourceV02Admission['binding'],
     subject: snapshot(subject) as unknown as RetainedSourceV02Admission['subject'],
     input, metadata, normalizationContext,
-    argumentsSha256, requestSha256, clientId: grant.clientId, hardExpiryMs: grant.hardExpiryMs,
+    argumentsSha256, requestSha256, clientId, hardExpiryMs: grant.hardExpiryMs,
     ...(operation.id === 'read_client_documents'
       ? { documentTextOnlyAllocation } : {}) });
 }

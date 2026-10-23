@@ -338,4 +338,28 @@ describe('canonical memory recall production SQL on embedded PostgreSQL', () => 
     }
     expect(transactionCount).toBe(8);
   });
+
+  it('excludes all 1000+ client candidates before General counts and paging and refuses client cursor reuse', async () => {
+    const personal='90000000-0000-4000-8000-000000000001', firm='90000000-0000-4000-8000-000000000002';
+    await insertFixtureRow(db,fixtureRow(personal,{clientId:null,ownerUserId:USER,visibility:'user',scope:'user_private',body:'Personal approved preference'}));
+    await insertFixtureRow(db,fixtureRow(firm,{clientId:null,scope:'firm',body:'Firm approved rule'}));
+    await db.query("UPDATE memory_items SET memory_class='user_preference',memory_authority='user_asserted' WHERE id=$1",[personal]);
+    await db.query("UPDATE memory_items SET memory_class='institutional_authoritative',memory_authority='firm_approved' WHERE id=$1",[firm]);
+    const general=request({pageSize:1,caller:{tenantId:TENANT,userId:USER,clientIds:[],authorizedClientIds:[]}});
+    const first=await adapter.retrieve(dataset,general);
+    expect(first).toMatchObject({total:2,recordsEvaluated:2,truncated:false,hasMore:true});
+    const second=await adapter.retrieve(dataset,general,first.nextCursor);
+    expect(second).toMatchObject({total:2,recordsEvaluated:2,hasMore:false,coverageComplete:true});
+    expect([...first.records,...second.records].map(row=>row.recordId).sort()).toEqual([personal,firm]);
+    expect([...first.records,...second.records].every(row=>row.payload.clientId===null)).toBe(true);
+    const clientPage=await adapter.retrieve(dataset,request({pageSize:1}));
+    const replay=await adapter.retrieve(dataset,general,clientPage.nextCursor);
+    expect(replay).toMatchObject({records:[],stopReason:'governed_memory_changed_restart_search'});
+    await db.query("UPDATE memory_items SET owner_user_id=$1 WHERE id=$2",[OTHER_USER,personal]);
+    const revoked=await adapter.retrieve(dataset,general,first.nextCursor);
+    expect(revoked).toMatchObject({records:[],stopReason:'governed_memory_changed_restart_search'});
+    const refreshed=await adapter.retrieve(dataset,general);
+    expect(refreshed).toMatchObject({total:1,hasMore:false});
+    expect(refreshed.records.map(row=>row.recordId)).toEqual([firm]);
+  });
 });

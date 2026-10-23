@@ -23,6 +23,7 @@ import {
 } from './read-delegation-request.js';
 import { verifyReadToken } from './read-delegation-token.js';
 import { ReadDelegationService } from './read-delegation.service.js';
+import { assertGeneralPublicReadInput, assertGeneralPublicReadResult, assertGeneralReadTarget } from './read-delegation-general.js';
 
 jest.mock('@clerk/backend', () => ({ __esModule: true, createClerkClient: () => ({}), verifyToken: async () => ({}) }));
 
@@ -78,7 +79,7 @@ function fakeDb(customAllocation: Row = allocation) {
     } as Row,
     reservations: new Map<string, Row>(), occurrences: new Map<string, Row>(), schedules: new Map<string, Row>(),
     visible: [C], memberActive: true, writes: [] as string[], budgetLocks: 0,
-    originalGrantState: 'ACTIVE', omitOriginalGrant: false,
+    originalGrantState: 'ACTIVE', omitOriginalGrant: false, generalOrigin: false,
   };
   const clone = (s: typeof state) => ({
     ...s, allocation: JSON.parse(JSON.stringify(s.allocation)), delegations: new Map([...s.delegations].map(([k, v]) => [k, { ...v }])), slots: new Map([...s.slots].map(([k, v]) => [k, { ...v }])),
@@ -139,15 +140,15 @@ function fakeDb(customAllocation: Row = allocation) {
       }
       if (sql.includes('INSERT INTO meri_read_delegations')) {
         const [id, key, mode, tenant, user, membership, client, conversation, run, attempt, fence, ba, bf, bp, alloc, ops, policy, consent,
-          occurrence, supersedes, issued, expires] = v;
+          occurrence, supersedes, issued, expires, scopeKind] = v;
         if (expires.getTime() > issued.getTime() + (mode === 'attended' ? 30 : 15) * 60_000) throw new Error('bound_check');
         if ([...db.delegations.values()].some((d) => d.idempotency_key === key && d.state === 'active')) throw new Error('idem_unique');
         const row = { id, idempotency_key: key, mode, tenant_id: tenant, user_id: user, membership_id: membership, client_id: client,
           conversation_id: conversation, run_id: run, attempt_id: attempt, writer_fence: fence, budget_attempt: ba, budget_fence: bf,
           budget_policy_revision: bp, allocation_sha256: alloc, operations_digest: ops, policy_revision: policy, consent_id: consent,
-          occurrence_key: occurrence, revision: 1, state: 'active', supersedes, revoked_reason: null, issued_at: issued, expires_at: expires };
+          occurrence_key: occurrence, revision: 1, state: 'active', supersedes, revoked_reason: null, issued_at: issued, expires_at: expires, scope_kind: scopeKind };
         db.delegations.set(id, row); db.writes.push('delegation');
-        return [{ id, expires_at: expires }];
+        return [{ id, expires_at: expires, scope_kind: scopeKind }];
       }
       if (sql.includes('UPDATE meri_read_tokens SET consumed_at')) {
         const t = db.tokens.get(v[0]);
@@ -199,7 +200,7 @@ function fakeDb(customAllocation: Row = allocation) {
       if (sql.includes('INSERT INTO meri_read_delegation_slots')) {
         const key = `${v[0]}|${v[1]}`;
         if (!db.slots.has(key)) db.slots.set(key, { run_id: v[0], call_key: v[1], tenant_id: v[2], delegation_id: v[3], tool_tokens: 0,
-          mode_tokens: 0, reference_tokens: 0, current_tokens: 0, reissues: 0 });
+          mode_tokens: 0, reference_tokens: 0, current_tokens: 0, reissues: 0, target_client_id: v[4] });
         return 1;
       }
       if (sql.includes('UPDATE meri_read_tokens SET superseded_at')) { db.tokens.get(v[0])!.superseded_at = nowDate(); return 1; }
@@ -241,7 +242,8 @@ function fakeDb(customAllocation: Row = allocation) {
     client: { findFirst: async ({ where }: any) => (db.visible.includes(where.id) ? { id: where.id } : null) },
     clioConversation: {
       findFirst: async ({ where }: any) => (where.id === V && where.userId === A ? {
-        id: V, tenantId: T, userId: A, clientId: db.facts.conversation_client ?? C, status: 'active', archivedAt: null, metadata: null,
+        id: V, tenantId: T, userId: A, clientId: db.generalOrigin ? null : db.facts.conversation_client ?? C, status: 'active', archivedAt: null, metadata: null,
+        bootstrapReceipt: db.generalOrigin ? { tenantId: T, actorUserId: A, conversationId: V, scopeKind: 'general', clientId: null } : null,
       } : null),
     },
     clioMeriExecutionIssuance: { findMany: async () => [] },
@@ -311,6 +313,114 @@ describe('RC1 option B read delegation, Core owner', () => {
   const saved: Record<string, string | undefined> = {};
   beforeEach(() => { for (const [k, v] of Object.entries(ENV)) { saved[k] = process.env[k]; process.env[k] = v; } });
   afterEach(() => { for (const k of Object.keys(ENV)) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } });
+
+  describe('explicit General v2 (synthetic authority and stored-source data)', () => {
+    const publicIds = ['search_cbo_cost_estimates', 'search_gao_reports', 'search_crs_reports', 'search_state_bills', 'get_state_legislator'];
+    const clientIds = ['get_representation', 'get_district_nexus_context', 'get_district_nexus_changes',
+      'search_tracked_bills', 'query_outreach', 'get_business_development_context', 'get_business_development_recent_changes'];
+    it.each(clientIds)('%s only admits the exact client-targeted0.2 tool/mode chain', id => {
+      for (const kind of ['tool', 'mode'] as const) {
+        expect(() => assertGeneralReadTarget(kind, { id, version: '0.2.0' }, C)).not.toThrow();
+        for (const target of [null, undefined]) expect(() => assertGeneralReadTarget(kind, { id, version: '0.2.0' }, target)).toThrow();
+        for (const version of ['0.1.0', '0.3.0', '1.0.0']) expect(() => assertGeneralReadTarget(kind, { id, version }, C)).toThrow();
+      }
+      for (const kind of ['current', 'reference'] as const)
+        expect(() => assertGeneralReadTarget(kind, { id, version: '0.2.0' }, C)).toThrow();
+    });
+    it('refuses registered but unsupported General readers and public or memory client-target substitution', () => {
+      const operations = [{ id: 'get_client_context', version: '0.3.0' },
+        ...['query_global_data', 'mail.read_thread', 'read_client_documents', 'search_memory', 'memory.list_own_proposals', ...publicIds]
+          .map(id => ({ id, version: '0.2.0' }))];
+      for (const operation of operations) for (const kind of ['tool', 'mode', 'current', 'reference'] as const)
+        expect(() => assertGeneralReadTarget(kind, operation, C)).toThrow();
+      for (const kind of ['current', 'reference'] as const) {
+        expect(() => assertGeneralReadTarget(kind, null, C)).not.toThrow();
+        expect(() => assertGeneralReadTarget(kind, null, undefined)).toThrow();
+      }
+      expect(() => assertGeneralReadTarget('reference', null, null)).toThrow();
+    });
+    function general(id = 'search_gao_reports', targetClientId: string | null = null) {
+      const operation = { id, version: '0.2.0' };
+      const h = harness({ ...allocation, manifest: { allowedOperations: [operation] } });
+      h.db.state.generalOrigin = true;
+      h.db.state.facts.run_scopes = [{ kind: 'private-user', tenantId: T, resourceId: A, policyRevision: P }];
+      const create = () => h.create({ schemaVersion: 2, scopeKind: 'general', clientId: null });
+      const body = { query: 'synthetic stored data', limit: 2, ...(targetClientId === null ? {} : { clientId: targetClientId }) };
+      const target = `/api/clio/tools/${id}`;
+      const issue = async (delegationId: string) => {
+        h.db.state.reservations.set('call-1', { invocation_id: 'call-1', run_id: R, operation, arguments_sha256: sha('args'), state: 'UNKNOWN' });
+        return h.issue(delegationId, { schemaVersion: 2, targetClientId, kind: 'tool', path: target, operation,
+          argumentsSha256: sha('args'), bodySha256: sha(JSON.stringify(body)) });
+      };
+      return { ...h, create, issue, body, target, operation };
+    }
+    it.each(clientIds)('%s binds the actual client through issue/use/release and withholds after wall loss', async id => {
+      const h = general(id, C), d = await h.create(), token = await h.issue(d.delegationId);
+      const used = await h.use(h.target, token.token, h.body);
+      expect(meriReadDelegationOf(used.req)).toMatchObject({ scopeKind: 'general', clientId: C, targetClientId: C });
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, used.req)).resolves.toBeUndefined();
+      h.db.state.visible = [C2];
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, used.req)).rejects.toThrow();
+    });
+    it.each(['issue', 'use', 'release'])('refuses substituted General run scope at %s', async phase => {
+      const wrongScopes = [[], [{ kind: 'client', tenantId: T, resourceId: C, policyRevision: P }],
+        [{ kind: 'tenant', tenantId: T, resourceId: T, policyRevision: P }],
+        [{ kind: 'private-user', tenantId: T, resourceId: C2, policyRevision: P }],
+        [{ kind: 'private-user', tenantId: C2, resourceId: A, policyRevision: P }],
+        [{ kind: 'private-user', tenantId: T, resourceId: A, policyRevision: sha('changed') }]];
+      for (const runScopes of wrongScopes) {
+        const h = general('search_tracked_bills', C), d = await h.create();
+        if (phase === 'issue') { h.db.state.facts.run_scopes = runScopes; await expect(h.issue(d.delegationId)).rejects.toThrow(); continue; }
+        const token = await h.issue(d.delegationId);
+        if (phase === 'use') { h.db.state.facts.run_scopes = runScopes; await expect(h.use(h.target, token.token, h.body)).rejects.toThrow(); continue; }
+        const used = await h.use(h.target, token.token, h.body);
+        h.db.state.facts.run_scopes = runScopes;
+        await expect(assertMeriReadDelegationReleasable(h.db.prisma, used.req)).rejects.toThrow();
+      }
+    });
+    it.each(publicIds)('%s preserves explicit null origin through issuance, consumption and fresh release', async id => {
+      const h = general(id), d = await h.create();
+      expect(d.schemaVersion).toBe(2);
+      const token = await h.issue(d.delegationId);
+      expect(token.schemaVersion).toBe(2);
+      const admitted = await h.use(h.target, token.token, h.body);
+      expect(admitted.next).toHaveBeenCalledTimes(1);
+      expect(meriReadDelegationOf(admitted.req)).toMatchObject({ scopeKind: 'general', clientId: null, targetClientId: null });
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, admitted.req)).resolves.toBeUndefined();
+      h.db.state.generalOrigin = false;
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, admitted.req)).rejects.toThrow();
+    });
+    it.each(['issue', 'use', 'release'])('fresh membership revocation refuses General at %s', async phase => {
+      const h = general(), d = await h.create();
+      if (phase === 'issue') { h.db.state.memberActive = false; await expect(h.issue(d.delegationId)).rejects.toThrow(); return; }
+      const t = await h.issue(d.delegationId);
+      if (phase === 'use') { h.db.state.memberActive = false; await expect(h.use(h.target, t.token, h.body)).rejects.toThrow(); return; }
+      const admitted = await h.use(h.target, t.token, h.body);
+      h.db.state.memberActive = false;
+      await expect(assertMeriReadDelegationReleasable(h.db.prisma, admitted.req)).rejects.toThrow();
+    });
+    it('refuses request substitution and call-slot target substitution', async () => {
+      const h = general(), d = await h.create(), t = await h.issue(d.delegationId);
+      await expect(h.use(h.target, t.token, { ...h.body, query: 'substitution' })).rejects.toThrow();
+      await expect(h.use('/api/clio/tools/search_crs_reports', t.token, h.body)).rejects.toThrow();
+      await expect(h.service.issueToken(verified(request(`/api/clio/application-authority/read-delegations/${d.delegationId}/tokens`)), d.delegationId,
+        h.tokenBody(d.delegationId, { schemaVersion: 2, targetClientId: C }))).rejects.toThrow();
+    });
+    it('refuses unknown versions, unknown public operations, non-tool uses, client selectors and private output attribution', () => {
+      for (const id of publicIds) {
+        const operation = { id, version: '0.2.0' };
+        expect(() => assertGeneralReadTarget('tool', operation, null)).not.toThrow();
+        for (const kind of ['current', 'mode', 'reference'] as const)
+          expect(() => assertGeneralReadTarget(kind, operation, null)).toThrow();
+        expect(() => assertGeneralReadTarget('tool', { ...operation, version: '0.3.0' }, null)).toThrow();
+        expect(() => assertGeneralPublicReadInput(operation, { query: 'x', clientId: C })).toThrow();
+        expect(() => assertGeneralPublicReadInput(operation, { query: { clientId: C } })).toThrow();
+        for (const injected of [{ clientId: C }, { subject: { kind: 'personal' } }, { scopes: [{ kind: 'private-user' }] }, { tenantId: T }])
+          expect(() => assertGeneralPublicReadResult(operation, { tool: id, data: [{ ...injected }] })).toThrow();
+      }
+      expect(() => assertGeneralReadTarget('tool', { id: 'query_global_data', version: '0.2.0' }, null)).toThrow();
+    });
+  });
 
   describe('issuance', () => {
     it('creates an attended delegation bounded by 30 minutes and the run, idempotently, after the live session read', async () => {

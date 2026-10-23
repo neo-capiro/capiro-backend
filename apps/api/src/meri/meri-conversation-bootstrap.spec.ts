@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { randomUUID } from 'node:crypto';
@@ -27,7 +27,7 @@ interface ConversationRow {
   id: string;
   tenantId: string;
   userId: string;
-  clientId: string;
+  clientId: string | null;
   status: string;
   archivedAt: Date | null;
   title: string;
@@ -38,7 +38,8 @@ interface ReceiptRow {
   tenantId: string;
   actorUserId: string;
   requestId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind: 'client' | 'general';
   conversationId: string | null;
 }
 
@@ -132,7 +133,7 @@ function harness(options: { raceOnFirstReceipt?: boolean } = {}) {
                 receipt.actorUserId === where.actorUserId &&
                 receipt.requestId === where.requestId,
             );
-            return row ? { clientId: row.clientId, conversationId: row.conversationId } : null;
+            return row ? { clientId: row.clientId, scopeKind: row.scopeKind, conversationId: row.conversationId } : null;
           },
           create: async ({ data }: { data: ReceiptRow }) => {
             if (options.raceOnFirstReceipt && !raceInjected) {
@@ -195,6 +196,50 @@ const input = (requestId = randomUUID(), clientId = CLIENT) => ({
 });
 
 describe('MeriService.bootstrapConversation', () => {
+  test('General requires an explicit v2 kind and persists one idempotent owner binding', async () => {
+    const h = harness();
+    h.store.clients.length = 0;
+    const request = { schemaVersion: 2, requestId: randomUUID(), scopeKind: 'general', clientId: null };
+    const first = await h.service.bootstrapConversation(context(), request);
+    expect(first).toMatchObject({ ...request, tenantId: TENANT, actorId: ACTOR });
+    expect(await h.service.bootstrapConversation(context(), request)).toEqual(first);
+    expect(h.store.conversations).toHaveLength(1);
+    expect(h.store.receipts).toEqual([{ tenantId: TENANT, actorUserId: ACTOR,
+      requestId: request.requestId, scopeKind: 'general', clientId: null,
+      conversationId: first.conversationId }]);
+    await expect(h.service.bootstrapConversation(context(), {
+      ...request, scopeKind: 'client', clientId: CLIENT,
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(h.store.conversations).toHaveLength(1);
+  });
+
+  test.each([
+    { schemaVersion: 1, clientId: null },
+    { schemaVersion: 2, clientId: null },
+    { schemaVersion: 2, scopeKind: 'general', clientId: CLIENT },
+    { schemaVersion: 2, scopeKind: 'client', clientId: null },
+    { schemaVersion: 2, scopeKind: 'general', clientId: null, tenantId: TENANT },
+  ])('rejects ambiguous or caller-widened bootstrap scope %#', async (invalid) => {
+    const h = harness();
+    await expect(h.service.bootstrapConversation(context(), {
+      ...invalid, requestId: randomUUID(),
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.store.conversations).toHaveLength(0);
+    expect(h.store.receipts).toHaveLength(0);
+    expect(h.transactionCount()).toBe(0);
+  });
+
+  test('a deleted General conversation keeps its consumed request and cannot be recreated', async () => {
+    const h = harness();
+    const request = { schemaVersion: 2, requestId: randomUUID(), scopeKind: 'general', clientId: null };
+    await h.service.bootstrapConversation(context(), request);
+    h.store.conversations.length = 0;
+    h.store.receipts[0]!.conversationId = null;
+    await expect(h.service.bootstrapConversation(context(), request)).rejects.toBeInstanceOf(ConflictException);
+    expect(h.store.conversations).toHaveLength(0);
+    expect(h.store.receipts).toHaveLength(1);
+  });
+
   test('creates one owned client conversation and returns the identical receipt on exact replay', async () => {
     const h = harness();
     const request = input();

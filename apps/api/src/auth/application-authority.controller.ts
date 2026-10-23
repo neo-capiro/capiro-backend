@@ -125,7 +125,7 @@ export class ApplicationAuthorityController {
   }
 
   /** The existing `/context` owners, shared by `/artifact`. */
-  private contextPorts(ctx: TenantContext, req: Request, clientId: string): Parameters<typeof readApplicationAuthorityContext>[1] {
+  private contextPorts(ctx: TenantContext, req: Request, clientId: string | null): Parameters<typeof readApplicationAuthorityContext>[1] {
     const tenant = this.tenant;
     const securityScope = this.securityScope;
     if (!tenant || !securityScope) throw new ForbiddenException('Application authority unavailable');

@@ -152,7 +152,7 @@ describe('application-authority closed wire and minimal receipts', () => {
     ['missing run field', { conversationId, clientId }], ['extra authority', { ...input, tenantId }],
     ['uppercase hash', { ...input, identitySha256: 'A'.repeat(64) }],
     ['uppercase UUID', { ...input, clientId: 'A'.repeat(8) + clientId.slice(8) }],
-    ['non-string UUID', { ...input, clientId: null }],
+    ['non-string UUID', { ...input, clientId: 42 }],
     ['accessor', Object.defineProperty({ ...input }, 'clientId', { get() { throw new Error('getter executed'); } })],
     ['proxy', new Proxy({ ...input }, {})],
   ]) it(`refuses context ${name}`, () => expect(() => contract.parseApplicationAuthorityContextBody(body)).toThrow());

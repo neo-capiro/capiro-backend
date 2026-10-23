@@ -19,6 +19,7 @@ import { assertDelegationFacts, assertToolReservation, readRunFacts, type Delega
 import { readTokenFromAuthorization, readTokenSha256, verifyReadToken, type ReadTokenClaims } from './read-delegation-token.js';
 import type { DocumentTextOnlyAllocation } from './read-delegation-document-pricing.js';
 import { isSignedMemoryPageOperation, isSignedMemoryProposalOperation } from './signed-memory-http-gate.js';
+import { assertGeneralOrigin, assertGeneralReadTarget } from './read-delegation-general.js';
 
 /**
  * Tenant-middleware support for run-bound read delegation (RC1 option B,
@@ -109,7 +110,9 @@ export interface MeriReadDelegationGrant {
   mode: 'attended' | 'unattended';
   tenantId: string;
   actorId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'general';
+  targetClientId?: string | null;
   conversationId: string;
   runId: string;
   /** Core-verified Meri run binding, read from the locked delegation row. */
@@ -193,7 +196,8 @@ export function delegationRowOf(r: Record<string, unknown>): DelegationRow {
   const at = (v: unknown) => (v instanceof Date ? v : new Date(Number.NaN));
   return {
     id: r.id as string, mode: r.mode as string, tenantId: r.tenant_id as string, userId: r.user_id as string, actorId: r.user_id as string,
-    membershipId: r.membership_id as string, clientId: r.client_id as string, conversationId: r.conversation_id as string, runId: r.run_id as string,
+    membershipId: r.membership_id as string, clientId: r.client_id as string | null, conversationId: r.conversation_id as string, runId: r.run_id as string,
+    ...(r.scope_kind === 'general' ? { scopeKind: 'general' as const } : {}),
     attemptId: r.attempt_id as string, writerFence: Number(r.writer_fence), budgetAttempt: Number(r.budget_attempt), budgetFence: Number(r.budget_fence),
     budgetPolicyRev: String(r.budget_policy_revision), allocationSha256: String(r.allocation_sha256), operationsDigest: String(r.operations_digest),
     policyRevision: String(r.policy_revision), state: r.state as string, expiresAt: at(r.expires_at), revision: Number(r.revision),
@@ -260,7 +264,7 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
       return await deps.prisma.withSystem(async (tx) => {
         const d = await lockDelegation(tx, claims.tenantId, claims.sub, 'share');
         if (!d) throw credential();
-        if (d.userId !== claims.actorId || d.clientId !== claims.clientId || d.conversationId !== claims.conversationId || d.runId !== claims.runId) throw denied();
+        if (d.userId !== claims.actorId || d.clientId !== claims.clientId || d.conversationId !== claims.conversationId || d.runId !== claims.runId || d.scopeKind !== claims.scopeKind) throw denied();
         const used = await tx.$queryRaw<{ kind: string; target_path: string; body_sha256: string; call_key: string; arguments_sha256: string | null }[]>`
           UPDATE meri_read_tokens SET consumed_at = clock_timestamp()
            WHERE jti = ${claims.jti}::uuid AND token_sha256 = ${readTokenSha256(token)} AND delegation_id = ${d.id}::uuid
@@ -277,7 +281,12 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
           await assertToolReservation(tx, d.runId, claims.callKey, claims.operation, u.arguments_sha256);
         }
         const member = await readDelegatedMember(tx, d);
-        await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+        if (d.scopeKind === 'general') {
+          await assertGeneralOrigin(tx, d);
+          assertGeneralReadTarget(claims.kind, claims.operation, claims.targetClientId);
+          if (claims.targetClientId !== null) await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, claims.targetClientId!);
+        } else if (d.clientId !== null) await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+        else throw denied();
         if (!facts.admittedBinding) throw denied();
         return { d, member, hardExpiryMs, argumentsSha256: u.arguments_sha256, admittedBinding: facts.admittedBinding,
           documentTextOnlyAllocation: facts.documentTextOnlyAllocation ?? null };
@@ -293,7 +302,9 @@ export async function admitMeriReadToken(req: Request, deps: { prisma: SystemPri
   };
   grants.set(req, Object.freeze({
     delegationId: admitted.d.id, mode: admitted.d.mode as 'attended' | 'unattended', tenantId: ctx.tenantId, actorId: ctx.userId,
-    clientId: admitted.d.clientId, conversationId: admitted.d.conversationId, runId: admitted.d.runId, callKey: claims.callKey,
+    clientId: claims.scopeKind === 'general' ? claims.targetClientId! : admitted.d.clientId,
+    ...(claims.scopeKind === 'general' ? { scopeKind: 'general' as const, targetClientId: claims.targetClientId! } : {}),
+    conversationId: admitted.d.conversationId, runId: admitted.d.runId, callKey: claims.callKey,
     binding: Object.freeze({ tenantId: admitted.d.tenantId, actorId: admitted.d.actorId,
       conversationId: admitted.d.conversationId, runId: admitted.d.runId, attemptId: admitted.d.attemptId,
       writerFence: admitted.d.writerFence }), policyRevision: admitted.d.policyRevision,
@@ -344,7 +355,13 @@ export async function assertMeriReadDelegationReleasable(prisma: SystemPrisma, r
       await assertSignedMemoryReservationAtRelease(tx, grant);
       const member = await readDelegatedMember(tx, d);
       if (member.user.id !== grant.actorId) throw changed();
-      await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+      if (d.scopeKind === 'general') {
+        await assertGeneralOrigin(tx, d);
+        if (grant.scopeKind !== 'general') throw changed();
+        assertGeneralReadTarget(grant.kind, grant.operation, grant.targetClientId);
+        if (grant.targetClientId !== null) await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, grant.targetClientId!);
+      } else if (d.clientId !== null) await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+      else throw denied();
     }, { timeoutMs: 5000 });
   } catch (error) {
     if (error instanceof HttpException) throw error;
@@ -372,6 +389,7 @@ export async function readDelegatedIdentity(prisma: SystemPrisma, req: Request, 
         const consentExpiry = await assertConsentCurrent(tx, d);
         const hard = Math.min(assertDelegationFacts(facts, d), consentExpiry, grant.hardExpiryMs);
         const { user, membership } = await readDelegatedMember(tx, d);
+        if (d.scopeKind === 'general') await assertGeneralOrigin(tx, d);
         if (user.id !== ctx.userId || user.clerkUserId !== ctx.clerkUserId || membership.role !== ctx.role ||
             membership.tenant.slug !== ctx.tenantSlug) throw changed();
         if (facts.dbNowMs >= hard) throw new GoneException('Read delegation expired');
