@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { admitMailboxRefresh } from '../mailbox-oauth-authority.js';
+import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
 import {
   ConfidentialClientApplication,
   type AuthenticationResult,
@@ -797,9 +798,9 @@ export class MicrosoftGraphSyncService {
           // calendar meetings are committed, the mail cursor was NOT advanced
           // (syncMail throws before persisting state), and the scheduler retries
           // next cycle — killing the misleading "failed to sync" banner. A
-          // PERMANENT failure (revoked scope / forbidden / mailbox-not-enabled,
-          // which the outer catch routes to needs_configuration) or a mail-only
-          // run still surfaces via re-throw.
+          // resource auth/permission or mailbox-not-enabled failure, or a
+          // mail-only run, still surfaces via re-throw. A resource 401/403 alone
+          // does not prove that the current credentials require reconnect.
           if (!calendarSynced || isPermanentMailFailure(err)) throw err;
           this.logger.warn(
             `Microsoft mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
@@ -823,25 +824,9 @@ export class MicrosoftGraphSyncService {
 
       return result;
     } catch (err) {
-      // A signed-in account with NO Exchange Online mailbox (e.g. a bare
-      // .onmicrosoft.com admin) fails this way forever — that needs a human
-      // with a licensed mailbox, not a 15-minute retry loop.
-      if (err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')) {
-        await this.prisma.withTenant(tenantId, (tx) =>
-          tx.integrationConnection
-            .update({
-              where: { id: connectionId },
-              data: {
-                status: EngagementConnectionStatus.needs_configuration,
-                lastError:
-                  'This Microsoft account has no Exchange Online mailbox — reconnect with a licensed mailbox account.',
-              },
-            })
-            .catch(() => undefined),
-        );
-        throw err;
-      }
-      await this.markSyncError(tenantId, connectionId, err);
+      // Keep the inherited mailbox-absence hold scoped to connection sync;
+      // calendar-window sync has always retained generic retry eligibility.
+      await this.markSyncError(tenantId, connectionId, err, { holdMailboxAbsence: true });
       throw err;
     }
   }
@@ -1772,7 +1757,8 @@ export class MicrosoftGraphSyncService {
     await this.prisma.withTenant(tenantId, (tx) =>
       admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, token));
     if (!token.homeAccountId) {
-      throw new BadRequestException('Microsoft account identity is missing; reconnect Microsoft 365');
+      await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      throw new MailboxReconnectRequiredError('Microsoft account identity is missing; reconnect Microsoft 365');
     }
     const hasRequiredScopes = hasRequiredResourceScopes(token.scopes);
     if (hasRequiredScopes && token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
@@ -1785,7 +1771,8 @@ export class MicrosoftGraphSyncService {
 
     this.assertTokenRefreshConfigured();
     if (!token.refreshTokenCiphertext || !token.refreshTokenIv || !token.refreshTokenAuthTag) {
-      throw new ServiceUnavailableException(
+      await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      throw new MailboxReconnectRequiredError(
         'Microsoft refresh token is missing; reconnect Microsoft 365',
       );
     }
@@ -1804,8 +1791,8 @@ export class MicrosoftGraphSyncService {
       });
     } catch (error) {
       if (requiresInteractiveMicrosoftConsent(error)) {
-        await this.markConnectionNeedsReconnect(tenantId, connectionId, token, error);
-        throw new BadRequestException(
+        await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+        throw new MailboxReconnectRequiredError(
           'Reconnect Microsoft 365 in Settings to grant the updated Outlook permissions',
         );
       }
@@ -1817,7 +1804,8 @@ export class MicrosoftGraphSyncService {
       );
     }
     if (result.account?.homeAccountId !== token.homeAccountId || !hasRequiredResourceScopes(result.scopes)) {
-      throw new BadRequestException('Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365');
+      await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      throw new MailboxReconnectRequiredError('Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365');
     }
     await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal);
     return result.accessToken;
@@ -1827,23 +1815,13 @@ export class MicrosoftGraphSyncService {
     tenantId: string,
     connectionId: string,
     snapshot: IntegrationConnectionToken,
-    error: unknown,
   ) {
-    const message = error instanceof Error ? error.message : String(error);
     await this.prisma.withTenant(tenantId, async (tx) => {
       await admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, snapshot);
-      await tx.integrationConnection
-        .update({
-          where: { id: connectionId },
-          data: {
-            status: EngagementConnectionStatus.needs_configuration,
-            lastError: `Reconnect Microsoft 365 to grant updated permissions. ${message.slice(
-              0,
-              850,
-            )}`,
-          },
-        })
-        .catch(() => undefined);
+      await tx.integrationConnection.update({
+        where: { id: connectionId },
+        data: mailSyncFailureData('needs_reconnect', 'Microsoft 365'),
+      });
     });
   }
 
@@ -1987,17 +1965,20 @@ export class MicrosoftGraphSyncService {
     return (await response.json()) as T;
   }
 
-  private async markSyncError(tenantId: string, connectionId: string, err: unknown) {
-    const message = err instanceof Error ? err.message : 'Microsoft Graph sync failed';
+  private async markSyncError(
+    tenantId: string,
+    connectionId: string,
+    err: unknown,
+    options: { holdMailboxAbsence?: boolean } = {},
+  ) {
+    if (err instanceof MailboxReconnectRequiredError) return;
+    const kind = options.holdMailboxAbsence && err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')
+      ? 'mailbox_not_enabled' : isPermanentMailFailure(err) ? 'permission_denied' : 'transient';
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.integrationConnection
-        .update({
-          where: { id: connectionId },
-          data: {
-            status: EngagementConnectionStatus.error,
-            lastError: message.slice(0, 1000),
-            nextSyncAt: new Date(Date.now() + 15 * 60 * 1000),
-          },
+        .updateMany({
+          where: { id: connectionId, status: { in: ['connected', 'error'] } },
+          data: mailSyncFailureData(kind, 'Microsoft 365'),
         })
         .catch(() => undefined),
     );
@@ -2290,10 +2271,9 @@ function isMessageGoneError(err: unknown): boolean {
   return status === 404 || status === 410;
 }
 
-/** A permanent mail-integration failure the user must act on (revoked scope /
- *  forbidden / no Exchange mailbox). Surfaced rather than silently retried;
- *  transient errors (429/5xx/DB blips) keep the connection connected when the
- *  calendar leg already succeeded. */
+/** Resource auth/permission and mailbox-absence failures must surface even
+ *  after calendar success. This partial-success classification does not prove
+ *  reconnect is required: access-token expiry and old requests can return 401/403. */
 function isPermanentMailFailure(err: unknown): boolean {
   const status = mailErrorStatus(err);
   if (status === 401 || status === 403) return true;
@@ -2523,6 +2503,11 @@ export function hasRequiredResourceScopes(scopes: readonly string[] | undefined)
 }
 
 function requiresInteractiveMicrosoftConsent(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'errorCode' in error
+    ? String(error.errorCode).toLowerCase() : '';
+  if (['invalid_grant', 'interaction_required', 'consent_required', 'login_required'].includes(code)) {
+    return true;
+  }
   const message = error instanceof Error ? error.message : String(error);
   return /AADSTS65001|invalid_grant|consent/i.test(message);
 }
