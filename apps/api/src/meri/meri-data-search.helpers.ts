@@ -84,6 +84,7 @@ export async function searchCapiroData(
   ctx: TenantContext,
   rawInput: Record<string, unknown>,
   contextPlane?: Pick<MeriContextPlaneService, 'searchToolData'>,
+  restriction?: Readonly<{ allowClientScope: false }>,
 ) {
   const input = parseCapiroDataSearchInput(rawInput);
   if (!contextPlane) {
@@ -101,7 +102,7 @@ export async function searchCapiroData(
     requireComplete: input.queryClass === 'exhaustive_search',
     ...(input.clientId ? { clientId: input.clientId } : {}),
   };
-  const result = await contextPlane.searchToolData(ctx, request);
+  const result = await contextPlane.searchToolData(ctx, request, restriction);
   // Preserve source provenance, cursors and coverage truth verbatim. Do not
   // manufacture completeness from the count or silently discard failed domains.
   const { coverage, ...data } = result;

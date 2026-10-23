@@ -146,7 +146,7 @@ export function admitSignedMemoryProposalPage(
       grant.operation?.id !== SIGNED_MEMORY_PROPOSAL_OPERATION.id ||
       grant.operation.version !== SIGNED_MEMORY_PROPOSAL_OPERATION.version ||
       grant.tenantId !== ctx.tenantId || grant.actorId !== ctx.userId ||
-      !isUuid(grant.clientId) || !isUuid(grant.delegationId) || !isUuid(grant.jti) ||
+      grant.scopeKind === 'general' || !isUuid(grant.clientId) || !isUuid(grant.delegationId) || !isUuid(grant.jti) ||
       !CALL_KEY.test(grant.callKey) || !Number.isSafeInteger(nowMs) ||
       !Number.isSafeInteger(grant.hardExpiryMs) || nowMs >= grant.hardExpiryMs ||
       !isSha(grant.argumentsSha256) || !isSha(grant.bodySha256) ||

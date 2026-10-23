@@ -88,18 +88,21 @@ export function parsePassiveMemoryWire(raw: unknown): PassiveMemoryWire {
   return json(wire) as unknown as PassiveMemoryWire;
 }
 
-type MemoryReader = Pick<import('../meri-tools.service.js').MeriToolsService, 'executeFromAuthenticatedUser'>;
+export type PassiveMemoryReader = Pick<import('../meri-tools.service.js').MeriToolsService, 'executeFromAuthenticatedUser'> &
+  Partial<Pick<import('../meri-tools.service.js').MeriToolsService, 'readPersonalFirmMemorySource'>>;
 
 /** Calls the existing canonical Core handler with only Meri's normalized input. */
 export async function readPassiveMemorySource(
   ctx: TenantContext,
   raw: unknown,
-  tools: MemoryReader,
+  tools: PassiveMemoryReader,
+  scopeKind?: 'general',
 ): Promise<unknown> {
   const { input } = parsePassiveMemoryWire(raw);
-  // The delegated read grant currently selects one client. The canonical
-  // search without clientId can include other authorized clients, so do not
-  // serve a personal passive page until it has its own scoped authority.
+  if (scopeKind === 'general') {
+    if (input.clientId !== null || typeof tools.readPersonalFirmMemorySource !== 'function') throw denied();
+    return tools.readPersonalFirmMemorySource(ctx, input as unknown as Record<string, unknown>);
+  }
   if (input.clientId === null) throw denied();
   return tools.executeFromAuthenticatedUser(ctx, 'search_memory', input as unknown as Record<string, unknown>);
 }
@@ -167,7 +170,7 @@ export function parsePassiveMemoryEligibilityRequest(
       !Number.isSafeInteger(request.deadlineMs) || !Number.isSafeInteger(nowMs) ||
       (request.deadlineMs as number) <= nowMs || (request.deadlineMs as number) > nowMs + 60_000) throw denied();
   if (wire.input.clientId === null) {
-    if (subject.kind !== 'personal' || subject.entityType !== 'user' || subject.entityIds[0] !== ctx.userId) throw denied();
+    if (subject.kind !== 'personal' || subject.entityType !== 'user' || subject.entityIds[0] !== ctx.userId || subject.scopes.length !== 1) throw denied();
   } else if (subject.kind !== 'client' || subject.entityType !== 'client' || subject.entityIds[0] !== wire.input.clientId) {
     throw denied();
   }
@@ -177,6 +180,7 @@ export function parsePassiveMemoryEligibilityRequest(
     if (scope.tenantId !== ctx.tenantId || scope.policyRevision !== request.policyRevision ||
         typeof scope.resourceId !== 'string' || scope.resourceId.length < 1 || scope.resourceId.length > 256 ||
         typeof scope.kind !== 'string' ||
+        wire.input.clientId === null && scope.kind !== 'private-user' ||
         scope.kind === 'client' && scope.resourceId !== wire.input.clientId ||
         scope.kind === 'private-user' && scope.resourceId !== ctx.userId) throw denied();
     if (scope.kind === (wire.input.clientId === null ? 'private-user' : 'client') &&
@@ -198,10 +202,11 @@ export async function checkPassiveMemoryEligibility(
   ctx: TenantContext,
   raw: unknown,
   now: () => number = Date.now,
+  scopeKind?: 'general',
 ) {
   const request = parsePassiveMemoryEligibilityRequest(raw, ctx, now());
   const { clientId } = request.input;
-  if (clientId === null) throw denied();
+  if (scopeKind === 'general' ? clientId !== null : clientId === null) throw denied();
   await prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
     // Recheck the selected client even for an empty result. The user bearer
     // establishes the actor, while this transaction observes the current wall.

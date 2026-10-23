@@ -32,6 +32,7 @@ import {
 import { canonicalSha256 } from './read-delegation.contract.js';
 import { READ_TOKEN_MAX_SECONDS, signReadToken } from './read-delegation-token.js';
 import { assertSignedMemorySourceEnabled } from './signed-memory-http-gate.js';
+import { assertGeneralOrigin, assertGeneralReadTarget, generalRunScope } from './read-delegation-general.js';
 
 type Tx = Prisma.TransactionClient;
 export const MERI_READ_DELEGATION_SIGNER = Symbol('MERI_READ_DELEGATION_SIGNER');
@@ -84,7 +85,8 @@ export class ReadDelegationService {
   private issuanceFacts(facts: RunFacts, r: DelegationCreateRequest): void {
     if (!facts.admitted || facts.admittedUntilMs === null || !ACTIVE_RUN_STATES.includes(facts.runState)) throw changed();
     if (facts.conversationId !== r.binding.conversationId || canonicalSha256(facts.runBinding) !== canonicalSha256(r.binding) ||
-        !singleClientScope(facts.runScopes, r.clientId, r.policyRevision) || facts.allocationSha256 !== r.allocationSha256 ||
+        !(r.scopeKind === 'general' ? generalRunScope(facts.runScopes, r.binding.tenantId, r.binding.actorId, r.policyRevision)
+          : r.clientId !== null && singleClientScope(facts.runScopes, r.clientId, r.policyRevision)) || facts.allocationSha256 !== r.allocationSha256 ||
         operationsDigest(facts.allowedOperations) !== r.operationsDigest) throw denied();
     if (facts.dbNowMs >= facts.admittedUntilMs) throw expired();
   }
@@ -96,7 +98,7 @@ export class ReadDelegationService {
   }
 
   private receipt(row: Record<string, unknown>, dbNowMs: number) {
-    return { schemaVersion: 1 as const, delegationId: row.id as string, expiresAtMs: (row.expires_at as Date).getTime(), checkedAtMs: dbNowMs };
+    return { schemaVersion: row.scope_kind === 'general' ? 2 : 1, delegationId: row.id as string, expiresAtMs: (row.expires_at as Date).getTime(), checkedAtMs: dbNowMs };
   }
 
   /** Create or renew. Attended: the live session (sid path) the caller authenticated with, never the marked control token. */
@@ -123,6 +125,7 @@ export class ReadDelegationService {
       await lockKey(tx, `meri-read-delegation:${key}`);
       const facts = await readRunFacts(tx, r.binding.tenantId, r.binding.runId);
       const now = facts.dbNowMs;
+      if (r.scopeKind === 'general') await assertGeneralOrigin(tx, r.binding);
       const existing = await tx.$queryRaw<Record<string, unknown>[]>`
         SELECT * FROM meri_read_delegations WHERE idempotency_key = ${key} AND state = 'active' FOR UPDATE`;
       const live = existing[0] && (existing[0].expires_at as Date).getTime() > now ? existing[0] : null;
@@ -138,7 +141,7 @@ export class ReadDelegationService {
       }
       this.issuanceFacts(facts, r);
       const { user, membership } = await this.member(tx, r.binding.tenantId, r.binding.actorId);
-      await assertDelegatedClientVisible(tx, r.binding.tenantId, user.clerkUserId, r.clientId);
+      if (r.clientId !== null) await assertDelegatedClientVisible(tx, r.binding.tenantId, user.clerkUserId, r.clientId);
       let expiresAtMs = Math.min(now + READ_DELEGATION_LIMITS.attendedMaxMs, facts.admittedUntilMs!);
       let supersedes: string | null = null;
       if (r.mode === 'attended' && r.supersedes !== null) {
@@ -182,12 +185,12 @@ export class ReadDelegationService {
       const rows = await tx.$queryRaw<Record<string, unknown>[]>`
         INSERT INTO meri_read_delegations (id, idempotency_key, mode, tenant_id, user_id, membership_id, client_id, conversation_id, run_id,
           attempt_id, writer_fence, budget_attempt, budget_fence, budget_policy_revision, allocation_sha256, operations_digest, policy_revision,
-          consent_id, occurrence_key, state, supersedes, issued_at, expires_at)
+          consent_id, occurrence_key, state, supersedes, issued_at, expires_at, scope_kind)
         VALUES (${id}::uuid, ${key}, ${r.mode}, ${r.binding.tenantId}::uuid, ${r.binding.actorId}::uuid, ${membership.id}::uuid,
           ${r.clientId}::uuid, ${r.binding.conversationId}::uuid, ${r.binding.runId}::uuid, ${r.binding.attemptId}::uuid, ${r.binding.writerFence},
           ${facts.attempt}, ${facts.fence}, ${facts.policyRevision}, ${r.allocationSha256}, ${r.operationsDigest}, ${r.policyRevision},
-          ${r.consentId}::uuid, ${r.occurrenceKey}, 'active', ${supersedes}::uuid, ${at(now)}, ${at(expiresAtMs)})
-        RETURNING id, expires_at`;
+          ${r.consentId}::uuid, ${r.occurrenceKey}, 'active', ${supersedes}::uuid, ${at(now)}, ${at(expiresAtMs)}, ${r.scopeKind ?? 'client'})
+        RETURNING id, expires_at, scope_kind`;
       return this.receipt(rows[0]!, now);
     });
   }
@@ -212,25 +215,32 @@ export class ReadDelegationService {
       const found = await tx.$queryRaw<Record<string, unknown>[]>`SELECT * FROM meri_read_delegations WHERE id = ${delegationId}::uuid FOR UPDATE`;
       if (found.length !== 1) throw denied();
       const d = delegationRowOf(found[0]!);
+      if ((d.scopeKind === 'general') !== (t.scopeKind === 'general')) throw denied();
       await lockKey(tx, `meri-read-run:${d.runId}`);
       const facts = await readRunFacts(tx, d.tenantId, d.runId);
       const hard = Math.min(assertDelegationFacts(facts, d, t.operation ? { operation: t.operation } : {}), await assertConsentCurrent(tx, d));
       const { user } = await readDelegatedMember(tx, d);
-      await assertDelegatedClientVisible(tx, d.tenantId, user.clerkUserId, d.clientId);
+      if (d.scopeKind === 'general') {
+        await assertGeneralOrigin(tx, d);
+        assertGeneralReadTarget(t.kind, t.operation, t.targetClientId);
+        if (t.targetClientId !== null) await assertDelegatedClientVisible(tx, d.tenantId, user.clerkUserId, t.targetClientId!);
+      } else if (d.clientId !== null) await assertDelegatedClientVisible(tx, d.tenantId, user.clerkUserId, d.clientId);
+      else throw denied();
       if (t.kind === 'tool') {
         if (!MERI_DELEGATED_READ_TOOLS.has(t.operation!.id) && !MERI_RETAINED_SOURCE_TOOLS.has(t.operation!.id)) throw denied();
         await assertToolReservation(tx, d.runId, t.callKey, t.operation!, t.argumentsSha256!);
       }
 
       await tx.$executeRaw`
-        INSERT INTO meri_read_delegation_slots (run_id, call_key, tenant_id, delegation_id)
-        VALUES (${d.runId}::uuid, ${t.callKey}, ${d.tenantId}::uuid, ${d.id}::uuid) ON CONFLICT (run_id, call_key) DO NOTHING`;
+        INSERT INTO meri_read_delegation_slots (run_id, call_key, tenant_id, delegation_id, target_client_id)
+        VALUES (${d.runId}::uuid, ${t.callKey}, ${d.tenantId}::uuid, ${d.id}::uuid, ${t.targetClientId ?? null}::uuid) ON CONFLICT (run_id, call_key) DO NOTHING`;
       const slots = await tx.$queryRaw<Record<string, unknown>[]>`
-        SELECT tenant_id::text AS tenant_id, tool_tokens, mode_tokens, reference_tokens, current_tokens, reissues,
+        SELECT tenant_id::text AS tenant_id, target_client_id::text AS target_client_id, tool_tokens, mode_tokens, reference_tokens, current_tokens, reissues,
                NOT EXISTS (SELECT 1 FROM meri_read_tokens k WHERE k.run_id = s.run_id AND k.call_key = s.call_key) AS fresh
           FROM meri_read_delegation_slots s WHERE run_id = ${d.runId}::uuid AND call_key = ${t.callKey} FOR UPDATE`;
       const slot = slots[0];
       if (!slot || slot.tenant_id !== d.tenantId) throw denied();
+      if (d.scopeKind === 'general' && slot.target_client_id !== t.targetClientId) throw denied();
       if (slot.fresh === true) {
         // Open a slot only while open, unreserved slots stay below the live allowance (§5).
         const open = await tx.$queryRaw<{ n: string }[]>`
@@ -281,13 +291,14 @@ export class ReadDelegationService {
         operation: t.operation, toolRequestSha256: t.toolRequestSha256, referenceSha256: t.referenceSha256,
         ...(t.correlationSha256 === null ? {} : { correlationSha256: t.correlationSha256 }),
         tenantId: d.tenantId, actorId: d.userId, clientId: d.clientId, conversationId: d.conversationId, runId: d.runId,
+        ...(d.scopeKind === 'general' ? { scopeKind: 'general' as const, targetClientId: t.targetClientId! } : {}),
       }, signal);
       await tx.$executeRaw`
         INSERT INTO meri_read_tokens (jti, token_sha256, tenant_id, delegation_id, run_id, call_key, kind, target_method, target_path,
           body_sha256, arguments_sha256, request_digest, issued_at, expires_at)
         VALUES (${signed.jti}::uuid, ${signed.tokenSha256}, ${d.tenantId}::uuid, ${d.id}::uuid, ${d.runId}::uuid, ${t.callKey}, ${t.kind}, 'POST',
           ${t.path}, ${t.bodySha256}, ${t.argumentsSha256}, ${t.requestDigest}, ${at(iat * 1000)}, ${at(exp * 1000)})`;
-      return { schemaVersion: 1 as const, token: signed.token, expiresAtMs: exp * 1000 };
+      return { schemaVersion: d.scopeKind === 'general' ? 2 : 1, token: signed.token, expiresAtMs: exp * 1000 };
     });
   }
 
@@ -387,19 +398,22 @@ export class ReadDelegationService {
   async current(req: Request, ctx: TenantContext, delegationId: string, raw: unknown, control: ApplicationMembershipControl) {
     const grant = assertDelegatedTarget(req, 'current');
     if (grant.delegationId !== delegationId || !hasVerifiedToolServiceIdentity(req)) throw denied();
-    const { conversation } = parseCurrentBody(raw);
+    const current = parseCurrentBody(raw);
+    const { conversation } = current;
+    if (current.scopeKind !== grant.scopeKind || current.targetClientId !== grant.targetClientId) throw denied();
     const identity = () => readDelegatedIdentity(this.prisma, req, ctx);
     const initial = await identity();
     control.assertActive();
     const member = await this.membership.readDelegated(req, ctx, control);
     control.assertActive();
-    if (member.tenantId !== ctx.tenantId || member.actorId !== ctx.userId || !member.clientIds.includes(grant.clientId)) throw denied();
-    await this.securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, grant.clientId);
+    if (member.tenantId !== ctx.tenantId || member.actorId !== ctx.userId ||
+        (grant.clientId !== null && !member.clientIds.includes(grant.clientId))) throw denied();
+    if (grant.clientId !== null) await this.securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, grant.clientId);
     let context: Awaited<ReturnType<typeof readApplicationAuthorityContext>> | null = null;
     if (conversation) {
       try {
         context = await readApplicationAuthorityContext(
-          { identitySha256: '0'.repeat(64), conversationId: grant.conversationId, clientId: grant.clientId },
+          { identitySha256: '0'.repeat(64), conversationId: grant.conversationId, clientId: grant.scopeKind === 'general' ? null : grant.clientId },
           {
             identity,
             conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id),
@@ -425,11 +439,12 @@ export class ReadDelegationService {
     const expiresAtMs = Math.min(initial.expiresAtMs, final.expiresAtMs, member.expiresAtMs, grant.hardExpiryMs, context?.expiresAtMs ?? Infinity);
     if (expiresAtMs <= Date.now()) throw expired();
     return {
-      schemaVersion: 1 as const, delegationId: grant.delegationId,
+      schemaVersion: grant.scopeKind === 'general' ? 2 : 1, delegationId: grant.delegationId,
+      ...(grant.scopeKind === 'general' ? { scopeKind: 'general', targetClientId: grant.targetClientId } : {}),
       principal: { tenantId: ctx.tenantId, actorId: ctx.userId }, identityRevision: final.identityRevision,
-      actorRole: member.role, membershipRevision: member.membershipRevision, clientIds: [grant.clientId],
+      actorRole: member.role, membershipRevision: member.membershipRevision, clientIds: grant.scopeKind === 'general' ? member.clientIds : [grant.clientId],
       ...(context ? { conversation: { conversationId: context.conversationId, selectedClientId: context.selectedClientId,
-        contextRevision: context.contextRevision } } : {}),
+        contextRevision: context.contextRevision, ...(grant.scopeKind === 'general' ? { scopeKind: 'general' } : {}) } } : {}),
       checkedAtMs: Math.min(member.checkedAtMs, Date.now()), expiresAtMs,
     };
   }

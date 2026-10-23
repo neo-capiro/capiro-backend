@@ -22,6 +22,7 @@ import {
 import {
   BadGatewayException,
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -3537,7 +3538,14 @@ export class MeriToolsService {
     return this.searchMemory(ctx, { ...input, query: 'Read this governed memory' });
   }
 
-  private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
+  /** Restricted entry to the same governed reader. Only the signed General
+   * receiver calls this; a model/browser field cannot widen its envelope. */
+  readPersonalFirmMemorySource(ctx: TenantContext, input: Record<string, unknown>) {
+    if (input.clientId !== null) throw new ForbiddenException('Personal and firm memory requires null client');
+    return this.searchMemory(ctx, input, Object.freeze({ allowClientScope: false }));
+  }
+
+  private async searchMemory(ctx: TenantContext, input: Record<string, unknown>, restriction?: Readonly<{ allowClientScope: false }>) {
     const query = optionalString(input, 'query', 400);
     if (!query) return { error: 'Provide a search query.' };
     const clientId = optionalString(input, 'clientId', 80);
@@ -3573,6 +3581,7 @@ export class MeriToolsService {
           ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
         },
         this.contextPlane,
+        restriction,
       );
     let evidence = await readPage();
     const project = () =>

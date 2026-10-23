@@ -405,6 +405,27 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     expect(denied).toMatchObject({ records: [], sourceStatus: 'unauthorized' });
   });
 
+  databaseIt('keeps General personal and firm memory before candidate counts and rejects client cursor replay', async () => {
+    const personal='41500000-0000-4000-8000-000000000001', firm='41500000-0000-4000-8000-000000000002';
+    await insertMemory({id:personal,clientId:null,ownerUserId:USER,visibility:'user',memoryScope:'user_private',memoryClass:'user_preference',memoryAuthority:'user_asserted',body:'Personal preference'});
+    await insertMemory({id:firm,clientId:null,memoryScope:'firm',memoryClass:'institutional_authoritative',memoryAuthority:'firm_approved',body:'Firm approved rule'});
+    for(let index=0;index<3;index++) await insertMemory({id:`41500000-0000-4000-8000-00000000001${index}`,body:'qualification sentinel qualification sentinel',updatedAt:'2026-09-01T00:00:00Z'});
+    const retrieval=adapter(prisma!,provider(async()=>axisVector(0)));
+    const general=request({pageSize:1,caller:{tenantId:TENANT,userId:USER,clientIds:[],authorizedClientIds:[]}});
+    const first=await retrieval.retrieve(dataset,general);
+    expect(first).toMatchObject({total:2,recordsEvaluated:2,truncated:false,hasMore:true});
+    const second=await retrieval.retrieve(dataset,general,first.nextCursor);
+    expect(second).toMatchObject({total:2,hasMore:false,coverageComplete:true});
+    expect([...first.records,...second.records].map(row=>row.recordId).sort()).toEqual([personal,firm]);
+    const clientPage=await retrieval.retrieve(dataset,request({pageSize:1}));
+    expect(await retrieval.retrieve(dataset,general,clientPage.nextCursor)).toMatchObject({records:[],stopReason:'governed_memory_changed_restart_search'});
+    await qualification!.admin.$executeRaw(Prisma.sql`UPDATE memory_items SET owner_user_id=${OTHER_USER}::uuid WHERE id=${personal}::uuid`);
+    expect(await retrieval.retrieve(dataset,general,first.nextCursor)).toMatchObject({records:[],stopReason:'governed_memory_changed_restart_search'});
+    const refreshed=await retrieval.retrieve(dataset,general);
+    expect(refreshed).toMatchObject({total:1,hasMore:false});
+    expect(refreshed.records.map(row=>row.recordId)).toEqual([firm]);
+  });
+
   databaseIt(
     'rejects malformed current-model query vectors without poisoning lexical fallback',
     async () => {

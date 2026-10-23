@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest, extractCitationsFromToolResult, formatCitationsForPrompt } from '@capiro/shared';
@@ -89,7 +89,12 @@ export class MeriContextPlaneService {
   async searchToolData(
     ctx: TenantContext,
     input: MeriToolRetrievalInput,
+    restriction?: Readonly<{ allowClientScope: false }>,
   ): Promise<RetrievalResponse> {
+    if (restriction && (restriction.allowClientScope !== false || input.clientId !== undefined ||
+        input.requestedDomains.length !== 1 || input.requestedDomains[0] !== 'institutional_knowledge')) {
+      throw new ForbiddenException('Personal and firm memory scope refused');
+    }
     const security = await this.securityEnvelope(ctx);
     if (input.clientId && !security.authorizedClientIds.includes(input.clientId)) {
       throw new NotFoundException('Client not found');
@@ -105,7 +110,7 @@ export class MeriContextPlaneService {
         task: input.query?.trim() || 'Read the explicitly requested Capiro sources',
         subjectScope,
         ...(clientId ? { clientId } : {}),
-        securityScope: { ...security, allowExternalLookup: false },
+        securityScope: { ...security, ...(restriction ? { authorizedClientIds: [] } : {}), allowExternalLookup: false },
         // Null keeps a scoped enumeration unfiltered instead of searching the
         // descriptive task above. Preserve exact empty authorization arrays.
         retrieval: { ...retrieval, query: input.query?.trim() || null },

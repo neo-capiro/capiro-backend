@@ -6,6 +6,31 @@ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaSer
 import { MeriContextPlaneService, planMeriTurn } from './meri-context-plane.service.js';
 import { ContextPacketRolloutCompiler } from '@capiro/meriv2-core';
 
+test('General memory restriction supplies an explicit empty roster to the existing owner on every page', async () => {
+  const boundary = Error('STOP_AT_EXISTING_OWNER');
+  const requestContext = jest.fn(async () => { throw boundary; });
+  const clients = jest.fn(async () => [{id:'visible-client',name:'Synthetic client'}]);
+  const tx = {client:{findMany:clients},integrationConnection:{findMany:async()=>[]}};
+  const prisma = {withTenant:async(_t:string,fn:(t:unknown)=>unknown)=>fn(tx),
+    withTenantUser:async(_t:string,_u:string,fn:(t:unknown)=>unknown)=>fn(tx)};
+  const service = new MeriContextPlaneService(prisma as never,{requestContext} as never);
+  const ctx = {tenantId:'synthetic-tenant',userId:'synthetic-actor'} as never;
+  const input = {query:'memory',requestedDomains:['institutional_knowledge'],queryClass:'lookup',pageSize:2} as const;
+  for (const cursor of [undefined,'memory:v3:2:'+ 'a'.repeat(64)]) {
+    await expect(service.searchToolData(ctx,{...input,requestedDomains:[...input.requestedDomains],...(cursor?{cursor}:{})} as never,
+      Object.freeze({allowClientScope:false}))).rejects.toBe(boundary);
+  }
+  for (const call of requestContext.mock.calls) {
+    const request = (call as unknown as [any])[0].resolverRequest;
+    expect(request.securityScope.authorizedClientIds).toEqual([]);
+    expect(request.subjectScope).toBe('general'); expect(request.clientId).toBeUndefined();
+  }
+  expect(clients).toHaveBeenCalledTimes(2);
+  for (const changed of [{...input,clientId:'visible-client'},{...input,requestedDomains:['client_documents']}])
+    await expect(service.searchToolData(ctx,changed as never,{allowClientScope:false})).rejects.toThrow('Personal and firm memory scope refused');
+  expect(requestContext).toHaveBeenCalledTimes(2);
+});
+
 test('ordinary chat bounds steering with hundreds of memories in off and shadow rollout', async () => {
   const rows = Array.from({ length: 512 }, (_, index) => ({
     id: `memory-${index}`, type: 'client-compass', slug: `memory-${index}`,

@@ -4,9 +4,7 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { isUuid, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
 import type { MeriReadDelegationGrant } from '../../auth/read-delegation/read-delegation-request.js';
 import { admitPassiveMemoryPage } from './meri-memory-page-admission.js';
-import { readPassiveMemorySource } from './meri-passive-memory-source.js';
-
-type MemoryReader = Pick<import('../meri-tools.service.js').MeriToolsService, 'executeFromAuthenticatedUser'>;
+import { readPassiveMemorySource, type PassiveMemoryReader } from './meri-passive-memory-source.js';
 
 const denied = () => new ForbiddenException('Passive memory page refused');
 const MAX_RESULT_BYTES = 1_048_576; // Meri's existing client-knowledge response ceiling.
@@ -19,7 +17,8 @@ export interface TaskBoundPassiveMemoryPage {
     parentTokenJti: string;
     parentBodySha256: string;
     callKey: string;
-    clientId: string;
+    clientId: string | null;
+    scopeKind?: 'general';
     argumentsSha256: string;
     requestSha256: string;
     resultSha256: string;
@@ -37,13 +36,13 @@ export async function readTaskBoundPassiveMemoryPage(
   raw: unknown,
   grant: MeriReadDelegationGrant | undefined,
   authenticatedCorrelation: unknown,
-  tools: MemoryReader,
+  tools: PassiveMemoryReader,
   releaseDelegatedRead: () => Promise<void>,
   now: () => number = Date.now,
 ): Promise<TaskBoundPassiveMemoryPage> {
   if (typeof releaseDelegatedRead !== 'function') throw denied();
   const admitted = admitPassiveMemoryPage(ctx, raw, grant, authenticatedCorrelation, now());
-  const ownerResult = await readPassiveMemorySource(ctx, admitted.wire, tools);
+  const ownerResult = await readPassiveMemorySource(ctx, admitted.wire, tools, admitted.scopeKind);
 
   // Snapshot the exact page that would be sent to Meri. Its existing adapter
   // hashes the complete result and each unmodified record before asking the
@@ -67,9 +66,16 @@ export async function readTaskBoundPassiveMemoryPage(
       if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw denied();
       const row = entry as Record<string, unknown>;
       if (!isUuid(row.recordId) || seen.has(row.recordId)) throw denied();
+      if (admitted.scopeKind === 'general') {
+        const payload = row.payload;
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+            (payload as Record<string, unknown>).clientId !== null) throw denied();
+      }
       seen.add(row.recordId);
       return Object.freeze({ memoryItemId: row.recordId, recordSha256: sha256Hex(canonicalizeCoreRetainedJson(entry)) });
     });
+    if (admitted.scopeKind === 'general' && (!Array.isArray(page.results) || page.results.some((r: unknown) =>
+      !r || typeof r !== 'object' || Array.isArray(r) || (r as Record<string, unknown>).clientId !== null))) throw denied();
   }
   if (now() >= admitted.hardExpiryMs) throw denied();
   await releaseDelegatedRead();
@@ -77,6 +83,7 @@ export async function readTaskBoundPassiveMemoryPage(
   return Object.freeze({ result, eligibility: Object.freeze({
     parentTokenJti: admitted.parentTokenJti, parentBodySha256: admitted.parentBodySha256,
     callKey: admitted.callKey, clientId: admitted.clientId,
+    ...(admitted.scopeKind === 'general' ? { scopeKind: 'general' as const } : {}),
     argumentsSha256: admitted.argumentsSha256, requestSha256: admitted.requestSha256,
     resultSha256: sha256Hex(encoded), records: Object.freeze(records), hardExpiryMs: admitted.hardExpiryMs,
   }) });

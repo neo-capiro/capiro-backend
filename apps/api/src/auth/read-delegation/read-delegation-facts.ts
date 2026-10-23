@@ -4,6 +4,7 @@ import { readMeriAdmittedRun } from '../../meri/execution-capability/meri-admitt
 import type { NativeRunBinding } from '../../meri/native-approvals/native-approval.contract.js';
 import { canonicalSha256, isSha, isUuid, operationsDigest, type OperationRef } from './read-delegation.contract.js';
 import { readDocumentTextOnlyAllocation, type DocumentTextOnlyAllocation } from './read-delegation-document-pricing.js';
+import { generalRunScope } from './read-delegation-general.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -47,7 +48,8 @@ export interface DelegationFacts {
   mode: string;
   tenantId: string;
   userId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'general';
   conversationId: string;
   runId: string;
   attemptId: string;
@@ -214,7 +216,9 @@ export function assertDelegationFacts(facts: RunFacts, d: DelegationFacts, optio
       facts.attempt !== d.budgetAttempt || facts.fence !== d.budgetFence || facts.policyRevision !== d.budgetPolicyRev ||
       facts.allocationSha256 !== d.allocationSha256 || operationsDigest(facts.allowedOperations) !== d.operationsDigest ||
       canonicalSha256(facts.runBinding) !== canonicalSha256(runBindingOf(d)) ||
-      !singleClientScope(facts.runScopes, d.clientId, d.policyRevision)) throw changed();
+      !(d.scopeKind === 'general'
+        ? d.mode === 'attended' && d.clientId === null && generalRunScope(facts.runScopes, d.tenantId, d.actorId, d.policyRevision)
+        : d.clientId !== null && singleClientScope(facts.runScopes, d.clientId, d.policyRevision))) throw changed();
   if (options.operation && !facts.allowedOperations.some((op) => op.id === options.operation!.id && op.version === options.operation!.version)) {
     throw denied();
   }

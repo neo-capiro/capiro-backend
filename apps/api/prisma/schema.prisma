@@ -2490,7 +2490,8 @@ model MeriReadDelegation {
   tenantId         String   @map("tenant_id") @db.Uuid
   userId           String   @map("user_id") @db.Uuid
   membershipId     String   @map("membership_id") @db.Uuid
-  clientId         String   @map("client_id") @db.Uuid
+  clientId         String?  @map("client_id") @db.Uuid
+  scopeKind        String   @default("client") @map("scope_kind")
   conversationId   String   @map("conversation_id") @db.Uuid
   runId            String   @map("run_id") @db.Uuid
   attemptId        String   @map("attempt_id") @db.Uuid
@@ -2527,6 +2528,7 @@ model MeriReadDelegationSlot {
   callKey         String   @map("call_key") @db.VarChar(128)
   tenantId        String   @map("tenant_id") @db.Uuid
   delegationId    String   @map("delegation_id") @db.Uuid
+  targetClientId  String?  @map("target_client_id") @db.Uuid
   toolTokens      Int      @default(0) @map("tool_tokens") @db.SmallInt
   modeTokens      Int      @default(0) @map("mode_tokens") @db.SmallInt
   referenceTokens Int      @default(0) @map("reference_tokens") @db.SmallInt

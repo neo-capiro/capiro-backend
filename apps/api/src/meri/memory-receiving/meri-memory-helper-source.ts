@@ -13,6 +13,7 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import { parsePassiveMemoryEligibilityRequest, type PassiveMemoryEligibilityRequest } from './meri-passive-memory-source.js';
 import { MEMORY_HELPER_KIND, MEMORY_HELPER_PATH, signMemoryHelperToken, type MemoryHelperClaims } from './meri-memory-helper-token.js';
 import { verifyMemoryPageProof, type MemoryPageProofClaims } from './meri-memory-page-proof.js';
+import { assertMemoryCurrentScope } from './meri-memory-current-scope.js';
 
 type Tx = Prisma.TransactionClient;
 const OPERATION = Object.freeze({ id: 'search_memory', version: '0.2.0' });
@@ -43,7 +44,8 @@ export async function assertMemoryHelperIssueFresh(
  * endpoint after Meri validates the unchanged 0.2 page. A page proof is
  * evidence of Core's prior page, never authority by itself. */
 export interface MemoryHelperIssueRequest {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  targetClientId?: null;
   kind: typeof MEMORY_HELPER_KIND;
   callKey: string;
   method: 'POST';
@@ -61,13 +63,14 @@ export interface MemoryHelperIssueRequest {
 }
 
 export function parseMemoryHelperIssueRequest(raw: unknown): MemoryHelperIssueRequest {
+  const general = raw !== null && typeof raw === 'object' && (raw as Record<string, unknown>).schemaVersion === 2;
   const v = closed(raw, [
     'schemaVersion', 'kind', 'callKey', 'method', 'path', 'bodySha256', 'operation',
     'argumentsSha256', 'pageBodySha256', 'pageRequestSha256', 'resultSha256',
-    'recordsSha256', 'correlationSha256', 'pageProof', 'retryOf',
+    'recordsSha256', 'correlationSha256', 'pageProof', 'retryOf', ...(general ? ['targetClientId'] : []),
   ], 'memory helper');
   const op = closed(v.operation, ['id', 'version'], 'memory helper operation');
-  if (v.schemaVersion !== 1 || v.kind !== MEMORY_HELPER_KIND ||
+  if ((general ? v.targetClientId !== null : v.schemaVersion !== 1) || v.kind !== MEMORY_HELPER_KIND ||
       typeof v.callKey !== 'string' || !CALL_KEY.test(v.callKey) ||
       v.method !== 'POST' || v.path !== MEMORY_HELPER_PATH ||
       op.id !== OPERATION.id || op.version !== OPERATION.version ||
@@ -80,7 +83,8 @@ export function parseMemoryHelperIssueRequest(raw: unknown): MemoryHelperIssueRe
 }
 
 function requestMatchesProof(t: MemoryHelperIssueRequest, p: MemoryPageProofClaims, delegationId: string): boolean {
-  return p.sub === delegationId && t.callKey === p.callKey &&
+  return (t.schemaVersion === 2 ? p.scopeKind === 'general' && p.clientId === null : p.scopeKind === undefined && p.clientId !== null) &&
+    p.sub === delegationId && t.callKey === p.callKey &&
     t.argumentsSha256 === p.argumentsSha256 && t.pageBodySha256 === p.parentBodySha256 &&
     t.pageRequestSha256 === p.requestSha256 && t.resultSha256 === p.resultSha256 &&
     t.recordsSha256 === p.recordsSha256 && t.correlationSha256 === p.correlationSha256;
@@ -96,7 +100,7 @@ export async function issueMemoryHelperToken(
   delegationId: string,
   raw: unknown,
   activation: Readonly<{ enabled: boolean }>,
-): Promise<{ schemaVersion: 1; token: string; expiresAtMs: number }> {
+): Promise<{ schemaVersion: 1 | 2; token: string; expiresAtMs: number }> {
   if (!activation?.enabled) throw new ServiceUnavailableException('Passive memory helper unavailable');
   // A proof alone never substitutes for the existing verified service marker.
   const target = `/api/clio/application-authority/read-delegations/${delegationId}/tokens`;
@@ -125,7 +129,7 @@ export async function issueMemoryHelperToken(
           facts.dbNowMs >= hard) throw changed();
       await assertToolReservation(tx, d.runId, t.callKey, OPERATION, t.argumentsSha256);
       const member = await readDelegatedMember(tx, d);
-      await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+      await assertMemoryCurrentScope(tx, d, member.user.clerkUserId, proof);
       const parent = await tx.$queryRaw<{ consumed: boolean; live: boolean; body_sha256: string; arguments_sha256: string }[]>`
         SELECT consumed_at IS NOT NULL AS consumed, expires_at > clock_timestamp() AS live,
                body_sha256::text AS body_sha256, arguments_sha256::text AS arguments_sha256
@@ -152,6 +156,7 @@ export async function issueMemoryHelperToken(
         recordsSha256: t.recordsSha256, bindingSha256: proof.bindingSha256,
         proofDeadlineMs: proof.deadlineMs,
         tenantId: d.tenantId, actorId: d.userId, clientId: d.clientId,
+        ...(d.scopeKind === 'general' ? { scopeKind: 'general' as const } : {}),
         conversationId: d.conversationId, runId: d.runId, attemptId: d.attemptId, writerFence: d.writerFence,
       };
       const signed = await signMemoryHelperToken(signer, claims, AbortSignal.timeout(3000));
@@ -169,7 +174,7 @@ export async function issueMemoryHelperToken(
           ${t.pageRequestSha256}, ${t.correlationSha256}, ${t.resultSha256},
           ${t.recordsSha256}, ${proof.bindingSha256})`;
       await assertMemoryHelperIssueFresh(tx, exp * 1000);
-      return { schemaVersion: 1 as const, token: signed.token, expiresAtMs: exp * 1000 };
+      return { schemaVersion: t.schemaVersion, token: signed.token, expiresAtMs: exp * 1000 };
     }, { timeoutMs: 5000 });
   } catch (error) {
     if (error instanceof HttpException) throw error;

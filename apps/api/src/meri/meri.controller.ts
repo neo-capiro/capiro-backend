@@ -79,6 +79,7 @@ import {
   type MeriReadDelegationGrant,
 } from '../auth/read-delegation/read-delegation-request.js';
 import { signedMemoryPageEnabled, signedMemoryProposalEnabled } from '../auth/read-delegation/signed-memory-http-gate.js';
+import { assertGeneralPublicReadInput, assertGeneralPublicReadResult } from '../auth/read-delegation/read-delegation-general.js';
 import { createCoreKmsSigner, readCoreEd25519KeyConfig } from '../auth/core-ed25519-kms-config.js';
 import { readTaskBoundPassiveMemoryPage } from './memory-receiving/meri-memory-signed-page-source.js';
 import { issueMemoryPageProof } from './memory-receiving/meri-memory-proof-issuer.js';
@@ -723,6 +724,8 @@ export class MeriController {
                 : executeObservedRead();
             },
           );
+          if (delegatedRead?.scopeKind === 'general' && delegatedRead.clientId === null)
+            assertGeneralPublicReadResult(delegatedRead.operation, result);
           if (delegatedRead) await this.releaseDelegatedRead(req);
           emitMeriApiTelemetry({
             name: 'meri.api.tool.finalized',
@@ -795,7 +798,13 @@ export class MeriController {
       throw new ForbiddenException('Read delegation refused');
     }
     const schema = this.tools.anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' }).find((tool) => tool.name === name);
-    assertDelegatedToolSelectors(body, grant, schemaClientSelectors(schema?.input_schema));
+    const clientId = grant.clientId;
+    if (grant.scopeKind === 'general' && clientId === null) {
+      assertGeneralPublicReadInput(grant.operation, body);
+      return;
+    }
+    if (typeof clientId !== 'string') throw new ForbiddenException('Read delegation requires an exact client target');
+    assertDelegatedToolSelectors(body, { ...grant, clientId }, schemaClientSelectors(schema?.input_schema));
   }
 
   private async releaseDelegatedRead(req: Request): Promise<void> {

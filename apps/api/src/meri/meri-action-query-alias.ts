@@ -22,9 +22,12 @@ export function admitActionQueryAlias(
   verifiedServiceIdentity: boolean,
   authenticatedCorrelation: unknown,
   nowMs: number,
-): { grant: MeriReadDelegationGrant; ownerBody: Record<string, unknown> } {
+): { grant: MeriReadDelegationGrant & { clientId: string }; ownerBody: Record<string, unknown> } {
   const refuse = (): never => { throw new ForbiddenException('Reserved action read refused'); };
   if (!grant) throw new ForbiddenException('Reserved action read refused');
+  const clientId = grant.clientId;
+  if (!isUuid(clientId)) throw new ForbiddenException('Reserved action read refused');
+  const clientGrant = { ...grant, clientId };
   if (grant.kind !== 'tool' || grant.operation?.id !== ACTION_QUERY_OPERATION.id ||
       grant.operation.version !== ACTION_QUERY_OPERATION.version ||
       grant.tenantId !== ctx.tenantId || grant.actorId !== ctx.userId ||
@@ -69,7 +72,7 @@ export function admitActionQueryAlias(
   const selection = closed(input.selection,
     ['clientId', 'actionItemId', 'status', 'sort', 'page', 'limit', 'cursorApplied'],
     'actions.query selection');
-  assertDelegatedToolSelectors(selection, grant, ['clientId']);
+  assertDelegatedToolSelectors(selection, clientGrant, ['clientId']);
   const cursor = input.cursor;
   if (input.mode !== 'client_scoped' || selection.clientId !== grant.clientId ||
       !isUuid(selection.clientId) ||
@@ -90,7 +93,7 @@ export function admitActionQueryAlias(
     ...(selection.status === null ? {} : { status: selection.status }),
     ...(cursor === null ? {} : { cursor }),
   };
-  return { grant, ownerBody };
+  return { grant: clientGrant, ownerBody };
 }
 
 /** Defense in depth after the canonical owner has checked every returned row. */

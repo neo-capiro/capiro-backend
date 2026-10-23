@@ -2,7 +2,7 @@ import { types as nodeTypes } from 'node:util';
 import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
-import { canonicalSha256, isSha, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
+import { canonicalSha256, isSha, isUuid, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
 import type { MeriReadDelegationGrant } from '../../auth/read-delegation/read-delegation-request.js';
 import { parsePassiveMemoryWire, type PassiveMemoryWire } from './meri-passive-memory-source.js';
 
@@ -31,7 +31,8 @@ export interface AdmittedPassiveMemoryPage {
   parentTokenJti: string;
   parentBodySha256: string;
   callKey: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'general';
   hardExpiryMs: number;
 }
 
@@ -55,7 +56,9 @@ export function admitPassiveMemoryPage(
       !isSha(grant.correlationSha256) || !isSha(grant.bodySha256)) throw denied();
   let wire: PassiveMemoryWire;
   try { wire = parsePassiveMemoryWire(raw); } catch { throw denied(); }
-  if (wire.input.clientId === null || wire.input.clientId !== grant.clientId ||
+  const general = grant.scopeKind === 'general';
+  if ((general ? grant.clientId !== null || grant.targetClientId !== null || grant.mode !== 'attended'
+    : !isUuid(grant.clientId)) || wire.input.clientId !== grant.clientId ||
       canonicalSha256(wire.input) !== grant.argumentsSha256) throw denied();
 
   const correlation = exact(authenticatedCorrelation,
@@ -77,19 +80,22 @@ export function admitPassiveMemoryPage(
   const subject = exact(correlation.subject,
     ['kind', 'entityType', 'entityIds', 'tenantId', 'actorId', 'authorizationDecisionId',
       'policyRevision', 'scopes', 'rosterVersionId']);
-  if (subject.kind !== 'client' || subject.entityType !== 'client' ||
-      !Array.isArray(subject.entityIds) || subject.entityIds.length !== 1 || subject.entityIds[0] !== grant.clientId ||
+  if (subject.kind !== (general ? 'personal' : 'client') || subject.entityType !== (general ? 'user' : 'client') ||
+      !Array.isArray(subject.entityIds) || subject.entityIds.length !== 1 || subject.entityIds[0] !== (general ? ctx.userId : grant.clientId) ||
       subject.tenantId !== ctx.tenantId || subject.actorId !== ctx.userId ||
       subject.policyRevision !== grant.policyRevision || subject.rosterVersionId !== null ||
-      !Array.isArray(subject.scopes) || subject.scopes.length < 1 || subject.scopes.length > 4096) throw denied();
+      !isUuid(subject.authorizationDecisionId) ||
+      !Array.isArray(subject.scopes) || subject.scopes.length < 1 || subject.scopes.length > 4096 ||
+      general && subject.scopes.length !== 1) throw denied();
   let selected = false;
   for (const candidate of subject.scopes) {
     const scope = exact(candidate, ['tenantId', 'kind', 'resourceId', 'policyRevision']);
     if (scope.tenantId !== ctx.tenantId || scope.policyRevision !== grant.policyRevision ||
         typeof scope.kind !== 'string' || typeof scope.resourceId !== 'string' ||
         scope.kind === 'client' && scope.resourceId !== grant.clientId ||
-        scope.kind === 'private-user' && scope.resourceId !== ctx.userId) throw denied();
-    if (scope.kind === 'client' && scope.resourceId === grant.clientId) selected = true;
+        scope.kind === 'private-user' && scope.resourceId !== ctx.userId ||
+        general && scope.kind !== 'private-user') throw denied();
+    if (scope.kind === (general ? 'private-user' : 'client') && scope.resourceId === (general ? ctx.userId : grant.clientId)) selected = true;
   }
   if (!selected) throw denied();
   const frozenWire = Object.freeze({
@@ -98,5 +104,5 @@ export function admitPassiveMemoryPage(
   return Object.freeze({ wire: frozenWire, requestSha256: canonicalSha256(frozenWire),
     argumentsSha256: grant.argumentsSha256, parentTokenJti: grant.jti, callKey: grant.callKey,
     parentBodySha256: grant.bodySha256,
-    clientId: grant.clientId, hardExpiryMs: grant.hardExpiryMs });
+    clientId: grant.clientId, ...(general ? { scopeKind: 'general' as const } : {}), hardExpiryMs: grant.hardExpiryMs });
 }

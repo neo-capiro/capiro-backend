@@ -12,6 +12,7 @@ import {
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { TaskBoundPassiveMemoryPage } from './meri-memory-signed-page-source.js';
 import { signMemoryPageProof, type MemoryPageProofClaims } from './meri-memory-page-proof.js';
+import { assertMemoryCurrentScope } from './meri-memory-current-scope.js';
 
 type Tx = Prisma.TransactionClient;
 const OPERATION = Object.freeze({ id: 'search_memory', version: '0.2.0' });
@@ -51,7 +52,7 @@ export async function issueMemoryPageProof(
       await assertToolReservation(tx, d.runId, grant.callKey, OPERATION, pins.argumentsSha256);
       const member = await readDelegatedMember(tx, d);
       if (member.user.id !== grant.actorId) throw changed();
-      await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+      await assertMemoryCurrentScope(tx, d, member.user.clerkUserId, grant);
       const parent = await tx.$queryRaw<{ consumed: boolean; live: boolean; body_sha256: string; arguments_sha256: string }[]>`
         SELECT consumed_at IS NOT NULL AS consumed, expires_at > clock_timestamp() AS live,
                body_sha256::text AS body_sha256, arguments_sha256::text AS arguments_sha256
@@ -74,6 +75,7 @@ export async function issueMemoryPageProof(
         resultSha256: pins.resultSha256, recordsSha256: canonicalSha256(pins.records),
         bindingSha256: canonicalSha256(facts.admittedBinding), policyRevision: d.policyRevision,
         tenantId: d.tenantId, actorId: d.userId, clientId: d.clientId,
+        ...(d.scopeKind === 'general' ? { scopeKind: 'general' as const } : {}),
         conversationId: d.conversationId, runId: d.runId, attemptId: d.attemptId,
         writerFence: d.writerFence, deadlineMs: exp * 1000,
       };

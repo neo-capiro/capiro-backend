@@ -139,7 +139,9 @@ export interface DelegationRunBinding {
 export interface DelegationCreateRequest {
   mode: 'attended' | 'unattended';
   binding: DelegationRunBinding;
-  clientId: string;
+  clientId: string | null;
+  /** Present only in v2; v1 client requests keep their exact representation. */
+  scopeKind?: 'general';
   policyRevision: string;
   allocationSha256: string;
   operationsDigest: string;
@@ -151,19 +153,22 @@ export interface DelegationCreateRequest {
 
 export function parseDelegationCreate(raw: unknown): DelegationCreateRequest {
   const base = ['schemaVersion', 'mode', 'binding', 'clientId', 'policyRevision', 'allocationSha256', 'operationsDigest', 'supersedes'];
-  const v = closed(raw, base, 'body', ['consentId', 'scheduleId', 'occurrenceKey']);
-  if (v.schemaVersion !== 1 || (v.mode !== 'attended' && v.mode !== 'unattended')) throw invalid('mode');
+  const v = closed(raw, base, 'body', ['consentId', 'scheduleId', 'occurrenceKey', 'scopeKind']);
+  const general = v.schemaVersion === 2 && v.scopeKind === 'general' && v.clientId === null && v.mode === 'attended';
+  if ((!general && (v.schemaVersion !== 1 || Object.hasOwn(v, 'scopeKind'))) ||
+      (v.mode !== 'attended' && v.mode !== 'unattended')) throw invalid('mode');
   const attended = v.mode === 'attended';
   const extra = ['consentId', 'scheduleId', 'occurrenceKey'].filter((k) => Object.hasOwn(v, k));
   if (attended ? extra.length !== 0 : extra.length !== 3) throw invalid('mode fields');
   const b = closed(v.binding, ['tenantId', 'actorId', 'conversationId', 'runId', 'attemptId', 'writerFence'], 'binding');
   if (![b.tenantId, b.actorId, b.conversationId, b.runId, b.attemptId].every(isUuid) ||
       !Number.isSafeInteger(b.writerFence) || (b.writerFence as number) < 1) throw invalid('binding');
-  if (!isUuid(v.clientId) || !isSha(v.policyRevision) || !isSha(v.allocationSha256) || !isSha(v.operationsDigest) ||
+  if ((!general && !isUuid(v.clientId)) || !isSha(v.policyRevision) || !isSha(v.allocationSha256) || !isSha(v.operationsDigest) ||
       !(v.supersedes === null || isUuid(v.supersedes))) throw invalid('facts');
   if (!attended && (v.supersedes !== null || !isUuid(v.consentId) || !isUuid(v.scheduleId) || !isSha(v.occurrenceKey))) throw invalid('occurrence');
   return {
-    mode: v.mode as 'attended' | 'unattended', binding: b as unknown as DelegationRunBinding, clientId: v.clientId as string,
+    mode: v.mode as 'attended' | 'unattended', binding: b as unknown as DelegationRunBinding, clientId: v.clientId as string | null,
+    ...(general ? { scopeKind: 'general' as const } : {}),
     policyRevision: v.policyRevision as string, allocationSha256: v.allocationSha256 as string, operationsDigest: v.operationsDigest as string,
     supersedes: v.supersedes as string | null, consentId: attended ? null : v.consentId as string,
     scheduleId: attended ? null : v.scheduleId as string, occurrenceKey: attended ? null : v.occurrenceKey as string,
@@ -173,6 +178,7 @@ export function parseDelegationCreate(raw: unknown): DelegationCreateRequest {
 /** Contract §7: `sha256` of the canonical idempotency facts. */
 export function delegationIdempotencyKey(r: DelegationCreateRequest): string {
   return canonicalSha256({
+    ...(r.scopeKind === 'general' ? { schemaVersion: 2, scopeKind: 'general' } : {}),
     mode: r.mode, tenantId: r.binding.tenantId, actorId: r.binding.actorId, clientId: r.clientId, conversationId: r.binding.conversationId,
     runId: r.binding.runId, attemptId: r.binding.attemptId, writerFence: r.binding.writerFence, allocationSha256: r.allocationSha256,
     operationsDigest: r.operationsDigest, policyRevision: r.policyRevision, occurrenceKey: r.occurrenceKey,
@@ -180,6 +186,8 @@ export function delegationIdempotencyKey(r: DelegationCreateRequest): string {
 }
 
 export interface TokenRequest {
+  scopeKind?: 'general';
+  targetClientId?: string | null;
   kind: ReadTokenKind;
   callKey: string;
   method: 'POST';
@@ -196,12 +204,14 @@ export interface TokenRequest {
 }
 
 /** The two exact `current` bodies Meri sends (`{"schemaVersion":1,"conversation":<bool>}`). */
-export const currentBodySha256 = (conversation: boolean) => sha256Hex(Buffer.from(JSON.stringify({ schemaVersion: 1, conversation }), 'utf8'));
+export const currentBodySha256 = (conversation: boolean, targetClientId?: string | null) => sha256Hex(Buffer.from(JSON.stringify(
+  targetClientId === undefined ? { schemaVersion: 1, conversation } : { schemaVersion: 2, conversation, targetClientId }), 'utf8'));
 
 export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequest {
   const v = closed(raw, ['schemaVersion', 'kind', 'callKey', 'method', 'path', 'bodySha256', 'operation', 'argumentsSha256',
-    'toolRequestSha256', 'referenceSha256', 'retryOf'], 'body', ['correlationSha256']);
-  if (v.schemaVersion !== 1 || !READ_TOKEN_KINDS.includes(v.kind as ReadTokenKind) || typeof v.callKey !== 'string' || !CALL_KEY.test(v.callKey) ||
+    'toolRequestSha256', 'referenceSha256', 'retryOf'], 'body', ['correlationSha256', 'targetClientId']);
+  const general = v.schemaVersion === 2 && Object.hasOwn(v, 'targetClientId') && (v.targetClientId === null || isUuid(v.targetClientId));
+  if ((!general && (v.schemaVersion !== 1 || Object.hasOwn(v, 'targetClientId'))) || !READ_TOKEN_KINDS.includes(v.kind as ReadTokenKind) || typeof v.callKey !== 'string' || !CALL_KEY.test(v.callKey) ||
       v.method !== 'POST' || typeof v.path !== 'string' || !isSha(v.bodySha256) || !(v.retryOf === null || isSha(v.retryOf))) throw invalid('token');
   const kind = v.kind as ReadTokenKind;
   const operation = v.operation === null ? null : operationRef(v.operation, 'operation');
@@ -219,15 +229,16 @@ export function parseTokenRequest(raw: unknown, delegationId: string): TokenRequ
         !nulls('argumentsSha256', 'toolRequestSha256')) throw invalid('reference');
   } else if (operation !== null || v.path !== delegationPath(delegationId, 'current') ||
       !nulls('argumentsSha256', 'toolRequestSha256', 'referenceSha256') ||
-      (v.bodySha256 !== currentBodySha256(false) && v.bodySha256 !== currentBodySha256(true))) {
+      (v.bodySha256 !== currentBodySha256(false, general ? v.targetClientId as string | null : undefined) && v.bodySha256 !== currentBodySha256(true, general ? v.targetClientId as string | null : undefined))) {
     throw invalid('current');
   }
   const request = {
-    schemaVersion: 1, kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256, operation,
+    schemaVersion: general ? 2 : 1, ...(general ? { targetClientId: v.targetClientId } : {}), kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256, operation,
     argumentsSha256: v.argumentsSha256, toolRequestSha256: v.toolRequestSha256, referenceSha256: v.referenceSha256,
     ...(correlated ? { correlationSha256: v.correlationSha256 } : {}), retryOf: null,
   };
   return {
+    ...(general ? { scopeKind: 'general' as const, targetClientId: v.targetClientId as string | null } : {}),
     kind, callKey: v.callKey, method: 'POST', path: v.path, bodySha256: v.bodySha256 as string, operation,
     argumentsSha256: v.argumentsSha256 as string | null, toolRequestSha256: v.toolRequestSha256 as string | null,
     referenceSha256: v.referenceSha256 as string | null, correlationSha256: correlated ? v.correlationSha256 as string : null,
@@ -256,10 +267,11 @@ export function parseConsentState(raw: unknown): 'paused' | 'revoked' | 'active'
   if (v.schemaVersion !== 1 || !['paused', 'revoked', 'active'].includes(v.state as string)) throw invalid('state');
   return v.state as 'paused' | 'revoked' | 'active';
 }
-export function parseCurrentBody(raw: unknown): { conversation: boolean } {
-  const v = closed(raw, ['schemaVersion', 'conversation'], 'body');
-  if (v.schemaVersion !== 1 || typeof v.conversation !== 'boolean') throw invalid('current');
-  return { conversation: v.conversation };
+export function parseCurrentBody(raw: unknown): { conversation: boolean; scopeKind?: 'general'; targetClientId?: string | null } {
+  const v = closed(raw, ['schemaVersion', 'conversation'], 'body', ['targetClientId']);
+  const general = v.schemaVersion === 2 && Object.hasOwn(v, 'targetClientId') && (v.targetClientId === null || isUuid(v.targetClientId));
+  if ((!general && (v.schemaVersion !== 1 || Object.hasOwn(v, 'targetClientId'))) || typeof v.conversation !== 'boolean') throw invalid('current');
+  return { conversation: v.conversation, ...(general ? { scopeKind: 'general', targetClientId: v.targetClientId as string | null } : {}) };
 }
 
 const CLIENT_SELECTORS = new Set(['clientId', 'client_id', 'clientIds', 'client_ids', 'clientRef', 'client', 'selectedClientId']);

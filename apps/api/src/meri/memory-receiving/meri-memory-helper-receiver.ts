@@ -13,6 +13,7 @@ import {
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { checkPassiveMemoryEligibility } from './meri-passive-memory-source.js';
 import { assertMemoryHelperCallback } from './meri-memory-helper-source.js';
+import { assertMemoryCurrentScope } from './meri-memory-current-scope.js';
 import {
   MEMORY_HELPER_KIND, MEMORY_HELPER_PATH, memoryHelperTokenFromAuthorization,
   verifyMemoryHelperToken, type MemoryHelperClaims,
@@ -73,7 +74,7 @@ async function assertMemoryHelperReleasable(
     await assertToolReservation(tx, d.runId, claims.callKey, OPERATION, claims.argumentsSha256);
     const member = await readDelegatedMember(tx, d);
     if (member.user.id !== ctx.userId || member.user.clerkUserId !== ctx.clerkUserId) throw changed();
-    await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+    await assertMemoryCurrentScope(tx, d, member.user.clerkUserId, claims);
     const rows = await tx.$queryRaw<{ consumed: boolean; parent_consumed: boolean; parent_live: boolean }[]>`
       SELECT h.consumed_at IS NOT NULL AS consumed,
              p.consumed_at IS NOT NULL AS parent_consumed,
@@ -154,7 +155,7 @@ export async function consumeTaskBoundMemoryHelper(
           parent[0]!.body_sha256 !== claims.parentBodySha256 ||
           parent[0]!.arguments_sha256 !== claims.argumentsSha256) throw changed();
       const member = await readDelegatedMember(tx, d);
-      await assertDelegatedClientVisible(tx, d.tenantId, member.user.clerkUserId, d.clientId);
+      await assertMemoryCurrentScope(tx, d, member.user.clerkUserId, claims);
       const ctx: TenantContext = {
         tenantId: d.tenantId, tenantSlug: member.membership.tenant.slug,
         userId: member.user.id, clerkUserId: member.user.clerkUserId,
@@ -163,7 +164,7 @@ export async function consumeTaskBoundMemoryHelper(
       const callback = assertMemoryHelperCallback(ctx, raw, rawBody, claims, used[0]!, facts.dbNowMs);
       return { ctx, callback };
     }, { timeoutMs: 5000 });
-    const receipt = await checkPassiveMemoryEligibility(prisma, admitted.ctx, admitted.callback, now);
+    const receipt = await checkPassiveMemoryEligibility(prisma, admitted.ctx, admitted.callback, now, claims.scopeKind);
     // The final Meri dispatcher narrows to the returned receipt expiry. It
     // must not outlive the helper credential that admitted this exact body.
     const expiresAtMs = Math.min(receipt.expiresAtMs, claims.exp * 1000);
