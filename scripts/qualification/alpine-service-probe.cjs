@@ -38,7 +38,9 @@ if (service !== 'engagement-api') {
   assert.match(run(process.execPath, [local.resolve('prisma/build/index.js'), '--help']), /migrate/);
 }
 for (const match of fs.readFileSync('/usr/local/bin/entrypoint.sh', 'utf8').matchAll(/\bnode (dist\/[^\s"'$;]+)/g)) {
-  run(process.execPath, ['--check', local.resolve(`./${match[1]}`)]);
+  // Node 22.23.3's syntax checker crashes on compiled source maps. Disable
+  // maps only for this diagnostic child, preserving the runtime NODE_OPTIONS.
+  run(process.execPath, ['--no-enable-source-maps', '--check', local.resolve(`./${match[1]}`)]);
 }
 
 const clientPath = service === 'engagement-api'
@@ -83,7 +85,7 @@ if (service === 'workspace') {
     ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
   });
   const entrypoint = local.resolve('./dist/engagement-main.js');
-  run(process.execPath, ['--check', entrypoint]);
+  run(process.execPath, ['--no-enable-source-maps', '--check', entrypoint]);
   assert.match(fs.readFileSync(entrypoint, 'utf8'), /require\(["']\.\/engagement-api\.app\.module\.js["']\)/);
   const { EngagementApiAppModule } = local('./dist/engagement-api.app.module.js');
   assert.equal(typeof EngagementApiAppModule, 'function');

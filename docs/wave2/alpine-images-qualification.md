@@ -229,3 +229,16 @@ workspace prerequisite fixed them. These native fixtures do not substitute for
 the orchestrator's Linux/musl source suites, runtime scans, startup, or PG16 gates.
 Existing Intel hearing-gateway capture and tenant/resolver auth suites also
 passed 52/52 with synthetic mocks; no provider request or database connection ran.
+
+The orchestrator's exact `5df32e16` rebuild reached the new syntax-check child in
+all four images but Node 22.23.3 crashed in `SourceMapCacheMap.set/checkSyntax`
+with `TypeError: WeakRef: invalid target` when inheriting
+`NODE_OPTIONS=--enable-source-maps`. Its isolated control on the existing Intel
+runtime image reproduced exit 1 with inherited maps and exit 0 with
+`node --no-enable-source-maps --check <compiled-file>`. Invalid JavaScript under
+the same diagnostic flags still exited 1 with `SyntaxError`. Evidence:
+`20261023T042150Z-node22-syntax-repro/summary.json` in the orchestrator's gate runs.
+Both syntax-check calls now pass that child-only CLI flag. The image environment,
+actual service execution, module imports, Prisma and dependency checks retain
+their existing settings. Native probe syntax passes; fresh exact-head image
+qualification remains required.
