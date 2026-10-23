@@ -874,6 +874,7 @@ model TenantUsageMeter {
 
 model Client {
   fileBatchMoveReceipts ClientFileBatchMoveReceipt[]
+  prospectConversionReceipts ProspectConversionReceipt[]
   engagementPlans EngagementPlan[]
   notetakerPreferences      ClientNotetakerPreference[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
@@ -15255,6 +15256,7 @@ model BusinessDevelopmentProspect {
   attachments     EngagementAttachment[]
   uploadIntents   ProspectAttachmentUploadIntent[]
   activity        BusinessDevelopmentProspectActivity[]
+  conversionReceipts ProspectConversionReceipt[]
   briefs          BusinessDevelopmentBrief[]
   watches         BusinessDevelopmentWatch[]
   alerts          BusinessDevelopmentAlert[]
@@ -15271,6 +15273,24 @@ model BusinessDevelopmentProspect {
   // SQL-owned partial uniques: (tenant_id, canonical_entity_id) WHERE NOT NULL
   // and linked_client_id WHERE NOT NULL.
   @@map("business_development_prospects")
+}
+
+/// Exact existing-client conversion result; SQL owns immutability and tenant RLS.
+model ProspectConversionReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  prospectId String @map("prospect_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  command Json
+  receipt Json
+  committedAt DateTime @default(now()) @map("committed_at") @db.Timestamptz(6)
+  prospect BusinessDevelopmentProspect @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction)
+  @@unique([tenantId, actorUserId, requestId], map: "prospect_conversion_receipts_request_key")
+  @@map("prospect_conversion_receipts")
 }
 
 /// Business Development Phase 1 — prospect activity / note history.
