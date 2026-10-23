@@ -232,10 +232,10 @@ describe('Engagement runtime route coverage', () => {
     expect(runtimePolicyForHandler('EngagementController', 'singleMailIntent')).toBeUndefined();
   });
 
-  it.each([
+  it.each<[handler: 'send' | 'test', action: 'outreach_send' | 'outreach_test_send', testMode: boolean]>([
     ['send', 'outreach_send', false],
     ['test', 'outreach_test_send', true],
-  ] as const)('requires the real Newsletter %s dispatch policy', (handler, action, testMode) => {
+  ])('requires the real Newsletter %s dispatch policy', (handler, action, testMode) => {
     const route = ROUTE_MANIFEST.routes.find(
       (entry) => entry.controller === 'NewsletterOutreachController' && entry.handler === handler,
     );
