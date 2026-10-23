@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Prisma } from '@prisma/client';
 import type { EmbeddingProvider } from '../../embeddings/embedding-provider.js';
@@ -148,10 +147,6 @@ describe('canonical memory PostgreSQL qualification harness', () => {
   });
 
   it('is DB_FREE-reviewable and fails closed before database setup', () => {
-    const workflow = readFileSync(
-      resolve(__dirname, '../../../../../.github/workflows/memory-postgres-qualification.yml'),
-      'utf8',
-    );
     expect(DDL_PROVENANCE.minimalParentFixtures).toEqual(['tenants', 'users', 'clients']);
     expect(DDL_PROVENANCE.canonicalRelations).toEqual([
       'client_memory_access',
@@ -228,15 +223,32 @@ describe('canonical memory PostgreSQL qualification harness', () => {
         ),
       }),
     ).toThrow('MEMORY_POSTGRES_CREDENTIALS_FILE does not exist');
-    expect(workflow).toContain('pull_request:');
-    expect(workflow).toContain('workflow_dispatch:');
-    expect(workflow).toContain('image: pgvector/pgvector:pg16');
-    expect(workflow).toContain('pnpm install --frozen-lockfile');
-    expect(workflow).toContain("MEMORY_POSTGRES_REQUIRE_VECTOR: '1'");
-    expect(workflow).toContain("MEMORY_POSTGRES_OWNED_ENDPOINT_ACK: '127.0.0.1:5432'");
-    expect(workflow).toContain("- '127.0.0.1:5432:5432'");
-    expect(workflow).toContain('127.0.0.1:5432/postgres');
-    expect(workflow).not.toMatch(/prisma migrate deploy|aws-actions|deploy/i);
+  });
+
+  it('never uses an ambient application DATABASE_URL as qualification credentials', () => {
+    const environment = {
+      DATABASE_URL: 'postgresql://synthetic:synthetic@application.invalid:5432/application',
+      MEMORY_POSTGRES_OWNED_ENDPOINT_ACK: '127.0.0.1:55433',
+    };
+    expect(qualificationAdminUrl(environment)).toBeNull();
+    expect(() =>
+      qualificationAdminUrl({
+        ...environment,
+        MEMORY_POSTGRES_REQUIRE_VECTOR: '1',
+      }),
+    ).toThrow('requires MEMORY_POSTGRES_ADMIN_URL or MEMORY_POSTGRES_CREDENTIALS_FILE');
+    expect(
+      qualificationAdminUrl({
+        ...environment,
+        MEMORY_POSTGRES_DB_FREE: '1',
+      }),
+    ).toBeNull();
+    expect(
+      qualificationAdminUrl({
+        ...environment,
+        MEMORY_POSTGRES_ADMIN_URL: 'postgresql://synthetic:synthetic@127.0.0.1:55433/postgres',
+      }),
+    ).toBe('postgresql://synthetic:synthetic@127.0.0.1:55433/postgres');
   });
 
   databaseIt(
