@@ -1,16 +1,106 @@
 # Four-service Alpine image qualification
 
-Status: repair candidate after independent review of `11edb7775` identified
-missing Engagement qualification inputs, and the orchestrator's actual Strategy
-PDF render on `44443edf` identified its unwritable default HOME. Both repairs are
-described below. Fresh exact-head image gates remain required; no security or
-shipping acceptance is claimed. Earlier gate failures/evidence remain retained.
+Status: narrow security follow-up after native ARM qualification of `0eee084c`.
+The branch ordinarily merges Core `75a9069b` before this repair. Its four ARM
+runtime builds/probes, real Strategy PDF render and exact-digest ECR scans passed;
+Trivy reported zero HIGH/CRITICAL findings, with 21 remaining advisory/package
+version records. The approved repair and bounded dispositions are below. Fresh
+final-head qualification is required. Earlier failures and receipts remain
+history, including the missing Engagement inputs and Strategy HOME fixes.
 
 Base: `db96ad310fa1c3cc43278ff9c2d59e750581bac3` (`backend-import`). Briefs:
 [original](https://github.com/neo-capiro/meri-greenfield/issues/202#issuecomment-6355187204)
 and [four-service addendum](https://github.com/neo-capiro/meri-greenfield/issues/202#issuecomment-6355270797).
-The 2026-10-23 dispatch limits work to PRs, local gates and design; no CodeBuild
-starts, ECR pushes, AWS writes, migrations, deploys or live acceptance are authorized.
+Neo lifted the earlier holds. Root Codex owns AWS, CodeBuild, image/database gates,
+shipping and live acceptance; implementation sessions do not run those operations.
+
+## Current narrow advisory repair
+
+All four build bases and final runtime stages require Alpine `musl` and
+`musl-utils >=1.2.6-r3`. The maintainer's [regcomp advisory](https://seclists.org/oss-sec/2026/q4/289)
+describes integer overflow and possible heap writes; UNKNOWN scan severity is
+not an acceptance. V8 regex is a different implementation, but native utilities
+prevent a whole-image unreachability claim. The Alpine security patch is used
+without changing the pinned Node major or native-tool behavior.
+
+| Exact parent(s) | Final pin | Reason |
+|---|---|---|
+| `@nestjs/platform-express@10.4.22` | `multer` 2.4.0 | Existing upload selector advances to the aborted-disk-write fix; inspected product storage is memory-based. |
+| `@nestjs/platform-express@10.4.22`, `express@4.22.1` | `body-parser` 1.20.6 | Reject invalid body-limit options while retaining positive/oversize/malformed request behavior. |
+| `body-parser@1.20.6`, `express@4.22.1` | `qs` 6.16.0 | Close comma-limit and stringify defects; body-parser still requests `~6.15.1` without this selector. |
+| `@capiro/api@0.0.0`, `@capiro/workspace@0.0.0` | `sanitize-html` 2.18.0 | Close noscript/meta/SVG parser defects on actual HTML-sanitizing service roots. |
+| `minimatch@3.1.5`, `minimatch@5.1.9` | `brace-expansion` 1.1.21, 2.1.7 respectively | Patch the existing ExcelJS/archive glob paths. |
+| `express-rate-limit@8.7.0`, `socks@2.8.9` | `ip-address` 10.7.4 | Patch Address6 percent/newline rejection. Rate-limit is in Core's MCP closure; the socks selector also affects other/dev consumers. |
+
+Published registry metadata was checked for all seven final package versions;
+none is deprecated and all support the image's Node 22.23.3. The lock preserves
+unrelated importers, versions and records, including unused historical records;
+new `launder` 1.7.2 is sanitize-html's declared dependency. Root closure metadata
+and its exact pin are regenerated as required by AGENTS. Prisma schema bytes and
+existing architecture-specific generator pins are unchanged.
+
+Three affected packages remain present with explicit, bounded dispositions:
+
+- [Nest SSE injection](https://github.com/nestjs/nest/security/advisories/GHSA-36xv-jgw5-4q75):
+  no `@Sse`/SseStream consumer was found in the four-service product source.
+  The affected formatter needs user-influenced message type/id; retain Nest 10.
+- [file-type ASF](https://github.com/sindresorhus/file-type/security/advisories/GHSA-5v7r-6r5c-r473)
+  and [ZIP](https://github.com/sindresorhus/file-type/security/advisories/GHSA-j47w-4g3g-c36v):
+  only the Nest common lazy FileTypeValidator edge enters this selected closure.
+  No direct file-type, FileTypeValidator or ParseFilePipe builder call was found.
+  Keep 20.4.1; a new caller must reopen this disposition. Size caps alone would
+  not mitigate the small malformed ASF payload.
+- [uuid buffer bounds](https://github.com/uuidjs/uuid/security/advisories/GHSA-w5hq-g745-h8pq):
+  MSAL Node 2.16.3 and ExcelJS 4.4.0 are the two uuid 8 parents. Their inspected code
+  only calls v4 without output buffers; the affected APIs are v3/v5/v6 with
+  caller buffers/offsets. Retain 8.3.2 without a major override.
+
+These are reachability dispositions for the reviewed source, not scanner
+exclusions or absence claims. Recheck the final production graph and preserve
+all remaining scan records. Other services sharing exact parents are affected
+by the lock change and are not qualified by four-service results.
+
+The compatibility fixture retains its previous real upload, WS, SDK, XLSX and
+PPTX checks and adds body-parser limits, qs regression cases, sanitizer cases and
+MCP rate-limit IPv6 checks, with non-loopback network refused. Windows native
+results are supplemental; all Linux/native ARM image gates remain root-owned.
+
+## Source archive and test disposition
+
+The old ARM source manifest is not byte-identical to Git: 3,245 files, including
+610 migration SQL files across the full repo, were converted from LF to CRLF.
+No other source-content mismatch was found; two explicit gate wrappers were
+additional files. The 18 Engagement plan cases failed their approved migration
+checksum before reaching the database guard. Preserve those failures and the
+approved SQL/pin. The next archive must disable Git working-tree conversion:
+
+```bash
+git -c core.autocrlf=false -c core.eol=lf archive --format=tar "$sha" > source.tar
+```
+
+Root verifies each archive source file against its Git blob before adding the
+explicit qualification wrappers and uploading the checksum-bound artifact.
+Do not normalize SQL at runtime or change an approved pin to fit a bad archive.
+
+The old Intel ARM result has 159 DB-prerequisite assertion failures, one
+Senate smoke case requiring both DB and public-source acceptance, and 22 non-DB
+failures. Six unique suites also fail DB guards before assertions (Jest's
+runtime-error aggregate reports 12). The 20 stale mock cases, performance case
+and file-pin case have earlier AMD64 base attribution; that does not qualify
+ARM timing or the converted source artifact. Workspace's two assertions and 14
+parser/type failures reproduce on base, including the same VM flag. Its 37 WS03
+skips remain unqualified. Engagement's six non-DB failures have base evidence;
+its 18 checksum failures require corrected source bytes before real PG replay.
+Strategy's 233 pending cases also remain explicit. No failed/skipped test is
+silently waived, and an inherited fixture failure still leaves behavior untested.
+
+Core 75a's separate local migration receipt proves 599 exact, finished, unrolled
+ledger rows: 474 Core-prefix migrations through 20281016020000, 28 Strategy,
+remaining 9 Core, 61 Intel, 27 Workspace. Strategy precedes Core 20281017010000
+because that Core migration references `sp_draft_job`. It uses unchanged SQL
+and actual Prisma deploy. This does not prove runtime RLS/grants/concurrency,
+application behavior, separate Workspace database behavior or ARM execution.
+Root's subsequent actual database tiers remain separate evidence.
 
 ## Implementation outline and requirement audit
 
@@ -20,7 +110,7 @@ Reuse Core's exact Node 22.23.3 / Alpine 3.24 amd64 pin and its image-local Pris
 generator helper. Node 22 also satisfies the frozen `sanitize-html` dependency's
 Node >=22.12 requirement already recorded in Core and Workspace Dockerfiles;
 Intel and Engagement's old Debian defaults still say Node 20. The reviewed
-root manifest/lockfile repair changes only ten parent-scoped dependency paths
+root manifest/lockfile repair changes only the parent-scoped dependency paths
 listed below. Global npm/Corepack are removed from runtime stages; all existing
 entrypoint verbs use Node directly, and their local Prisma CLI remains installed.
 

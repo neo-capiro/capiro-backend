@@ -7,7 +7,7 @@ FROM ${NODE_IMAGE} AS base
 ARG TARGETARCH
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN apk add --no-cache "zlib>=1.3.2-r1"
+RUN apk add --no-cache "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3"
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /workspace
 
@@ -81,7 +81,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack 
  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S -g 1001 capiro \
  && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
- && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1"
+ && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3"
 RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \
  && chown capiro:capiro /app/tmp

@@ -9,15 +9,23 @@
   "pnpm": {
     "overrides": {
       "express@4.22.1>proxy-addr": "2.0.8",
-      "@nestjs/platform-express@10.4.22>multer": "2.3.0",
+      "@nestjs/platform-express@10.4.22>multer": "2.4.0",
       "@clerk/shared@3.47.5>js-cookie": "3.0.7",
       "@nestjs/config@3.3.0>lodash": "4.18.1",
       "@nestjs/platform-ws@10.4.22>ws": "8.21.0",
       "pptxgenjs@3.12.0>image-size": "-",
       "@capiro/api@0.0.0>@modelcontextprotocol/sdk": "1.32.0",
-      "minimatch@3.1.5>brace-expansion": "1.1.20",
-      "minimatch@5.1.9>brace-expansion": "2.1.6",
-      "cheerio@1.2.0>undici": "7.29.1"
+      "minimatch@3.1.5>brace-expansion": "1.1.21",
+      "minimatch@5.1.9>brace-expansion": "2.1.7",
+      "cheerio@1.2.0>undici": "7.29.1",
+      "@nestjs/platform-express@10.4.22>body-parser": "1.20.6",
+      "express@4.22.1>body-parser": "1.20.6",
+      "body-parser@1.20.6>qs": "6.16.0",
+      "express@4.22.1>qs": "6.16.0",
+      "@capiro/api@0.0.0>sanitize-html": "2.18.0",
+      "@capiro/workspace@0.0.0>sanitize-html": "2.18.0",
+      "express-rate-limit@8.7.0>ip-address": "10.7.4",
+      "socks@2.8.9>ip-address": "10.7.4"
     },
     "neverBuiltDependencies": [
       "@nestjs/core"

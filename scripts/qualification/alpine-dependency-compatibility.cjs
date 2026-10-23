@@ -42,7 +42,12 @@ test('outbound network negative control rejects before connecting', () => {
 
 test('exact parent-scoped dependency closure', () => {
   version(from('express'), 'proxy-addr', '2.0.8');
-  version(from('@nestjs/platform-express'), 'multer', '2.3.0');
+  version(from('@nestjs/platform-express'), 'multer', '2.4.0');
+  for (const parent of [from('express'), from('@nestjs/platform-express')]) {
+    version(parent, 'body-parser', '1.20.6');
+    version(Module.createRequire(parent.resolve('body-parser')), 'qs', '6.16.0');
+  }
+  version(from('express'), 'qs', '6.16.0');
   version(from('@nestjs/config'), 'lodash', '4.18.1');
   const clerk = from('@clerk/backend');
   const shared = Module.createRequire(clerk.resolve('@clerk/shared'));
@@ -54,6 +59,75 @@ test('exact parent-scoped dependency closure', () => {
     assert.throws(() => from('pptxgenjs').resolve('image-size'), { code: 'MODULE_NOT_FOUND' });
   }
 });
+
+test('HTTP parsers retain valid bodies and enforce size and option bounds', { timeout: 8_000 }, async () => {
+  const express = local('express');
+  const bodyParser = from('@nestjs/platform-express')('body-parser');
+  for (const limit of ['not-a-byte-limit', NaN]) {
+    assert.throws(() => bodyParser.json({ limit }));
+    assert.throws(() => bodyParser.urlencoded({ extended: true, limit }));
+  }
+  const app = express();
+  app.use(bodyParser.json({ limit: 16 }));
+  app.use(bodyParser.urlencoded({ extended: true, limit: 32 }));
+  app.use((req, res) => res.json(req.body));
+  app.use((error, _req, res, _next) => res.status(error.status || 500).end('rejected'));
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const request = (body, type) => new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port: server.address().port, method: 'POST',
+      headers: { 'content-type': type, 'content-length': Buffer.byteLength(body) } }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, data }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+  try {
+    assert.deepEqual(await request('{"a":1}', 'application/json'), { status: 200, data: '{"a":1}' });
+    assert.equal((await request(JSON.stringify({ a: 'x'.repeat(32) }), 'application/json')).status, 413);
+    assert.equal((await request('{broken}', 'application/json')).status, 400);
+    const form = await request('a%5Bb%5D=fixture', 'application/x-www-form-urlencoded');
+    assert.equal(form.status, 200);
+    assert.deepEqual(JSON.parse(form.data), { a: { b: 'fixture' } });
+    assert.equal((await request(`a=${'x'.repeat(40)}`, 'application/x-www-form-urlencoded')).status, 413);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('query parser preserves round trips and closes comma and constructor regressions', () => {
+  const qs = from('express')('qs');
+  assert.deepEqual(qs.parse(qs.stringify({ nested: { value: 'a & b' } })), { nested: { value: 'a & b' } });
+  assert.throws(() => qs.parse('a[]=1,2,3,4', { comma: true, arrayLimit: 3, throwOnLimitExceeded: true }), RangeError);
+  assert.equal(qs.stringify({ a: [null, 'b'] }, { arrayFormat: 'comma', encodeValuesOnly: true }), 'a=,b');
+  const value = qs.parse('x[constructor][isBuffer]=not-callable', { plainObjects: true });
+  assert.equal(typeof qs.stringify(value), 'string');
+});
+
+if (service === 'workspace' || service === 'engagement-api') {
+  test('HTML sanitizer retains fragments and closes noscript/meta/SVG parser regressions', () => {
+    version(local, 'sanitize-html', '2.18.0');
+    const sanitize = local('sanitize-html');
+    assert.equal(sanitize('<p>Hello <strong>fixture</strong><script>alert(1)</script></p>'),
+      '<p>Hello <strong>fixture</strong></p>');
+    const noscript = sanitize('<div><noscript></div><img src="https://example.invalid/beacon"></noscript>', {
+      allowedTags: ['div', 'img'], allowedAttributes: { img: ['src'] },
+      nonTextTags: ['script', 'style', 'textarea', 'option', 'noscript'],
+    });
+    assert.doesNotMatch(noscript, /<img\b/);
+    const refresh = sanitize('<meta http-equiv="refresh" content="0;url=javascript:alert(1)">', {
+      allowedTags: ['meta'], allowedAttributes: { meta: ['http-equiv', 'content'] },
+    });
+    assert.doesNotMatch(refresh, /javascript:/);
+    const svg = sanitize('<svg><a href="#safe"><svg:animate attributeName="href" values="#safe;javascript:alert(1)"/></a></svg>', {
+      allowedTags: false, allowedAttributes: false, allowedSchemes: ['http', 'https'],
+    });
+    assert.doesNotMatch(svg, /javascript:/);
+  });
+}
 
 test('Express proxy address selection preserves trusted and untrusted hops', () => {
   const express = local('express');
@@ -240,6 +314,16 @@ if (service === 'api-strategy' || service === 'engagement-api') test('PPTX PNG, 
 });
 
 if (service === 'engagement-api') {
+  test('MCP rate-limit IP dependency preserves valid IPv6 and rejects hostile input', () => {
+    const sdk = Module.createRequire(local.resolve('@modelcontextprotocol/sdk/client/index.js'));
+    const rateLimit = Module.createRequire(sdk.resolve('express-rate-limit'));
+    version(rateLimit, 'ip-address', '10.7.4');
+    const { Address6 } = rateLimit('ip-address');
+    assert.equal(new Address6('2001:db8::1').correctForm(), '2001:db8::1');
+    assert.equal(Address6.isValid(`${'%'.repeat(10_000)}\n`), false);
+    assert.equal(Address6.isValid('not-an-address'), false);
+  });
+
   test('Core MCP SDK initializes, lists, calls, rejects errors and closes through real protocol', { timeout: 8_000 }, async () => {
     const clientEntry = local.resolve('@modelcontextprotocol/sdk/client/index.js');
     const sdkManifest = path.resolve(path.dirname(clientEntry), '../../../package.json');
@@ -283,7 +367,7 @@ if (service === 'engagement-api') {
     const archiverUtilsRequire = Module.createRequire(archiverRequire.resolve('archiver-utils'));
     const globRequire = Module.createRequire(archiverUtilsRequire.resolve('glob'));
     const readdirRequire = Module.createRequire(archiverRequire.resolve('readdir-glob'));
-    for (const [parent, expected] of [[globRequire, '1.1.20'], [readdirRequire, '2.1.6']]) {
+    for (const [parent, expected] of [[globRequire, '1.1.21'], [readdirRequire, '2.1.7']]) {
       const minimatchRequire = Module.createRequire(parent.resolve('minimatch'));
       version(minimatchRequire, 'brace-expansion', expected);
       const expand = minimatchRequire('brace-expansion');
