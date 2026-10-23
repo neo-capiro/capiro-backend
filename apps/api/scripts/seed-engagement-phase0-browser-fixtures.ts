@@ -28,7 +28,10 @@
  */
 
 import { writeFile } from 'node:fs/promises';
+import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { insertPlan, recordPlanRevision } from '../src/engagement/plans/engagement-plan-store.js';
+import { singleMailHash } from '../src/engagement/single-mail-ledger.js';
 import { clearNewsletterPublicFixture, seedNewsletterPublicFixture } from './engagement-phase1-newsletter-fixture.js';
 
 const usage = 'Usage: tsx scripts/seed-engagement-phase0-browser-fixtures.ts --run';
@@ -60,6 +63,13 @@ const AUDIENCE_GROUP_ID = 'ea000000-0000-4000-8000-000000000062';
 const CAMPAIGN_ID = 'ea000000-0000-4000-8000-000000000071';
 const TASK_ID = 'ea000000-0000-4000-8000-000000000081';
 const REPORT_OFFICE_ID = 'ea000000-0000-4000-8000-000000000091';
+const READ_PARITY_IDS = {
+  connection: 'ea000000-0000-4000-8000-000000000111',
+  mailIntent: 'ea000000-0000-4000-8000-000000000112',
+  mailRequestKey: 'ea000000-0000-4000-8000-000000000113',
+  meetingPrepJob: 'ea000000-0000-4000-8000-000000000114',
+  plan: 'ea000000-0000-4000-8000-000000000115',
+};
 
 const NOW = new Date();
 const PAST = new Date(NOW.getTime() - 7 * 86400000);
@@ -69,6 +79,48 @@ function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+async function clearReadParityRecords(prisma: PrismaService): Promise<void> {
+  await prisma.withTenantUser(TENANT_ID, USER_ID, async (tx) => {
+    // History is immutable: delete the actual parent and use its existing FK cascade.
+    await tx.engagementPlan.deleteMany({ where: { tenantId: TENANT_ID, id: READ_PARITY_IDS.plan } });
+    await tx.meetingPrepJob.deleteMany({ where: { tenantId: TENANT_ID, userId: USER_ID, id: READ_PARITY_IDS.meetingPrepJob } });
+    await tx.$executeRaw`DELETE FROM single_mail_intents WHERE tenant_id = ${TENANT_ID}::uuid
+      AND actor_id = ${USER_ID}::uuid AND id = ${READ_PARITY_IDS.mailIntent}::uuid`;
+    await tx.integrationConnection.deleteMany({ where: { tenantId: TENANT_ID, createdByUserId: USER_ID, id: READ_PARITY_IDS.connection } });
+  });
+}
+
+async function seedReadParityRecords(prisma: PrismaService, clerkUserId: string) {
+  const ctx: TenantContext = { tenantId: TENANT_ID, userId: USER_ID, clerkUserId,
+    tenantSlug: 'phase0-engagement-baseline', role: 'user_admin' };
+  await prisma.withTenantUser(TENANT_ID, USER_ID, async (tx) => {
+    await tx.integrationConnection.create({ data: {
+      id: READ_PARITY_IDS.connection, tenantId: TENANT_ID, createdByUserId: USER_ID,
+      provider: 'microsoft_365', accountEmail: 'read-parity@example.test', status: 'needs_configuration',
+    } });
+    // Terminal synthetic outcome only; never enqueue/claim mail or call a provider.
+    const snapshot = { subject: 'Phase 1 read-only mail fixture', bodyHtml: '', to: [] };
+    await tx.$executeRaw`INSERT INTO single_mail_intents
+      (id, tenant_id, actor_id, request_key, request_hash, connection_id, client_id, state, snapshot)
+      VALUES (${READ_PARITY_IDS.mailIntent}::uuid, ${TENANT_ID}::uuid, ${USER_ID}::uuid,
+        ${READ_PARITY_IDS.mailRequestKey}::uuid, ${singleMailHash(snapshot)},
+        ${READ_PARITY_IDS.connection}::uuid, ${CLIENT_A_ID}::uuid, 'failed', ${JSON.stringify(snapshot)}::jsonb)`;
+    // Cancelled + expired cannot be picked up by the prep worker. Readback needs no encrypted input.
+    await tx.meetingPrepJob.create({ data: {
+      id: READ_PARITY_IDS.meetingPrepJob, tenantId: TENANT_ID, userId: USER_ID,
+      meetingId: MEETING_CURRENT_ID, requestKey: 'phase1-read-parity-prep',
+      requestHash: singleMailHash({ meetingId: MEETING_CURRENT_ID, fixture: 'cancelled-prep' }),
+      status: 'cancelled', stage: 'cancelled', depth: 'standard', input: {},
+      deadlineAt: new Date('2020-01-01T00:00:00.000Z'),
+    } });
+    const plan = await insertPlan(tx, ctx, { id: READ_PARITY_IDS.plan, clientId: CLIENT_A_ID,
+      title: 'Phase 1 read parity plan', officeReferences: [], objectiveBinding: null });
+    await recordPlanRevision(tx, ctx, plan, 'create_plan');
+  });
+  return { mailRequestKey: READ_PARITY_IDS.mailRequestKey,
+    meetingPrepJobId: READ_PARITY_IDS.meetingPrepJob, planId: READ_PARITY_IDS.plan };
 }
 
 async function main(): Promise<void> {
@@ -82,6 +134,7 @@ async function main(): Promise<void> {
 
   try {
     // Clean up any previous run
+    await clearReadParityRecords(prisma);
     await clearNewsletterPublicFixture(prisma, TENANT_ID);
     await prisma.$executeRawUnsafe(`DELETE FROM engagement_campaign_recipients WHERE campaign_id = '${CAMPAIGN_ID}'::uuid`);
     await prisma.$executeRawUnsafe(`DELETE FROM engagement_campaigns WHERE id = '${CAMPAIGN_ID}'::uuid`);
@@ -208,6 +261,7 @@ async function main(): Promise<void> {
     const newsletterPublic = await seedNewsletterPublicFixture(prisma, {
       tenantId: TENANT_ID, userId: USER_ID, clerkUserId, outreachRecordId: OUTREACH_SENT_ID,
     });
+    const recordReads = await seedReadParityRecords(prisma, clerkUserId);
     // Write fixture IDs for the acceptance script
     const fixtures = {
       tenantId: TENANT_ID,
@@ -221,6 +275,7 @@ async function main(): Promise<void> {
       taskId: TASK_ID,
       reportOfficeId: REPORT_OFFICE_ID,
       newsletterPublic,
+      recordReads,
     };
 
     await writeFile(fixtureFile, JSON.stringify(fixtures, null, 2) + '\n');
