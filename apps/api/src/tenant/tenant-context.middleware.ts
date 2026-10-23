@@ -46,7 +46,7 @@ import {
   type ApplicationAuthorityIdentityEvidence,
   type ApplicationAuthorityIdentityProof,
 } from '../auth/application-authority.js';
-import { coreRosterPreviewDecision, isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
+import { coreRosterPreviewDecision, firstChatClientPreviewDecision, isPreviewNativeReadRoute, previewNativeReadMode } from '../auth/preview-native-read-mode.js';
 import {
   admitMeriReadToken,
   isMeriReadDelegationServicePost,
@@ -178,6 +178,14 @@ export class TenantContextMiddleware implements NestMiddleware {
       res.setHeader('Cache-Control', 'no-store');
       if (roster === 'unavailable') throw new ServiceUnavailableException('Preview reads unavailable');
       if (roster === 'not-found') throw new NotFoundException();
+      await this.usePreviewNativeRead(req, next);
+      return;
+    }
+    const clientPreview = firstChatClientPreviewDecision(req, process.env.PREVIEW_NATIVE_GETS_ENABLED === 'true');
+    if (clientPreview !== 'unrelated') {
+      res.setHeader('Cache-Control', 'no-store');
+      if (clientPreview === 'unavailable') throw new ServiceUnavailableException('Preview client records unavailable');
+      if (clientPreview === 'not-found') throw new NotFoundException();
       await this.usePreviewNativeRead(req, next);
       return;
     }
@@ -653,7 +661,8 @@ export class TenantContextMiddleware implements NestMiddleware {
     this.store.run(ctx, () => next());
   }
 
-  /** Read-only preview context. A missing local user/member is a denial, never a repair. */
+  /** Existing preview identity only. A missing local user/member is a denial,
+   * never a repair; admitted client mutations authorize within their transaction. */
   private async usePreviewNativeRead(req: Request, next: NextFunction): Promise<void> {
     const denied = () => new ForbiddenException('Application authority unavailable');
     const auth = req.headers.authorization;
@@ -691,6 +700,7 @@ export class TenantContextMiddleware implements NestMiddleware {
         (memberships.length === 1 && !claimedTenantId && !claimedOrgId && !claimedTenantSlug && !requestedSlug
           ? memberships[0] : undefined);
       if (!chosen || chosen.status !== 'active' || chosen.tenant.status !== 'active' ||
+          !Object.hasOwn(ROLE_RANK, chosen.role) ||
           (claimedTenantId && chosen.tenantId !== claimedTenantId) ||
           (claimedTenantSlug && chosen.tenant.slug.toLowerCase() !== claimedTenantSlug.toLowerCase()) ||
           (claimedOrgId && chosen.tenant.clerkOrgId !== claimedOrgId) ||

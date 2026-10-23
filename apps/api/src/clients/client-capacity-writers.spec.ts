@@ -16,7 +16,7 @@ jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: class 
 import { ClientsService } from './clients.service.js';
 import { FirmOnboardingService } from '../intelligence/firm-onboarding.service.js';
 
-const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-actor' } as never;
+const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222', clerkUserId: 'user_synthetic', role: 'user_admin' } as never;
 function fixture() {
   let clients: Array<Record<string, any>> = [];
   let slots = 1,
@@ -35,10 +35,14 @@ function fixture() {
     $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.join('?');
       statements.push(sql);
+      if (sql.includes('FOR SHARE OF tm, u')) return [{ role: 'user_admin' }];
+      if (sql.includes('FROM client_memory_access')) return [];
       if (sql.includes('FROM tenants')) return [tenant()];
       if (sql.includes('FROM clients')) return clients.filter((c) => c.id === values[1]);
       throw Error('Unexpected fixture query');
     }),
+    tenantMembership: { findFirst: jest.fn(async () => ({ role: 'user_admin' })) },
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
     tenant: { findUnique: jest.fn(async () => tenant()) },
     client: {
       count: jest.fn(async () => clients.filter((c) => c.status !== 'archived').length),
@@ -49,7 +53,7 @@ function fixture() {
         ),
       ),
       create: jest.fn(async ({ data }: any) => {
-        const row = { id: `client-${clients.length}`, status: 'active', intakeData: {}, ...data };
+        const row = { id: `33333333-3333-4333-8333-${String(clients.length).padStart(12, '0')}`, status: 'active', intakeData: {}, ...data };
         clients.push(row);
         return row;
       }),
@@ -133,13 +137,13 @@ it('CSV import rechecks capacity inside each row and preserves per-row outcomes'
 it('restore needs capacity, duplicate active status consumes none, and archive releases the slot', async () => {
   const h = fixture();
   await h.clients.createInTransaction(ctx, h.tx as never, { name: 'First' });
-  h.rows().push({ id: 'archived', name: 'Archived', status: 'archived', intakeData: {} });
-  await expect(h.clients.update(ctx, 'archived', { status: 'active' })).rejects.toMatchObject({
+  h.rows().push({ id: '44444444-4444-4444-8444-444444444444', name: 'Archived', status: 'archived', intakeData: {} });
+  await expect(h.clients.update(ctx, '44444444-4444-4444-8444-444444444444', { status: 'active' })).rejects.toMatchObject({
     status: 402,
   });
-  await h.clients.update(ctx, 'client-0', { status: 'active' });
-  await h.clients.archive(ctx, 'client-0');
-  await h.clients.update(ctx, 'archived', { status: 'active' });
+  await h.clients.update(ctx, '33333333-3333-4333-8333-000000000000', { status: 'active' });
+  await h.clients.archive(ctx, '33333333-3333-4333-8333-000000000000');
+  await h.clients.update(ctx, '44444444-4444-4444-8444-444444444444', { status: 'active' });
   expect(h.rows().map((c) => c.status)).toEqual(['archived', 'active']);
 });
 it('LDA import retains identity-lock-first, fresh per-row cap and mapping rollback', async () => {

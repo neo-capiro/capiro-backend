@@ -49,10 +49,12 @@ describe('CONFIRMED_CLIENT_LOGO_KEY_PATTERN', () => {
 });
 
 describe('ClientsService.list — archived filtering', () => {
-  const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as never;
+  const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222', clerkUserId: 'user_synthetic', role: 'user_admin' } as never;
 
   const makeService = () => {
     const tenantTx = {
+      $queryRaw: jest.fn(async () => [{ role: 'user_admin' }]),
+      $queryRawUnsafe: jest.fn(async () => []),
       client: { findMany: jest.fn(async () => [] as unknown[]) },
     };
     const prisma = {
@@ -99,7 +101,7 @@ describe('ClientsService.list — archived filtering', () => {
 
     expect(tenantTx.client.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { tenantId: 'tenant-1', status: { not: 'archived' } },
+        where: { tenantId: '11111111-1111-4111-8111-111111111111', status: { not: 'archived' } },
       }),
     );
   });
@@ -112,7 +114,7 @@ describe('ClientsService.list — archived filtering', () => {
     // No status filter is added → only the always-on tenant scope remains (the
     // app role bypasses RLS, so list() puts tenantId in every where clause).
     expect(tenantTx.client.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { tenantId: 'tenant-1' } }),
+      expect.objectContaining({ where: { tenantId: '11111111-1111-4111-8111-111111111111' } }),
     );
   });
 
@@ -124,7 +126,7 @@ describe('ClientsService.list — archived filtering', () => {
     expect(tenantTx.client.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          tenantId: 'tenant-1',
+          tenantId: '11111111-1111-4111-8111-111111111111',
           profileStatus: 'ACTIVE',
           sectorTag: 'defense',
           status: { not: 'archived' },

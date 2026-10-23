@@ -64,6 +64,7 @@ function fixture(path = '/api/me', host = previewHost, method = 'GET', originalU
   const request = {
     method,
     headers: { host, authorization: 'Bearer native-session' },
+    rawHeaders: ['Host', host],
     path: path.split('?')[0], originalUrl, url: originalUrl, baseUrl: '', hostname: host,
     header: jest.fn(() => undefined),
   } as unknown as Request & { tenantContext?: unknown };
@@ -93,6 +94,7 @@ describe('TenantContextMiddleware preview native GET context', () => {
 
   it.each([
     '/api/me', '/api/clients?includeArchived=true', '/api/clients/11111111-1111-4111-8111-111111111111',
+    '/api/client-account-owners', '/api/client-account-owners/options', '/api/billing/state',
     '/api/memory/candidates/mine?limit=25',
     '/api/memory/candidates/mine/11111111-1111-4111-8111-111111111111/status',
     '/api/memory/owner/items?limit=25',
@@ -116,6 +118,25 @@ describe('TenantContextMiddleware preview native GET context', () => {
     expect(h.run).toHaveBeenCalledTimes(1);
     expect(h.headers.get('cache-control')).toBe('no-store');
     expectNoLocalMutation(h.mutations);
+  });
+
+  it.each([
+    ['POST', '/api/clients'],
+    ['PUT', '/api/clients/11111111-1111-4111-8111-111111111111'],
+    ['DELETE', '/api/clients/11111111-1111-4111-8111-111111111111'],
+    ['PUT', '/api/clients/11111111-1111-4111-8111-111111111111/account-owners'],
+  ])('resolves %s %s online without provisioning; revoked sessions never reach the writer', async (method, path) => {
+    const h = fixture(path, previewHost, method);
+    await h.middleware.use(h.request, h.response, h.next);
+    expect(h.active).toHaveBeenCalledTimes(1);
+    expect(h.active.mock.invocationCallOrder[0]).toBeLessThan(h.system.mock.invocationCallOrder[0]!);
+    expect(h.next).toHaveBeenCalledTimes(1);
+    expectNoLocalMutation(h.mutations);
+    const revoked = fixture(path, previewHost, method);
+    revoked.active.mockRejectedValueOnce(new ForbiddenException('Revoked'));
+    await expect(revoked.middleware.use(revoked.request, revoked.response, revoked.next)).rejects.toMatchObject({ status: 403 });
+    expect(revoked.system).not.toHaveBeenCalled(); expect(revoked.next).not.toHaveBeenCalled();
+    expectNoLocalMutation(revoked.mutations);
   });
 
   it.each([

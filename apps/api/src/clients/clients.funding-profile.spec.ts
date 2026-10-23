@@ -21,13 +21,21 @@ jest.mock('../intelligence/sam-entity.service.js', () => ({
 jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: class {} }));
 
 describe('client funding profile API writers', () => {
-  const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as never;
+  const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222', clerkUserId: 'user_synthetic', role: 'user_admin' } as never;
   const smallBusiness = GRANTS_GOV_APPLICANT_TYPES[13];
 
   function setup(existing: Record<string, unknown> | null = { applicantTypes: [] }) {
     const tx = {
       $executeRaw: jest.fn(async () => 1),
-      $queryRaw: jest.fn(async () => [{ billingStatus: 'comped', clientSlots: 0, ldaRegistrantId: null }]),
+      $queryRaw: jest.fn(async (parts: TemplateStringsArray) => {
+        const sql = parts.join('?');
+        if (sql.includes('FOR SHARE OF tm, u')) return [{ role: 'user_admin' }];
+        if (sql.includes('account_owner_version')) return [{ version: 0, primary: null }];
+        if (sql.includes('client_memory_access')) return [];
+        return [{ billingStatus: 'comped', clientSlots: 0, ldaRegistrantId: null }];
+      }),
+      $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
+      tenantMembership: { findFirst: jest.fn(async () => ({ role: 'user_admin' })) },
       tenant: {
         findUnique: jest.fn(async () => ({ billingStatus: 'comped', ldaRegistrantId: null })),
       },
@@ -36,12 +44,12 @@ describe('client funding profile API writers', () => {
         count: jest.fn(async () => 0),
         findFirst: jest.fn(async () => existing),
         create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'client-1',
+          id: '33333333-3333-4333-8333-333333333333',
           logoS3Key: null,
           ...data,
         })),
         update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
-          id: 'client-1',
+          id: '33333333-3333-4333-8333-333333333333',
           name: 'Example',
           logoS3Key: null,
           ...existing,
@@ -121,27 +129,27 @@ describe('client funding profile API writers', () => {
   test('update allows existing legacy labels, rejects additions and accepts removal', async () => {
     const legacy = 'Unknown historical label';
     const { service, tx } = setup({ applicantTypes: [legacy], uei: null });
-    await service.update(ctx, 'client-1', {
+    await service.update(ctx, '33333333-3333-4333-8333-333333333333', {
       applicantTypes: [legacy, smallBusiness],
       intakeData: { custom: 'retained by editor' },
     });
     expect(tx.client.update).toHaveBeenLastCalledWith({
-      where: { id: 'client-1', tenantId: 'tenant-1' },
+      where: { id: '33333333-3333-4333-8333-333333333333', tenantId: '11111111-1111-4111-8111-111111111111' },
       data: {
         applicantTypes: [legacy, smallBusiness],
         intakeData: { custom: 'retained by editor' },
       },
     });
     await expect(
-      service.update(ctx, 'client-1', { applicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS] }),
+      service.update(ctx, '33333333-3333-4333-8333-333333333333', { applicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS] }),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
-      service.update(ctx, 'client-1', { intakeData: { fundingPriorities: [3] } }),
+      service.update(ctx, '33333333-3333-4333-8333-333333333333', { intakeData: { fundingPriorities: [3] } }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.client.update).toHaveBeenCalledTimes(1);
-    await service.update(ctx, 'client-1', { applicantTypes: [], intakeData: {} });
+    await service.update(ctx, '33333333-3333-4333-8333-333333333333', { applicantTypes: [], intakeData: {} });
     expect(tx.client.update).toHaveBeenLastCalledWith({
-      where: { id: 'client-1', tenantId: 'tenant-1' },
+      where: { id: '33333333-3333-4333-8333-333333333333', tenantId: '11111111-1111-4111-8111-111111111111' },
       data: { applicantTypes: [], intakeData: {} },
     });
   });
@@ -149,10 +157,10 @@ describe('client funding profile API writers', () => {
   test('reads legacy organization values within the active tenant and rejects a missing client', async () => {
     const { service, tx } = setup(null);
     await expect(
-      service.update(ctx, 'missing', { applicantTypes: [smallBusiness] }),
+      service.update(ctx, '44444444-4444-4444-8444-444444444444', { applicantTypes: [smallBusiness] }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.client.findFirst).toHaveBeenCalledWith({
-      where: { id: 'missing', tenantId: 'tenant-1' },
+      where: { id: '44444444-4444-4444-8444-444444444444', tenantId: '11111111-1111-4111-8111-111111111111' },
       select: {
         uei: true,
         name: true,

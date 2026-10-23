@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import type { Request } from 'express';
 import {
-  coreRosterPreviewDecision, isPreviewNativeReadRoute, previewNativeReadMode,
+  coreRosterPreviewDecision, firstChatClientPreviewDecision, isPreviewNativeReadRoute, previewNativeReadMode,
 } from './preview-native-read-mode.js';
 
 function request(method: string, path: string, originalUrl = path): Request {
@@ -47,6 +47,42 @@ describe('preview native memory route predicate', () => {
     expect(previewNativeReadMode(true, 'app.capiro.ai')).toBe('unavailable');
     expect(previewNativeReadMode(true, `${host}:443`)).toBe('unavailable');
     expect(previewNativeReadMode(false, 'app.capiro.ai')).toBe('ordinary');
+  });
+});
+
+describe('first-chat client records exact native admission', () => {
+  const host = 'first-chat-preview.app-dev.capiro.ai';
+  const id = '11111111-1111-4111-8111-111111111111';
+  const req = (method: string, target: string) => rosterRequest(method, target, host);
+  it.each([
+    ['GET', '/api/clients?includeArchived=true'], ['HEAD', '/api/clients'], ['POST', '/api/clients'],
+    ['GET', `/api/clients/${id}`], ['PUT', `/api/clients/${id}`], ['DELETE', `/api/clients/${id}`],
+    ['GET', '/api/client-account-owners'], ['GET', '/api/client-account-owners/options'],
+    ['GET', `/api/clients/${id}/account-owners`], ['PUT', `/api/clients/${id}/account-owners`],
+    ['GET', '/api/billing/state'],
+  ])('admits only the allocated method and route %s %s', (method, path) => {
+    expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('preview');
+  });
+  it.each([
+    ['PATCH', `/api/clients/${id}`], ['POST', '/api/clients/bulk-import'],
+    ['PUT', `/api/client-account-owners/${id}`], ['GET', '/api/billing/summary'],
+    ['POST', `/api/clients/${id}/logo/confirm`], ['PUT', `/api/clients/${id}/profile-notes`],
+    ['POST', '/api/clients?includeArchived=true'], ['GET', '/api/clients?tenantId=other'],
+    ['GET', '/api/clients?includeArchived=true&includeArchived=false'],
+    ['GET', '/api/clients/'], ['GET', '/api/clients/not-a-uuid'],
+  ])('keeps unallocated methods, children and ambiguous input held %s %s', (method, path) => {
+    expect(firstChatClientPreviewDecision(req(method, path), true)).toBe('not-found');
+  });
+  it('rejects duplicate, disguised and absolute-form authority and unavailable mode', () => {
+    const current = req('POST', '/api/clients');
+    current.rawHeaders.push('Host', 'ordinary.example');
+    expect(firstChatClientPreviewDecision(current, true)).toBe('not-found');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', '/api/clients', `${host}.evil.example`), true)).toBe('not-found');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', `https://${host}/api/clients`, host, '/api/clients'), true)).toBe('not-found');
+    expect(firstChatClientPreviewDecision(req('POST', '/api/clients'), false)).toBe('unavailable');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', '/api/clients', 'ordinary.example'), true)).toBe('unavailable');
+    expect(firstChatClientPreviewDecision(rosterRequest('POST', '/api/clients', 'ordinary.example'), false)).toBe('unrelated');
+    expect(firstChatClientPreviewDecision(req('POST', '/api/clio/conversations/bootstrap'), true)).toBe('unrelated');
   });
 });
 

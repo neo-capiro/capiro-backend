@@ -29,6 +29,8 @@ import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.j
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { validateClientFundingProfile } from './client-funding-profile.validation.js';
 import { requireClientCapacity } from './client-capacity.js';
+import { requireOwnerActor, requireOwnerClient } from './client-ordered-owner.access.js';
+import { fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 
 export interface CreateClientInput {
   name: string;
@@ -1105,9 +1107,12 @@ export class ClientsService {
     // explicit management views opt in via includeArchived.
     if (!filter.includeArchived) where.status = { not: 'archived' };
 
-    const clients = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findMany({ where, orderBy: { createdAt: 'desc' } }),
-    );
+    const clients = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerActor(tx, ctx, false, true);
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      if (denied.length) where.id = { notIn: denied };
+      return tx.client.findMany({ where, orderBy: { createdAt: 'desc' } });
+    }, { isolationLevel: 'RepeatableRead' });
     return this.withLogoUrls(clients);
   }
 
@@ -1145,9 +1150,10 @@ export class ClientsService {
     // findFirst with an explicit tenantId (not findUnique by id alone): the app
     // role bypasses RLS, so a bare id lookup would let any tenant fetch any
     // other tenant's client by guessing/enumerating ids.
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({ where: { id, tenantId: ctx.tenantId } }),
-    );
+    const client = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerClient(tx, ctx, id, false, true);
+      return tx.client.findFirst({ where: { id, tenantId: ctx.tenantId } });
+    });
     if (!client) throw new NotFoundException('Client not found');
     return this.withLogoUrl(client);
   }
@@ -1193,16 +1199,16 @@ export class ClientsService {
   /**
    * Transaction-aware core of {@link create}. Runs the ENTIRE authoritative
    * client-creation rule set — funding-profile validation, billing slot
-   * entitlement check, and the insert — inside a caller-supplied Prisma
+   * entitlement check, current actor authorization, and the insert — inside a caller-supplied Prisma
    * transactional client, so
    * Business Development prospect conversion can compose client creation
    * into its OWN single transaction (client + prospect link commit or roll
    * back together) without duplicating a weaker insert. A slot is consumed
-   * ONLY when this actually creates a client row. The public create()
-   * behavior is unchanged: same checks, same errors, same insert.
+   * ONLY when this actually creates a client row. Public create and prospect
+   * conversion therefore enforce the same current membership before insertion.
    */
   async createInTransaction(
-    ctx: Pick<TenantContext, 'tenantId' | 'userId'>,
+    ctx: TenantContext,
     tx: Prisma.TransactionClient,
     input: CreateClientInput,
   ): Promise<{ client: Client; ldaRegistrantId: number | null }> {
@@ -1213,6 +1219,7 @@ export class ClientsService {
     const validated = { ...input, ...validateClientFundingProfile(input) };
 
     const tenant = await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced);
+    await requireOwnerActor(tx, ctx, false, true);
     const client = await tx.client.create({
       data: {
         tenantId: ctx.tenantId,
@@ -1379,24 +1386,22 @@ export class ClientsService {
   }
 
   async update(ctx: TenantContext, id: string, input: UpdateClientInput) {
-    // Read this tenant's current profile to preserve legacy organization values
-    // and detect whether its UEI changed.
-    const before = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id, tenantId: ctx.tenantId },
-        select: { uei: true, name: true, applicantTypes: true, intakeData: true, naicsCodes: true, setAsideCertifications: true },
-      }),
-    );
-    if (!before) throw new NotFoundException('Client not found');
-    input = { ...input, ...validateClientFundingProfile(input, before) };
-
-    const client = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const { client, before } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Capacity transitions already acquire capacity/tenant before client.
+      // Keep that order, then hold current actor and wall grants through commit.
       if (input.status !== undefined)
         await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced, {
           clientId: id,
           status: input.status,
         });
-      return tx.client.update({
+      await requireOwnerClient(tx, ctx, id, false, true);
+      const before = await tx.client.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+        select: { uei: true, name: true, applicantTypes: true, intakeData: true, naicsCodes: true, setAsideCertifications: true },
+      });
+      if (!before) throw new NotFoundException('Client not found');
+      input = { ...input, ...validateClientFundingProfile(input, before) };
+      const client = await tx.client.update({
         where: { id, tenantId: ctx.tenantId },
         data: {
           ...('name' in input ? { name: input.name } : {}),
@@ -1449,6 +1454,7 @@ export class ClientsService {
             : {}),
         },
       });
+      return { client, before };
     });
 
     // When the UEI was set or changed, re-run entity resolution so

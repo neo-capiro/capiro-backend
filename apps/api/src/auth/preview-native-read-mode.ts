@@ -7,6 +7,42 @@ const PREVIEW_GET_PATH = /^\/api\/(?:me|clients(?:\/[^/?]+)?|memory\/(?:candidat
 
 export type CoreRosterPreviewDecision = 'unrelated' | 'preview' | 'unavailable' | 'not-found';
 
+const CLIENT_ID = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const CLIENT_RECORD_PATHS: Readonly<Record<string, RegExp>> = {
+  GET: new RegExp(`^/api/(?:clients(?:/${CLIENT_ID}(?:/account-owners)?)?|client-account-owners(?:/options)?|billing/state)$`),
+  POST: /^\/api\/clients$/,
+  PUT: new RegExp(`^/api/clients/${CLIENT_ID}(?:/account-owners)?$`),
+  DELETE: new RegExp(`^/api/clients/${CLIENT_ID}$`),
+};
+
+/** Native client records share the existing first-chat session owner. Reserve
+ * the complete route family before ordinary provisioning can see near misses. */
+export function firstChatClientPreviewDecision(req: Request, enabled: boolean): CoreRosterPreviewDecision {
+  const target = req.originalUrl ?? req.url;
+  const parsedPath = mountedRequestPath(req);
+  const family = /^\/api\/(?:clients|client-account-owners|billing)(?:\/|$)/i;
+  if (!family.test(parsedPath) && !(typeof target === 'string' && family.test(target.split('?')[0]!))) return 'unrelated';
+  const rawHosts: string[] = [];
+  for (let i = 0; i < (req.rawHeaders?.length ?? 0) - 1; i += 2) {
+    if (req.rawHeaders[i]?.toLowerCase() === 'host') rawHosts.push(req.rawHeaders[i + 1]!);
+  }
+  const reserved = [req.headers.host, ...rawHosts, target].some(
+    value => typeof value === 'string' && value.toLowerCase().includes(PREVIEW_HOST),
+  );
+  if (!enabled && !reserved) return 'unrelated';
+  if (!enabled || !reserved) return 'unavailable';
+  if (!Array.isArray(req.rawHeaders) || req.rawHeaders.length % 2 !== 0 || rawHosts.length !== 1 ||
+      rawHosts[0] !== PREVIEW_HOST || req.headers.host !== PREVIEW_HOST ||
+      typeof target !== 'string' || !target.startsWith('/')) return 'not-found';
+  const queryStart = target.indexOf('?');
+  const rawPath = queryStart === -1 ? target : target.slice(0, queryStart);
+  const method = req.method === 'HEAD' ? 'GET' : req.method;
+  if (rawPath !== parsedPath || !CLIENT_RECORD_PATHS[method]?.test(rawPath)) return 'not-found';
+  if (queryStart !== -1 && (method !== 'GET' || rawPath !== '/api/clients' ||
+      !boundedRosterQuery(target.slice(queryStart + 1)))) return 'not-found';
+  return 'preview';
+}
+
 /**
  * The roster origin is a separate, exact Host authority. Inspect raw Host
  * headers as well as Node's normalized first value: Node may discard a second
