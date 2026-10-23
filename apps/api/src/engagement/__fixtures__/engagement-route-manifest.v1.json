@@ -1309,7 +1309,7 @@
         "ctx",
         "requestKey"
       ],
-      "classification": "external_send"
+      "classification": "read"
     },
     {
       "method": "PATCH",
@@ -2112,6 +2112,308 @@
         "query"
       ],
       "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/newsletter-public/:token/archive",
+      "controller": "NewsletterPublicController",
+      "handler": "archive",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 103,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "token",
+        "res"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/newsletter-public/:token/preferences",
+      "controller": "NewsletterPublicController",
+      "handler": "preferences",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 118,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "token",
+        "res"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletter-public/:token/preferences",
+      "controller": "NewsletterPublicController",
+      "handler": "savePreferences",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 124,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "token",
+        "res"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/newsletter-public/:token/survey",
+      "controller": "NewsletterPublicController",
+      "handler": "survey",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 130,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "SurveyDto",
+      "parameterNames": [
+        "token",
+        "query",
+        "res"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletter-public/:token/survey",
+      "controller": "NewsletterPublicController",
+      "handler": "submitSurvey",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 137,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": "SurveyDto",
+      "parameterNames": [
+        "token",
+        "query",
+        "res"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/newsletter-public/:token/unsubscribe",
+      "controller": "NewsletterPublicController",
+      "handler": "unsubscribe",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 106,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "token",
+        "res"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletter-public/:token/unsubscribe",
+      "controller": "NewsletterPublicController",
+      "handler": "confirmUnsubscribe",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 112,
+      "controllerGuards": [],
+      "handlerGuards": [],
+      "controllerRoles": [],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "token",
+        "res"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/newsletters/:id",
+      "controller": "NewsletterOutreachController",
+      "handler": "get",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 65,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletters/:id/prepare",
+      "controller": "NewsletterOutreachController",
+      "handler": "prepare",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 68,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "PrepareDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletters/:id/send",
+      "controller": "NewsletterOutreachController",
+      "handler": "send",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 75,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "SendDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletters/:id/test",
+      "controller": "NewsletterOutreachController",
+      "handler": "test",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 80,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "SendDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "external_send"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/newsletters/stages/:id",
+      "controller": "NewsletterOutreachController",
+      "handler": "stage",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 59,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/newsletters/stages/:id/open",
+      "controller": "NewsletterOutreachController",
+      "handler": "open",
+      "sourceFile": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sourceLine": 62,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
     },
     {
       "method": "GET",

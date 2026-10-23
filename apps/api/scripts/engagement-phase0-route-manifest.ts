@@ -29,6 +29,8 @@ function getDefs(): ControllerDef[] {
     { absolutePath: path.join(API_ROOT, 'src/engagement/krisp/krisp-notetaker.controller.ts'), repoPath: 'apps/api/src/engagement/krisp/krisp-notetaker.controller.ts', controllerName: 'KrispNotetakerController', controllerPrefix: 'clio/krisp-notetaker', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/engagement.controller.ts'), repoPath: 'apps/api/src/engagement/engagement.controller.ts', controllerName: 'EngagementController', controllerPrefix: 'engagement', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/plans/engagement-plans.controller.ts'), repoPath: 'apps/api/src/engagement/plans/engagement-plans.controller.ts', controllerName: 'EngagementPlansController', controllerPrefix: 'engagement/plans', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/newsletter-outreach.controller.ts'), repoPath: 'apps/api/src/engagement/newsletter-outreach.controller.ts', controllerName: 'NewsletterOutreachController', controllerPrefix: 'engagement/newsletters', barePrefix: false },
+    { absolutePath: path.join(API_ROOT, 'src/engagement/newsletter-outreach.controller.ts'), repoPath: 'apps/api/src/engagement/newsletter-outreach.controller.ts', controllerName: 'NewsletterPublicController', controllerPrefix: 'engagement/newsletter-public', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/microsoft/microsoft-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts', controllerName: 'MicrosoftOAuthController', controllerPrefix: 'engagement/integrations/microsoft', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/google/google-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/google/google-oauth.controller.ts', controllerName: 'GoogleOAuthController', controllerPrefix: 'engagement/integrations/google', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/outcome/outcome.controller.ts'), repoPath: 'apps/api/src/engagement/outcome/outcome.controller.ts', controllerName: 'OutcomeController', controllerPrefix: 'engagement/outcomes', barePrefix: false },
@@ -83,6 +85,10 @@ function classify(method: string, fullPath: string, ctrl: string, handler: strin
   if (ctrl === 'RecallWebhookController') return 'webhook';
   if (fullPath.startsWith('/api/internal/')) return 'internal_secret';
   if (ctrl.includes('OAuth')) return 'oauth';
+  // This GET only reads the local intent under current mailbox/client authority.
+  if (method === 'GET' && ctrl === 'EngagementController' && handler === 'singleMailIntent') return 'read';
+  // Both handlers dispatch through the provider; test sends are not local writes.
+  if (method === 'POST' && ctrl === 'NewsletterOutreachController' && ['send', 'test'].includes(handler)) return 'external_send';
   if (fullPath.includes('notetaker') && handler !== 'getNotetaker') return 'notetaker';
   if (fullPath.includes('send')||handler.startsWith('send')||handler==='sendCampaign'||handler==='sendBatch') return 'external_send';
   if (fullPath.includes('generate')||handler.startsWith('generate')||fullPath.includes('draft-artifacts')||fullPath.includes('draft-versions')||handler==='generateDebriefDraft'||handler==='generateMeetingPrep') return 'generation';
