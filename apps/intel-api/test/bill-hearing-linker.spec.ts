@@ -71,8 +71,9 @@ function mockPrisma(opts: MockOpts) {
       },
     },
   };
-  const prisma = { $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) } as any;
-  return { prisma, created, updated, trackedUpdates };
+  // Only the tenant callback exposes delegates, so an unscoped read cannot pass.
+  const prisma = { withTenant: jest.fn(async (_tenantId: string, fn: (t: typeof tx) => Promise<unknown>) => fn(tx)) };
+  return { prisma, tx, created, updated, trackedUpdates };
 }
 
 describe('BillHearingLinkerService.linkSession', () => {
@@ -90,7 +91,7 @@ describe('BillHearingLinkerService.linkSession', () => {
 
   it('skips when the advisory lock is not acquired', async () => {
     const { prisma, created } = mockPrisma({ locked: false });
-    const r = await new BillHearingLinkerService(prisma).linkSession('t1', 's1');
+    const r = await new BillHearingLinkerService(prisma as never).linkSession('t1', 's1');
     expect(r).toEqual({ combined: 0, skipped: true });
     expect(created).toHaveLength(0);
   });
@@ -101,7 +102,9 @@ describe('BillHearingLinkerService.linkSession', () => {
       bills,
       tracked: [{ id: 'tb1', clientId: 'cA', billId: '119-hr-1234' }],
     });
-    const r = await new BillHearingLinkerService(prisma).linkSession('t1', 's1');
+    const r = await new BillHearingLinkerService(prisma as never).linkSession('t1', 's1');
+    expect(prisma.withTenant).toHaveBeenCalledTimes(1);
+    expect(prisma.withTenant).toHaveBeenCalledWith('t1', expect.any(Function));
     expect(r.combined).toBe(1);
     const a = created[0];
     expect(a.sourceType).toBe('combined');
@@ -124,7 +127,7 @@ describe('BillHearingLinkerService.linkSession', () => {
       billAlert: { id: 'ba1', severity: 'critical', score: 0.8, clientImpact: 'unfavorable', urgency: 'high' },
       hearingAlert: { id: 'ha1', severity: 'info', score: 0.4 },
     });
-    const r = await new BillHearingLinkerService(prisma).linkSession('t1', 's1');
+    const r = await new BillHearingLinkerService(prisma as never).linkSession('t1', 's1');
     expect(r.combined).toBe(1);
     const a = created[0];
     expect(a.severity).toBe('critical');
@@ -139,7 +142,7 @@ describe('BillHearingLinkerService.linkSession', () => {
 
   it('does not alert for a non-tracked bill', async () => {
     const { prisma, created } = mockPrisma({ session, bills, tracked: [] });
-    const r = await new BillHearingLinkerService(prisma).linkSession('t1', 's1');
+    const r = await new BillHearingLinkerService(prisma as never).linkSession('t1', 's1');
     expect(r.combined).toBe(0);
     expect(created).toHaveLength(0);
   });
@@ -151,9 +154,20 @@ describe('BillHearingLinkerService.linkSession', () => {
       tracked: [{ id: 'tb1', clientId: 'cA', billId: '119-hr-1234' }],
       existing: { dedupeKey: 'combined:cA:119-hr-1234:s1', id: 'e1', status: 'dismissed' },
     });
-    const r = await new BillHearingLinkerService(prisma).linkSession('t1', 's1');
+    const r = await new BillHearingLinkerService(prisma as never).linkSession('t1', 's1');
     expect(created).toHaveLength(0);
     expect(updated).toHaveLength(0);
     expect(r.combined).toBe(0);
+  });
+
+  it('propagates a failed tenant transaction without reporting a completed link', async () => {
+    const { prisma, created, updated, trackedUpdates } = mockPrisma({ session, bills });
+    const failure = new Error('tenant transaction unavailable');
+    prisma.withTenant.mockRejectedValueOnce(failure);
+    await expect(new BillHearingLinkerService(prisma as never).linkSession('t2', 's2')).rejects.toBe(failure);
+    expect(prisma.withTenant).toHaveBeenCalledWith('t2', expect.any(Function));
+    expect(created).toEqual([]);
+    expect(updated).toEqual([]);
+    expect(trackedUpdates).toEqual([]);
   });
 });

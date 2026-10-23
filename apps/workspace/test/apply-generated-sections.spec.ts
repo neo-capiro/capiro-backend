@@ -40,11 +40,13 @@ describe('GenerationService.applyGeneratedSections', () => {
     return { service, updateSpy, findFirstSpy };
   }
 
-  it('404s when the draft is not found in the tenant', async () => {
-    const { service } = makeService(null);
+  it('refuses when no ordinary draft matches the tenant and prospect fence', async () => {
+    const { service, updateSpy, findFirstSpy } = makeService(null);
     await expect(
       service.applyGeneratedSections('tenant-1', 'draft-1', { sectionContent: { Summary: 'x' } }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(findFirstSpy).toHaveBeenCalledWith({ where: { id: 'draft-1', tenantId: 'tenant-1', prospectId: null } });
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('merges sectionContent/sectionMeta/structuralWarnings into config, preserving other fields', async () => {
@@ -76,8 +78,11 @@ describe('GenerationService.applyGeneratedSections', () => {
       },
     });
     // Re-fetches the draft (tenant-scoped) after the write, with documents.
+    expect(findFirstSpy).toHaveBeenNthCalledWith(1, {
+      where: { id: 'draft-1', tenantId: 'tenant-1', prospectId: null },
+    });
     expect(findFirstSpy).toHaveBeenLastCalledWith({
-      where: { id: 'draft-1', tenantId: 'tenant-1' },
+      where: { id: 'draft-1', tenantId: 'tenant-1', prospectId: null },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
   });
