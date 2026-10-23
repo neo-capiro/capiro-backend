@@ -1,4 +1,6 @@
 import { readObjectivePlanResource, type TenantContext } from '@capiro/shared';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { PrismaService } from '../../../prisma/prisma.service.js';
 import {
   readObjectiveLocalResource,
@@ -32,6 +34,30 @@ jest.mock('./objective-operational.store.js', () => ({
   readOperationalSetVersion: jest.fn(),
 }));
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+test('published inventory schema resolves every reference and preserves canonical owner definitions', () => {
+  const root = resolve(__dirname, '../../../../../../docs');
+  const inventory = JSON.parse(
+    readFileSync(resolve(root, 'a2-source-20261023/OBJECTIVE-ASSOCIATIONS.schema.json'), 'utf8'),
+  );
+  const canonical = JSON.parse(
+    readFileSync(
+      resolve(root, 'objective-operational-read-contract-20261015/CONTRACT.schema.json'),
+      'utf8',
+    ),
+  );
+  function visit(value: unknown) {
+    if (!value || typeof value !== 'object') return;
+    const ref = (value as { $ref?: string }).$ref;
+    if (ref) {
+      expect(ref).toMatch(/^#\/definitions\//);
+      expect(inventory.definitions[ref.split('/').at(-1)!]).toBeDefined();
+    }
+    Object.values(value).forEach(visit);
+  }
+  visit(inventory);
+  for (const name of ['Scope', 'Resource', 'Cycle', 'Revision', 'UUID'])
+    expect(inventory.definitions[name]).toEqual(canonical.definitions[name]);
+});
 const actor = {
   tenantId: id(1),
   userId: id(2),
