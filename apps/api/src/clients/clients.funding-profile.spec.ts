@@ -26,6 +26,8 @@ describe('client funding profile API writers', () => {
 
   function setup(existing: Record<string, unknown> | null = { applicantTypes: [] }) {
     const tx = {
+      $executeRaw: jest.fn(async () => 1),
+      $queryRaw: jest.fn(async () => [{ billingStatus: 'comped', clientSlots: 0, ldaRegistrantId: null }]),
       tenant: {
         findUnique: jest.fn(async () => ({ billingStatus: 'comped', ldaRegistrantId: null })),
       },

@@ -1,6 +1,6 @@
-# PF18 canonical capacity prerequisite — proposed allocation
+# PF18 canonical capacity prerequisite
 
-The existing new-client path is not serialized across capacity consumers. A lock in the prospect conversion alone would not fix it. No capacity code or policy change is implemented in this proposal.
+The prior new-client path was not serialized across capacity consumers. A lock in prospect conversion alone would not fix it. Root allocated the bounded owner below; it is now implemented in source, with its database gate still pending.
 
 ## Existing policy and actual writers
 
@@ -12,7 +12,7 @@ The existing new-client path is not serialized across capacity consumers. A lock
 
 ## Minimal reusable transaction owner
 
-Allocate new `apps/api/src/clients/client-capacity.ts` and focused unit/native PostgreSQL specs, plus narrow edits to `clients.service.ts` and `intelligence/firm-onboarding.service.ts`. No schema migration or new product limit is needed.
+`apps/api/src/clients/client-capacity.ts` and focused unit/native PostgreSQL specs accompany narrow edits to `clients.service.ts` and `intelligence/firm-onboarding.service.ts`. No schema migration or new product limit is needed. PostgreSQL's transaction advisory lock is the standard primitive; ordinary isolation alone does not serialize the existing count-then-insert across independent writers.
 
 The helper takes the caller's existing transaction, tenant ID and validated `billingEnforced` boolean. It acquires a transaction advisory lock keyed only by tenant capacity, reads the current tenant billing/slot row `FOR SHARE`, and checks the active client count immediately before the consuming insert/restore in that same transaction. Reuse `effectiveClientSlots` and the existing structured 402 `CLIENT_SLOT_LIMIT` error. The advisory lock serializes all participating capacity writers; the row SHARE lock stabilizes concurrent billing/comp changes without a SHARE-to-UPDATE upgrade. A missing tenant fails through the existing tenant boundary rather than inventing an unlimited allowance.
 
@@ -28,3 +28,5 @@ Do not take a tenant UPDATE lock for every admission: current prospect/resource 
 ## Required evidence
 
 Root's isolated PostgreSQL gate should run actual owner functions against the final schema/Prisma client: simultaneous ordinary create and PF18 new-client conversion for the last slot; two different-prospect conversions; CSV versus LDA import; restore versus create; duplicate restore; archive then admission; enforcement off; comped; trial floor; foreign tenant; failed client/mapping/audit insertion rollback; billing/comp changes during a blocked admission. Exactly one last-slot consumer may commit under enforcement. A sequential mocked count is not concurrency proof. Native provider requests, billing changes and real database execution remain prohibited in this lane.
+
+Eight helper/writer synthetic checks pass; the existing funding-profile API and validation suites also pass (73 total across four suites). Four negative mutations (count, restore, CSV and LDA admission) are required to fail those tests. The prepared `test/a2-postgres/admissions.pg.spec.ts` runs actual Prisma and the actual client, LDA and conversion services, with provider/indexing ports inert. Its nine cases also cover existing-client immutable receipts/current access/rollback. It has not been executed by this lane. Old local `remainingSlots`, `slotsEnforced` and `slotGate` authorities were removed from both importers; the legacy conversion route remains an active existing API, not a dead compatibility copy.

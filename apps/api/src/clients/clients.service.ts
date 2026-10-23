@@ -20,7 +20,6 @@ import { inflateSync } from 'node:zlib';
 import { decode as decodeJpeg } from 'jpeg-js';
 import sanitizeHtml from 'sanitize-html';
 import type { TenantContext } from '@capiro/shared';
-import { CLIENT_SLOT_LIMIT_CODE, effectiveClientSlots } from '@capiro/shared';
 import type { Client, Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -29,6 +28,7 @@ import { ClientPrepopulationService } from '../intelligence/client-prepopulation
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { validateClientFundingProfile } from './client-funding-profile.validation.js';
+import { requireClientCapacity } from './client-capacity.js';
 
 export interface CreateClientInput {
   name: string;
@@ -1212,37 +1212,7 @@ export class ClientsService {
     // unchanged: the same validated fields reach the same insert.
     const validated = { ...input, ...validateClientFundingProfile(input) };
 
-    // Billing slot enforcement: a client may not be created beyond the
-    // purchased client_slots. 'comped' tenants (Capiro staff / promo) bypass.
-    // Runs inside the transaction so the check + insert are atomic. Throws 402
-    // with a structured CLIENT_SLOT_LIMIT code the UI turns into an upgrade CTA.
-    const tenant = await tx.tenant.findUnique({
-      where: { id: ctx.tenantId },
-      select: {
-        ldaRegistrantId: true,
-        clientSlots: true,
-        billingStatus: true,
-      },
-    });
-    if (this.billingEnforced && tenant && tenant.billingStatus !== 'comped') {
-      // Trials get at least the 10-profile allowance regardless of the
-      // stamped clientSlots (shared with the LDA import + setup dashboard).
-      const slotLimit = effectiveClientSlots(tenant.billingStatus, tenant.clientSlots);
-      const current = await tx.client.count({
-        where: { tenantId: ctx.tenantId, status: { not: 'archived' } },
-      });
-      if (current >= slotLimit) {
-        throw new HttpException(
-          {
-            code: CLIENT_SLOT_LIMIT_CODE,
-            message: `You've used all ${slotLimit} client slots on your plan. Add more slots to create another client.`,
-            limit: slotLimit,
-            current,
-          },
-          HttpStatus.PAYMENT_REQUIRED,
-        );
-      }
-    }
+    const tenant = await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced);
     const client = await tx.client.create({
       data: {
         tenantId: ctx.tenantId,
@@ -1298,32 +1268,6 @@ export class ClientsService {
       }),
     );
 
-    // Billing slot budget for this import. 'comped' tenants are unbounded; for
-    // everyone else, only (client_slots − active clients) more clients may be
-    // created. Rows beyond the budget are rejected per-row (the import never
-    // partially succeeds past the cap), surfacing a slot-limit message the UI
-    // can turn into an upgrade prompt.
-    const { tenant, activeCount } = await this.prisma.withTenant(
-      ctx.tenantId,
-      async (tx) => {
-        const tenant = await tx.tenant.findUnique({
-          where: { id: ctx.tenantId },
-          select: { clientSlots: true, billingStatus: true },
-        });
-        const activeCount = await tx.client.count({
-          where: { tenantId: ctx.tenantId, status: { not: 'archived' } },
-        });
-        return { tenant, activeCount };
-      },
-    );
-    let remainingSlots =
-      this.billingEnforced && tenant && tenant.billingStatus !== 'comped'
-        ? Math.max(
-            0,
-            effectiveClientSlots(tenant.billingStatus, tenant.clientSlots) -
-              activeCount,
-          )
-        : Number.POSITIVE_INFINITY;
     const existingNames = new Set(
       existing.map((c) => c.name.trim().toLowerCase()),
     );
@@ -1359,18 +1303,11 @@ export class ClientsService {
         });
         continue;
       }
-      if (remainingSlots <= 0) {
-        errors.push({
-          row: i,
-          message: `Client slot limit reached (${tenant?.clientSlots ?? 0} slots). Add more slots to import additional clients.`,
-        });
-        continue;
-      }
-
       try {
         const fundingProfile = validateClientFundingProfile(input);
-        const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.client.create({
+        const client = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+          await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced);
+          return tx.client.create({
             data: {
               tenantId: ctx.tenantId,
               name: trimmedName,
@@ -1390,12 +1327,11 @@ export class ClientsService {
               createdByUserId: ctx.userId,
             },
             select: { id: true, name: true },
-          }),
-        );
+          });
+        });
         createdCount++;
         created.push(client);
         seenInPayload.add(key);
-        remainingSlots--;
       } catch (err) {
         const message = (err as Error).message ?? 'Unknown error';
         errors.push({ row: i, message });
@@ -1454,8 +1390,13 @@ export class ClientsService {
     if (!before) throw new NotFoundException('Client not found');
     input = { ...input, ...validateClientFundingProfile(input, before) };
 
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.update({
+    const client = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (input.status !== undefined)
+        await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced, {
+          clientId: id,
+          status: input.status,
+        });
+      return tx.client.update({
         where: { id, tenantId: ctx.tenantId },
         data: {
           ...('name' in input ? { name: input.name } : {}),
@@ -1507,8 +1448,8 @@ export class ClientsService {
             ? { setAsideCertifications: input.setAsideCertifications ?? [] }
             : {}),
         },
-      }),
-    );
+      });
+    });
 
     // When the UEI was set or changed, re-run entity resolution so
     // contracting (tier-1 UEI auto-confirm) and assistance_recipient (exact-UEI

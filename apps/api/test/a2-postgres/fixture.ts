@@ -44,7 +44,7 @@ function guardedUrl() {
 }
 
 /** Actual PrismaService, current owner helpers and service methods; no service/model mocks. */
-export async function fixture(kind: 'broadcasts' | 'files') {
+export async function fixture(kind: 'broadcasts' | 'files' | 'admissions') {
   const url = guardedUrl(),
     schema = `a2_${kind}`;
   const admin = new Pool({
@@ -70,7 +70,7 @@ export async function fixture(kind: 'broadcasts' | 'files') {
       throw new Error('Fixture requires PostgreSQL16 and isolated bootstrap superuser.');
     }
     const unrelated = await admin.query(
-      `SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','a2_broadcasts','a2_files') LIMIT 1`,
+      `SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','a2_broadcasts','a2_files','a2_admissions') LIMIT 1`,
     );
     if (unrelated.rowCount) {
       await admin.end();
@@ -110,6 +110,11 @@ export async function fixture(kind: 'broadcasts' | 'files') {
       await owner.query(migration('20260914120000_admin_broadcasts'));
       await owner.query(batchMigration());
       await owner.query(batchMigration()); // This new migration is explicitly repeatable.
+      if (kind === 'admissions') {
+        await owner.query(readFileSync(resolve(__dirname, 'capacity-prerequisites.sql'), 'utf8'));
+        await owner.query(migration('20281023050000_prospect_conversion_receipts'));
+        await owner.query(migration('20281023050000_prospect_conversion_receipts'));
+      }
     } finally {
       owner.release();
     }
@@ -176,14 +181,14 @@ export async function fixture(kind: 'broadcasts' | 'files') {
         [broadcast, tenant, actor],
       );
     };
-    const waitForLock = async (fragment: string) => {
+    const waitForLock = async (fragment: string, count = 1) => {
       const deadline = Date.now() + 3500;
       while (Date.now() < deadline) {
         const waiting = await admin.query(
           `SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND usename='capiro_app' AND wait_event_type='Lock' AND query LIKE $1`,
           [`%${fragment}%`],
         );
-        if (waiting.rowCount) return;
+        if ((waiting.rowCount ?? 0) >= count) return;
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       throw new Error('Expected actual PostgreSQL lock wait was not observed.');
