@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Header,
   Inject,
   Logger,
   Param,
@@ -135,17 +136,6 @@ class CreateMeriConversationDto {
   @IsString()
   @Length(1, 160)
   title?: string;
-}
-
-class BootstrapMeriConversationDto {
-  @IsIn([1])
-  schemaVersion!: 1;
-
-  @IsUUID()
-  requestId!: string;
-
-  @IsUUID()
-  clientId!: string;
 }
 
 class SendMeriMessageDto {
@@ -398,11 +388,18 @@ export class MeriController {
 
   // One Core-owned conversation per authenticated New Chat intent. Keep this
   // literal route ahead of the parameterized conversation routes.
+  @Post('conversations/bootstrap-capability')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  bootstrapConversationCapability(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.bootstrapConversationCapability(ctx, body);
+  }
+
   @Post('conversations/bootstrap')
   @HttpCode(200)
   bootstrapConversation(
     @CurrentTenant() ctx: TenantContext,
-    @Body() body: BootstrapMeriConversationDto,
+    @Body() body: unknown,
   ) {
     return this.service.bootstrapConversation(ctx, body);
   }

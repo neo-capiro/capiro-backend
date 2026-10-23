@@ -19,7 +19,13 @@ export async function loadOwnedActiveClioConversation(
         userId: ctx.userId,
         archivedAt: null,
       },
-      include: { client: { select: { id: true, name: true } } },
+      include: {
+        client: { select: { id: true, name: true } },
+        bootstrapReceipt: { select: {
+          tenantId: true, actorUserId: true, conversationId: true,
+          scopeKind: true, clientId: true,
+        } },
+      },
     });
     if (row) {
       // The supplied transaction is /current's read-only consistent snapshot.
