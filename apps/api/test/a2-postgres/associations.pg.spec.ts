@@ -9,6 +9,7 @@ import {
 import { actor, ctx, tenant, client, foreign, outsider, id, release, settled } from './fixture.js';
 import { listOperationalLinks } from '../../src/clients/objectives/operational/objective-operational.store.js';
 import type { OperationalUnlinkCommand } from '../../src/clients/objectives/operational/objective-operational.types.js';
+import { OperationalBoundaryError } from '../../src/clients/objectives/operational/objective-operational.rules.js';
 
 let h: Awaited<ReturnType<typeof associationsFixture>>;
 beforeAll(async () => {
@@ -37,6 +38,24 @@ const unlink = (): OperationalUnlinkCommand => ({
   action: 'unlink',
   associationId: links[0]!,
 });
+
+function expectBoundary(error: unknown, code: 'NOT_AVAILABLE' | 'CURSOR_STALE') {
+  expect(error).toBeInstanceOf(OperationalBoundaryError);
+  if (!(error instanceof OperationalBoundaryError))
+    throw Error('Canonical operational error required.');
+  const status = code === 'NOT_AVAILABLE' ? 404 : 409;
+  expect(error.getStatus()).toBe(status);
+  expect(error.getResponse()).toEqual({
+    schemaVersion: 1,
+    requestId: null,
+    status,
+    code,
+    outcome: code === 'NOT_AVAILABLE' ? 'unknown' : 'rejected',
+  });
+}
+async function expectRefusal(promise: Promise<unknown>, code: 'NOT_AVAILABLE' | 'CURSOR_STALE') {
+  expectBoundary((await settled(promise)).error, code);
+}
 
 it('executes real parameterized LIMIT/OFFSET and preserves legacy unbounded callers', async () => {
   const first = await h.service.associations(ctx, request());
@@ -74,16 +93,16 @@ it('rechecks actual Planner ACL on each page without leaking hidden link or reso
 });
 
 it('checks current tenant, member, client wall and source feature policy using real owner queries', async () => {
-  await expect(
+  await expectRefusal(
     h.service.associations({ ...ctx, tenantId: foreign }, request()),
-  ).rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
-  await expect(
+    'NOT_AVAILABLE',
+  );
+  await expectRefusal(
     h.service.associations({ ...ctx, userId: outsider }, request()),
-  ).rejects.toMatchObject({ code: 'NOT_AVAILABLE' });
+    'NOT_AVAILABLE',
+  );
   await h.sql('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
-  await expect(h.service.associations(ctx, request())).rejects.toMatchObject({
-    code: 'NOT_AVAILABLE',
-  });
+  await expectRefusal(h.service.associations(ctx, request()), 'NOT_AVAILABLE');
   await h.sql('INSERT INTO client_memory_access(tenant_id,client_id,user_id) VALUES($1,$2,$3)', [
     tenant,
     client,
@@ -97,9 +116,7 @@ it('checks current tenant, member, client wall and source feature policy using r
     tenant,
     actor,
   ]);
-  await expect(h.service.associations(ctx, request())).rejects.toMatchObject({
-    code: 'NOT_AVAILABLE',
-  });
+  await expectRefusal(h.service.associations(ctx, request()), 'NOT_AVAILABLE');
 });
 
 it('invalidates an old cursor after a canonical unlink commit and preserves its exact receipt', async () => {
@@ -111,9 +128,7 @@ it('invalidates an old cursor after a canonical unlink commit and preserves its 
     resultSetVersion: 5,
     associationId: links[0],
   });
-  await expect(h.service.associations(ctx, request(first.nextCursor))).rejects.toMatchObject({
-    code: 'CURSOR_STALE',
-  });
+  await expectRefusal(h.service.associations(ctx, request(first.nextCursor)), 'CURSOR_STALE');
   expect(
     await h.service.receipt(ctx, {
       schemaVersion: 1,
@@ -144,7 +159,7 @@ it('waits behind the actual mutation gate then refuses the old cursor after comm
     await release(stateLock);
   }
   expect((await mutation).value).toMatchObject({ outcome: 'unlinked', resultSetVersion: 5 });
-  expect((await reading)?.error).toMatchObject({ code: 'CURSOR_STALE' });
+  expectBoundary((await reading)?.error, 'CURSOR_STALE');
 });
 
 it('rechecks a current membership after a real row-lock wait', async () => {
@@ -158,29 +173,26 @@ it('rechecks a current membership after a real row-lock wait', async () => {
   } finally {
     await release(membership);
   }
-  expect((await pending).error).toMatchObject({ code: 'NOT_AVAILABLE' });
+  expectBoundary((await pending).error, 'NOT_AVAILABLE');
 });
 
 it('binds paging to the current Objective revision and actor rather than merely matching an offset', async () => {
   const first = await h.service.associations(ctx, request());
-  await expect(
+  await expectRefusal(
     h.service.associations(
       { ...ctx, userId: outsider, clerkUserId: 'a2-synthetic-other' },
       request(first.nextCursor),
     ),
-  ).rejects.toMatchObject({ code: 'CURSOR_STALE' });
-  await expect(h.service.associations(ctx, request(first.nextCursor, 1))).rejects.toMatchObject({
-    code: 'CURSOR_STALE',
-  });
+    'CURSOR_STALE',
+  );
+  await expectRefusal(h.service.associations(ctx, request(first.nextCursor, 1)), 'CURSOR_STALE');
   await h.sql(
     `INSERT INTO client_objective_revisions(id,tenant_id,client_id,objective_id,version,operation,actor_user_id,snapshot)
     VALUES($1,$2,$3,$4,2,'edit',$5,'{}')`,
     [id(240), tenant, client, objective, actor],
   );
   await h.sql('UPDATE client_objectives SET version=2 WHERE id=$1', [objective]);
-  await expect(h.service.associations(ctx, request(first.nextCursor))).rejects.toMatchObject({
-    code: 'CURSOR_STALE',
-  });
+  await expectRefusal(h.service.associations(ctx, request(first.nextCursor)), 'CURSOR_STALE');
   const refreshed = await h.service.associations(ctx, request());
   expect(refreshed.scope).toMatchObject({ objectiveVersion: 2, currentRevisionId: id(240) });
   expect(refreshed.items[0]?.linkedRevision).toEqual({ id: revision, version: 1 });
