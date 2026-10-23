@@ -6,6 +6,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
@@ -16,6 +17,28 @@ const service = process.argv[2];
 assert(['intel-api', 'api-strategy', 'workspace', 'engagement-api'].includes(service));
 const from = (name) => Module.createRequire(local.resolve(name));
 const version = (req, name, expected) => assert.equal(req(`${name}/package.json`).version, expected);
+
+// Fail before DNS or socket creation if a fixture accidentally targets a provider.
+// All permitted test listeners bind to literal loopback addresses.
+const originalConnect = net.Socket.prototype.connect;
+net.Socket.prototype.connect = function (...args) {
+  const normalized = Array.isArray(args[0]) ? args[0] : args;
+  const options = normalized[0];
+  const host = options && typeof options === 'object' ? options.host : normalized[1];
+  if (host !== '127.0.0.1' && host !== '::1') throw new Error('NON_LOOPBACK_NETWORK_REFUSED');
+  return originalConnect.apply(this, args);
+};
+process.once('exit', () => { net.Socket.prototype.connect = originalConnect; });
+
+test('outbound network negative control rejects before connecting', () => {
+  const socket = new net.Socket();
+  try {
+    assert.throws(() => socket.connect({ host: '203.0.113.1', port: 80 }), /NON_LOOPBACK_NETWORK_REFUSED/);
+    assert.equal(socket.connecting, false);
+  } finally {
+    socket.destroy();
+  }
+});
 
 test('exact parent-scoped dependency closure', () => {
   version(from('express'), 'proxy-addr', '2.0.8');
@@ -215,3 +238,106 @@ if (service === 'api-strategy' || service === 'engagement-api') test('PPTX PNG, 
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 });
+
+if (service === 'engagement-api') {
+  test('Core MCP SDK initializes, lists, calls, rejects errors and closes through real protocol', { timeout: 8_000 }, async () => {
+    const clientEntry = local.resolve('@modelcontextprotocol/sdk/client/index.js');
+    const sdkManifest = path.resolve(path.dirname(clientEntry), '../../../package.json');
+    assert.equal(JSON.parse(fs.readFileSync(sdkManifest, 'utf8')).version, '1.32.0');
+    const { Client } = local('@modelcontextprotocol/sdk/client/index.js');
+    const { Server } = local('@modelcontextprotocol/sdk/server/index.js');
+    const { InMemoryTransport } = local('@modelcontextprotocol/sdk/inMemory.js');
+    const { ListToolsRequestSchema, CallToolRequestSchema, McpError, ErrorCode } = local('@modelcontextprotocol/sdk/types.js');
+    const server = new Server({ name: 'synthetic-server', version: '1.0.0' }, { capabilities: { tools: {} } });
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [{ name: 'echo',
+      inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] } }] }));
+    server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
+      if (params.name !== 'echo' || typeof params.arguments?.value !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'synthetic invalid tool arguments');
+      }
+      return { content: [{ type: 'text', text: params.arguments.value }] };
+    });
+    const client = new Client({ name: 'synthetic-client', version: '1.0.0' });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    try {
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+      assert.equal(client.getServerVersion().name, 'synthetic-server');
+      assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ['echo']);
+      assert.deepEqual((await client.callTool({ name: 'echo', arguments: { value: 'fixture' } })).content,
+        [{ type: 'text', text: 'fixture' }]);
+      for (const params of [{ name: 'missing', arguments: { value: 'fixture' } }, { name: 'echo', arguments: { value: 42 } }]) {
+        await assert.rejects(client.callTool(params), (error) => error.code === ErrorCode.InvalidParams);
+      }
+      await client.close();
+      await assert.rejects(client.listTools(), /not connected/i);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  test('ExcelJS archive glob parents preserve nested/escaped braces and workbook round trip', async () => {
+    const excelRequire = from('exceljs');
+    const archiverRequire = Module.createRequire(excelRequire.resolve('archiver'));
+    const archiverUtilsRequire = Module.createRequire(archiverRequire.resolve('archiver-utils'));
+    const globRequire = Module.createRequire(archiverUtilsRequire.resolve('glob'));
+    const readdirRequire = Module.createRequire(archiverRequire.resolve('readdir-glob'));
+    for (const [parent, expected] of [[globRequire, '1.1.20'], [readdirRequire, '2.1.6']]) {
+      const minimatchRequire = Module.createRequire(parent.resolve('minimatch'));
+      version(minimatchRequire, 'brace-expansion', expected);
+      const expand = minimatchRequire('brace-expansion');
+      assert.deepEqual(expand('a/{one,{two,three}}.txt'), ['a/one.txt', 'a/two.txt', 'a/three.txt']);
+      assert.deepEqual(expand('a/\\{literal\\}.txt'), ['a/{literal}.txt']);
+      assert.deepEqual(expand('a/{01..03}.txt'), ['a/01.txt', 'a/02.txt', 'a/03.txt']);
+      const minimatch = parent('minimatch');
+      assert.equal(minimatch('a/two.txt', 'a/{one,{two,three}}.txt'), true);
+      assert.equal(minimatch('a/four.txt', 'a/{one,{two,three}}.txt'), false);
+    }
+    const ExcelJS = local('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Synthetic export');
+    sheet.addRow(['Name', 'Count']);
+    sheet.addRow(['literal {one,two}', 42]);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const loaded = new ExcelJS.Workbook();
+    await loaded.xlsx.load(buffer);
+    assert.deepEqual(loaded.worksheets.map((entry) => entry.name), ['Synthetic export']);
+    assert.equal(loaded.getWorksheet(1).getCell('A2').value, 'literal {one,two}');
+    assert.equal(loaded.getWorksheet(1).getCell('B2').value, 42);
+    assert.equal(loaded.getWorksheet(1).rowCount, 2);
+  });
+
+  test('Cheerio nested Undici handles loopback redirects, parsing and failure; direct Undici unchanged', { timeout: 8_000 }, async () => {
+    version(from('cheerio'), 'undici', '7.29.1');
+    version(local, 'undici', '6.28.1');
+    const cheerio = local('cheerio');
+    const server = http.createServer((req, res) => {
+      if (req.url === '/redirect') {
+        res.writeHead(302, { location: '/page' }).end();
+      } else if (req.url === '/failure') {
+        res.writeHead(503).end('synthetic failure');
+      } else if (req.url === '/wrong-mime') {
+        res.writeHead(200, { 'content-type': 'application/octet-stream' }).end('not HTML');
+      } else {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        res.end('<title>Synthetic &amp; parsed</title><h1>Fixture</h1><a href="/detail">Details</a><table><tr><td>42</td></tr></table>');
+      }
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    try {
+      // Cheerio 1.2.0 omits the redirect base by default on both Undici 7.26.0
+      // and 7.29.1. Supply its documented requestOptions for relative redirects.
+      const $ = await cheerio.fromURL(`${origin}/redirect`, { requestOptions: { origin, method: 'GET' } });
+      assert.equal($('title').text(), 'Synthetic & parsed');
+      assert.equal($('table td').text(), '42');
+      assert.equal($('a').prop('href'), `${origin}/detail`);
+      await assert.rejects(cheerio.fromURL(`${origin}/failure`), (error) => error.statusCode === 503);
+      await assert.rejects(cheerio.fromURL(`${origin}/wrong-mime`), /neither HTML nor XML/);
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+}

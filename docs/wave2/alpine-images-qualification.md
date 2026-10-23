@@ -242,3 +242,90 @@ Both syntax-check calls now pass that child-only CLI flag. The image environment
 actual service execution, module imports, Prisma and dependency checks retain
 their existing settings. Native probe syntax passes; fresh exact-head image
 qualification remains required.
+
+## Engagement dependency follow-up
+
+The orchestrator's `44443edfc41cd0172fa75df4c7a7c63740c99d9c` gate built all four
+images and passed their runtime probes/compatibility fixtures. Intel, Strategy
+and Workspace had zero HIGH/CRITICAL findings at that exact head. Engagement
+still had 18 HIGH findings in four package versions. These earlier results do
+not qualify the new head; fresh exact-head builds and scans remain required.
+
+Four additional selectors were reviewed before editing:
+
+| Exact parent | Pinned change | Production path and compatibility |
+|---|---|---|
+| `@capiro/api@0.0.0` | MCP SDK 1.31.0 → 1.32.0 | Core's direct managed-MCP client; real in-memory initialize, list, call, invalid arguments/unknown tool, close and post-close rejection |
+| `minimatch@3.1.5` | brace-expansion 1.1.14 → 1.1.20 | ExcelJS → archiver/fstream → glob; nested, escaped and numeric braces plus positive/negative matching |
+| `minimatch@5.1.9` | brace-expansion 2.1.0 → 2.1.6 | ExcelJS → archiver → readdir-glob; same brace controls and real XLSX write/load with sheet/cell/value checks |
+| `cheerio@1.2.0` | undici 7.26.0 → 7.29.1 | Cheerio's import-time HTTP dependency; loopback HTML/entity parsing, redirect, non-2xx and invalid MIME rejection |
+
+Registry metadata/integrities were captured on 2026-10-23 for
+[SDK 1.32.0](https://registry.npmjs.org/@modelcontextprotocol%2fsdk/1.32.0),
+[brace 1.1.20](https://registry.npmjs.org/brace-expansion/1.1.20),
+[brace 2.1.6](https://registry.npmjs.org/brace-expansion/2.1.6), and
+[Undici 7.29.1](https://registry.npmjs.org/undici/7.29.1). None is deprecated in
+that capture. pnpm 9.12.0 importer-scoped overrides were first verified in an
+isolated workspace, then the four service closures passed a frozen install
+with resolution skipped (10 workspace projects). A structural lock comparison
+checks only the four selectors, Core SDK importer, corresponding new package
+records and three parent edges changed. SDK transitive versions are unchanged.
+Core's direct Undici 6.28.1, jsdom's Undici 7.26.0, minimatch 9's brace 2.1.0,
+and unrelated SDK 1.31.0/Zod 4 peer closures remain unchanged.
+
+Production reverse-dependency traversal reaches these four selected parents
+only through Core's SDK, Cheerio and ExcelJS. The minimatch 3 selector also
+affects development tooling: root promptfoo, Nest CLI in Core/Strategy/Intel/
+Workspace/Defense/Meri orchestrator/Onboard, and Jest/ts-jest in those services
+except Defense, plus `infra/cdk`, `packages/auth` and `packages/meriv2-core`.
+No other production importer resolves a changed parent. Core's other entrypoints
+and unchanged Debian builds consume its same root lock, so they also receive
+these Core dependency changes; no separate qualification of those images is
+claimed. Full reverse paths are retained in the orchestrator's
+`d-dependency-evidence/engagement-lock-verification.json`.
+
+The compatibility fixture now blocks non-loopback sockets before DNS/connect,
+with a negative control proving an attempted outbound address is refused.
+Windows Node 24.22.1 results: Intel 7/7, Strategy 7/7, Workspace 6/6, Engagement
+10/10. The actual source MCP transport/pagination/OAuth and Florida parser suites
+passed 76 tests across seven suites with all network connections refused by a
+test-only preload. The first source attempt started before native Prisma
+generation completed and had three module-load failures; after generation,
+only those three OAuth suites were rerun (24/24). The original 52-test result
+and failed-load evidence are retained. No schema, provider or database operation
+was run; Prisma client generation only writes local generated artifacts.
+
+The first Cheerio relative-redirect fixture exposed its missing default origin.
+An isolated control with the same Cheerio 1.2.0 and Undici 7.26.0 versus 7.29.1
+reproduced `ERR_INVALID_URL` in both; both pass when its request options supply
+the origin. The retained redirect check supplies that origin explicitly. Core
+source uses `cheerio.load`, with no `cheerio.fromURL` callers found; parser suites
+exercise that actual usage. This control does not claim the inherited default
+relative-redirect behavior is fixed.
+
+## MEDIUM disposition draft (no acceptance)
+
+Source: the orchestrator's complete Trivy findings at `44443edf`, run
+`20261023T042507Z-alpine-44443edf`. Versions/fixes below are reported by that
+scanner; reachability statements come from the locked graph and source, not
+exploit reproduction. A package's presence is not proof of vulnerable-code
+reachability, and absence of a located caller is not an exclusion. Every record
+remains visible and requires final-image reconciliation. No additional package
+upgrade, risk acceptance or scanner suppression is included in this change.
+
+| Package / affected image | MEDIUM IDs and scanner fix | Reachability evidence / pending disposition |
+|---|---|---|
+| `@nestjs/core` 10.4.22 / all four | [CVE-2026-35515](https://avd.aquasec.com/nvd/cve-2026-35515); 11.1.18 | Actual HTTP bootstrap dependency. Requires separate Nest-major compatibility review; remains open. |
+| `file-type` 20.4.1 / all four | [CVE-2026-31808](https://avd.aquasec.com/nvd/cve-2026-31808), [CVE-2026-32630](https://avd.aquasec.com/nvd/cve-2026-32630); 21.3.1 / 21.3.2 respectively | Nest common dependency. No direct file-type/FileTypeValidator caller found in the four service source trees; indirect framework usage still needs review. Major override not authorized. |
+| `multer` 2.3.0 / all four | [CVE-2026-88932](https://avd.aquasec.com/nvd/cve-2026-88932); 2.4.0 | Real Nest upload interceptors process multipart input. Existing malformed/limit/abort controls are compatibility evidence, not a CVE waiver; separate fix review remains open. |
+| `qs` 6.14.2 and 6.15.1 / all four | [CVE-2026-82417](https://avd.aquasec.com/nvd/cve-2026-82417), [CVE-2026-82562](https://avd.aquasec.com/nvd/cve-2026-82562), [CVE-2026-8723](https://avd.aquasec.com/nvd/cve-2026-8723); 6.16.0 covers all three (8723 also fixed in 6.15.2) | Express/body-parser request parsing closure; attacker-controlled request input is plausible. Exact enabled parser/options and fix compatibility need review. Both installed-version records remain open. |
+| `sanitize-html` 2.17.7 / Workspace, Engagement | [CVE-2026-113654](https://avd.aquasec.com/nvd/cve-2026-113654), [CVE-2026-113661](https://avd.aquasec.com/nvd/cve-2026-113661); 2.18.0 | Actual newsletter/signature/SVG sanitization source callers. Needs focused policy and malformed-markup regression controls before a separately reviewed upgrade. |
+| MCP SDK 1.31.0 / Engagement | [CVE-2026-111769](https://avd.aquasec.com/nvd/cve-2026-111769), [CVE-2026-111771](https://avd.aquasec.com/nvd/cve-2026-111771); 1.32.0 | Managed MCP imports use it. Approved HIGH repair pins the reported fixed version; removal of these MEDIUM findings is pending the new exact-image scan. |
+| `brace-expansion` 1.1.14, 2.1.0 / Engagement | [CVE-2026-102277](https://avd.aquasec.com/nvd/cve-2026-102277); 1.1.21 / 2.1.7 (also 3.0.9 / 5.0.12) | ExcelJS archive glob closure. Reviewed HIGH pins 1.1.20 / 2.1.6 do not satisfy this MEDIUM fix; user-controlled glob reachability is unproven. Remains open; no extra update inferred. |
+| `ip-address` 10.7.2 / Engagement | [CVE-2026-111997](https://avd.aquasec.com/nvd/cve-2026-111997); 10.7.4 | SDK → express-rate-limit dependency. Core uses SDK client transports; server/rate-limit code reachability still needs proof. Remains open. |
+| `undici` 7.26.0 / Engagement | [CVE-2026-14643](https://avd.aquasec.com/nvd/cve-2026-14643), [15157](https://avd.aquasec.com/nvd/cve-2026-15157), [16728](https://avd.aquasec.com/nvd/cve-2026-16728), [16729](https://avd.aquasec.com/nvd/cve-2026-16729), [18149](https://avd.aquasec.com/nvd/cve-2026-18149), [84890](https://avd.aquasec.com/nvd/cve-2026-84890), [84933](https://avd.aquasec.com/nvd/cve-2026-84933), [85014](https://avd.aquasec.com/nvd/cve-2026-85014), [9678](https://avd.aquasec.com/nvd/cve-2026-9678), [9679](https://avd.aquasec.com/nvd/cve-2026-9679); 7.29.1 covers all ten | Cheerio imports it, but actual source calls `load`, not its HTTP API. Reviewed HIGH fix pins 7.29.1; new image scan must confirm these records disappear. Direct Core 6.28.1 is untouched. |
+| `uuid` 8.3.2 / Engagement | [CVE-2026-41907](https://avd.aquasec.com/nvd/cve-2026-41907); 11.1.1 / 12.0.1 / 13.0.1 | MSAL Node and ExcelJS dependencies; exact vulnerable API usage unresolved. Major update requires parent/API review, remains open. |
+
+Fresh full scans, source-suite disposition against exact baselines, disposable
+PG16 coverage, complete runtime/failure controls and independent exact-head
+Astra review are still required. This native checkpoint is not full qualification.
