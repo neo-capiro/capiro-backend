@@ -403,13 +403,6 @@ export class MeriController {
 
   // One Core-owned conversation per authenticated New Chat intent. Keep this
   // literal route ahead of the parameterized conversation routes.
-  @Post('conversations/bootstrap-capability')
-  @HttpCode(200)
-  @Header('Cache-Control', 'private, no-store')
-  bootstrapConversationCapability(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
-    return this.service.bootstrapConversationCapability(ctx, body);
-  }
-
   @Post('conversations/bootstrap')
   @HttpCode(200)
   bootstrapConversation(

@@ -53,22 +53,6 @@ async function currentClient(tx: Prisma.TransactionClient, ctx: TenantContext, c
   if (!client) throw new NotFoundException('Client not found');
 }
 
-/** A short-lived presentation hint; bootstrap always repeats the source check. */
-export async function readBootstrapCapability(prisma: PrismaService, ctx: TenantContext, raw: unknown) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
-    throw new BadRequestException('Invalid conversation capability request');
-  const body = raw as Record<string, unknown>;
-  if (Object.keys(body).length !== 2 || body.schemaVersion !== 1 ||
-      typeof body.clientId !== 'string' || !UUID.test(body.clientId))
-    throw new BadRequestException('Invalid conversation capability request');
-  const clientId = body.clientId.toLowerCase();
-  await prisma.withTenant(ctx.tenantId, (tx) => currentClient(tx, ctx, clientId));
-  const checkedAtMs = Date.now();
-  return { schemaVersion: 1 as const, capability: 'conversation.bootstrap.v2' as const,
-    tenantId: ctx.tenantId, actorId: ctx.userId, clientId,
-    checkedAtMs, expiresAtMs: checkedAtMs + 30_000 };
-}
-
 async function replay(prisma: PrismaService, ctx: TenantContext, input: BootstrapConversationInput) {
   return prisma.withTenant(ctx.tenantId, async (tx) => {
     const saved = await tx.clioConversationBootstrapReceipt.findFirst({

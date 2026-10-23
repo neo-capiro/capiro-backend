@@ -1,4 +1,4 @@
-import { bootstrapConversation as bootstrapNativeConversation, readBootstrapCapability } from './meri-conversation-bootstrap.js';
+import { bootstrapConversation as bootstrapNativeConversation } from './meri-conversation-bootstrap.js';
 import { assertLegacyManagementAllowed, manageConversation, MERI_CONVERSATION_MANAGEMENT_PORT, type ManagementPort } from './conversation-management/service.js';
 import { listManagedConversations } from './conversation-management/list.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
@@ -512,10 +512,6 @@ export class MeriService implements MeriTurnMaintenance {
   bootstrapConversation(ctx: TenantContext, input: unknown) {
     return bootstrapNativeConversation(this.prisma, ctx, input,
       () => this.currentProfile(ctx), { brand: PRODUCT_NAME, runtime: RUNTIME_NAME });
-  }
-
-  bootstrapConversationCapability(ctx: TenantContext, input: unknown) {
-    return readBootstrapCapability(this.prisma, ctx, input);
   }
 
   async getConversation(ctx: TenantContext, conversationId: string) {
