@@ -1,6 +1,7 @@
 import { gunzipSync } from 'node:zlib';
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,6 +14,12 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { DirectoryContactMapper, type MemberBioOverlay } from './directory-contact-mapper.js';
 import { DirectoryBrowse } from './directory-browse.js';
+import {
+  commitMemberNote,
+  memberNoteDigest,
+  parseMemberNoteCommand,
+  readMemberNoteReceipt,
+} from './directory-note-command.js';
 import { readContactTrips } from './directory-contact-trips.js';
 import { membershipsForPerson, projectMemberDetail, projectRosterOnlyStaffDetail, projectStaffDetail } from './directory-detail-projection.js';
 import { buildCommitteeIndex } from './directory-committee-index.js';
@@ -1126,6 +1133,35 @@ export class DirectoryService implements OnModuleInit {
       },
       disclaimer: FEC_DISCLAIMER,
     };
+  }
+
+  async createMemberNoteCommand(ctx: TenantContext, memberId: string, input: unknown) {
+    const command = parseMemberNoteCommand(memberId, input);
+    try {
+      return await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        commitMemberNote(tx, ctx, memberId, command, async () => {
+          const base = await this.getDirectoryData();
+          const member = base.contacts.find((contact) => contact.id === memberId);
+          if (!member) throw new NotFoundException('Directory member not found');
+          return { id: member.id, name: member.fullName };
+        }),
+      );
+    } catch (error) {
+      // Only after withTenant rolled back: a bounded, attributable no-write refusal.
+      if (error instanceof HttpException && [400, 404, 409].includes(error.getStatus()))
+        throw new HttpException({
+          schemaVersion: 1, code: 'DIRECTORY_NOTE_REFUSED', requestId: command.requestId,
+          memberId, payloadDigest: memberNoteDigest(ctx, memberId, command),
+          status: error.getStatus(), message: error.message,
+        }, error.getStatus());
+      throw error;
+    }
+  }
+
+  memberNoteReceipt(ctx: TenantContext, memberId: string, requestId: string) {
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      readMemberNoteReceipt(tx, ctx, memberId, requestId),
+    );
   }
 
   async createContactNote(

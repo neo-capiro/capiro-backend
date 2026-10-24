@@ -19,6 +19,7 @@ import type { BizDevStage } from './business-development.dto.js';
 import {
   commitProspectConversion,
   readProspectConversion,
+  withNewClientRefusal,
 } from './prospect-conversion-receipts.js';
 import { parseProspectConversion } from './prospect-conversion.types.js';
 import { isPortfolioProspectStage, LEGACY_PROSPECT_STAGES } from './prospect-stages.js';
@@ -956,6 +957,19 @@ export class BusinessDevelopmentService {
       };
     }
 
+    this.scheduleConversionEnrichment(ctx, outcome);
+
+    const prospectAfter = await this.findOwned(ctx, id);
+    return {
+      prospect: prospectAfter,
+      client: { id: outcome.clientId, name: outcome.clientName },
+      created: outcome.created,
+    };
+  }
+
+  private scheduleConversionEnrichment(ctx: TenantContext, outcome: {
+    created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null;
+  }) {
     // AFTER commit: schedule enrichment, only for a CREATED client — never for
     // link-existing. The real ldaRegistrantId from the transaction outcome is
     // passed to the resolution call (registrant-anchored matching), matching
@@ -981,22 +995,41 @@ export class BusinessDevelopmentService {
         );
     }
 
-    const prospectAfter = await this.findOwned(ctx, id);
-    return {
-      prospect: prospectAfter,
-      client: { id: outcome.clientId, name: outcome.clientName },
-      created: outcome.created,
-    };
   }
 
-  /** Existing-client v1 only; new-client commands await canonical capacity serialization. */
-  async convertExistingCommand(ctx: TenantContext, prospectId: string, input: unknown) {
+  /** Both reviewed modes share canonical capacity admission and the conversion transaction. */
+  async convertCommand(ctx: TenantContext, prospectId: string, input: unknown) {
     const command = parseProspectConversion(prospectId, input);
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      commitProspectConversion(tx, ctx, command, () =>
-        this.convertInTransaction(ctx, tx, prospectId, { existingClientId: command.clientId }),
+    let created: { created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null } | undefined;
+    const receipt = await withNewClientRefusal(command, (confirmNoReceipt) =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        commitProspectConversion(
+          tx,
+          ctx,
+          command,
+          async () => {
+            const outcome = await this.convertInTransaction(
+              ctx,
+              tx,
+              prospectId,
+              command.mode === 'existing_client'
+                ? { existingClientId: command.clientId }
+                : {
+                    intent: 'new_client',
+                    clientWebsite: command.clientWebsite,
+                    clientDescription: command.clientDescription,
+                  },
+            );
+            created = outcome;
+            return outcome;
+          },
+          confirmNoReceipt,
+        ),
       ),
     );
+    // A replay never calls the conversion owner and never schedules enrichment twice.
+    if (created) this.scheduleConversionEnrichment(ctx, created);
+    return receipt;
   }
 
   async conversionReceipt(ctx: TenantContext, prospectId: string, requestId: string) {
@@ -1010,7 +1043,12 @@ export class BusinessDevelopmentService {
     ctx: TenantContext,
     tx: Prisma.TransactionClient,
     id: string,
-    input: { existingClientId?: string; clientWebsite?: string; clientDescription?: string },
+    input: {
+      existingClientId?: string;
+      clientWebsite?: string | null;
+      clientDescription?: string | null;
+      intent?: 'new_client';
+    },
   ) {
     // 1. ROW LOCK FIRST, before resolving/creating any client: SELECT … FOR
     //    UPDATE on the tenant-owned prospect serializes concurrent
@@ -1070,6 +1108,13 @@ export class BusinessDevelopmentService {
         select: { id: true, name: true },
       });
       if (confirmed) {
+        // New-client commands already hold current membership locks. Refuse
+        // here, before the existing-client row lock/link/write branch, whose
+        // owner acquires client before membership. Legacy linking stays intact.
+        if (input.intent === 'new_client')
+          throw new ConflictException(
+            'A matching client already exists. Review an explicit existing-client link.',
+          );
         clientId = confirmed.id;
         clientName = confirmed.name;
       } else {
@@ -1081,8 +1126,8 @@ export class BusinessDevelopmentService {
           tx,
           {
             name: current.displayName,
-            website: input.clientWebsite ?? current.website ?? undefined,
-            description: input.clientDescription ?? current.description ?? undefined,
+            website: input.clientWebsite === undefined ? current.website ?? undefined : input.clientWebsite ?? undefined,
+            description: input.clientDescription === undefined ? current.description ?? undefined : input.clientDescription ?? undefined,
             canonicalEntityId: current.canonicalEntityId,
           },
         );
@@ -1100,8 +1145,8 @@ export class BusinessDevelopmentService {
         tx,
         {
           name: current.displayName,
-          website: input.clientWebsite ?? current.website ?? undefined,
-          description: input.clientDescription ?? current.description ?? undefined,
+          website: input.clientWebsite === undefined ? current.website ?? undefined : input.clientWebsite ?? undefined,
+          description: input.clientDescription === undefined ? current.description ?? undefined : input.clientDescription ?? undefined,
         },
       );
       clientId = client.id;

@@ -20,6 +20,8 @@ import { ProgramElementModule } from '../program-element/program-element.module.
 import { AcquisitionPersonnelModule } from '../acquisition-personnel/acquisition-personnel.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { ClientsModule } from '../clients/clients.module.js';
+import { ClientObjectivesModule } from '../clients/objectives/objectives.module.js';
+import { AutomaticClientContextService } from './automatic-client-context.service.js';
 import { RepresentationModule } from '../clients/representation.module.js';
 import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
@@ -40,6 +42,8 @@ import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { ObjectiveJobController } from './objective-job.controller.js';
+import { ConversationManagementController } from './conversation-management/controller.js';
+import { ConversationRetentionController } from './conversation-management/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
 import { ObjectiveJobReadSources } from './objective-job-read-sources.js';
 import { EngagementService } from '../engagement/engagement.service.js';
@@ -111,6 +115,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     AcquisitionPersonnelModule,
     IntelligenceModule,
     ClientsModule,
+    ClientObjectivesModule,
     RepresentationModule,
     RegulatoryDocketModule,
     EmbeddingsModule,
@@ -129,6 +134,8 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     DistrictNexusModule,
   ],
   controllers: [
+    ConversationManagementController,
+    ConversationRetentionController,
     ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
@@ -145,6 +152,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     MeriJobDeliverablesController,
   ],
   providers: [
+    AutomaticClientContextService,
     InternalServiceGuard,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
       portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,

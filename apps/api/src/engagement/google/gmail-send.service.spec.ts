@@ -14,6 +14,7 @@ import {
   sanitizeCorrelationId,
 } from './gmail-send.service.js';
 import { AmbiguousMailSendError } from '../mail-send-result.js';
+import { MAILBOX_CALL_TIMEOUT_MS } from '../mailbox-provider-transport.js';
 
 const ctx: TenantContext = {
   tenantId: 't1',
@@ -149,6 +150,39 @@ describe('buildGmailRawMessage — correlation header', () => {
 });
 
 describe('sendMail — result contract', () => {
+  test.each(['fetch', 'body'] as const)(
+    'a never-resolving %s is unknown, aborts and does not resend',
+    async (phase) => {
+      jest.useFakeTimers();
+      let dispatched = 0;
+      let signal: AbortSignal | undefined;
+      const h = makeService(async () => {
+        dispatched += 1;
+        if (phase === 'fetch') return new Promise<Response>(() => {});
+        return { ok: true, status: 200, json: () => new Promise(() => {}) } as unknown as Response;
+      });
+      const transport = globalThis.fetch;
+      globalThis.fetch = (input, init) => {
+        signal = init?.signal ?? undefined;
+        return transport(input, init);
+      };
+      try {
+        const result = h.service.sendMail(ctx, 'conn-1', INPUT);
+        const rejected = expect(result).rejects.toMatchObject({
+          name: 'AmbiguousMailSendError',
+          correlationId: INPUT.correlationId,
+        });
+        await jest.advanceTimersByTimeAsync(MAILBOX_CALL_TIMEOUT_MS + 1);
+        await rejected;
+        expect(signal?.aborted).toBe(true);
+        expect(dispatched).toBe(1);
+      } finally {
+        h.restore();
+        jest.useRealTimers();
+      }
+    },
+  );
+
   test('returns the Gmail message + thread ids and the correlation id', async () => {
     const h = makeService(async () => jsonResponse({ id: 'gm-123', threadId: 'th-456' }));
     try {

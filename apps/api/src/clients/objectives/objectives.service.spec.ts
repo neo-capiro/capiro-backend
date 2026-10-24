@@ -54,6 +54,7 @@ function setup(current: ClientObjective = record) {
     client: { findFirst: jest.fn().mockResolvedValue({ id: clientId }) },
     tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'active-member' }) },
     clientObjective: {
+      count: jest.fn().mockResolvedValue(1),
       findFirst: jest.fn().mockResolvedValue(current),
       findMany: jest.fn().mockResolvedValue([current]),
       createMany: jest
@@ -588,4 +589,10 @@ describe('ClientObjectivesService', () => {
       expect(prisma.withTenant).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+describe('automatic Objective context',()=>{
+ test('actual owner bounds records and preserves count/revision/limits with access before and after',async()=>{const f=setup({...record,limits:'Synthetic limit'});f.tx.clientObjective.count.mockResolvedValue(7);const r=await f.service.readContext(ctx,clientId);expect(r).toMatchObject({status:'partial',total:7,items:[{id:objectiveId,version:1,limits:'Synthetic limit'}]});expect(f.tx.clientObjective.findMany).toHaveBeenCalledWith({where:{tenantId:ctx.tenantId,clientId,deletedAt:null},orderBy:[{updatedAt:'desc'},{id:'asc'}],take:3});expect(f.tx.client.findFirst).toHaveBeenCalledTimes(2);});
+ test('wall revocation during the bounded read prevents release',async()=>{const f=setup();f.tx.clientObjective.findMany.mockImplementation(async()=>{f.tx.$queryRawUnsafe.mockResolvedValue([{allowed:false}]);return [record];});await expect(f.service.readContext(ctx,clientId)).rejects.toBeInstanceOf(NotFoundException);});
+ test('foreign or archived client cannot read the Objective count',async()=>{const f=setup();f.tx.client.findFirst.mockResolvedValue(null);await expect(f.service.readContext(ctx,clientId)).rejects.toBeInstanceOf(NotFoundException);expect(f.tx.clientObjective.count).not.toHaveBeenCalled();});
 });

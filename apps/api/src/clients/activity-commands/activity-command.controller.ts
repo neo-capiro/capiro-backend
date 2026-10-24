@@ -54,4 +54,23 @@ export class ActivityCommandController {
   ) {
     return this.service.resume(ctx, clientId, requestId, body, bearer(req));
   }
+  @Get(':requestId/undo')
+  getUndo(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('requestId') requestId: string,
+    @Req() req: Request,
+  ) {
+    return this.service.getUndo(ctx, clientId, requestId, bearer(req));
+  }
+  @Post(':requestId/undo')
+  undo(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('requestId') requestId: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.service.undo(ctx, clientId, requestId, body, bearer(req));
+  }
 }

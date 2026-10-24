@@ -10,7 +10,8 @@ import profileSchema from './retained-source-v02/client-context-profile-v03.sche
 import { RETAINED_CLIENT_CONTEXT_COVERAGE_NOTE } from './retained-source-v02/client-context';
 import { readRetainedSourceV02 } from './retained-source-v02/receiver';
 import type { RetainedSourceV02Admission } from './retained-source-v02/admission';
-import type { MeriToolsService } from './meri-tools.service';
+import { MeriToolsService } from './meri-tools.service';
+import { withMeriToolExecutionControl } from './meri-tool-request-control';
 import type { TenantContext } from '@capiro/shared';
 import { CLIENT_PROFILE_SECTIONS } from './meri-client-context.helpers';
 
@@ -110,6 +111,45 @@ describe('retained client-context 0.3.0 projection', () => {
       readWindow: { startedAt, completedAt },
       context: { client: { id: clientId, tenantId } },
     });
+  });
+
+  it('releases the canonical profile without the internal account-owner version', async () => {
+    const input = fixture();
+    const expectedContext = (input.source as any).context;
+    const context = {
+      ...expectedContext,
+      client: { ...expectedContext.client, accountOwnerVersion: 7 },
+    };
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    Object.assign(service, {
+      ensureClientVisible: jest.fn(async () => clientId),
+      prisma: { withTenantUser: jest.fn(async () => []) },
+      engagement: { clientContext: jest.fn(async () => context) },
+      clientCapabilities: {
+        listCapabilities: jest.fn(async () => []), listClientHistory: jest.fn(async () => []),
+      },
+      clientPeople: { listPeople: jest.fn(async () => []) },
+      clientFacilities: { listFacilities: jest.fn(async () => []) },
+      clientAdvocacy: {
+        listMatters: jest.fn(async () => []),
+        listRecords: jest.fn(async () => ({ items: [], total: 0, hasMore: false })),
+      },
+    });
+    const deadlineAt = Date.now() + 30_000;
+    const admission = {
+      operation: input.operation,
+      binding: { tenantId, actorId: fillerId },
+      subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId, actorId: fillerId },
+      clientId, input: input.normalizedInput, hardExpiryMs: deadlineAt,
+      normalizationContext: { asOf: gatewayAsOf, clientResolution: input.clientResolution },
+    } as unknown as RetainedSourceV02Admission;
+    const result = await withMeriToolExecutionControl(
+      { signal: new AbortController().signal, deadlineAt },
+      () => readRetainedSourceV02(admission, { tenantId, userId: fillerId } as TenantContext, service),
+    );
+    expect(result).toMatchObject({ tool: 'get_client_context', context: expectedContext });
+    expect((result as any).context.client).not.toHaveProperty('accountOwnerVersion');
+    expect(context.client.accountOwnerVersion).toBe(7);
   });
 
   it.each([

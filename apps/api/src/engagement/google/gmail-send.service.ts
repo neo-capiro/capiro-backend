@@ -17,6 +17,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { GoogleTokenService } from './google-token.service.js';
+import { mailboxProviderRequest } from '../mailbox-provider-transport.js';
 import type { EngagementSendMailInput } from '../mail-sender.service.js';
 import {
   AmbiguousMailSendError,
@@ -66,18 +67,33 @@ export class GmailSendService {
     // case Gmail may already have accepted the message. That is genuinely
     // ambiguous, not a failure: letting the raw transport error escape would have
     // the send-intent worker record 'failed' and offer the user a retry, which can
-    // duplicate a delivered email. Only the fetch itself is guarded — our own
-    // HttpExceptions below are thrown after a response was received.
+    // duplicate a delivered email. The deadline includes reading the response
+    // body; a timed-out send is never retried by this adapter.
     let response: Response;
+    let payload: unknown;
     try {
-      response = await fetch(GMAIL_SEND_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ raw }),
+      const received = await mailboxProviderRequest(async (signal) => {
+        const response = await fetch(GMAIL_SEND_URL, {
+          method: 'POST',
+          signal,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ raw }),
+        });
+        const payload = response.ok
+          ? await response.json().catch(() => {
+              throw new AmbiguousMailSendError(
+                'Gmail accepted the message but its response could not be read; verify Sent Items.',
+                correlationId,
+              );
+            })
+          : await response.text().catch(() => '');
+        return { response, payload };
       });
+      response = received.response;
+      payload = received.payload;
     } catch (err) {
       if (isAmbiguousTransportFailure(err)) {
         throw new AmbiguousMailSendError(
@@ -89,7 +105,7 @@ export class GmailSendService {
     }
 
     if (!response.ok) {
-      const text = await response.text().catch(() => '');
+      const text = typeof payload === 'string' ? payload : '';
       // 403 insufficient scope => the connection was granted before gmail.send
       // was added to the scope set; the user must reconnect to re-consent.
       if (
@@ -132,15 +148,7 @@ export class GmailSendService {
     // would be wrong: the mail is already gone. A response we cannot read, or one
     // without an id, is genuinely AMBIGUOUS — the caller records the delivery as
     // 'unknown' and never retries it (a retry would duplicate a delivered email).
-    let parsed: { id?: unknown; threadId?: unknown } | null = null;
-    try {
-      parsed = (await response.json()) as { id?: unknown; threadId?: unknown };
-    } catch {
-      throw new AmbiguousMailSendError(
-        'Gmail accepted the message but its response could not be read; verify Sent Items.',
-        correlationId,
-      );
-    }
+    const parsed = payload as { id?: unknown; threadId?: unknown } | null;
     const messageId = typeof parsed?.id === 'string' ? parsed.id.trim() : '';
     if (!messageId) {
       throw new AmbiguousMailSendError(

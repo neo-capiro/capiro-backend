@@ -1,4 +1,9 @@
 import { beforeAll, afterAll, beforeEach, it, expect, jest } from '@jest/globals';
+import { HttpException } from '@nestjs/common';
+import {
+  prospectConversionDigest,
+  parseProspectConversion,
+} from '../../src/business-development/prospect-conversion.types.js';
 // Only unused import-time collaborators and provider/indexing ports are replaced.
 // Actual Prisma, client capacity, all admission services and conversion owners run.
 jest.mock('sanitize-html', () => () => {
@@ -26,11 +31,22 @@ import {
   otherProspect,
   archivedClient,
 } from './admissions-fixture.js';
-import { ctx, tenant, client, foreign, id, release, settled } from './fixture.js';
+import { actor, ctx, tenant, client, foreign, id, release, settled } from './fixture.js';
+import { installDirectoryNotes, directoryNoteCases } from './directory-notes.pg-cases.js';
+import { canonicalConversionCase } from './canonical-conversion.pg-case.js';
 
 let h: Awaited<ReturnType<typeof admissionsFixture>>;
 beforeAll(async () => {
   h = await admissionsFixture();
+  // The current membership owner filters Prisma's TenantStatus enum. The old
+  // minimal admission fixture used text, which cannot satisfy its typed cast.
+  await h.sql(`
+    CREATE TYPE tenant_status AS ENUM ('active','suspended','pending');
+    ALTER TABLE tenants ALTER COLUMN status DROP DEFAULT;
+    ALTER TABLE tenants ALTER COLUMN status TYPE tenant_status USING status::tenant_status;
+    ALTER TABLE tenants ALTER COLUMN status SET DEFAULT 'active';
+  `);
+  await installDirectoryNotes(h);
 });
 beforeEach(async () => {
   await h.reset();
@@ -53,6 +69,67 @@ const receiptCommand = (request = 104) => ({
   mode: 'existing_client',
   clientId: client,
 });
+const newClientCommand = (request = 105) => ({
+  schemaVersion: 1,
+  requestId: id(request),
+  prospectId: prospect,
+  expectedUpdatedAt: '2026-10-23T00:00:00.000Z',
+  mode: 'new_client',
+  clientName: 'Synthetic first',
+  clientWebsite: 'https://example.test',
+  clientDescription: null,
+});
+
+directoryNoteCases(() => h);
+canonicalConversionCase(() => h);
+
+it('binds a no-write refusal to the original new-client request only after the actual transaction rolls back', async () => {
+  const command = newClientCommand();
+  await h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
+  const result = await settled(h.prospects.convertCommand(ctx, prospect, command));
+  expect(result.error).toBeInstanceOf(HttpException);
+  expect((result.error as HttpException).getResponse()).toMatchObject({
+    schemaVersion: 1,
+    code: 'PROSPECT_NEW_CLIENT_REFUSED',
+    status: 402,
+    requestId: command.requestId,
+    prospectId: prospect,
+    payloadDigest: prospectConversionDigest(parseProspectConversion(prospect, command)),
+  });
+  expect(await active()).toBe(1);
+  expect(
+    (
+      await h.sql('SELECT linked_client_id FROM business_development_prospects WHERE id=$1', [
+        prospect,
+      ])
+    ).rows[0].linked_client_id,
+  ).toBeNull();
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(0);
+  expect((await h.sql('SELECT count(*)::int AS count FROM audit_logs')).rows[0].count).toBe(0);
+});
+
+it('a committed original conversion never becomes a no-write refusal on conflicting replay', async () => {
+  const command = newClientCommand();
+  const original = await h.prospects.convertCommand(ctx, prospect, command);
+  const conflict = await settled(
+    h.prospects.convertCommand(ctx, prospect, {
+      ...command,
+      expectedUpdatedAt: '2026-10-24T13:00:00.000Z',
+    }),
+  );
+  expect(conflict.error).toMatchObject({ status: 409 });
+  expect((conflict.error as HttpException).getResponse()).not.toHaveProperty(
+    'code',
+    'PROSPECT_NEW_CLIENT_REFUSED',
+  );
+  expect(await h.prospects.conversionReceipt(ctx, prospect, command.requestId)).toEqual(original);
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+});
 
 it('serializes ordinary create versus conversion and two different-prospect conversions at the last slot', async () => {
   for (const mode of ['create-convert', 'two-conversions']) {
@@ -61,11 +138,9 @@ it('serializes ordinary create versus conversion and two different-prospect conv
       `client-capacity:${tenant}`,
     ]);
     const pending = Promise.all([
-      settled(
-        mode === 'create-convert'
-          ? h.clients.create(ctx, { name: 'Synthetic manual' })
-          : h.prospects.convert(ctx, otherProspect),
-      ),
+      mode === 'create-convert'
+        ? settled(h.clients.create(ctx, { name: 'Synthetic manual' }))
+        : settled(h.prospects.convert(ctx, otherProspect)),
       settled(h.prospects.convert(ctx, prospect)),
     ]);
     try {
@@ -95,10 +170,11 @@ it('serializes restore against create; duplicate restoration consumes once; arch
   expect(results.filter((r) => r.value)).toHaveLength(1);
   expect(results.filter((r) => r.error?.status === 402)).toHaveLength(1);
   await h.reset();
-  await Promise.all([
+  const restores = await Promise.allSettled([
     h.clients.update(ctx, archivedClient, { status: 'active' }),
     h.clients.update(ctx, archivedClient, { status: 'active' }),
   ]);
+  expect(restores.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled']);
   expect(await active()).toBe(2);
   await h.clients.archive(ctx, archivedClient);
   await h.clients.create(ctx, { name: 'Synthetic replacement' });
@@ -162,10 +238,13 @@ it('rolls back actual mapping and conversion-audit failures without consuming ca
   ).toBe(0);
 });
 it('commits one exact existing-client receipt with activity and audit, replays without another effect', async () => {
-  const [first, replay] = await Promise.all([
-    h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()),
-    h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()),
+  const results = await Promise.all([
+    settled(h.prospects.convertCommand(ctx, prospect, receiptCommand())),
+    settled(h.prospects.convertCommand(ctx, prospect, receiptCommand())),
   ]);
+  expect(results.map((result) => result.error)).toEqual([undefined, undefined]);
+  const first = results[0]!.value!;
+  const replay = results[1]!.value!;
   expect(replay).toEqual(first);
   expect(await h.prospects.conversionReceipt(ctx, prospect, receiptCommand().requestId)).toEqual(
     first,
@@ -178,7 +257,7 @@ it('commits one exact existing-client receipt with activity and audit, replays w
   ])
     expect((await h.sql(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count).toBe(1);
   await expect(
-    h.prospects.convertExistingCommand(ctx, prospect, {
+    h.prospects.convertCommand(ctx, prospect, {
       ...receiptCommand(),
       expectedUpdatedAt: '2026-10-23T00:00:01.000Z',
     }),
@@ -186,12 +265,12 @@ it('commits one exact existing-client receipt with activity and audit, replays w
 });
 it('refuses stale conversion, current wall loss and foreign receipt access', async () => {
   await expect(
-    h.prospects.convertExistingCommand(ctx, prospect, {
+    h.prospects.convertCommand(ctx, prospect, {
       ...receiptCommand(),
       expectedUpdatedAt: '2026-10-23T00:00:01.000Z',
     }),
   ).rejects.toMatchObject({ status: 409 });
-  await h.prospects.convertExistingCommand(ctx, prospect, receiptCommand());
+  await h.prospects.convertCommand(ctx, prospect, receiptCommand());
   await h.sql('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
   await expect(
     h.prospects.conversionReceipt(ctx, prospect, receiptCommand().requestId),
@@ -206,7 +285,7 @@ it('refuses stale conversion, current wall loss and foreign receipt access', asy
 });
 it('holds a current client wall through conversion and rolls back receipt insertion failure', async () => {
   const wall = await h.lock('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
-  const convert = settled(h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()));
+  const convert = settled(h.prospects.convertCommand(ctx, prospect, receiptCommand()));
   try {
     await h.waitForLock('FROM clients');
   } finally {
@@ -218,9 +297,7 @@ it('holds a current client wall through conversion and rolls back receipt insert
     `ALTER TABLE prospect_conversion_receipts ADD CONSTRAINT a2_receipt_failure CHECK(request_id<>'${id(104)}'::uuid)`,
   );
   try {
-    await expect(
-      h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()),
-    ).rejects.toThrow();
+    await expect(h.prospects.convertCommand(ctx, prospect, receiptCommand())).rejects.toThrow();
   } finally {
     await h.sql('ALTER TABLE prospect_conversion_receipts DROP CONSTRAINT a2_receipt_failure');
   }
@@ -232,4 +309,165 @@ it('holds a current client wall through conversion and rolls back receipt insert
     ).rows[0].linked_client_id,
   ).toBeNull();
   expect((await h.sql('SELECT count(*)::int AS count FROM audit_logs')).rows[0].count).toBe(0);
+});
+
+it('creates one new client under concurrent command replay and recovers its exact original receipt', async () => {
+  const command = newClientCommand();
+  const results = await Promise.all([
+    settled(h.prospects.convertCommand(ctx, prospect, command)),
+    settled(h.prospects.convertCommand(ctx, prospect, command)),
+  ]);
+  expect(results.map((result) => result.error)).toEqual([undefined, undefined]);
+  const first = results[0]!.value!;
+  const replay = results[1]!.value!;
+  expect(first.outcome).toBe('created');
+  expect(replay).toEqual(first);
+  expect(await h.prospects.conversionReceipt(ctx, prospect, command.requestId)).toEqual(first);
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT name,website,description FROM clients WHERE id=$1', [first.clientId]))
+      .rows,
+  ).toEqual([{ name: 'Synthetic first', website: 'https://example.test', description: null }]);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+});
+
+it('serializes two different-prospect new-client commands at the last slot', async () => {
+  const gate = await h.lock('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [
+    `client-capacity:${tenant}`,
+  ]);
+  const commands = [
+    newClientCommand(),
+    { ...newClientCommand(106), prospectId: otherProspect, clientName: 'Synthetic second' },
+  ];
+  const pending = Promise.all(
+    commands.map((command) =>
+      settled(h.prospects.convertCommand(ctx, command.prospectId, command)),
+    ),
+  );
+  try {
+    await h.waitForLock('pg_advisory_xact_lock', 2);
+  } finally {
+    await release(gate);
+  }
+  const results = await pending;
+  expect(results.filter((result) => result.value?.outcome === 'created')).toHaveLength(1);
+  expect(results.filter((result) => result.error?.status === 402)).toHaveLength(1);
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+  expect(
+    (
+      await h.sql(
+        'SELECT count(*)::int AS count FROM business_development_prospects WHERE linked_client_id IS NOT NULL',
+      )
+    ).rows[0].count,
+  ).toBe(1);
+});
+
+it('uses current new-client capacity policy after waiting behind a billing update', async () => {
+  const billing = await h.lock('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
+  const conversion = settled(h.prospects.convertCommand(ctx, prospect, newClientCommand()));
+  try {
+    await h.waitForLock('FROM tenants');
+  } finally {
+    await release(billing);
+  }
+  expect((await conversion).error).toMatchObject({ status: 402 });
+  expect(await active()).toBe(1);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(0);
+  expect(
+    (
+      await h.sql(
+        'SELECT count(*)::int AS count FROM business_development_prospects WHERE linked_client_id IS NOT NULL',
+      )
+    ).rows[0].count,
+  ).toBe(0);
+});
+
+async function waitForQueuedBilling() {
+  const deadline = Date.now() + 3500;
+  while (Date.now() < deadline) {
+    const waiting = await h.sql(`SELECT 1 FROM pg_stat_activity
+      WHERE datname=current_database() AND application_name='a2-fixture-admin'
+        AND wait_event_type='Lock' AND query LIKE 'UPDATE tenants SET client_slots=1%'`);
+    if (waiting.rowCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error('Expected queued billing row-lock wait was not observed.');
+}
+
+it('does not deadlock new-client authorization, queued billing and ordinary admission', async () => {
+  // Pause conversion at current membership after it takes tenant SHARE. Queue
+  // billing behind that SHARE, then ordinary create behind the same capacity
+  // lock. Before the fix, ordinary create took capacity while conversion held
+  // tenant SHARE, making a three-way cycle once the membership gate released.
+  const member = await h.lock(
+    'UPDATE tenant_memberships SET role=role WHERE tenant_id=$1 AND user_id=$2',
+    [tenant, actor],
+  );
+  const conversion = settled(h.prospects.convertCommand(ctx, prospect, newClientCommand()));
+  let billing: ReturnType<typeof settled> | undefined;
+  let ordinary: ReturnType<typeof settled> | undefined;
+  let synchronizationFailure: unknown;
+  try {
+    await h.waitForLock('FROM tenant_memberships');
+    billing = settled(h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]));
+    await waitForQueuedBilling();
+    ordinary = settled(h.clients.create(ctx, { name: 'Synthetic queued admission' }));
+    await h.waitForLock('', 2);
+  } catch (error) {
+    synchronizationFailure = error;
+  } finally {
+    await release(member);
+  }
+  const [converted, billed, created] = await Promise.all([conversion, billing, ordinary]);
+  if (synchronizationFailure) throw synchronizationFailure;
+  expect(converted.value?.outcome).toBe('created');
+  expect(billed).toBeDefined();
+  expect(billed?.error).toBeUndefined();
+  expect(created?.error).toMatchObject({ status: 402 });
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+});
+
+it('new-client capacity and receipt-insert failures roll back the client and prospect together', async () => {
+  await h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
+  await expect(h.prospects.convertCommand(ctx, prospect, newClientCommand())).rejects.toMatchObject(
+    { status: 402 },
+  );
+  expect(await active()).toBe(1);
+  expect(
+    (
+      await h.sql('SELECT linked_client_id FROM business_development_prospects WHERE id=$1', [
+        prospect,
+      ])
+    ).rows[0].linked_client_id,
+  ).toBeNull();
+  await h.sql('UPDATE tenants SET client_slots=2 WHERE id=$1', [tenant]);
+  await h.sql(
+    `ALTER TABLE prospect_conversion_receipts ADD CONSTRAINT a2_new_receipt_failure CHECK(request_id<>'${id(105)}'::uuid)`,
+  );
+  try {
+    await expect(h.prospects.convertCommand(ctx, prospect, newClientCommand())).rejects.toThrow();
+  } finally {
+    await h.sql('ALTER TABLE prospect_conversion_receipts DROP CONSTRAINT a2_new_receipt_failure');
+  }
+  expect(await active()).toBe(1);
+  expect(
+    (
+      await h.sql('SELECT linked_client_id FROM business_development_prospects WHERE id=$1', [
+        prospect,
+      ])
+    ).rows[0].linked_client_id,
+  ).toBeNull();
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(0);
 });

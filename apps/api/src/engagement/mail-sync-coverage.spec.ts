@@ -239,6 +239,18 @@ describe('getMailSyncCoverage', () => {
       .toMatchObject({ sourceStatus: 'unavailable', reason: 'mailbox_not_connected' });
   });
 
+  it.each(['failed', 'partial'])('durable %s resource health degrades an otherwise complete baseline', (outcome) => {
+    const syncState = { mail: graphMail(), health: { mail: { outcome } } };
+    expect(getMailSyncCoverage({ ...connection, syncState })).toMatchObject({
+      sourceStatus: 'degraded', reason: outcome === 'failed' ? 'mail_sync_failed' : 'mail_sync_incomplete',
+      backfillComplete: true,
+    });
+    for (const status of ['error', 'needs_configuration', 'disabled'])
+      expect(getMailSyncCoverage({ ...connection, status, syncState })).toMatchObject({
+        sourceStatus: 'unavailable', reason: 'mailbox_not_connected',
+      });
+  });
+
   it.each([null, [], 'malformed', { mail: { updatedAt: 'invalid-date' } }])('fails closed on missing or malformed mail state', (syncState) => {
     expect(getMailSyncCoverage({ ...connection, syncState }))
       .toMatchObject({ sourceStatus: 'degraded', lastMailSyncAt: null, backfillComplete: false });

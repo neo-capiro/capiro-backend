@@ -54,13 +54,11 @@ describe('EngagementService.createIntegration — scope single source of truth',
     expect(call.data.scopes).toEqual([...MICROSOFT_SCOPES]);
   });
 
-  test('imap_caldav scopes remain unchanged', async () => {
+  test('unsupported IMAP registration is refused before persistence', () => {
     const { service, create } = makeService();
 
-    await service.createIntegration(ctx, { provider: EngagementProvider.imap_caldav });
-
-    const call = create.mock.calls[0]?.[0] as { data: { scopes: string[] } };
-    expect(call.data.scopes).toEqual(['imap.read', 'caldav.read']);
+    expect(() => service.createIntegration(ctx, { provider: EngagementProvider.imap_caldav })).toThrow('not supported');
+    expect(create).not.toHaveBeenCalled();
   });
 
   test('returned scope arrays are copies, not the mutable canonical references', async () => {

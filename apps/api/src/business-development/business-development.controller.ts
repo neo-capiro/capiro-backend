@@ -201,16 +201,16 @@ export class BusinessDevelopmentController {
     return this.bizdev.convert(ctx, params.prospectId, body);
   }
 
-  /** One explicitly reviewed existing-client link, with an attributable receipt. */
+  /** One reviewed existing-client link or new-client conversion, with an attributable receipt. */
   @Post(`prospects/:${UUID_PARAM}/conversion-commands`)
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  convertExistingCommand(
+  convertCommand(
     @CurrentTenant() ctx: TenantContext,
     @Param() params: ProspectIdParam,
     @Body() body: unknown,
   ) {
-    return this.bizdev.convertExistingCommand(ctx, params.prospectId, body);
+    return this.bizdev.convertCommand(ctx, params.prospectId, body);
   }
 
   @Get(`prospects/:${UUID_PARAM}/conversion-commands/:requestId`)

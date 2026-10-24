@@ -8,8 +8,27 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { admitMailboxRefresh } from '../mailbox-oauth-authority.js';
+import { admitMailboxRefresh, lockMailboxConnection } from '../mailbox-oauth-authority.js';
 import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
+import {
+  runSyncResources,
+  resourceSyncHealth,
+  verifiedScopeState,
+  type IntegrationSyncHealth,
+} from '../integration-health.js';
+import {
+  assertMailboxSyncCurrent,
+  mailboxState,
+  mergeMailboxSyncState,
+  withMailboxSyncClaim,
+} from '../mailbox-sync-claim.js';
+import {
+  assertMailboxBudget,
+  mailboxMsalNetwork,
+  mailboxProviderRequest,
+  mailboxRetryDelay,
+  mailboxYieldRequested,
+} from '../mailbox-provider-transport.js';
 import {
   ConfidentialClientApplication,
   type AuthenticationResult,
@@ -98,6 +117,7 @@ interface NotificationSyncQueueState {
 }
 
 interface MicrosoftSyncState {
+  health?: IntegrationSyncHealth;
   calendar?: {
     cursor?: string | null;
     nextLink?: string | null;
@@ -105,6 +125,7 @@ interface MicrosoftSyncState {
     updatedAt?: string | null;
     window?: { from: string; to: string };
     lastStats?: SyncStats;
+    pendingPage?: GraphDeltaResponse<GraphEvent>;
   };
   mail?: {
     captureVersion?: number;
@@ -126,10 +147,13 @@ interface MicrosoftSyncState {
     updatedAt?: string | null;
     subscriptions?: MicrosoftSubscriptionState[];
     lastLifecycleEvent?: string | null;
+    lastNotificationAt?: string | null;
+    recoveryPending?: boolean;
   };
 }
 
 interface MailFolderSyncState {
+  pendingPage?: GraphDeltaResponse<GraphMessage>;
   /** Keep capped backfill continuations out of incremental knowledge ingestion. */
   syncMode?: MailboxSyncMode;
   cursor?: string | null;
@@ -147,6 +171,8 @@ export interface MicrosoftSubscriptionState {
   clientState: string;
   expirationDateTime: string;
   createdAt: string;
+  lastRenewedAt?: string;
+  needsReauthorization?: boolean;
 }
 
 export interface SyncStats {
@@ -165,6 +191,7 @@ export interface SyncStats {
 
 export interface SyncResult {
   connectionId: string;
+  health?: IntegrationSyncHealth;
   calendar?: SyncStats;
   mail?: Record<string, SyncStats>;
 }
@@ -345,50 +372,56 @@ export class MicrosoftGraphSyncService {
   ): Promise<SyncStats> {
     await this.assertConnectionAccess(ctx, connectionId);
     const window = calendarWindow(input.from, input.to);
+    return withMailboxSyncClaim(this.prisma, ctx.tenantId, connectionId, async () => {
+      try {
+        const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
+        const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+        const stats = emptyStats();
+        let nextUrl = calendarViewUrl(window.from, window.to);
 
-    try {
-      const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
-      const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
-      const stats = emptyStats();
-      let nextUrl = calendarViewUrl(window.from, window.to);
-
-      for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN && nextUrl; page += 1) {
-        stats.pages += 1;
-        const response = await this.graphGet<GraphDeltaResponse<GraphEvent>>(nextUrl, accessToken, {
-          Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
-        });
-        for (const event of response.value ?? []) {
-          stats.scanned += 1;
-          const outcome = await this.persistGraphEvent(
-            ctx.tenantId,
-            connection.id,
-            event,
-            connection.accountEmail,
+        for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN && nextUrl; page += 1) {
+          stats.pages += 1;
+          const response = await this.graphGet<GraphDeltaResponse<GraphEvent>>(
+            nextUrl,
+            accessToken,
+            {
+              Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
+            },
           );
-          stats.matched += outcome === 'matched' ? 1 : 0;
-          stats.skipped += outcome === 'skipped' ? 1 : 0;
-          stats.removed += outcome === 'removed' ? 1 : 0;
+          for (const event of response.value ?? []) {
+            stats.scanned += 1;
+            const outcome = await this.persistGraphEvent(
+              ctx.tenantId,
+              connection.id,
+              event,
+              connection.accountEmail,
+            );
+            stats.matched += outcome === 'matched' ? 1 : 0;
+            stats.skipped += outcome === 'skipped' ? 1 : 0;
+            stats.removed += outcome === 'removed' ? 1 : 0;
+          }
+          nextUrl = response['@odata.nextLink'] ?? '';
+          if (!nextUrl || mailboxYieldRequested()) break;
         }
-        nextUrl = response['@odata.nextLink'] ?? '';
-        if (!nextUrl) break;
-      }
 
-      stats.hasMore = Boolean(nextUrl);
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.integrationConnection.update({
-          where: { id: connectionId },
-          data: {
-            status: EngagementConnectionStatus.connected,
-            lastSyncAt: new Date(),
-            lastError: null,
-          },
-        }),
-      );
-      return stats;
-    } catch (err) {
-      await this.markSyncError(ctx.tenantId, connectionId, err);
-      throw err;
-    }
+        stats.hasMore = Boolean(nextUrl);
+        await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+          await assertMailboxSyncCurrent(tx, ctx.tenantId, connectionId);
+          return tx.integrationConnection.update({
+            where: { id: connectionId },
+            data: {
+              status: EngagementConnectionStatus.connected,
+              lastSyncAt: new Date(),
+              lastError: null,
+            },
+          });
+        });
+        return stats;
+      } catch (err) {
+        await this.markSyncError(ctx.tenantId, connectionId, err);
+        throw err;
+      }
+    });
   }
 
   async configureSubscriptions(ctx: TenantContext, connectionId: string) {
@@ -413,65 +446,151 @@ export class MicrosoftGraphSyncService {
       throw new ServiceUnavailableException('MICROSOFT_GRAPH_NOTIFICATION_URL is not configured');
     }
     this.assertTokenRefreshConfigured();
+    return withMailboxSyncClaim(this.prisma, tenantId, connectionId, async () => {
+      try {
+        const { connection, token } = await this.loadConnection(tenantId, connectionId);
+        const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
+        const state = readSyncState(connection.syncState);
+        const existing = state.webhooks?.subscriptions ?? [];
+        const failures: unknown[] = [];
+        for (const resource of ['me/events', 'me/messages'] as const) {
+          const previous = existing.find((subscription) => subscription.resource === resource);
+          if (
+            previous &&
+            !previous.needsReauthorization &&
+            Date.parse(previous.expirationDateTime) > Date.now() + SUBSCRIPTION_RENEWAL_SKEW_MS
+          )
+            continue;
+          try {
+            const expirationDateTime = new Date(Date.now() + OUTLOOK_SUBSCRIPTION_MS).toISOString();
+            let renewed: MicrosoftSubscriptionState | undefined;
+            if (previous) {
+              try {
+                // Graph PATCH both renews and reauthorizes; no second reauthorize request.
+                const response = await this.graphFetch<GraphSubscriptionResponse>(
+                  'PATCH',
+                  `/subscriptions/${encodeURIComponent(previous.id)}`,
+                  accessToken,
+                  { expirationDateTime },
+                );
+                renewed = {
+                  ...previous,
+                  expirationDateTime: response.expirationDateTime,
+                  lastRenewedAt: new Date().toISOString(),
+                  needsReauthorization: false,
+                };
+              } catch (error) {
+                if (![404, 410].includes(mailErrorStatus(error) ?? 0)) throw error;
+                // A definitive gone result removes only this resource before recreation.
+                await this.prisma.withTenant(tenantId, async (tx) => {
+                  await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+                  const current = await lockMailboxConnection(tx, tenantId, connectionId);
+                  const webhooks = readSyncState(current.syncState).webhooks ?? {};
+                  await mergeMailboxSyncState(tx, tenantId, connectionId, {
+                    webhooks: {
+                      ...webhooks,
+                      configured: false,
+                      subscriptions: (webhooks.subscriptions ?? []).filter(
+                        (item) => item.id !== previous.id,
+                      ),
+                    },
+                  });
+                });
+              }
+            }
+            if (!renewed) {
+              const clientState = this.signClientState(tenantId, connectionId, resource);
+              const created = await this.graphPost<GraphSubscriptionResponse>(
+                '/subscriptions',
+                accessToken,
+                {
+                  changeType: 'created,updated,deleted',
+                  notificationUrl: this.notificationUrl,
+                  lifecycleNotificationUrl: this.notificationUrl,
+                  resource,
+                  expirationDateTime,
+                  clientState,
+                },
+              );
 
-    const { connection, token } = await this.loadConnection(tenantId, connectionId);
-    const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
-    const state = readSyncState(connection.syncState);
-    const existing = state.webhooks?.subscriptions ?? [];
-    const now = Date.now();
-    const createdAt = new Date().toISOString();
-    const subscriptions: MicrosoftSubscriptionState[] = [];
-
-    for (const resource of ['me/events', 'me/messages'] as const) {
-      const reusable = existing.find(
-        (subscription) =>
-          subscription.resource === resource &&
-          new Date(subscription.expirationDateTime).getTime() > now + SUBSCRIPTION_RENEWAL_SKEW_MS,
-      );
-      if (reusable) {
-        subscriptions.push(reusable);
-        continue;
+              renewed = {
+                id: created.id,
+                resource,
+                clientState,
+                expirationDateTime: created.expirationDateTime,
+                createdAt: new Date().toISOString(),
+                lastRenewedAt: new Date().toISOString(),
+                needsReauthorization: false,
+              };
+            }
+            if (!renewed.id || !Number.isFinite(Date.parse(renewed.expirationDateTime)))
+              throw new ServiceUnavailableException(
+                'Microsoft returned an incomplete subscription response',
+              );
+            // Save each resource immediately. A second-resource failure must not orphan the first.
+            await this.prisma.withTenant(tenantId, async (tx) => {
+              await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+              const current = await lockMailboxConnection(tx, tenantId, connectionId);
+              const webhooks = readSyncState(current.syncState).webhooks ?? {};
+              const subscriptions = [
+                ...(webhooks.subscriptions ?? []).filter((item) => item.resource !== resource),
+                renewed!,
+              ];
+              await mergeMailboxSyncState(tx, tenantId, connectionId, {
+                webhooks: {
+                  ...webhooks,
+                  configured: ['me/events', 'me/messages'].every((kind) =>
+                    subscriptions.some(
+                      (item) =>
+                        item.resource === kind &&
+                        !item.needsReauthorization &&
+                        Date.parse(item.expirationDateTime) > Date.now(),
+                    ),
+                  ),
+                  updatedAt: new Date().toISOString(),
+                  subscriptions,
+                },
+              });
+            });
+          } catch (error) {
+            failures.push(error);
+            assertMailboxBudget();
+          }
+        }
+        if (failures.length) throw failures[0];
+        return this.prisma.withTenant(tenantId, async (tx) => {
+          await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+          const current = await lockMailboxConnection(tx, tenantId, connectionId);
+          const webhooks = readSyncState(current.syncState).webhooks ?? {};
+          const subscriptions = webhooks.subscriptions ?? [];
+          const configured = ['me/events', 'me/messages'].every((resource) =>
+            subscriptions.some(
+              (item) =>
+                item.resource === resource &&
+                !item.needsReauthorization &&
+                Date.parse(item.expirationDateTime) > Date.now(),
+            ),
+          );
+          await mergeMailboxSyncState(tx, tenantId, connectionId, {
+            webhooks: { ...webhooks, configured },
+          });
+          return { configured, subscriptions };
+        });
+      } catch (error) {
+        // The scheduler deliberately catches renewal failures inside its shared
+        // claim. Keep a durable recovery hint so release cannot schedule a long
+        // normal interval after an otherwise successful resource batch.
+        await this.prisma.withTenant(tenantId, async (tx) => {
+          await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+          const current = await lockMailboxConnection(tx, tenantId, connectionId);
+          const webhooks = readSyncState(current.syncState).webhooks ?? {};
+          await mergeMailboxSyncState(tx, tenantId, connectionId, {
+            webhooks: { ...webhooks, configured: false, recoveryPending: true },
+          });
+        });
+        throw error;
       }
-
-      const clientState = this.signClientState(tenantId, connectionId, resource);
-      const expirationDateTime = new Date(Date.now() + OUTLOOK_SUBSCRIPTION_MS).toISOString();
-      const created = await this.graphPost<GraphSubscriptionResponse>(
-        '/subscriptions',
-        accessToken,
-        {
-          changeType: 'created,updated,deleted',
-          notificationUrl: this.notificationUrl,
-          lifecycleNotificationUrl: this.notificationUrl,
-          resource,
-          expirationDateTime,
-          clientState,
-        },
-      );
-
-      subscriptions.push({
-        id: created.id,
-        resource,
-        clientState,
-        expirationDateTime: created.expirationDateTime,
-        createdAt,
-      });
-    }
-
-    state.webhooks = {
-      configured: true,
-      updatedAt: new Date().toISOString(),
-      subscriptions,
-      lastLifecycleEvent: state.webhooks?.lastLifecycleEvent ?? null,
-    };
-
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.integrationConnection.update({
-        where: { id: connectionId },
-        data: { syncState: state as Prisma.InputJsonValue, lastError: null },
-      }),
-    );
-
-    return { configured: true, subscriptions };
+    });
   }
 
   /**
@@ -489,23 +608,29 @@ export class MicrosoftGraphSyncService {
       const state = readSyncState(connection.syncState);
       const subscriptions = state.webhooks?.subscriptions ?? [];
       if (subscriptions.length === 0) return 0;
-      const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
-      for (const subscription of subscriptions) {
+      // Disconnect has already disabled and fenced the row. Do not refresh or
+      // re-enable it merely to perform best-effort upstream cleanup.
+      const accessToken = this.tokenCrypto.decrypt({
+        ciphertext: token.accessTokenCiphertext,
+        iv: token.accessTokenIv,
+        authTag: token.accessTokenAuthTag,
+      });
+      for (const subscription of subscriptions.slice(0, 2)) {
         try {
           await this.graphDelete(
             `/subscriptions/${encodeURIComponent(subscription.id)}`,
             accessToken,
           );
           deleted += 1;
-        } catch (err) {
+        } catch {
           this.logger.warn(
-            `Failed to delete Graph subscription ${subscription.id} for connection ${connectionId}: ${(err as Error).message}`,
+            'Graph subscription deletion was not confirmed; local disconnect continues.',
           );
         }
       }
-    } catch (err) {
+    } catch {
       this.logger.warn(
-        `Graph subscription teardown skipped for connection ${connectionId}: ${(err as Error).message}`,
+        'Graph subscription teardown was not confirmed; local disconnect continues.',
       );
     }
     return deleted;
@@ -642,7 +767,7 @@ export class MicrosoftGraphSyncService {
       tx.integrationConnection.findMany({
         where: {
           provider: EngagementProvider.microsoft_365,
-          status: EngagementConnectionStatus.connected,
+          status: { in: [EngagementConnectionStatus.connected, EngagementConnectionStatus.error] },
         },
         select: { id: true, tenantId: true, syncState: true },
       }),
@@ -674,6 +799,8 @@ export class MicrosoftGraphSyncService {
           match.tenantId,
           match.connectionId,
           notification.lifecycleEvent,
+          match.subscription.id,
+          match.subscription.clientState,
         );
         continue;
       }
@@ -739,7 +866,15 @@ export class MicrosoftGraphSyncService {
       // Skip over any task whose key is mid-flight rather than dequeuing it —
       // two syncs of the same (connection, resource) would race on the same
       // cursor. A finishing run re-drains, so the skipped task is not stranded.
-      const index = state.queue.findIndex((task) => !state.running.has(task.key));
+      const index = state.queue.findIndex(
+        (task) =>
+          ![...state.running].some(
+            (key) =>
+              key === task.key ||
+              key === `lifecycle:${task.connectionId}` ||
+              key.startsWith(`${task.connectionId}:`),
+          ),
+      );
       if (index === -1) return;
 
       const task = state.queue.splice(index, 1)[0];
@@ -778,57 +913,74 @@ export class MicrosoftGraphSyncService {
     connectionId: string,
     input: { calendar?: boolean; mail?: boolean; reset?: boolean; from?: string; to?: string } = {},
   ): Promise<SyncResult> {
-    try {
-      const { connection, token } = await this.loadConnection(tenantId, connectionId);
-      const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
-      const state = readSyncState(connection.syncState);
-      const result: SyncResult = { connectionId };
+    return withMailboxSyncClaim(this.prisma, tenantId, connectionId, async () => {
+      try {
+        const { connection, token } = await this.loadConnection(tenantId, connectionId);
+        const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
+        const state = readSyncState(connection.syncState);
+        const {
+          result: batches,
+          health,
+          errors,
+        } = await runSyncResources(
+          state.health,
+          input,
+          () =>
+            this.syncCalendar(tenantId, connection, state, accessToken, input, () =>
+              this.checkpointSyncProgress(tenantId, connectionId, state, 'calendar'),
+            ),
+          () =>
+            this.syncMail(tenantId, connection, state, accessToken, input, () =>
+              this.checkpointSyncProgress(tenantId, connectionId, state, 'mail'),
+            ),
+        );
+        state.health = health;
+        const result: SyncResult = { connectionId, ...batches, health };
+        assertMailboxBudget();
+        await this.prisma.withTenant(tenantId, (tx) =>
+          mergeMailboxSyncState(
+            tx,
+            tenantId,
+            connectionId,
+            {
+              ...(input.calendar !== false
+                ? { calendar: state.calendar, health: state.health }
+                : {}),
+              ...(input.mail !== false ? { mail: state.mail, health: state.health } : {}),
+              ...(input.calendar !== false &&
+              input.mail !== false &&
+              health.calendar?.outcome === 'complete' &&
+              health.mail?.outcome === 'complete' &&
+              state.webhooks?.configured === true
+                ? { webhooks: { ...state.webhooks, recoveryPending: false } }
+                : {}),
+            },
+            {
+              status: EngagementConnectionStatus.connected,
+              lastSyncAt: new Date(),
+              lastError: errors.length
+                ? 'Some resources could not sync. Review mail and calendar health, then retry.'
+                : null,
+            },
+          ),
+        );
+        // Persist each attempted resource before surfacing a terminal or all-resource failure.
+        if (
+          errors.length &&
+          (input.reset ||
+            errors.some(isPermanentMailFailure) ||
+            (!batches.calendar && !batches.mail))
+        )
+          throw errors[0];
 
-      let calendarSynced = false;
-      if (input.calendar !== false) {
-        result.calendar = await this.syncCalendar(tenantId, connection, state, accessToken, input);
-        calendarSynced = true;
+        return result;
+      } catch (err) {
+        // Keep the inherited mailbox-absence hold scoped to connection sync;
+        // calendar-window sync has always retained generic retry eligibility.
+        await this.markSyncError(tenantId, connectionId, err, { holdMailboxAbsence: true });
+        throw err;
       }
-      if (input.mail !== false) {
-        try {
-          result.mail = await this.syncMail(tenantId, connection, state, accessToken, input);
-        } catch (err) {
-          // If the calendar leg already succeeded, don't flag the whole
-          // connection failed for a TRANSIENT mail-leg error (429/5xx/DB blip):
-          // calendar meetings are committed, the mail cursor was NOT advanced
-          // (syncMail throws before persisting state), and the scheduler retries
-          // next cycle — killing the misleading "failed to sync" banner. A
-          // resource auth/permission or mailbox-not-enabled failure, or a
-          // mail-only run, still surfaces via re-throw. A resource 401/403 alone
-          // does not prove that the current credentials require reconnect.
-          if (!calendarSynced || isPermanentMailFailure(err)) throw err;
-          this.logger.warn(
-            `Microsoft mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
-              err instanceof Error ? err.message : err
-            }`,
-          );
-        }
-      }
-
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.integrationConnection.update({
-          where: { id: connectionId },
-          data: {
-            syncState: state as Prisma.InputJsonValue,
-            status: EngagementConnectionStatus.connected,
-            lastSyncAt: new Date(),
-            lastError: null,
-          },
-        }),
-      );
-
-      return result;
-    } catch (err) {
-      // Keep the inherited mailbox-absence hold scoped to connection sync;
-      // calendar-window sync has always retained generic retry eligibility.
-      await this.markSyncError(tenantId, connectionId, err, { holdMailboxAbsence: true });
-      throw err;
-    }
+    });
   }
 
   private async syncCalendar(
@@ -837,24 +989,30 @@ export class MicrosoftGraphSyncService {
     state: MicrosoftSyncState,
     accessToken: string,
     input: { reset?: boolean; from?: string; to?: string },
+    checkpoint?: () => Promise<void>,
   ): Promise<SyncStats> {
     const stats = emptyStats();
+    if (mailboxYieldRequested()) return { ...stats, hasMore: true };
     const current = state.calendar ?? {};
-    const window = calendarWindow(input.from, input.to);
+    const window =
+      !input.reset && current.window ? current.window : calendarWindow(input.from, input.to);
     let usedStoredCursor =
       !input.reset && Boolean(current.nextLink || current.cursor || current.deltaLink);
     let nextUrl = usedStoredCursor
       ? (current.nextLink || current.cursor || current.deltaLink)!
       : calendarDeltaUrl(window.from, window.to);
     let deltaLink: string | null = null;
+    let pendingPage = input.reset ? undefined : current.pendingPage;
 
     for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN && nextUrl; page += 1) {
       stats.pages += 1;
       let response: GraphDeltaResponse<GraphEvent>;
       try {
-        response = await this.graphGet<GraphDeltaResponse<GraphEvent>>(nextUrl, accessToken, {
-          Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
-        });
+        response =
+          pendingPage ??
+          (await this.graphGet<GraphDeltaResponse<GraphEvent>>(nextUrl, accessToken, {
+            Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
+          }));
       } catch (err) {
         // Graph delta state expires (410 SyncStateNotFound) on streams that
         // sat idle for weeks — restart from a fresh delta URL instead of
@@ -872,7 +1030,14 @@ export class MicrosoftGraphSyncService {
         }
         throw err;
       }
-      for (const event of response.value ?? []) {
+      pendingPage = undefined;
+      const events = response.value ?? [];
+      for (let index = 0; index < events.length; index += 1) {
+        if (mailboxYieldRequested()) {
+          pendingPage = { ...response, value: events.slice(index) };
+          break;
+        }
+        const event = events[index]!;
         stats.scanned += 1;
         const outcome = await this.persistGraphEvent(
           tenantId,
@@ -883,10 +1048,21 @@ export class MicrosoftGraphSyncService {
         stats.matched += outcome === 'matched' ? 1 : 0;
         stats.skipped += outcome === 'skipped' ? 1 : 0;
         stats.removed += outcome === 'removed' ? 1 : 0;
+        state.calendar = {
+          cursor: nextUrl,
+          nextLink: nextUrl,
+          deltaLink: usedStoredCursor ? (current.deltaLink ?? null) : null,
+          pendingPage: { ...response, value: events.slice(index + 1) },
+          window,
+          updatedAt: new Date().toISOString(),
+          lastStats: { ...stats, hasMore: true },
+        };
+        await checkpoint?.();
       }
+      if (pendingPage) break;
       nextUrl = response['@odata.nextLink'] ?? '';
       deltaLink = response['@odata.deltaLink'] ?? null;
-      if (!nextUrl) break;
+      if (!nextUrl || mailboxYieldRequested()) break;
     }
 
     stats.hasMore = Boolean(nextUrl);
@@ -896,6 +1072,7 @@ export class MicrosoftGraphSyncService {
       deltaLink: deltaLink ?? current.deltaLink ?? null,
       updatedAt: new Date().toISOString(),
       window,
+      ...(pendingPage ? { pendingPage } : {}),
       lastStats: stats,
     };
     return stats;
@@ -907,7 +1084,9 @@ export class MicrosoftGraphSyncService {
     state: MicrosoftSyncState,
     accessToken: string,
     input: { reset?: boolean },
+    checkpoint?: () => Promise<void>,
   ): Promise<Record<string, SyncStats>> {
+    if (mailboxYieldRequested()) return { ALL: { ...emptyStats(), hasMore: true } };
     // Legacy pair first (well-known-name keys so pre-existing delta links
     // survive), then the enumerated folder tree: custom/client subfolders and
     // Archive included, junk/deleted/drafts/outbox excluded. Enumeration
@@ -954,12 +1133,38 @@ export class MicrosoftGraphSyncService {
         }
       }
     }
-    // Publish new state only after the mail leg succeeds. The caller can keep
-    // calendar success after a transient mail failure; mutating the old folder
-    // map here would otherwise advance some repair cursors despite that failure.
+    // Publish only prefixes whose individual persistence completed. A later
+    // failure retains these checkpoints rather than restoring the old page.
     const folderStates: Record<string, MailFolderSyncState> = reset
       ? {}
       : { ...(activeFolders ?? {}) };
+    const publishMailState = (partial = false) => {
+      const hasMore = partial || Object.values(folderStates).some((folder) => folder.nextLink);
+      const captureReplayCatchupPending = finishReplay
+        ? hasMore
+        : Boolean(previousFolders && Object.keys(previousFolders).length > 0);
+      state.mail = {
+        captureVersion: prepareReplay ? (state.mail?.captureVersion ?? 0) : MAIL_CAPTURE_VERSION,
+        captureReplayReady: prepareReplay && !hasMore,
+        captureReplayCatchupPending,
+        captureReplayFinishing: Boolean(finishReplay && captureReplayCatchupPending),
+        captureReplayMissingFolders: [...missingFolders],
+        captureReplayPreviousFolders: captureReplayCatchupPending
+          ? finishReplay
+            ? { ...folderStates }
+            : previousFolders
+          : undefined,
+        folderEnumerationComplete: enumeration.coverageComplete,
+        cursor: Object.values(folderStates).find((folder) => folder.nextLink)?.nextLink ?? null,
+        deltaLink: null,
+        updatedAt: new Date().toISOString(),
+        folders: { ...folderStates },
+        lastStats: {
+          ...combineStats(Object.values(results)),
+          ...(partial ? { hasMore: true } : {}),
+        },
+      };
+    };
 
     for (const folder of folders) {
       const current = folderStates[folder.key] ?? {};
@@ -971,15 +1176,22 @@ export class MicrosoftGraphSyncService {
         ? (current.nextLink || current.cursor || current.deltaLink)!
         : mailDeltaUrl(folder.pathSegment, addDays(new Date(), -MAIL_BACKFILL_DAYS));
       let deltaLink: string | null = null;
+      let pendingPage = reset ? undefined : current.pendingPage;
       let folderUnavailable = false;
 
-      for (let page = 0; page < MAX_MAIL_PAGES_PER_FOLDER_PER_RUN && nextUrl; page += 1) {
+      for (
+        let page = 0;
+        page < MAX_MAIL_PAGES_PER_FOLDER_PER_RUN && nextUrl && !mailboxYieldRequested();
+        page += 1
+      ) {
         stats.pages += 1;
         let response: GraphDeltaResponse<GraphMessage>;
         try {
-          response = await this.graphGet<GraphDeltaResponse<GraphMessage>>(nextUrl, accessToken, {
-            Prefer: 'odata.maxpagesize=50',
-          });
+          response =
+            pendingPage ??
+            (await this.graphGet<GraphDeltaResponse<GraphMessage>>(nextUrl, accessToken, {
+              Prefer: 'odata.maxpagesize=50',
+            }));
         } catch (err) {
           if (
             (prepareReplay || finishReplay) &&
@@ -1017,7 +1229,14 @@ export class MicrosoftGraphSyncService {
           }
           throw err;
         }
-        for (const message of response.value ?? []) {
+        pendingPage = undefined;
+        const messages = response.value ?? [];
+        for (let index = 0; index < messages.length; index += 1) {
+          if (mailboxYieldRequested()) {
+            pendingPage = { ...response, value: messages.slice(index) };
+            break;
+          }
+          const message = messages[index]!;
           stats.scanned += 1;
           try {
             const outcome = await this.persistGraphMessage(
@@ -1051,10 +1270,26 @@ export class MicrosoftGraphSyncService {
               }`,
             );
           }
+          if (checkpoint) {
+            folderStates[folder.key] = {
+              syncMode: usedStoredCursor ? cursorSyncMode : 'backfill',
+              cursor: nextUrl,
+              nextLink: nextUrl,
+              deltaLink: usedStoredCursor ? (current.deltaLink ?? null) : null,
+              pendingPage: { ...response, value: messages.slice(index + 1) },
+              updatedAt: new Date().toISOString(),
+              displayName: folder.displayPath,
+              lastStats: { ...stats, hasMore: true },
+            };
+            results[folder.key] = { ...stats, hasMore: true };
+            publishMailState(true);
+            await checkpoint();
+          }
         }
+        if (pendingPage) break;
         nextUrl = response['@odata.nextLink'] ?? '';
         deltaLink = response['@odata.deltaLink'] ?? null;
-        if (!nextUrl) break;
+        if (!nextUrl || mailboxYieldRequested()) break;
       }
 
       if (folderUnavailable) {
@@ -1070,6 +1305,7 @@ export class MicrosoftGraphSyncService {
         deltaLink: deltaLink ?? current.deltaLink ?? null,
         updatedAt: new Date().toISOString(),
         displayName: folder.displayPath,
+        ...(pendingPage ? { pendingPage } : {}),
         lastStats: stats,
       };
       results[folder.key] = stats;
@@ -1085,29 +1321,30 @@ export class MicrosoftGraphSyncService {
       }
     }
 
-    const hasMore = Object.values(folderStates).some((folder) => folder.nextLink);
-    const captureReplayCatchupPending = finishReplay
-      ? hasMore
-      : Boolean(previousFolders && Object.keys(previousFolders).length > 0);
-    state.mail = {
-      captureVersion: prepareReplay ? (state.mail?.captureVersion ?? 0) : MAIL_CAPTURE_VERSION,
-      captureReplayReady: prepareReplay && !hasMore,
-      captureReplayCatchupPending,
-      captureReplayFinishing: Boolean(finishReplay && captureReplayCatchupPending),
-      captureReplayMissingFolders: [...missingFolders],
-      captureReplayPreviousFolders: captureReplayCatchupPending
-        ? finishReplay
-          ? folderStates
-          : previousFolders
-        : undefined,
-      folderEnumerationComplete: enumeration.coverageComplete,
-      cursor: Object.values(folderStates).find((folder) => folder.nextLink)?.nextLink ?? null,
-      deltaLink: null,
-      updatedAt: new Date().toISOString(),
-      folders: folderStates,
-      lastStats: combineStats(Object.values(results)),
-    };
+    publishMailState();
     return results;
+  }
+
+  private async checkpointSyncProgress(
+    tenantId: string,
+    connectionId: string,
+    state: MicrosoftSyncState,
+    resource: 'calendar' | 'mail',
+  ): Promise<void> {
+    state.health = {
+      ...state.health,
+      [resource]: resourceSyncHealth(
+        state.health?.[resource],
+        [{ hasMore: true }],
+        new Date().toISOString(),
+      ),
+    };
+    await this.prisma.withTenant(tenantId, (tx) =>
+      mergeMailboxSyncState(tx, tenantId, connectionId, {
+        [resource]: state[resource],
+        health: state.health,
+      }),
+    );
   }
 
   /**
@@ -1228,15 +1465,16 @@ export class MicrosoftGraphSyncService {
       return 'skipped';
     }
     if (event['@removed']) {
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.meeting.updateMany({
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+        return tx.meeting.updateMany({
           where: { tenantId, source: EngagementSource.outlook, externalId: event.id },
           data: {
             status: 'deleted',
             metadata: { graphRemoved: event['@removed'] } as Prisma.InputJsonValue,
           },
-        }),
-      );
+        });
+      });
       return 'removed';
     }
 
@@ -1298,6 +1536,7 @@ export class MicrosoftGraphSyncService {
       tenantId,
       async (tx) => {
         await lockTenantForGraphSync(tx, tenantId);
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
         const existing = await tx.meeting.findUnique({
           where: {
             tenantId_source_externalId: {
@@ -1454,6 +1693,7 @@ export class MicrosoftGraphSyncService {
     if (message['@removed']) {
       await this.prisma.withTenantRetry(tenantId, async (tx) => {
         await lockTenantForGraphSync(tx, tenantId);
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
         await markMailMessageRemovedInTx(tx, {
           tenantId,
           source: EngagementSource.outlook,
@@ -1504,6 +1744,7 @@ export class MicrosoftGraphSyncService {
       tenantId,
       async (tx) => {
         await lockTenantForGraphSync(tx, tenantId);
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
         const existingMessage = await tx.mailMessage.findUnique({
           where: {
             tenantId_source_externalId: {
@@ -1514,7 +1755,13 @@ export class MicrosoftGraphSyncService {
           },
           include: {
             thread: {
-              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: {
+                id: true,
+                connectionId: true,
+                clientId: true,
+                lastMessageAt: true,
+                associationSignals: true,
+              },
             },
           },
         });
@@ -1528,12 +1775,20 @@ export class MicrosoftGraphSyncService {
                   externalId: threadExternalId,
                 },
               },
-              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: {
+                id: true,
+                connectionId: true,
+                clientId: true,
+                lastMessageAt: true,
+                associationSignals: true,
+              },
             });
         // Provider IDs are mailbox-local evidence, never permission to transfer rows.
         // Keep legacy ambiguous identities held until the mailbox-key migration.
-        if ((existingMessage && existingMessage.connectionId !== connectionId) ||
-            (existingThread && existingThread.connectionId !== connectionId)) {
+        if (
+          (existingMessage && existingMessage.connectionId !== connectionId) ||
+          (existingThread && existingThread.connectionId !== connectionId)
+        ) {
           throw new MailboxIdentityMismatchError();
         }
         const hasManualOverride = existingThread
@@ -1754,11 +2009,21 @@ export class MicrosoftGraphSyncService {
     connectionId: string,
     token: IntegrationConnectionToken,
   ): Promise<string> {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, token));
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+      return admitMailboxRefresh(
+        tx,
+        tenantId,
+        connectionId,
+        EngagementProvider.microsoft_365,
+        token,
+      );
+    });
     if (!token.homeAccountId) {
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
-      throw new MailboxReconnectRequiredError('Microsoft account identity is missing; reconnect Microsoft 365');
+      throw new MailboxReconnectRequiredError(
+        'Microsoft account identity is missing; reconnect Microsoft 365',
+      );
     }
     const hasRequiredScopes = hasRequiredResourceScopes(token.scopes);
     if (hasRequiredScopes && token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
@@ -1803,9 +2068,14 @@ export class MicrosoftGraphSyncService {
         'Microsoft token refresh failed; reconnect Microsoft 365',
       );
     }
-    if (result.account?.homeAccountId !== token.homeAccountId || !hasRequiredResourceScopes(result.scopes)) {
+    if (
+      result.account?.homeAccountId !== token.homeAccountId ||
+      !hasRequiredResourceScopes(result.scopes)
+    ) {
       await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
-      throw new MailboxReconnectRequiredError('Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365');
+      throw new MailboxReconnectRequiredError(
+        'Microsoft returned a different account or insufficient permissions; reconnect Microsoft 365',
+      );
     }
     await this.persistRefreshedAccessToken(tenantId, connectionId, result, token, msal);
     return result.accessToken;
@@ -1817,7 +2087,14 @@ export class MicrosoftGraphSyncService {
     snapshot: IntegrationConnectionToken,
   ) {
     await this.prisma.withTenant(tenantId, async (tx) => {
-      await admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, snapshot);
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+      await admitMailboxRefresh(
+        tx,
+        tenantId,
+        connectionId,
+        EngagementProvider.microsoft_365,
+        snapshot,
+      );
       await tx.integrationConnection.update({
         where: { id: connectionId },
         data: mailSyncFailureData('needs_reconnect', 'Microsoft 365'),
@@ -1833,16 +2110,22 @@ export class MicrosoftGraphSyncService {
     msal: ConfidentialClientApplication,
   ) {
     const encrypted = this.tokenCrypto.encrypt(result.accessToken);
-    // Account and actual resource grants were checked at the provider boundary.
-    // Retain canonical offline_access, which Azure omits from refresh scopes.
-    const persistedScopes = MICROSOFT_SCOPES;
+    // Actual returned grants remain distinct from the requested scope catalog.
+    const persistedScopes = result.scopes;
     // Azure rotates refresh tokens on every redemption. Capture the freshly issued one (matched to
     // this account) and persist it, so we advance the token chain instead of replaying the original
     // refresh token from connect time forever.
     const rotatedRefresh = this.extractRotatedRefreshToken(msal, snapshot.homeAccountId);
     const refreshEnvelope = rotatedRefresh ? this.tokenCrypto.encrypt(rotatedRefresh) : null;
     await this.prisma.withTenant(tenantId, async (tx) => {
-      await admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.microsoft_365, snapshot);
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+      const current = await admitMailboxRefresh(
+        tx,
+        tenantId,
+        connectionId,
+        EngagementProvider.microsoft_365,
+        snapshot,
+      );
       await tx.integrationConnectionToken.update({
         where: { connectionId },
         data: {
@@ -1867,6 +2150,7 @@ export class MicrosoftGraphSyncService {
           status: EngagementConnectionStatus.connected,
           scopes: persistedScopes,
           lastError: null,
+          syncState: verifiedScopeState(current.syncState, persistedScopes),
         },
       });
     });
@@ -1877,7 +2161,10 @@ export class MicrosoftGraphSyncService {
    * acquireTokenByRefreshToken. AuthenticationResult does not expose the refresh token, so we
    * serialize this exchange's isolated cache and select only the exact home_account_id. Best-effort: if nothing is found we keep the existing stored refresh token.
    */
-  private extractRotatedRefreshToken(msal: ConfidentialClientApplication, homeAccountId: string | null): string | undefined {
+  private extractRotatedRefreshToken(
+    msal: ConfidentialClientApplication,
+    homeAccountId: string | null,
+  ): string | undefined {
     if (!homeAccountId) return undefined;
     try {
       const cache = JSON.parse(msal.getTokenCache().serialize()) as {
@@ -1918,7 +2205,7 @@ export class MicrosoftGraphSyncService {
   }
 
   private async graphFetch<T>(
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     url: string,
     accessToken: string,
     body?: unknown,
@@ -1926,43 +2213,46 @@ export class MicrosoftGraphSyncService {
     parseJson = true,
     attempt = 1,
   ): Promise<T> {
-    const target = url.startsWith('https://') ? url : `${GRAPH_BASE_URL}${url}`;
-    const response = await fetch(target, {
-      method,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/json',
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    return mailboxProviderRequest(async (signal) => {
+      const target = url.startsWith('https://') ? url : `${GRAPH_BASE_URL}${url}`;
+      const response = await fetch(target, {
+        signal,
+        method,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+          ...headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-    // Only reads are replay-safe. The caller's durable intent owns mutation retries.
-    if (method === 'GET' && (response.status === 429 || response.status >= 500)) {
-      const retryAfter = Number(response.headers.get('retry-after') ?? '0');
-      if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
-        await sleep(retryAfter * 1000);
-        return this.graphFetch(method, url, accessToken, body, headers, parseJson, attempt + 1);
+      // Only reads are replay-safe. The caller's durable intent owns mutation retries.
+      if (method === 'GET' && (response.status === 429 || response.status >= 500)) {
+        const retryAfter = Number(response.headers.get('retry-after') ?? '0');
+        if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
+          await mailboxRetryDelay(retryAfter * 1000);
+          return this.graphFetch(method, url, accessToken, body, headers, parseJson, attempt + 1);
+        }
       }
-    }
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      // §g5 carries the real status through so a SEND caller can tell a
-      // confirmed 4xx rejection apart from a 5xx Graph never definitively
-      // answered (see isAmbiguousGraphSendFailure) — every other caller of
-      // graphFetch is unaffected, since GraphHttpError IS a
-      // ServiceUnavailableException.
-      throw new GraphHttpError(
-        `Microsoft Graph ${method} ${target} failed (${response.status}): ${text.slice(0, 500)}`,
-        response.status,
-      );
-    }
-    if (!parseJson || response.status === 202 || response.status === 204) {
-      return undefined as T;
-    }
-    return (await response.json()) as T;
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        // §g5 carries the real status through so a SEND caller can tell a
+        // confirmed 4xx rejection apart from a 5xx Graph never definitively
+        // answered (see isAmbiguousGraphSendFailure) — every other caller of
+        // graphFetch is unaffected, since GraphHttpError IS a
+        // ServiceUnavailableException.
+        throw new GraphHttpError(
+          `Microsoft Graph ${method} ${target} failed (${response.status}): ${text.slice(0, 500)}`,
+          response.status,
+        );
+      }
+      if (!parseJson || response.status === 202 || response.status === 204) {
+        return undefined as T;
+      }
+      return (await response.json()) as T;
+    });
   }
 
   private async markSyncError(
@@ -1972,77 +2262,101 @@ export class MicrosoftGraphSyncService {
     options: { holdMailboxAbsence?: boolean } = {},
   ) {
     if (err instanceof MailboxReconnectRequiredError) return;
-    const kind = options.holdMailboxAbsence && err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')
-      ? 'mailbox_not_enabled' : isPermanentMailFailure(err) ? 'permission_denied' : 'transient';
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.integrationConnection
-        .updateMany({
-          where: { id: connectionId, status: { in: ['connected', 'error'] } },
-          data: mailSyncFailureData(kind, 'Microsoft 365'),
-        })
-        .catch(() => undefined),
-    );
+    const kind =
+      options.holdMailboxAbsence &&
+      err instanceof Error &&
+      err.message.includes('MailboxNotEnabledForRESTAPI')
+        ? 'mailbox_not_enabled'
+        : isPermanentMailFailure(err)
+          ? 'permission_denied'
+          : 'transient';
+    await this.prisma
+      .withTenant(tenantId, async (tx) => {
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+        return tx.integrationConnection
+          .updateMany({
+            where: { id: connectionId, status: { in: ['connected', 'error'] } },
+            data: mailSyncFailureData(kind, 'Microsoft 365'),
+          })
+          .catch(() => undefined);
+      })
+      .catch(() => undefined);
   }
 
   private async recordLifecycleEvent(
     tenantId: string,
     connectionId: string,
     lifecycleEvent: string,
+    subscriptionId: string,
+    clientState: string,
   ) {
-    await this.prisma.withSystem(async (tx) => {
-      const connection = await tx.integrationConnection.findUnique({
-        where: { id: connectionId },
-        select: { syncState: true },
+    if (!['missed', 'subscriptionRemoved', 'reauthorizationRequired'].includes(lifecycleEvent))
+      return;
+    const recorded = await this.prisma.withTenant(tenantId, async (tx) => {
+      let connection;
+      try {
+        connection = await lockMailboxConnection(tx, tenantId, connectionId);
+      } catch (error) {
+        if (error instanceof NotFoundException) return false;
+        throw error;
+      }
+      if (!['connected', 'error'].includes(connection.status)) return false;
+      const current = mailboxState(connection.syncState);
+      const webhooks = readSyncState(connection.syncState).webhooks ?? {};
+      const subscription = webhooks.subscriptions?.find(
+        (item) => item.id === subscriptionId && item.clientState === clientState,
+      );
+      if (!subscription) return false;
+      if (lifecycleEvent === 'reauthorizationRequired' && subscription.needsReauthorization)
+        return false;
+      if (lifecycleEvent === 'missed' && webhooks.recoveryPending) return false;
+      const subscriptions = (webhooks.subscriptions ?? []).flatMap((item) => {
+        if (item.id !== subscriptionId) return [item];
+        if (lifecycleEvent === 'subscriptionRemoved') return [];
+        return [
+          {
+            ...item,
+            ...(lifecycleEvent === 'reauthorizationRequired' ? { needsReauthorization: true } : {}),
+          },
+        ];
       });
-      if (!connection) return;
-      const state = readSyncState(connection.syncState);
-      state.webhooks = {
-        ...(state.webhooks ?? {}),
-        configured: lifecycleEvent !== 'subscriptionRemoved',
-        lastLifecycleEvent: lifecycleEvent,
-        updatedAt: new Date().toISOString(),
-      };
+      // Invalidate an in-flight cursor/renewal commit before recording recovery.
+      // A duplicate accepted event does not repeatedly invalidate its own repair.
+      delete current.syncClaim;
       await tx.integrationConnection.update({
         where: { id: connectionId },
         data: {
-          syncState: state as Prisma.InputJsonValue,
-          lastError:
-            lifecycleEvent === 'missed'
-              ? 'Microsoft Graph reported missed webhook notifications; run sync now.'
-              : undefined,
+          syncState: {
+            ...current,
+            webhooks: {
+              ...webhooks,
+              subscriptions,
+              configured: lifecycleEvent === 'missed' ? webhooks.configured === true : false,
+              recoveryPending: true,
+              lastLifecycleEvent: lifecycleEvent,
+              lastNotificationAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          } as unknown as Prisma.InputJsonValue,
+          nextSyncAt: new Date(),
         },
       });
+      return true;
     });
-    if (lifecycleEvent === 'missed') {
-      // Through the SAME bound queue as notification-driven syncs.
-      //
-      // This was the one remaining unbounded launch site after the fan-out was
-      // bounded, and it is the worst-placed one: a 'missed' lifecycle event means
-      // Graph could not deliver, so it arrives precisely alongside the backlog
-      // burst the bound exists to absorb. Several mailboxes reporting 'missed'
-      // together therefore reintroduced exactly the concurrency the queue removes.
-      //
-      // The key is namespaced 'lifecycle:' rather than reusing the
-      // '<connectionId>:mail|calendar' notification keys, because this resync
-      // covers BOTH resources — collapsing it into either key would let a queued
-      // single-resource sync suppress a full one.
-      //
-      // The previous `.catch(() => undefined)` also swallowed the failure
-      // outright, so a resync that never worked left no trace anywhere. Graph has
-      // already told us notifications were lost at this point; silently losing the
-      // recovery as well is how a mailbox goes quietly stale.
-      this.enqueueNotificationSync(`lifecycle:${connectionId}`, connectionId, async () => {
-        try {
-          return await this.syncConnectionByTenant(tenantId, connectionId);
-        } catch (err) {
-          this.logger.error(
-            `Graph 'missed' lifecycle resync failed for connection ${connectionId}: ` +
-              `${(err as Error).message}`,
-          );
-          return undefined;
-        }
-      });
-    }
+    if (!recorded) return;
+    // The durable pending bit and due timestamp survive a crash before this queue runs.
+    this.enqueueNotificationSync(`lifecycle:${connectionId}`, connectionId, async () => {
+      try {
+        await this.configureSubscriptionsByTenant(tenantId, connectionId);
+      } catch {
+        this.logger.warn('Graph subscription recovery remains pending for periodic retry.');
+      }
+      try {
+        await this.syncConnectionByTenant(tenantId, connectionId);
+      } catch {
+        this.logger.error('Graph lifecycle resync failed; periodic retry remains scheduled.');
+      }
+    });
   }
 
   private signClientState(
@@ -2059,6 +2373,7 @@ export class MicrosoftGraphSyncService {
 
   private buildMsalClient(): ConfidentialClientApplication {
     const config: Configuration = {
+      system: { networkClient: mailboxMsalNetwork },
       auth: {
         clientId: this.clientId!,
         // Multi-tenant authority (default /organizations); refresh tokens for any
@@ -2201,7 +2516,16 @@ function readSyncState(value: Prisma.JsonValue): MicrosoftSyncState {
 }
 
 function emptyStats(): SyncStats {
-  return { scanned: 0, matched: 0, skipped: 0, removed: 0, held: 0, failed: 0, pages: 0, hasMore: false };
+  return {
+    scanned: 0,
+    matched: 0,
+    skipped: 0,
+    removed: 0,
+    held: 0,
+    failed: 0,
+    pages: 0,
+    hasMore: false,
+  };
 }
 
 function combineStats(stats: SyncStats[]): SyncStats {
@@ -2503,17 +2827,17 @@ export function hasRequiredResourceScopes(scopes: readonly string[] | undefined)
 }
 
 function requiresInteractiveMicrosoftConsent(error: unknown): boolean {
-  const code = error && typeof error === 'object' && 'errorCode' in error
-    ? String(error.errorCode).toLowerCase() : '';
-  if (['invalid_grant', 'interaction_required', 'consent_required', 'login_required'].includes(code)) {
+  const code =
+    error && typeof error === 'object' && 'errorCode' in error
+      ? String(error.errorCode).toLowerCase()
+      : '';
+  if (
+    ['invalid_grant', 'interaction_required', 'consent_required', 'login_required'].includes(code)
+  ) {
     return true;
   }
   const message = error instanceof Error ? error.message : String(error);
   return /AADSTS65001|invalid_grant|consent/i.test(message);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

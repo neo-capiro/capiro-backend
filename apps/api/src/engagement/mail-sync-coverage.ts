@@ -49,6 +49,7 @@ function present(value: unknown): boolean {
  */
 export function getMailSyncCoverage(input: MailSyncCoverageInput): MailSyncCoverage {
   const mail = object(object(input.syncState).mail);
+  const mailHealth = object(object(object(input.syncState).health).mail);
   const stats = object(mail.lastStats);
   const knownProvider = ['microsoft_365', 'google_workspace'].includes(input.provider);
   const repairStarted =
@@ -107,6 +108,10 @@ export function getMailSyncCoverage(input: MailSyncCoverageInput): MailSyncCover
   if (input.status !== 'connected') {
     coverage.sourceStatus = 'unavailable';
     coverage.reason = 'mailbox_not_connected';
+  } else if (mailHealth.outcome === 'failed') {
+    coverage.reason = 'mail_sync_failed';
+  } else if (mailHealth.outcome === 'partial') {
+    coverage.reason = 'mail_sync_incomplete';
   } else if (!coverage.lastMailSyncAt) {
     coverage.reason = 'mail_never_synced';
   } else if (!knownProvider) {

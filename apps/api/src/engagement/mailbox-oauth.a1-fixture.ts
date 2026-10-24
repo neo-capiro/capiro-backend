@@ -39,10 +39,25 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
     meeting: { count: jest.fn().mockResolvedValue(0) },
     mailThread: { count: jest.fn().mockResolvedValue(0) },
     mailMessage: { count: jest.fn().mockResolvedValue(0) },
-    $queryRaw: jest.fn(async (sql: TemplateStringsArray) =>
-      sql.join('').includes('tenant_memberships') ? (active ? [{ id: 'member-A' }] : []) : [],
-    ),
+    $queryRaw: jest.fn(async (sql: TemplateStringsArray, ...values: unknown[]) => {
+      const query = sql.join('');
+      if (query.includes('clock_timestamp() AS now')) return [{ now: new Date(Date.now()) }];
+      if (query.includes('tenant_memberships')) return active ? [{ id: 'member-A' }] : [];
+      if (query.includes("sync_state_jsonb->'syncClaim'")) {
+        const row = rows.get(String(values[0]));
+        return row &&
+          row.tenantId === values[1] &&
+          ['connected', 'error'].includes(row.status) &&
+          row.syncState.syncClaim?.token === values[2] &&
+          Date.parse(row.syncState.syncClaim.expiresAt) > Date.now()
+          ? [{ id: row.id }]
+          : [];
+      }
+      return [];
+    }),
     integrationConnection: {
+      findUnique: jest.fn(async ({ where }: any) => structuredClone(rows.get(where.id) ?? null)),
+      deleteMany: jest.fn(async ({ where }: any) => ({ count: rows.delete(where.id) ? 1 : 0 })),
       findMany: jest.fn(async ({ where, orderBy }: any) => {
         const candidates = [...rows.values()].filter(
           (row) =>
@@ -83,14 +98,21 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
         return row;
       }),
       updateMany: jest.fn(
-        async ({ where, data }: {
+        async ({
+          where,
+          data,
+        }: {
           where: { id: string; status?: { in: string[] } };
           data: Record<string, unknown>;
         }) => {
           const row = rows.get(where.id);
           // This harness has one tenant; model the scoped Prisma predicate as
           // well as the explicit row/status filters used by sync-error cleanup.
-          if (!row || row.tenantId !== tenant || (where.status && !where.status.in.includes(row.status))) {
+          if (
+            !row ||
+            row.tenantId !== tenant ||
+            (where.status && !where.status.in.includes(row.status))
+          ) {
             return { count: 0 };
           }
           Object.assign(row, data);

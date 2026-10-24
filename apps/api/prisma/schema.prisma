@@ -134,6 +134,7 @@ enum BillingStatus {
 }
 
 model Tenant {
+  supportRequests SupportRequest[]
   engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
@@ -237,6 +238,7 @@ model Tenant {
   outreachJobItems                   OutreachJobItem[]
   clioConversations                  ClioConversation[]
   clioConversationBootstrapReceipts  ClioConversationBootstrapReceipt[]
+  clioConversationManagementReceipts ClioConversationManagementReceipt[]
   clioMeriApprovalDecisions          ClioMeriApprovalDecision[]
   clioMeriMemorySubmissions          ClioMeriMemorySubmission[]
   clioMeriRoutineApprovals           ClioMeriRoutineApproval[]
@@ -253,6 +255,7 @@ model Tenant {
   clientCapabilities                 ClientCapability[]
   clientSubmissionHistory            ClientSubmissionHistory[]
   clientPeople                       ClientPerson[]
+  clientPersonCreateReceipts          ClientPersonCreateReceipt[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -565,6 +568,7 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  supportRequests SupportRequest[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
 
@@ -701,6 +705,24 @@ model TenantMembership {
   @@index([tenantId, role], map: "tenant_memberships_tenant_role_idx")
   @@index([userId], map: "tenant_memberships_user_idx")
   @@map("tenant_memberships")
+}
+
+/// Immutable internal support receipt; tenant/user destruction cascades through
+/// the existing lifecycle. No timed support retention policy is inferred.
+model SupportRequest {
+  id                String   @id @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  submittedByUserId String   @map("submitted_by_user_id") @db.Uuid
+  summary           String   @db.VarChar(200)
+  detail            String   @db.VarChar(5000)
+  runReference      String?  @map("run_reference") @db.VarChar(200)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submittedBy User   @relation(fields: [submittedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "support_requests_tenant_created_idx")
+  @@map("support_requests")
 }
 
 enum AdminBroadcastAudience {
@@ -2293,6 +2315,9 @@ model ClioConversation {
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt           DateTime? @map("archived_at") @db.Timestamptz(6)
+  metadataRevision     BigInt    @default(0) @map("metadata_revision")
+  trashedAt            DateTime? @map("trashed_at") @db.Timestamptz(3)
+  restoreUntil         DateTime? @map("restore_until") @db.Timestamptz(3)
 
   tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -2302,12 +2327,29 @@ model ClioConversation {
   artifacts ClioArtifact[]
   notes     ClioNote[]
   bootstrapReceipt ClioConversationBootstrapReceipt?
+  managementReceipts ClioConversationManagementReceipt[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
   @@index([tenantId, userId, workspaceId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_workspace_updated_idx")
   @@map("clio_conversations")
 }
+
+/// Immutable owner-scoped management request receipts survive conversation deletion.
+model ClioConversationManagementReceipt {
+  tenantId       String @map("tenant_id") @db.Uuid
+  actorUserId    String @map("actor_user_id") @db.Uuid
+  requestId      String @map("request_id") @db.Uuid
+  conversationId String? @map("conversation_id") @db.Uuid
+  requestSha256  String @map("request_sha256") @db.Char(64)
+  receipt        Json
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "clio_management_receipts_tenant_fkey")
+  conversation ClioConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull, map: "clio_management_receipts_conversation_fkey")
+  @@id([tenantId, actorUserId, requestId], map: "clio_management_receipts_pkey")
+  @@map("clio_conversation_management_receipts")
+}
+
 
 /// Durable first-chat intent key. The optional conversation link is cleared on
 /// hard deletion so an old requestId can never allocate a replacement chat.
@@ -3980,6 +4022,23 @@ model ClientSubmissionHistory {
 
   @@index([tenantId, clientId, capabilityId], map: "client_submission_history_tenant_client_cap_idx")
   @@map("client_submission_history")
+}
+
+/// Consumed manual contact-create request. Retained independently of editable,
+/// deletable contact rows so a retry cannot recreate a removed contact.
+model ClientPersonCreateReceipt {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  personId      String   @map("person_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, clientId, requestId], map: "client_person_create_receipts_pkey")
+  @@map("client_person_create_receipts")
 }
 
 model ClientPerson {
@@ -17174,6 +17233,9 @@ model ClientActivityCommand {
   attemptToken          String?   @map("attempt_token") @db.Uuid
   leaseUntil            DateTime? @map("lease_until") @db.Timestamptz(6)
   errorCode             String?   @map("error_code") @db.VarChar(64)
+  undoRequestId         String?   @map("undo_request_id") @db.Uuid
+  undoRequestHash       String?   @map("undo_request_hash") @db.VarChar(64)
+  undoneAt              DateTime? @map("undone_at") @db.Timestamptz(6)
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

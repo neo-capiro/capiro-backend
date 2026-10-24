@@ -7,6 +7,8 @@ import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { GoogleOAuthService } from './google-oauth.service.js';
 import { GoogleSyncService } from './google-sync.service.js';
 import { EngagementRuntimeAction } from '../runtime/engagement-runtime-action.decorator.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
+import { integrationActions } from '../integration-health.js';
 
 class StartGoogleOAuthDto {
   @IsOptional()
@@ -26,13 +28,15 @@ export class GoogleIntegrationActionsController {
   constructor(
     private readonly oauth: GoogleOAuthService,
     private readonly sync: GoogleSyncService,
+    private readonly runtime: EngagementRuntimePolicyService,
   ) {}
 
   @Get('capabilities')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
   capabilities() {
-    return this.oauth.capabilities();
+    const capabilities = this.oauth.capabilities();
+    return { ...capabilities, actions: integrationActions(capabilities.configured, false, this.runtime) };
   }
 
   @Post(':connectionId/sync')

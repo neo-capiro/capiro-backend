@@ -90,6 +90,24 @@ export class ClientObjectivesService {
     });
   }
 
+  /** Current automatic context is a bounded sample, not the full Objective list. */
+  async readContext(ctx: TenantContext, clientId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.assertClient(tx, ctx, clientId);
+      const where = { tenantId: ctx.tenantId, clientId, deletedAt: null };
+      const total = await tx.clientObjective.count({ where });
+      const records = await tx.clientObjective.findMany({
+        where, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }], take: 3,
+      });
+      await this.assertClient(tx, ctx, clientId);
+      return { status: total > records.length ? 'partial' : 'complete', total, items: records.map(presentObjective) };
+    });
+  }
+
+  async assertContextAccess(ctx: TenantContext, clientId: string): Promise<void> {
+    await this.prisma.withTenant(ctx.tenantId, (tx) => this.assertClient(tx, ctx, clientId));
+  }
+
   async get(ctx: TenantContext, clientId: string, id: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);

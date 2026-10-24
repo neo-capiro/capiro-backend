@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
@@ -237,6 +237,26 @@ export class DirectoryController {
     @Body() body: CreateDirectoryContactNoteDto,
   ) {
     return this.service.createContactNote(ctx, contactId, body);
+  }
+
+  @Post('members/:memberId/note-commands')
+  @Header('Cache-Control', 'no-store')
+  createMemberNoteCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('memberId') memberId: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.createMemberNoteCommand(ctx, memberId, body);
+  }
+
+  @Get('members/:memberId/note-commands/:requestId')
+  @Header('Cache-Control', 'no-store')
+  memberNoteReceipt(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('memberId') memberId: string,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.service.memberNoteReceipt(ctx, memberId, requestId);
   }
 
   // Per-user favorites/stars for directory members (quick access in outreach).

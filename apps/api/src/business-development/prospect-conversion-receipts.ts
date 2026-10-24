@@ -1,7 +1,13 @@
-import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { prospectResourceScope, type TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
+import { lockClientCapacity } from '../clients/client-capacity.js';
 import {
   parseProspectConversion,
   prospectConversionDigest,
@@ -11,21 +17,65 @@ import {
 
 type Tx = Prisma.TransactionClient;
 type Stored = { command: unknown; payloadDigest: string; receipt: ProspectConversionReceipt };
-type Prospect = { updatedAt: Date; linkedClientId: string | null; convertedAt: Date | null };
+type Prospect = {
+  updatedAt: Date;
+  linkedClientId: string | null;
+  convertedAt: Date | null;
+  displayName: string;
+};
 const unavailable = () => new NotFoundException('Prospect conversion is unavailable');
+
+/** The callback resolves/rejects only after the caller's transaction completes.
+ * An existing original receipt, unknown lookup or failed rollback never proves no write. */
+export async function withNewClientRefusal<T>(
+  command: ProspectConversionCommand,
+  transaction: (confirmNoReceipt: () => void) => Promise<T>,
+): Promise<T> {
+  let originalAbsent = false;
+  try {
+    return await transaction(() => {
+      originalAbsent = true;
+    });
+  } catch (error) {
+    if (
+      command.mode === 'new_client' &&
+      originalAbsent &&
+      error instanceof HttpException &&
+      [400, 402, 404, 409].includes(error.getStatus())
+    )
+      throw new HttpException(
+        {
+          schemaVersion: 1,
+          code: 'PROSPECT_NEW_CLIENT_REFUSED',
+          requestId: command.requestId,
+          prospectId: command.prospectId,
+          payloadDigest: prospectConversionDigest(command),
+          status: error.getStatus(),
+          message: error.message,
+        },
+        error.getStatus(),
+      );
+    throw error;
+  }
+}
 
 async function lockProspect(tx: Tx, ctx: TenantContext, prospectId: string): Promise<Prospect> {
   const rows = await tx.$queryRaw<
     Prospect[]
-  >`SELECT updated_at AS "updatedAt",linked_client_id::text AS "linkedClientId",converted_at AS "convertedAt"
+  >`SELECT updated_at AS "updatedAt",linked_client_id::text AS "linkedClientId",converted_at AS "convertedAt",display_name AS "displayName"
     FROM business_development_prospects WHERE tenant_id=${ctx.tenantId}::uuid AND id=${prospectId}::uuid FOR UPDATE`;
   if (!rows[0]) throw unavailable();
   return rows[0];
 }
-async function authorize(tx: Tx, ctx: TenantContext, command: ProspectConversionCommand) {
+async function authorize(
+  tx: Tx,
+  ctx: TenantContext,
+  command: ProspectConversionCommand,
+  targetClientId?: string,
+) {
   // Match the current file/client owner order: client before membership. The
   // prospect is already locked, so its linked target cannot change underneath.
-  await requireOwnerClient(tx, ctx, command.clientId);
+  if (targetClientId) await requireOwnerClient(tx, ctx, targetClientId);
   const scope = await prospectResourceScope(
     tx,
     ctx.tenantId,
@@ -50,9 +100,9 @@ function checkedReceipt(stored: Stored, command: ProspectConversionCommand) {
     receipt.schemaVersion !== 1 ||
     receipt.requestId !== command.requestId ||
     receipt.prospectId !== command.prospectId ||
-    receipt.clientId !== command.clientId ||
+    (command.mode === 'existing_client' && receipt.clientId !== command.clientId) ||
     receipt.payloadDigest !== stored.payloadDigest ||
-    receipt.outcome !== 'linked' ||
+    receipt.outcome !== (command.mode === 'existing_client' ? 'linked' : 'created') ||
     receipt.expectedUpdatedAt !== command.expectedUpdatedAt ||
     !Number.isFinite(Date.parse(receipt.prospectUpdatedAt)) ||
     !Number.isFinite(Date.parse(receipt.committedAt))
@@ -67,18 +117,40 @@ export async function commitProspectConversion(
   ctx: TenantContext,
   command: ProspectConversionCommand,
   convert: () => Promise<{ clientId: string; created: boolean }>,
+  confirmNoReceipt?: () => void,
 ): Promise<ProspectConversionReceipt> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`prospect-conversion:${ctx.tenantId}:${ctx.userId}:${command.requestId}`},0))`;
-  const current = await lockProspect(tx, ctx, command.prospectId);
-  // A changed target is unavailable; never acquire a second client out of order.
-  if (current.linkedClientId && current.linkedClientId !== command.clientId) throw unavailable();
-  await authorize(tx, ctx, command);
+  // Check before any policy/target failure, while holding the exact command lock.
+  // A replay's failed authorization or corrupt receipt must never release recovery.
   const existing = await storedReceipt(tx, ctx, command.requestId);
+  if (!existing) confirmNoReceipt?.();
+  const current = await lockProspect(tx, ctx, command.prospectId);
+  // Keep legacy conversion's prospect -> capacity -> tenant/member order.
+  // Otherwise a queued billing UPDATE can form a cycle with ordinary create:
+  // conversion holds tenant SHARE waiting for capacity; create holds capacity
+  // waiting behind billing; billing waits for conversion's tenant SHARE.
+  // Replays and existing-client links do not need admission or slot availability.
+  if (command.mode === 'new_client' && !current.linkedClientId && !current.convertedAt)
+    await lockClientCapacity(tx, ctx.tenantId);
+  // A changed target is unavailable; never acquire a second client out of order.
+  if (
+    command.mode === 'existing_client' &&
+    current.linkedClientId &&
+    current.linkedClientId !== command.clientId
+  )
+    throw unavailable();
+  await authorize(
+    tx,
+    ctx,
+    command,
+    current.linkedClientId ?? (command.mode === 'existing_client' ? command.clientId : undefined),
+  );
   if (existing) {
     if (existing.payloadDigest !== prospectConversionDigest(command))
       throw new ConflictException('This request ID belongs to another conversion');
-    if (current.linkedClientId !== command.clientId || !current.convertedAt) throw unavailable();
-    return checkedReceipt(existing, command);
+    const receipt = checkedReceipt(existing, command);
+    if (current.linkedClientId !== receipt.clientId || !current.convertedAt) throw unavailable();
+    return receipt;
   }
   if (
     current.updatedAt.toISOString() !== command.expectedUpdatedAt ||
@@ -86,6 +158,8 @@ export async function commitProspectConversion(
     current.convertedAt
   )
     throw new ConflictException('The prospect changed. Reload and review the conversion.');
+  if (command.mode === 'new_client' && current.displayName !== command.clientName)
+    throw new ConflictException('The prospect name changed. Reload and review the new client.');
   if (
     !(await prospectResourceScope(
       tx,
@@ -97,24 +171,32 @@ export async function commitProspectConversion(
   )
     throw unavailable();
   const outcome = await convert();
-  if (outcome.created || outcome.clientId !== command.clientId)
+  if (
+    command.mode === 'existing_client' &&
+    (outcome.created || outcome.clientId !== command.clientId)
+  )
     throw new ConflictException('The conversion did not link the reviewed existing client');
+  if (command.mode === 'new_client' && !outcome.created)
+    throw new ConflictException(
+      'A matching client already exists. Review an explicit existing-client link.',
+    );
   const after = await lockProspect(tx, ctx, command.prospectId);
-  if (after.linkedClientId !== command.clientId || !after.convertedAt) throw unavailable();
+  if (after.linkedClientId !== outcome.clientId || !after.convertedAt) throw unavailable();
+  if (command.mode === 'new_client') await requireOwnerClient(tx, ctx, outcome.clientId);
   const [time] = await tx.$queryRaw<Array<{ at: Date }>>`SELECT clock_timestamp() AS at`;
   const receipt: ProspectConversionReceipt = {
     schemaVersion: 1,
     requestId: command.requestId,
     prospectId: command.prospectId,
-    clientId: command.clientId,
+    clientId: outcome.clientId,
     payloadDigest: prospectConversionDigest(command),
-    outcome: 'linked',
+    outcome: outcome.created ? 'created' : 'linked',
     expectedUpdatedAt: command.expectedUpdatedAt,
     prospectUpdatedAt: after.updatedAt.toISOString(),
     committedAt: time!.at.toISOString(),
   };
   await tx.$executeRaw`INSERT INTO prospect_conversion_receipts(tenant_id,prospect_id,client_id,actor_user_id,request_id,payload_digest,command,receipt)
-    VALUES(${ctx.tenantId}::uuid,${command.prospectId}::uuid,${command.clientId}::uuid,${ctx.userId}::uuid,${command.requestId}::uuid,
+    VALUES(${ctx.tenantId}::uuid,${command.prospectId}::uuid,${outcome.clientId}::uuid,${ctx.userId}::uuid,${command.requestId}::uuid,
       ${receipt.payloadDigest},${JSON.stringify(command)}::jsonb,${JSON.stringify(receipt)}::jsonb)`;
   return receipt;
 }
@@ -130,12 +212,13 @@ export async function readProspectConversion(
   const stored = await storedReceipt(tx, ctx, requestId);
   if (!stored) throw unavailable();
   const command = parseProspectConversion(prospectId, stored.command);
+  const receipt = checkedReceipt(stored, command);
   if (
     command.requestId !== requestId ||
-    current.linkedClientId !== command.clientId ||
+    current.linkedClientId !== receipt.clientId ||
     !current.convertedAt
   )
     throw unavailable();
-  await authorize(tx, ctx, command);
-  return checkedReceipt(stored, command);
+  await authorize(tx, ctx, command, receipt.clientId);
+  return receipt;
 }

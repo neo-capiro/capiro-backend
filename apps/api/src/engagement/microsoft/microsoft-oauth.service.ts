@@ -10,6 +10,7 @@
 // Investigate read-only and PROPOSE first; wait for go-ahead before editing,
 // merging, or deploying.
 // ============================================================================
+import { verifiedScopeState } from '../integration-health.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -18,6 +19,8 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { mailboxMsalNetwork } from '../mailbox-provider-transport.js';
+import { mailboxState } from '../mailbox-sync-claim.js';
 import { ConfigService } from '@nestjs/config';
 import {
   admitMailboxOAuthAttempt,
@@ -125,11 +128,11 @@ export class MicrosoftOAuthService {
   capabilities() {
     const ready = Boolean(
       this.clientId &&
-        this.tenantId &&
-        this.thumbprint &&
-        this.privateKey &&
-        this.stateSecret &&
-        this.tokenCrypto.isConfigured(),
+      this.tenantId &&
+      this.thumbprint &&
+      this.privateKey &&
+      this.stateSecret &&
+      this.tokenCrypto.isConfigured(),
     );
     return {
       configured: ready,
@@ -203,7 +206,7 @@ export class MicrosoftOAuthService {
         n: randomBytes(16).toString('base64url'),
         e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
       };
-      await saveMailboxOAuthAttempt(tx, payload, connection.syncState);
+      await saveMailboxOAuthAttempt(tx, payload);
       return { connection, payload };
     });
     const state = this.signState(payload);
@@ -286,16 +289,27 @@ export class MicrosoftOAuthService {
     connectionId: string,
   ): Promise<{ disconnected: true; connectionId: string; subscriptionsDeleted: number }> {
     const existing = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const found = await tx.integrationConnection.findUnique({ where: { id: connectionId } });
-      if (!found) throw new NotFoundException('Integration connection not found');
+      const candidate = await tx.integrationConnection.findUnique({ where: { id: connectionId } });
+      if (!candidate) return null;
+      const found = await lockMailboxConnection(tx, ctx.tenantId, connectionId);
       if (found.provider !== EngagementProvider.microsoft_365) {
         throw new BadRequestException('Connection is not a Microsoft 365 integration');
       }
       if (found.createdByUserId !== ctx.userId) {
         throw new ForbiddenException('You can only disconnect your own Microsoft account');
       }
+      const { syncClaim: _claim, oauthAttempt: _attempt, ...state } = mailboxState(found.syncState);
+      await tx.integrationConnection.update({
+        where: { id: connectionId },
+        data: {
+          status: EngagementConnectionStatus.disabled,
+          nextSyncAt: null,
+          syncState: state as Prisma.InputJsonValue,
+        },
+      });
       return found;
     });
+    if (!existing) return { disconnected: true, connectionId, subscriptionsDeleted: 0 };
 
     // Outside the transaction: this makes network calls to Graph.
     // deleteSubscriptionsByTenant already swallows its own errors and always
@@ -309,12 +323,12 @@ export class MicrosoftOAuthService {
       );
     } catch (err) {
       this.logger.warn(
-        `Graph subscription teardown failed for connection ${existing.id}, deleting anyway: ${(err as Error).message}`,
+        'Graph subscription teardown was not confirmed; local disconnect continues.',
       );
     }
 
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.integrationConnection.delete({ where: { id: existing.id } });
+      await tx.integrationConnection.deleteMany({ where: { id: existing.id } });
     });
 
     return { disconnected: true, connectionId: existing.id, subscriptionsDeleted };
@@ -360,7 +374,7 @@ export class MicrosoftOAuthService {
               }
             : {}),
           keyVersion: this.tokenCrypto.getKeyVersion(),
-          scopes: MICROSOFT_SCOPES,
+          scopes: result.scopes,
           homeAccountId,
           expiresAt,
         },
@@ -374,7 +388,7 @@ export class MicrosoftOAuthService {
           refreshTokenIv: refreshEnvelope?.iv ?? null,
           refreshTokenAuthTag: refreshEnvelope?.authTag ?? null,
           keyVersion: this.tokenCrypto.getKeyVersion(),
-          scopes: MICROSOFT_SCOPES,
+          scopes: result.scopes,
           homeAccountId,
           expiresAt,
         },
@@ -386,9 +400,12 @@ export class MicrosoftOAuthService {
           status: EngagementConnectionStatus.connected,
           accountEmail: accountEmail ?? undefined,
           displayName: displayName ?? undefined,
-          scopes: MICROSOFT_SCOPES,
+          scopes: result.scopes,
           lastError: null,
-          syncState: completedMailboxOAuthState(current.syncState),
+          syncState: verifiedScopeState(
+            completedMailboxOAuthState(current.syncState),
+            result.scopes,
+          ),
         },
       });
     });
@@ -417,6 +434,7 @@ export class MicrosoftOAuthService {
   /** Build a NEW confidential-client instance with its own isolated token cache. */
   private buildMsalClient(): ConfidentialClientApplication {
     const config: Configuration = {
+      system: { networkClient: mailboxMsalNetwork },
       auth: {
         clientId: this.clientId!,
         // Multi-tenant authority (default /organizations) so customers on any
