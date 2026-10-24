@@ -13,6 +13,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { MicrosoftOAuthService } from './microsoft-oauth.service.js';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
+import { harness, tenant } from '../mailbox-oauth.a1-fixture.js';
 
 function makeOAuthService(overrides: Record<string, unknown> = {}) {
   const service = Object.create(MicrosoftOAuthService.prototype) as MicrosoftOAuthService;
@@ -49,7 +50,9 @@ describe('MicrosoftOAuthService.capabilities', () => {
 
 const FAR_FUTURE = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-function subscriptionsFixture(overrides: Partial<Record<'me/events' | 'me/messages', string>> = {}) {
+function subscriptionsFixture(
+  overrides: Partial<Record<'me/events' | 'me/messages', string>> = {},
+) {
   return [
     {
       id: 'sub-events',
@@ -68,7 +71,16 @@ function subscriptionsFixture(overrides: Partial<Record<'me/events' | 'me/messag
   ];
 }
 
-function makeGraphSyncService(overrides: Record<string, unknown> = {}) {
+function makeGraphSyncService(
+  overrides: Record<string, unknown> = {},
+  subscriptions = subscriptionsFixture(),
+) {
+  const h = harness();
+  const row = h.rows.get('connection-A');
+  h.rows.delete('connection-A');
+  row.id = 'conn-1';
+  row.syncState.webhooks = { subscriptions };
+  h.rows.set(row.id, row);
   const service = Object.create(MicrosoftGraphSyncService.prototype) as MicrosoftGraphSyncService;
   const patch = service as unknown as Record<string, unknown>;
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
@@ -77,11 +89,11 @@ function makeGraphSyncService(overrides: Record<string, unknown> = {}) {
   patch.thumbprint = 'thumbprint';
   patch.privateKey = 'private-key';
   patch.stateSecret = Buffer.from('state-secret', 'utf8');
-  patch.notificationUrl = 'https://app.capiro.ai/api/engagement/integrations/microsoft/notifications';
+  patch.notificationUrl =
+    'https://app.capiro.ai/api/engagement/integrations/microsoft/notifications';
   patch.tokenCrypto = { isConfigured: () => true };
   patch.prisma = {
-    withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
-      fn({ integrationConnection: { update: async () => undefined } }),
+    ...h.prisma,
     withSystem: async (fn: (tx: unknown) => unknown) =>
       fn({ integrationConnection: { findMany: async () => [] } }),
   };
@@ -98,43 +110,38 @@ describe('MicrosoftGraphSyncService.configureSubscriptionsByTenant', () => {
     }));
     const service = makeGraphSyncService();
     const patch = service as unknown as Record<string, unknown>;
-    patch.loadConnection = async () => ({
-      connection: { syncState: { webhooks: { subscriptions: subscriptionsFixture() } } },
-      token: {},
-    });
     patch.getValidAccessToken = async () => 'access-token';
     patch.graphPost = graphPost;
 
-    const result = await service.configureSubscriptionsByTenant('t1', 'conn-1');
+    const result = await service.configureSubscriptionsByTenant(tenant, 'conn-1');
 
     expect(graphPost).not.toHaveBeenCalled();
     expect(result.subscriptions.map((s) => s.id).sort()).toEqual(['sub-events', 'sub-messages']);
   });
 
-  test('recreates only the subscription with less than 24h remaining, reusing the other unchanged', async () => {
+  test('renews only the subscription with less than 24h remaining, retaining both identities', async () => {
     const nearExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1h left, inside the 24h skew
-    const graphPost = jest.fn(async (_url: string, _token: string, body: { resource: string }) => ({
-      id: 'new-sub-events',
-      resource: body.resource,
+    const graphPost = jest.fn();
+    const graphFetch = jest.fn(async () => ({
+      id: 'sub-events',
       expirationDateTime: FAR_FUTURE,
     }));
-    const service = makeGraphSyncService();
+    const service = makeGraphSyncService({}, subscriptionsFixture({ 'me/events': nearExpiry }));
     const patch = service as unknown as Record<string, unknown>;
-    patch.loadConnection = async () => ({
-      connection: {
-        syncState: { webhooks: { subscriptions: subscriptionsFixture({ 'me/events': nearExpiry }) } },
-      },
-      token: {},
-    });
     patch.getValidAccessToken = async () => 'access-token';
     patch.graphPost = graphPost;
+    patch.graphFetch = graphFetch;
 
-    const result = await service.configureSubscriptionsByTenant('t1', 'conn-1');
+    const result = await service.configureSubscriptionsByTenant(tenant, 'conn-1');
 
-    expect(graphPost).toHaveBeenCalledTimes(1);
-    expect(graphPost.mock.calls[0]![2].resource).toBe('me/events');
+    expect(graphPost).not.toHaveBeenCalled();
+    expect(graphFetch).toHaveBeenCalledTimes(1);
+    expect(graphFetch).toHaveBeenCalledWith('PATCH', '/subscriptions/sub-events', 'access-token', {
+      expirationDateTime: expect.any(String),
+    });
     const byResource = Object.fromEntries(result.subscriptions.map((s) => [s.resource, s]));
-    expect(byResource['me/events']!.id).toBe('new-sub-events');
+    expect(byResource['me/events']!.id).toBe('sub-events');
+    expect(byResource['me/events']!.expirationDateTime).toBe(FAR_FUTURE);
     expect(byResource['me/messages']!.id).toBe('sub-messages');
   });
 });

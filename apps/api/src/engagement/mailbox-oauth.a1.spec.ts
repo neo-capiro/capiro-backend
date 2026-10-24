@@ -32,7 +32,10 @@ describe.each(['microsoft_365', 'google_workspace'] as const)('ML-08 %s', (provi
     expect(h.rows.get('connection-A').token.refreshTokenCiphertext).toBe(
       old.token.refreshTokenCiphertext,
     );
-    expect(h.rows.get('connection-A').syncState).toEqual(old.syncState);
+    expect(h.rows.get('connection-A').syncState).toMatchObject(old.syncState);
+    expect(h.rows.get('connection-A').syncState.scopeVerification.grantedScopes).toEqual(
+      h.rows.get('connection-A').scopes,
+    );
     await expect(h.callback(attempt.state)).rejects.toThrow();
     expect(h.exchange).toHaveBeenCalledTimes(1);
   });

@@ -174,13 +174,18 @@ export async function findFreshMailboxForAdd(
 export async function saveMailboxOAuthAttempt(
   tx: Prisma.TransactionClient,
   state: MailboxOAuthState,
-  syncState: unknown,
 ) {
+  const current = await lockMailboxConnection(tx, state.t, state.c);
+  if (current.status === 'disabled')
+    throw new BadRequestException(
+      'Mailbox is disconnecting; add it again after disconnect completes',
+    );
+  const { syncClaim: _claim, ...rest } = object(current.syncState);
   await tx.integrationConnection.update({
     where: { id: state.c },
     data: {
       syncState: {
-        ...object(syncState),
+        ...rest,
         oauthAttempt: { nonceHash: nonceHash(state.n), phase: 'pending', expiresAt: state.e },
       } as Prisma.InputJsonValue,
     },
@@ -259,7 +264,7 @@ export async function assertReturnedMailboxIdentity(
 }
 
 export function completedMailboxOAuthState(syncState: unknown): Prisma.InputJsonValue {
-  const { oauthAttempt: _attempt, ...rest } = object(syncState);
+  const { oauthAttempt: _attempt, syncClaim: _claim, ...rest } = object(syncState);
   return rest as Prisma.InputJsonValue;
 }
 

@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from '@jest/globals';
 import { GoogleSyncService, foldGmailHistory } from './google-sync.service.js';
+import { withMailboxProviderBudget } from '../mailbox-provider-transport.js';
 
 type HistoryEntry = Parameters<typeof foldGmailHistory>[0][number];
 
@@ -113,6 +114,49 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
   }
 
   const connection = { id: 'conn-1' };
+
+  test('time-budget yield retains pending operations and drains them before advancing history or listing again', async () => {
+    jest.useFakeTimers();
+    const startedAt = Date.now();
+    const { service, patch } = makeService({
+      historyPages: [
+        {
+          historyId: '200',
+          history: [
+            entry({
+              messagesAdded: [{ message: { id: 'first' } }, { message: { id: 'second' } }],
+            }),
+          ],
+        },
+      ],
+      gmailGetImpl: async (_token, id) => {
+        if (id === 'first') jest.setSystemTime(startedAt + 70_000);
+        return { id, labelIds: ['INBOX'] };
+      },
+    });
+    const state: any = { historyId: '100' };
+    try {
+      const result = await withMailboxProviderBudget(() =>
+        (service as any).syncMailIncremental('tenant', connection, state, 'synthetic'),
+      );
+      expect(result.hasMore).toBe(true);
+      expect(state.historyId).toBe('100');
+      expect(state.incrementalPendingOps).toEqual([{ id: 'second', action: 'upsert' }]);
+      const resumed = await (service as any).syncMailIncremental(
+        'tenant',
+        connection,
+        state,
+        'synthetic',
+      );
+      expect(resumed.hasMore).toBe(false);
+      expect(state.historyId).toBe('200');
+      expect(state.incrementalPendingOps).toEqual([]);
+      expect(patch.gmailHistory).toHaveBeenCalledTimes(1);
+      expect(patch.persistGmailMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 
   test('a remove op calls markGmailMessageRemoved, never gmailGet/persistGmailMessage', async () => {
     const { service, patch } = makeService({
@@ -280,7 +324,12 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
 
     await (
       service as unknown as {
-        syncMailIncremental: (t: string, c: unknown, m: DurableMailState, a: string) => Promise<unknown>;
+        syncMailIncremental: (
+          t: string,
+          c: unknown,
+          m: DurableMailState,
+          a: string,
+        ) => Promise<unknown>;
       }
     ).syncMailIncremental('t1', connection, mailState, 'token');
 
@@ -366,7 +415,12 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
     await expect(
       (
         service as unknown as {
-          syncMailIncremental: (t: string, c: unknown, m: DurableMailState, a: string) => Promise<unknown>;
+          syncMailIncremental: (
+            t: string,
+            c: unknown,
+            m: DurableMailState,
+            a: string,
+          ) => Promise<unknown>;
         }
       ).syncMailIncremental('t1', connection, mailState, 'token'),
     ).rejects.toThrow('transient boom');

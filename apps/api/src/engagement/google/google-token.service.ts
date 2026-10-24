@@ -19,6 +19,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { admitMailboxRefresh } from '../mailbox-oauth-authority.js';
+import { assertMailboxSyncCurrent } from '../mailbox-sync-claim.js';
+import { mailboxProviderRequest } from '../mailbox-provider-transport.js';
 import {
   EngagementConnectionStatus,
   EngagementProvider,
@@ -26,7 +28,8 @@ import {
 } from '@prisma/client';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { GOOGLE_SCOPES } from './google-oauth.service.js';
+import { missingGoogleGrants } from './google-oauth.service.js';
+import { verifiedScopeState } from '../integration-health.js';
 import { TokenCryptoService } from '../microsoft/token-crypto.service.js';
 import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
 
@@ -89,9 +92,16 @@ export class GoogleTokenService {
     connectionId: string,
     token: IntegrationConnectionToken,
   ): Promise<string> {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      admitMailboxRefresh(tx, tenantId, connectionId, EngagementProvider.google_workspace, token),
-    );
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+      return admitMailboxRefresh(
+        tx,
+        tenantId,
+        connectionId,
+        EngagementProvider.google_workspace,
+        token,
+      );
+    });
     if (token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
       return this.tokenCrypto.decrypt({
         ciphertext: token.accessTokenCiphertext,
@@ -119,34 +129,51 @@ export class GoogleTokenService {
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
     });
-    const response = await fetch(GOOGLE_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+    const { response, text, refreshed } = await mailboxProviderRequest(async (signal) => {
+      const response = await fetch(GOOGLE_TOKEN_URL, {
+        signal,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      return {
+        response,
+        text: response.ok ? '' : await response.text(),
+        refreshed: response.ok ? ((await response.json()) as GoogleRefreshResponse) : null,
+      };
     });
     if (!response.ok) {
-      const text = await response.text().catch(() => '');
       // invalid_grant => the user revoked access or the refresh token expired
       // (e.g. app still in Testing publishing status, 7-day expiry). Mark the
       // connection for reconnect rather than looping.
       if (response.status === 400 && /invalid_grant/i.test(text)) {
         await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
-        throw new MailboxReconnectRequiredError('Reconnect Google Workspace in Settings to continue syncing');
+        throw new MailboxReconnectRequiredError(
+          'Reconnect Google Workspace in Settings to continue syncing',
+        );
       }
       throw new ServiceUnavailableException(
         `Google token refresh failed (${response.status}): ${text.slice(0, 300)}`,
       );
     }
-    const refreshed = (await response.json()) as GoogleRefreshResponse;
-    if (!refreshed.access_token) {
+    if (!refreshed?.access_token) {
       throw new ServiceUnavailableException('Google token refresh returned no access token');
     }
+    if (refreshed.scope !== undefined && missingGoogleGrants(refreshed.scope).length) {
+      await this.markConnectionNeedsReconnect(tenantId, connectionId, token);
+      throw new MailboxReconnectRequiredError(
+        'Reconnect Google Workspace to grant the required permissions',
+      );
+    }
+    const grantedScopes =
+      refreshed.scope === undefined ? undefined : refreshed.scope.split(/\s+/).filter(Boolean);
     const expiresAt = new Date(Date.now() + (refreshed.expires_in ?? 3600) * 1000);
     // Google does NOT rotate refresh tokens on redemption (unlike Azure), so we
     // only persist the new access token and leave the stored refresh token as-is.
     const encrypted = this.tokenCrypto.encrypt(refreshed.access_token);
     await this.prisma.withTenant(tenantId, async (tx) => {
-      await admitMailboxRefresh(
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+      const current = await admitMailboxRefresh(
         tx,
         tenantId,
         connectionId,
@@ -160,7 +187,7 @@ export class GoogleTokenService {
           accessTokenIv: encrypted.iv,
           accessTokenAuthTag: encrypted.authTag,
           keyVersion: this.tokenCrypto.getKeyVersion(),
-          scopes: GOOGLE_SCOPES,
+          scopes: grantedScopes ?? token.scopes,
           expiresAt,
         },
       });
@@ -168,7 +195,10 @@ export class GoogleTokenService {
         where: { id: connectionId },
         data: {
           status: EngagementConnectionStatus.connected,
-          scopes: GOOGLE_SCOPES,
+          scopes: grantedScopes ?? token.scopes,
+          ...(grantedScopes
+            ? { syncState: verifiedScopeState(current.syncState, grantedScopes) }
+            : {}),
           lastError: null,
         },
       });
@@ -182,6 +212,7 @@ export class GoogleTokenService {
     snapshot: IntegrationConnectionToken,
   ) {
     await this.prisma.withTenant(tenantId, async (tx) => {
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
       await admitMailboxRefresh(
         tx,
         tenantId,

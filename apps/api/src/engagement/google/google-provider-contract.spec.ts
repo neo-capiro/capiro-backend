@@ -58,6 +58,7 @@ function makeOAuthService(overrides: Record<string, unknown> = {}) {
   patch.successRedirect = '/settings/integrations';
   patch.stateSecret = Buffer.from('test-state-secret', 'utf8');
   patch.tokenCrypto = { isConfigured: () => true };
+  let connection: Record<string, unknown> | null = null;
   patch.prisma = {
     withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
       fn({
@@ -66,12 +67,16 @@ function makeOAuthService(overrides: Record<string, unknown> = {}) {
         ),
         integrationConnection: {
           findMany: jest.fn(async () => []),
-          findFirst: async () => null,
-          update: async () => undefined,
-          create: async ({ data }: { data: Record<string, unknown> }) => ({
-            id: 'conn-1',
-            ...data,
-          }),
+          findFirst: async ({ where }: { where: { id: string; tenantId: string } }) =>
+            connection?.id === where.id && connection?.tenantId === where.tenantId
+              ? connection
+              : null,
+          update: async ({ data }: { data: Record<string, unknown> }) =>
+            Object.assign(connection!, data),
+          create: async ({ data }: { data: Record<string, unknown> }) => {
+            connection = { id: 'conn-1', ...data };
+            return connection;
+          },
         },
       }),
   };

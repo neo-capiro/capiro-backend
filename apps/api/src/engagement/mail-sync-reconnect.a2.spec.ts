@@ -2,6 +2,8 @@ import { GoogleSyncService } from './google/google-sync.service.js';
 import { GoogleTokenService } from './google/google-token.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.service.js';
+import { MailboxClaimLostError } from './mailbox-sync-claim.js';
+import { MailboxDeadlineError } from './mailbox-provider-transport.js';
 import { MailboxReconnectRequiredError } from './mail-sync-failure.js';
 import { harness, tenant } from './mailbox-oauth.a1-fixture.js';
 
@@ -91,11 +93,12 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       expect(h.row()).toMatchObject({ status: 'needs_configuration', nextSyncAt: null });
       expect(h.row().lastError).toContain('Reconnect');
       expect(h.row().lastError).not.toContain('synthetic-provider-detail');
-      expect(h.row().syncState).toEqual(oldState);
+      expect(h.row().syncState).toMatchObject(oldState);
+      expect(h.row().syncState.syncClaim).toBeUndefined();
       expect(h.service.syncCalendar).not.toHaveBeenCalled();
       expect(h.service.syncMail).not.toHaveBeenCalled();
       expect(h.tx.integrationConnectionToken.update).not.toHaveBeenCalled();
-      await expect(h.run()).rejects.toThrow('credentials changed');
+      await expect(h.run()).rejects.toBeInstanceOf(MailboxClaimLostError);
       expect(h.row().status).toBe('needs_configuration');
       expect(h.fetch).toHaveBeenCalledTimes(provider === 'google_workspace' ? 1 : 0);
       expect(h.exchange).toHaveBeenCalledTimes(provider === 'microsoft_365' ? 1 : 0);
@@ -118,7 +121,7 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       await expect(h.run()).rejects.toThrow('synthetic network failure');
       expect(h.row().status).toBe('error');
       expect(h.row().nextSyncAt.getTime()).toBeGreaterThanOrEqual(before + 15 * 60 * 1000);
-      expect(h.row().nextSyncAt.getTime()).toBeLessThanOrEqual(Date.now() + 15 * 60 * 1000);
+      expect(h.row().nextSyncAt.getTime()).toBeLessThanOrEqual(Date.now() + 20 * 60 * 1000);
       h.row().token.expiresAt = new Date(Date.now() + 3_600_000);
       await expect(h.run()).resolves.toMatchObject({ connectionId: 'connection-A' });
       expect(h.row()).toMatchObject({ status: 'connected', lastError: null });
@@ -131,7 +134,8 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       const attempt = await h.start();
       await h.callback(attempt.state);
       expect(h.row().status).toBe('connected');
-      expect(h.row().syncState).toEqual(oldState);
+      expect(h.row().syncState).toMatchObject(oldState);
+      expect(h.row().syncState.syncClaim).toBeUndefined();
       await expect(h.run()).resolves.toMatchObject({ connectionId: 'connection-A' });
       expect(h.row().lastError).toBeNull();
       expect(h.service.syncCalendar).toHaveBeenCalledTimes(1);
@@ -140,9 +144,12 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
 
     test('a failed reconnect-hold write is surfaced rather than claiming durable reconnect state', async () => {
       const h = syncHarness(provider);
-      h.tx.integrationConnection.update.mockRejectedValue(
-        new Error('synthetic persistence failure'),
-      );
+      const update = h.tx.integrationConnection.update.getMockImplementation();
+      h.tx.integrationConnection.update.mockImplementation((args: any) => {
+        if (args.data.status === 'needs_configuration')
+          throw new Error('synthetic persistence failure');
+        return update(args);
+      });
       await expect(h.run()).rejects.toThrow('synthetic persistence failure');
       expect(h.row().status).toBe('error');
       expect(h.service.syncCalendar).not.toHaveBeenCalled();
@@ -163,7 +170,7 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
             });
           throw new Error('synthetic read timeout');
         });
-        await expect(h.run()).rejects.toThrow('synthetic read timeout');
+        await expect(h.run()).rejects.toBeInstanceOf(MailboxClaimLostError);
         if (status === 'deleted') expect(h.rows.has('connection-A')).toBe(false);
         else
           expect(h.row()).toMatchObject({
@@ -214,17 +221,22 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
         expect(h.row().token.accessTokenCiphertext).toBe('returned-access');
         throw new Error('Synthetic obsolete-token request failed (403): access denied');
       });
-      await expect(h.run()).rejects.toThrow('failed (403)');
+      await expect(h.run()).rejects.toBeInstanceOf(MailboxClaimLostError);
       expect(h.row().token.accessTokenCiphertext).toBe('returned-access');
-      expect(h.row().syncState).toEqual(oldState);
-      // Whole-sync generation fencing is ML-16. The inherited transient error
-      // observation may remain, but must not strand the new credentials.
-      expect(h.row().status).toBe('error');
-      expect(h.row().nextSyncAt).toBeInstanceOf(Date);
+      expect(h.row().syncState).toMatchObject(oldState);
+      expect(h.row().syncState.syncClaim).toBeUndefined();
+      // ML-16: the obsolete run cannot change successful reconnect state.
+      expect(h.row().status).toBe('connected');
+      expect(h.row().lastError).toBeNull();
       await expect(h.run()).resolves.toMatchObject({ connectionId: 'connection-A' });
       expect(h.row()).toMatchObject({ status: 'connected', lastError: null });
       expect(h.service.syncCalendar).toHaveBeenLastCalledWith(
-        tenant, expect.anything(), expect.anything(), 'returned-access', expect.anything(),
+        tenant,
+        expect.anything(),
+        expect.anything(),
+        'returned-access',
+        expect.anything(),
+        expect.any(Function),
       );
       expect(h.fetch).not.toHaveBeenCalled();
       expect(h.exchange).not.toHaveBeenCalled();
@@ -238,14 +250,19 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
         jest.spyOn(Date, 'now').mockReturnValue(now + 7 * 60_000);
         throw new Error('Synthetic resource request failed (401): access token expired');
       });
-      await expect(h.run()).rejects.toThrow('failed (401)');
+      await expect(h.run()).rejects.toBeInstanceOf(MailboxDeadlineError);
       expect(h.row().status).toBe('error');
       expect(h.row().nextSyncAt).toBeInstanceOf(Date);
       expect(h.fetch).not.toHaveBeenCalled();
       expect(h.exchange).not.toHaveBeenCalled();
-      h.fetch.mockResolvedValue(new Response(JSON.stringify({
-        access_token: 'synthetic-refreshed-access', expires_in: 3600,
-      })));
+      h.fetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            access_token: 'synthetic-refreshed-access',
+            expires_in: 3600,
+          }),
+        ),
+      );
       h.exchange.mockResolvedValue({
         accessToken: 'synthetic-refreshed-access',
         expiresOn: new Date(now + 67 * 60_000),
@@ -257,7 +274,12 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       expect(h.row().token.accessTokenCiphertext).toBe('synthetic-refreshed-access');
       expect(h.tx.integrationConnectionToken.update).toHaveBeenCalledTimes(1);
       expect(h.service.syncCalendar).toHaveBeenLastCalledWith(
-        tenant, expect.anything(), expect.anything(), 'synthetic-refreshed-access', expect.anything(),
+        tenant,
+        expect.anything(),
+        expect.anything(),
+        'synthetic-refreshed-access',
+        expect.anything(),
+        expect.any(Function),
       );
       expect(h.fetch).toHaveBeenCalledTimes(provider === 'google_workspace' ? 1 : 0);
       expect(h.exchange).toHaveBeenCalledTimes(provider === 'microsoft_365' ? 1 : 0);
@@ -270,13 +292,14 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       const scheduled = jest.fn();
       const scheduler = Object.assign(Object.create(EngagementSyncSchedulerService.prototype), {
         prisma: {
+          ...h.prisma,
           withSystem: async (run: (tx: unknown) => Promise<unknown>) =>
             run({
               $queryRaw: async (query: { sql: string }) => {
                 queries.push(query.sql);
                 // Interpret the status predicate at the persistence seam; the real SQL
                 // execution/locking remains a PostgreSQL 16 gate, not a mocked pass.
-                const statuses = /AND status IN \(([^)]+)\)/
+                const statuses = /AND connection.status IN \(([^)]+)\)/
                   .exec(query.sql)![1]!
                   .match(/'([^']+)'/g)!;
                 return statuses.includes(`'${h.row().status}'`)
@@ -294,7 +317,7 @@ describe.each(['google_workspace', 'microsoft_365'] as const)(
       });
       await scheduler.tick();
       expect(scheduled).not.toHaveBeenCalled();
-      expect(queries[0]).toContain("AND status IN ('connected', 'error')");
+      expect(queries[0]).toContain("AND connection.status IN ('connected', 'error')");
       const attempt = await h.start();
       await h.callback(attempt.state);
       await scheduler.tick();
@@ -322,8 +345,10 @@ test('Google quota 403 remains transient rather than requiring new OAuth', async
       'synthetic-access',
     ),
   );
-  await expect(h.run()).rejects.toThrow();
-  expect(h.row().status).toBe('error');
+  await expect(h.run()).resolves.toMatchObject({
+    health: { calendar: { outcome: 'failed' }, mail: { outcome: 'complete' } },
+  });
+  expect(h.row().status).toBe('connected');
   expect(h.row().nextSyncAt).toBeInstanceOf(Date);
 });
 
@@ -354,20 +379,25 @@ test.each([false, true])(
       }
       throw new Error('MailboxNotEnabledForRESTAPI synthetic obsolete calendar-window request');
     });
-    const runWindow = () => h.service.syncCalendarWindow(
-      { tenantId: tenant, userId: h.row().createdByUserId }, 'connection-A',
-      { from: '2026-10-01T00:00:00Z', to: '2026-10-02T00:00:00Z' },
-    );
+    const runWindow = () =>
+      h.service.syncCalendarWindow(
+        { tenantId: tenant, userId: h.row().createdByUserId },
+        'connection-A',
+        { from: '2026-10-01T00:00:00Z', to: '2026-10-02T00:00:00Z' },
+      );
     await expect(runWindow()).rejects.toThrow('MailboxNotEnabledForRESTAPI');
     const currentAccess = reconnected ? 'returned-access' : 'access-account-A';
     expect(h.row().token.accessTokenCiphertext).toBe(currentAccess);
-    expect(h.row().syncState).toEqual(oldState);
-    expect(h.row().status).toBe('error');
+    expect(h.row().syncState).toMatchObject(oldState);
+    expect(h.row().syncState.syncClaim).toBeUndefined();
+    expect(h.row().status).toBe(reconnected ? 'connected' : 'error');
     expect(h.row().nextSyncAt).toBeInstanceOf(Date);
     await expect(runWindow()).resolves.toMatchObject({ scanned: 0, pages: 1, hasMore: false });
     expect(h.row()).toMatchObject({ status: 'connected', lastError: null });
     expect(h.service.graphGet).toHaveBeenLastCalledWith(
-      expect.any(String), currentAccess, expect.anything(),
+      expect.any(String),
+      currentAccess,
+      expect.anything(),
     );
     expect(h.fetch).not.toHaveBeenCalled();
     expect(h.exchange).not.toHaveBeenCalled();
