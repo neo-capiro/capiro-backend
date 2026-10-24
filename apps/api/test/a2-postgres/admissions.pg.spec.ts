@@ -188,7 +188,8 @@ it('commits one exact existing-client receipt with activity and audit, replays w
     settled(h.prospects.convertCommand(ctx, prospect, receiptCommand())),
   ]);
   expect(results.map((result) => result.error)).toEqual([undefined, undefined]);
-  const [first, replay] = results.map((result) => result.value!);
+  const first = results[0]!.value!;
+  const replay = results[1]!.value!;
   expect(replay).toEqual(first);
   expect(await h.prospects.conversionReceipt(ctx, prospect, receiptCommand().requestId)).toEqual(
     first,
