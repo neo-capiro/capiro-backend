@@ -154,8 +154,27 @@ Apply the edge before updating the existing Core service. Core retains its old
 target and imports the new Core target export. The edge's three satellite
 `ServiceLoadBalancers` outputs contain the exact old-plus-new bindings for the
 existing Strategy, Workspace and Intel services; update them through their
-existing service owner. No service, IAM role, image, database, security-group
-rule or live target is created or modified by the edge stack itself.
+existing service owner. No service, IAM role, image, database or live target is
+created or modified by the edge stack itself.
+
+The edge also creates one preview backend client security group and grants that
+identity HTTPS access to the existing Meri private ALB. It has no inbound rule
+and only TCP 443 egress to that ALB. Core imports the identity; apply the exact
+`StrategySecurityGroups` output to the existing preview Strategy service while
+preserving its existing subnets and private-IP setting. Never grant the shared
+`ServiceSg` access to the private ALB or attach the new identity to other services.
+
+Core's task and `StrategyMeriControlEnvironment` output name the existing
+`https://control.meri-preview.internal` origin and its public CA. The checked-in
+CA contains no private key; its SHA-256 pin is over certificate DER. Both service
+entrypoints validate the origin, complete configuration, CA validity and pin,
+write a unique file under writable `TMPDIR`, and export `NODE_EXTRA_CA_CERTS`
+before starting the application. Absent configuration preserves startup;
+partial configuration or conflicting existing extra-CA setup refuses. Both
+services require their new reviewed images before applying this environment.
+Strategy's image closure now also includes
+`apps/api/scripts/lib/meri-control-ca.cjs`. Keep the existing version-pinned
+internal service secret; this HTTP/TLS binding needs no new secret or IAM grant.
 
 `--render-edge-with-dns <fresh-output-directory>` additionally renders the
 separate `Capiro-Preview-Services-Dns` stack. Apply that stack **last**, after the

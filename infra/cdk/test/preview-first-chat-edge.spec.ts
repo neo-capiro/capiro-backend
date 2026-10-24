@@ -36,6 +36,8 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
       'AWS::ElasticLoadBalancingV2::TargetGroup',
       'AWS::ElasticLoadBalancingV2::ListenerRule',
       'AWS::WAFv2::WebACLAssociation',
+      'AWS::EC2::SecurityGroup',
+      'AWS::EC2::SecurityGroupIngress',
     ]);
     for (const resource of Object.values(edge.Resources) as any[])
       assert.ok(allowed.has(resource.Type));
@@ -75,6 +77,38 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
     ]);
     assert.equal(JSON.stringify(edge).includes('listener/app/capiro-prod-alb'), false);
     assert.equal(ofType(edge, 'AWS::ElasticLoadBalancingV2::TargetGroup').length, 4);
+  }));
+
+test('private Meri HTTPS admits only the new preview backend identity, preserving shared SG access', () =>
+  render(false, (edge) => {
+    const [client] = ofType(edge, 'AWS::EC2::SecurityGroup');
+    assert.equal(client.Properties.VpcId, 'vpc-0ac26cfac7ed972be');
+    assert.equal(client.Properties.SecurityGroupIngress, undefined);
+    assert.deepEqual(client.Properties.SecurityGroupEgress, [
+      {
+        IpProtocol: 'tcp',
+        FromPort: 443,
+        ToPort: 443,
+        DestinationSecurityGroupId: 'sg-0c3fe2e509b22ee5c',
+      },
+    ]);
+    const ingress = ofType(edge, 'AWS::EC2::SecurityGroupIngress');
+    assert.equal(ingress.length, 1);
+    assert.deepEqual(ingress[0].Properties, {
+      GroupId: 'sg-0c3fe2e509b22ee5c',
+      IpProtocol: 'tcp',
+      FromPort: 443,
+      ToPort: 443,
+      SourceSecurityGroupId: { 'Fn::GetAtt': ['MeriBackendClient', 'GroupId'] },
+      Description: 'Preview Core and Strategy only',
+    });
+    const binding = JSON.stringify(edge.Outputs.StrategySecurityGroups.Value);
+    assert.ok(binding.includes('sg-01def4e5c0fe44d4a') && binding.includes('MeriBackendClient'));
+    assert.equal(
+      edge.Outputs.MeriClientSecurityGroupId.Export.Name,
+      'Capiro-Preview-Services-Edge-MeriClientSecurityGroupId',
+    );
+    assert.equal(JSON.stringify(ingress).includes('sg-01def4e5c0fe44d4a'), false);
   }));
 
 test('service attachment outputs retain old and new preview targets with original container ports', () =>

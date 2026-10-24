@@ -34,6 +34,12 @@ fi
 : "${TMPDIR:=/dev/shm}"
 export TMPDIR
 
+# The same public CA validation runs before the application Node process.
+if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SHA256+x}" ]; then
+  NODE_EXTRA_CA_CERTS=$(node /app/apps/api/scripts/lib/meri-control-ca.cjs)
+  export NODE_EXTRA_CA_CERTS
+fi
+
 case "${1:-serve}" in
   migrate)
     echo "Running prisma migrate deploy (api-strategy engine)"

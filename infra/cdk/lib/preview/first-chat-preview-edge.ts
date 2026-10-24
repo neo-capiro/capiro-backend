@@ -2,12 +2,27 @@ import * as cdk from 'aws-cdk-lib';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createHash, X509Certificate } from 'node:crypto';
 import { Construct } from 'constructs';
 import coreRoutes from './first-chat-core-routes.json';
 import writes from './first-chat-preview-writes.json';
 
 export const FIRST_CHAT_PREVIEW_EDGE_STACK = 'Capiro-Preview-Services-Edge';
 export const PREVIEW_EDGE_CORE_TARGET_EXPORT = `${FIRST_CHAT_PREVIEW_EDGE_STACK}-CoreTargetArn`;
+export const PREVIEW_MERI_CLIENT_GROUP_EXPORT = `${FIRST_CHAT_PREVIEW_EDGE_STACK}-MeriClientSecurityGroupId`;
+const meriCa = readFileSync(join(__dirname, 'meri-control-ca.pem'));
+const meriCaDerSha256 = 'e177a1bc059a0fd7c54740f6db6619c992af01d1fda804d6c2058f0bd53995d4';
+if (createHash('sha256').update(new X509Certificate(meriCa).raw).digest('hex') !== meriCaDerSha256)
+  throw new Error('Pinned Meri preview public CA required');
+export const MERI_PREVIEW_CONTROL_ENVIRONMENT = {
+  MERI_CONTROL_ORIGIN: 'https://control.meri-preview.internal',
+  MERI_CONTROL_CA_BASE64: meriCa.toString('base64'),
+  // DER certificate digest, independent of PEM line endings.
+  MERI_CONTROL_CA_SHA256: meriCaDerSha256,
+} as const;
 const dnsExport = `${FIRST_CHAT_PREVIEW_EDGE_STACK}-DnsName`;
 const zoneExport = `${FIRST_CHAT_PREVIEW_EDGE_STACK}-HostedZoneId`;
 const env = { account: '967807252336', region: 'us-east-1' };
@@ -49,13 +64,45 @@ export const PREVIEW_EDGE_SERVICES = {
 } as const;
 export const PREVIEW_ONBOARD_TARGET = targetArn('capiro-preview-onboard-api', 'e1ffa6a1394ba2ca');
 
-/** Dedicated preview edge in the existing VPC. Never owns a shared listener rule,
- * service, security-group rule, certificate, database or production DNS record. */
+/** Dedicated preview edge and backend client identity in the existing VPC.
+ * Never owns a shared listener rule, live service, certificate or production DNS. */
 export class FirstChatPreviewEdgeStack extends cdk.Stack {
   constructor(scope: Construct, id: string) {
     super(scope, id, {
       env,
       description: 'Dedicated first-chat preview ingress; existing shared listener untouched.',
+    });
+    // Only preview Core and Strategy receive this additional identity. The
+    // shared ServiceSg must never gain access to Meri's private control listener.
+    const meriClient = new ec2.CfnSecurityGroup(this, 'MeriBackendClient', {
+      groupDescription: 'Preview Core and Strategy to Meri private HTTPS only',
+      vpcId,
+      securityGroupEgress: [
+        {
+          ipProtocol: 'tcp',
+          fromPort: 443,
+          toPort: 443,
+          destinationSecurityGroupId: 'sg-0c3fe2e509b22ee5c',
+        },
+      ],
+    });
+    new ec2.CfnSecurityGroupIngress(this, 'MeriPrivateHttpsFromBackend', {
+      groupId: 'sg-0c3fe2e509b22ee5c',
+      ipProtocol: 'tcp',
+      fromPort: 443,
+      toPort: 443,
+      sourceSecurityGroupId: meriClient.attrGroupId,
+      description: 'Preview Core and Strategy only',
+    });
+    new cdk.CfnOutput(this, 'MeriClientSecurityGroupId', {
+      value: meriClient.attrGroupId,
+      exportName: PREVIEW_MERI_CLIENT_GROUP_EXPORT,
+    });
+    new cdk.CfnOutput(this, 'StrategySecurityGroups', {
+      value: this.toJsonString(['sg-01def4e5c0fe44d4a', meriClient.attrGroupId]),
+    });
+    new cdk.CfnOutput(this, 'StrategyMeriControlEnvironment', {
+      value: this.toJsonString(MERI_PREVIEW_CONTROL_ENVIRONMENT),
     });
     const alb = new elb.CfnLoadBalancer(this, 'PreviewLoadBalancer', {
       name: 'capiro-preview-services',

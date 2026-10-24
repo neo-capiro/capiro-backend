@@ -8,7 +8,11 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import routes from './first-chat-core-routes.json';
-import { PREVIEW_EDGE_CORE_TARGET_EXPORT } from './first-chat-preview-edge';
+import {
+  PREVIEW_EDGE_CORE_TARGET_EXPORT,
+  PREVIEW_MERI_CLIENT_GROUP_EXPORT,
+  MERI_PREVIEW_CONTROL_ENVIRONMENT,
+} from './first-chat-preview-edge';
 
 // This is the separate preview service. The drifted live ComputeStack and its
 // production API service are not owned or updated by this composition.
@@ -277,6 +281,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         startPeriod: cdk.Duration.seconds(60),
       },
       environment: {
+        ...MERI_PREVIEW_CONTROL_ENVIRONMENT,
         NODE_ENV: 'production',
         DATABASE_URL: '',
         DB_HOST: live.dbHost,
@@ -337,7 +342,15 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       desiredCount: binding.deployment.desiredCount,
       assignPublicIp: false,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [apiGroup],
+      securityGroups: [
+        apiGroup,
+        ec2.SecurityGroup.fromSecurityGroupId(
+          this,
+          'PreviewMeriClientIdentity',
+          cdk.Fn.importValue(PREVIEW_MERI_CLIENT_GROUP_EXPORT),
+          { mutable: false },
+        ),
+      ],
       circuitBreaker: { rollback: true },
     });
     service.attachToApplicationTargetGroup(target);

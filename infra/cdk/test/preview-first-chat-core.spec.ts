@@ -122,6 +122,12 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
     assert.equal(e.RELEASE_SHA, pins.sourceHead);
     assert.equal(e.DB_HOST, binding.deployment.databaseHost);
     assert.equal(e.TRACKER_APP_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
+    assert.equal(e.MERI_CONTROL_ORIGIN, 'https://control.meri-preview.internal');
+    assert.equal(
+      e.MERI_CONTROL_CA_SHA256,
+      'e177a1bc059a0fd7c54740f6db6619c992af01d1fda804d6c2058f0bd53995d4',
+    );
+    assert.ok(e.MERI_CONTROL_CA_BASE64.length > 0);
     assert.equal(
       se.INTERNAL_SERVICE_SECRET,
       `${binding.internalServiceSecretArn}:::${binding.internalServiceSecretVersionId}`,
@@ -151,6 +157,7 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
     assert.equal(v.NetworkConfiguration.AwsvpcConfiguration.AssignPublicIp, 'DISABLED');
     assert.deepEqual(v.NetworkConfiguration.AwsvpcConfiguration.SecurityGroups, [
       'sg-01def4e5c0fe44d4a',
+      { 'Fn::ImportValue': 'Capiro-Preview-Services-Edge-MeriClientSecurityGroupId' },
     ]);
     assert.deepEqual(v.DeploymentConfiguration.DeploymentCircuitBreaker, {
       Enable: true,
