@@ -381,6 +381,11 @@
         "^/api/internal/strategy/context/compile$",
         "^/api/internal/strategy/context/objective-check$"
       ]
+    },
+    {
+      "service": "strategy",
+      "method": "POST",
+      "pathRegexes": ["^/strategy-api/planner/strategy-materializations$"]
     }
   ]
 }
