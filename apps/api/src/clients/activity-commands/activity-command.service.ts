@@ -9,6 +9,8 @@ import type { TenantContext } from '@capiro/shared';
 import type { ClientActivityCommand } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientActivityService } from '../client-activity.service.js';
+import { requireOwnerClient } from '../client-ordered-owner.access.js';
+import { activityUndoInput, commitCommandUndo, readCommandUndo } from './activity-command-undo.js';
 import {
   commandAssignee,
   commandIssue,
@@ -202,6 +204,44 @@ export class ActivityCommandService {
       return { row: saved, issue };
     });
     return this.receipt(final, result);
+  }
+
+  async getUndo(
+    ctx: TenantContext,
+    rawClientId: string,
+    rawRequestId: string,
+    authorization?: string,
+  ) {
+    const clientId = commandUuid(rawClientId),
+      requestId = commandUuid(rawRequestId);
+    requireCommandBearer(authorization);
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lock(tx, ctx, clientId, requestId);
+      await requireOwnerClient(tx, ctx, clientId);
+      const row = await this.read(tx, ctx, clientId, requestId);
+      return readCommandUndo(tx, ctx, row);
+    });
+  }
+
+  async undo(
+    ctx: TenantContext,
+    rawClientId: string,
+    rawRequestId: string,
+    raw: unknown,
+    authorization?: string,
+  ) {
+    const clientId = commandUuid(rawClientId),
+      requestId = commandUuid(rawRequestId);
+    const input = activityUndoInput(raw);
+    requireCommandBearer(authorization);
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lock(tx, ctx, clientId, requestId);
+      // Existing canonical order: client, then current member/identity and wall
+      // grant. These locks survive an activity-row wait and the effect/receipt.
+      await requireOwnerClient(tx, ctx, clientId);
+      const row = await this.read(tx, ctx, clientId, requestId);
+      return commitCommandUndo(tx, row, input);
+    });
   }
 
   private where(ctx: TenantContext, clientId: string, requestId: string) {
