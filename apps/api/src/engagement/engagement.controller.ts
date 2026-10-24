@@ -221,6 +221,10 @@ class CreateMeetingDto {
 
 class UpdateMeetingDto {
   @IsOptional()
+  @IsDateString()
+  expectedRevision?: string;
+
+  @IsOptional()
   @IsUUID()
   clientId?: string | null;
 
