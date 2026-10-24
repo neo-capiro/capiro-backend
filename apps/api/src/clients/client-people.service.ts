@@ -3,6 +3,11 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import {
+  commitPersonCreate,
+  parsePersonCreateCommand,
+  readPersonCreate,
+} from './client-people-command.js';
+import {
   inferPlacementFromTitle,
   isHierarchyLevel,
   wouldCreateCycle,
@@ -75,37 +80,24 @@ export class ClientPeopleService {
     });
   }
 
-  async createPerson(ctx: TenantContext, clientId: string, input: CreatePersonInput) {
-    const inferred = inferPlacementFromTitle(input.title);
-    const person = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-        select: { id: true },
-      });
-      if (!client) throw new NotFoundException('Client not found');
-      return tx.clientPerson.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          name: input.name,
-          title: input.title ?? null,
-          email: input.email ?? null,
-          phone: input.phone ?? null,
-          role: input.role ?? null,
-          lastContact: input.lastContact ? new Date(input.lastContact) : null,
-          notes: input.notes ?? null,
-          // A new contact is placed automatically from its title; an unknown
-          // title lands unplaced and flagged rather than at the bottom.
-          hierarchyLevel: inferred.level,
-          placementConfidence: inferred.confidence,
-          reviewRequired: inferred.reviewRequired,
-          placementSource: 'auto_title',
-        },
-      });
-    });
-    // Client KB (F5): keep retrieval in sync with the People tab.
-    this.clientKb.indexPersonFireAndForget(ctx.tenantId, person.id);
-    return person;
+  async createPerson(
+    ctx: TenantContext,
+    clientId: string,
+    input: CreatePersonInput & { requestId: string },
+  ) {
+    const command = parsePersonCreateCommand(input);
+    const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      commitPersonCreate(tx, ctx, clientId, command),
+    );
+    if (result.created)
+      this.clientKb.indexPersonFireAndForget(ctx.tenantId, result.receipt.personId);
+    return result.receipt;
+  }
+
+  async readCreation(ctx: TenantContext, clientId: string, requestId: string) {
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      readPersonCreate(tx, ctx, clientId, requestId),
+    );
   }
 
   /**
