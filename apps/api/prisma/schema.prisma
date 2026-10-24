@@ -134,6 +134,7 @@ enum BillingStatus {
 }
 
 model Tenant {
+  supportRequests SupportRequest[]
   engagementPlans EngagementPlan[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
@@ -566,6 +567,7 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  supportRequests SupportRequest[]
   krispPreferences KrispNotetakerPreference[]
   krispImports KrispMeetingImport[]
 
@@ -702,6 +704,24 @@ model TenantMembership {
   @@index([tenantId, role], map: "tenant_memberships_tenant_role_idx")
   @@index([userId], map: "tenant_memberships_user_idx")
   @@map("tenant_memberships")
+}
+
+/// Immutable internal support receipt; tenant/user destruction cascades through
+/// the existing lifecycle. No timed support retention policy is inferred.
+model SupportRequest {
+  id                String   @id @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  submittedByUserId String   @map("submitted_by_user_id") @db.Uuid
+  summary           String   @db.VarChar(200)
+  detail            String   @db.VarChar(5000)
+  runReference      String?  @map("run_reference") @db.VarChar(200)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submittedBy User   @relation(fields: [submittedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "support_requests_tenant_created_idx")
+  @@map("support_requests")
 }
 
 enum AdminBroadcastAudience {
