@@ -4,7 +4,8 @@ import { isDeepStrictEqual } from 'node:util';
 import type { Prisma } from '@prisma/client';
 import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import { isSha, isUuid } from '../../auth/read-delegation/read-delegation.contract.js';
-import { meriExecutionClientsVisible, meriExecutionDbNow } from '../execution-capability/meri-execution-authority.js';
+import { meriExecutionDbNow } from '../execution-capability/meri-execution-authority.js';
+import { fetchAccessibleClientRevisionsForClerkActor } from '../../memory/memory-wall.helpers.js';
 import { nativeCanonicalSha256 as hash, parseRunBinding, parseScope, type NativeRunBinding } from '../native-approvals/native-approval.contract.js';
 import { retainedReadObject, retainedReadSnapshot } from '../retained-read-context.js';
 import type { RoutineLimits } from './meri-routine-policy.js';
@@ -67,7 +68,8 @@ export async function readRoutineSubject(tx: Prisma.TransactionClient, q: Routin
   if (hash(identity) !== q.occurrenceKey || binding.writerFence !== 1 ||
       !['conversation', 'run', 'attempt', 'worker'].every(k => binding[`${k}Id` as keyof NativeRunBinding] === originalUuid(q.occurrenceKey, k)) ||
       !isDeepStrictEqual(effect, { binding, requestId: originalUuid(q.occurrenceKey, 'request'),
-        eventId: originalUuid(q.occurrenceKey, 'event'), workflowId: o.workflowId })) throw refused();
+        eventId: originalUuid(q.occurrenceKey, 'event'),
+        workflowId: `meri:${binding.tenantId}:${binding.conversationId}:${binding.runId}` })) throw refused();
   if (!Array.isArray(run.scopes) || !run.scopes.length || run.scopes.length > 100) throw refused();
   const scopes = run.scopes.map((s: unknown) => parseScope(s, 'scope'));
   if (!isDeepStrictEqual(scopes, p.scopes) || scopes.some(s => s.tenantId !== q.tenantId || s.policyRevision !== run.policyRevision ||
@@ -88,12 +90,15 @@ export async function readRoutineSubject(tx: Prisma.TransactionClient, q: Routin
   const member = await tx.tenantMembership.findFirst({ where: { tenantId: q.tenantId, userId: binding.actorId, status: 'active' }, include: { tenant: true } });
   const user = await tx.user.findUnique({ where: { id: binding.actorId }, select: { id: true, clerkUserId: true } });
   if (!member || !user?.clerkUserId || member.tenant.status !== 'active' || !Object.hasOwn(ROLE_RANK, member.role) ||
-      ROLE_RANK[member.role as TenantRole] < ROLE_RANK.standard_user ||
-      !await meriExecutionClientsVisible(tx, q.tenantId, binding.actorId, scopes.filter(s => s.kind === 'client').map(s => s.resourceId))) throw refused();
+      ROLE_RANK[member.role as TenantRole] < ROLE_RANK.standard_user) throw refused();
+  const clients = await fetchAccessibleClientRevisionsForClerkActor(tx, q.tenantId, user.clerkUserId, 4097);
+  if (clients.length > 4096 || clients.some(c => !isUuid(c.id))) throw refused();
+  const clientIds = clients.map(c => c.id).sort();
+  if (scopes.some(s => s.kind === 'client' && !clientIds.includes(s.resourceId))) throw refused();
   const ctx: TenantContext = { tenantId: q.tenantId, tenantSlug: member.tenant.slug, userId: binding.actorId,
     clerkUserId: user.clerkUserId, role: member.role as TenantRole };
   return { schemaVersion: 1 as const, tenantId: q.tenantId, actorId: binding.actorId, clerkUserId: ctx.clerkUserId,
     tenantSlug: ctx.tenantSlug, role: ctx.role, scheduleId: q.scheduleId, occurrenceKey: q.occurrenceKey,
-    generation, consentId: consent.consentId, binding, scopes, policyRevision: String(run.policyRevision),
+    generation, consentId: consent.consentId, binding, scopes, clientIds, policyRevision: String(run.policyRevision),
     limits, checkedAtMs: nowMs, effectExpiresAtMs };
 }

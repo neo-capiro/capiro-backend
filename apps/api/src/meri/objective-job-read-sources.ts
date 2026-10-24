@@ -40,7 +40,9 @@ export class ObjectiveJobReadSources {
       const v = retainedReadObject(input, ['ref']);
       if (typeof v.ref !== 'string' || !v.ref.trim() || v.ref.length > 512) throw refused();
       const result = await this.tools.checkClientRef(ctx, v.ref);
-      if (result.ok && result.clientId !== clientId) throw refused();
+      // General keeps the existing owner's current visibility decision. A
+      // selected-client job additionally remains pinned to that one client.
+      if (result.ok && clientId !== null && result.clientId !== clientId) throw refused();
       return result;
     }
     if (operation === 'job.readMode') {

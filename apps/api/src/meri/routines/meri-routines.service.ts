@@ -18,6 +18,7 @@ import type { RetainedReadDispatcher } from '../retained-read-dispatch.js';
 import { parseRetainedReadContext, assertRetainedReadSelectors, readRetainedReadDeadline } from '../retained-read-context.js';
 import { withMeriToolRequestControl, withMeriToolExecutionControl, meriToolRequestControl, assertMeriToolRequestActive } from '../meri-tool-request-control.js';
 import { readRoutineSubject, routineReadRequest, type RoutineReadSelection } from './meri-routine-read-authority.js';
+import { isUuid } from '../../auth/read-delegation/read-delegation.contract.js';
 import { ApplicationMembershipService } from '../../auth/application-membership.service.js';
 import type { CoreEd25519Signer } from '../../auth/core-ed25519-signer.js';
 import { nativeCanonicalSha256, type NativeScope } from '../native-approvals/native-approval.contract.js';
@@ -81,13 +82,22 @@ export class MeriRoutinesService {
     const ctx: TenantContext = { tenantId: subject.tenantId, tenantSlug: subject.tenantSlug, userId: subject.actorId,
       clerkUserId: subject.clerkUserId, role: subject.role };
     const context = parseRetainedReadContext(ctx, value.context, true);
+    // Control adds mailbox selectors from the current actor's Core inventory.
+    // They are not durable routine grants: the typed Mail owner still requires
+    // current tenant + mailbox ownership for every selected ID and returned row.
+    const mail = ['mail.list_messages', 'mail.search_messages', 'mail.read_thread'].includes(String(value.operation));
     if (!isDeepStrictEqual(context.binding, subject.binding) || context.policyRevision !== subject.policyRevision ||
-        context.subject.scopes.some(scope => !subject.scopes.some(saved => isDeepStrictEqual(scope, saved)))) throw forbidden();
+        context.subject.scopes.some(scope => !subject.scopes.some(saved => isDeepStrictEqual(scope, saved)) &&
+          !(mail && scope.kind === 'mailbox' && isUuid(scope.resourceId)))) throw forbidden();
     assertRetainedReadSelectors(value.input, context);
     const deadlineMs = Math.min(readRetainedReadDeadline(req), subject.effectExpiresAtMs);
     return withMeriToolRequestControl(req, () => withMeriToolExecutionControl(
       { signal: meriToolRequestControl()?.signal, deadlineAt: deadlineMs }, async () => {
         const result = await reads.execute(ctx, value.operation as string, value.input, context, deadlineMs, req);
+        if (value.operation === 'job.resolveClientReference') {
+          const reference = result as { ok?: unknown; clientId?: unknown } | null;
+          if (reference?.ok === true && (typeof reference.clientId !== 'string' || !subject.clientIds.includes(reference.clientId))) throw forbidden();
+        }
         const fresh = await this.readSubject(value);
         // Mutable run progress is checked by the authority reader, while the
         // consent, identity, scopes and original deadline must remain stable.

@@ -24,6 +24,14 @@ describe('Objective fixed auxiliary source adapters', () => {
     expect(await f.owner.read(ctx, id(2), 'get_research_portfolio_changes', { portfolioId: id(30), limit: 50, cursor: id(31) })).toBe(f.result);
     expect(f.changes.listChanges).toHaveBeenCalledWith(ctx, id(30), id(31), 50);
   });
+  it('preserves the current visibility owner result in General and its denial', async () => {
+    const f = fixture();
+    expect(await f.owner.read(ctx, null, 'job.resolveClientReference', { ref: 'Visible client' }))
+      .toEqual({ ok: true, clientId: id(2) });
+    expect(f.tools.checkClientRef).toHaveBeenCalledWith(ctx, 'Visible client');
+    f.tools.checkClientRef.mockRejectedValue(Error('current wall denied'));
+    await expect(f.owner.read(ctx, null, 'job.resolveClientReference', { ref: 'Hidden client' })).rejects.toThrow('current wall denied');
+  });
   it.each(['mine', 'team', 'deferred', 'resolved'])('preserves review lane %s', async lane => {
     const f = fixture(); expect(await f.owner.read(ctx, id(2), 'job.readResearchEvidenceSource', { portfolioId: id(30), source: 'reviews', lane })).toBe(f.result);
     expect(f.reviews.listReviews).toHaveBeenCalledWith(ctx, id(30), lane);
