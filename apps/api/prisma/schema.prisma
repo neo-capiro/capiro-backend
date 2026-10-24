@@ -253,6 +253,7 @@ model Tenant {
   clientCapabilities                 ClientCapability[]
   clientSubmissionHistory            ClientSubmissionHistory[]
   clientPeople                       ClientPerson[]
+  clientPersonCreateReceipts          ClientPersonCreateReceipt[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -3980,6 +3981,23 @@ model ClientSubmissionHistory {
 
   @@index([tenantId, clientId, capabilityId], map: "client_submission_history_tenant_client_cap_idx")
   @@map("client_submission_history")
+}
+
+/// Consumed manual contact-create request. Retained independently of editable,
+/// deletable contact rows so a retry cannot recreate a removed contact.
+model ClientPersonCreateReceipt {
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorUserId   String   @map("actor_user_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  requestId     String   @map("request_id") @db.Uuid
+  payloadDigest String   @map("payload_digest") @db.Char(64)
+  personId      String   @map("person_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, clientId, requestId], map: "client_person_create_receipts_pkey")
+  @@map("client_person_create_receipts")
 }
 
 model ClientPerson {

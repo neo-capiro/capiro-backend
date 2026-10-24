@@ -17,6 +17,9 @@ import { HIERARCHY_LEVELS } from './client-hierarchy.helpers.js';
 import { ClientPeopleService } from './client-people.service.js';
 
 class CreatePersonDto {
+  @IsUUID()
+  requestId!: string;
+
   @IsString()
   name!: string;
 
@@ -113,6 +116,15 @@ export class ClientPeopleController {
     @Body() body: CreatePersonDto,
   ) {
     return this.service.createPerson(ctx, clientId, body);
+  }
+
+  @Get('requests/:requestId')
+  readCreation(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.service.readCreation(ctx, clientId, requestId);
   }
 
   @Patch(':id')
