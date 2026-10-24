@@ -39,7 +39,7 @@ beforeEach(() => {
     linkedClientId: null,
   });
 });
-function fixture() {
+function fixture(capacityLock?: () => Promise<void>) {
   const current = {
     updatedAt: new Date(at),
     linkedClientId: null as string | null,
@@ -61,7 +61,10 @@ function fixture() {
     $executeRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.join('?');
       statements.push({ sql, values });
-      if (sql.includes('pg_advisory')) return 1;
+      if (sql.includes('pg_advisory')) {
+        if (values[0] === `client-capacity:${ctx.tenantId}`) await capacityLock?.();
+        return 1;
+      }
       if (!sql.includes('INSERT INTO prospect_conversion_receipts'))
         throw new Error('Unexpected fixture write');
       stored = {
@@ -250,6 +253,37 @@ it('new-client command returns and recovers the exact created client without cre
   expect(await readProspectConversion(h.tx, ctx, prospectId, requestId)).toEqual(receipt);
   expect(h.convert).toHaveBeenCalledTimes(1);
   expect(requireOwnerClient).toHaveBeenCalledWith(h.tx, ctx, clientId);
+  expect(
+    h.statements.filter((statement) => statement.values[0] === `client-capacity:${ctx.tenantId}`),
+  ).toHaveLength(1);
+});
+it('does not acquire authorization row locks while a new-client admission is waiting for capacity', async () => {
+  let entered!: () => void;
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const h = fixture(async () => {
+    entered();
+    await gate;
+  });
+  const result = commitProspectConversion(h.tx, ctx, newCommand(), h.convert).catch(
+    (error: unknown) => error,
+  );
+  await waiting;
+  try {
+    expect(prospectResourceScope).not.toHaveBeenCalled();
+    expect(requireOwnerClient).not.toHaveBeenCalled();
+    expect(h.convert).not.toHaveBeenCalled();
+  } finally {
+    release();
+  }
+  expect(await result).toBeInstanceOf(Error);
+  expect(prospectResourceScope).toHaveBeenCalled();
+  expect(h.convert).toHaveBeenCalledTimes(1);
 });
 it('a reviewed new client cannot silently become an existing-client link', async () => {
   const h = fixture();

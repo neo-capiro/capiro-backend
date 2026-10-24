@@ -26,7 +26,7 @@ import {
   otherProspect,
   archivedClient,
 } from './admissions-fixture.js';
-import { ctx, tenant, client, foreign, id, release, settled } from './fixture.js';
+import { actor, ctx, tenant, client, foreign, id, release, settled } from './fixture.js';
 import { installDirectoryNotes, directoryNoteCases } from './directory-notes.pg-cases.js';
 
 let h: Awaited<ReturnType<typeof admissionsFixture>>;
@@ -262,6 +262,111 @@ it('creates one new client under concurrent command replay and recovers its exac
     (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
   ).toBe(1);
 });
+
+it('serializes two different-prospect new-client commands at the last slot', async () => {
+  const gate = await h.lock('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [
+    `client-capacity:${tenant}`,
+  ]);
+  const commands = [
+    newClientCommand(),
+    { ...newClientCommand(106), prospectId: otherProspect, clientName: 'Synthetic second' },
+  ];
+  const pending = Promise.all(
+    commands.map((command) =>
+      settled(h.prospects.convertCommand(ctx, command.prospectId, command)),
+    ),
+  );
+  try {
+    await h.waitForLock('pg_advisory_xact_lock', 2);
+  } finally {
+    await release(gate);
+  }
+  const results = await pending;
+  expect(results.filter((result) => result.value?.outcome === 'created')).toHaveLength(1);
+  expect(results.filter((result) => result.error?.status === 402)).toHaveLength(1);
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+  expect(
+    (
+      await h.sql(
+        'SELECT count(*)::int AS count FROM business_development_prospects WHERE linked_client_id IS NOT NULL',
+      )
+    ).rows[0].count,
+  ).toBe(1);
+});
+
+it('uses current new-client capacity policy after waiting behind a billing update', async () => {
+  const billing = await h.lock('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
+  const conversion = settled(h.prospects.convertCommand(ctx, prospect, newClientCommand()));
+  try {
+    await h.waitForLock('FROM tenants');
+  } finally {
+    await release(billing);
+  }
+  expect((await conversion).error).toMatchObject({ status: 402 });
+  expect(await active()).toBe(1);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(0);
+  expect(
+    (
+      await h.sql(
+        'SELECT count(*)::int AS count FROM business_development_prospects WHERE linked_client_id IS NOT NULL',
+      )
+    ).rows[0].count,
+  ).toBe(0);
+});
+
+async function waitForQueuedBilling() {
+  const deadline = Date.now() + 3500;
+  while (Date.now() < deadline) {
+    const waiting = await h.sql(`SELECT 1 FROM pg_stat_activity
+      WHERE datname=current_database() AND application_name='a2-fixture-admin'
+        AND wait_event_type='Lock' AND query LIKE 'UPDATE tenants SET client_slots=1%'`);
+    if (waiting.rowCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error('Expected queued billing row-lock wait was not observed.');
+}
+
+it('does not deadlock new-client authorization, queued billing and ordinary admission', async () => {
+  // Pause conversion at current membership after it takes tenant SHARE. Queue
+  // billing behind that SHARE, then ordinary create behind the same capacity
+  // lock. Before the fix, ordinary create took capacity while conversion held
+  // tenant SHARE, making a three-way cycle once the membership gate released.
+  const member = await h.lock(
+    'UPDATE tenant_memberships SET role=role WHERE tenant_id=$1 AND user_id=$2',
+    [tenant, actor],
+  );
+  const conversion = settled(h.prospects.convertCommand(ctx, prospect, newClientCommand()));
+  let billing: ReturnType<typeof settled> | undefined;
+  let ordinary: ReturnType<typeof settled> | undefined;
+  let synchronizationFailure: unknown;
+  try {
+    await h.waitForLock('FROM tenant_memberships');
+    billing = settled(h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]));
+    await waitForQueuedBilling();
+    ordinary = settled(h.clients.create(ctx, { name: 'Synthetic queued admission' }));
+    await h.waitForLock('', 2);
+  } catch (error) {
+    synchronizationFailure = error;
+  } finally {
+    await release(member);
+  }
+  const [converted, billed, created] = await Promise.all([conversion, billing, ordinary]);
+  if (synchronizationFailure) throw synchronizationFailure;
+  expect(converted.value?.outcome).toBe('created');
+  expect(billed).toBeDefined();
+  expect(billed?.error).toBeUndefined();
+  expect(created?.error).toMatchObject({ status: 402 });
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+});
+
 it('new-client capacity and receipt-insert failures roll back the client and prospect together', async () => {
   await h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
   await expect(h.prospects.convertCommand(ctx, prospect, newClientCommand())).rejects.toMatchObject(

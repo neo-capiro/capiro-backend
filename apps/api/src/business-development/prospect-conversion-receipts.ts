@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException, ServiceUnavailableException } fro
 import { prospectResourceScope, type TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
+import { lockClientCapacity } from '../clients/client-capacity.js';
 import {
   parseProspectConversion,
   prospectConversionDigest,
@@ -80,6 +81,13 @@ export async function commitProspectConversion(
 ): Promise<ProspectConversionReceipt> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`prospect-conversion:${ctx.tenantId}:${ctx.userId}:${command.requestId}`},0))`;
   const current = await lockProspect(tx, ctx, command.prospectId);
+  // Keep legacy conversion's prospect -> capacity -> tenant/member order.
+  // Otherwise a queued billing UPDATE can form a cycle with ordinary create:
+  // conversion holds tenant SHARE waiting for capacity; create holds capacity
+  // waiting behind billing; billing waits for conversion's tenant SHARE.
+  // Replays and existing-client links do not need admission or slot availability.
+  if (command.mode === 'new_client' && !current.linkedClientId && !current.convertedAt)
+    await lockClientCapacity(tx, ctx.tenantId);
   // A changed target is unavailable; never acquire a second client out of order.
   if (
     command.mode === 'existing_client' &&
