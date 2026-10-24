@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 import coreRoutes from './first-chat-core-routes.json';
 import writes from './first-chat-preview-writes.json';
@@ -62,7 +63,15 @@ export class FirstChatPreviewEdgeStack extends cdk.Stack {
       scheme: 'internet-facing',
       ipAddressType: 'ipv4',
       securityGroups: ['sg-0dc7236a6d67e4340'],
+      loadBalancerAttributes: [{ key: 'idle_timeout.timeout_seconds', value: '4000' }],
       subnets: ['subnet-0adcda6d70a456c21', 'subnet-0d368aeedf6133ca8', 'subnet-054ee44795a3d07c8'],
+    });
+    // Preserve the existing ingress inspection policy without changing its
+    // rules or its association with the shared load balancer.
+    new wafv2.CfnWebACLAssociation(this, 'ExistingPreviewWebAcl', {
+      resourceArn: alb.ref,
+      webAclArn:
+        'arn:aws:wafv2:us-east-1:967807252336:regional/webacl/capiro-dev-waf/95dc2979-45e1-4c94-9ea8-650dfb21c516',
     });
     const listener = new elb.CfnListener(this, 'PreviewHttps', {
       loadBalancerArn: alb.ref,

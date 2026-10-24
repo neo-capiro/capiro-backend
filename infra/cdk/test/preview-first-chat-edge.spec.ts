@@ -35,12 +35,22 @@ test('dedicated edge reuses only existing network/certificate and has no shared-
       'AWS::ElasticLoadBalancingV2::Listener',
       'AWS::ElasticLoadBalancingV2::TargetGroup',
       'AWS::ElasticLoadBalancingV2::ListenerRule',
+      'AWS::WAFv2::WebACLAssociation',
     ]);
     for (const resource of Object.values(edge.Resources) as any[])
       assert.ok(allowed.has(resource.Type));
     const [alb] = ofType(edge, 'AWS::ElasticLoadBalancingV2::LoadBalancer');
     assert.equal(alb.Properties.Scheme, 'internet-facing');
     assert.deepEqual(alb.Properties.SecurityGroups, ['sg-0dc7236a6d67e4340']);
+    assert.deepEqual(alb.Properties.LoadBalancerAttributes, [
+      { Key: 'idle_timeout.timeout_seconds', Value: '4000' },
+    ]);
+    const [waf] = ofType(edge, 'AWS::WAFv2::WebACLAssociation');
+    assert.deepEqual(waf.Properties, {
+      ResourceArn: { Ref: 'PreviewLoadBalancer' },
+      WebACLArn:
+        'arn:aws:wafv2:us-east-1:967807252336:regional/webacl/capiro-dev-waf/95dc2979-45e1-4c94-9ea8-650dfb21c516',
+    });
     assert.deepEqual(alb.Properties.Subnets, [
       'subnet-0adcda6d70a456c21',
       'subnet-0d368aeedf6133ca8',
@@ -91,7 +101,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 17);
+    assert.equal(rules.length, 48);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;

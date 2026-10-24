@@ -145,6 +145,10 @@ subnets, ALB security group and issued certificate. Every shared listener rule,
 including the retained priority-7 guard, stays unchanged. The new listener denies
 unallocated requests and forwards only the finite existing method/path pairs in
 `first-chat-preview-writes.json`; the test fixture records their caller owners.
+The new ALB retains the existing 4000-second idle timeout and associates with the
+same existing WAF ACL. It does not change that ACL or the shared ALB association.
+Each new write expression names one complete path, grouped only by service and
+method; the dedicated edge has room without compressing unrelated path names.
 
 Apply the edge before updating the existing Core service. Core retains its old
 target and imports the new Core target export. The edge's three satellite

@@ -105,7 +105,7 @@
     "service": "core",
     "method": "POST",
     "path": "/api/engagement/integrations/microsoft/:connectionId/sync",
-    "owner": "Mail"
+    "owner": "Portfolio existing owner map 22:46"
   },
   {
     "service": "core",
@@ -117,7 +117,7 @@
     "service": "core",
     "method": "POST",
     "path": "/api/engagement/integrations/google/:connectionId/sync",
-    "owner": "Mail"
+    "owner": "Portfolio existing owner map 22:46"
   },
   {
     "service": "core",
@@ -321,7 +321,7 @@
     "service": "core",
     "method": "POST",
     "path": "/api/engagement/integrations/microsoft/:connectionId/calendar-window",
-    "owner": "Mail"
+    "owner": "Portfolio existing owner map 22:46"
   },
   {
     "service": "core",
@@ -464,6 +464,12 @@
   {
     "service": "core",
     "method": "POST",
+    "path": "/api/internal/objective-generation/reads",
+    "owner": "Runtime owner map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
     "path": "/api/internal/ai-credentials/resolve",
     "owner": "Existing Intel API_BASE_URL callback"
   },
@@ -590,6 +596,126 @@
   {
     "service": "core",
     "method": "POST",
+    "path": "/api/clients/:clientId/objectives/operational-associations",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/directory/members/:memberId/note-commands",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/business-development/prospects/:prospectId/conversion-commands",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/business-development/prospects/:prospectId/convert",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PUT",
+    "path": "/api/engagement/meetings/:meetingId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/notes",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/engagement/meetings/:meetingId/notes/:noteId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/notes/:noteId/approve",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/debriefs",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/engagement/meetings/:meetingId/debriefs/:debriefId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/debriefs/:debriefId/approve",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/artifacts/share",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meetings/:meetingId/artifacts/unshare",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/files/:id/folder",
+    "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/files/:attachmentId/access",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "PATCH",
+    "path": "/api/clients/:clientId/files/access/folder",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "DELETE",
+    "path": "/api/engagement/attachments/:attachmentId",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "workspace",
+    "method": "POST",
+    "path": "/workspace-api/drafts/:draftId/documents/core-brief-copy",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "workspace",
+    "method": "POST",
+    "path": "/workspace-api/drafts/:draftId/documents/:docId/brief-copy-save",
+    "owner": "Portfolio existing owner map 22:46"
+  },
+  {
+    "service": "core",
+    "method": "POST",
     "path": "/api/clients/:clientId/files/batch-moves",
     "owner": "Portfolio previously accepted route map"
   },
@@ -597,12 +723,6 @@
     "service": "core",
     "method": "PUT",
     "path": "/api/clients/:clientId/account-owners",
-    "owner": "Portfolio previously accepted route map"
-  },
-  {
-    "service": "core",
-    "method": "PATCH",
-    "path": "/api/clients/:clientId/files/:id/folder",
     "owner": "Portfolio previously accepted route map"
   }
 ]
