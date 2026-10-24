@@ -93,7 +93,9 @@ describe('approved record brief export and Documents boundary', () => {
       sourceContentHash: input.contentHash,
     });
     expect(call.buffer.equals((exported as { buffer: Buffer }).buffer)).toBe(true);
-    const xml = await (await JSZip.loadAsync(call.buffer))
+    const xml = await (
+      await JSZip.loadAsync(call.buffer)
+    )
       .file('word/document.xml')!
       .async('string');
     expect(xml).toContain('110 yeas');
@@ -133,5 +135,26 @@ describe('approved record brief export and Documents boundary', () => {
       service.recordBriefDocument(ctx, 'client-a', input, true, 'Bearer synthetic'),
     ).rejects.toThrow('APPROVED_RECORD_BRIEF_UNAVAILABLE_OR_ACCESS_CHANGED');
     expect(writer.createAttachmentFromBuffer).not.toHaveBeenCalled();
+  });
+  it('retains every existing observation permission/source lock after helper extraction', async () => {
+    const { service, queries } = fixture();
+    const withObservation = {
+      ...approved,
+      accessLocks: {
+        ...approved.accessLocks,
+        observation: { sessionId: 'session-a', segmentIds: ['segment-a'] },
+      },
+    };
+    global.fetch = jest.fn(async () => ({ ok: true, json: async () => withObservation })) as never;
+    await service.recordBriefDocument(ctx, 'client-a', input, false, 'Bearer synthetic');
+    for (const table of [
+      'intel_live_hearing_session',
+      'intel_hearing_media_permission',
+      'public_hearing_capture',
+      'committee_hearing',
+      'intel_transcript_segment',
+      'public_hearing_transcript_segment',
+    ])
+      expect(queries.some((q) => q.includes(table) && q.includes('FOR SHARE'))).toBe(true);
   });
 });
