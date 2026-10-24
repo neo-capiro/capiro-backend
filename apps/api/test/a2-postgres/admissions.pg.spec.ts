@@ -33,6 +33,7 @@ import {
 } from './admissions-fixture.js';
 import { actor, ctx, tenant, client, foreign, id, release, settled } from './fixture.js';
 import { installDirectoryNotes, directoryNoteCases } from './directory-notes.pg-cases.js';
+import { canonicalConversionCase } from './canonical-conversion.pg-case.js';
 
 let h: Awaited<ReturnType<typeof admissionsFixture>>;
 beforeAll(async () => {
@@ -80,6 +81,7 @@ const newClientCommand = (request = 105) => ({
 });
 
 directoryNoteCases(() => h);
+canonicalConversionCase(() => h);
 
 it('binds a no-write refusal to the original new-client request only after the actual transaction rolls back', async () => {
   const command = newClientCommand();

@@ -1284,6 +1284,36 @@ describe('convert', () => {
     expect(result.client.id).toBe(existing.id);
     expect(h.clients.createInTransaction).not.toHaveBeenCalled();
   });
+
+  test('new-client intent refuses a canonical match before locking or writing the existing client', async () => {
+    const row = prospect({ canonicalEntityId: 'canon-public' });
+    const h = makeHarness(baseFx(row));
+    const existing = {
+      id: randomUUID(),
+      name: 'Matched existing client',
+      tenantId,
+      canonicalEntityId: 'canon-public',
+      status: 'ACTIVE',
+    };
+    h.fx.clients.set(existing.id, existing);
+    // Exercise the shared transaction owner itself; its caller's later rollback
+    // must not hide an intervening existing-client lock/link/write branch.
+    await expect(
+      h.service['convertInTransaction'](ctx, h.tx as never, row.id as string, {
+        intent: 'new_client',
+      }),
+    ).rejects.toThrow('matching client already exists');
+    expect(h.fx.rawQueries).toHaveLength(1);
+    expect(h.fx.rawQueries[0]).toMatchObject({
+      sql: expect.stringContaining('FROM "business_development_prospects"'),
+    });
+    expect(h.tx.businessDevelopmentProspect.update).not.toHaveBeenCalled();
+    expect(h.tx.client.update).not.toHaveBeenCalled();
+    expect(h.clients.createInTransaction).not.toHaveBeenCalled();
+    expect(h.fx.activities).toEqual([]);
+    expect(h.fx.audits).toEqual([]);
+    expect(h.fx.rows.get(row.id as string)?.linkedClientId).toBeNull();
+  });
 });
 
 // ── Phase 3 Jev identity review hook (post-commit, best-effort) ────────────

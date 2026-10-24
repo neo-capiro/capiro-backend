@@ -1015,6 +1015,7 @@ export class BusinessDevelopmentService {
               command.mode === 'existing_client'
                 ? { existingClientId: command.clientId }
                 : {
+                    intent: 'new_client',
                     clientWebsite: command.clientWebsite,
                     clientDescription: command.clientDescription,
                   },
@@ -1042,7 +1043,12 @@ export class BusinessDevelopmentService {
     ctx: TenantContext,
     tx: Prisma.TransactionClient,
     id: string,
-    input: { existingClientId?: string; clientWebsite?: string | null; clientDescription?: string | null },
+    input: {
+      existingClientId?: string;
+      clientWebsite?: string | null;
+      clientDescription?: string | null;
+      intent?: 'new_client';
+    },
   ) {
     // 1. ROW LOCK FIRST, before resolving/creating any client: SELECT … FOR
     //    UPDATE on the tenant-owned prospect serializes concurrent
@@ -1102,6 +1108,13 @@ export class BusinessDevelopmentService {
         select: { id: true, name: true },
       });
       if (confirmed) {
+        // New-client commands already hold current membership locks. Refuse
+        // here, before the existing-client row lock/link/write branch, whose
+        // owner acquires client before membership. Legacy linking stays intact.
+        if (input.intent === 'new_client')
+          throw new ConflictException(
+            'A matching client already exists. Review an explicit existing-client link.',
+          );
         clientId = confirmed.id;
         clientName = confirmed.name;
       } else {
