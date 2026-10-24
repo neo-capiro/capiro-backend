@@ -24,7 +24,7 @@ export type MeetingCommandResult = {
   artifacts: Array<{
     type: 'note' | 'debrief' | 'prep' | 'attachment';
     id: string;
-    revision: string;
+    revision: string | number;
   }>;
 };
 type Saved = {
@@ -136,10 +136,15 @@ async function admit(tx: Prisma.TransactionClient, ctx: TenantContext, command: 
       ]
     : command.artifacts;
   for (const item of refs) {
-    const rows = await tx.$queryRaw<Array<{ updatedAt: Date }>>(Prisma.sql`
-      SELECT updated_at AS "updatedAt" FROM ${Prisma.raw(artifactTables[item.type])}
+    const column = item.type === 'attachment' ? 'metadata_revision' : 'updated_at';
+    const rows = await tx.$queryRaw<Array<{ revision: Date | number }>>(Prisma.sql`
+      SELECT ${Prisma.raw(column)} AS revision FROM ${Prisma.raw(artifactTables[item.type])}
       WHERE tenant_id=${ctx.tenantId}::uuid AND meeting_id=${meeting.id}::uuid AND id=${item.id}::uuid FOR UPDATE`);
-    if (rows.length !== 1 || rows[0]!.updatedAt.toISOString() !== item.revision)
+    const revision = rows[0]?.revision;
+    if (
+      rows.length !== 1 ||
+      (revision instanceof Date ? revision.toISOString() : revision) !== item.revision
+    )
       throw new ConflictException('A reviewed artifact changed');
   }
 }
@@ -301,11 +306,17 @@ export async function meetingCommandResult(
     : command.artifacts;
   const artifacts: MeetingCommandResult['artifacts'] = [];
   for (const item of refs) {
-    const rows = await tx.$queryRaw<Array<{ updatedAt: Date }>>(Prisma.sql`
-      SELECT updated_at AS "updatedAt" FROM ${Prisma.raw(artifactTables[item.type])}
+    const column = item.type === 'attachment' ? 'metadata_revision' : 'updated_at';
+    const rows = await tx.$queryRaw<Array<{ revision: Date | number }>>(Prisma.sql`
+      SELECT ${Prisma.raw(column)} AS revision FROM ${Prisma.raw(artifactTables[item.type])}
       WHERE tenant_id=${ctx.tenantId}::uuid AND meeting_id=${meetingId}::uuid AND id=${item.id}::uuid`);
     if (rows.length !== 1) throw new Error('Artifact command result is unavailable');
-    artifacts.push({ type: item.type, id: item.id, revision: rows[0]!.updatedAt.toISOString() });
+    const revision = rows[0]!.revision;
+    artifacts.push({
+      type: item.type,
+      id: item.id,
+      revision: revision instanceof Date ? revision.toISOString() : revision,
+    });
   }
   return {
     meetingId,

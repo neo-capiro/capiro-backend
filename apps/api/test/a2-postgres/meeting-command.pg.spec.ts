@@ -83,6 +83,7 @@ beforeAll(async () => {
         subject text NOT NULL,status text NOT NULL DEFAULT 'scheduled',updated_at timestamptz NOT NULL);
       CREATE TABLE meeting_notes (id uuid PRIMARY KEY,tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
         meeting_id uuid NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,updated_at timestamptz NOT NULL);
+      ALTER TABLE engagement_attachments ADD COLUMN meeting_id uuid REFERENCES meetings(id) ON DELETE CASCADE;
       CREATE TABLE audit_logs (id uuid PRIMARY KEY,tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
         actor_user_id uuid,actor_role text,action text NOT NULL,entity_type text,entity_id text,
         before_jsonb jsonb,after_jsonb jsonb,ip text,user_agent text,request_id text,occurred_at timestamptz DEFAULT now());
@@ -246,6 +247,44 @@ it('refuses a stale selected artifact before the writer', async () => {
   );
   expect(outcome.receipt.status).toBe('refused');
   expect(writer).not.toHaveBeenCalled();
+});
+
+it('locks an attachment by its existing integer metadata revision and records the new revision', async () => {
+  await create();
+  await h.sql('UPDATE engagement_attachments SET meeting_id=$1 WHERE id=$2', [meetingId, id(4)]);
+  const before = (
+    await h.sql('SELECT metadata_revision FROM engagement_attachments WHERE id=$1', [id(4)])
+  ).rows[0].metadata_revision;
+  const command = {
+    ...input,
+    requestId: id(921),
+    operation: 'share',
+    meetingId,
+    expectedClientId: client,
+    expectedRevision: revision,
+    meeting: null,
+    artifacts: [{ type: 'attachment', id: id(4), revision: before }],
+  };
+  const writer = jest.fn(
+    async (tx: Prisma.TransactionClient, current: TenantContext, parsed: MeetingCommand) => {
+      await tx.$executeRaw`UPDATE engagement_attachments SET file_name='Synthetic changed.pdf' WHERE id=${id(4)}::uuid`;
+      return meetingCommandResult(tx, current, parsed, meetingId);
+    },
+  );
+  const result = await commitMeetingCommand(h.prisma, ctx, command, writer);
+  expect(result.receipt).toMatchObject({
+    status: 'completed',
+    result: { artifacts: [{ type: 'attachment', id: id(4), revision: before + 1 }] },
+  });
+  expect(await commitMeetingCommand(h.prisma, ctx, command, writer)).toMatchObject({
+    fresh: false,
+    receipt: result.receipt,
+  });
+  expect(writer).toHaveBeenCalledTimes(1);
+  expect(
+    await commitMeetingCommand(h.prisma, ctx, { ...command, requestId: id(922) }, writer),
+  ).toMatchObject({ receipt: { status: 'refused' } });
+  expect(writer).toHaveBeenCalledTimes(1);
 });
 
 it('enforces immutable outcomes, tenant RLS and repeatable migration without loss', async () => {

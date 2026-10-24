@@ -86,7 +86,8 @@ function harness() {
         const row = state.receipts.get(key(values[0], values[1], values[2]));
         return row ? [structuredClone(row)] : [];
       }
-      if (sql.includes('updated_at')) return [{ updatedAt: new Date(controls.revision) }];
+      if (sql.includes('updated_at')) return [{ revision: new Date(controls.revision) }];
+      if (sql.includes('metadata_revision')) return [{ revision: 2 }];
       return [];
     },
     $executeRaw: async (...args: any[]) => {
@@ -263,6 +264,37 @@ describe('meeting domain command receipts', () => {
 });
 
 describe('meeting command input binding', () => {
+  test('attachments bind their existing integer metadata revision, not a nonexistent timestamp', async () => {
+    const h = harness();
+    const command = {
+      ...input,
+      operation: 'share',
+      meetingId: id(5),
+      expectedClientId: id(4),
+      expectedRevision: now,
+      meeting: null,
+      artifacts: [{ type: 'attachment', id: id(10), revision: 2 }],
+    };
+    expect(parseMeetingCommand(command).artifacts[0]!.revision).toBe(2);
+    expect(() =>
+      parseMeetingCommand({ ...command, artifacts: [{ ...command.artifacts[0], revision: now }] }),
+    ).toThrow();
+    expect(() =>
+      parseMeetingCommand({ ...command, artifacts: [{ type: 'note', id: id(10), revision: 2 }] }),
+    ).toThrow();
+    await expect(commitMeetingCommand(h.prisma, ctx, command, h.run)).resolves.toMatchObject({
+      fresh: true,
+    });
+    const stale = {
+      ...command,
+      requestId: id(11),
+      artifacts: [{ ...command.artifacts[0], revision: 1 }],
+    };
+    await expect(commitMeetingCommand(h.prisma, ctx, stale, h.run)).resolves.toMatchObject({
+      receipt: { status: 'refused' },
+    });
+    expect(h.run).toHaveBeenCalledTimes(1);
+  });
   test('same selected set canonicalizes its order and binds actor/request/revision', () => {
     const share = {
       ...input,

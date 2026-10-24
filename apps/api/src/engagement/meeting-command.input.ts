@@ -57,7 +57,7 @@ const commandSchema = z
           .object({
             type: z.enum(['note', 'debrief', 'prep', 'attachment']),
             id: uuid,
-            revision: instant,
+            revision: z.union([instant, z.number().int().min(0).max(2147483647)]),
           })
           .strict(),
       )
@@ -82,6 +82,12 @@ const commandSchema = z
       if (!value.meeting.assignClient && value.meeting.clientId !== null) issue();
     } else if (value.operation === 'share' || value.operation === 'unshare') {
       if (value.meeting || value.artifact || !value.artifacts.length) issue();
+      if (
+        value.artifacts.some(
+          (item) => (item.type === 'attachment') !== (typeof item.revision === 'number'),
+        )
+      )
+        issue();
       if (
         new Set(value.artifacts.map((item) => `${item.type}:${item.id}`)).size !==
         value.artifacts.length
