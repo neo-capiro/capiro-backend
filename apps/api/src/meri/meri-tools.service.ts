@@ -3238,6 +3238,8 @@ export class MeriToolsService {
         }),
       }),
     ]);
+    // The account-owner concurrency counter is internal, outside the profile DTO.
+    const { accountOwnerVersion: _accountOwnerVersion, ...profileClient } = context.client;
     return {
       tool: 'get_client_context',
       generatedAt: new Date().toISOString(),
@@ -3269,7 +3271,7 @@ export class MeriToolsService {
         advocacyMatters: advocacyMatters.coverage.sourceReferences,
         advocacyRecords: advocacyRecords.coverage.sourceReferences,
       },
-      context,
+      context: { ...context, client: profileClient },
     };
   }
 
