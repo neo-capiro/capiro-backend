@@ -6827,19 +6827,17 @@ export class MeriToolsService {
     if ('error' in result) return result;
     // Retain the existing thread envelope/citation IDs. The page and date/folder
     // scope are message-based so older activity is never hidden by newer replies.
-    const threads = new Map<
-      string,
-      {
-        id: string;
-        subject: string | null;
-        snippet: string | null;
-        lastMessageAt: string | null;
-        client: { id: string; name: string | null } | null;
-        messages: Array<Record<string, unknown>>;
-      }
-    >();
+    type ListedThread = {
+      id: string;
+      subject: string | null;
+      snippet: string | null;
+      lastMessageAt: string | null;
+      client: { id: string; name: string | null } | null;
+      messages: Array<Record<string, unknown>>;
+    };
+    const threads = new Map<string, ListedThread>();
     for (const message of result.messages) {
-      const thread = threads.get(message.threadId) ?? {
+      const thread: ListedThread = threads.get(message.threadId) ?? {
         id: message.threadId,
         subject: message.subject,
         snippet: message.preview,

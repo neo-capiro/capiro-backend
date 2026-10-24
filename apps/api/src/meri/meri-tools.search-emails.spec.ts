@@ -220,4 +220,27 @@ describe('Meri canonical mailbox tools', () => {
       error: 'folder must be inbox, sent, or all.',
     });
   });
+
+  it('groups multiple bounded messages without replacing a thread accumulator or paging facts', async () => {
+    const message = { subject: 'Stored subject', from: { email: 'sender@example.test', name: null },
+      preview: 'Stored preview', receivedAt: '2026-09-06T00:00:00.000Z', sentAt: null, client: null };
+    const result = { totalMatches: 20, returned: 3, hasMore: true, nextOffset: 3,
+      asOf: '2026-09-07T12:00:00.000Z', searchedMailboxes: [], messages: [
+        { ...message, id: 'message-a', threadId: 'thread-a' },
+        { ...message, id: 'message-b', threadId: 'thread-b' },
+        { ...message, id: 'message-c', threadId: 'thread-a', preview: 'Second preview' },
+      ] };
+    const { tools } = service(result);
+    const out = await tools.listEmails(ctx, {});
+    expect(out).toMatchObject({ totalMatches: 20, returned: 3, hasMore: true, nextOffset: 3,
+      asOf: result.asOf, count: 2, threads: [
+        { id: 'thread-a', subject: message.subject, messages: [
+          { id: 'message-a', bodyText: 'Stored preview' },
+          { id: 'message-c', bodyText: 'Second preview' },
+        ] },
+        { id: 'thread-b', messages: [{ id: 'message-b' }] },
+      ] });
+    expect(out.messages).toBe(result.messages);
+    expect(result.messages).toHaveLength(3);
+  });
 });

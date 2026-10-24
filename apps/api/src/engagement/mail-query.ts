@@ -42,7 +42,18 @@ type MailRow = {
   account_email: string | null;
 };
 
-export function normalizeMailReadFilters(input: Record<string, unknown>) {
+interface MailReadFilters {
+  query: string;
+  from: string;
+  participant: string;
+  clientId: string;
+  folder: string;
+  withinDays: number | null;
+  asOf: Date;
+  windowStart: Date | null;
+}
+
+export function normalizeMailReadFilters(input: Record<string, unknown>): MailReadFilters | { error: string } {
   const term = (key: string, max = 200) =>
     typeof input[key] === 'string' ? (input[key] as string).trim().slice(0, max) : '';
   const query = term('query'), from = term('from'), participant = term('participant');
@@ -59,8 +70,6 @@ export function normalizeMailReadFilters(input: Record<string, unknown>) {
   const windowStart = withinDays === null ? null : new Date(asOf.getTime() - withinDays * 86400000);
   return { query, from, participant, clientId, folder, withinDays, asOf, windowStart };
 }
-
-type MailReadFilters = Exclude<ReturnType<typeof normalizeMailReadFilters>, { error: string }>;
 
 export function normalizeMailReadRecipients(input?: unknown) {
   if (input !== undefined && (!Array.isArray(input) || input.length > 100 ||

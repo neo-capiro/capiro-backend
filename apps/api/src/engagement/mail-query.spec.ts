@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import { queryMailMessages, type MailQueryOptions } from './mail-query.js';
+import { normalizeMailReadFilters, queryMailMessages, type MailQueryOptions } from './mail-query.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 /** Canonical mailbox queries retain scope, literal lookup, bounded pages and honest coverage. */
@@ -95,6 +95,20 @@ function boundValues(queryRaw: jest.Mock, call: number): unknown[] {
 }
 
 describe('canonical mailbox query', () => {
+  it('keeps normalized filters distinct from validation refusals', () => {
+    const filters = normalizeMailReadFilters({ query: '  exact term  ', withinDays: 14,
+      folder: 'inbox', asOf: '2026-09-07T12:00:00Z' });
+    if ('error' in filters) throw new Error(filters.error);
+    expect(filters).toEqual({ query: 'exact term', from: '', participant: '', clientId: '',
+      folder: 'inbox', withinDays: 14, asOf: new Date('2026-09-07T12:00:00Z'),
+      windowStart: new Date('2026-08-24T12:00:00Z') });
+    const refusal = normalizeMailReadFilters({ folder: 'trash' });
+    if (!('error' in refusal)) throw new Error('Expected a normalization refusal');
+    const message: string = refusal.error;
+    expect(refusal).toEqual({ error: message });
+    expect(message).toBe('folder must be inbox, sent, or all.');
+  });
+
   it('accepts a date-only inbox inventory and binds a stable 14-day window without a keyword', async () => {
     const { searchEmails, queryRaw } = makeService({ coverage: [healthyMailbox()] });
     const out = await searchEmails(CTX, {
