@@ -184,6 +184,10 @@ import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { currentMeetingActor, visibleMeetingClientWhere, assertMeetingClient } from './meeting-resource-authority.js';
+import {
+  commitMeetingCommand, readMeetingCommand, meetingCommandResult, type MeetingExecution,
+} from './meeting-command.js';
+import type { MeetingCommand } from './meeting-command.input.js';
 import { projectMeetingArtifactMetadata, type MeetingArtifactMetadata } from './meeting-artifact-metadata.js';
 
 export interface CreateIntegrationInput {
@@ -200,7 +204,7 @@ export interface MeetingAttendeeInput {
 }
 
 export interface CreateMeetingInput {
-  clientId?: string;
+  clientId?: string | null;
   subject: string;
   description?: string;
   location?: string;
@@ -1500,18 +1504,96 @@ export class EngagementService {
     });
   }
 
-  async createMeeting(ctx: TenantContext, input: CreateMeetingInput) {
+  async executeMeetingCommand(ctx: TenantContext, raw: unknown) {
+    const afterCommit: Array<() => void> = [];
+    const outcome = await commitMeetingCommand(this.prisma, ctx, raw, (tx, current, command) =>
+      this.runMeetingCommand(current, command, { tx, afterCommit }),
+    );
+    if (outcome.fresh) for (const effect of afterCommit) effect();
+    return outcome.receipt;
+  }
+
+  readMeetingCommand(ctx: TenantContext, requestId: string) {
+    return readMeetingCommand(this.prisma, ctx, requestId);
+  }
+
+  private meetingTransaction<T>(
+    ctx: TenantContext,
+    execution: MeetingExecution | undefined,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { timeoutMs: number },
+  ): Promise<T> {
+    return execution ? work(execution.tx) : this.prisma.withTenant(ctx.tenantId, work, options);
+  }
+
+  private async runMeetingCommand(
+    ctx: TenantContext, command: MeetingCommand, execution: MeetingExecution,
+  ) {
+    let meetingId = command.meetingId;
+    let artifactId = command.artifact?.id ?? undefined;
+    if (command.operation === 'create' || command.operation === 'update') {
+      const { assignClient, clientId, ...fields } = command.meeting!;
+      const input = { ...fields, ...(assignClient ? { clientId } : {}) };
+      if (command.operation === 'create') {
+        meetingId = (await this.createMeeting(ctx, {
+          ...fields,
+          description: fields.description ?? undefined,
+          location: fields.location ?? undefined,
+          ...(assignClient ? { clientId } : {}),
+        }, execution)).id;
+      } else {
+        await this.updateMeeting(ctx, meetingId!, {
+          ...input, expectedRevision: command.expectedRevision!,
+        }, execution);
+      }
+    } else if (command.operation === 'share' || command.operation === 'unshare') {
+      const refs = command.artifacts.map(({ type, id }) => ({ type, id }));
+      if (command.operation === 'share') await this.shareArtifacts(ctx, meetingId!, refs, execution);
+      else await this.unshareArtifacts(ctx, meetingId!, refs, execution);
+    } else {
+      const input = {
+        body: command.artifact!.body!, confidential: command.artifact!.confidential!,
+      };
+      switch (command.operation) {
+        case 'note-create':
+          artifactId = (await this.createMeetingNote(ctx, meetingId!, input, execution)).id;
+          break;
+        case 'debrief-create':
+          artifactId = (await this.createMeetingDebrief(ctx, meetingId!, input, execution)).id;
+          break;
+        case 'note-update':
+          await this.updateMeetingNote(ctx, meetingId!, artifactId!, {
+            ...input, expectedRevision: command.artifact!.revision!,
+          }, execution);
+          break;
+        case 'debrief-update':
+          await this.updateMeetingDebrief(ctx, meetingId!, artifactId!, {
+            ...input, expectedRevision: command.artifact!.revision!,
+          }, execution);
+          break;
+        case 'note-approve':
+          await this.approveMeetingNote(ctx, meetingId!, artifactId!, execution);
+          break;
+        case 'debrief-approve':
+          await this.approveMeetingDebrief(ctx, meetingId!, artifactId!, execution);
+          break;
+      }
+    }
+    return meetingCommandResult(execution.tx, ctx, command, meetingId!, artifactId);
+  }
+
+  async createMeeting(ctx: TenantContext, input: CreateMeetingInput, execution?: MeetingExecution) {
     const startsAt = parseDate(input.startsAt, 'startsAt');
     const endsAt = parseDate(input.endsAt, 'endsAt');
     if (endsAt < startsAt) throw new BadRequestException('endsAt must be after startsAt');
 
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       const attendeeEmails = (input.attendees ?? [])
         .map((attendee) => attendee.email)
         .filter((email): email is string => Boolean(email));
 
-      const autoAssociation = input.clientId
+      const autoAssociation = input.clientId !== undefined
         ? {
             clientId: input.clientId,
             score: 1,
@@ -1577,9 +1659,9 @@ export class EngagementService {
     });
   }
 
-  async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
+  async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput, execution?: MeetingExecution) {
     const attachmentIds: string[] = [];
-    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const result = await this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       if ('clientId' in input || input.expectedRevision)
         await this.lockMeetingClientAssignment(tx, ctx, id);
@@ -1662,7 +1744,9 @@ export class EngagementService {
     // Only enqueue after the entire association transaction committed. Old-client
     // chunks were removed synchronously; failed indexing cannot leave old evidence.
     for (const attachmentId of attachmentIds) {
-      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
+      const index = () => this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
+      if (execution) execution.afterCommit.push(index);
+      else index();
     }
     return result;
   }
@@ -1866,9 +1950,9 @@ export class EngagementService {
    * shared, Meeting.visibility flips to 'shared' (first-sharer-wins) — it is a
    * derived summary field, not independently settable once this flag is on.
    */
-  async shareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
+  async shareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[], execution?: MeetingExecution) {
     if (!refs.length) throw new BadRequestException('artifacts must not be empty');
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
@@ -1938,9 +2022,9 @@ export class EngagementService {
    * Once no artifact on the meeting remains shared, Meeting.visibility resets
    * to 'private'.
    */
-  async unshareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
+  async unshareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[], execution?: MeetingExecution) {
     if (!refs.length) throw new BadRequestException('artifacts must not be empty');
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
@@ -5796,10 +5880,11 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(
-      ctx.tenantId,
+    return this.meetingTransaction(
+      ctx, execution,
       async (tx) => {
         ctx = await currentMeetingActor(tx, ctx);
         await this.lockMeetingClientAssignment(tx, ctx, meetingId);
@@ -5841,10 +5926,12 @@ export class EngagementService {
       accessLevel?: string;
       expectedRevision?: string;
     },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const note = await tx.meetingNote.findFirst({
@@ -5898,9 +5985,10 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
@@ -5937,10 +6025,12 @@ export class EngagementService {
       accessLevel?: string;
       expectedRevision?: string;
     },
+    execution?: MeetingExecution,
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const debrief = await tx.meetingDebrief.findFirst({
@@ -6001,9 +6091,10 @@ export class EngagementService {
    * Library and for sharing. Reuses the same owner-guard + author/admin edit
    * check as updateMeetingDebrief.
    */
-  async approveMeetingDebrief(ctx: TenantContext, meetingId: string, debriefId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async approveMeetingDebrief(ctx: TenantContext, meetingId: string, debriefId: string, execution?: MeetingExecution) {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const debrief = await tx.meetingDebrief.findFirst({
@@ -6031,9 +6122,10 @@ export class EngagementService {
    * for sharing. Same owner-guard + author/admin edit check as
    * updateMeetingNote/approveMeetingDebrief.
    */
-  async approveMeetingNote(ctx: TenantContext, meetingId: string, noteId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+  async approveMeetingNote(ctx: TenantContext, meetingId: string, noteId: string, execution?: MeetingExecution) {
+    return this.meetingTransaction(ctx, execution, async (tx) => {
       ctx = await currentMeetingActor(tx, ctx);
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const parent = await this.ensureOwnMeeting(tx, ctx, meetingId);
       await assertMeetingClient(tx, ctx, parent.clientId);
       const note = await tx.meetingNote.findFirst({

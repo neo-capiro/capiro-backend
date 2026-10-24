@@ -150,6 +150,14 @@ describe('createMeeting current authority', () => {
     await expect(h.service.createMeeting(ctx, input)).rejects.toThrow('Meeting not found');
     expect(h.writes()).toEqual({ contactsWritten: 0, meetingsWritten: 0 });
   });
+  test('an explicitly reviewed no-client create does not auto-associate', async () => {
+    const h = createHarness(undefined, 'c1');
+    await expect(h.service.createMeeting(ctx, { ...input, clientId: null })).resolves.toMatchObject({
+      clientId: null,
+      createdByUserId: ctx.userId,
+    });
+    expect(h.writes()).toEqual({ contactsWritten: 1, meetingsWritten: 1 });
+  });
   test.each(['manual', 'automatic', 'unassociated'])(
     'preserves an authorized %s create',
     async (mode) => {

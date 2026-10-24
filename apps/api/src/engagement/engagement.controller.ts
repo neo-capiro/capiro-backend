@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Headers,
+  Header,
   HttpCode,
   Optional,
   NotFoundException,
@@ -2093,6 +2094,19 @@ export class EngagementController {
   @Post('meetings')
   createMeeting(@CurrentTenant() ctx: TenantContext, @Body() body: CreateMeetingDto) {
     return this.service.createMeeting(ctx, body);
+  }
+
+  @Post('meeting-commands')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  meetingCommand(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.executeMeetingCommand(ctx, body);
+  }
+
+  @Get('meeting-commands/:requestId')
+  @Header('Cache-Control', 'no-store')
+  meetingCommandReceipt(@CurrentTenant() ctx: TenantContext, @Param('requestId') requestId: string) {
+    return this.service.readMeetingCommand(ctx, requestId);
   }
 
   @Put('meetings/:id')

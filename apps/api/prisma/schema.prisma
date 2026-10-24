@@ -256,6 +256,7 @@ model Tenant {
   clientSubmissionHistory            ClientSubmissionHistory[]
   clientPeople                       ClientPerson[]
   clientPersonCreateReceipts          ClientPersonCreateReceipt[]
+  meetingCommandReceipts             MeetingCommandReceipt[]
   clientFacilities                   ClientFacility[]
   clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
@@ -4026,6 +4027,27 @@ model ClientSubmissionHistory {
 
 /// Consumed manual contact-create request. Retained independently of editable,
 /// deletable contact rows so a retry cannot recreate a removed contact.
+/// Immutable historical outcome; current meeting/artifact existence is checked separately.
+model MeetingCommandReceipt {
+  tenantId           String   @map("tenant_id") @db.Uuid
+  actorUserId        String   @map("actor_user_id") @db.Uuid
+  requestId          String   @map("request_id") @db.Uuid
+  payloadDigest      String   @map("payload_digest") @db.Char(64)
+  operation          String
+  requestedMeetingId String?  @map("requested_meeting_id") @db.Uuid
+  expectedClientId   String?  @map("expected_client_id") @db.Uuid
+  clientIds          String[] @map("client_ids") @db.Uuid
+  status             String
+  result             Json?    @map("result_jsonb")
+  message            String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, actorUserId, requestId], map: "meeting_command_receipts_pkey")
+  @@map("meeting_command_receipts")
+}
+
 model ClientPersonCreateReceipt {
   tenantId      String   @map("tenant_id") @db.Uuid
   actorUserId   String   @map("actor_user_id") @db.Uuid
