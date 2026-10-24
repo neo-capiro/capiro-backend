@@ -40,6 +40,7 @@ import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { ObjectiveJobController } from './objective-job.controller.js';
+import { ConversationManagementController } from './conversation-management/controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
 import { ObjectiveJobReadSources } from './objective-job-read-sources.js';
 import { EngagementService } from '../engagement/engagement.service.js';
@@ -129,6 +130,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     DistrictNexusModule,
   ],
   controllers: [
+    ConversationManagementController,
     ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
