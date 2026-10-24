@@ -55,7 +55,7 @@ async function actor(tx: Prisma.TransactionClient, ctx: TenantContext) {
 }
 async function lock(tx: Prisma.TransactionClient, ctx: TenantContext, requestId: string) {
   const key = JSON.stringify(['meeting-command', ctx.tenantId, ctx.userId, requestId]);
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key},0))`;
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key},0))::text`;
 }
 async function saved(tx: Prisma.TransactionClient, ctx: TenantContext, requestId: string) {
   const rows = await tx.$queryRaw<Saved[]>`
