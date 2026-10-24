@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
@@ -240,6 +240,7 @@ export class DirectoryController {
   }
 
   @Post('members/:memberId/note-commands')
+  @Header('Cache-Control', 'no-store')
   createMemberNoteCommand(
     @CurrentTenant() ctx: TenantContext,
     @Param('memberId') memberId: string,
@@ -249,6 +250,7 @@ export class DirectoryController {
   }
 
   @Get('members/:memberId/note-commands/:requestId')
+  @Header('Cache-Control', 'no-store')
   memberNoteReceipt(
     @CurrentTenant() ctx: TenantContext,
     @Param('memberId') memberId: string,
