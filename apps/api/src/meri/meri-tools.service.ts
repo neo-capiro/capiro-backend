@@ -3163,7 +3163,9 @@ export class MeriToolsService {
         clientId,
         section: 'facilities',
         query,
-        load: () => this.clientFacilities.listFacilities(ctx, clientId),
+        load: async () => (await this.clientFacilities.listFacilities(ctx, clientId))
+          // The geocode edit precondition belongs to the interactive facility API.
+          .map(({ geocodeCandidateRevision: _geocodeCandidateRevision, ...facility }) => facility),
         summarize: (facility) => ({
           id: facility.id,
           name: facility.name,
