@@ -9,15 +9,15 @@ const CONTRACT_SHA256 = '7f07c7c3e3edbad9e93961e1d246e23897dc084d1f3897b08d68ced
 // SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: 'e485e0de275b18e1741280c811c26ab6ad69f7effa994038de2498adf113caed',
-  x64: 'bf3ffb8f41bafd4ed8bc38126ee75eb9f95f586208aa73c7017816068818d4cb',
+  arm64: 'db1ef525d50cd18e41dac1f397d5388bc716f199c90bacd4b587d3297c4e4df6',
+  x64: '930b59ddcf5d3c53c0790ad5c9747b9364e8d8a102c9b135e2dd29813c67567b',
 });
 // Prisma 5.22's generator merges/formats the image-local schema before writing
 // its generated companion. Pin those exact bytes separately from the raw image
 // schema above; a raw byte-equality check rejects valid generated clients.
 const GENERATED_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: 'bffa9bc41894936ee50a211fc88f12b6efa567c5b77665f114c95e922a81f08e',
-  x64: 'b63eda811e992a2d875450e3ae33d464d821ff17974fd634edb75a157c04f13e',
+  arm64: 'c97d940e0d19a159d2f5ab20756306461db9cfb4e812fe06eb9293789cb42eab',
+  x64: '79c5c7684e604c015e581f2b3c3216a3024bee098ce0fb1a29d359112dfdf61d',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
