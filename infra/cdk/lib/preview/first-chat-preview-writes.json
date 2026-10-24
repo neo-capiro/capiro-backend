@@ -250,7 +250,8 @@
       "method": "POST",
       "pathRegexes": [
         "^/api/tenant-admin/team/invitations/[A-Za-z0-9_-]+/resend$",
-        "^/api/tenant-admin/team/invite$"
+        "^/api/tenant-admin/team/invite$",
+        "^/api/clients/[A-Za-z0-9_-]+/objectives/[A-Za-z0-9_-]+/generation/strategy-commands$"
       ]
     },
     {

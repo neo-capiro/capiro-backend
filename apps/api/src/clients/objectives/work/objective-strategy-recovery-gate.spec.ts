@@ -93,7 +93,8 @@ describe('selected Strategy recovery is independent of fresh-write enablement', 
     ['missing global output owner', { OBJECTIVE_STRATEGY_INTAKE_ENABLED: 'true', OBJECTIVE_STRATEGY_CONSENT_DURATION_MS: '60000' }, false],
   ] as const)('recovers the exact expired v2 receipt with %s after the current Objective changes', async (_name, env, system) => {
     const f = fixture(env, system), result = await f.run();
-    expect(result).toEqual({ schemaVersion: 2, commandReceipt: f.stored.receipt, selection: f.original.selection });
+    expect(result).toEqual({ schemaVersion: 2, commandReceipt: f.stored.receipt, selection: f.original.selection,
+      generationJobId: f.companion.generation_job_id });
     expect(Date.parse(result.commandReceipt.consent!.expiresAt)).toBeLessThan(Date.now());
     expect(result.commandReceipt.commandRevision.version).not.toBe(f.authority.objectiveVersion);
     expect(f.register).toHaveBeenCalledTimes(1); expect(f.register.mock.calls[0]![3]).toBe('recovery-read');
@@ -139,11 +140,75 @@ describe('selected Strategy recovery is independent of fresh-write enablement', 
     expect(f.currentState).not.toHaveBeenCalled(); expect(f.domainWrites).toEqual([]);
   });
 
+  test('a caller cannot replace the saved generation job identity on recovery', async () => {
+    const f = fixture(), body = { ...wire(), generationJobId: id(22) };
+    expect(() => f.run(body)).toThrow('INVALID_REQUEST');
+    expect(f.prisma.withTenant).not.toHaveBeenCalled();
+  });
+
   test('trusted recovery mode still applies the strict existing wrapper parser', () => {
     const f = fixture(), malformed = { ...f.original, selection: { ...f.original.selection, type: 'unapproved-type' } } as any;
     expect(() => f.strategy.bindStrategySelectionWithinTx(f.tx, f.ctx, malformed, 'recovery-read')).toThrow('INVALID_REQUEST');
     expect(() => f.strategy.bindStrategySelectionWithinTx(f.tx, f.ctx, f.original)).toThrow('AUTHORITY_UNAVAILABLE');
     expect(() => f.strategy.bindStrategySelectionWithinTx(f.tx, f.ctx, f.original, 'caller-mode' as any)).toThrow('AUTHORITY_UNAVAILABLE');
     expect(f.domainWrites).toEqual([]);
+  });
+});
+
+/** Keep the real command kernel, selected-store wrapper, native companion
+ * verifier and transaction proof checks. Only the unchanged command-storage
+ * ports and reservation SQL are synthetic here, not a durability claim. */
+function freshFixture() {
+  const f = fixture({ OBJECTIVE_STRATEGY_INTAKE_ENABLED: 'true', OBJECTIVE_STRATEGY_CONSENT_DURATION_MS: '60000' }, true);
+  f.state.receiptPresent = false; f.state.companionPresent = false;
+  Object.assign(f.authority, { objectiveRevisionId: id(6), objectiveVersion: 1, objectiveStatus: 'ready' });
+  const now = new Date(Date.now() - 1000).toISOString(), ids = [id(14), id(15)];
+  const insertReceipt = jest.fn(async (_a: WorkAuthority, stored: StoredWorkReceipt) => {
+    Object.assign(f.stored, stored); f.state.receiptPresent = true;
+  });
+  const reserve = jest.spyOn(f.strategy, 'reserveStrategyWithinTx').mockImplementation(async (_tx, _a, stored) => {
+    Object.assign(f.companion, { command_receipt_id: stored.receipt.receiptId, consent_id: stored.receipt.authorizationRequestId,
+      control_version: stored.receipt.controlVersionAfter, original_deadline_at: stored.receipt.consent!.expiresAt,
+      reserved_at: stored.receipt.committedAt });
+    f.state.companionPresent = true;
+  });
+  f.ports.mockImplementation(() => ({
+    currentAuthority: async () => f.authority, lockOwner: async () => {},
+    receipt: async () => f.state.receiptPresent ? f.stored : null,
+    state: async () => ({ source: f.stored.source, control: { id: id(11), version: 0, currentConsentId: null,
+      cancelledAt: null, cancelledByUserId: null }, consent: null }),
+    reconcile: async () => ({ state: 'not_started', tenantId: id(1), clientId: id(2), objectiveId: id(3),
+      workAction: 'objective.strategy.draft', authorizationRequestId: null, rootIntentId: id(10),
+      canonicalPlanId: id(7), canonicalEpoch: 1 }),
+    policy: async () => ({ configuredDurationMs: 60000, tenantDurationLimitMs: null, actionDurationLimitMs: 1800000,
+      originalTokenExpiresAtMs: f.proof.expiresAtMs, originalDelegationExpiresAtMs: null, limitReference: 'objective-strategy-intake:v1' }),
+    clock: async () => now, insertConsent: async () => {}, casControl: async () => true,
+    insertReceipt, newId: () => ids.shift()!,
+  }));
+  return { ...f, insertReceipt, reserve };
+}
+
+describe('selected Strategy receipt exposes only its committed reservation', () => {
+  test('original and exact-command replay return the same persisted job without changing the v1 receipt', async () => {
+    const f = freshFixture(), original = await f.run(), storedReceipt = JSON.stringify(f.stored.receipt);
+    expect(original.generationJobId).toBe(f.companion.generation_job_id);
+    expect(original.generationJobId).not.toBe(f.original.selection.generationRequestId);
+    expect(original.commandReceipt).toEqual(f.stored.receipt);
+    expect(original.commandReceipt).not.toHaveProperty('generationJobId');
+    const replay = await f.run();
+    expect(replay).toEqual(original);
+    expect(JSON.stringify(f.stored.receipt)).toBe(storedReceipt);
+    expect(f.insertReceipt).toHaveBeenCalledTimes(1); expect(f.reserve).toHaveBeenCalledTimes(1);
+  });
+
+  test('transaction failure after reservation never releases the captured job', async () => {
+    const f = freshFixture(); let transactions = 0;
+    f.prisma.withTenant.mockImplementation(async (_tenant: string, run: (tx: any) => Promise<unknown>) => {
+      const result = await run(f.tx);
+      if (++transactions === 2) throw Error('Synthetic commit refused');
+      return result;
+    });
+    await expect(f.run()).rejects.toMatchObject({ code: 'AUTHORITY_UNAVAILABLE' });
+    expect(f.reserve).toHaveBeenCalledTimes(1);
   });
 });

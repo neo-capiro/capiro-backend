@@ -112,11 +112,16 @@ export class ObjectiveWorkService {
     const selected = parseObjectiveStrategySelection(request.work.clientId, request.work.objectiveId,
       objectiveStrategySelectionBody(request));
     const proof = await this.proof(ctx, req);
-    const receipt = await executeWorkCommand(selected.work, this.selectedStore(ctx, selected, proof));
-    return { schemaVersion: 2, commandReceipt: receipt, selection: { ...selected.selection } };
+    const generation = { receiptId: '', jobId: '' };
+    const receipt = await executeWorkCommand(selected.work, this.selectedStore(ctx, selected, proof, (receiptId, jobId) => {
+      generation.receiptId = receiptId; generation.jobId = jobId;
+    }));
+    if (generation.receiptId !== receipt.receiptId || !generation.jobId)
+      return workFailure('RECEIPT_UNVERIFIABLE', selected.work.command.requestId);
+    return { schemaVersion: 2, commandReceipt: receipt, selection: { ...selected.selection }, generationJobId: generation.jobId };
   }
   private selectedStore(ctx: TenantContext, request: ObjectiveStrategySelectionRequest,
-    proof: ApplicationAuthorityIdentityProof): WorkOwner {
+    proof: ApplicationAuthorityIdentityProof, captureGeneration: (receiptId: string, jobId: string) => void): WorkOwner {
     return { transaction: <T>(write: boolean, run: (ports: WorkTransaction) => Promise<T>) =>
       this.proofTransaction(ctx, proof, request.work.command.requestId, async tx => {
         if (!this.ownerPort.bindStrategySelectionWithinTx || !this.ownerPort.reserveStrategyWithinTx)
@@ -126,7 +131,8 @@ export class ObjectiveWorkService {
         return run({ ...owned,
           receipt: async (a, action, id) => {
             const stored = await owned.receipt(a, action, id);
-            if (stored) await verifyObjectiveStrategySelectionWithinTx(tx, a, stored, request);
+            if (stored) captureGeneration(stored.receipt.receiptId,
+              await verifyObjectiveStrategySelectionWithinTx(tx, a, stored, request));
             return stored;
           },
           insertReceipt: async (a, stored) => {
@@ -140,6 +146,8 @@ export class ObjectiveWorkService {
                 AND objective_id=${a.objectiveId}::uuid AND work_action='objective.strategy.draft'
                 AND id=${stored.receipt.authorizationRequestId}::uuid AND control_id=${stored.controlId}::uuid`;
             if (rows.length !== 1 || rows[0]!.valid !== true) workFailure('AUTHORITY_UNAVAILABLE');
+            captureGeneration(stored.receipt.receiptId,
+              await verifyObjectiveStrategySelectionWithinTx(tx, a, stored, request));
           },
         });
       }) };

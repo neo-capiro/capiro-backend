@@ -1,6 +1,12 @@
 [
   {
     "service": "core",
+    "method": "POST",
+    "path": "/api/clients/:clientId/objectives/:objectiveId/generation/strategy-commands",
+    "owner": "Objective governed Strategy intake existing FE operation"
+  },
+  {
+    "service": "core",
     "method": "PATCH",
     "path": "/api/me",
     "owner": "Settings:me.update"
