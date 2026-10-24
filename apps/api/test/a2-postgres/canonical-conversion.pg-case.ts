@@ -2,6 +2,10 @@ import { expect, it, jest } from '@jest/globals';
 import { HttpException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { requireOwnerClient } from '../../src/clients/client-ordered-owner.access.js';
+import {
+  parseProspectConversion,
+  prospectConversionDigest,
+} from '../../src/business-development/prospect-conversion.types.js';
 import type { admissionsFixture } from './admissions-fixture.js';
 import { prospect } from './admissions-fixture.js';
 import { actor, client, ctx, id, settled, tenant } from './fixture.js';
@@ -20,14 +24,14 @@ function barrier() {
     release: () => release(),
   };
 }
-async function bounded(work: Promise<void>) {
+async function bounded<T>(work: Promise<T>) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await Promise.race([
+    return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error('Canonical interleaving barrier was not reached')),
+          () => reject(new Error('Canonical interleaving operation timed out')),
           3500,
         );
       }),
@@ -51,11 +55,21 @@ async function queuedRemoval(h: Fixture) {
 /** Real SQL/Prisma/owners; wrappers only pause after completed real queries.
  * No authority, canonical-match result, transaction or write is fabricated. */
 export function canonicalConversionCase(get: () => Fixture) {
-  it('refuses a canonical existing client without a client-owner/member-removal lock cycle', async () => {
+  it('refuses a canonical match while the client owner holds its row, then observes member removal', async () => {
     const h = get(),
       canonical = id(170),
       ownerGate = barrier(),
       conversionGate = barrier();
+    const command = parseProspectConversion(prospect, {
+      schemaVersion: 1,
+      requestId: id(171),
+      prospectId: prospect,
+      expectedUpdatedAt: '2026-10-23T00:00:00.000Z',
+      mode: 'new_client',
+      clientName: 'Synthetic first',
+      clientWebsite: null,
+      clientDescription: null,
+    });
     await h.sql(
       `INSERT INTO canonical_entities(id,canonical_name,normalized_name,entity_type)
       VALUES($1,'Synthetic canonical organization','synthetic canonical organization','organization')`,
@@ -122,25 +136,29 @@ export function canonicalConversionCase(get: () => Fixture) {
           options,
         ),
       );
-      conversion = settled(
-        h.prospects.convertCommand(ctx, prospect, {
-          schemaVersion: 1,
-          requestId: id(171),
-          prospectId: prospect,
-          expectedUpdatedAt: '2026-10-23T00:00:00.000Z',
-          mode: 'new_client',
-          clientName: 'Synthetic first',
-          clientWebsite: null,
-          clientDescription: null,
-        }),
-      );
+      conversion = settled(h.prospects.convertCommand(ctx, prospect, command));
       await bounded(conversionGate.reached);
       removal = settled(
         h.sql('DELETE FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2', [tenant, actor]),
       );
       await queuedRemoval(h);
+      // Keep the real client row locked until refusal settles. The old fallback
+      // would wait on that row; no compatible membership SHARE queue is assumed.
+      conversionGate.release();
+      const refused = await bounded(conversion);
+      expect(refused.error).toBeInstanceOf(HttpException);
+      expect((refused.error as HttpException).getResponse()).toMatchObject({
+        schemaVersion: 1,
+        code: 'PROSPECT_NEW_CLIENT_REFUSED',
+        requestId: command.requestId,
+        prospectId: prospect,
+        payloadDigest: prospectConversionDigest(command),
+        status: 409,
+      });
+      const deleted = await bounded(removal);
+      expect(deleted.error).toBeUndefined();
+      expect(deleted.value).toMatchObject({ rowCount: 1 });
       ownerGate.release();
-      await h.waitForLock('FROM tenant_memberships');
     } catch (error) {
       failure = error;
     } finally {
