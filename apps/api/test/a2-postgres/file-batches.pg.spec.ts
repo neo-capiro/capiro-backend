@@ -1,4 +1,6 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from '@jest/globals';
+import { ClientFileBatchService } from '../../src/clients/client-file-batch.service.js';
+import type { PrismaService } from '../../src/prisma/prisma.service.js';
 import {
   fixture,
   ctx,
@@ -44,7 +46,7 @@ describe('PF16 actual PostgreSQL16 + Prisma ordinary attachment owner', () => {
       h.files.move(ctx, client, { ...command(), folder: 'Other' }),
     ).rejects.toMatchObject({ status: 409 });
   });
-  it('one stale, denied, missing or hearing row means no file or receipt is changed', async () => {
+  it('one stale, denied, missing or hearing row changes no files; bounded denials retain one terminal outcome', async () => {
     for (const kind of ['stale', 'denied', 'missing', 'hearing'] as const) {
       await h.reset();
       if (kind === 'stale')
@@ -67,7 +69,7 @@ describe('PF16 actual PostgreSQL16 + Prisma ordinary attachment owner', () => {
       const before = (await files()).rows;
       await expect(h.files.move(ctx, client, command())).rejects.toThrow();
       expect((await files()).rows).toEqual(before);
-      expect((await receipts()).rows[0].count).toBe(0);
+      expect((await receipts()).rows[0].count).toBe(kind === 'hearing' ? 0 : 1);
     }
   });
   it('a database failure on the second file rolls back the first update and receipt', async () => {
@@ -102,6 +104,109 @@ describe('PF16 actual PostgreSQL16 + Prisma ordinary attachment owner', () => {
     expect((await files()).rows.map((f) => f.revision)).toEqual([1, 1]);
     expect((await receipts()).rows[0].count).toBe(1);
   });
+  it('concurrent refusals converge on one immutable outcome and later restored availability cannot execute the request', async () => {
+    await h.sql('DELETE FROM engagement_attachments WHERE id=$1', [second]);
+    const [a, b] = await Promise.all([
+      settled(h.files.move(ctx, client, command())),
+      settled(h.files.move(ctx, client, command())),
+    ]);
+    const refusal = a.error?.getResponse();
+    expect(refusal).toMatchObject({
+      code: 'FILE_BATCH_MOVE_REFUSED',
+      requestId: command().requestId,
+      clientId: client,
+      status: 404,
+    });
+    expect(b.error?.getResponse()).toEqual(refusal);
+    expect((await receipts()).rows[0].count).toBe(1);
+    // Restored source has the original expected revision. The terminal request
+    // still cannot execute, even though a new reviewed request could now succeed.
+    await h.sql('INSERT INTO engagement_attachments(id,tenant_id,client_id) VALUES($1,$2,$3)', [
+      second,
+      tenant,
+      client,
+    ]);
+    const later = await settled(h.files.move(ctx, client, command()));
+    expect(later.error?.getResponse()).toEqual(refusal);
+    expect((await files()).rows.map((row) => [row.folder, row.revision])).toEqual([
+      [null, 0],
+      [null, 0],
+    ]);
+    expect(
+      (await settled(h.files.receipt(ctx, client, command().requestId))).error?.getResponse(),
+    ).toEqual(refusal);
+    expect((await h.files.move(ctx, client, command(21))).outcome).toBe('moved');
+  });
+  it('a concurrent exact commit winning after rollback is returned instead of a false refusal', async () => {
+    await h.sql('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
+    let observed!: () => void, releaseAttempt!: () => void;
+    const rolledBack = new Promise<void>((resolve) => {
+      observed = resolve;
+    });
+    const releaseRollback = new Promise<void>((resolve) => {
+      releaseAttempt = resolve;
+    });
+    let once = true;
+    const delayed = new ClientFileBatchService({
+      withTenant: async (...args: Parameters<PrismaService['withTenant']>) => {
+        try {
+          return await h.prisma.withTenant(...args);
+        } catch (error) {
+          if (once) {
+            once = false;
+            observed();
+            await releaseRollback;
+          }
+          throw error;
+        }
+      },
+    } as PrismaService);
+    const pending = settled(delayed.move(ctx, client, command()));
+    await rolledBack;
+    let winner;
+    try {
+      await h.sql(
+        'INSERT INTO client_memory_access(tenant_id,client_id,user_id) VALUES($1,$2,$3)',
+        [tenant, client, actor],
+      );
+      winner = await h.files.move(ctx, client, command());
+    } finally {
+      releaseAttempt();
+    }
+    expect((await pending).value).toEqual(winner);
+    expect((await receipts()).rows[0].count).toBe(1);
+    expect((await files()).rows.map((row) => row.revision)).toEqual([1, 1]);
+  });
+  it('terminal refusal recovery needs current actor/client but no missing file and keeps immutable ordinary-role grants', async () => {
+    await h.sql('DELETE FROM engagement_attachments WHERE id=$1', [second]);
+    const original = await settled(h.files.move(ctx, client, command()));
+    expect(
+      (await settled(h.files.receipt(ctx, client, command().requestId))).error?.getResponse(),
+    ).toEqual(original.error.getResponse());
+    await expect(
+      h.files.receipt(
+        { ...ctx, userId: outsider, clerkUserId: 'a2-synthetic-other' },
+        client,
+        command().requestId,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    await h.sql('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
+    const denied = await settled(h.files.receipt(ctx, client, command().requestId));
+    expect(denied.error?.getResponse()).not.toHaveProperty('code', 'FILE_BATCH_MOVE_REFUSED');
+    await expect(
+      h.prisma.withTenant(
+        tenant,
+        (tx) => tx.$executeRaw`UPDATE client_file_batch_move_receipts SET receipt='{}'::jsonb`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      h.prisma.withTenant(
+        tenant,
+        (tx) => tx.$executeRaw`DELETE FROM client_file_batch_move_receipts`,
+      ),
+    ).rejects.toThrow();
+    expect((await receipts()).rows[0].count).toBe(1);
+  });
   it('fresh per-file ACL after a row-lock wait prevents every move', async () => {
     const acl = await h.lock(
       `UPDATE engagement_attachments SET viewer_mode='restricted',viewer_user_ids=ARRAY[$1] WHERE id=$2`,
@@ -115,7 +220,7 @@ describe('PF16 actual PostgreSQL16 + Prisma ordinary attachment owner', () => {
     }
     expect((await pending).error).toMatchObject({ status: 404 });
     expect((await files()).rows.map((f) => f.folder)).toEqual([null, null]);
-    expect((await receipts()).rows[0].count).toBe(0);
+    expect((await receipts()).rows[0].count).toBe(1);
   });
   it('fresh membership and client-wall grants are rechecked after waiting on the client', async () => {
     for (const revoke of ['membership', 'wall'] as const) {
