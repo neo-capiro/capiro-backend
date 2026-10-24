@@ -748,5 +748,17 @@
     "method": "POST",
     "path": "/strategy-api/planner/strategy-materializations",
     "owner": "ObjectivePlanSession.execute explicit action -> PlannerController.prepareStrategyPlan with tenant, planner-context, rollout and exact completed source authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/routines/current",
+    "owner": "createRoutinesCoreClient.current -> MeriRoutineReadController + InternalServiceGuard with saved consent and current native occurrence authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/routines/reads",
+    "owner": "createRoutineReadSource -> MeriRoutineReadController + InternalServiceGuard with saved consent, native execution and current Core source authorization"
   }
 ]

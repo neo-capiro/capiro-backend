@@ -386,6 +386,14 @@
       "service": "strategy",
       "method": "POST",
       "pathRegexes": ["^/strategy-api/planner/strategy-materializations$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/routines/current$",
+        "^/api/internal/routines/reads$"
+      ]
     }
   ]
 }
