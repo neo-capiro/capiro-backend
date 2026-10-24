@@ -39,9 +39,9 @@ const inputPaths = [
 ];
 const reviewedStage1Migration =
   'apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql';
-// Git archive preserves LF blob bytes. The Windows CRLF checkout hashes to
-// 0e358884..., which is not the migration shipped in this tracked-only ZIP.
-const reviewedStage1Sha256 = 'f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51';
+// Exact raw Git bytes in the accepted 601-migration source union. Never
+// normalize or replace SQL bytes to satisfy this source guard.
+const reviewedStage1Sha256 = 'c1b28e22e1bd87bdc385c0a6462b97039e6fc6b79440e766330699d347d85df5';
 const heldHelperMigration = 'apps/api/prisma/migrations/20281018100000_meri_memory_eligibility_helper';
 const migrationFiles = [
   'apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql',

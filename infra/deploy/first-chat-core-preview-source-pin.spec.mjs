@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const buildspec = readFileSync(
@@ -54,6 +58,35 @@ test('native ARM recipe, runtime probes and archive inputs agree before any push
   assert.match(preparer, /'apps\/api\/Dockerfile\.alpine-qualification'/);
   assert.match(preparer, /'docs\/runtime-production-closure-20261014\/RUNTIME-CLOSURE-CONTRACT\.json'/);
   assert.doesNotMatch(preparer, /'apps\/api\/Dockerfile'|\$\{ref\}:apps\/api\/Dockerfile`/);
+});
+
+test('Stage1 guard binds accepted raw Git SQL and refuses changed or absent bytes', () => {
+  const sqlPath = 'apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql';
+  const root = fileURLToPath(new URL('../..', import.meta.url));
+  const original = spawnSync('git', ['show', `HEAD:${sqlPath}`], { cwd: root });
+  assert.equal(original.status, 0, String(original.stderr));
+  const hash = createHash('sha256').update(original.stdout).digest('hex');
+  assert.equal(hash, 'c1b28e22e1bd87bdc385c0a6462b97039e6fc6b79440e766330699d347d85df5');
+  const preparer = readFileSync(new URL('./prepare-first-chat-core-source.mjs', import.meta.url), 'utf8');
+  assert(preparer.includes(`const reviewedStage1Sha256 = '${hash}'`));
+  const begin = lines.findIndex(line => line.trim() === 'stage=reviewed-stage1-migration');
+  const end = lines.findIndex(line => line.trim() === 'stage=held-helper-migration-absence');
+  assert(begin >= 0 && end > begin);
+  const guard = lines.slice(begin, end).map(line => line.slice(8)).join('\n');
+  assert(guard.includes(hash));
+  for (const [bytes, expected] of [[original.stdout, 0], [Buffer.concat([original.stdout, Buffer.from('\n-- changed')]), 1], [null, 1]]) {
+    const scratch = mkdtempSync(join(tmpdir(), 'core-stage1-pin-'));
+    try {
+      if (bytes) { const file = join(scratch, sqlPath); mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, bytes); }
+      const result = spawnSync('bash', ['-c', `set -euo pipefail\n${guard}`], { cwd: scratch, encoding: 'utf8', timeout: 10000 });
+      assert.ifError(result.error);
+      if (expected === 0) assert.equal(result.status, 0, result.stderr);
+      else assert.notEqual(result.status, 0, 'changed/missing migration must refuse');
+    } finally {
+      assert(resolve(scratch).startsWith(resolve(tmpdir()) + sep));
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
 });
 
 test('reviewed project pins select one derived archive key and immutable image tag', () => {
