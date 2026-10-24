@@ -4,7 +4,9 @@ import { isDeepStrictEqual } from 'node:util';
 const here = new URL('.', import.meta.url);
 const meriConditions = { hosts: ['meri-preview.capiro.ai'] };
 const meriDenyAction = {
-  type: 'fixed-response', statusCode: 404, contentType: 'application/json',
+  type: 'fixed-response',
+  statusCode: 404,
+  contentType: 'application/json',
   body: '{"error":"MERI_PREVIEW_ROUTE_NOT_FOUND"}',
 };
 const meriForwardAction = { type: 'forward', target: 'meri-preview-control' };
@@ -19,7 +21,9 @@ export function readPriorityRegistry() {
 
 /** Core listener patterns shared with infra/cdk/lib/preview/first-chat-core.ts. */
 export function readCoreRoutes() {
-  return JSON.parse(readFileSync(new URL('../cdk/lib/preview/first-chat-core-routes.json', here), 'utf8'));
+  return JSON.parse(
+    readFileSync(new URL('../cdk/lib/preview/first-chat-core-routes.json', here), 'utf8'),
+  );
 }
 
 export function cloneRules(rules) {
@@ -27,11 +31,13 @@ export function cloneRules(rules) {
 }
 
 function globMatches(pattern, value, flags = '') {
-  const escaped = [...pattern].map((character) => {
-    if (character === '*') return '.*';
-    if (character === '?') return '.';
-    return character.replace(/[|\\{}()[\]^$+.]/g, '\\$&');
-  }).join('');
+  const escaped = [...pattern]
+    .map((character) => {
+      if (character === '*') return '.*';
+      if (character === '?') return '.';
+      return character.replace(/[|\\{}()[\]^$+.]/g, '\\$&');
+    })
+    .join('');
   return new RegExp(`^${escaped}$`, flags).test(value);
 }
 
@@ -39,13 +45,18 @@ function matchesCondition(rule, request) {
   const conditions = rule.conditions;
   const path = request.path.split('?', 1)[0];
   const host = request.host.toLowerCase();
-  if (conditions.hosts && !conditions.hosts.some((item) => globMatches(item, host, 'i'))) return false;
+  if (conditions.hosts && !conditions.hosts.some((item) => globMatches(item, host, 'i')))
+    return false;
   if (conditions.methods && !conditions.methods.includes(request.method)) return false;
   if (conditions.paths && !conditions.paths.some((item) => globMatches(item, path))) return false;
-  if (conditions.pathRegexes && !conditions.pathRegexes.some((item) => new RegExp(item).test(path))) return false;
+  if (conditions.pathRegexes && !conditions.pathRegexes.some((item) => new RegExp(item).test(path)))
+    return false;
   for (const [name, values] of Object.entries(conditions.headers ?? {})) {
-    const received = Object.entries(request.headers ?? {}).find(([key]) => key.toLowerCase() === name.toLowerCase());
-    if (!received || !values.some((item) => globMatches(item, String(received[1]), 'i'))) return false;
+    const received = Object.entries(request.headers ?? {}).find(
+      ([key]) => key.toLowerCase() === name.toLowerCase(),
+    );
+    if (!received || !values.some((item) => globMatches(item, String(received[1]), 'i')))
+      return false;
   }
   return true;
 }
@@ -56,9 +67,10 @@ function matchesCondition(rule, request) {
  * Confirm encoded-path behavior with separate live negative probes before use.
  */
 export function firstMatch(rules, request) {
-  const ordered = [...rules].sort((a, b) =>
-    (a.priority === 'default' ? Number.POSITIVE_INFINITY : a.priority) -
-    (b.priority === 'default' ? Number.POSITIVE_INFINITY : b.priority),
+  const ordered = [...rules].sort(
+    (a, b) =>
+      (a.priority === 'default' ? Number.POSITIVE_INFINITY : a.priority) -
+      (b.priority === 'default' ? Number.POSITIVE_INFINITY : b.priority),
   );
   for (const rule of ordered) {
     if (matchesCondition(rule, request)) {
@@ -87,9 +99,8 @@ export function addMeriRule(rules, action = 'deny') {
     id: 'meri-preview',
     priority: 6,
     conditions: structuredClone(meriConditions),
-    action: action === 'deny'
-      ? structuredClone(meriDenyAction)
-      : structuredClone(meriForwardAction),
+    action:
+      action === 'deny' ? structuredClone(meriDenyAction) : structuredClone(meriForwardAction),
   });
   return next;
 }
@@ -99,178 +110,73 @@ export function setMeriAction(rules, action) {
   const next = cloneRules(rules);
   const rule = next.find((item) => item.id === 'meri-preview');
   if (!rule || rule.priority !== 6) throw new Error('Stable Meri rule at priority 6 required');
-  if (!isDeepStrictEqual(rule.conditions, meriConditions) ||
-      ![meriDenyAction, meriForwardAction].some((expected) => isDeepStrictEqual(rule.action, expected))) {
+  if (
+    !isDeepStrictEqual(rule.conditions, meriConditions) ||
+    ![meriDenyAction, meriForwardAction].some((expected) =>
+      isDeepStrictEqual(rule.action, expected),
+    )
+  ) {
     throw new Error('Exact Meri host and previous action required');
   }
-  rule.action = action === 'deny'
-    ? structuredClone(meriDenyAction)
-    : structuredClone(meriForwardAction);
+  rule.action =
+    action === 'deny' ? structuredClone(meriDenyAction) : structuredClone(meriForwardAction);
   return next;
 }
 
-/**
- * Source-only transform from the frozen historical snapshot to the reported
- * compact layout. The old priority-2 rule identity is retained but changes
- * from membership POST to the three exact GETs. This does not prove the
- * current AWS template or perform an ALB mutation.
- */
-export function compactCorePreviewRules(rules) {
+/** Update only the existing Core POST rule from the observed October 24 layout.
+ * This is an offline model: no AWS call, guard move, new rule or target change. */
+export function corePreviewPacketRules(rules, routes = readCoreRoutes()) {
   const next = cloneRules(rules);
-  const post = next.filter((rule) => rule.id === 'core-post');
-  const second = next.filter((rule) => rule.id === 'core-membership');
-  const guard = next.filter((rule) => rule.id === 'core-guard');
-  if (post.length !== 1 || second.length !== 1 || guard.length !== 1 ||
-      next.some((rule) => rule.id === 'core-get') ||
-      post[0].priority !== 1 || second[0].priority !== 2 || guard[0].priority !== 3 ||
-      !isDeepStrictEqual(post[0].conditions, {
-        methods: ['POST'], hosts: ['first-chat-preview.app-dev.capiro.ai'],
-        paths: ['/api/clio/application-authority/identity', '/api/clio/conversations/bootstrap',
-          '/api/clio/application-authority/context'],
-      }) ||
-      !isDeepStrictEqual(second[0].conditions, {
-        methods: ['POST'], hosts: ['first-chat-preview.app-dev.capiro.ai'],
-        paths: ['/api/clio/application-authority/membership'],
-      }) ||
-      !isDeepStrictEqual(guard[0].conditions, { hosts: ['first-chat-preview.app-dev.capiro.ai'] }) ||
-      !isDeepStrictEqual(post[0].action, { type: 'forward', target: 'core-preview' }) ||
-      !isDeepStrictEqual(second[0].action, post[0].action) ||
-      !isDeepStrictEqual(guard[0].action, {
-        type: 'fixed-response', statusCode: 404, contentType: 'application/json',
-        body: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
-      })) {
-    throw new Error('Exact historical Core priority-1/2 rules and priority-3 guard required');
-  }
-  post[0].conditions = {
-    hosts: ['first-chat-preview.app-dev.capiro.ai'], methods: ['POST'],
-    pathRegexes: ['^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$'],
-  };
-  second[0].conditions = {
-    hosts: ['first-chat-preview.app-dev.capiro.ai'], methods: ['GET'],
-    pathRegexes: [
-      '^/api/me$',
-      '^/api/clients$',
-      '^/api/clients/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-    ],
-  };
-  return next;
-}
-
-const coreRuleIds = ['core-post', 'core-membership', 'core-guard', 'core-native-ops', 'core-memory-post'];
-
-/** True when a rule's host condition could admit `host` (no host condition, or a matching pattern). */
-function admitsHost(rule, host) {
-  return !rule.conditions.hosts || rule.conditions.hosts.some((item) => globMatches(item, host, 'i'));
-}
-
-/**
- * Source-only transform from the compact layout to the Core preview packet.
- * The priority-1 POST and priority-2 GET rules carry every Meri/Intel Core
- * route (dot #121 6246021908). One exact Core POST rule for approvals and
- * memory takes `routes.packet.nativeOps`, and ONLY the Core host guard moves,
- * to `guardPriority` (dot #121 6246253130). That slot comes from the live
- * listener readback, never from source: it must be unused, after the
- * native-operations rule, and before the first non-Core rule that could
- * match the Core host, so same-host precedence is unchanged.
- */
-export function corePreviewPacketRules(rules, routes = readCoreRoutes(), { guardPriority } = {}) {
-  const next = cloneRules(rules);
-  const host = routes.host;
-  const post = next.filter((rule) => rule.id === 'core-post');
-  const second = next.filter((rule) => rule.id === 'core-membership');
-  const guard = next.filter((rule) => rule.id === 'core-guard');
-  if (post.length !== 1 || second.length !== 1 || guard.length !== 1 ||
-      next.some((rule) => rule.id === 'core-native-ops') ||
-      post[0].priority !== routes.priorities.post || second[0].priority !== routes.priorities.get ||
-      guard[0].priority !== routes.priorities.guard ||
-      !isDeepStrictEqual(post[0].conditions, {
-        hosts: [host], methods: ['POST'],
-        pathRegexes: ['^/api/clio/(conversations/bootstrap|application-authority/(identity|context|membership))$'],
-      }) ||
-      second[0].conditions.methods?.[0] !== 'GET') {
-    throw new Error('Exact compact Core rules and guard required');
-  }
-  const nativeOps = routes.packet.nativeOps;
-  const shared = next.filter((rule) => !coreRuleIds.includes(rule.id) && rule.priority !== 'default');
-  const firstSharedForHost = Math.min(...shared.filter((rule) => admitsHost(rule, host)).map((rule) => rule.priority));
-  if (!Number.isSafeInteger(guardPriority) || guardPriority <= nativeOps || guardPriority > 50000 ||
-      guardPriority >= firstSharedForHost || shared.some((rule) => rule.priority === guardPriority)) {
-    throw new Error('Readback-verified unused guard priority before the first shared rule for the Core host required');
-  }
-  if (next.some((rule) => rule.priority === nativeOps && rule.id !== 'core-guard')) {
-    throw new Error(`Native-operations priority ${nativeOps} is occupied`);
-  }
-  post[0].conditions = { hosts: [host], methods: ['POST'], pathRegexes: [...routes.post] };
-  second[0].conditions = { hosts: [host], methods: ['GET'], pathRegexes: [...routes.get] };
-  guard[0].priority = guardPriority;
-  next.push({
-    id: 'core-native-ops',
-    priority: nativeOps,
-    conditions: { hosts: [host], methods: ['POST'], pathRegexes: [...routes.nativeOps] },
-    action: structuredClone(post[0].action),
-  });
-  return next;
-}
-
-/**
- * Add only the seven published native memory owner routes to a Core packet:
- * three GETs through the existing P2 rule and four POSTs through one new rule.
- * The POST slot and later retained guard slot must both be proven vacant (apart
- * from the guard's own old position) and before the first shared rule that can
- * match the Core host. In particular, the frozen P4 guard / P5 callbacks / P6
- * Meri layout has no qualifying pair; this transform refuses it.
- */
-export function corePreviewMemoryRules(
-  rules, routes = readCoreRoutes(), { memoryPostPriority, guardPriority } = {},
-) {
-  const next = cloneRules(rules);
-  const host = routes.host;
   const one = (id) => next.filter((rule) => rule.id === id);
-  const post = one('core-post');
-  const reads = one('core-membership');
-  const nativeOps = one('core-native-ops');
-  const guard = one('core-guard');
-  const expected = (methods, pathRegexes) => ({ hosts: [host], methods, pathRegexes });
-  if (post.length !== 1 || reads.length !== 1 || nativeOps.length !== 1 || guard.length !== 1 ||
-      one('core-memory-post').length !== 0 ||
-      post[0].priority !== routes.priorities.post || reads[0].priority !== routes.priorities.get ||
-      nativeOps[0].priority !== routes.packet.nativeOps ||
-      !isDeepStrictEqual(post[0].conditions, expected(['POST'], routes.post)) ||
-      !isDeepStrictEqual(reads[0].conditions, expected(['GET'], routes.get)) ||
-      !isDeepStrictEqual(nativeOps[0].conditions, expected(['POST'], routes.nativeOps)) ||
-      !isDeepStrictEqual(post[0].action, { type: 'forward', target: 'core-preview' }) ||
-      !isDeepStrictEqual(reads[0].action, post[0].action) ||
-      !isDeepStrictEqual(nativeOps[0].action, post[0].action) ||
-      !isDeepStrictEqual(guard[0].conditions, { hosts: [host] }) ||
-      !isDeepStrictEqual(guard[0].action, {
-        type: 'fixed-response', statusCode: 404, contentType: 'application/json',
-        body: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
-      })) {
-    throw new Error('Exact Core packet and retained host guard required');
+  const [post] = one('core-post');
+  const [reads] = one('core-membership');
+  const [guard] = one('core-guard');
+  const host = routes.host;
+  if (
+    new Set(next.map((rule) => rule.priority)).size !== next.length ||
+    one('core-post').length !== 1 ||
+    one('core-membership').length !== 1 ||
+    one('core-guard').length !== 1 ||
+    post.priority !== 1 ||
+    reads.priority !== 2 ||
+    guard.priority !== 7 ||
+    !isDeepStrictEqual(post.conditions, {
+      hosts: [host],
+      methods: ['POST'],
+      pathRegexes: [
+        '^/api/clio/(application-authority/(identity|context|membership|current)|conversations/bootstrap)$',
+      ],
+    }) ||
+    !isDeepStrictEqual(reads.conditions, {
+      hosts: [host],
+      methods: ['GET', 'HEAD'],
+      paths: ['/api/*'],
+    }) ||
+    !isDeepStrictEqual(guard.conditions, { hosts: [host] }) ||
+    post.action.type !== 'forward' ||
+    !isDeepStrictEqual(post.action, reads.action) ||
+    !isDeepStrictEqual(guard.action, {
+      type: 'fixed-response',
+      statusCode: 404,
+      contentType: 'application/json',
+      body: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
+    })
+  ) {
+    throw new Error('Exact current Core rules and retained priority-7 guard required');
   }
-  const shared = next.filter((rule) => !coreRuleIds.includes(rule.id) && rule.priority !== 'default');
-  const firstSharedForHost = Math.min(...shared.filter((rule) => admitsHost(rule, host)).map((rule) => rule.priority));
-  const occupied = (priority) => next.some((rule) => rule !== guard[0] && rule.priority === priority);
-  if (!Number.isSafeInteger(memoryPostPriority) || !Number.isSafeInteger(guardPriority) ||
-      memoryPostPriority <= routes.packet.nativeOps || memoryPostPriority >= guardPriority ||
-      guardPriority > 50000 || guardPriority >= firstSharedForHost ||
-      guard[0].priority <= routes.packet.nativeOps || guard[0].priority >= firstSharedForHost ||
-      occupied(memoryPostPriority) || occupied(guardPriority)) {
-    throw new Error('Readback-verified vacant memory POST slot and later retained guard slot required');
+  if (
+    routes.schemaVersion !== 2 ||
+    routes.post.length !== 2 ||
+    routes.post.some(
+      (pattern) =>
+        typeof pattern !== 'string' ||
+        pattern.length > 128 ||
+        !pattern.startsWith('^') ||
+        !pattern.endsWith('$'),
+    )
+  ) {
+    throw new Error('Bounded current Core POST patterns required');
   }
-  if (![routes.memoryGet, routes.memoryPost].every((patterns) => Array.isArray(patterns) &&
-      patterns.length > 0 && patterns.length <= 3 && patterns.every((pattern) =>
-        typeof pattern === 'string' && pattern.length <= 128 &&
-        pattern.startsWith('^') && pattern.endsWith('$') && !pattern.includes('(?')))) {
-    throw new Error('Bounded exact memory GET and POST patterns required');
-  }
-  reads[0].conditions = expected(['GET'], routes.memoryGet);
-  guard[0].priority = guardPriority;
-  next.push({
-    id: 'core-memory-post',
-    priority: memoryPostPriority,
-    conditions: expected(['POST'], routes.memoryPost),
-    action: structuredClone(post[0].action),
-  });
+  post.conditions = { hosts: [host], methods: ['POST'], pathRegexes: [...routes.post] };
   return next;
 }

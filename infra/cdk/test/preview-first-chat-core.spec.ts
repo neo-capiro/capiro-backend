@@ -5,638 +5,218 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import {
-  FIRST_CHAT_CORE_GET_PATHS,
-  FIRST_CHAT_CORE_CLIENT_RECORD_PATHS,
   FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
-  FIRST_CHAT_CORE_MEMORY_GET_PATHS,
-  FIRST_CHAT_CORE_MEMORY_POST_PATHS,
-  FIRST_CHAT_CORE_MERI_TOOLS,
-  FIRST_CHAT_CORE_NATIVE_OPS_PATHS,
-  FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY,
   FIRST_CHAT_CORE_POST_PATHS,
-  FIRST_CHAT_CORE_RETIRED_PR48,
   firstChatCoreImageBinding,
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
-import meriTools from '../lib/preview/first-chat-core-meri-tools.json';
-import routes from '../lib/preview/first-chat-core-routes.json';
-
-// Synthetic qualified-image pins; the committed source pins stay null until the
-// integrated image is built and scanned.
-const pins = {
-  sourceHead: '0123456789abcdef0123456789abcdef01234567',
-  imageDigest: `sha256:${'b'.repeat(64)}`,
-};
-const secretArn = (name: string) => `arn:aws:secretsmanager:us-east-1:967807252336:secret:synthetic/${name}-AbC123`;
-const kmsKey = (n: number) => `arn:aws:kms:us-east-1:967807252336:key/0000000${n}-0000-4000-8000-000000000000`;
-const signer = (n: number) => ({ issuer: `capiro-core:purpose-${n}:v1`, kid: `purpose-${n}-synthetic`, keyArn: kmsKey(n), publicKeyX: 'A'.repeat(43) });
+const pins = FIRST_CHAT_CORE_IMAGE_PINS;
 const binding = {
-  schemaVersion: 5,
-  sourceHead: pins.sourceHead,
-  imageDigest: pins.imageDigest,
-  internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:meri/preview/core/internal-service-secret-AbC123',
-  retainedTrust: null,
-  listener: { guardPriority: 4 },
-  previewTenantId: '11111111-1111-4111-8111-111111111111',
-  // The D016 default integration profile, as the packet supplies it.
-  profile: { executionMaxTurns: 20, executionMaxRuntimeSeconds: 900, executionMaxCostMicrousd: 2_000_000,
-    routineMaxCostMicrousd: 2_000_000, routineMaxRuntimeSeconds: 900 },
-  signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3), readDelegation: signer(4) },
+  schemaVersion: 8,
+  ...pins,
+  internalServiceSecretArn:
+    'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4',
+  internalServiceSecretVersionId: '00000000-0000-4000-8000-000000000001',
+  listener: { guardPriority: 7 },
+  deployment: {
+    databaseHost: 'capiro-newstack-preview-clone.cluster-csryw28ai752.us-east-1.rds.amazonaws.com',
+    desiredCount: 1,
+  },
 };
-// Synthetic paired slots for the optional packet. The frozen listener has no
-// available pair; corePreviewMemoryRules refuses it until a readback qualifies.
-const memoryBinding = { ...binding, schemaVersion: 6, listener: { memoryPostPriority: 4, guardPriority: 5 } };
-const memoryOffBinding = { ...binding, schemaVersion: 6, listener: { memoryPostPriority: null, guardPriority: 4 } };
-const clientBinding = { ...binding, schemaVersion: 7, listener: {
-  memoryPostPriority: 4, clientRecords: { GET: 5, POST: 6, PUT: 7, DELETE: 8 }, guardPriority: 9,
-} };
-const trust = {
-  issuer: 'capiro-core-retained',
-  intelOrigin: 'https://intel.example.invalid',
-  principalKeyId: 'retained-principal-1',
-  principalPrivateKeySecretArn: secretArn('retained-principal'),
-  probeKeyId: 'retained-probe-1',
-  probePrivateKeySecretArn: secretArn('retained-probe'),
-};
-
-function render(input: unknown, assertions: (stacks: ReturnType<typeof previewFirstChatCoreApplication>) => void) {
-  const output = fs.mkdtempSync(path.join(os.tmpdir(), 'capiro-first-chat-'));
-  const tempRoot = fs.realpathSync(os.tmpdir());
+function render(check: (s: any, g: any) => void) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-operator-'));
   try {
-    assertions(previewFirstChatCoreApplication(input, output, pins));
+    const { service, guard } = previewFirstChatCoreApplication(binding, dir);
+    check(Template.fromStack(service).toJSON(), Template.fromStack(guard).toJSON());
   } finally {
-    const resolved = fs.realpathSync(output);
-    assert.equal(fs.lstatSync(output).isSymbolicLink(), false);
-    assert.ok(resolved.startsWith(`${tempRoot}${path.sep}`));
-    fs.rmSync(resolved, { recursive: true });
+    const real = fs.realpathSync(dir);
+    assert.equal(fs.lstatSync(dir).isSymbolicLink(), false);
+    assert.ok(real.startsWith(fs.realpathSync(os.tmpdir()) + path.sep));
+    fs.rmSync(real, { recursive: true });
   }
 }
-
-const serveContainer = (service: any) => {
-  const stack = Template.fromStack(service).toJSON();
-  const task = (Object.values(stack.Resources) as any[]).find((r) => r.Type === 'AWS::ECS::TaskDefinition');
-  return task.Properties.ContainerDefinitions[0];
-};
-
-test('client records require four explicit distinct slots and preserve the existing packet', () => {
-  assert.deepEqual(firstChatCoreImageBinding(clientBinding, pins).listener, clientBinding.listener);
+test('qualified closed binding refuses historical schemas, extra policy and wrong image', () => {
+  assert.deepEqual(firstChatCoreImageBinding(binding), binding);
+  assert.throws(() => firstChatCoreImageBinding(binding, null));
   for (const patch of [
-    undefined, null, { GET: 5, POST: 6, PUT: 7 },
-    { GET: 5, POST: 6, PUT: 7, DELETE: 7 },
-    { GET: 3, POST: 6, PUT: 7, DELETE: 8 },
-    { GET: 4, POST: 6, PUT: 7, DELETE: 8 },
-    { GET: 5, POST: 6, PUT: 7, DELETE: 9 },
-    { GET: 5, POST: 6, PUT: 7, DELETE: '8' },
-    { GET: 5, POST: 6, PUT: 7, DELETE: 8.5 },
-    { GET: 5, POST: 6, PUT: 7, DELETE: 8, PATCH: 10 },
-  ]) assert.throws(() => firstChatCoreImageBinding({ ...clientBinding, listener: {
-    ...clientBinding.listener, clientRecords: patch,
-  } }, pins));
-  assert.throws(() => firstChatCoreImageBinding({ ...clientBinding, schemaVersion: 6 }, pins));
-  render(clientBinding, ({ service }) => {
-    const stack = Template.fromStack(service).toJSON();
-    const task = (Object.values(stack.Resources) as any[]).find(r => r.Type === 'AWS::ECS::TaskDefinition');
-    assert.ok(task);
-    for (const method of ['GET', 'POST', 'PUT', 'DELETE'] as const) {
-      const rule = stack.Resources[`FirstChatClientRecords${method}`];
-      assert.equal(rule.Properties.Priority, clientBinding.listener.clientRecords[method]);
-      assert.deepEqual(rule.Properties.Conditions, [
-        { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
-        { Field: 'path-pattern', PathPatternConfig: { RegexValues: FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method] } },
-        { Field: 'http-request-method', HttpRequestMethodConfig: { Values: [method] } },
-      ]);
-      assert.ok(FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method].length <= 3);
-      assert.ok(FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method].every(p => p.length <= 128));
-    }
-    render({ ...memoryBinding, listener: { memoryPostPriority: 4, guardPriority: 9 } }, ({ service: previous }) => {
-      const before = Template.fromStack(previous).toJSON();
-      for (const [id, resource] of Object.entries(before.Resources)) {
-        if ((resource as any).Type === 'AWS::ECS::Service') {
-          assert.deepEqual(stack.Resources[id].Properties, (resource as any).Properties);
-        } else assert.deepEqual(stack.Resources[id], resource, id);
-      }
-      assert.deepEqual(stack.Outputs, before.Outputs);
-      assert.equal(Object.keys(stack.Resources).length, Object.keys(before.Resources).length + 4);
-    });
-  });
+    { sourceHead: 'a'.repeat(40) },
+    { imageDigest: `sha256:${'b'.repeat(64)}` },
+    { schemaVersion: 5 },
+    { schemaVersion: 6 },
+    { schemaVersion: 7 },
+    { profile: {} },
+    { signers: {} },
+    { retainedTrust: null },
+    { previewTenantId: '00000000-0000-4000-8000-000000000002' },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, ...patch }));
 });
-
-test('client packet declares only UI-required methods and paths', () => {
-  const id = '11111111-1111-4111-8111-111111111111';
-  const matches = (method: keyof typeof FIRST_CHAT_CORE_CLIENT_RECORD_PATHS, path: string) =>
-    FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method].some(p => new RegExp(p).test(path));
-  for (const p of ['/api/clients', `/api/clients/${id}`, `/api/clients/${id}/account-owners`,
-    '/api/client-account-owners', '/api/client-account-owners/options', '/api/billing/state']) assert.ok(matches('GET', p), p);
-  assert.ok(matches('POST', '/api/clients'));
-  assert.ok(matches('PUT', `/api/clients/${id}`)); assert.ok(matches('PUT', `/api/clients/${id}/account-owners`));
-  assert.ok(matches('DELETE', `/api/clients/${id}`));
-  for (const p of ['/api/clients/bulk-import', `/api/clients/${id}/profile-notes`, `/api/clients/${id}/logo/confirm`,
-    `/api/client-account-owners/${id}`, '/api/billing/summary', '/api/billing/state/extra', '/api/clients/']) {
-    for (const method of ['GET', 'POST', 'PUT', 'DELETE'] as const) assert.equal(matches(method, p), false, `${method} ${p}`);
-  }
-  assert.equal(matches('POST', `/api/clients/${id}`), false);
-  assert.equal(matches('DELETE', '/api/clients'), false);
+test('production DB, scaling, guard moves and unbound service secret refuse', () => {
+  for (const deployment of [
+    { ...binding.deployment, databaseHost: 'production.example.invalid' },
+    { ...binding.deployment, desiredCount: 0 },
+    { ...binding.deployment, desiredCount: 2 },
+    { ...binding.deployment, extra: true },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, deployment }));
+  for (const listener of [
+    { guardPriority: 3 },
+    { guardPriority: 4 },
+    { guardPriority: 8 },
+    { guardPriority: 7, memoryPostPriority: 4 },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, listener }));
+  for (const patch of [
+    { internalServiceSecretArn: binding.internalServiceSecretArn.replace('6cEZG4', 'wrong0') },
+    { internalServiceSecretVersionId: '' },
+    { internalServiceSecretVersionId: 'AWSCURRENT' },
+    { internalServiceSecretVersionId: undefined },
+  ])
+    assert.throws(() => firstChatCoreImageBinding({ ...binding, ...patch }));
 });
-const envOf = (container: any) => Object.fromEntries(container.Environment.map((entry: any) => [entry.Name, entry.Value]));
-
-test('renders the approved 1 vCPU and 2 GiB Core preview task size', () => {
-  render(binding, ({ service }) => {
-    const resources = Template.fromStack(service).toJSON().Resources;
-    const task = (Object.values(resources) as any[]).find((resource) => resource.Type === 'AWS::ECS::TaskDefinition');
-    assert.ok(task);
-    assert.equal(task.Properties.Cpu, '1024');
-    assert.equal(task.Properties.Memory, '2048');
-  });
-});
-
-test('refuses to render until a qualified integrated image is pinned, and never PR48', () => {
-  assert.equal(FIRST_CHAT_CORE_IMAGE_PINS, null);
-  assert.throws(() => firstChatCoreImageBinding(binding), /No qualified integrated Core image/);
-  assert.throws(() => firstChatCoreImageBinding({ ...binding, ...FIRST_CHAT_CORE_RETIRED_PR48 }, pins));
-  assert.throws(() => firstChatCoreImageBinding({ schemaVersion: 1, ...FIRST_CHAT_CORE_RETIRED_PR48 }, FIRST_CHAT_CORE_RETIRED_PR48));
-});
-
-test('requires the exact pinned image, exact secret ARNs and fixed retained trust fields', () => {
-  assert.deepEqual(firstChatCoreImageBinding(binding, pins), binding);
-  assert.deepEqual(firstChatCoreImageBinding(memoryOffBinding, pins), memoryOffBinding);
-  assert.deepEqual(firstChatCoreImageBinding(memoryBinding, pins), memoryBinding);
-  assert.deepEqual(firstChatCoreImageBinding({ ...binding, retainedTrust: trust }, pins), { ...binding, retainedTrust: trust });
-  const { retainedTrust: _omitted, ...withoutTrust } = binding;
-  for (const invalid of [
-    { ...binding, sourceHead: 'e50aed3c5b5cce58317b37de442482fa970842cb' },
-    { ...binding, imageDigest: 'latest' },
-    { ...binding, imageDigest: `sha256:${'B'.repeat(64)}` },
-    { ...binding, imageDigest: `sha256:${'a'.repeat(64)}` },
-    { ...binding, databaseUrl: 'postgres://unreviewed.invalid/capiro' },
-    { ...binding, schemaVersion: 1 },
-    { ...binding, schemaVersion: 2 },
-    { ...binding, schemaVersion: 3 },
-    { ...binding, schemaVersion: 4 },
-    { ...binding, schemaVersion: 6 },
-    { ...binding, internalServiceSecretArn: secretArn('internal-service') },
-    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-jwt-secret-AbC123' },
-    { ...binding, previewTenantId: 'tenant' },
-    { ...binding, profile: { ...binding.profile, executionMaxTurns: 0 } },
-    { ...binding, profile: { ...binding.profile, extra: 1 } },
-    { ...binding, signers: { ...binding.signers, routineFire: signer(1) } },
-    { ...binding, signers: { ...binding.signers, execution: { ...signer(1), keyArn: 'arn:aws:kms:us-east-1:111111111111:key/00000001-0000-4000-8000-000000000000' } } },
-    { ...binding, signers: { ...binding.signers, execution: { ...signer(1), publicKeyX: 'short' } } },
-    { ...binding, signers: { execution: null, routineCancel: null } },
-    // v4 shape (no read delegation signer) and a read token key reused from another purpose.
-    { ...binding, signers: { execution: signer(1), routineCancel: signer(2), routineFire: signer(3) } },
-    { ...binding, signers: { ...binding.signers, readDelegation: signer(2) } },
-    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:111111111111:secret:other-AbC123' },
-    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-west-2:967807252336:secret:other-AbC123' },
-    { ...binding, internalServiceSecretArn: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:partial' },
-    { ...binding, internalServiceSecretArn: 'plain-text-secret-value' },
-    withoutTrust,
-    { ...binding, retainedTrust: { ...trust, intelOrigin: 'http://intel.example.invalid' } },
-    { ...binding, retainedTrust: { ...trust, intelOrigin: 'https://intel.example.invalid/intel-api' } },
-    { ...binding, retainedTrust: { ...trust, principalKeyId: 'has space' } },
-    { ...binding, retainedTrust: { ...trust, probePrivateKeySecretArn: trust.principalPrivateKeySecretArn } },
-    { ...binding, retainedTrust: { ...trust, principalPrivateKeyPem: '-----BEGIN PRIVATE KEY-----' } },
-    (({ listener: _listener, ...rest }) => rest)(binding),
-    { ...binding, listener: null },
-    { ...binding, listener: {} },
-    { ...binding, listener: { memoryPostPriority: null, guardPriority: 4 } },
-    { ...binding, listener: { memoryPostPriority: 4 } },
-    { ...memoryBinding, listener: { memoryPostPriority: 4, guardPriority: 5, rulePriority: 3 } },
-    ...[undefined, '4', 4.5, 0, 2, FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 50000].map((memoryPostPriority) => ({
-      ...memoryBinding, listener: { memoryPostPriority, guardPriority: 5 },
-    })),
-    ...[undefined, null, '5', 5.5, 0, 2, 3, 4, 50001].map((guardPriority) => ({
-      ...memoryBinding, listener: { memoryPostPriority: 4, guardPriority },
-    })),
-  ]) {
-    assert.throws(() => firstChatCoreImageBinding(invalid, pins), JSON.stringify(invalid).slice(0, 80));
-  }
-});
-
-test('keeps the exact Meri tool list and every listener pattern within ALB limits', () => {
-  assert.deepEqual([...FIRST_CHAT_CORE_MERI_TOOLS], meriTools.tools);
-  assert.ok(FIRST_CHAT_CORE_MERI_TOOLS.length > 0);
-  assert.ok(!FIRST_CHAT_CORE_MERI_TOOLS.includes('get_florida_budget_project'));
-  for (const values of [FIRST_CHAT_CORE_POST_PATHS, FIRST_CHAT_CORE_GET_PATHS, FIRST_CHAT_CORE_MEMORY_GET_PATHS,
-    FIRST_CHAT_CORE_NATIVE_OPS_PATHS, FIRST_CHAT_CORE_MEMORY_POST_PATHS]) {
-    assert.ok(values.length <= 3);
-    for (const value of values) {
-      assert.ok(value.length <= 128, value);
-      assert.ok(value.startsWith('^') && value.endsWith('$'), value);
-      assert.ok(!value.includes('(?'), value);
-    }
-  }
-});
-
-test("uses dot's compact preview layout and records the bounded tool perimeter", () => {
-  // dot #121 6246021908: existing P1 POST / P2 GET / P3 host404, no shared rule moves.
-  assert.deepEqual(routes.priorities, { post: 1, get: 2, guard: 3 });
-  // dot #121 6246253130: one exact Core POST rule at P3; only the guard moves,
-  // to a slot read back from the listener (never fixed in source).
-  assert.deepEqual(routes.packet, { nativeOps: 3, memoryPost: 'readback', guard: 'readback', clientRecords: 'readback' });
-  assert.equal(FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 3);
-  assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
-    '^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$',
-    '^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$',
-    '^/api/clio/application-authority/read-delegation(s|-consents)(/[0-9a-f-]{36}/(tokens|current|revocations|state))?$',
-  ]);
-  assert.deepEqual([...FIRST_CHAT_CORE_POST_PATHS], routes.post);
-  assert.deepEqual([...FIRST_CHAT_CORE_GET_PATHS], routes.get);
-  assert.deepEqual([...FIRST_CHAT_CORE_MEMORY_GET_PATHS], routes.memoryGet);
-  assert.deepEqual([...FIRST_CHAT_CORE_MEMORY_POST_PATHS], routes.memoryPost);
-  assert.equal(routes.post[2],
-    '^/api/clio/(conversations/bootstrap|clients/check-ref|retained-reads/research-portfolio(-changes)?|tools/[a-z][a-z0-9_]{1,63})$');
-  assert.equal(routes.post[2].length, 127);
-  // Perimeter tradeoff: any syntactically valid tool name reaches Core; Core then
-  // refuses names outside the mandatory preview MERI_TOOL_ALLOWLIST after auth.
-  const third = new RegExp(routes.post[2]);
-  assert.ok(third.test('/api/clio/tools/send_email'));
-  assert.ok(!meriTools.tools.includes('send_email'));
-  for (const name of meriTools.tools) assert.ok(third.test(`/api/clio/tools/${name}`), name);
-});
-
-test('renders D016 memory governance, the packet profile and the signers with a Sign-only task role', () => {
-  const policies = (service: any) => (Object.values(Template.fromStack(service).toJSON().Resources) as any[])
-    .filter((r) => r.Type === 'AWS::IAM::Policy').flatMap((r) => r.Properties.PolicyDocument.Statement);
-  render(binding, ({ service }) => {
-    const serve = serveContainer(service);
-    const env = envOf(serve);
-    assert.equal(env.MEMORY_GOVERNANCE_LIFECYCLE, 'enforce');
-    assert.equal(env.MEMORY_GOVERNANCE_TENANTS, binding.previewTenantId);
-    assert.deepEqual([env.MERI_EXECUTION_MAX_TURNS, env.MERI_EXECUTION_MAX_RUNTIME_SECONDS, env.MERI_EXECUTION_MAX_COST_MICROUSD,
-      env.MERI_ROUTINE_MAX_COST_MICROUSD, env.MERI_ROUTINE_MAX_RUNTIME_SECONDS], ['20', '900', '2000000', '2000000', '900']);
-    for (const [prefix, n] of [['MERI_EXECUTION_SIGNER', 1], ['MERI_ROUTINE_CANCEL_SIGNER', 2], ['MERI_ROUTINE_FIRE_SIGNER', 3],
-      ['MERI_READ_DELEGATION_SIGNER', 4]] as const) {
-      assert.deepEqual([env[`${prefix}_ISSUER`], env[`${prefix}_KID`], env[`${prefix}_KMS_KEY_ARN`], env[`${prefix}_PUBLIC_KEY_X`]],
-        [signer(n).issuer, signer(n).kid, signer(n).keyArn, signer(n).publicKeyX]);
-    }
-    const sign = policies(service).filter((st: any) => [st.Action].flat().includes('kms:Sign'));
-    assert.equal(sign.length, 1);
-    assert.deepEqual([sign[0].Resource].flat().sort(), [kmsKey(1), kmsKey(2), kmsKey(3), kmsKey(4)]);
-    assert.deepEqual(sign[0].Condition, { StringEquals: { 'kms:SigningAlgorithm': 'ED25519_SHA_512', 'kms:MessageType': 'RAW' } });
-    const byName = Object.fromEntries(serve.Secrets.map((secret: any) => [secret.Name, secret.ValueFrom]));
-    assert.equal(byName.INTERNAL_SERVICE_SECRET, binding.internalServiceSecretArn);
-  });
-  render({ ...binding, signers: { execution: null, routineCancel: null, routineFire: null, readDelegation: null } }, ({ service }) => {
-    const env = envOf(serveContainer(service));
-    assert.ok(Object.keys(env).every((name) => !name.includes('_SIGNER_')));
-    assert.equal(policies(service).filter((st: any) => [st.Action].flat().includes('kms:Sign')).length, 0);
-  });
-});
-
-test('renders the retained-trust variant with server-side signing-key secrets only', () => {
-  render({ ...binding, retainedTrust: trust }, ({ service }) => {
-    const serve = serveContainer(service);
-    const env = envOf(serve);
-    assert.equal(env.RETAINED_READS_ENABLED, 'true');
-    assert.equal(env.RETAINED_TRUST_ISSUER, trust.issuer);
-    assert.equal(env.RETAINED_CORE_ORIGIN, `https://${FIRST_CHAT_CORE_HOST}`);
-    assert.equal(env.RETAINED_INTEL_ORIGIN, trust.intelOrigin);
-    assert.equal(env.RETAINED_PRINCIPAL_KEY_ID, trust.principalKeyId);
-    assert.equal(env.RETAINED_PROBE_KEY_ID, trust.probeKeyId);
-    assert.ok(Object.keys(env).every((name) => !name.endsWith('_PEM') && name !== 'INTERNAL_SERVICE_SECRET'));
-    assert.deepEqual(serve.Secrets.map((secret: any) => secret.Name).sort(), [
-      'CLERK_SECRET_KEY', 'CLERK_WEBHOOK_SIGNING_SECRET', 'DB_PASSWORD', 'DB_USER',
-      'INTERNAL_SERVICE_SECRET', 'RETAINED_PRINCIPAL_PRIVATE_KEY_PEM', 'RETAINED_PROBE_PRIVATE_KEY_PEM',
-    ]);
-    const byName = Object.fromEntries(serve.Secrets.map((secret: any) => [secret.Name, secret.ValueFrom]));
-    assert.equal(byName.RETAINED_PRINCIPAL_PRIVATE_KEY_PEM, trust.principalPrivateKeySecretArn);
-    assert.equal(byName.RETAINED_PROBE_PRIVATE_KEY_PEM, trust.probePrivateKeySecretArn);
-    assert.equal(byName.INTERNAL_SERVICE_SECRET, binding.internalServiceSecretArn);
-  });
-});
-
-test('keeps native memory owner listener admission off in v5 and v6-null bindings', () => {
-  for (const disabled of [binding, memoryOffBinding]) render(disabled, ({ guard, service }) => {
-    const guardStack = Template.fromStack(guard).toJSON();
-    const guardRule = Object.values(guardStack.Resources).find((resource: any) =>
-      resource.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule') as any;
-    assert.equal(guardRule.Properties.Priority, 4);
-    const stack = Template.fromStack(service).toJSON();
-    const rules = Object.entries(stack.Resources).filter(([, resource]: [string, any]) =>
-      resource.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule');
-    assert.deepEqual(rules.map(([id]) => id).sort(), [
-      'FirstChatMembershipPostOnly', 'FirstChatNativeOpsPostOnly', 'FirstChatPostsOnly',
-    ]);
-    assert.deepEqual(rules.map(([, resource]: [string, any]) => resource.Properties.Priority).sort(), [1, 2, 3]);
-    const reads = stack.Resources.FirstChatMembershipPostOnly;
-    const readPath = reads.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
-    assert.deepEqual(readPath.PathPatternConfig.RegexValues, [...FIRST_CHAT_CORE_GET_PATHS]);
-    const readPatterns = readPath.PathPatternConfig.RegexValues.map((pattern: string) => new RegExp(pattern));
-    for (const path of ['/api/memory/candidates/mine',
-      '/api/memory/candidates/mine/123e4567-e89b-42d3-a456-426614174000/status',
-      '/api/memory/owner/items']) {
-      assert.ok(readPatterns.every((pattern: RegExp) => !pattern.test(path)), path);
-    }
-    const serviceResource = Object.values(stack.Resources).find((resource: any) =>
-      resource.Type === 'AWS::ECS::Service') as any;
-    assert.ok(serviceResource.Properties.DesiredCount === 0);
-    assert.ok(serviceResource.DependsOn.every((id: string) => !id.startsWith('FirstChatMemoryPostOnly')));
-  });
-});
-
-test('renders stable P1/P2/P3, exact optional memory POST and the later retained host guard', () => {
-  render(memoryBinding, ({ guard, service }) => {
-  const guardStack = Template.fromStack(guard).toJSON();
-  const guardResources = Object.values(guardStack.Resources) as any[];
-  assert.equal(guardResources.length, 1);
-  const guardRule = guardResources[0];
-  assert.equal(guardRule.Type, 'AWS::ElasticLoadBalancingV2::ListenerRule');
-  assert.equal(guardRule.DeletionPolicy, 'Retain');
-  assert.equal(guardRule.UpdateReplacePolicy, 'Retain');
-  assert.equal(guardRule.Properties.Priority, memoryBinding.listener.guardPriority);
-  assert.deepEqual(guardRule.Properties.Conditions, [
-    { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
-  ]);
-  assert.deepEqual(guardRule.Properties.Actions, [{
-    Type: 'fixed-response',
-    FixedResponseConfig: {
-      StatusCode: '404',
-      ContentType: 'application/json',
-      MessageBody: '{"error":"PREVIEW_ROUTE_NOT_FOUND"}',
-    },
-  }]);
-  assert.equal(guardStack.Outputs.PreviewHostGuardRuleArn.Export.Name, FIRST_CHAT_CORE_GUARD_RULE_EXPORT);
-  assert.deepEqual(guardStack.Outputs.PreviewHostGuardRuleArn.Value, { Ref: 'RejectOtherPreviewHostTraffic' });
-  const stack = Template.fromStack(service).toJSON();
-  assert.deepEqual(stack.Outputs.RequiredPreviewHostGuardRuleArn.Value, {
-    'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
-  });
-  const resources = Object.values(stack.Resources) as any[];
-  assert.equal(
-    resources.filter((r) => r.Type === 'AWS::ECR::Repository').length,
-    0,
-  );
-  const tasks = resources.filter((r) => r.Type === 'AWS::ECS::TaskDefinition');
-  assert.equal(tasks.length, 1);
-  assert.deepEqual(tasks[0].Properties.RuntimePlatform, { CpuArchitecture: 'ARM64', OperatingSystemFamily: 'LINUX' });
-  assert.equal(tasks[0].Properties.Cpu, '1024');
-  assert.equal(tasks[0].Properties.Memory, '2048');
-  const containers = tasks.map((task) => task.Properties.ContainerDefinitions[0]);
-  assert.deepEqual(containers.map((container) => container.Command), [['serve']]);
-  for (const container of containers) {
-    assert.equal(container.Image, `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@${pins.imageDigest}`);
-    const environment = Object.fromEntries(
-      container.Environment.map((entry: any) => [entry.Name, entry.Value]),
-    );
-    assert.equal(environment.RELEASE_SHA, pins.sourceHead);
-    assert.equal(environment.PREVIEW_NATIVE_GETS_ENABLED, 'true');
-    assert.equal(environment.MERI_TOOL_ALLOWLIST, meriTools.tools.join(','));
-    assert.equal(environment.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
-    assert.equal(environment.CORE_DEPLOYMENT_PROFILE, 'first-chat-preview');
-    assert.equal(environment.RETAINED_READS_ENABLED, 'false');
-    assert.ok(!Object.keys(environment).some((name) => name.startsWith('RETAINED_') && name !== 'RETAINED_READS_ENABLED'));
-  }
-  const serve = containers.find((container) => container.Name === 'core');
-  assert.deepEqual(serve.HealthCheck, {
-    Command: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:4000/health || exit 1'],
-    Interval: 15,
-    Timeout: 5,
-    Retries: 3,
-    StartPeriod: 60,
-  });
-  assert.deepEqual(serve.Secrets.map((secret: any) => secret.Name).sort(), [
-    'CLERK_SECRET_KEY',
-    'CLERK_WEBHOOK_SIGNING_SECRET',
-    'DB_PASSWORD',
-    'DB_USER',
-    'INTERNAL_SERVICE_SECRET',
-  ]);
-  const serveEnv = Object.fromEntries(
-    serve.Environment.map((entry: any) => [entry.Name, entry.Value]),
-  );
-  assert.deepEqual(
-    Object.fromEntries(Object.entries(serveEnv).filter(([name]) =>
+test('nine live resource IDs and both outputs survive with no extra rule or signing policy', () =>
+  render((s) => {
+    assert.deepEqual(
+      Object.keys(s.Resources).sort(),
       [
-        'CAPIRO_SERVICE_NAME',
-        'ENGAGEMENT_PROCESS_MODE',
-        'ENGAGEMENT_BACKGROUND_OWNER',
-        'ENGAGEMENT_EXTERNAL_ACTIONS',
-        'ENGAGEMENT_CALLBACKS_ENABLED',
-        'ENGAGEMENT_RECALL_WEBHOOK_ENABLED',
-        'CLIENT_PROFILE_FILL_WORKER_ENABLED',
-        'CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED',
-        'MERI_JOB_SWEEPER_ENABLED',
-        'RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED',
-        'NEWSLETTER_REVIEW_EMAIL_ENABLED',
-        'NEWSLETTER_INVITATION_EMAIL_ENABLED',
-      ].includes(name))),
-    {
-      CAPIRO_SERVICE_NAME: 'api',
-      ENGAGEMENT_PROCESS_MODE: 'shadow',
-      ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
-      ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
-      ENGAGEMENT_CALLBACKS_ENABLED: 'false',
-      ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
-      CLIENT_PROFILE_FILL_WORKER_ENABLED: 'false',
-      CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED: 'false',
-      MERI_JOB_SWEEPER_ENABLED: 'false',
-      RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED: 'false',
-      NEWSLETTER_REVIEW_EMAIL_ENABLED: 'false',
-      NEWSLETTER_INVITATION_EMAIL_ENABLED: 'false',
-    },
-  );
-  const services = resources.filter((r) => r.Type === 'AWS::ECS::Service');
-  assert.equal(services.length, 1);
-  assert.equal(services[0].Properties.DesiredCount, 0);
-  assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatPostsOnly')));
-  assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatMembershipPostOnly')));
-  assert.ok(services[0].DependsOn.some((id: string) => id.startsWith('FirstChatMemoryPostOnly')));
-  assert.equal(resources.filter((r) => r.Type === 'AWS::Events::Rule').length, 0);
-  assert.equal(resources.filter((r) => r.Type === 'AWS::RDS::DBCluster').length, 0);
-  assert.equal(resources.filter((r) => r.Type === 'AWS::SecretsManager::Secret').length, 0);
-  assert.doesNotMatch(JSON.stringify(stack), /\/capiro\/dev\/aurora\/master-/);
-  const executionPolicy = resources.find((r) => r.Type === 'AWS::IAM::Policy');
-  const decryptStatements = executionPolicy.Properties.PolicyDocument.Statement.filter(
-    (statement: any) => statement.Action === 'kms:Decrypt',
-  );
-  assert.equal(decryptStatements.length, 1);
-  assert.deepEqual([...decryptStatements[0].Resource].sort(), [
-    'arn:aws:kms:us-east-1:967807252336:key/efe8a18d-192e-4f30-8eea-b3f65ae7755e',
-    'arn:aws:kms:us-east-1:967807252336:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e',
-  ]);
-  assert.deepEqual(decryptStatements[0].Condition, {
-    StringEquals: { 'kms:ViaService': 'secretsmanager.us-east-1.amazonaws.com' },
-  });
-
-  const targets = resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup');
-  assert.equal(targets.length, 1);
-  assert.equal(targets[0].Properties.HealthCheckPath, '/health');
-  const targetLogicalId = Object.entries(stack.Resources).find(
-    ([, resource]: [string, any]) => resource.Type === 'AWS::ElasticLoadBalancingV2::TargetGroup',
-  )?.[0];
-  assert.ok(targetLogicalId);
-  assert.deepEqual(
-    targets[0].Properties.Tags.find((tag: any) => tag.Key === 'capiro:preview-guard-rule-arn'),
-    { Key: 'capiro:preview-guard-rule-arn', Value: { 'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT } },
-  );
-  const ruleEntries = Object.entries(stack.Resources).filter(
-    ([, resource]: [string, any]) => resource.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule',
-  );
-  assert.deepEqual(ruleEntries.map(([id]) => id).sort(), [
-    'FirstChatMembershipPostOnly',
-    'FirstChatMemoryPostOnly',
-    'FirstChatNativeOpsPostOnly',
-    'FirstChatPostsOnly',
-  ]);
-  const rules = ruleEntries.map(([, rule]) => rule as any);
-  assert.deepEqual(rules.map((rule) => rule.Properties.Priority).sort(), [1, 2, 3, memoryBinding.listener.memoryPostPriority]);
-  const nativeOps = stack.Resources.FirstChatNativeOpsPostOnly;
-  assert.deepEqual(nativeOps.Properties.Conditions, [
-    { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
-    { Field: 'path-pattern', PathPatternConfig: { RegexValues: [...FIRST_CHAT_CORE_NATIVE_OPS_PATHS] } },
-    { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['POST'] } },
-  ]);
-  const nativePattern = new RegExp(FIRST_CHAT_CORE_NATIVE_OPS_PATHS[0]!);
-  for (const opPath of [
-    '/api/clio/approvals/native/record', '/api/clio/approvals/native/decision',
-    '/api/clio/memory/review/submit', '/api/clio/memory/review/status',
-    '/api/clio/memory/read_target', '/api/clio/memory/find_by_key',
-  ]) assert.ok(nativePattern.test(opPath), opPath);
-  for (const opPath of [
-    '/api/clio/approvals/native/read', '/api/clio/memory/recent', '/api/clio/memory/review/submit/x',
-    '/api/clio/memory/read_target/', '/api/clio/approvals/native/record?x=1',
-  ]) assert.ok(!nativePattern.test(opPath), opPath);
-  // RC1 option B read delegation (D016-A item 4): create, tokens, current, revocations, consent and consent state.
-  const delegationPattern = new RegExp(FIRST_CHAT_CORE_NATIVE_OPS_PATHS[2]!);
-  const delegation = '0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f';
-  for (const opPath of [
-    '/api/clio/application-authority/read-delegations', '/api/clio/application-authority/read-delegation-consents',
-    `/api/clio/application-authority/read-delegations/${delegation}/tokens`, `/api/clio/application-authority/read-delegations/${delegation}/current`,
-    `/api/clio/application-authority/read-delegations/${delegation}/revocations`,
-    `/api/clio/application-authority/read-delegation-consents/${delegation}/state`,
-  ]) assert.ok(delegationPattern.test(opPath), opPath);
-  for (const opPath of [
-    '/api/clio/application-authority/read-delegations/', `/api/clio/application-authority/read-delegations/${delegation}`,
-    `/api/clio/application-authority/read-delegations/${delegation}/tokens/x`, '/api/clio/application-authority/read-delegationz',
-    `/api/clio/application-authority/read-delegations/${delegation}/tokens?x=1`,
-  ]) assert.ok(!delegationPattern.test(opPath), opPath);
-  assert.ok(FIRST_CHAT_CORE_NATIVE_OPS_PATHS.length <= 3 && FIRST_CHAT_CORE_NATIVE_OPS_PATHS.every((p) => p.length <= 128));
-  const memoryPosts = stack.Resources.FirstChatMemoryPostOnly;
-  assert.deepEqual(memoryPosts.Properties.Conditions, [
-    { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
-    { Field: 'path-pattern', PathPatternConfig: { RegexValues: [...FIRST_CHAT_CORE_MEMORY_POST_PATHS] } },
-    { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['POST'] } },
-  ]);
-  const memoryPatterns = FIRST_CHAT_CORE_MEMORY_POST_PATHS.map((pattern) => new RegExp(pattern));
-  for (const memoryPath of [
-    '/api/memory/candidates/123e4567-e89b-42d3-a456-426614174000/owner-decision',
-    '/api/memory/version-candidates/123e4567-e89b-42d3-a456-426614174000/approve',
-    '/api/memory/version-candidates/123e4567-e89b-42d3-a456-426614174000/reject',
-    '/api/memory/items/123e4567-e89b-42d3-a456-426614174000/review-correction',
-  ]) assert.ok(memoryPatterns.some((pattern) => pattern.test(memoryPath)), memoryPath);
-  for (const deniedPath of [
-    '/api/memory/candidates/not-a-uuid/owner-decision',
-    '/api/memory/version-candidates/123e4567-e89b-42d3-a456-426614174000/approve/extra',
-    '/api/memory/items/123e4567-e89b-42d3-a456-426614174000/corrections',
-    '/api/memory/candidates/mine',
-  ]) assert.ok(memoryPatterns.every((pattern) => !pattern.test(deniedPath)), deniedPath);
-  const allowed = stack.Resources.FirstChatPostsOnly;
-  const path = allowed.Properties.Conditions.find((condition: any) => condition.Field === 'path-pattern');
-  assert.deepEqual(path.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] });
-  const postPatterns = path.PathPatternConfig.RegexValues.map((value: string) => new RegExp(value));
-  const postMatches = (candidate: string) => postPatterns.some((pattern: RegExp) => pattern.test(candidate));
-  for (const allowedPath of [
-    '/api/clio/conversations/bootstrap',
-    '/api/clio/application-authority/identity',
-    '/api/clio/application-authority/context',
-    '/api/clio/application-authority/membership',
-    '/api/clio/application-authority/read-mode-observation',
-    '/api/clio/clients/check-ref',
-    '/api/clio/application-authority/retained-research-portfolio',
-    '/api/clio/application-authority/retained-research-portfolio-changes',
-    '/api/clio/application-authority/retained-florida-budget',
-    '/api/clio/application-authority/retained-research-portfolio-principal',
-    '/api/clio/application-authority/retained-research-portfolio-changes-principal',
-    '/api/clio/application-authority/retained-florida-principal',
-    '/api/clio/application-authority/retained-florida-current',
-    '/api/clio/application-authority/retained-florida-native-current',
-    '/api/clio/retained-reads/research-portfolio',
-    '/api/clio/retained-reads/research-portfolio-changes',
-    ...meriTools.tools.map((name: string) => `/api/clio/tools/${name}`),
-  ]) {
-    assert.ok(postMatches(allowedPath), allowedPath);
-  }
-  for (const rejectedPath of [
-    '/api/clio/conversations',
-    '/api/clio/conversations/bootstrap/extra',
-    '/api/clio/application-authority/other',
-    '/api/clio/application-authority/context/extra',
-    '/api/clio/application-authority/identity/extra',
-    '/api/clio/application-authority/membership/extra',
-    '/api/clio/application-authority/retained-florida-budget-principal',
-    '/api/clio/application-authority/retained-florida-native',
-    '/api/clio/retained-reads/research-portfolio/extra',
-    '/api/clio/tools',
-    '/api/clio/tools/',
-    '/api/clio/tools/Search_Federal',
-    '/api/clio/tools/a/b',
-    '/api/clio/approvals/check',
-    '/api/internal/objective-workload-authority/decisions',
-    '/intel-api/internal/legiwatch/retained-florida-budget',
-    '/api/me',
-  ]) {
-    assert.equal(postMatches(rejectedPath), false, rejectedPath);
-  }
-  const postMethod = allowed.Properties.Conditions.find(
-    (condition: any) => condition.Field === 'http-request-method',
-  );
-  assert.deepEqual(postMethod.HttpRequestMethodConfig.Values, ['POST']);
-  const reads = stack.Resources.FirstChatMembershipPostOnly;
-  const readPath = reads.Properties.Conditions.find(
-    (condition: any) => condition.Field === 'path-pattern',
-  );
-  assert.deepEqual(readPath.PathPatternConfig, { RegexValues: [...FIRST_CHAT_CORE_MEMORY_GET_PATHS] });
-  const readMethod = reads.Properties.Conditions.find(
-    (condition: any) => condition.Field === 'http-request-method',
-  );
-  assert.deepEqual(readMethod.HttpRequestMethodConfig.Values, ['GET']);
-  const readPatterns = readPath.PathPatternConfig.RegexValues.map((value: string) => new RegExp(value));
-  for (const allowedPath of [
-    '/api/me',
-    '/api/clients',
-    '/api/clients/123e4567-e89b-42d3-a456-426614174000',
-    '/api/memory/candidates/mine',
-    '/api/memory/candidates/mine/123e4567-e89b-42d3-a456-426614174000/status',
-    '/api/memory/owner/items',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/changes',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/reviews',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/annual-review',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/snapshots/123e4567-e89b-42d3-a456-426614174001',
-  ]) {
-    assert.ok(readPatterns.some((pattern: RegExp) => pattern.test(allowedPath)), allowedPath);
-  }
-  for (const rejectedPath of [
-    '/api/health',
-    '/health',
-    '/api/clients/',
-    '/api/clients/not-a-uuid',
-    '/api/clients/123e4567-e89b-42d3-a456-426614174000/history',
-    '/api/memory/candidates/mine/not-a-uuid/status',
-    '/api/memory/candidates/mine/123e4567-e89b-42d3-a456-426614174000',
-    '/api/memory/owner/items/extra',
-    '/api/memory/review/inbox',
-    '/api/clio/application-authority/identity',
-    '/api/conversations/history',
-    '/api/me/extra',
-    '/api/research-portfolios',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/snapshots',
-    '/api/research-portfolios/123e4567-e89b-42d3-a456-426614174000/analytics',
-    '/api/research-portfolios/not-a-uuid',
-  ]) {
-    assert.ok(readPatterns.every((pattern: RegExp) => !pattern.test(rejectedPath)), rejectedPath);
-  }
-  assert.ok(rules.every((rule) => rule.Properties.Actions.length === 1));
-  assert.ok(rules.every((rule) => rule.Properties.Actions[0].Type === 'forward'));
-  assert.deepEqual(
-    rules.map((rule) => rule.Properties.Actions[0].TargetGroupArn),
-    [1, 2, 3, 4].map(() => ({ Ref: targetLogicalId })),
-  );
-  for (const rule of rules) {
-    const host = rule.Properties.Conditions.find((condition: any) => condition.Field === 'host-header');
-    assert.deepEqual(host.HostHeaderConfig.Values, [FIRST_CHAT_CORE_HOST]);
-  }
-  });
-});
+        'ServeExecutionRole9B512BDC',
+        'ServeExecutionRoleDefaultPolicyBD488DD2',
+        'ServeTaskTaskRoleD6B44EC7',
+        'ServeTaskF1990141',
+        'ServeLogBCB89CA4',
+        'CoreTarget234133C4',
+        'HeldCoreServiceA6CD0E1D',
+        'FirstChatPostsOnly',
+        'FirstChatMembershipPostOnly',
+      ].sort(),
+    );
+    assert.deepEqual(Object.keys(s.Outputs).sort(), [
+      'CoreApiBaseUrl',
+      'RequiredPreviewHostGuardRuleArn',
+    ]);
+    assert.deepEqual(s.Resources.ServeTaskF1990141.Properties.TaskRoleArn, {
+      'Fn::GetAtt': ['ServeTaskTaskRoleD6B44EC7', 'Arn'],
+    });
+    assert.equal(s.Resources.ServeTaskTaskRoleD6B44EC7.Properties.Policies, undefined);
+    assert.equal(JSON.stringify(s).includes('kms:Sign'), false);
+  }));
+test('qualified ARM task uses persistent clone, version-pinned canonical secret and original credentials', () =>
+  render((s) => {
+    const t = s.Resources.ServeTaskF1990141.Properties,
+      c = t.ContainerDefinitions[0],
+      e = Object.fromEntries(c.Environment.map((x: any) => [x.Name, x.Value])),
+      se = Object.fromEntries(c.Secrets.map((x: any) => [x.Name, x.ValueFrom]));
+    assert.equal(t.Cpu, '1024');
+    assert.equal(t.Memory, '2048');
+    assert.deepEqual(t.RuntimePlatform, {
+      CpuArchitecture: 'ARM64',
+      OperatingSystemFamily: 'LINUX',
+    });
+    assert.equal(
+      c.Image,
+      `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@${pins.imageDigest}`,
+    );
+    assert.deepEqual(c.Command, ['serve']);
+    assert.equal(e.RELEASE_SHA, pins.sourceHead);
+    assert.equal(e.DB_HOST, binding.deployment.databaseHost);
+    assert.equal(
+      se.INTERNAL_SERVICE_SECRET,
+      `${binding.internalServiceSecretArn}:::${binding.internalServiceSecretVersionId}`,
+    );
+    for (const [name, field] of [
+      ['DB_USER', 'username'],
+      ['DB_PASSWORD', 'password'],
+    ] as const)
+      assert.equal(
+        se[name],
+        `arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:${field}::`,
+      );
+    assert.equal(
+      se.CLERK_SECRET_KEY,
+      'arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM',
+    );
+    const v = s.Resources.HeldCoreServiceA6CD0E1D.Properties;
+    assert.equal(v.DesiredCount, 1);
+    assert.equal(v.NetworkConfiguration.AwsvpcConfiguration.AssignPublicIp, 'DISABLED');
+    assert.deepEqual(v.NetworkConfiguration.AwsvpcConfiguration.SecurityGroups, [
+      'sg-01def4e5c0fe44d4a',
+    ]);
+    assert.deepEqual(v.DeploymentConfiguration.DeploymentCircuitBreaker, {
+      Enable: true,
+      Rollback: true,
+    });
+  }));
+test('standard canonical authentication remains mandatory and background/external actions stay inert', () =>
+  render((s) => {
+    const e = Object.fromEntries(
+      s.Resources.ServeTaskF1990141.Properties.ContainerDefinitions[0].Environment.map((x: any) => [
+        x.Name,
+        x.Value,
+      ]),
+    );
+    assert.equal(e.CORE_DEPLOYMENT_PROFILE, 'standard');
+    assert.equal(e.NODE_ENV, 'production');
+    assert.equal(e.MERI_TOOLS_REQUIRE_SERVICE_SECRET, 'true');
+    assert.equal(e.PREVIEW_NATIVE_GETS_ENABLED, 'true');
+    for (const n of [
+      'MERI_TOOL_ALLOWLIST',
+      'MEMORY_GOVERNANCE_TENANTS',
+      'MERI_EXECUTION_MAX_TURNS',
+      'MERI_ROUTINE_MAX_COST_MICROUSD',
+      'RETAINED_READS_ENABLED',
+    ])
+      assert.equal(e[n], undefined);
+    for (const n of [
+      'ENGAGEMENT_CALLBACKS_ENABLED',
+      'ENGAGEMENT_RECALL_WEBHOOK_ENABLED',
+      'CLIENT_PROFILE_FILL_WORKER_ENABLED',
+      'CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED',
+      'MERI_JOB_SWEEPER_ENABLED',
+      'RESEARCH_PORTFOLIO_WATCH_DELIVERY_ENABLED',
+      'NEWSLETTER_REVIEW_EMAIL_ENABLED',
+      'NEWSLETTER_INVITATION_EMAIL_ENABLED',
+    ])
+      assert.equal(e[n], 'false');
+    assert.equal(e.ENGAGEMENT_BACKGROUND_OWNER, 'disabled');
+    assert.equal(e.ENGAGEMENT_EXTERNAL_ACTIONS, 'disabled');
+  }));
+test('bounded P1 POST and unchanged P2 GET/HEAD fit ALB and leave Strategy P3 alone', () =>
+  render((s) => {
+    const p = s.Resources.FirstChatPostsOnly.Properties,
+      r = s.Resources.FirstChatMembershipPostOnly.Properties;
+    assert.equal(p.Priority, 1);
+    assert.equal(r.Priority, 2);
+    assert.deepEqual(p.Conditions, [
+      { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+      {
+        Field: 'path-pattern',
+        PathPatternConfig: { RegexValues: [...FIRST_CHAT_CORE_POST_PATHS] },
+      },
+      { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['POST'] } },
+    ]);
+    assert.equal(FIRST_CHAT_CORE_POST_PATHS.length + 2, 4);
+    assert.ok(FIRST_CHAT_CORE_POST_PATHS.every((p) => p.length <= 128));
+    assert.deepEqual(r.Conditions, [
+      { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+      { Field: 'path-pattern', PathPatternConfig: { Values: ['/api/*'] } },
+      { Field: 'http-request-method', HttpRequestMethodConfig: { Values: ['GET', 'HEAD'] } },
+    ]);
+  }));
+test('independent priority7 host guard, export and retained log survive rollback', () =>
+  render((s, g) => {
+    const r = g.Resources.RejectOtherPreviewHostTraffic;
+    assert.equal(r.Properties.Priority, 7);
+    assert.deepEqual(r.Properties.Conditions, [
+      { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+    ]);
+    assert.equal(r.Properties.Actions[0].FixedResponseConfig.StatusCode, '404');
+    assert.equal(r.DeletionPolicy, 'Retain');
+    assert.equal(r.UpdateReplacePolicy, 'Retain');
+    assert.equal(g.Outputs.PreviewHostGuardRuleArn.Export.Name, FIRST_CHAT_CORE_GUARD_RULE_EXPORT);
+    assert.deepEqual(s.Outputs.RequiredPreviewHostGuardRuleArn.Value, {
+      'Fn::ImportValue': FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
+    });
+    assert.equal(s.Resources.ServeLogBCB89CA4.DeletionPolicy, 'Retain');
+  }));

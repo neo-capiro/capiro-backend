@@ -1,0 +1,257 @@
+{
+  "observedAt": "2026-10-24",
+  "note": "Read-only listener fixture. Logical labels only; actual shared targets and conditions preserved. No deployment authorization.",
+  "rules": [
+    {
+      "id": "core-post",
+      "priority": 1,
+      "conditions": {
+        "pathRegexes": [
+          "^/api/clio/(application-authority/(identity|context|membership|current)|conversations/bootstrap)$"
+        ],
+        "hosts": ["first-chat-preview.app-dev.capiro.ai"],
+        "methods": ["POST"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-CoreT-NHA4DBPHLZ2E/11512f9487ee2f54"
+      }
+    },
+    {
+      "id": "core-membership",
+      "priority": 2,
+      "conditions": {
+        "hosts": ["first-chat-preview.app-dev.capiro.ai"],
+        "methods": ["GET", "HEAD"],
+        "paths": ["/api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-CoreT-NHA4DBPHLZ2E/11512f9487ee2f54"
+      }
+    },
+    {
+      "id": "preview-strategy",
+      "priority": 3,
+      "conditions": {
+        "hosts": ["first-chat-preview.app-dev.capiro.ai"],
+        "methods": ["GET", "HEAD"],
+        "paths": ["/strategy-api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-preview-api-strategy/9b9f2b7f3a7557a3"
+      }
+    },
+    {
+      "id": "rule-4",
+      "priority": 4,
+      "conditions": {
+        "hosts": ["meri-preview.capiro.ai"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/meri-preview-control-8080/03297203fa59801c"
+      }
+    },
+    {
+      "id": "preview-workspace",
+      "priority": 5,
+      "conditions": {
+        "methods": ["GET", "HEAD"],
+        "paths": ["/workspace-api/*"],
+        "hosts": ["first-chat-preview.app-dev.capiro.ai"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-preview-workspace/22b9cc808113f82c"
+      }
+    },
+    {
+      "id": "preview-intel",
+      "priority": 6,
+      "conditions": {
+        "methods": ["GET", "HEAD"],
+        "paths": ["/intel-api/*"],
+        "hosts": ["first-chat-preview.app-dev.capiro.ai"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-preview-intel-api/c8702677c0884b1c"
+      }
+    },
+    {
+      "id": "core-guard",
+      "priority": 7,
+      "conditions": {
+        "hosts": ["first-chat-preview.app-dev.capiro.ai"]
+      },
+      "action": {
+        "type": "fixed-response",
+        "statusCode": 404,
+        "contentType": "application/json",
+        "body": "{\"error\":\"PREVIEW_ROUTE_NOT_FOUND\"}"
+      }
+    },
+    {
+      "id": "rule-9",
+      "priority": 9,
+      "conditions": {
+        "hosts": ["app.capiro.ai"],
+        "paths": [
+          "/api/engagement/integrations/microsoft/callback",
+          "/api/engagement/integrations/microsoft/notifications",
+          "/api/engagement/integrations/google/callback"
+        ]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9"
+      }
+    },
+    {
+      "id": "rule-10",
+      "priority": 10,
+      "conditions": {
+        "headers": {
+          "X-Capiro-Engagement-Preview": ["v3"]
+        },
+        "paths": ["/api/engagement/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9"
+      }
+    },
+    {
+      "id": "rule-11",
+      "priority": 11,
+      "conditions": {
+        "paths": ["/webhooks/recall", "/webhooks/recall/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-engagement-api/b0bee92b37eb6ad9"
+      }
+    },
+    {
+      "id": "rule-12",
+      "priority": 12,
+      "conditions": {
+        "hosts": ["onboarding.capiro.ai"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-onboardapi-albtg/23e641b281a28f2e"
+      }
+    },
+    {
+      "id": "rule-13",
+      "priority": 13,
+      "conditions": {
+        "paths": ["/onboard-api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-onboardapi-albtg/23e641b281a28f2e"
+      }
+    },
+    {
+      "id": "rule-14",
+      "priority": 14,
+      "conditions": {
+        "paths": ["/api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62"
+      }
+    },
+    {
+      "id": "rule-15",
+      "priority": 15,
+      "conditions": {
+        "paths": ["/strategy-api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-strategy-tg/201cbb6a7e39491c"
+      }
+    },
+    {
+      "id": "rule-16",
+      "priority": 16,
+      "conditions": {
+        "paths": ["/workspace-api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-workspace-tg/078f0cc5251ef03c"
+      }
+    },
+    {
+      "id": "rule-17",
+      "priority": 17,
+      "conditions": {
+        "paths": ["/meri-api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-meriv2-orch-tg/9c49e0a42493ce64"
+      }
+    },
+    {
+      "id": "rule-18",
+      "priority": 18,
+      "conditions": {
+        "paths": ["/intel-api/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-dev-intelapi-albtg/5dff8081c597be23"
+      }
+    },
+    {
+      "id": "rule-19",
+      "priority": 19,
+      "conditions": {
+        "paths": ["/webhooks/*"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62"
+      }
+    },
+    {
+      "id": "rule-20",
+      "priority": 20,
+      "conditions": {
+        "hosts": ["capiro.ai", "www.capiro.ai"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-marketing-tg/389a4a891d9f97ea"
+      }
+    },
+    {
+      "id": "rule-50",
+      "priority": 50,
+      "conditions": {
+        "hosts": ["os.capiro.ai"]
+      },
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-WebVN-NF4THUBAPLB6/1d31ba8b99313644"
+      }
+    },
+    {
+      "id": "rule-default",
+      "priority": "default",
+      "conditions": {},
+      "action": {
+        "type": "forward",
+        "target": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-web-tg/387a5af982c1707e"
+      }
+    }
+  ]
+}
