@@ -1506,6 +1506,7 @@ export class EngagementService {
     if (endsAt < startsAt) throw new BadRequestException('endsAt must be after startsAt');
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      ctx = await currentMeetingActor(tx, ctx);
       const attendeeEmails = (input.attendees ?? [])
         .map((attendee) => attendee.email)
         .filter((email): email is string => Boolean(email));
@@ -1523,6 +1524,7 @@ export class EngagementService {
             attendeeEmails: [...attendeeEmails, input.organizerEmail ?? ''],
           });
 
+      await assertMeetingClient(tx, ctx, autoAssociation.clientId);
       const contactsByEmail = await this.upsertAttendeeContacts(
         tx,
         ctx.tenantId,
