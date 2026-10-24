@@ -77,6 +77,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
     RetrievalV2Service,
   ],
   exports: [
+    InstitutionalKnowledgeRetrievalAdapter,
     SemanticDataCatalogService,
     RetrievalPlannerV2Service,
     ExactLexicalRetrievalService,

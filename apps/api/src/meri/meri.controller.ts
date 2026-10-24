@@ -56,6 +56,7 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriService } from './meri.service.js';
 import type { MeriRuntimeService } from './meri-runtime.contract.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { AutomaticClientContextService } from './automatic-client-context.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MERI_JOB_KINDS, type MeriJobKind } from './meri-job.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
@@ -366,7 +367,17 @@ export class MeriController {
     @Optional() private readonly executionReceiver?: MeriExecutionReceiverService,
     @Optional() private readonly readDelegationPrisma?: PrismaService,
     @Optional() private readonly memoryCandidateOwner?: GovernedMemoryCandidateService,
+    @Optional() private readonly automaticClientContext?: AutomaticClientContextService,
   ) {}
+
+  @Post('client-context/automatic')
+  @HttpCode(200)
+  @UseGuards(ToolServiceSecretGuard)
+  automaticContext(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    if (!hasVerifiedToolServiceIdentity(req)) throw new ForbiddenException('Internal service required');
+    if (!this.automaticClientContext) throw new ServiceUnavailableException('Automatic client context unavailable');
+    return withMeriToolRequestControl(req, () => this.automaticClientContext!.read(ctx, body));
+  }
 
   @Get('status')
   status(@CurrentTenant() ctx: TenantContext) {
