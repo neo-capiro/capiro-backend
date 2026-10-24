@@ -32,6 +32,14 @@ import { installDirectoryNotes, directoryNoteCases } from './directory-notes.pg-
 let h: Awaited<ReturnType<typeof admissionsFixture>>;
 beforeAll(async () => {
   h = await admissionsFixture();
+  // The current membership owner filters Prisma's TenantStatus enum. The old
+  // minimal admission fixture used text, which cannot satisfy its typed cast.
+  await h.sql(`
+    CREATE TYPE tenant_status AS ENUM ('active','suspended','pending');
+    ALTER TABLE tenants ALTER COLUMN status DROP DEFAULT;
+    ALTER TABLE tenants ALTER COLUMN status TYPE tenant_status USING status::tenant_status;
+    ALTER TABLE tenants ALTER COLUMN status SET DEFAULT 'active';
+  `);
   await installDirectoryNotes(h);
 });
 beforeEach(async () => {
@@ -107,10 +115,11 @@ it('serializes restore against create; duplicate restoration consumes once; arch
   expect(results.filter((r) => r.value)).toHaveLength(1);
   expect(results.filter((r) => r.error?.status === 402)).toHaveLength(1);
   await h.reset();
-  await Promise.all([
+  const restores = await Promise.allSettled([
     h.clients.update(ctx, archivedClient, { status: 'active' }),
     h.clients.update(ctx, archivedClient, { status: 'active' }),
   ]);
+  expect(restores.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled']);
   expect(await active()).toBe(2);
   await h.clients.archive(ctx, archivedClient);
   await h.clients.create(ctx, { name: 'Synthetic replacement' });
@@ -174,10 +183,12 @@ it('rolls back actual mapping and conversion-audit failures without consuming ca
   ).toBe(0);
 });
 it('commits one exact existing-client receipt with activity and audit, replays without another effect', async () => {
-  const [first, replay] = await Promise.all([
-    h.prospects.convertCommand(ctx, prospect, receiptCommand()),
-    h.prospects.convertCommand(ctx, prospect, receiptCommand()),
+  const results = await Promise.all([
+    settled(h.prospects.convertCommand(ctx, prospect, receiptCommand())),
+    settled(h.prospects.convertCommand(ctx, prospect, receiptCommand())),
   ]);
+  expect(results.map((result) => result.error)).toEqual([undefined, undefined]);
+  const [first, replay] = results.map((result) => result.value!);
   expect(replay).toEqual(first);
   expect(await h.prospects.conversionReceipt(ctx, prospect, receiptCommand().requestId)).toEqual(
     first,
@@ -246,10 +257,12 @@ it('holds a current client wall through conversion and rolls back receipt insert
 
 it('creates one new client under concurrent command replay and recovers its exact original receipt', async () => {
   const command = newClientCommand();
-  const [first, replay] = await Promise.all([
-    h.prospects.convertCommand(ctx, prospect, command),
-    h.prospects.convertCommand(ctx, prospect, command),
+  const results = await Promise.all([
+    settled(h.prospects.convertCommand(ctx, prospect, command)),
+    settled(h.prospects.convertCommand(ctx, prospect, command)),
   ]);
+  expect(results.map((result) => result.error)).toEqual([undefined, undefined]);
+  const [first, replay] = results.map((result) => result.value!);
   expect(first.outcome).toBe('created');
   expect(replay).toEqual(first);
   expect(await h.prospects.conversionReceipt(ctx, prospect, command.requestId)).toEqual(first);

@@ -25,7 +25,9 @@ const command = (request = 140) =>
  * Its historical UUID/updated-at functions are supplied within that fixture schema. */
 export async function installDirectoryNotes(h: Fixture) {
   await h.sql(`
-    ALTER TABLE users ADD email text, ADD first_name text, ADD last_name text;
+    ALTER TABLE users
+      ADD email text NOT NULL UNIQUE DEFAULT (gen_random_uuid()::text || '@example.test'),
+      ADD first_name text, ADD last_name text;
     CREATE FUNCTION uuid_generate_v4() RETURNS uuid LANGUAGE sql AS $$ SELECT gen_random_uuid() $$;
     CREATE FUNCTION set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN NEW.updated_at=now(); RETURN NEW; END $$;
