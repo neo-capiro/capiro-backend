@@ -263,7 +263,8 @@ it('creates one new client under concurrent command replay and recovers its exac
     settled(h.prospects.convertCommand(ctx, prospect, command)),
   ]);
   expect(results.map((result) => result.error)).toEqual([undefined, undefined]);
-  const [first, replay] = results.map((result) => result.value!);
+  const first = results[0]!.value!;
+  const replay = results[1]!.value!;
   expect(first.outcome).toBe('created');
   expect(replay).toEqual(first);
   expect(await h.prospects.conversionReceipt(ctx, prospect, command.requestId)).toEqual(first);
