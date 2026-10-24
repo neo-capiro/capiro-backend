@@ -20,6 +20,8 @@ import { ProgramElementModule } from '../program-element/program-element.module.
 import { AcquisitionPersonnelModule } from '../acquisition-personnel/acquisition-personnel.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { ClientsModule } from '../clients/clients.module.js';
+import { ClientObjectivesModule } from '../clients/objectives/objectives.module.js';
+import { AutomaticClientContextService } from './automatic-client-context.service.js';
 import { RepresentationModule } from '../clients/representation.module.js';
 import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
@@ -112,6 +114,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     AcquisitionPersonnelModule,
     IntelligenceModule,
     ClientsModule,
+    ClientObjectivesModule,
     RepresentationModule,
     RegulatoryDocketModule,
     EmbeddingsModule,
@@ -147,6 +150,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     MeriJobDeliverablesController,
   ],
   providers: [
+    AutomaticClientContextService,
     InternalServiceGuard,
     { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
       portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,
