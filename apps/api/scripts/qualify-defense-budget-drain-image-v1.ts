@@ -729,7 +729,7 @@ async function waitForHttpHealth(url: string, attempts: number, delayMs: number)
  */
 async function runPrismaMigrateDeploy(cwd: string, attempts = 3, delayMs = 3000): Promise<void> {
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const result = spawnSync('npx', ['--no-install', 'prisma', 'migrate', 'deploy'], {
+    const result = spawnSync(process.execPath, [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'], {
       cwd,
       stdio: 'inherit',
       env: process.env,
