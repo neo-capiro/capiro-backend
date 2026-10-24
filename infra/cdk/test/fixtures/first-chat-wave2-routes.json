@@ -760,5 +760,23 @@
     "method": "POST",
     "path": "/api/internal/routines/reads",
     "owner": "createRoutineReadSource -> MeriRoutineReadController + InternalServiceGuard with saved consent, native execution and current Core source authorization"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/engagement/meeting-commands",
+    "owner": "Portfolio exact meeting command -> EngagementController.meetingCommand -> transactional executeMeetingCommand under current tenant authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/execute",
+    "owner": "Meri createCoreApprovalForwarder.executeTask -> Core native approval task receiver with original proposal custody and current attended authority"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/clio/approvals/native/execution/read",
+    "owner": "Meri createCoreApprovalForwarder.readTaskExecution -> Core native approval outcome reader with original proposal custody and current attended authority"
   }
 ]

@@ -390,9 +390,15 @@
     {
       "service": "core",
       "method": "POST",
+      "pathRegexes": ["^/api/internal/routines/current$", "^/api/internal/routines/reads$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
       "pathRegexes": [
-        "^/api/internal/routines/current$",
-        "^/api/internal/routines/reads$"
+        "^/api/engagement/meeting-commands$",
+        "^/api/clio/approvals/native/execute$",
+        "^/api/clio/approvals/native/execution/read$"
       ]
     }
   ]
