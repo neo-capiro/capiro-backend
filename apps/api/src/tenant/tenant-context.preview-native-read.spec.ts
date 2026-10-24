@@ -261,4 +261,42 @@ describe('TenantContextMiddleware preview native GET context', () => {
       where: { id: user.id }, data: { lastSeenAt: expect.any(Date) },
     });
   });
+
+  it.each([
+    ['POST', '/api/clients/11111111-1111-4111-8111-111111111111/people'],
+    ['GET', '/api/clients/11111111-1111-4111-8111-111111111111/people/requests/22222222-2222-4222-8222-222222222222'],
+    ['POST', '/api/clients/11111111-1111-4111-8111-111111111111/activity-commands/22222222-2222-4222-8222-222222222222/undo'],
+    ['PATCH', '/api/clients/11111111-1111-4111-8111-111111111111/files/22222222-2222-4222-8222-222222222222/folder'],
+  ])('authenticates canonical nested route through the ordinary resolver: %s %s', async (method, path) => {
+    const h = fixture(path, previewHost, method);
+    await h.middleware.use(h.request, h.response, h.next);
+    expect(h.verify).toHaveBeenCalledWith('native-session');
+    expect(h.request.tenantContext).toEqual({
+      tenantId: membership.tenantId, tenantSlug: membership.tenant.slug,
+      userId: user.id, clerkUserId: user.clerkUserId, role: membership.role,
+    });
+    expect(h.next).toHaveBeenCalledTimes(1);
+    expect(h.active).not.toHaveBeenCalled();
+    expect(h.tx.user.update).toHaveBeenCalledWith({
+      where: { id: user.id }, data: { lastSeenAt: expect.any(Date) },
+    });
+  });
+
+  it('still rejects a missing bearer on an ordinary nested route before DB', async () => {
+    const h = fixture('/api/clients/11111111-1111-4111-8111-111111111111/people', previewHost, 'POST');
+    delete h.request.headers.authorization;
+    await expect(h.middleware.use(h.request, h.response, h.next)).rejects.toMatchObject({ status: 401 });
+    expect(h.verify).not.toHaveBeenCalled();
+    expect(h.system).not.toHaveBeenCalled();
+    expect(h.next).not.toHaveBeenCalled();
+  });
+
+  it('retains ordinary tenant-claim isolation on a nested route', async () => {
+    const h = fixture('/api/clients/11111111-1111-4111-8111-111111111111/people', previewHost, 'POST',
+      '/api/clients/11111111-1111-4111-8111-111111111111/people', { ...claims, capiro_tenant_id: 'other_tenant' });
+    await expect(h.middleware.use(h.request, h.response, h.next)).rejects.toMatchObject({ status: 403 });
+    expect(h.verify).toHaveBeenCalledTimes(1);
+    expect(h.next).not.toHaveBeenCalled();
+    expect(h.tx.user.update).not.toHaveBeenCalled();
+  });
 });
