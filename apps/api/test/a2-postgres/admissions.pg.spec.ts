@@ -1,4 +1,9 @@
 import { beforeAll, afterAll, beforeEach, it, expect, jest } from '@jest/globals';
+import { HttpException } from '@nestjs/common';
+import {
+  prospectConversionDigest,
+  parseProspectConversion,
+} from '../../src/business-development/prospect-conversion.types.js';
 // Only unused import-time collaborators and provider/indexing ports are replaced.
 // Actual Prisma, client capacity, all admission services and conversion owners run.
 jest.mock('sanitize-html', () => () => {
@@ -75,6 +80,54 @@ const newClientCommand = (request = 105) => ({
 });
 
 directoryNoteCases(() => h);
+
+it('binds a no-write refusal to the original new-client request only after the actual transaction rolls back', async () => {
+  const command = newClientCommand();
+  await h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
+  const result = await settled(h.prospects.convertCommand(ctx, prospect, command));
+  expect(result.error).toBeInstanceOf(HttpException);
+  expect((result.error as HttpException).getResponse()).toMatchObject({
+    schemaVersion: 1,
+    code: 'PROSPECT_NEW_CLIENT_REFUSED',
+    status: 402,
+    requestId: command.requestId,
+    prospectId: prospect,
+    payloadDigest: prospectConversionDigest(parseProspectConversion(prospect, command)),
+  });
+  expect(await active()).toBe(1);
+  expect(
+    (
+      await h.sql('SELECT linked_client_id FROM business_development_prospects WHERE id=$1', [
+        prospect,
+      ])
+    ).rows[0].linked_client_id,
+  ).toBeNull();
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(0);
+  expect((await h.sql('SELECT count(*)::int AS count FROM audit_logs')).rows[0].count).toBe(0);
+});
+
+it('a committed original conversion never becomes a no-write refusal on conflicting replay', async () => {
+  const command = newClientCommand();
+  const original = await h.prospects.convertCommand(ctx, prospect, command);
+  const conflict = await settled(
+    h.prospects.convertCommand(ctx, prospect, {
+      ...command,
+      expectedUpdatedAt: '2026-10-24T13:00:00.000Z',
+    }),
+  );
+  expect(conflict.error).toMatchObject({ status: 409 });
+  expect((conflict.error as HttpException).getResponse()).not.toHaveProperty(
+    'code',
+    'PROSPECT_NEW_CLIENT_REFUSED',
+  );
+  expect(await h.prospects.conversionReceipt(ctx, prospect, command.requestId)).toEqual(original);
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+});
 
 it('serializes ordinary create versus conversion and two different-prospect conversions at the last slot', async () => {
   for (const mode of ['create-convert', 'two-conversions']) {

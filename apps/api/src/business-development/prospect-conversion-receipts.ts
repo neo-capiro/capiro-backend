@@ -1,4 +1,9 @@
-import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { prospectResourceScope, type TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
@@ -19,6 +24,40 @@ type Prospect = {
   displayName: string;
 };
 const unavailable = () => new NotFoundException('Prospect conversion is unavailable');
+
+/** The callback resolves/rejects only after the caller's transaction completes.
+ * An existing original receipt, unknown lookup or failed rollback never proves no write. */
+export async function withNewClientRefusal<T>(
+  command: ProspectConversionCommand,
+  transaction: (confirmNoReceipt: () => void) => Promise<T>,
+): Promise<T> {
+  let originalAbsent = false;
+  try {
+    return await transaction(() => {
+      originalAbsent = true;
+    });
+  } catch (error) {
+    if (
+      command.mode === 'new_client' &&
+      originalAbsent &&
+      error instanceof HttpException &&
+      [400, 402, 404, 409].includes(error.getStatus())
+    )
+      throw new HttpException(
+        {
+          schemaVersion: 1,
+          code: 'PROSPECT_NEW_CLIENT_REFUSED',
+          requestId: command.requestId,
+          prospectId: command.prospectId,
+          payloadDigest: prospectConversionDigest(command),
+          status: error.getStatus(),
+          message: error.message,
+        },
+        error.getStatus(),
+      );
+    throw error;
+  }
+}
 
 async function lockProspect(tx: Tx, ctx: TenantContext, prospectId: string): Promise<Prospect> {
   const rows = await tx.$queryRaw<
@@ -78,8 +117,13 @@ export async function commitProspectConversion(
   ctx: TenantContext,
   command: ProspectConversionCommand,
   convert: () => Promise<{ clientId: string; created: boolean }>,
+  confirmNoReceipt?: () => void,
 ): Promise<ProspectConversionReceipt> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`prospect-conversion:${ctx.tenantId}:${ctx.userId}:${command.requestId}`},0))`;
+  // Check before any policy/target failure, while holding the exact command lock.
+  // A replay's failed authorization or corrupt receipt must never release recovery.
+  const existing = await storedReceipt(tx, ctx, command.requestId);
+  if (!existing) confirmNoReceipt?.();
   const current = await lockProspect(tx, ctx, command.prospectId);
   // Keep legacy conversion's prospect -> capacity -> tenant/member order.
   // Otherwise a queued billing UPDATE can form a cycle with ordinary create:
@@ -101,7 +145,6 @@ export async function commitProspectConversion(
     command,
     current.linkedClientId ?? (command.mode === 'existing_client' ? command.clientId : undefined),
   );
-  const existing = await storedReceipt(tx, ctx, command.requestId);
   if (existing) {
     if (existing.payloadDigest !== prospectConversionDigest(command))
       throw new ConflictException('This request ID belongs to another conversion');

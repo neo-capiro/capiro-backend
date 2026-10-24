@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, jest } from '@jest/globals';
+import { HttpException } from '@nestjs/common';
 jest.mock('@capiro/shared', () => ({ prospectResourceScope: jest.fn() }));
 jest.mock('../clients/client-ordered-owner.access.js', () => ({ requireOwnerClient: jest.fn() }));
 import { prospectResourceScope } from '@capiro/shared';
@@ -6,6 +7,7 @@ import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 import {
   commitProspectConversion,
   readProspectConversion,
+  withNewClientRefusal,
 } from './prospect-conversion-receipts.js';
 import { parseProspectConversion, prospectConversionDigest } from './prospect-conversion.types.js';
 
@@ -320,4 +322,99 @@ it('new-client intake rejects transfer payloads, unsafe websites and unreviewed 
     { clientId },
   ])
     expect(() => parseProspectConversion(prospectId, { ...c, ...change })).toThrow();
+});
+
+it('emits the exact refusal only after the transaction boundary confirms rollback', async () => {
+  const c = newCommand();
+  let rejectTransaction!: (error: unknown) => void;
+  let settled = false;
+  const outcome = withNewClientRefusal(c, async (absent) => {
+    absent();
+    return new Promise<never>((_, reject) => {
+      rejectTransaction = reject;
+    });
+  }).catch((error: unknown) => {
+    settled = true;
+    return error;
+  });
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  rejectTransaction(new HttpException('Review capacity', 402));
+  const failure = (await outcome) as HttpException;
+  expect(failure.getStatus()).toBe(402);
+  expect(failure.getResponse()).toEqual({
+    schemaVersion: 1,
+    code: 'PROSPECT_NEW_CLIENT_REFUSED',
+    requestId,
+    prospectId,
+    payloadDigest: prospectConversionDigest(c),
+    status: 402,
+    message: 'Review capacity',
+  });
+});
+it.each([400, 404, 409])('binds a proven fresh-command rollback status%s', async (status) => {
+  const h = fixture();
+  h.convert.mockRejectedValueOnce(new HttpException('Synthetic owner refusal', status));
+  const failure = (await withNewClientRefusal(newCommand(), (absent) =>
+    commitProspectConversion(h.tx, ctx, newCommand(), h.convert, absent),
+  ).catch((error: unknown) => error)) as HttpException;
+  expect(failure.getResponse()).toMatchObject({ code: 'PROSPECT_NEW_CLIENT_REFUSED', status });
+  expect(h.statements[0]?.sql).toContain('pg_advisory');
+  expect(h.statements[1]?.sql).toContain('FROM prospect_conversion_receipts');
+});
+it.each([401, 403, 500, 503])(
+  'never upgrades status%s or an unknown error into a no-write proof',
+  async (status) => {
+    const error = new HttpException('Uncertain', status);
+    await expect(
+      withNewClientRefusal(newCommand(), async (absent) => {
+        absent();
+        throw error;
+      }),
+    ).rejects.toBe(error);
+  },
+);
+it('does not release on an unknown transaction error, unobserved receipt lookup, or existing-client failure', async () => {
+  const unknown = new Error('Commit/rollback unknown');
+  await expect(
+    withNewClientRefusal(newCommand(), async (absent) => {
+      absent();
+      throw unknown;
+    }),
+  ).rejects.toBe(unknown);
+  const refusal = new HttpException('Not available', 404);
+  await expect(
+    withNewClientRefusal(newCommand(), async () => {
+      throw refusal;
+    }),
+  ).rejects.toBe(refusal);
+  await expect(
+    withNewClientRefusal(command(), async (absent) => {
+      absent();
+      throw refusal;
+    }),
+  ).rejects.toBe(refusal);
+});
+it('a saved original receipt prevents no-write proof when replay authority fails or the request conflicts', async () => {
+  const h = fixture();
+  h.convert.mockImplementation(async () => {
+    h.current.linkedClientId = clientId;
+    h.current.convertedAt = new Date(at);
+    return { clientId, created: true };
+  });
+  await commitProspectConversion(h.tx, ctx, newCommand(), h.convert);
+  const revoked = new HttpException('Current target revoked', 404);
+  jest.mocked(requireOwnerClient).mockRejectedValueOnce(revoked);
+  await expect(
+    withNewClientRefusal(newCommand(), (absent) =>
+      commitProspectConversion(h.tx, ctx, newCommand(), h.convert, absent),
+    ),
+  ).rejects.toBe(revoked);
+  const changed = { ...newCommand(), expectedUpdatedAt: '2026-10-24T00:00:00.000Z' };
+  const failure = (await withNewClientRefusal(changed, (absent) =>
+    commitProspectConversion(h.tx, ctx, changed, h.convert, absent),
+  ).catch((error: unknown) => error)) as HttpException;
+  expect(failure.getStatus()).toBe(409);
+  expect(failure.getResponse()).not.toHaveProperty('code', 'PROSPECT_NEW_CLIENT_REFUSED');
+  expect(h.convert).toHaveBeenCalledTimes(1);
 });

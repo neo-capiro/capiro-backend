@@ -19,6 +19,7 @@ import type { BizDevStage } from './business-development.dto.js';
 import {
   commitProspectConversion,
   readProspectConversion,
+  withNewClientRefusal,
 } from './prospect-conversion-receipts.js';
 import { parseProspectConversion } from './prospect-conversion.types.js';
 import { isPortfolioProspectStage, LEGACY_PROSPECT_STAGES } from './prospect-stages.js';
@@ -1000,14 +1001,30 @@ export class BusinessDevelopmentService {
   async convertCommand(ctx: TenantContext, prospectId: string, input: unknown) {
     const command = parseProspectConversion(prospectId, input);
     let created: { created: boolean; clientId: string; clientName: string; ldaRegistrantId: number | null } | undefined;
-    const receipt = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      commitProspectConversion(tx, ctx, command, async () => {
-        const outcome = await this.convertInTransaction(ctx, tx, prospectId, command.mode === 'existing_client'
-          ? { existingClientId: command.clientId }
-          : { clientWebsite: command.clientWebsite, clientDescription: command.clientDescription });
-        created = outcome;
-        return outcome;
-      }),
+    const receipt = await withNewClientRefusal(command, (confirmNoReceipt) =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        commitProspectConversion(
+          tx,
+          ctx,
+          command,
+          async () => {
+            const outcome = await this.convertInTransaction(
+              ctx,
+              tx,
+              prospectId,
+              command.mode === 'existing_client'
+                ? { existingClientId: command.clientId }
+                : {
+                    clientWebsite: command.clientWebsite,
+                    clientDescription: command.clientDescription,
+                  },
+            );
+            created = outcome;
+            return outcome;
+          },
+          confirmNoReceipt,
+        ),
+      ),
     );
     // A replay never calls the conversion owner and never schedules enrichment twice.
     if (created) this.scheduleConversionEnrichment(ctx, created);
