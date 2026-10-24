@@ -267,7 +267,9 @@ export class ActivityCommandService {
   }
   private async lock(tx: CommandTx, ctx: TenantContext, clientId: string, requestId: string) {
     const key = `activity-command:${ctx.tenantId}:${ctx.userId}:${clientId}:${requestId}`;
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+    // Prisma cannot deserialize PostgreSQL void. Acquire the same transaction
+    // lock while projecting a supported scalar instead of the function result.
+    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
   }
   private receipt({ row, issue }: Snapshot, remote?: PlannerResult) {
     const taskAvailable = !issue && remote?.kind === 'found' && remote.taskId === row.taskId;
