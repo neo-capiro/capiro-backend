@@ -45,6 +45,8 @@ import { ObjectiveJobController } from './objective-job.controller.js';
 import { ConversationManagementController } from './conversation-management/controller.js';
 import { ConversationRetentionController } from './conversation-management/retention.controller.js';
 import { ObjectiveJobService } from './objective-job.service.js';
+import { RetainedReadDispatcher } from './retained-read-dispatch.js';
+import { MeriRoutineReadController, MeriRoutinesModule } from './routines/meri-routines.controller.js';
 import { ObjectiveJobReadSources } from './objective-job-read-sources.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { ResearchPortfoliosService } from '../research-portfolios/research-portfolios.service.js';
@@ -103,6 +105,7 @@ import { meriExecutionKeyConfigProvider } from './execution-capability/meri-exec
 import { MeriExecutionReceiverService } from './execution-capability/meri-execution-receiver.service.js';
 @Module({
   imports: [
+    MeriRoutinesModule,
     MeriFeatureFlagsModule,
     ManagedMcpModule,
     EngagementModule,
@@ -134,6 +137,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     DistrictNexusModule,
   ],
   controllers: [
+    MeriRoutineReadController,
     ConversationManagementController,
     ConversationRetentionController,
     ObjectiveJobController,
@@ -162,6 +166,9 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
         ResearchPortfolioReviewService, ResearchPortfolioAnalyticsService] },
     { provide: ObjectiveJobService, useFactory: (prisma: PrismaService, tools: MeriToolsService,
       memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new ObjectiveJobService(prisma, tools, memory, sources),
+      inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
+    { provide: RetainedReadDispatcher, useFactory: (prisma: PrismaService, tools: MeriToolsService,
+      memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new RetainedReadDispatcher(prisma, tools, memory, sources),
       inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
     // D016 #9: Meri approved-execution receiver on create_task (503 until the
     // MERI_EXECUTION_SIGNER_* key configuration is present).

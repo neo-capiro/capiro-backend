@@ -29,7 +29,7 @@ export class ObjectiveJobReadSources {
       'get_research_portfolio', 'get_research_portfolio_changes', 'job.readResearchEvidenceSource'].includes(operation);
   }
 
-  async read(ctx: TenantContext, clientId: string, operation: string, input: unknown): Promise<unknown> {
+  async read(ctx: TenantContext, clientId: string | null, operation: string, input: unknown): Promise<unknown> {
     // Preserve the minimum role on the existing integration/RP controllers.
     if (!Number.isFinite(ROLE_RANK[ctx.role]) || ROLE_RANK[ctx.role] < ROLE_RANK.standard_user) throw refused();
     if (operation === 'job.readMailboxes') {

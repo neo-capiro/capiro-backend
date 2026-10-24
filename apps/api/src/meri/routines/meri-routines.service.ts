@@ -7,11 +7,17 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import type { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { hasVerifiedToolServiceIdentity } from '../../auth/tool-service-secret.guard.js';
+import { hasInternalServiceIdentity } from '../../auth/internal-service.guard.js';
+import type { RetainedReadDispatcher } from '../retained-read-dispatch.js';
+import { parseRetainedReadContext, assertRetainedReadSelectors, readRetainedReadDeadline } from '../retained-read-context.js';
+import { withMeriToolRequestControl, withMeriToolExecutionControl, meriToolRequestControl, assertMeriToolRequestActive } from '../meri-tool-request-control.js';
+import { readRoutineSubject, routineReadRequest, type RoutineReadSelection } from './meri-routine-read-authority.js';
 import { ApplicationMembershipService } from '../../auth/application-membership.service.js';
 import type { CoreEd25519Signer } from '../../auth/core-ed25519-signer.js';
 import { nativeCanonicalSha256, type NativeScope } from '../native-approvals/native-approval.contract.js';
@@ -58,6 +64,38 @@ export class MeriRoutinesService {
     @Inject(MERI_ROUTINE_CANCEL_SIGNER) private readonly signer: CoreEd25519Signer | null,
     @Optional() @Inject(MERI_ROUTINE_FIRE_SIGNER) private readonly fireSigner: CoreEd25519Signer | null = null,
   ) {}
+
+  /** Native routines use the existing saved consent, never a delegated bearer. */
+  async current(raw: unknown, req: Request) {
+    if (!hasInternalServiceIdentity(req)) throw forbidden();
+    return this.readSubject(routineReadRequest(raw, false));
+  }
+
+  private readSubject(selection: RoutineReadSelection) {
+    return this.prisma.withTenant(selection.tenantId, tx => readRoutineSubject(tx, selection));
+  }
+
+  async read(raw: unknown, req: Request, reads: RetainedReadDispatcher): Promise<unknown> {
+    if (!hasInternalServiceIdentity(req)) throw forbidden();
+    const value = routineReadRequest(raw, true), subject = await this.readSubject(value);
+    const ctx: TenantContext = { tenantId: subject.tenantId, tenantSlug: subject.tenantSlug, userId: subject.actorId,
+      clerkUserId: subject.clerkUserId, role: subject.role };
+    const context = parseRetainedReadContext(ctx, value.context, true);
+    if (!isDeepStrictEqual(context.binding, subject.binding) || context.policyRevision !== subject.policyRevision ||
+        context.subject.scopes.some(scope => !subject.scopes.some(saved => isDeepStrictEqual(scope, saved)))) throw forbidden();
+    assertRetainedReadSelectors(value.input, context);
+    const deadlineMs = Math.min(readRetainedReadDeadline(req), subject.effectExpiresAtMs);
+    return withMeriToolRequestControl(req, () => withMeriToolExecutionControl(
+      { signal: meriToolRequestControl()?.signal, deadlineAt: deadlineMs }, async () => {
+        const result = await reads.execute(ctx, value.operation as string, value.input, context, deadlineMs, req);
+        const fresh = await this.readSubject(value);
+        // Mutable run progress is checked by the authority reader, while the
+        // consent, identity, scopes and original deadline must remain stable.
+        if (!isDeepStrictEqual({ ...fresh, checkedAtMs: 0 }, { ...subject, checkedAtMs: 0 })) throw forbidden();
+        assertMeriToolRequestActive();
+        return result;
+      }));
+  }
 
   /** Wire A: answers Meri `runtime-context.mjs` policy() exactly; records consent at an approved Execute's `before_claim`. */
   async policyCheck(req: Request, ctx: TenantContext, raw: unknown) {

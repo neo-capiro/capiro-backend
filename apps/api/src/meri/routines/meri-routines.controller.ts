@@ -5,6 +5,8 @@ import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { Roles } from '../../auth/roles.decorator.js';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
+import { InternalServiceGuard } from '../../auth/internal-service.guard.js';
+import { RetainedReadDispatcher } from '../retained-read-dispatch.js';
 import { ApplicationAuthorityModule } from '../../auth/application-authority.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { MERI_ROUTINE_CANCEL_SIGNER, MERI_ROUTINE_FIRE_SIGNER, MeriRoutinesService } from './meri-routines.service.js';
@@ -57,6 +59,17 @@ export class MeriRoutineFiringController {
   }
 }
 
+/** Control-only typed reads from the saved native routine and consent. */
+@Controller('internal/routines')
+@UseGuards(InternalServiceGuard)
+export class MeriRoutineReadController {
+  constructor(private readonly routines: MeriRoutinesService, private readonly reads: RetainedReadDispatcher) {}
+  @Post('current') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  current(@Body() body: unknown, @Req() req: Request) { return this.routines.current(body, req); }
+  @Post('reads') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  read(@Body() body: unknown, @Req() req: Request) { return this.routines.read(body, req, this.reads); }
+}
+
 /** One KMS Ed25519 signer per purpose, from its `<PURPOSE>_*` configuration; null (503) when absent or invalid. */
 function routineSignerProvider(token: symbol, purpose: CoreEd25519Purpose): Provider {
   return {
@@ -82,5 +95,6 @@ function routineSignerProvider(token: symbol, purpose: CoreEd25519Purpose): Prov
     routineSignerProvider(MERI_ROUTINE_CANCEL_SIGNER, 'MERI_ROUTINE_CANCEL_SIGNER'),
     routineSignerProvider(MERI_ROUTINE_FIRE_SIGNER, 'MERI_ROUTINE_FIRE_SIGNER'),
   ],
+  exports: [MeriRoutinesService],
 })
 export class MeriRoutinesModule {}
