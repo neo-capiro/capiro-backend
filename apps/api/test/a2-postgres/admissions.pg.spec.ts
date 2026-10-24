@@ -53,6 +53,16 @@ const receiptCommand = (request = 104) => ({
   mode: 'existing_client',
   clientId: client,
 });
+const newClientCommand = (request = 105) => ({
+  schemaVersion: 1,
+  requestId: id(request),
+  prospectId: prospect,
+  expectedUpdatedAt: '2026-10-23T00:00:00.000Z',
+  mode: 'new_client',
+  clientName: 'Synthetic first',
+  clientWebsite: 'https://example.test',
+  clientDescription: null,
+});
 
 it('serializes ordinary create versus conversion and two different-prospect conversions at the last slot', async () => {
   for (const mode of ['create-convert', 'two-conversions']) {
@@ -163,8 +173,8 @@ it('rolls back actual mapping and conversion-audit failures without consuming ca
 });
 it('commits one exact existing-client receipt with activity and audit, replays without another effect', async () => {
   const [first, replay] = await Promise.all([
-    h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()),
-    h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()),
+    h.prospects.convertCommand(ctx, prospect, receiptCommand()),
+    h.prospects.convertCommand(ctx, prospect, receiptCommand()),
   ]);
   expect(replay).toEqual(first);
   expect(await h.prospects.conversionReceipt(ctx, prospect, receiptCommand().requestId)).toEqual(
@@ -178,7 +188,7 @@ it('commits one exact existing-client receipt with activity and audit, replays w
   ])
     expect((await h.sql(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count).toBe(1);
   await expect(
-    h.prospects.convertExistingCommand(ctx, prospect, {
+    h.prospects.convertCommand(ctx, prospect, {
       ...receiptCommand(),
       expectedUpdatedAt: '2026-10-23T00:00:01.000Z',
     }),
@@ -186,12 +196,12 @@ it('commits one exact existing-client receipt with activity and audit, replays w
 });
 it('refuses stale conversion, current wall loss and foreign receipt access', async () => {
   await expect(
-    h.prospects.convertExistingCommand(ctx, prospect, {
+    h.prospects.convertCommand(ctx, prospect, {
       ...receiptCommand(),
       expectedUpdatedAt: '2026-10-23T00:00:01.000Z',
     }),
   ).rejects.toMatchObject({ status: 409 });
-  await h.prospects.convertExistingCommand(ctx, prospect, receiptCommand());
+  await h.prospects.convertCommand(ctx, prospect, receiptCommand());
   await h.sql('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
   await expect(
     h.prospects.conversionReceipt(ctx, prospect, receiptCommand().requestId),
@@ -206,7 +216,7 @@ it('refuses stale conversion, current wall loss and foreign receipt access', asy
 });
 it('holds a current client wall through conversion and rolls back receipt insertion failure', async () => {
   const wall = await h.lock('UPDATE clients SET memory_wall=true WHERE id=$1', [client]);
-  const convert = settled(h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()));
+  const convert = settled(h.prospects.convertCommand(ctx, prospect, receiptCommand()));
   try {
     await h.waitForLock('FROM clients');
   } finally {
@@ -218,9 +228,7 @@ it('holds a current client wall through conversion and rolls back receipt insert
     `ALTER TABLE prospect_conversion_receipts ADD CONSTRAINT a2_receipt_failure CHECK(request_id<>'${id(104)}'::uuid)`,
   );
   try {
-    await expect(
-      h.prospects.convertExistingCommand(ctx, prospect, receiptCommand()),
-    ).rejects.toThrow();
+    await expect(h.prospects.convertCommand(ctx, prospect, receiptCommand())).rejects.toThrow();
   } finally {
     await h.sql('ALTER TABLE prospect_conversion_receipts DROP CONSTRAINT a2_receipt_failure');
   }
@@ -232,4 +240,57 @@ it('holds a current client wall through conversion and rolls back receipt insert
     ).rows[0].linked_client_id,
   ).toBeNull();
   expect((await h.sql('SELECT count(*)::int AS count FROM audit_logs')).rows[0].count).toBe(0);
+});
+
+it('creates one new client under concurrent command replay and recovers its exact original receipt', async () => {
+  const command = newClientCommand();
+  const [first, replay] = await Promise.all([
+    h.prospects.convertCommand(ctx, prospect, command),
+    h.prospects.convertCommand(ctx, prospect, command),
+  ]);
+  expect(first.outcome).toBe('created');
+  expect(replay).toEqual(first);
+  expect(await h.prospects.conversionReceipt(ctx, prospect, command.requestId)).toEqual(first);
+  expect(await active()).toBe(2);
+  expect(
+    (await h.sql('SELECT name,website,description FROM clients WHERE id=$1', [first.clientId]))
+      .rows,
+  ).toEqual([{ name: 'Synthetic first', website: 'https://example.test', description: null }]);
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(1);
+});
+it('new-client capacity and receipt-insert failures roll back the client and prospect together', async () => {
+  await h.sql('UPDATE tenants SET client_slots=1 WHERE id=$1', [tenant]);
+  await expect(h.prospects.convertCommand(ctx, prospect, newClientCommand())).rejects.toMatchObject(
+    { status: 402 },
+  );
+  expect(await active()).toBe(1);
+  expect(
+    (
+      await h.sql('SELECT linked_client_id FROM business_development_prospects WHERE id=$1', [
+        prospect,
+      ])
+    ).rows[0].linked_client_id,
+  ).toBeNull();
+  await h.sql('UPDATE tenants SET client_slots=2 WHERE id=$1', [tenant]);
+  await h.sql(
+    `ALTER TABLE prospect_conversion_receipts ADD CONSTRAINT a2_new_receipt_failure CHECK(request_id<>'${id(105)}'::uuid)`,
+  );
+  try {
+    await expect(h.prospects.convertCommand(ctx, prospect, newClientCommand())).rejects.toThrow();
+  } finally {
+    await h.sql('ALTER TABLE prospect_conversion_receipts DROP CONSTRAINT a2_new_receipt_failure');
+  }
+  expect(await active()).toBe(1);
+  expect(
+    (
+      await h.sql('SELECT linked_client_id FROM business_development_prospects WHERE id=$1', [
+        prospect,
+      ])
+    ).rows[0].linked_client_id,
+  ).toBeNull();
+  expect(
+    (await h.sql('SELECT count(*)::int AS count FROM prospect_conversion_receipts')).rows[0].count,
+  ).toBe(0);
 });

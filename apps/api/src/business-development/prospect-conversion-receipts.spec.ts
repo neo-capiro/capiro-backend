@@ -44,6 +44,7 @@ function fixture() {
     updatedAt: new Date(at),
     linkedClientId: null as string | null,
     convertedAt: null as Date | null,
+    displayName: 'Synthetic new client',
   };
   let stored: { command: unknown; payloadDigest: string; receipt: unknown } | undefined;
   const statements: Array<{ sql: string; values: unknown[] }> = [];
@@ -81,6 +82,7 @@ function fixture() {
 }
 it('strictly binds the canonical command and rejects new-client, transfer and malformed scope input', () => {
   const value = command();
+  if (value.mode !== 'existing_client') throw new Error('Expected existing-client fixture');
   expect(prospectConversionDigest(value)).toMatch(/^[a-f0-9]{64}$/);
   for (const change of [
     { mode: 'new_client' },
@@ -215,4 +217,73 @@ it('refuses missing, changed-target and corrupt receipts', async () => {
   await expect(readProspectConversion(h.tx, ctx, prospectId, requestId)).rejects.toThrow(
     'cannot be verified',
   );
+});
+
+const newCommand = () =>
+  parseProspectConversion(prospectId, {
+    schemaVersion: 1,
+    requestId,
+    prospectId,
+    expectedUpdatedAt: at,
+    mode: 'new_client',
+    clientName: 'Synthetic new client',
+    clientWebsite: 'https://example.test',
+    clientDescription: null,
+  });
+it('new-client command returns and recovers the exact created client without creating twice', async () => {
+  const h = fixture(),
+    c = newCommand();
+  h.convert.mockImplementation(async () => {
+    h.current.linkedClientId = clientId;
+    h.current.convertedAt = new Date('2026-10-23T00:00:00.500Z');
+    h.current.updatedAt = h.current.convertedAt;
+    return { clientId, created: true };
+  });
+  const receipt = await commitProspectConversion(h.tx, ctx, c, h.convert);
+  expect(receipt).toMatchObject({
+    outcome: 'created',
+    clientId,
+    requestId,
+    payloadDigest: prospectConversionDigest(c),
+  });
+  expect(await commitProspectConversion(h.tx, ctx, c, h.convert)).toEqual(receipt);
+  expect(await readProspectConversion(h.tx, ctx, prospectId, requestId)).toEqual(receipt);
+  expect(h.convert).toHaveBeenCalledTimes(1);
+  expect(requireOwnerClient).toHaveBeenCalledWith(h.tx, ctx, clientId);
+});
+it('a reviewed new client cannot silently become an existing-client link', async () => {
+  const h = fixture();
+  await expect(commitProspectConversion(h.tx, ctx, newCommand(), h.convert)).rejects.toThrow(
+    'matching client already exists',
+  );
+  expect(h.stored()).toBeUndefined();
+});
+it('capacity refusal leaves no conversion receipt and propagates the canonical refusal', async () => {
+  const h = fixture();
+  h.convert.mockRejectedValueOnce(new Error('Canonical capacity exhausted'));
+  await expect(commitProspectConversion(h.tx, ctx, newCommand(), h.convert)).rejects.toThrow(
+    'capacity exhausted',
+  );
+  expect(h.stored()).toBeUndefined();
+  expect(h.current.linkedClientId).toBeNull();
+});
+it('new-client name and original prospect version must still match', async () => {
+  const h = fixture();
+  h.current.displayName = 'Changed name';
+  await expect(commitProspectConversion(h.tx, ctx, newCommand(), h.convert)).rejects.toThrow(
+    'name changed',
+  );
+  expect(h.convert).not.toHaveBeenCalled();
+});
+it('new-client intake rejects transfer payloads, unsafe websites and unreviewed names', () => {
+  const c = newCommand();
+  for (const change of [
+    { clientWebsite: 'javascript:alert(1)' },
+    { clientWebsite: 'https://name:secret@example.test' },
+    { clientName: ' ' },
+    { clientDescription: 'x'.repeat(601) },
+    { transferFiles: true },
+    { clientId },
+  ])
+    expect(() => parseProspectConversion(prospectId, { ...c, ...change })).toThrow();
 });
