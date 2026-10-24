@@ -69,11 +69,12 @@ export class MeriRoutinesService {
   /** Native routines use the existing saved consent, never a delegated bearer. */
   async current(raw: unknown, req: Request) {
     if (!hasInternalServiceIdentity(req)) throw forbidden();
-    return this.readSubject(routineReadRequest(raw, false));
+    const { lineageSha256: _lineage, ...current } = await this.readSubject(routineReadRequest(raw, false), 'current');
+    return current;
   }
 
-  private readSubject(selection: RoutineReadSelection) {
-    return this.prisma.withTenant(selection.tenantId, tx => readRoutineSubject(tx, selection));
+  private readSubject(selection: RoutineReadSelection, purpose: 'current' | 'read' = 'read') {
+    return this.prisma.withTenant(selection.tenantId, tx => readRoutineSubject(tx, selection, purpose));
   }
 
   async read(raw: unknown, req: Request, reads: RetainedReadDispatcher): Promise<unknown> {

@@ -36,6 +36,13 @@ function fixture(personal = false) {
     projection, projection_sha256: hash(projection), active_intent: null, occurrence, effect, effect_sha256: hash(effect), occurrence_state: 'OPEN',
     run_projection: run, run_projection_sha256: hash(run), execution_record: execution, execution_record_sha256: hash(execution),
     execution_key: execution.executionKey, execution_id: execution.executionId, current_writer: true, no_successor: true };
+  const initial = { binding, scopes, versions: run.versions, selectedClientId: personal ? null : id(4),
+    requestId: effect.requestId, inputSha256: 'e'.repeat(64), requestSha256: 'f'.repeat(64), allocatedAtMs: 100000, expiresAtMs: 900000 };
+  Object.assign(row, { conversation_id: binding.conversationId, run_id: binding.runId, request_sha256: initial.requestSha256,
+    initial_input: initial, initial_input_sha256: hash(initial), initial_input_state: 'ACCEPTED', accepted_request_sha256: initial.requestSha256,
+    continuation: null, control: null, source_request_matches: false, target_request_matches: false, proof_matches: false, sequence_contiguous: false,
+    outgoing_controls: [], next_run_reservation: null, next_run_reservation_sha256: null, next_run_state: null });
+  const steps = [row];
   const consent: any = { consentId: id(6), tenantId: id(1), ownerUserId: id(2), scheduleId: id(3), generation: 1,
     intentSha256: 'd'.repeat(64), projectionSha256: hash(projection), scopes, policyRevision: run.policyRevision, limits,
     issuedAt: new Date(50000), expiresAt: new Date(2000000) };
@@ -47,6 +54,7 @@ function fixture(personal = false) {
       if (sql.includes('pg_advisory_xact_lock')) return [];
       if (sql.includes('clock_timestamp')) return [{ db_now: new Date(state.now) }];
       if (sql.includes('routine_runs_v1')) return state.exists ? [row] : [];
+      if (sql.includes('routine_resume_steps_v1')) return steps;
       if (sql.includes('FROM clients')) return state.wall ? state.clientIds.map(id => ({ id, revision: 'current' })) : [];
       throw Error('Unexpected SQL');
     }),
@@ -70,8 +78,38 @@ function fixture(personal = false) {
   const dispatcher = new RetainedReadDispatcher(prisma, tools, {} as never, { handles: () => false } as never);
   const service = new MeriRoutinesService(prisma, {} as never, null, null);
   const rehash = () => { row.projection_sha256 = hash(row.projection); row.effect_sha256 = hash(row.effect);
-    row.run_projection_sha256 = hash(row.run_projection); row.execution_record_sha256 = hash(row.execution_record); };
-  return { state, row, consent, membership, calls, tx, prisma, ctx, selection, body, req, execute, tools, service, dispatcher, rehash };
+    for (const step of steps) { step.run_projection_sha256 = hash(step.run_projection);
+      step.execution_record_sha256 = step.execution_record === null ? null : hash(step.execution_record);
+      step.initial_input_sha256 = step.initial_input === null ? null : hash(step.initial_input);
+      step.next_run_reservation_sha256 = step.next_run_reservation === null ? null : hash(step.next_run_reservation); } };
+  const resume = (status = 'APPLIED', native = true) => {
+    const parent = steps.at(-1)!, prior = parent.run_projection.binding, n = steps.length;
+    parent.run_projection.state = 'paused'; parent.execution_record.phase = 'settled'; parent.execution_record.native = { state: 'paused', stopped: true };
+    const binding = { ...prior, runId: id(100 + n), attemptId: id(200 + n), workerId: id(300 + n), writerFence: n + 1 };
+    const input = { controlId: id(400 + n), intent: 'resume', checkpointId: prior.runId, checkpointSha256: '1'.repeat(64) };
+    const target = { binding, scopes, selectedClientId: initial.selectedClientId, admissionReceiptId: id(500 + n),
+      targetSessionId: null, expiresAtMs: 800000, versions: run.versions };
+    const retirement = { binding: prior, retirementReceiptId: id(600 + n), expiresAtMs: 800000 };
+    const continuation = { kind: 'native-session', mode: 'resume', controlId: input.controlId,
+      sdkSession: { binding: prior, key: { projectKey: 'synthetic', sessionId: id(700 + n) }, ownerSha256: '2'.repeat(64), entriesCount: 1 },
+      versions: run.versions, scopes, sourceRequestSha256: parent.request_sha256, contextSha256: '3'.repeat(64), targetSessionId: null };
+    const control = { input, inputSha256: hash(input), sourceBinding: prior, scopes, sourceSelectedClientId: initial.selectedClientId,
+      sourceRequestSha256: parent.request_sha256, contextSha256: continuation.contextSha256, versions: run.versions,
+      captureSequence: 5, state: status, checkpointId: prior.runId, target, retirement };
+    const next: any = { tenant_id: id(1), schedule_id: id(3), occurrence_key: key, conversation_id: binding.conversationId, run_id: binding.runId,
+      run_projection: { ...run, binding, state: 'running', createdAt: new Date(150000 + n).toISOString() },
+      request_sha256: n.toString(16).repeat(64), initial_input: null, initial_input_sha256: null, initial_input_state: null, accepted_request_sha256: null,
+      continuation, control, source_request_matches: true, target_request_matches: true, proof_matches: true, sequence_contiguous: true,
+      outgoing_controls: [], next_run_reservation: null, next_run_reservation_sha256: null, next_run_state: null,
+      execution_record: native ? { ...execution, binding, executionKey: hash(binding), executionId: hash(binding), phase: 'started', native: null } : null,
+      execution_key: native ? hash(binding) : null, execution_id: native ? hash(binding) : null };
+    parent.outgoing_controls = [{ controlId: input.controlId, intent: 'resume', state: status, targetBinding: binding, retirementBinding: prior }];
+    parent.next_run_reservation = { source: prior, target: binding, facts: { checkpoint: null, execution: { recordSha256: hash(parent.execution_record) } },
+      scopes, versions: run.versions, policyRevision: run.policyRevision, reservedAt: next.run_projection.createdAt };
+    parent.next_run_state = 'ACCEPTED'; row.current_writer = false; row.no_successor = false; steps.push(next); rehash();
+    return next;
+  };
+  return { state, row, steps, initial, consent, membership, calls, tx, prisma, ctx, selection, body, req, execute, tools, service, dispatcher, rehash, resume };
 }
 
 describe('native routine saved-consent reads', () => {
@@ -82,7 +120,7 @@ describe('native routine saved-consent reads', () => {
     expect(await f.service.current(f.selection, f.req)).toMatchObject({ actorId: id(2), consentId: id(6), effectExpiresAtMs: 900000 });
     expect(await f.service.read(f.body, f.req, f.dispatcher)).toEqual({ page: f.body.input, nextCursor: 'page-three' });
     expect(f.execute).toHaveBeenCalledWith(expect.objectContaining({ tenantId: id(1), userId: id(2), role: 'standard_user' }), 'search_public_web', f.body.input);
-    expect(f.calls.some(q => /allocation|reservation|current_admission_v1/.test(q))).toBe(false);
+    expect(f.calls.some(q => /tool_run_allocations|tool_grant_bindings|current_admission_v1/.test(q))).toBe(false);
     expect(f.row.effect.workflowId).not.toBe(f.row.occurrence.workflowId);
   });
   it('returns General current wall-filtered clients and refuses a changed roster on release', async () => {
@@ -94,6 +132,121 @@ describe('native routine saved-consent reads', () => {
     await expect(f.service.read(f.body, f.req, f.dispatcher)).rejects.toThrow();
     f.state.clientIds = Array.from({ length: 4097 }, () => id(4));
     await expect(f.service.current(f.selection, f.req)).rejects.toThrow();
+  });
+  it.each([false, true])('reads only the applied resumed head with original lifetime in client/General mode %s', async personal => {
+    const f = fixture(personal); f.resume(); const head = f.resume();
+    const selection = { ...f.selection, binding: head.run_projection.binding };
+    const body = { ...f.body, ...selection, context: { ...f.ctx, binding: selection.binding } };
+    const current = await f.service.current(selection, f.req);
+    expect(current).toMatchObject({ binding: selection.binding, effectExpiresAtMs: 900000, clientIds: [id(4), id(10)] });
+    expect(current).not.toHaveProperty('lineageSha256');
+    expect(await f.service.read(body, f.req, f.dispatcher)).toEqual({ page: body.input, nextCursor: 'page-three' });
+    await expect(f.service.read(f.body, f.req, f.dispatcher)).rejects.toThrow();
+    await expect(f.service.current(f.selection, f.req)).rejects.toThrow();
+    f.initial.expiresAtMs = 220000; f.rehash();
+    expect((await f.service.current(selection, f.req)).effectExpiresAtMs).toBe(220000);
+    f.state.now = 220000;
+    await expect(f.service.read(body, f.req, f.dispatcher)).rejects.toThrow();
+  });
+  it('keeps lifecycle current separate from reads for a held source and committed DISPATCHING target', async () => {
+    const f = fixture(); f.row.run_projection.state = 'paused'; f.rehash();
+    expect((await f.service.current(f.selection, f.req)).binding).toEqual(f.selection.binding);
+    await expect(f.service.read(f.body, f.req, f.dispatcher)).rejects.toThrow();
+    const head = f.resume('DISPATCHING', false), selection = { ...f.selection, binding: head.run_projection.binding };
+    expect((await f.service.current(selection, f.req)).binding).toEqual(selection.binding);
+    expect((await f.service.current(f.selection, f.req)).binding).toEqual(f.selection.binding);
+    const body = { ...f.body, ...selection, context: { ...f.ctx, binding: selection.binding } };
+    await expect(f.service.read(body, f.req, f.dispatcher)).rejects.toThrow();
+    head.control.state = 'APPLIED'; f.row.outgoing_controls[0].state = 'APPLIED';
+    await expect(f.service.read(body, f.req, f.dispatcher)).rejects.toThrow();
+    expect(f.execute).not.toHaveBeenCalled();
+  });
+  it.each(['PENDING', 'DISPATCHING'])('refreshes only the latest held source during uncommitted %s resume', async state => {
+    const f = fixture(true), head = f.resume(), binding = head.run_projection.binding;
+    head.run_projection.state = 'waiting-for-approval';
+    head.outgoing_controls = [{ controlId: id(999), intent: 'resume', state, targetBinding: null, retirementBinding: null }];
+    f.rehash();
+    expect((await f.service.current({ ...f.selection, binding }, f.req)).binding).toEqual(binding);
+    await expect(f.service.current(f.selection, f.req)).rejects.toThrow();
+    await expect(f.service.read({ ...f.body, binding, context: { ...f.ctx, binding } }, f.req, f.dispatcher)).rejects.toThrow();
+    f.state.revoked = true;
+    await expect(f.service.current({ ...f.selection, binding }, f.req)).rejects.toThrow();
+    f.state.revoked = false; f.state.now = f.initial.expiresAtMs;
+    await expect(f.service.current({ ...f.selection, binding }, f.req)).rejects.toThrow();
+    expect(f.execute).not.toHaveBeenCalled();
+  });
+  it.each([
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls[0].controlId = 'invalid'; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls[0].intent = 'fork'; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls[0].state = 'UNKNOWN'; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls[0].state = 'APPLIED'; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls[0].targetBinding = f.selection.binding; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls[0].retirementBinding = f.selection.binding; },
+    (f: ReturnType<typeof fixture>) => { delete f.row.outgoing_controls[0].targetBinding; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls.push({ ...f.row.outgoing_controls[0], controlId: id(998) }); },
+    (f: ReturnType<typeof fixture>) => { f.row.next_run_state = 'RESERVED'; },
+    (f: ReturnType<typeof fixture>) => { f.row.run_projection.state = 'running'; f.rehash(); },
+  ])('refuses ambiguous or unrelated uncommitted current authority %#', async mutate => {
+    const f = fixture(); f.row.run_projection.state = 'paused';
+    f.row.outgoing_controls = [{ controlId: id(999), intent: 'resume', state: 'PENDING', targetBinding: null, retirementBinding: null }];
+    f.rehash(); mutate(f);
+    await expect(f.service.current(f.selection, f.req)).rejects.toThrow();
+    expect(f.execute).not.toHaveBeenCalled();
+  });
+  it.each(['completed', 'failed', 'paused', 'waiting-for-approval'])('refreshes committed %s target through APPLIED receipt readback without permitting reads', async state => {
+    const f = fixture(), head = f.resume('DISPATCHING'), binding = head.run_projection.binding;
+    head.run_projection.state = state; head.execution_record.phase = 'settled'; head.execution_record.native = { state };
+    f.rehash();
+    expect((await f.service.current({ ...f.selection, binding }, f.req)).binding).toEqual(binding);
+    expect((await f.service.current(f.selection, f.req)).binding).toEqual(f.selection.binding);
+    await expect(f.service.read({ ...f.body, binding, context: { ...f.ctx, binding } }, f.req, f.dispatcher)).rejects.toThrow();
+    f.state.wall = false;
+    await expect(f.service.current({ ...f.selection, binding }, f.req)).rejects.toThrow();
+    f.state.wall = true; head.control.state = 'APPLIED'; f.row.outgoing_controls[0].state = 'APPLIED';
+    expect((await f.service.current({ ...f.selection, binding }, f.req)).binding).toEqual(binding);
+    await expect(f.service.current(f.selection, f.req)).rejects.toThrow();
+    await expect(f.service.read({ ...f.body, binding, context: { ...f.ctx, binding } }, f.req, f.dispatcher)).rejects.toThrow();
+    head.run_projection.state = 'cancelled'; head.execution_record.native.state = 'cancelled'; f.rehash();
+    await expect(f.service.current({ ...f.selection, binding }, f.req)).rejects.toThrow();
+    expect(f.execute).not.toHaveBeenCalled();
+  });
+  it.each([
+    (f: ReturnType<typeof fixture>, h: any) => { h.control.state = 'UNKNOWN'; f.row.outgoing_controls[0].state = 'UNKNOWN'; },
+    (f: ReturnType<typeof fixture>, h: any) => { h.control.state = 'PENDING'; f.row.outgoing_controls[0].state = 'PENDING'; },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.continuation.mode = 'fork'; },
+    (f: ReturnType<typeof fixture>) => { f.row.outgoing_controls.push({ ...f.row.outgoing_controls[0], controlId: id(999) }); },
+    (f: ReturnType<typeof fixture>) => { f.row.next_run_state = 'RESERVED'; },
+    (f: ReturnType<typeof fixture>) => { f.row.next_run_reservation.target = { ...f.row.next_run_reservation.target, runId: id(999) }; f.rehash(); },
+    (f: ReturnType<typeof fixture>) => { f.row.next_run_reservation.facts.execution.recordSha256 = '0'.repeat(64); f.rehash(); },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.outgoing_controls.push({ controlId: id(999), intent: 'fork', state: 'PENDING', targetBinding: null, retirementBinding: null }); },
+    (f: ReturnType<typeof fixture>, h: any) => { h.next_run_reservation = f.row.next_run_reservation; h.next_run_state = 'RESERVED'; f.rehash(); },
+    (f: ReturnType<typeof fixture>, h: any) => { h.run_projection.binding.writerFence = 3; f.rehash(); },
+    (f: ReturnType<typeof fixture>, h: any) => { h.run_projection.scopes = []; f.rehash(); },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.source_request_matches = false; },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.target_request_matches = false; },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.proof_matches = false; },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.sequence_contiguous = false; },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.continuation.sdkSession.binding = { ...h.continuation.sdkSession.binding, actorId: id(999) }; },
+    (_f: ReturnType<typeof fixture>, h: any) => { h.control.retirement.binding = { ...h.control.retirement.binding, runId: id(999) }; },
+    (f: ReturnType<typeof fixture>) => { f.row.execution_record.phase = 'stopping'; f.row.execution_record.native = null; f.rehash(); },
+    (f: ReturnType<typeof fixture>) => { f.row.initial_input_state = 'RESERVED'; },
+    (f: ReturnType<typeof fixture>) => { f.row.accepted_request_sha256 = '0'.repeat(64); },
+    (f: ReturnType<typeof fixture>) => { f.steps.push(structuredClone(f.steps[1])); },
+    (f: ReturnType<typeof fixture>) => { while (f.steps.length < 101) f.steps.push(f.steps[1]); },
+  ])('refuses corrupt, unresolved or unrelated resume lineage %# before reads', async mutate => {
+    const f = fixture(), head = f.resume();
+    const binding = structuredClone(head.run_projection.binding);
+    mutate(f, head);
+    const body = { ...f.body, binding, context: { ...f.ctx, binding } };
+    await expect(f.service.read(body, f.req, f.dispatcher)).rejects.toThrow();
+    await expect(f.service.current({ ...f.selection, binding }, f.req)).rejects.toThrow();
+    expect(f.execute).not.toHaveBeenCalled();
+  });
+  it('rechecks exact lineage after I/O even when its current binding and scopes stay the same', async () => {
+    const f = fixture(), head = f.resume(), binding = head.run_projection.binding;
+    f.execute.mockImplementation(async () => { head.control.target.admissionReceiptId = id(999); return {} as never; });
+    await expect(f.service.read({ ...f.body, binding, context: { ...f.ctx, binding } }, f.req, f.dispatcher)).rejects.toThrow();
+    expect(f.execute).toHaveBeenCalledTimes(1);
   });
   it('bounds General client-reference results by the current Core roster', async () => {
     const f = fixture(true), reads = { execute: jest.fn(async () => ({ ok: true, clientId: id(4) })) };
