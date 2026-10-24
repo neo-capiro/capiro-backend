@@ -1,0 +1,823 @@
+{
+  "expected": {
+    "admission": {
+      "schemaVersion": 1,
+      "namespace": "capiro.objective-strategy.admission:v1",
+      "canonical": {
+        "canonicalPlanId": "00000000-0000-4000-8000-000000000006",
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "clientId": "00000000-0000-4000-8000-000000000003",
+        "objectiveId": "00000000-0000-4000-8000-000000000004",
+        "canonicalStrategyId": "00000000-0000-4000-8000-000000000007",
+        "canonicalProjectId": "00000000-0000-4000-8000-000000000008",
+        "bindingVersion": 1,
+        "epoch": 1,
+        "requestedIntentId": "00000000-0000-4000-8000-000000000009",
+        "requestedObjectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+        "requestedObjectiveVersion": 2,
+        "snapshotHash": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e"
+      },
+      "actorUserId": "00000000-0000-4000-8000-000000000002",
+      "clerkUserId": "synthetic-clerk-user",
+      "consentId": "00000000-0000-4000-8000-000000000015",
+      "controlVersion": 1,
+      "generationJobId": "00000000-0000-4000-8000-000000000021",
+      "generationRequestId": "00000000-0000-4000-8000-000000000020",
+      "admittedAtMs": 1792065599000,
+      "effectExpiresAtMs": 1792065750000,
+      "expectedStrategyVersionId": null
+    },
+    "publication": {
+      "schemaVersion": 1,
+      "sourceAdmissionSha256": "14111e490a6fc718439296fa67722542abe31698391346825acd1d26b1e7c1ca",
+      "request": {
+        "candidateVersion": "strategy-candidate/20261015.2",
+        "operation": "strategy.draft",
+        "requestId": "00000000-0000-4000-8000-000000000020",
+        "jobId": "00000000-0000-4000-8000-000000000021",
+        "principal": {
+          "tenantId": "00000000-0000-4000-8000-000000000001",
+          "actorId": "00000000-0000-4000-8000-000000000002",
+          "clientId": "00000000-0000-4000-8000-000000000003",
+          "ownerActorId": "00000000-0000-4000-8000-000000000002"
+        },
+        "source": {
+          "kind": "objective",
+          "objectiveId": "00000000-0000-4000-8000-000000000004",
+          "objectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+          "objectiveVersion": 2,
+          "snapshotSha256": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e",
+          "intent": {
+            "outcome": "A reviewable route",
+            "governmentProblem": "Synthetic evidence gap",
+            "askType": "meri_propose",
+            "minimumWin": "Identify a supported route",
+            "limits": "No external send"
+          }
+        },
+        "context": {
+          "packetId": "00000000-0000-4000-8000-000000000007",
+          "contextSha256": "a9bec982352d1263f532a1154e309624808f3a2d135232cefefb46b732a35334",
+          "coverageSha256": "2faf869715a6a590a28796146c4ac3dc5acf0d64f268837dcba3fdaf7fc6dd03",
+          "asOfMs": 1792065599000,
+          "evidence": [
+            {
+              "ref": "evidence:accepted",
+              "sourceId": "synthetic-source",
+              "asOfMs": 1792065598000,
+              "scope": "client",
+              "clientId": "00000000-0000-4000-8000-000000000003",
+              "reviewState": "accepted"
+            },
+            {
+              "ref": "evidence:pending",
+              "sourceId": "synthetic-candidate",
+              "asOfMs": 1792065598000,
+              "scope": "tenant-shared",
+              "clientId": null,
+              "reviewState": "pending"
+            }
+          ],
+          "ownerRefs": [
+            "owner:synthetic"
+          ],
+          "draft": {
+            "mappingVersion": "legacy-draft-observation/1",
+            "clientId": "00000000-0000-4000-8000-000000000003",
+            "input": {
+              "typeHint": "appropriations",
+              "goal": null,
+              "meriContext": null,
+              "ownerUserId": null,
+              "targetDate": null,
+              "attachmentIds": []
+            },
+            "selectedOwnerActorId": "00000000-0000-4000-8000-000000000002",
+            "attachments": {
+              "correlation": "unattributed-legacy-bundle",
+              "coverage": "not-proven-by-legacy-resolver",
+              "state": "not-requested",
+              "documentsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "documents": []
+            }
+          }
+        },
+        "basis": null,
+        "requestedAtMs": 1792065600000,
+        "originalExpiresAtMs": 1792066500000,
+        "inputSha256": "9e3ef0ad6f273c04248e70ecc64838a61f064a04a582e6b19c3a60faffb407d6",
+        "input": {
+          "typeHint": "appropriations",
+          "goal": null,
+          "meriContext": null,
+          "ownerUserId": null,
+          "targetDate": null,
+          "attachmentIds": []
+        }
+      },
+      "requestSha256": "d62b49fc7e941b2d49be05cf823b1eba0925ce784d80bd3aed305c62ae9e4605",
+      "executionContext": {
+        "schemaVersion": 1,
+        "prompt": "Synthetic Objective source only.",
+        "promptSha256": "301cf4fee655fb4c34851fdbc97cf1c1643ac8de4b81ab51cc3824855d8e06c1",
+        "ownerRefs": [
+          {
+            "ownerRef": "owner:synthetic",
+            "clerkUserId": "00000000-0000-4000-8000-000000000002"
+          }
+        ],
+        "contextPacketId": "00000000-0000-4000-8000-000000000007"
+      }
+    },
+    "acceptance": {
+      "schemaVersion": 1,
+      "sourceBinding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "00000000-0000-4000-8000-000000000002",
+        "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+        "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+        "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+        "writerFence": 1
+      },
+      "sourceAdmissionSha256": "14111e490a6fc718439296fa67722542abe31698391346825acd1d26b1e7c1ca",
+      "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2",
+      "effectExpiresAtMs": 1792065750000,
+      "acceptedAtMs": 1792065600000
+    }
+  },
+  "initial": {
+    "schemaVersion": 1,
+    "record": {
+      "schemaVersion": 1,
+      "generationJobId": "00000000-0000-4000-8000-000000000021",
+      "binding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "00000000-0000-4000-8000-000000000002",
+        "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+        "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+        "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+        "writerFence": 1
+      },
+      "sourceAdmissionSha256": "14111e490a6fc718439296fa67722542abe31698391346825acd1d26b1e7c1ca",
+      "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2",
+      "typedRequestSha256": "d62b49fc7e941b2d49be05cf823b1eba0925ce784d80bd3aed305c62ae9e4605",
+      "selectionSha256": "a0ddae5631335b2af4db790bab6f0ea54e8eecc655c57f5c8cb5a80b9df66e44",
+      "effectExpiresAtMs": 1792065750000,
+      "selection": {
+        "sourceAdmission": {
+          "schemaVersion": 1,
+          "namespace": "capiro.objective-strategy.admission:v1",
+          "canonical": {
+            "canonicalPlanId": "00000000-0000-4000-8000-000000000006",
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "clientId": "00000000-0000-4000-8000-000000000003",
+            "objectiveId": "00000000-0000-4000-8000-000000000004",
+            "canonicalStrategyId": "00000000-0000-4000-8000-000000000007",
+            "canonicalProjectId": "00000000-0000-4000-8000-000000000008",
+            "bindingVersion": 1,
+            "epoch": 1,
+            "requestedIntentId": "00000000-0000-4000-8000-000000000009",
+            "requestedObjectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+            "requestedObjectiveVersion": 2,
+            "snapshotHash": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e"
+          },
+          "actorUserId": "00000000-0000-4000-8000-000000000002",
+          "clerkUserId": "synthetic-clerk-user",
+          "consentId": "00000000-0000-4000-8000-000000000015",
+          "controlVersion": 1,
+          "generationJobId": "00000000-0000-4000-8000-000000000021",
+          "generationRequestId": "00000000-0000-4000-8000-000000000020",
+          "admittedAtMs": 1792065599000,
+          "effectExpiresAtMs": 1792065750000,
+          "expectedStrategyVersionId": null
+        },
+        "request": {
+          "candidateVersion": "strategy-candidate/20261015.2",
+          "operation": "strategy.draft",
+          "requestId": "00000000-0000-4000-8000-000000000020",
+          "jobId": "00000000-0000-4000-8000-000000000021",
+          "principal": {
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "actorId": "00000000-0000-4000-8000-000000000002",
+            "clientId": "00000000-0000-4000-8000-000000000003",
+            "ownerActorId": "00000000-0000-4000-8000-000000000002"
+          },
+          "source": {
+            "kind": "objective",
+            "objectiveId": "00000000-0000-4000-8000-000000000004",
+            "objectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+            "objectiveVersion": 2,
+            "snapshotSha256": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e",
+            "intent": {
+              "outcome": "A reviewable route",
+              "governmentProblem": "Synthetic evidence gap",
+              "askType": "meri_propose",
+              "minimumWin": "Identify a supported route",
+              "limits": "No external send"
+            }
+          },
+          "context": {
+            "packetId": "00000000-0000-4000-8000-000000000007",
+            "contextSha256": "a9bec982352d1263f532a1154e309624808f3a2d135232cefefb46b732a35334",
+            "coverageSha256": "2faf869715a6a590a28796146c4ac3dc5acf0d64f268837dcba3fdaf7fc6dd03",
+            "asOfMs": 1792065599000,
+            "evidence": [
+              {
+                "ref": "evidence:accepted",
+                "sourceId": "synthetic-source",
+                "asOfMs": 1792065598000,
+                "scope": "client",
+                "clientId": "00000000-0000-4000-8000-000000000003",
+                "reviewState": "accepted"
+              },
+              {
+                "ref": "evidence:pending",
+                "sourceId": "synthetic-candidate",
+                "asOfMs": 1792065598000,
+                "scope": "tenant-shared",
+                "clientId": null,
+                "reviewState": "pending"
+              }
+            ],
+            "ownerRefs": [
+              "owner:synthetic"
+            ],
+            "draft": {
+              "mappingVersion": "legacy-draft-observation/1",
+              "clientId": "00000000-0000-4000-8000-000000000003",
+              "input": {
+                "typeHint": "appropriations",
+                "goal": null,
+                "meriContext": null,
+                "ownerUserId": null,
+                "targetDate": null,
+                "attachmentIds": []
+              },
+              "selectedOwnerActorId": "00000000-0000-4000-8000-000000000002",
+              "attachments": {
+                "correlation": "unattributed-legacy-bundle",
+                "coverage": "not-proven-by-legacy-resolver",
+                "state": "not-requested",
+                "documentsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                "documents": []
+              }
+            }
+          },
+          "basis": null,
+          "requestedAtMs": 1792065600000,
+          "originalExpiresAtMs": 1792066500000,
+          "inputSha256": "9e3ef0ad6f273c04248e70ecc64838a61f064a04a582e6b19c3a60faffb407d6",
+          "input": {
+            "typeHint": "appropriations",
+            "goal": null,
+            "meriContext": null,
+            "ownerUserId": null,
+            "targetDate": null,
+            "attachmentIds": []
+          }
+        },
+        "executionContext": {
+          "schemaVersion": 1,
+          "prompt": "Synthetic Objective source only.",
+          "promptSha256": "301cf4fee655fb4c34851fdbc97cf1c1643ac8de4b81ab51cc3824855d8e06c1",
+          "ownerRefs": [
+            {
+              "ownerRef": "owner:synthetic",
+              "clerkUserId": "00000000-0000-4000-8000-000000000002"
+            }
+          ],
+          "contextPacketId": "00000000-0000-4000-8000-000000000007"
+        },
+        "queuedType": "appropriations"
+      }
+    },
+    "request": {
+      "requestId": "00000000-0000-4000-8000-000000000020",
+      "prompt": "Synthetic Objective source only.",
+      "skill": null,
+      "window": null,
+      "windowRequest": null
+    },
+    "run": {
+      "binding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "00000000-0000-4000-8000-000000000002",
+        "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+        "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+        "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+        "writerFence": 1
+      },
+      "state": "running",
+      "scopes": [
+        {
+          "tenantId": "00000000-0000-4000-8000-000000000001",
+          "kind": "client",
+          "resourceId": "00000000-0000-4000-8000-000000000003",
+          "policyRevision": "policy1"
+        }
+      ],
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "policyRevision": "policy1",
+      "versions": {
+        "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sdk": "0.3.295",
+        "cli": "2.1.295",
+        "contracts": "0.1.0",
+        "skillsDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "checkpointFormat": "0.1.0"
+      }
+    }
+  },
+  "completed": {
+    "schemaVersion": 1,
+    "record": {
+      "schemaVersion": 1,
+      "generationJobId": "00000000-0000-4000-8000-000000000021",
+      "binding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "00000000-0000-4000-8000-000000000002",
+        "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+        "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+        "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+        "writerFence": 1
+      },
+      "sourceAdmissionSha256": "14111e490a6fc718439296fa67722542abe31698391346825acd1d26b1e7c1ca",
+      "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2",
+      "typedRequestSha256": "d62b49fc7e941b2d49be05cf823b1eba0925ce784d80bd3aed305c62ae9e4605",
+      "selectionSha256": "a0ddae5631335b2af4db790bab6f0ea54e8eecc655c57f5c8cb5a80b9df66e44",
+      "effectExpiresAtMs": 1792065750000,
+      "selection": {
+        "sourceAdmission": {
+          "schemaVersion": 1,
+          "namespace": "capiro.objective-strategy.admission:v1",
+          "canonical": {
+            "canonicalPlanId": "00000000-0000-4000-8000-000000000006",
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "clientId": "00000000-0000-4000-8000-000000000003",
+            "objectiveId": "00000000-0000-4000-8000-000000000004",
+            "canonicalStrategyId": "00000000-0000-4000-8000-000000000007",
+            "canonicalProjectId": "00000000-0000-4000-8000-000000000008",
+            "bindingVersion": 1,
+            "epoch": 1,
+            "requestedIntentId": "00000000-0000-4000-8000-000000000009",
+            "requestedObjectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+            "requestedObjectiveVersion": 2,
+            "snapshotHash": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e"
+          },
+          "actorUserId": "00000000-0000-4000-8000-000000000002",
+          "clerkUserId": "synthetic-clerk-user",
+          "consentId": "00000000-0000-4000-8000-000000000015",
+          "controlVersion": 1,
+          "generationJobId": "00000000-0000-4000-8000-000000000021",
+          "generationRequestId": "00000000-0000-4000-8000-000000000020",
+          "admittedAtMs": 1792065599000,
+          "effectExpiresAtMs": 1792065750000,
+          "expectedStrategyVersionId": null
+        },
+        "request": {
+          "candidateVersion": "strategy-candidate/20261015.2",
+          "operation": "strategy.draft",
+          "requestId": "00000000-0000-4000-8000-000000000020",
+          "jobId": "00000000-0000-4000-8000-000000000021",
+          "principal": {
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "actorId": "00000000-0000-4000-8000-000000000002",
+            "clientId": "00000000-0000-4000-8000-000000000003",
+            "ownerActorId": "00000000-0000-4000-8000-000000000002"
+          },
+          "source": {
+            "kind": "objective",
+            "objectiveId": "00000000-0000-4000-8000-000000000004",
+            "objectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+            "objectiveVersion": 2,
+            "snapshotSha256": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e",
+            "intent": {
+              "outcome": "A reviewable route",
+              "governmentProblem": "Synthetic evidence gap",
+              "askType": "meri_propose",
+              "minimumWin": "Identify a supported route",
+              "limits": "No external send"
+            }
+          },
+          "context": {
+            "packetId": "00000000-0000-4000-8000-000000000007",
+            "contextSha256": "a9bec982352d1263f532a1154e309624808f3a2d135232cefefb46b732a35334",
+            "coverageSha256": "2faf869715a6a590a28796146c4ac3dc5acf0d64f268837dcba3fdaf7fc6dd03",
+            "asOfMs": 1792065599000,
+            "evidence": [
+              {
+                "ref": "evidence:accepted",
+                "sourceId": "synthetic-source",
+                "asOfMs": 1792065598000,
+                "scope": "client",
+                "clientId": "00000000-0000-4000-8000-000000000003",
+                "reviewState": "accepted"
+              },
+              {
+                "ref": "evidence:pending",
+                "sourceId": "synthetic-candidate",
+                "asOfMs": 1792065598000,
+                "scope": "tenant-shared",
+                "clientId": null,
+                "reviewState": "pending"
+              }
+            ],
+            "ownerRefs": [
+              "owner:synthetic"
+            ],
+            "draft": {
+              "mappingVersion": "legacy-draft-observation/1",
+              "clientId": "00000000-0000-4000-8000-000000000003",
+              "input": {
+                "typeHint": "appropriations",
+                "goal": null,
+                "meriContext": null,
+                "ownerUserId": null,
+                "targetDate": null,
+                "attachmentIds": []
+              },
+              "selectedOwnerActorId": "00000000-0000-4000-8000-000000000002",
+              "attachments": {
+                "correlation": "unattributed-legacy-bundle",
+                "coverage": "not-proven-by-legacy-resolver",
+                "state": "not-requested",
+                "documentsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                "documents": []
+              }
+            }
+          },
+          "basis": null,
+          "requestedAtMs": 1792065600000,
+          "originalExpiresAtMs": 1792066500000,
+          "inputSha256": "9e3ef0ad6f273c04248e70ecc64838a61f064a04a582e6b19c3a60faffb407d6",
+          "input": {
+            "typeHint": "appropriations",
+            "goal": null,
+            "meriContext": null,
+            "ownerUserId": null,
+            "targetDate": null,
+            "attachmentIds": []
+          }
+        },
+        "executionContext": {
+          "schemaVersion": 1,
+          "prompt": "Synthetic Objective source only.",
+          "promptSha256": "301cf4fee655fb4c34851fdbc97cf1c1643ac8de4b81ab51cc3824855d8e06c1",
+          "ownerRefs": [
+            {
+              "ownerRef": "owner:synthetic",
+              "clerkUserId": "00000000-0000-4000-8000-000000000002"
+            }
+          ],
+          "contextPacketId": "00000000-0000-4000-8000-000000000007"
+        },
+        "queuedType": "appropriations"
+      }
+    },
+    "request": {
+      "requestId": "00000000-0000-4000-8000-000000000020",
+      "prompt": "Synthetic Objective source only.",
+      "skill": null,
+      "window": null,
+      "windowRequest": null
+    },
+    "run": {
+      "binding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "00000000-0000-4000-8000-000000000002",
+        "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+        "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+        "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+        "writerFence": 1
+      },
+      "state": "completed",
+      "scopes": [
+        {
+          "tenantId": "00000000-0000-4000-8000-000000000001",
+          "kind": "client",
+          "resourceId": "00000000-0000-4000-8000-000000000003",
+          "policyRevision": "policy1"
+        }
+      ],
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "policyRevision": "policy1",
+      "versions": {
+        "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sdk": "0.3.295",
+        "cli": "2.1.295",
+        "contracts": "0.1.0",
+        "skillsDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "checkpointFormat": "0.1.0"
+      }
+    },
+    "completion": {
+      "binding": {
+        "tenantId": "00000000-0000-4000-8000-000000000001",
+        "actorId": "00000000-0000-4000-8000-000000000002",
+        "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+        "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+        "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+        "writerFence": 1
+      },
+      "scopes": [
+        {
+          "tenantId": "00000000-0000-4000-8000-000000000001",
+          "kind": "client",
+          "resourceId": "00000000-0000-4000-8000-000000000003",
+          "policyRevision": "policy1"
+        }
+      ],
+      "selectedClientId": "00000000-0000-4000-8000-000000000003",
+      "completionId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+      "checkpointId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+      "captureSequence": 3,
+      "sourceRequest": {
+        "requestId": "00000000-0000-4000-8000-000000000020",
+        "prompt": "Synthetic Objective source only.",
+        "skill": null,
+        "window": null,
+        "windowRequest": null
+      },
+      "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2",
+      "contextSha256": "aadee527991765496d92af514154c0cb6b353f36553e6578f238ccf5768d1a64",
+      "versions": {
+        "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sdk": "0.3.295",
+        "cli": "2.1.295",
+        "contracts": "0.1.0",
+        "skillsDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "checkpointFormat": "0.1.0"
+      },
+      "verifiedEventId": "3ca12f9c-5a84-4564-8bea-cc004503bb88",
+      "completedEventId": "1c51c34b-93de-4d90-81a8-ca3c972552f2",
+      "typedResult": {
+        "schemaVersion": 1,
+        "kind": "objective.strategy.draft",
+        "path": "meri-objective-strategy-draft.result.json",
+        "sourceAdmissionSha256": "14111e490a6fc718439296fa67722542abe31698391346825acd1d26b1e7c1ca",
+        "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2",
+        "typedRequestSha256": "d62b49fc7e941b2d49be05cf823b1eba0925ce784d80bd3aed305c62ae9e4605",
+        "resultRef": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "resultSha256": "4f39857d275418382160f2e1cf354a20bad4ea158c3446b3f2960a8820f80f12",
+        "fileSha256": "8c17adaa0de7f13398989c48f61b65fdb87a14246c5b0804b316b74e71450fd6",
+        "bytes": 2218,
+        "execution": {
+          "provider": "bedrock",
+          "model": "us.anthropic.claude-sonnet-4-6",
+          "receiptRef": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+          "receiptSha256": "ba5e3792fb67ca37213ac9f2738685912571da617af9641dd1ac4d0d7f6b35e9",
+          "bindingSha256": "9a26df6f8c46bef6bdab0353bbadce63b6f075157775a93f3995c0e227ab663a"
+        },
+        "observation": {
+          "sessionId": "00000223-0000-4000-8000-000000000000",
+          "completedAtMs": 1792065600000,
+          "state": "succeeded",
+          "payloadSha256": "2cf496ff8dd73a3c37c65a761d3e8640f9f2e9ca875158ee3b82473388270a35"
+        }
+      },
+      "typedSelection": {
+        "binding": {
+          "tenantId": "00000000-0000-4000-8000-000000000001",
+          "actorId": "00000000-0000-4000-8000-000000000002",
+          "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+          "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+          "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+          "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+          "writerFence": 1
+        },
+        "acceptedRequest": {
+          "requestId": "00000000-0000-4000-8000-000000000020",
+          "prompt": "Synthetic Objective source only.",
+          "skill": null,
+          "window": null,
+          "windowRequest": null
+        },
+        "sourceAdmissionSha256": "14111e490a6fc718439296fa67722542abe31698391346825acd1d26b1e7c1ca",
+        "strategy": {
+          "schemaVersion": 1,
+          "operation": "strategy.draft",
+          "request": {
+            "candidateVersion": "strategy-candidate/20261015.2",
+            "operation": "strategy.draft",
+            "requestId": "00000000-0000-4000-8000-000000000020",
+            "jobId": "00000000-0000-4000-8000-000000000021",
+            "principal": {
+              "tenantId": "00000000-0000-4000-8000-000000000001",
+              "actorId": "00000000-0000-4000-8000-000000000002",
+              "clientId": "00000000-0000-4000-8000-000000000003",
+              "ownerActorId": "00000000-0000-4000-8000-000000000002"
+            },
+            "source": {
+              "kind": "objective",
+              "objectiveId": "00000000-0000-4000-8000-000000000004",
+              "objectiveRevisionId": "00000000-0000-4000-8000-000000000005",
+              "objectiveVersion": 2,
+              "snapshotSha256": "de55f0639e2ded11959bda129eb326ffb262a63bef817fcc1f58fb068ba6cd8e",
+              "intent": {
+                "outcome": "A reviewable route",
+                "governmentProblem": "Synthetic evidence gap",
+                "askType": "meri_propose",
+                "minimumWin": "Identify a supported route",
+                "limits": "No external send"
+              }
+            },
+            "context": {
+              "packetId": "00000000-0000-4000-8000-000000000007",
+              "contextSha256": "a9bec982352d1263f532a1154e309624808f3a2d135232cefefb46b732a35334",
+              "coverageSha256": "2faf869715a6a590a28796146c4ac3dc5acf0d64f268837dcba3fdaf7fc6dd03",
+              "asOfMs": 1792065599000,
+              "evidence": [
+                {
+                  "ref": "evidence:accepted",
+                  "sourceId": "synthetic-source",
+                  "asOfMs": 1792065598000,
+                  "scope": "client",
+                  "clientId": "00000000-0000-4000-8000-000000000003",
+                  "reviewState": "accepted"
+                },
+                {
+                  "ref": "evidence:pending",
+                  "sourceId": "synthetic-candidate",
+                  "asOfMs": 1792065598000,
+                  "scope": "tenant-shared",
+                  "clientId": null,
+                  "reviewState": "pending"
+                }
+              ],
+              "ownerRefs": [
+                "owner:synthetic"
+              ],
+              "draft": {
+                "mappingVersion": "legacy-draft-observation/1",
+                "clientId": "00000000-0000-4000-8000-000000000003",
+                "input": {
+                  "typeHint": "appropriations",
+                  "goal": null,
+                  "meriContext": null,
+                  "ownerUserId": null,
+                  "targetDate": null,
+                  "attachmentIds": []
+                },
+                "selectedOwnerActorId": "00000000-0000-4000-8000-000000000002",
+                "attachments": {
+                  "correlation": "unattributed-legacy-bundle",
+                  "coverage": "not-proven-by-legacy-resolver",
+                  "state": "not-requested",
+                  "documentsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                  "documents": []
+                }
+              }
+            },
+            "basis": null,
+            "requestedAtMs": 1792065600000,
+            "originalExpiresAtMs": 1792066500000,
+            "inputSha256": "9e3ef0ad6f273c04248e70ecc64838a61f064a04a582e6b19c3a60faffb407d6",
+            "input": {
+              "typeHint": "appropriations",
+              "goal": null,
+              "meriContext": null,
+              "ownerUserId": null,
+              "targetDate": null,
+              "attachmentIds": []
+            }
+          },
+          "requestSha256": "d62b49fc7e941b2d49be05cf823b1eba0925ce784d80bd3aed305c62ae9e4605",
+          "executionContext": {
+            "schemaVersion": 1,
+            "prompt": "Synthetic Objective source only.",
+            "promptSha256": "301cf4fee655fb4c34851fdbc97cf1c1643ac8de4b81ab51cc3824855d8e06c1",
+            "ownerRefs": [
+              {
+                "ownerRef": "owner:synthetic",
+                "clerkUserId": "00000000-0000-4000-8000-000000000002"
+              }
+            ],
+            "contextPacketId": "00000000-0000-4000-8000-000000000007"
+          },
+          "queuedType": "appropriations",
+          "executionSelection": {
+            "provider": "bedrock",
+            "model": "us.anthropic.claude-sonnet-4-6"
+          }
+        },
+        "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2"
+      },
+      "kind": "native-session",
+      "sessionId": "00000223-0000-4000-8000-000000000000",
+      "filesRequestSha256": "c4ab90586b8f23213c2f63f650067d94fd3aa0e223cf1b6ae536436a4d83da67",
+      "state": "PUBLISHED",
+      "proof": {
+        "kind": "native-session",
+        "sdkSession": {
+          "binding": {
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "actorId": "00000000-0000-4000-8000-000000000002",
+            "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+            "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+            "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+            "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+            "writerFence": 1
+          },
+          "key": {
+            "projectKey": "synthetic-native-project",
+            "sessionId": "00000223-0000-4000-8000-000000000000"
+          },
+          "ownerSha256": "a70dd9c12deac7fc913a0039ca3c89e71ba88a780c2b4aaacf218d65021b9e84",
+          "entriesCount": 1
+        },
+        "files": {
+          "workspace": {
+            "contractVersion": "0.1.0",
+            "manifestId": "710c9f31-d89a-4110-8087-c75bc8d59014",
+            "binding": {
+              "tenantId": "00000000-0000-4000-8000-000000000001",
+              "actorId": "00000000-0000-4000-8000-000000000002",
+              "conversationId": "8b6076c3-4238-8fb5-9918-be78aa17621e",
+              "runId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+              "attemptId": "686e2eb1-0294-848a-a59c-c0721ba82fc1",
+              "workerId": "37e01c0a-2cb7-8174-8d42-717dfa38071c",
+              "writerFence": 1
+            },
+            "logicalCwd": "/workspace/conversation",
+            "entries": [
+              {
+                "path": "meri-objective-strategy-draft.result.json",
+                "kind": "file",
+                "executable": false,
+                "object": {
+                  "objectId": "3e167b1b-ef9f-4ab9-8c13-6261f116b68e",
+                  "versionId": "synthetic-version",
+                  "bytes": 2218,
+                  "sha256": "8c17adaa0de7f13398989c48f61b65fdb87a14246c5b0804b316b74e71450fd6",
+                  "scopes": [
+                    {
+                      "tenantId": "00000000-0000-4000-8000-000000000001",
+                      "kind": "client",
+                      "resourceId": "00000000-0000-4000-8000-000000000003",
+                      "policyRevision": "policy1"
+                    }
+                  ]
+                }
+              }
+            ],
+            "scopes": [
+              {
+                "tenantId": "00000000-0000-4000-8000-000000000001",
+                "kind": "client",
+                "resourceId": "00000000-0000-4000-8000-000000000003",
+                "policyRevision": "policy1"
+              }
+            ],
+            "createdAt": "2026-10-15T12:00:00.000Z"
+          },
+          "tasks": []
+        },
+        "checkpointId": "e9ac7998-2fab-8b23-b0b2-70303c4108d2",
+        "checkpointSha256": "eb9110160a43655d214e68d122369d13577ff9242ad026ff077d6b40c783ee53",
+        "versions": {
+          "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sdk": "0.3.295",
+          "cli": "2.1.295",
+          "contracts": "0.1.0",
+          "skillsDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "checkpointFormat": "0.1.0"
+        },
+        "scopes": [
+          {
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "kind": "client",
+            "resourceId": "00000000-0000-4000-8000-000000000003",
+            "policyRevision": "policy1"
+          }
+        ],
+        "sourceRequestSha256": "141dc6e934156fc66bbdf7408a821aa0a9be0a91adc7eb15826df96946ecbce2",
+        "contextSha256": "aadee527991765496d92af514154c0cb6b353f36553e6578f238ccf5768d1a64",
+        "lastEventSequence": 3
+      }
+    },
+    "file": {
+      "path": "meri-objective-strategy-draft.result.json",
+      "object": {
+        "objectId": "3e167b1b-ef9f-4ab9-8c13-6261f116b68e",
+        "versionId": "synthetic-version",
+        "bytes": 2218,
+        "sha256": "8c17adaa0de7f13398989c48f61b65fdb87a14246c5b0804b316b74e71450fd6",
+        "scopes": [
+          {
+            "tenantId": "00000000-0000-4000-8000-000000000001",
+            "kind": "client",
+            "resourceId": "00000000-0000-4000-8000-000000000003",
+            "policyRevision": "policy1"
+          }
+        ]
+      },
+      "base64": "eyJjYW5kaWRhdGVWZXJzaW9uIjoic3RyYXRlZ3ktY2FuZGlkYXRlLzIwMjYxMDE1LjIiLCJvcGVyYXRpb24iOiJzdHJhdGVneS5kcmFmdCIsInJlcXVlc3RJZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAyMCIsImpvYklkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDIxIiwicmVxdWVzdFNoYTI1NiI6ImQ2MmI0OWZjN2U5NDFiMmQ0OWJlMDVjZjgyM2IxZWJhMDkyNWNlNzg0ZDgwYmQzYWVkMzA1YzYyYWU5ZTQ2MDUiLCJpbnB1dFNoYTI1NiI6IjllM2VmMGFkNmYyNzNjMDQyNDhlNzBlY2M2NDgzOGE2MWYwNjRhMDRhNTgyZTZiMTljM2E2MGZhZmZiNDA3ZDYiLCJzb3VyY2VTaGEyNTYiOiI2N2NhYzY2YTYwOTYzNTJiMzFkY2ZmZmEwMzJiYTkxMjhjYzM2MTUxZTNkMTIxNWJkMTJmZGVlN2MxNmJlNjg2IiwiY29udGV4dFNoYTI1NiI6ImE5YmVjOTgyMzUyZDEyNjNmNTMyYTExNTRlMzA5NjI0ODA4ZjNhMmQxMzUyMzJjZWZlZmI0NmI3MzJhMzUzMzQiLCJiYXNpc1NoYTI1NiI6bnVsbCwiYmluZGluZyI6eyJ0ZW5hbnRJZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFjdG9ySWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJjb252ZXJzYXRpb25JZCI6IjhiNjA3NmMzLTQyMzgtOGZiNS05OTE4LWJlNzhhYTE3NjIxZSIsInJ1bklkIjoiZTlhYzc5OTgtMmZhYi04YjIzLWIwYjItNzAzMDNjNDEwOGQyIiwiYXR0ZW1wdElkIjoiNjg2ZTJlYjEtMDI5NC04NDhhLWE1OWMtYzA3MjFiYTgyZmMxIiwid29ya2VySWQiOiIzN2UwMWMwYS0yY2I3LTgxNzQtOGQ0Mi03MTdkZmEzODA3MWMiLCJ3cml0ZXJGZW5jZSI6MX0sImV4ZWN1dGlvbiI6eyJwcm92aWRlciI6ImJlZHJvY2siLCJtb2RlbCI6InVzLmFudGhyb3BpYy5jbGF1ZGUtc29ubmV0LTQtNiIsInJlY2VpcHRSZWYiOiJlOWFjNzk5OC0yZmFiLThiMjMtYjBiMi03MDMwM2M0MTA4ZDIiLCJyZWNlaXB0U2hhMjU2IjoiYmE1ZTM3OTJmYjY3Y2EzNzIxM2FjOWYyNzM4Njg1OTEyNTcxZGE2MTdhZjk2NDFkZDFhYzRkMGQ3ZjZiMzVlOSIsImJpbmRpbmdTaGEyNTYiOiI5YTI2ZGY2ZjhjNDZiZWY2YmRhYjAzNTNiYmFkY2U2M2I2ZjA3NTE1Nzc3NWE5M2YzOTk1YzBlMjI3YWI2NjNhIn0sInJlc3VsdFJlZiI6ImU5YWM3OTk4LTJmYWItOGIyMy1iMGIyLTcwMzAzYzQxMDhkMiIsImNvbXBsZXRlZEF0TXMiOjE3OTIwNjU2MDAwMDAsInN0YXRlIjoic3VjY2VlZGVkIiwicGF5bG9hZCI6eyJ0eXBlIjoiYXV0aG9yaXphdGlvbiIsInJhdGlvbmFsZSI6IlN5bnRoZXRpYyBwcm9wb3NhbCBvbmx5Iiwic3VtbWFyeSI6IlJldmlldyB0aGUgZXZpZGVuY2UiLCJub2RlcyI6W3sic291cmNlTm9kZUtleSI6InJldmlldyIsImtpbmQiOiJhY3Rpb24iLCJzdWJqZWN0IjoiZGVsaXZlcmFibGUiLCJ0aXRsZSI6IlJldmlldyBzb3VyY2VzIiwibm90ZSI6bnVsbCwic3RhdHVzIjoic3VnZ2VzdGVkIiwib3duZXJSZWYiOm51bGwsInN0YXJ0c09uIjoiMjAyNi0xMC0xNyIsImVuZHNPbiI6bnVsbCwib3BlbkVuZGVkIjpmYWxzZSwic291cmNlcyI6W3sic2VjdGlvbiI6InN5bnRoZXRpYyIsInJlZiI6ImV2aWRlbmNlOmFjY2VwdGVkIn1dLCJkZXBlbmRzT24iOltdfSx7InNvdXJjZU5vZGVLZXkiOiJkZWNpc2lvbiIsImtpbmQiOiJkZWNpc2lvbiIsInN1YmplY3QiOiJvdXRjb21lIiwidGl0bGUiOiJDaG9vc2Ugcm91dGUiLCJub3RlIjpudWxsLCJzdGF0dXMiOiJzdWdnZXN0ZWQiLCJvd25lclJlZiI6bnVsbCwic3RhcnRzT24iOiIyMDI2LTEwLTE4IiwiZW5kc09uIjpudWxsLCJvcGVuRW5kZWQiOmZhbHNlLCJzb3VyY2VzIjpbXSwiZGVwZW5kc09uIjpbInJldmlldyJdfV0sImNvdmVyYWdlIjp7ImNvbXBsZXRlIjpmYWxzZSwib21pdHRlZCI6WyJVbnF1YWxpZmllZCBsaXZlIHNvdXJjZXMiXSwiYXNzdW1wdGlvbnMiOltdLCJzb3VyY2VzIjpbeyJzZWN0aW9uIjoic3ludGhldGljIiwicmVmIjoiZXZpZGVuY2U6YWNjZXB0ZWQifV0sInBlbmRpbmdTb3VyY2VzIjpbXX19LCJwYXlsb2FkU2hhMjU2IjoiMmNmNDk2ZmY4ZGQ3M2EzYzM3YzY1YTc2MWQzZTg2NDBmOWYyZTljYTg3NTE1OGVlM2I4MjQ3MzM4ODI3MGEzNSIsImlzc3VlcyI6W10sInJlc3VsdFNoYTI1NiI6IjRmMzk4NTdkMjc1NDE4MzgyMTYwZjJlMWNmMzU0YTIwYmFkNGVhMTU4YzM0NDZiM2YyOTYwYTg4MjBmODBmMTIifQ=="
+    }
+  }
+}

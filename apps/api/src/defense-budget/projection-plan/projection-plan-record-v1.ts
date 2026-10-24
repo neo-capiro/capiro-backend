@@ -255,7 +255,7 @@ export const defenseBudgetProjectionPlanRecordV1Schema = z
     conflictCount: z.number().int().nonnegative(),
     unsupportedCount: z.number().int().nonnegative(),
     /** The immutable plan itself. */
-    planDocument: z.unknown(),
+    planDocument: z.unknown().optional(),
   })
   .strict();
 export type DefenseBudgetProjectionPlanRecordV1 = z.infer<

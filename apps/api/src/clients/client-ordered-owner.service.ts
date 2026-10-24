@@ -7,7 +7,7 @@ import { requireOwnerClient } from './client-ordered-owner.access.js';
 
 const uuid = z
   .string()
-  .uuid()
+  .guid()
   .transform((value) => value.toLowerCase());
 const replacement = z
   .object({

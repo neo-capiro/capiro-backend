@@ -135,7 +135,7 @@ export const verificationCheckV1Schema = z
     assertionIds: z.array(z.string().min(1)),
     evidenceIds: z.array(z.string().min(1)),
     referenceArtifactIds: z.array(z.string().min(1)),
-    details: z.record(jsonValueSchema).optional(),
+    details: z.record(z.string(), jsonValueSchema).optional(),
   })
   .strict();
 export type VerificationCheckV1 = z.infer<typeof verificationCheckV1Schema>;
@@ -158,7 +158,7 @@ export const verificationDiscrepancyV1Schema = z
     assertionIds: z.array(z.string().min(1)),
     evidenceIds: z.array(z.string().min(1)),
     referenceArtifactIds: z.array(z.string().min(1)),
-    details: z.record(jsonValueSchema).optional(),
+    details: z.record(z.string(), jsonValueSchema).optional(),
   })
   .strict();
 export type VerificationDiscrepancyV1 = z.infer<typeof verificationDiscrepancyV1Schema>;

@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -11,12 +12,12 @@ const asModule = s => `data:text/javascript;base64,${Buffer.from(s).toString('ba
 async function source(path, replacements = []) {
   const raw = await readFile(new URL(path, import.meta.url), 'utf8'); let transformed = raw;
   for (const [from, to] of replacements) {
-    assert.equal(transformed.split(from).length, 2, `one dependency ${from}`); transformed = transformed.replace(from, JSON.stringify(to));
+    assert.equal(transformed.split(from).length, from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2, `one dependency ${from}`); transformed = transformed.replaceAll(from, JSON.stringify(to));
   }
   custody.push({ path, sha256: createHash('sha256').update(raw).digest('hex') });
   return asModule(stripTypeScriptTypes(transformed));
 }
-const appUrl = await source('../src/planner/objective-canonical-application.ts');
+const appUrl = await source('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const generationUrl = await source('../src/meri/objective-canonical-generation.ts', [["'../planner/objective-canonical-application.js'", appUrl]]);
 const snapshotUrl = await source('../src/strategy/versioning.ts');
 const draftUrl = await source('../src/meri/objective-canonical-draft.ts', [

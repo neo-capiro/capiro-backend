@@ -221,7 +221,7 @@ describe('Permitted plan client discovery', () => {
       'grant',
       'wall',
     ]);
-    expect(f.calls[0]!.values).toEqual([ctx.clerkUserId, ctx.tenantId]);
+    expect(f.calls[0]!.values).toEqual([ctx.clerkUserId, ctx.tenantId, null]);
     expect(f.calls[1]!.values).toEqual([ctx.tenantId, [clientId, otherClientId]]);
     expect(f.calls[1]!.sql).toContain("status::text<>'archived'");
     expect(f.calls[1]!.sql).toContain('ORDER BY id FOR UPDATE');

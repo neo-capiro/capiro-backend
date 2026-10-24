@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 // Pure owner-input projection cases. No Nest, DB, provider, children or hooks.
 // Hash equality does not prove custody of the actual row or Meri acceptance.
 import test from 'node:test';
@@ -12,13 +13,13 @@ async function moduleSource(path, replacements = []) {
   const url = new URL(path, import.meta.url), original = await readFile(url, 'utf8');
   let source = original;
   for (const [from, to] of replacements) {
-    const parts = source.split(from); assert.equal(parts.length, 2, `one declared dependency ${from}`); source = parts.join(to);
+    const parts = source.split(from); assert.equal(parts.length, from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2, `one declared dependency ${from}`); source = parts.join(to);
   }
   const stripped = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: url.href });
   custody.push({ path, sha256: sha(original), replacementSpecifiers: replacements.map(([from]) => from), transformedSha256: sha(stripped) });
   return asModule(stripped);
 }
-const appUrl = await moduleSource('../src/planner/objective-canonical-application.ts');
+const appUrl = await moduleSource('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", JSON.stringify(objectivePlannerOwnerCodecUrl)]]);
 const generationUrl = await moduleSource('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", JSON.stringify(appUrl)],
 ]);
@@ -63,7 +64,7 @@ function fixture() {
 const derive = x => deriveCanonicalJobInput(x.job, x.admission, x.runtime, x.claim);
 
 test('custody pins three actual sources with only declared static import rewrites', t => {
-  assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [0, 1, 2]);
+  assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [1, 1, 2]);
   t.diagnostic(JSON.stringify({ sourceCustody: custody }));
 });
 test('DTO and envelope derive from actual row, retain literal fields/order and omit bearer/wider owner row', () => {

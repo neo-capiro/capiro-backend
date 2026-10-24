@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 // Actual objectivePersistence hook source; synthetic SQL responses, transaction
 // rollback model and authority/source/ledger ports. No real database, framework,
 // lease concurrency, current authority or semantic compiler is qualified here.
@@ -16,8 +17,8 @@ async function sourceModule(relative, replacements = []) {
   const path = new URL(relative, import.meta.url), raw = await readFile(path, 'utf8');
   let source = raw;
   for (const [from, to] of replacements) {
-    assert.equal(source.split(from).length, 2, `one declared import rewrite: ${from}`);
-    source = source.replace(from, JSON.stringify(to));
+    assert.equal(source.split(from).length, (from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2), `one declared import rewrite: ${from}`);
+    source = source.replaceAll(from, JSON.stringify(to));
   }
   const transformed = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: path.href });
   custody.push({ path: relative, sha256: createHash('sha256').update(raw).digest('hex'),
@@ -35,6 +36,7 @@ const ports = data(`
   import assert from 'node:assert/strict';
   import {digest} from ${JSON.stringify(typesUrl)};
   const clone=value=>structuredClone(value);
+  export const generationBindingKey=digest;
   export const generationMarker=a=>({schemaVersion:1,syntheticAdmissionHash:digest(a)});
   export async function lockObjectiveSources(tx){
     assert.equal(tx.fixture.depth,1);tx.fixture.calls.locks++;
@@ -73,6 +75,7 @@ const ports = data(`
   }
 `);
 const completionUrl = await sourceModule('../src/meri/objective-generation-completion.ts', [
+  ["'./objective-canonical-generation.js'", ports],
   ["'./objective-generation-admission.js'", ports],
   ["'./objective-generation-sources.js'", ports],
   ["'./objective-generation.types.js'", typesUrl],
@@ -98,7 +101,7 @@ function fixture({ canonical = true, completion = true } = {}) {
       reobservedAt: null, issues: [] } };
   s.a = { schemaVersion: 1, canonical: { tenantId: id(5), clientId: id(1), objectiveId: id(2) },
     generationJobId: id(7), generationRequestId: id(4), clerkUserId: 'user_original' };
-  s.association = { admission: s.a, acceptance: { issuance: { issuanceKey: 'original-issuance', expiresAtMs: 99_000 } } };
+  s.association = { admission: s.a, acceptance: { sourceBinding: { tenantId:id(5),actorId:id(6),conversationId:id(20),runId:id(21),attemptId:id(22),workerId:id(23),writerFence:1 },effectExpiresAtMs:99_000 } };
   s.witness = { schemaVersion: 1, namespace: 'capiro.objective-strategy.completion:v1',
     generationJobId: id(7), generationRequestId: id(4), sourceAdmissionSha256: 'd'.repeat(64),
     sourceRequestSha256: 'e'.repeat(64), sourceBindingSha256: 'f'.repeat(64), typedRequestSha256: '1'.repeat(64),
@@ -110,7 +113,7 @@ function fixture({ canonical = true, completion = true } = {}) {
       receipt: { schemaVersion: 1, requestId: id(4), source: copy(s.source), context: copy(s.compiled.context), result: null, failure: null } } };
   if (canonical) input.canonicalGeneration = { schemaVersion: 1, syntheticAdmissionHash: digest(s.a) };
   s.claim = { id: id(7), tenantId: id(5), ownerUserId: 'user_original',
-    claimToken: canonical ? 'canonical:original-issuance' : 'legacy-worker', attempt: canonical ? 2 : 1, input: copy(input) };
+    claimToken: canonical ? 'canonical:'+digest(s.association.acceptance.sourceBinding) : 'legacy-worker', attempt: canonical ? 2 : 1, input: copy(input) };
   if (completion) s.claim.completion = copy(s.witness);
   s.durable = { job: { status: 'running', claimedBy: s.claim.claimToken, attempt: s.claim.attempt,
     input: copy(input), strategyId: null }, strategies: [], nodes: [], versions: [], producer: null };

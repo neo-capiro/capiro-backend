@@ -14,15 +14,15 @@ const issuanceWire = z.object({ issuanceKey: sha, binding: bindingWire, requestS
   grantId: uuid, capabilitySha256: sha, factsSha256: sha }).strict();
 const queuedType = z.enum(readerStrategyTypes);
 const observationWire = z.object({ schemaVersion: z.literal(2), purpose: z.enum(['active-source', 'historical-source']),
-  generationJobId: uuid, sourceAdmission: z.unknown(), sourceAdmissionSha256: sha, binding: bindingWire,
+  generationJobId: uuid, sourceAdmission: z.unknown().optional(), sourceAdmissionSha256: sha, binding: bindingWire,
   sourceRequestSha256: sha, issuance: issuanceWire, typedRequestSha256: sha, executionContextSha256: sha,
   acceptedRequestId: uuid, acceptedPromptSha256: sha, queuedType,
   runState: z.enum(['queued', 'starting', 'running', 'completed', 'failed', 'cancelled']), checkedAtMs: ms, expiresAtMs: ms.positive() }).strict();
 export type ObjectiveReaderV2Observation = z.infer<typeof observationWire>;
 const retainedWire = z.object({ schemaVersion: z.literal(1), generationJobId: uuid, binding: bindingWire,
   sourceAdmissionSha256: sha, sourceRequestSha256: sha, typedRequestSha256: sha, completionId: uuid,
-  checkpointId: uuid, checkpointSha256: sha, resultRef: uuid, resultSha256: sha, file: z.unknown(),
-  rawFileSha256: sha, execution: z.unknown(), result: z.unknown(), checkedAtMs: ms, expiresAtMs: ms.positive() }).strict();
+  checkpointId: uuid, checkpointSha256: sha, resultRef: uuid, resultSha256: sha, file: z.unknown().optional(),
+  rawFileSha256: sha, execution: z.unknown().optional(), result: z.unknown().optional(), checkedAtMs: ms, expiresAtMs: ms.positive() }).strict();
 export interface ObjectiveReaderV2ExpectedSource {
   readonly generationJobId: string; readonly sourceAdmissionSha256: string; readonly sourceAdmission: unknown; readonly queuedType: string;
 }
@@ -93,7 +93,7 @@ function finiteJson(v: unknown): string {
 const equal = (a: unknown, b: unknown): boolean => finiteJson(a) === finiteJson(b);
 const finiteHash = (v: unknown): string => createHash('sha256').update(finiteJson(v), 'utf8').digest('hex');
 function expectedSource(raw: ObjectiveReaderV2ExpectedSource, parsers: ObjectiveReaderV2Parsers): ObjectiveReaderV2ExpectedSource {
-  const v = z.object({ generationJobId: uuid, sourceAdmissionSha256: sha, sourceAdmission: z.unknown(), queuedType }).strict().parse(snapshot(raw));
+  const v = z.object({ generationJobId: uuid, sourceAdmissionSha256: sha, sourceAdmission: z.unknown().optional(), queuedType }).strict().parse(snapshot(raw));
   const admission = snapshot(parsers.admission(v.sourceAdmission)) as Record<string, unknown>;
   if (!admission || admission.generationJobId !== v.generationJobId || finiteHash(admission) !== v.sourceAdmissionSha256) unavailable();
   return freeze({ ...v, sourceAdmission: admission });

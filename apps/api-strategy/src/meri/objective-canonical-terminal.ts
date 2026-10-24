@@ -1,7 +1,7 @@
 import { types as nodeTypes } from 'node:util';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import {
-  canonicalGenerationAdmissionSha256, GENERATION_ADMISSION, generationLedgerId,
+  canonicalGenerationAdmissionSha256, GENERATION_ADMISSION, generationLedgerId, generationBindingKey,
   parseCanonicalGenerationAdmission, requireGenerationAcceptanceForAdmission,
 } from './objective-canonical-generation.js';
 import { SAFE_FAILURES, validObjectiveOutcome, type ObjectiveReceipt } from './objective-generation.types.js';
@@ -149,7 +149,7 @@ function expected(raw: CanonicalTerminalExpected) {
   const hash = applicationHash(identity);
   const id = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-8${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
   return { admission, acceptance, identity, id, publicationSha256,
-    claimToken: `canonical:${acceptance.issuance.issuanceKey}`,
+    claimToken: `canonical:${generationBindingKey(acceptance.sourceBinding)}`,
     minimumRecordedAtMs: Math.max(admission.admittedAtMs, acceptance.acceptedAtMs) };
 }
 function ownerJob(raw: CanonicalTerminalJob, e: ReturnType<typeof expected>, replay: boolean) {

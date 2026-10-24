@@ -57,6 +57,29 @@ export interface OperationalReceiptRequest {
   clientId: string;
   objectiveId: string;
 }
+export interface OperationalAssociationsRequest {
+  schemaVersion: 1;
+  clientId: string;
+  objectiveId: string;
+  limit: number;
+  cursor: string | null;
+}
+export interface OperationalAssociationsPage {
+  schemaVersion: 1;
+  scope: OperationalScope;
+  associationSetVersion: number;
+  observedAt: string;
+  asOf: string;
+  pageCoverage: 'complete' | 'partial';
+  nextCursor: string | null;
+  items: Array<{
+    associationId: string;
+    linkedRevision: OperationalRevision;
+    linkedAt: string;
+    resource: OperationalResource;
+    cycles: OperationalCycle[];
+  }>;
+}
 export interface OperationalScope {
   clientId: string;
   objectiveId: string;

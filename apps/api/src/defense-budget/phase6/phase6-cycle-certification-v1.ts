@@ -39,7 +39,7 @@ export const phase6CycleCertificationInputV1Schema = z
     documents: z.array(phase6RequiredDocumentV1Schema),
     projections: z.array(phase6NativeProjectionV1Schema),
     comparisons: z.array(phase6ComparisonSummaryV1Schema),
-    lineFamilyCoverage: z.record(z.number().int().nonnegative()),
+    lineFamilyCoverage: z.record(z.string(), z.number().int().nonnegative()),
     bindingCounts: z
       .object({
         accepted: z.number().int().nonnegative(),

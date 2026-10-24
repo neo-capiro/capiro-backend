@@ -833,7 +833,10 @@ async function signalProbe() {
 async function main() {
   const appRequire = createRequire('/app/apps/api/package.json');
   assert.equal(process.platform, 'linux'); assert.equal(process.arch, platform.cpu);
-  assert.equal(process.version, 'v22.23.3'); assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
+  assert.equal(process.version, 'v22.23.4'); assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
+  for (const file of ['/usr/local/lib/node_modules/npm', '/usr/local/bin/npm', '/usr/local/bin/npx']) {
+    assert(!fs.existsSync(file), 'build-only npm tooling present in runtime image');
+  }
   assert(fs.existsSync(platform.loader), 'musl loader missing');
   assert(!process.report.getReport().header.glibcVersionRuntime, 'glibc runtime detected');
   const stream = createReceiptStream(bufferReceipt);

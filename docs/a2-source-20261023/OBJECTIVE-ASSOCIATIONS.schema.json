@@ -1,0 +1,335 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:capiro:objective-association-inventory:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scope",
+    "associationSetVersion",
+    "observedAt",
+    "asOf",
+    "pageCoverage",
+    "nextCursor",
+    "items"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "scope": {
+      "$ref": "#/definitions/Scope"
+    },
+    "associationSetVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "asOf": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pageCoverage": {
+      "enum": [
+        "complete",
+        "partial"
+      ]
+    },
+    "nextCursor": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      ]
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/definitions/AssociationInventoryItem"
+      }
+    }
+  },
+  "definitions": {
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientId",
+        "objectiveId",
+        "currentRevisionId",
+        "objectiveVersion",
+        "objectiveStatus",
+        "ownerUserId"
+      ],
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "currentRevisionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "objectiveVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "objectiveStatus": {
+          "enum": [
+            "draft",
+            "in_review",
+            "ready"
+          ]
+        },
+        "ownerUserId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          ]
+        }
+      }
+    },
+    "Resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "title",
+        "ownerVersion",
+        "observedAt"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/definitions/Selection"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "ownerVersion": {
+          "$ref": "#/definitions/OwnerVersion"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "strategy",
+            "planner_project",
+            "planner_task",
+            "outreach_session",
+            "meeting",
+            "budget_package",
+            "defense_budget_cycle"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "OwnerVersion": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "counter"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "timestamp"
+            },
+            "value": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unversioned"
+            }
+          }
+        }
+      ]
+    },
+    "Cycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fiscalYear",
+        "authorityTrack",
+        "basis",
+        "context"
+      ],
+      "properties": {
+        "fiscalYear": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "authorityTrack": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            }
+          ]
+        },
+        "basis": {
+          "const": "human_annotation"
+        },
+        "context": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "id"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "budget_package",
+                    "defense_budget_cycle"
+                  ]
+                },
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "UUID": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "AssociationInventoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "associationId",
+        "linkedRevision",
+        "linkedAt",
+        "resource",
+        "cycles"
+      ],
+      "properties": {
+        "associationId": {
+          "$ref": "#/definitions/UUID"
+        },
+        "linkedRevision": {
+          "$ref": "#/definitions/Revision"
+        },
+        "linkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resource": {
+          "$ref": "#/definitions/Resource"
+        },
+        "cycles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Cycle"
+          }
+        }
+      }
+    }
+  }
+}

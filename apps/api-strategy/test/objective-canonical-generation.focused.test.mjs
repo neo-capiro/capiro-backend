@@ -1,5 +1,6 @@
 // Synthetic source cases only. No Nest graph, DB, provider, child, file writes,
 // loader hooks or current-authority acceptance. Source custody is printed below.
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -16,7 +17,7 @@ function replaceOnce(source, from, to) {
 }
 async function sourceModule(relative, replacements = [], mode = 'strip') {
   const url = new URL(relative, import.meta.url), original = await readFile(url, 'utf8');
-  let source = original;
+  let source = original.replaceAll("'@capiro/shared/objective-planner-owner-codec'", JSON.stringify(objectivePlannerOwnerCodecUrl));
   for (const [from, to] of replacements) source = replaceOnce(source, from, to);
   // The existing shared helper has one TS parameter property, requiring Node's
   // built-in transform mode. No application source or test fixture is changed.
@@ -80,12 +81,11 @@ function fixture() {
     policyId: 'capiro.objective-generation-consent', policyRevision: 1,
     configured: '1800000', effective: '30000', confirmedMs: String(nowMs - 1),
     expiresMs: String(nowMs + 30_000), validExpiry: true };
-  const binding = { tenantId: scope.tenantId, actorId: scope.clerkUserId, conversationId: id(20),
+  const binding = { tenantId: scope.tenantId, actorId: admission.actorUserId, conversationId: id(20),
     runId: id(21), attemptId: id(22), workerId: id(23), writerFence: 1 };
   const acceptance = { schemaVersion: 1, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(admission),
     sourceBinding: binding, sourceRequestSha256: hash('b'), acceptedAtMs: nowMs + 1,
-    issuance: { issuanceKey: generationBindingKey(binding), binding: copy(binding), requestSha256: hash('b'),
-      expiresAtMs: nowMs + 15_000, grantId: id(24), capabilitySha256: hash('c'), factsSha256: hash('d') } };
+    effectExpiresAtMs: nowMs + 15_000 };
   return { snapshot, canonical, scope, nowMs, admission, job, root, consent, binding, acceptance };
 }
 
@@ -204,41 +204,38 @@ test('RunBinding is closed, readonly, full-domain and has a deterministic actual
   for (const actorId of ['', 'x'.repeat(129)]) invalid(() => parseAcceptedRunBinding({ ...b, actorId }));
 });
 
-test('actual whole facts/request/capability hashes remain separate from semantic admission SHA', () => {
+test('native accepted request hash remains distinct from the original consent admission hash', () => {
   const x = fixture(), a = requireGenerationAcceptanceForAdmission(x.acceptance, x.admission);
-  assert.notEqual(a.issuance.factsSha256, a.sourceAdmissionSha256);
   assert.notEqual(a.sourceRequestSha256, a.sourceAdmissionSha256);
   assert.deepEqual(a, x.acceptance);
-  assert.ok(Object.isFrozen(a) && Object.isFrozen(a.sourceBinding) && Object.isFrozen(a.issuance) && Object.isFrozen(a.issuance.binding));
-  // This proves metadata coherence only, never that an issuer protected facts.
+  assert.ok(Object.isFrozen(a) && Object.isFrozen(a.sourceBinding));
+  assert.equal(a.sourceBinding.actorId, x.admission.actorUserId);
+  assert.notEqual(a.sourceBinding.actorId, x.admission.clerkUserId);
 });
 
-test('acceptance refuses every missing/unknown issuer field and internal binding/request/key mismatch', () => {
-  for (const key of Object.keys(fixture().acceptance.issuance)) {
-    const x = fixture(); delete x.acceptance.issuance[key]; invalid(() => parseCanonicalGenerationAcceptance(x.acceptance));
+test('native acceptance refuses missing/unknown fields and retired issuer receipts', () => {
+  for (const key of Object.keys(fixture().acceptance)) {
+    const x = fixture(); delete x.acceptance[key]; invalid(() => parseCanonicalGenerationAcceptance(x.acceptance));
   }
-  for (const mutate of [a => { a.issuance.other = true; }, a => { a.sourceBinding.runId = id(99); },
-    a => { a.issuance.requestSha256 = hash('e'); }, a => { a.issuance.issuanceKey = hash('e'); },
-    a => { a.issuance.factsSha256 += '\n'; }, a => { a.sourceAdmissionSha256 += '\n'; },
-    a => { a.issuance.expiresAtMs = a.acceptedAtMs; }]) {
+  for (const mutate of [a => { a.issuance = {}; }, a => { a.other = true; },
+    a => { a.sourceRequestSha256 += '\n'; }, a => { a.sourceAdmissionSha256 += '\n'; },
+    a => { a.sourceBinding.actorId = 'user_fixture'; }, a => { a.effectExpiresAtMs = a.acceptedAtMs; }]) {
     const x = fixture(); mutate(x.acceptance); invalid(() => parseCanonicalGenerationAcceptance(x.acceptance));
   }
 });
 
-test('acceptance cannot expand the semantic deadline or switch tenant/native-Clerk lineage', () => {
+test('native acceptance cannot expand original consent or switch tenant/native actor lineage', () => {
   const conflict = x => assert.throws(() => requireGenerationAcceptanceForAdmission(x.acceptance, x.admission), e => e.code === 'REQUEST_CONFLICT');
   for (const mutate of [x => { x.acceptance.sourceAdmissionSha256 = hash('f'); },
     x => { x.acceptance.acceptedAtMs = x.admission.admittedAtMs - 1; },
-    x => { x.acceptance.issuance.expiresAtMs = x.admission.effectExpiresAtMs + 1; },
-    x => { x.acceptance.sourceBinding.tenantId = id(99); }, x => { x.acceptance.sourceBinding.actorId = 'user_other'; }]) {
-    const x = fixture(); mutate(x);
-    x.acceptance.issuance.binding = copy(x.acceptance.sourceBinding);
-    x.acceptance.issuance.issuanceKey = generationBindingKey(x.acceptance.sourceBinding); conflict(x);
+    x => { x.acceptance.effectExpiresAtMs = x.admission.effectExpiresAtMs + 1; },
+    x => { x.acceptance.sourceBinding.tenantId = id(99); }, x => { x.acceptance.sourceBinding.actorId = id(98); }]) {
+    const x = fixture(); mutate(x); conflict(x);
   }
-  const boundary = fixture(); boundary.acceptance.issuance.expiresAtMs = boundary.admission.effectExpiresAtMs;
+  const boundary = fixture(); boundary.acceptance.effectExpiresAtMs = boundary.admission.effectExpiresAtMs;
   assert.ok(requireGenerationAcceptanceForAdmission(boundary.acceptance, boundary.admission));
   const late = fixture(); late.acceptance.acceptedAtMs = late.admission.effectExpiresAtMs;
-  late.acceptance.issuance.expiresAtMs = late.admission.effectExpiresAtMs + 1; conflict(late);
+  late.acceptance.effectExpiresAtMs = late.admission.effectExpiresAtMs + 1; conflict(late);
 });
 
 test('private ledger IDs are deterministic and separated by all three kinds and original identity', () => {

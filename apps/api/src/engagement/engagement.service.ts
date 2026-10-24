@@ -62,6 +62,8 @@ import {
 import { activeMailMessageWhere } from './mail-message-state.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
 import { queryMailMessages, type MailQueryOptions } from './mail-query.js';
+import { readMailThreadPage, readMailThreadHttpPage, type MailThreadPageInput, type MailThreadHttpPageInput } from './mail-thread-pages.js';
+import { readMailThreadList, type MailThreadListInput } from './mail-thread-list.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
   GenerationGatewayService,
@@ -2556,48 +2558,15 @@ export class EngagementService {
     );
   }
 
-  /**
-   * One thread's full message history — `listMailThreads` intentionally caps
-   * each thread at its 3 most recent messages for the list view, which isn't
-   * enough for a real thread/reply view (Timeline's email action, the person
-   * drawer's message history). Same ownership + active-message filtering as
-   * the list.
-   */
-  async getMailThread(ctx: TenantContext, threadId: string, clientId?: string,
-    authorizedMailboxIds?: readonly string[]) {
-    const thread = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.mailThread.findFirst({
-        where: {
-          id: threadId,
-          tenantId: ctx.tenantId,
-          ...(clientId ? { clientId } : {}),
-          ...(authorizedMailboxIds ? { connectionId: { in: [...authorizedMailboxIds] } } : {}),
-          ...ownMailThreadWhere(ctx.userId),
-        },
-        include: {
-          client: clientSummarySelect(),
-          // The caller's own connected mailbox address for this thread — the
-          // frontend needs this to exclude "myself" when it works out who to
-          // reply to (see EngagementService.getMailThread callers), since a
-          // thread's own participants/messages carry no notion of "which one
-          // of these is me".
-          connection: { select: { id: true, tenantId: true, createdByUserId: true, accountEmail: true, status: true } },
-          messages: {
-            where: activeMailMessageWhere(),
-            orderBy: [{ sentAt: 'asc' }, { receivedAt: 'asc' }, { createdAt: 'asc' }],
-          },
-        },
-      }),
-    );
-    if (!thread) throw new NotFoundException('Mail thread not found');
-    const { connection, ...rest } = thread;
-    return {
-      ...rest,
-      connectionEmail: connection?.accountEmail ?? null,
-      connectionStatus: connection?.status ?? null,
-      connectionOwnerTenantId: connection?.tenantId ?? null,
-      connectionOwnerActorId: connection?.createdByUserId ?? null,
-    };
+  /** Current owned thread with bounded, explicitly continued active-message pages. */
+  getMailThread(ctx: TenantContext, threadId: string, clientId?: string,
+    authorizedMailboxIds?: readonly string[], page: MailThreadPageInput = {}) {
+    return readMailThreadPage(this.prisma, ctx, threadId, clientId, authorizedMailboxIds, page);
+  }
+
+  getMailThreadHttpPage(ctx: TenantContext, threadId: string, clientId?: string, page: MailThreadHttpPageInput = {}) {
+    return readMailThreadHttpPage(this.prisma, ctx, threadId, clientId, page,
+      (tx, id) => this.clientProfileEmails(tx, ctx.tenantId, id));
   }
 
   /** Shared, bounded mailbox retrieval for assistant list/search tools. */
@@ -2609,54 +2578,14 @@ export class EngagementService {
     return queryMailMessages(this.prisma, ctx, input, options);
   }
 
-  listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const baseWhere: Prisma.MailThreadWhereInput = {
-        tenantId: ctx.tenantId,
-        ...ownMailThreadWhere(ctx.userId),
-      };
-      const where: Prisma.MailThreadWhereInput = query.clientId
-        ? {
-            AND: [
-              baseWhere,
-              await this.clientMailThreadAssociationWhere(
-                tx,
-                ctx.tenantId,
-                query.clientId,
-                query.recipientEmails ?? [],
-              ),
-            ],
-          }
-        : baseWhere;
+  listMailThreadPage(ctx: TenantContext, query: MailThreadListInput) {
+    return readMailThreadList(this.prisma, ctx, query,
+      (tx, clientId) => this.clientProfileEmails(tx, ctx.tenantId, clientId));
+  }
 
-      const rows = await tx.mailThread.findMany({
-        where,
-        include: {
-          client: clientSummarySelect(),
-          // Same reason `getMailThread` selects it: the caller's own connected
-          // mailbox address, which the reply-recipient logic needs to exclude
-          // "myself" — a thread's participants/messages carry no notion of which
-          // address is the reader's.
-          connection: { select: { accountEmail: true } },
-          messages: {
-            where: activeMailMessageWhere(),
-            orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
-            take: 3,
-          },
-        },
-        orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-        take: 50,
-      });
-      // Flatten to exactly the shape `getMailThread` returns. The web's
-      // `MailThread` type declares `connectionEmail: string | null` as REQUIRED,
-      // but only the detail route populated it — so every list row arrived with
-      // the field `undefined` while TypeScript asserted otherwise, and any
-      // consumer reading it off a list row silently got the pre-fix behaviour.
-      return rows.map(({ connection, ...rest }) => ({
-        ...rest,
-        connectionEmail: connection?.accountEmail ?? null,
-      }));
-    });
+  /** Existing derived activity/evidence callers retain their bounded first-page array. */
+  async listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {
+    return (await this.listMailThreadPage(ctx, query)).items;
   }
 
   /**

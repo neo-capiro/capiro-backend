@@ -15,8 +15,8 @@ import { OutreachContextReferenceService } from './outreach-context-reference.se
 
 const inputSchemaZod = z
   .object({
-    documentId: z.string().uuid(),
-    clientId: z.string().uuid().nullable().default(null),
+    documentId: z.string().guid(),
+    clientId: z.string().guid().nullable().default(null),
     intendedClass: z.enum([
       'required_policy',
       'writing_guidance',

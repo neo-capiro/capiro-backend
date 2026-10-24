@@ -34,9 +34,9 @@ test('required and optional peer-only placements preserve existing graph obligat
   assert.equal(helper.classifyDependencyRelations(peer, node, [edge]).size, 0);
   assert.equal(helper.classifyDependencyRelations({ peerDependencies: { child: '^1' } }, node, [{ ...edge, kind: 'dependencies' }]).size, 0);
 });
-test('all 516 frozen nodes and 1022 edges retain their exact placement; every optional-peer overlap stays physically required', () => {
+test('all 506 frozen nodes and 991 edges retain their exact placement; every optional-peer overlap stays physically required', () => {
   const contract = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json')));
-  assert.equal(contract.nodes.length, 516); assert.equal(contract.edges.length, 1022);
+  assert.equal(contract.nodes.length, 506); assert.equal(contract.edges.length, 991);
   const before = JSON.stringify(contract), nodes = new Map(contract.nodes.map(n => [n.key, n]));
   let overlaps = 0;
   for (const relation of contract.edges) {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -45,19 +46,26 @@ function makeTx() {
     createdBy: user(ADMIN, 'staff@capiro.ai'),
     recipients: [
       { userId: U1, acknowledgedAt: null, user: user(U1, 'u1@acme.com') },
-      { userId: U2, acknowledgedAt: new Date('2026-09-14T13:00:00Z'), user: user(U2, 'u2@acme.com') },
+      {
+        userId: U2,
+        acknowledgedAt: new Date('2026-09-14T13:00:00Z'),
+        user: user(U2, 'u2@acme.com'),
+      },
     ],
   };
   return {
     detail,
+    $queryRaw: jest.fn(async () => []),
     tenant: { findUnique: jest.fn(async () => ({ id: TENANT })) },
     tenantMembership: {
+      findUnique: jest.fn(async () => ({ status: 'active' })),
       findMany: jest.fn(async () => [
         { userId: U1, role: 'user_admin', status: 'active', user: user(U1, 'u1@acme.com') },
         { userId: U2, role: 'standard_user', status: 'invited', user: user(U2, 'u2@acme.com') },
       ]),
     },
     adminBroadcast: {
+      findFirst: jest.fn(async () => ({ id: B1 })),
       findMany: jest.fn(async () => []),
       findUnique: jest.fn(async () => detail),
       create: jest.fn(async (_args: unknown) => ({ id: B1 })),
@@ -170,7 +178,12 @@ describe('AdminBroadcastsService — staff paths (withSystem)', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
-      service.createBroadcast(admin, { tenantId: TENANT, title: '   ', body: 'x', audience: 'all_users' }),
+      service.createBroadcast(admin, {
+        tenantId: TENANT,
+        title: '   ',
+        body: 'x',
+        audience: 'all_users',
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     tx.tenant.findUnique.mockResolvedValueOnce(null as never);
@@ -201,7 +214,11 @@ describe('AdminBroadcastsService — staff paths (withSystem)', () => {
       data: { archivedAt: expect.any(Date) },
     });
     expect(tx.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ action: 'broadcast.archive', entityId: B1, tenantId: TENANT }),
+      data: expect.objectContaining({
+        action: 'broadcast.archive',
+        entityId: B1,
+        tenantId: TENANT,
+      }),
     });
 
     tx.adminBroadcast.update.mockClear();
@@ -219,7 +236,9 @@ describe('AdminBroadcastsService — staff paths (withSystem)', () => {
     const { service } = makeService(tx);
     const out = await service.listTenantMembers(TENANT);
     expect(tx.tenantMembership.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { tenantId: TENANT, status: { in: ['active', 'invited'] } } }),
+      expect.objectContaining({
+        where: { tenantId: TENANT, status: { in: ['active', 'invited'] } },
+      }),
     );
     expect(out.map((m) => m.email)).toEqual(['u1@acme.com', 'u2@acme.com']);
     expect(out[1]).toMatchObject({ status: 'invited', role: 'standard_user' });
@@ -245,9 +264,10 @@ describe('AdminBroadcastsService — user paths (withTenant, own rows only)', ()
           tenantId: TENANT,
           userId: U1,
           acknowledgedAt: null,
-          broadcast: { archivedAt: null },
+          broadcast: { tenantId: TENANT, archivedAt: null },
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 100,
       }),
     );
     expect(out).toEqual([expect.objectContaining({ id: B1, title: 'Maintenance' })]);
@@ -270,6 +290,8 @@ describe('AdminBroadcastsService — user paths (withTenant, own rows only)', ()
       expect.objectContaining({ where: { id: 'r1' }, data: { acknowledgedAt: expect.any(Date) } }),
     );
     expect(first.ok).toBe(true);
+    expect(first.broadcastId).toBe(B1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(6);
 
     const already = new Date('2026-09-14T13:00:00Z');
     tx.adminBroadcastRecipient.update.mockClear();
@@ -280,5 +302,31 @@ describe('AdminBroadcastsService — user paths (withTenant, own rows only)', ()
     const second = await service.acknowledge(member, B1);
     expect(tx.adminBroadcastRecipient.update).not.toHaveBeenCalled();
     expect(second.acknowledgedAt).toBe(already);
+  });
+
+  it('refuses removed membership before listing or acknowledging recipient records', async () => {
+    const { service } = makeService(tx);
+    tx.tenantMembership.findUnique.mockResolvedValue({ status: 'removed' });
+    await expect(service.listPendingForUser(member)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.acknowledge(member, B1)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.adminBroadcastRecipient.findMany).not.toHaveBeenCalled();
+    expect(tx.adminBroadcastRecipient.update).not.toHaveBeenCalled();
+  });
+
+  it('rechecks archive eligibility after acquiring the broadcast lock', async () => {
+    const { service } = makeService(tx);
+    tx.$queryRaw
+      .mockImplementationOnce(async () => [])
+      .mockImplementationOnce(async () => {
+        tx.adminBroadcast.findFirst.mockResolvedValueOnce(null as never);
+        return [];
+      });
+    await expect(service.acknowledge(member, B1)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.adminBroadcast.findFirst).toHaveBeenCalledWith({
+      where: { id: B1, tenantId: TENANT, archivedAt: null },
+      select: { id: true },
+    });
+    expect(tx.adminBroadcastRecipient.findFirst).not.toHaveBeenCalled();
+    expect(tx.adminBroadcastRecipient.update).not.toHaveBeenCalled();
   });
 });

@@ -14,7 +14,7 @@ import { normalizeCanonicalDraft, normalizeCanonicalRegenerationDraft } from './
 import { verifyRetainedCanonicalCompletion } from './objective-canonical-completion-receipt.js';
 import { verifyRetainedCanonicalRegenerationCompletion } from './objective-canonical-regeneration-completion-receipt.js';
 import { generationAssociation } from './objective-canonical-producer-ledger.js';
-import { canonicalGenerationAdmissionSha256 } from './objective-canonical-generation.js';
+import { canonicalGenerationAdmissionSha256, generationBindingKey } from './objective-canonical-generation.js';
 import { readCanonicalSavedGeneration, requireCanonicalBasisCustody } from './objective-canonical-saved-generation.js';
 import { readCanonicalRequestPublication } from './objective-canonical-request-ledger.js';
 import { CORE_CANONICAL_REGENERATION_REQUEST_VERSION } from './objective-canonical-regeneration-request.js';
@@ -64,7 +64,7 @@ export class ObjectiveCanonicalCompletionService {
     await this.authority.assertGenerationCurrent(tx, grant, subject);
     const now = await this.clock(tx);
     if (grant.requestSha256 !== subject.requestSha256 || !Number.isSafeInteger(grant.checkedAtMs) || grant.checkedAtMs > now ||
-        [grant.expiresAtMs, grant.delegationExpiresAtMs, grant.claimExpiresAtMs, ...(readExpiresAtMs === undefined ? [] : [readExpiresAtMs])]
+        [...(effect ? [grant.expiresAtMs] : []), ...(readExpiresAtMs === undefined ? [] : [readExpiresAtMs])]
           .some(n => !Number.isSafeInteger(n) || n <= now)) return fail('AUTHORITY_UNAVAILABLE');
     // `effect` is explicit at each callsite; historical lookup never revives
     // an original issuance/consent or uses absence as eligibility.
@@ -129,11 +129,11 @@ export class ObjectiveCanonicalCompletionService {
         if (receipt) return { receipt, state };
         if (state.input.canonicalCompletion !== undefined || state.input.canonicalTerminal !== undefined) return fail();
         deriveCanonicalJobInput(state.job, state.admission, state.input.objectiveGeneration,
-          `canonical:${state.association.acceptance.issuance.issuanceKey}`);
+          `canonical:${generationBindingKey(state.association.acceptance.sourceBinding)}`);
         await requireCanonicalGenerationEffectWithinTx(tx, state.admission, {
           generationJobId: body.generationJobId, generationRequestId: state.admission.generationRequestId });
         await this.proof(tx, grant, subject, true,
-          Math.min(state.admission.effectExpiresAtMs, state.association.acceptance.issuance.expiresAtMs));
+          Math.min(state.admission.effectExpiresAtMs, state.association.acceptance.effectExpiresAtMs));
         return { receipt: null, state };
       }, { timeoutMs: 15_000 });
       if (first.receipt) return first.receipt;
@@ -149,9 +149,9 @@ export class ObjectiveCanonicalCompletionService {
             applicationHash(state.association) !== applicationHash(first.state.association) ||
             state.input.canonicalCompletion !== undefined || state.input.canonicalTerminal !== undefined) return fail('REQUEST_CONFLICT');
         deriveCanonicalJobInput(state.job, state.admission, state.input.objectiveGeneration,
-          `canonical:${state.association.acceptance.issuance.issuanceKey}`);
+          `canonical:${generationBindingKey(state.association.acceptance.sourceBinding)}`);
         const now = await this.proof(tx, grant, subject, true,
-          Math.min(state.admission.effectExpiresAtMs, state.association.acceptance.issuance.expiresAtMs));
+          Math.min(state.admission.effectExpiresAtMs, state.association.acceptance.effectExpiresAtMs));
         await requireCanonicalGenerationEffectWithinTx(tx, state.admission, {
           generationJobId: body.generationJobId, generationRequestId: state.admission.generationRequestId });
         const regeneration = 'requestVersion' in state.publication.request;
@@ -172,21 +172,21 @@ export class ObjectiveCanonicalCompletionService {
         const ownerBindings = ownerRows.filter(o => referencedOwners.has(o.clerkUserId));
         if ([...referencedOwners].some(id => !ownerBindings.some(o => o.clerkUserId === id))) return fail('AUTHORITY_UNAVAILABLE');
         await this.proof(tx, grant, subject, true,
-          Math.min(verified.expiresAtMs, state.admission.effectExpiresAtMs, state.association.acceptance.issuance.expiresAtMs));
+          Math.min(state.admission.effectExpiresAtMs, state.association.acceptance.effectExpiresAtMs));
         return { receipt: null, state, verified, normalized, ownerBindings, now };
       }, { timeoutMs: 15_000 });
       if (prepared.receipt) return prepared.receipt;
       if (!prepared.verified || !prepared.normalized) return fail();
       const state = prepared.state, a = state.admission, witness = Object.freeze(prepared.verified.witness);
-      const resultExpires = Math.min(prepared.verified.expiresAtMs, a.effectExpiresAtMs, state.association.acceptance.issuance.expiresAtMs);
+      const resultExpires = Math.min(a.effectExpiresAtMs, state.association.acceptance.effectExpiresAtMs);
       const envelope = JSON.parse(JSON.stringify(state.input.objectiveGeneration)) as NonNullable<DraftJobInput['objectiveGeneration']>;
       const runtime: DraftJobRuntime = {
-        timeoutMs: Math.min(a.effectExpiresAtMs, state.association.acceptance.issuance.expiresAtMs, grant.expiresAtMs) - prepared.now,
+        timeoutMs: Math.min(a.effectExpiresAtMs, state.association.acceptance.effectExpiresAtMs, grant.expiresAtMs) - prepared.now,
         onStage: () => {}, onStreamDelta: () => {},
         objective: { envelope, onCompiled: async () => fail('REQUEST_CONFLICT') },
       };
       const persistence = objectivePersistence({ id: state.job.id, tenantId: grant.tenantId, ownerUserId: grant.clerkUserId,
-        claimToken: `canonical:${state.association.acceptance.issuance.issuanceKey}`, attempt: 2,
+        claimToken: `canonical:${generationBindingKey(state.association.acceptance.sourceBinding)}`, attempt: 2,
         input: { ...state.input, objectiveGeneration: envelope }, completion: witness }, this.contextPlane, () => state.stored.compiled);
       runtime.persistence = { ...persistence,
         beforeWrite: async tx => {

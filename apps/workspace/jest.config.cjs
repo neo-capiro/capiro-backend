@@ -26,7 +26,7 @@ const clerkNodeCrypto = path.join(
 
 module.exports = {
   rootDir: '.',
-  testEnvironment: 'node',
+  testEnvironment: path.join(__dirname, 'jest.native-runtime-environment.cjs'),
   testMatch: [
     '<rootDir>/src/**/*.spec.ts',
     '<rootDir>/test/**/*.spec.ts',
@@ -41,6 +41,9 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
+    // Use the real Workspace-installed sanitizer through native Node loading;
+    // Jest's VM cannot require its ESM parser graph with VM modules enabled.
+    '^sanitize-html$': path.join(__dirname, 'jest.native-sanitize-html.cjs'),
     '^(\\.{1,2}/.*)\\.js$': '$1',
     // Jest cannot resolve package-`imports` subpaths; map @clerk/backend's
     // #crypto to its node CJS runtime. Must be an ABSOLUTE path — see

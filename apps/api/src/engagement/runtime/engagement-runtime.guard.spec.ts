@@ -92,14 +92,22 @@ describe('EngagementRuntimeGuard', () => {
     ).toThrow();
   });
 
-  it('returns external-action denial before callback denial in shadow mode', () => {
+  it.each(['MicrosoftCallbacksController', 'GoogleCallbacksController'])('returns external-action denial before callback denial for %s in shadow mode', (controller) => {
     const guard = new EngagementRuntimeGuard(reflector, makePolicy());
     try {
-      guard.canActivate(contextFor('MicrosoftOAuthController', 'callback'));
+      guard.canActivate(contextFor(controller, 'callback'));
       throw new Error('expected denial');
     } catch (error) {
       expect(JSON.stringify(error)).toContain('ENGAGEMENT_EXTERNAL_ACTION_DISABLED');
     }
+  });
+
+
+  it.each(['MicrosoftCallbacksController', 'GoogleCallbacksController'])('keeps the callback switch enforced for %s when external actions are enabled', (controller) => {
+    const guard = new EngagementRuntimeGuard(reflector, makePolicy({ externalActions: 'enabled' }));
+    expect(() => guard.canActivate(contextFor(controller, 'callback'))).toThrow();
+    const enabled = new EngagementRuntimeGuard(reflector, makePolicy({ externalActions: 'enabled', callbacksEnabled: true }));
+    expect(enabled.canActivate(contextFor(controller, 'callback'))).toBe(true);
   });
 
   it('fails closed when decorator metadata conflicts with the exact registry', () => {

@@ -1,9 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
-import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller.js';
+import { MicrosoftIntegrationActionsController } from './microsoft/microsoft-integration-actions.controller.js';
+import { MicrosoftCallbacksController } from './microsoft/microsoft-callbacks.controller.js';
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
-import { GoogleOAuthController } from './google/google-oauth.controller.js';
+import { GoogleIntegrationActionsController } from './google/google-integration-actions.controller.js';
+import { GoogleCallbacksController } from './google/google-callbacks.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleTokenService } from './google/google-token.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
@@ -21,6 +23,7 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
     let providerSync: jest.Mock;
     beforeEach(async () => {
       h = harness(provider);
+      jest.spyOn(h.crypto, 'decrypt');
       const row = h.rows.get('connection-A');
       row.id = connectionId;
       h.rows.delete('connection-A');
@@ -38,7 +41,9 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
       sync.syncCalendar = providerSync;
       sync.syncMail = providerSync;
       const mod = await Test.createTestingModule({
-        controllers: [microsoft ? MicrosoftOAuthController : GoogleOAuthController],
+        controllers: microsoft
+          ? [MicrosoftIntegrationActionsController, MicrosoftCallbacksController]
+          : [GoogleIntegrationActionsController, GoogleCallbacksController],
         providers: [
           { provide: microsoft ? MicrosoftOAuthService : GoogleOAuthService, useValue: h.service },
           { provide: microsoft ? MicrosoftGraphSyncService : GoogleSyncService, useValue: sync },
@@ -65,6 +70,12 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId }),
       });
+    const expectNoProviderUse = () => {
+      expect(providerSync).not.toHaveBeenCalled();
+      expect(h.exchange).not.toHaveBeenCalled();
+      expect(h.crypto.decrypt).not.toHaveBeenCalled();
+      expect(h.tx.integrationConnectionToken.update).not.toHaveBeenCalled();
+    };
 
     test('start rejects another mailbox owner before saving any attempt', async () => {
       h.rows.get(connectionId).createdByUserId = 'other-user';
@@ -75,12 +86,59 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
 
     test('sync rejects revoked membership before using a cached provider token', async () => {
       h.rows.get(connectionId).token.expiresAt = new Date(Date.now() + 3600000);
+      const other = { ...structuredClone(h.rows.get(connectionId)), id: 'other-connection' };
+      h.rows.set(other.id, structuredClone(other));
       h.setActive(false);
       const response = await fetch(`${base}/${connectionId}/sync`, { method: 'POST' });
       expect(response.status).toBe(403);
-      expect(providerSync).not.toHaveBeenCalled();
-      expect(h.tx.integrationConnectionToken.update).not.toHaveBeenCalled();
+      expectNoProviderUse();
+      expect(h.tx.integrationConnection.updateMany).toHaveBeenCalledTimes(1);
+      expect(h.tx.integrationConnection.updateMany).toHaveBeenCalledWith({
+        where: { id: connectionId, status: { in: ['connected', 'error'] } },
+        data: expect.objectContaining({ status: 'error' }),
+      });
+      expect(h.rows.get(connectionId).status).toBe('error');
+      expect(h.rows.get(other.id)).toEqual(other);
     });
+
+    test('sync cleanup rejection cannot mask the revoked-member 403', async () => {
+      h.rows.get(connectionId).token.expiresAt = new Date(Date.now() + 3600000);
+      const before = structuredClone(h.rows.get(connectionId));
+      h.setActive(false);
+      h.tx.integrationConnection.updateMany.mockRejectedValueOnce(new Error('synthetic write failure'));
+      const response = await fetch(`${base}/${connectionId}/sync`, { method: 'POST' });
+      expect(response.status).toBe(403);
+      expect(h.tx.integrationConnection.updateMany).toHaveBeenCalledTimes(1);
+      expect(h.rows.get(connectionId)).toEqual(before);
+      expectNoProviderUse();
+    });
+
+    test.each(['foreign-tenant', 'deleted', 'needs_configuration'])(
+      'revoked sync cleanup preserves a concurrently %s connection', async (change) => {
+        h.rows.get(connectionId).token.expiresAt = new Date(Date.now() + 3600000);
+        h.setActive(false);
+        let retained: unknown;
+        const query = h.tx.$queryRaw.getMockImplementation();
+        h.tx.$queryRaw.mockImplementation(async (sql: TemplateStringsArray, ...values: unknown[]) => {
+          const result = await query(sql, ...values);
+          if (sql.join('').includes('tenant_memberships')) {
+            if (change === 'deleted') h.rows.delete(connectionId);
+            else if (change === 'foreign-tenant') h.rows.get(connectionId).tenantId = 'other-tenant';
+            else h.rows.get(connectionId).status = change;
+            retained = structuredClone(h.rows.get(connectionId));
+          }
+          return result;
+        });
+        const response = await fetch(`${base}/${connectionId}/sync`, { method: 'POST' });
+        expect(response.status).toBe(403);
+        expect(h.tx.integrationConnection.updateMany).toHaveBeenCalledTimes(1);
+        await expect(h.tx.integrationConnection.updateMany.mock.results[0].value).resolves.toEqual({
+          count: 0,
+        });
+        expect(h.rows.get(connectionId)).toEqual(retained);
+        expectNoProviderUse();
+      },
+    );
 
     test('callback refuses revoked membership before provider exchange', async () => {
       const response = await start();
@@ -94,13 +152,10 @@ describe.each(['microsoft_365', 'google_workspace'] as const)(
           redirect: 'manual',
         },
       );
-      if (provider === 'google_workspace') {
-        expect(callback.status).toBe(302);
-        expect(callback.headers.get('location')).toContain('error=');
-        expect(callback.headers.get('location')).not.toContain('connected=1');
-      } else {
-        expect(callback.status).toBe(403);
-      }
+      expect(callback.status).toBe(302);
+      expect(callback.headers.get('location')).toBe(
+        `https://app.invalid/integrations?provider=${provider}&error=connection_failed`,
+      );
       expect(h.exchange).not.toHaveBeenCalled();
       expect(h.tx.integrationConnectionToken.upsert).not.toHaveBeenCalled();
     });

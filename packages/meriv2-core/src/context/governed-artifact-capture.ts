@@ -19,7 +19,7 @@ export const MERI_CASE46 = Object.freeze({
   sha256: 'c26beebc62f179a568981d811784dc75ad7e2cad79c94165d6f4859dcb278c53',
 } as const);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const uuid = z.string().uuid();
+const uuid = z.string().guid();
 const identifier = z
   .string()
   .min(1)

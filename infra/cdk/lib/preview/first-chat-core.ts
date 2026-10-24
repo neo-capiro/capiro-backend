@@ -91,6 +91,7 @@ export const FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY: number = routes.packet.nativeO
 /** Optional native memory owner POSTs behind an exact host-and-method rule.
  * The matching three GETs are folded into P2 only in the enabled packet. */
 export const FIRST_CHAT_CORE_MEMORY_POST_PATHS: readonly string[] = Object.freeze([...routes.memoryPost]);
+export const FIRST_CHAT_CORE_CLIENT_RECORD_PATHS = Object.freeze(routes.clientRecords);
 
 const SECRET_ARN = new RegExp(`^arn:aws:secretsmanager:${region}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}$`);
 const PIN_TEXT = /^[\x21-\x7e]{1,256}$/;
@@ -115,9 +116,11 @@ export interface FirstChatCoreRetainedTrustBinding {
 
 /** Listener slots read back from the live listener, never assumed in source.
  * Schema v5 keeps the existing packet. Schema v6 explicitly opts into memory
- * only with a numeric POST priority; null keeps the existing packet. */
+ * only with a numeric POST priority; null keeps the existing packet. Schema v7
+ * also requires four distinct observed client-record rule slots before guard. */
 export interface FirstChatCoreListenerBinding {
   memoryPostPriority?: number | null;
+  clientRecords?: { GET: number; POST: number; PUT: number; DELETE: number };
   guardPriority: number;
 }
 
@@ -141,7 +144,7 @@ export interface FirstChatCoreProfileBinding {
 }
 
 export interface FirstChatCoreImageBinding {
-  schemaVersion: 5 | 6;
+  schemaVersion: 5 | 6 | 7;
   sourceHead: string;
   imageDigest: string;
   /** Server-side service identity: exactly the `meri/preview/core/internal-service-secret` secret. */
@@ -181,15 +184,25 @@ function signerPin(value: unknown, label: string): FirstChatCoreSignerBinding | 
 
 function listenerPriorities(value: unknown, schemaVersion: unknown): FirstChatCoreListenerBinding {
   const listener = exactKeys(value,
-    schemaVersion === 5 ? ['guardPriority'] : ['memoryPostPriority', 'guardPriority'], 'Listener');
+    schemaVersion === 5 ? ['guardPriority'] : schemaVersion === 6 ? ['memoryPostPriority', 'guardPriority'] :
+      ['memoryPostPriority', 'clientRecords', 'guardPriority'], 'Listener');
   const guardPriority = listener.guardPriority;
   if (typeof guardPriority !== 'number') throw new Error('Readback-verified guard priority required');
   guardedPriority(guardPriority);
-  if (schemaVersion === 6 && listener.memoryPostPriority !== null) {
+  if (schemaVersion !== 5 && listener.memoryPostPriority !== null) {
     const memoryPostPriority = listener.memoryPostPriority;
     if (typeof memoryPostPriority !== 'number' || !Number.isSafeInteger(memoryPostPriority) ||
         memoryPostPriority <= FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY || memoryPostPriority >= guardPriority) {
       throw new Error('Readback-verified memory POST priority before the retained guard required');
+    }
+  }
+  if (schemaVersion === 7) {
+    const client = exactKeys(listener.clientRecords, ['GET', 'POST', 'PUT', 'DELETE'], 'Client record priorities');
+    const priorities = Object.values(client);
+    if (priorities.some(p => typeof p !== 'number' || !Number.isSafeInteger(p) ||
+        p <= FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY || p >= guardPriority || p === listener.memoryPostPriority) ||
+        new Set(priorities).size !== priorities.length) {
+      throw new Error('Distinct readback-verified client record priorities before the retained guard required');
     }
   }
   return listener as unknown as FirstChatCoreListenerBinding;
@@ -225,7 +238,7 @@ export function firstChatCoreImageBinding(
     'First-chat image binding');
   if (!pins) throw new Error('No qualified integrated Core image is pinned yet');
   if (
-    (record.schemaVersion !== 5 && record.schemaVersion !== 6) ||
+    (record.schemaVersion !== 5 && record.schemaVersion !== 6 && record.schemaVersion !== 7) ||
     !/^[0-9a-f]{40}$/.test(pins.sourceHead) || !/^sha256:[0-9a-f]{64}$/.test(pins.imageDigest) ||
     record.sourceHead !== pins.sourceHead ||
     record.imageDigest !== pins.imageDigest
@@ -386,7 +399,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       executionRole: serveExecutionRole,
       taskRole: serveTaskRole,
       runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });
@@ -571,6 +584,21 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       ],
       actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
     }) : null;
+    const clientRules: elb.CfnListenerRule[] = [];
+    if (binding.listener.clientRecords) {
+      for (const method of ['GET', 'POST', 'PUT', 'DELETE'] as const) {
+        clientRules.push(new elb.CfnListenerRule(this, `FirstChatClientRecords${method}`, {
+          listenerArn: live.listenerArn,
+          priority: binding.listener.clientRecords[method],
+          conditions: [
+            { field: 'host-header', hostHeaderConfig: { values: [FIRST_CHAT_CORE_HOST] } },
+            { field: 'path-pattern', pathPatternConfig: { regexValues: [...FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method]] } },
+            { field: 'http-request-method', httpRequestMethodConfig: { values: [method] } },
+          ],
+          actions: [{ type: 'forward', targetGroupArn: target.targetGroupArn }],
+        }));
+      }
+    }
     // CloudFormation must resolve an export from the independently completed
     // guard stack. Its rule is not owned by this stack or removed on rollback.
     new cdk.CfnOutput(this, 'RequiredPreviewHostGuardRuleArn', {
@@ -580,6 +608,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
     // listener before CreateService, even while desiredCount is zero.
     service.node.addDependency(firstChatPosts, browserReads, nativeOps);
     if (memoryPosts) service.node.addDependency(memoryPosts);
+    if (clientRules.length) service.node.addDependency(...clientRules);
 
     new cdk.CfnOutput(this, 'CoreApiBaseUrl', {
       value: `https://${FIRST_CHAT_CORE_HOST}/api`,

@@ -204,6 +204,7 @@ export async function listOperationalLinks(
   tx: ObjectiveOperationalTx,
   actor: ObjectiveOperationalActor,
   scope: OperationalScope,
+  page?: { limit: number; offset: number },
 ) {
   return tx.$queryRaw<
     OperationalLinkRecord[]
@@ -211,7 +212,8 @@ export async function listOperationalLinks(
     linked_revision_id::text AS "linkedRevisionId",linked_objective_version AS "linkedObjectiveVersion",
     linked_at AS "linkedAt",cycles,removed_at AS "removedAt" FROM client_objective_resource_links
     WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${scope.clientId}::uuid
-      AND objective_id=${scope.objectiveId}::uuid AND removed_at IS NULL ORDER BY id`;
+      AND objective_id=${scope.objectiveId}::uuid AND removed_at IS NULL ORDER BY id
+      LIMIT ${page?.limit ?? null} OFFSET ${page?.offset ?? 0}`;
 }
 
 /** Owner gates + current Core authority have already been acquired by the service. */

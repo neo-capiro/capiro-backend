@@ -16,7 +16,6 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { PlannerService } from '../src/planner/planner.service.js';
 import type { PlannerLinksService } from '../src/planner/planner-links.service.js';
 import { ObjectiveCanonicalApplicationService } from '../src/planner/objective-canonical-application.service.js';
-import { ObjectiveCanonicalWorkloadAuthority } from '../src/planner/objective-canonical-authority.js';
 import { ObjectivePlannerContinuationRuntime } from '../src/planner/objective-planner-continuation.runtime.js';
 import { PLANNER_CONTINUATION_OPERATION } from '../src/planner/objective-planner-continuation.store.js';
 import { applicationHash } from '../src/planner/objective-canonical-application.js';
@@ -100,9 +99,7 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
 
   const context = (f: ObjectivePlannerNativeFixture) => ({ tenantId: f.tenantId, userId: f.actorUserId,
     clerkUserId: f.clerkUserId, role: 'standard_user' }) as TenantContext;
-  const application = () => new ObjectiveCanonicalApplicationService(prisma,
-    new PlannerService(prisma, { validate: async () => undefined } as unknown as PlannerLinksService),
-    new ObjectiveCanonicalWorkloadAuthority());
+  const application = () => new ObjectiveCanonicalApplicationService(new PlannerService(prisma, { validate: async () => undefined } as unknown as PlannerLinksService));
   const runtime = (app = application()) => new ObjectivePlannerContinuationRuntime(prisma, app,
     new ConfigService({ OBJECTIVE_PLANNER_CONTINUATION_ENABLED: 'true' }));
   async function fixture() {
@@ -494,7 +491,7 @@ native('Core Planner applied retry on the reviewed task-owned native target', ()
     const deadline = Date.parse(current.data.original.originalDeadlineAt);
     expect(deadline).toBeLessThanOrEqual(Date.parse(second.consent!.expiresAt));
     expect(deadline).toBeLessThanOrEqual(generated.admission.effectExpiresAtMs);
-    expect(deadline).toBeLessThanOrEqual(generated.acceptance.issuance.expiresAtMs);
+    expect(deadline).toBeLessThanOrEqual(generated.acceptance.effectExpiresAtMs);
     expect(deadline).toBeLessThanOrEqual(generated.publication.request.originalExpiresAtMs);
     expect(afterApplied.consents.filter(c => c.work_action === PLAN)).toEqual(afterSecond.consents.filter(c => c.work_action === PLAN));
     expect(afterApplied.commands.filter(c => c.work_action === PLAN)).toEqual(afterSecond.commands.filter(c => c.work_action === PLAN));

@@ -1,7 +1,7 @@
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import { GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_PRODUCER, GENERATION_NORMALIZATION, generationLedgerId,
-  canonicalGenerationAdmissionSha256, generationUuid, generationSha256,
+  canonicalGenerationAdmissionSha256, generationUuid, generationSha256, generationBindingKey,
   parseCanonicalGenerationAdmission, requireGenerationAcceptanceForAdmission,
   type CanonicalGenerationAdmission, type CanonicalGenerationAcceptance, type GenerationLedgerKind } from './objective-canonical-generation.js';
 import { canonicalGenerationProducer, type StoredCanonicalGenerationProducer } from './objective-canonical-producer.js';
@@ -64,7 +64,7 @@ export async function recordCanonicalNormalization(tx: Tx, tenant: string, clerk
   const input = job?.input as unknown as DraftJobInput | undefined, envelope = input?.objectiveGeneration;
   const unavailable = (): never => { throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED'); };
   if (!job || job.ownerUserId !== clerk || job.clientId !== a.canonical.clientId || job.status !== 'running' ||
-      job.claimedBy !== `canonical:${acceptance.issuance.issuanceKey}` || job.attempt !== 2 || job.strategyId !== null ||
+      job.claimedBy !== `canonical:${generationBindingKey(acceptance.sourceBinding)}` || job.attempt !== 2 || job.strategyId !== null ||
       !envelope || envelope.request.requestId !== a.generationRequestId || envelope.receipt.result !== null ||
       envelope.request.clientId !== a.canonical.clientId || envelope.request.objective.objectiveId !== a.canonical.objectiveId ||
       envelope.request.objective.objectiveVersion !== a.canonical.requestedObjectiveVersion ||

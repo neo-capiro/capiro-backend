@@ -63,7 +63,7 @@ import { generationAssociation, recordCanonicalNormalization } from './objective
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import { canonicalGenerationAdmissionSha256, generationUuid, parseCanonicalGenerationAdmission,
   type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
-import { GENERATION_NORMALIZATION, generationLedgerId } from './objective-canonical-generation.js';
+import { GENERATION_NORMALIZATION, generationLedgerId, generationBindingKey } from './objective-canonical-generation.js';
 import { captureCanonicalStrategyBasis } from './objective-canonical-basis.js';
 import { readCanonicalRequestPublication } from './objective-canonical-request-ledger.js';
 import { CORE_CANONICAL_REGENERATION_REQUEST_VERSION } from './objective-canonical-regeneration-request.js';
@@ -326,7 +326,7 @@ export class MeriService {
       const job = await tx.spDraftJob.findFirst({ where: { tenantId, id: a.generationJobId, ownerUserId: clerkUserId } });
       if (!job) throw new CanonicalApplicationError('NOT_AVAILABLE');
       return deriveCanonicalJobInput(job, a, jobRuntime.objective!.envelope,
-        `canonical:${association.acceptance.issuance.issuanceKey}`);
+        `canonical:${generationBindingKey(association.acceptance.sourceBinding)}`);
     };
     // DTO values are read from the actual owner job, never accepted from this
     // adapter's caller. Repeat the immutable input comparison after the real
@@ -363,7 +363,7 @@ export class MeriService {
       const job = await tx.spDraftJob.findFirst({ where: { tenantId, id: a.generationJobId, ownerUserId: clerkUserId } });
       if (!job) throw new CanonicalApplicationError('NOT_AVAILABLE');
       const input = deriveCanonicalJobInput(job, a, jobRuntime.objective!.envelope,
-        `canonical:${associated.acceptance.issuance.issuanceKey}`);
+        `canonical:${generationBindingKey(associated.acceptance.sourceBinding)}`);
       const retained = await readCanonicalRequestPublication(tx, a), publication = retained?.publication;
       if (!publication || !('requestVersion' in publication.request) ||
           publication.request.requestVersion !== CORE_CANONICAL_REGENERATION_REQUEST_VERSION ||

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Param,
   Patch,
@@ -74,6 +75,11 @@ const UUID_PARAM = 'prospectId';
 class ProspectIdParam {
   @IsUUID()
   prospectId!: string;
+}
+
+class ConversionReceiptParam extends ProspectIdParam {
+  @IsUUID()
+  requestId!: string;
 }
 
 @Controller('business-development')
@@ -193,6 +199,24 @@ export class BusinessDevelopmentController {
     @Body() body: ConvertProspectDto,
   ) {
     return this.bizdev.convert(ctx, params.prospectId, body);
+  }
+
+  /** One explicitly reviewed existing-client link, with an attributable receipt. */
+  @Post(`prospects/:${UUID_PARAM}/conversion-commands`)
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  convertExistingCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: unknown,
+  ) {
+    return this.bizdev.convertExistingCommand(ctx, params.prospectId, body);
+  }
+
+  @Get(`prospects/:${UUID_PARAM}/conversion-commands/:requestId`)
+  @Header('Cache-Control', 'no-store')
+  conversionReceipt(@CurrentTenant() ctx: TenantContext, @Param() params: ConversionReceiptParam) {
+    return this.bizdev.conversionReceipt(ctx, params.prospectId, params.requestId);
   }
 
   /** Confirm the canonical identity of a previously unresolved prospect

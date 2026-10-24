@@ -16,7 +16,8 @@ async function load(path, imports = [], edits = []) {
   const file = new URL(path, import.meta.url), original = await readFile(file, 'utf8');
   let source = original.replace(/\r\n/g, '\n');
   const replace = (from, to) => {
-    const occurrences = from === "'@capiro/shared/objective-planner-owner-codec'" ? 3 : 1;
+    const occurrences = from === "'@capiro/shared/objective-planner-owner-codec'" ? 3
+      : path.endsWith('objective-canonical-authority.ts') && from === "'../meri/objective-canonical-generation.js'" ? 2 : 1;
     assert.equal(source.split(from).length, occurrences + 1, `exact source count: ${path}: ${from}`);
     source = source.replaceAll(from, to);
   };
@@ -80,11 +81,23 @@ const regenerationLedgerUrl = await load('../src/meri/objective-canonical-regene
   ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl],
   ["'./objective-canonical-job-input.js'", jobInputUrl], ["'./objective-canonical-regeneration.js'", regenerationUrl],
 ]);
+const unusedConfig = moduleUrl('export class ConfigService{}');
+const nativeReaderUrl = await load('../src/meri/objective-native-reader.ts', [
+  ["'@nestjs/common'", nest], ["'@nestjs/config'", unusedConfig],
+  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
+  ["'./objective-canonical-request.js'", factoryUrl],
+], [['@Injectable()\n', '']]);
+const nativeCompletionUrl = await load('../src/meri/objective-native-completion.ts', [
+  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-request.js'", factoryUrl],
+  ["'./objective-native-reader.js'", nativeReaderUrl],
+]);
 const completionReceiptUrl = await load('../src/meri/objective-canonical-completion-receipt.ts', [
+  ["'./objective-native-completion.js'", nativeCompletionUrl],
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
   ["'./objective-canonical-request.js'", factoryUrl],
 ]);
 const regenerationCompletionReceiptUrl = await load('../src/meri/objective-canonical-regeneration-completion-receipt.ts', [
+  ["'./objective-native-completion.js'", nativeCompletionUrl],
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
   ["'./objective-canonical-request.js'", factoryUrl], ["'./objective-canonical-regeneration-request.js'", regenerationFactoryUrl],
   ["'./objective-canonical-completion-receipt.js'", completionReceiptUrl],
@@ -106,9 +119,19 @@ const sharedUrl = await load('../../../packages/shared/src/client-objective-dest
 const fenceUrl = await load('../src/meri/objective-canonical-generation-fence.ts', [
   ["'@capiro/shared'", sharedUrl], ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
 ]);
+// The ordinary request is not guard-authenticated. This exact negative port
+// allows the actual authority's pre-DB identity rejection to be exercised.
+const unauthenticated = moduleUrl('export const hasInternalServiceIdentity=()=>false;');
 const authorityUrl = await load('../src/planner/objective-canonical-authority.ts', [
   ["'@nestjs/common'", nest], ["'./objective-canonical-application.js'", applicationUrl],
-], [['@Injectable()\n', '']]);
+  ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
+  ["'../prisma/prisma.service.js'", prismaLabel], ["'../auth/internal-service.guard.js'", unauthenticated],
+  ["'../meri/objective-native-reader.js'", nativeReaderUrl],
+  ["'../meri/objective-canonical-producer-ledger.js'", ownerLedgerUrl],
+  ["'../meri/objective-canonical-generation.js'", generationUrl],
+  ["'../meri/objective-canonical-request-ledger.js'", requestLedgerUrl],
+], [['@Injectable()\n', ''], ['  constructor(private readonly prisma: PrismaService, private readonly native: ObjectiveNativeReader) {}',
+  '  constructor(prisma, native) { this.prisma = prisma; this.native = native; }']]);
 const ownersUrl = await load('../src/meri/objective-canonical-owner-directory.ts', [
   ["'@nestjs/common'", nest], ["'../planner/objective-canonical-application.js'", applicationUrl],
 ], [['@Injectable()\n', '']]);
@@ -130,15 +153,13 @@ const serviceUrl = await load('../src/meri/objective-canonical-request.service.t
   ["'./objective-canonical-owner-directory.js'", ownersUrl], ["'./strategy-context-plane.client.js'", contextLabel],
 ], [['@Injectable()\n', ''], [constructor, '  constructor(prisma, authority, contextPlane, owners) {\n' +
   '    this.prisma = prisma; this.authority = authority; this.contextPlane = contextPlane; this.owners = owners;\n  }']]);
-const unusedApplicationFence = moduleUrl(`export function requireCanonicalApplicationFence(){throw new Error('Planner application is outside this fixture');}
-export function requireCanonicalApplicationRead(){throw new Error('Planner retained outputs are outside this fixture');}`);
 const producerConstructor = '  constructor(private readonly prisma: PrismaService, private readonly authority: ObjectiveCanonicalWorkloadAuthority) {}';
 const producerServiceUrl = await load('../src/meri/objective-canonical-producer.service.ts', [
   ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
   ["'@nestjs/common'", nest], ["'../prisma/prisma.service.js'", prismaLabel], ["'../planner/objective-canonical-authority.js'", authorityUrl],
-  ["'../planner/objective-canonical-application.js'", applicationUrl], ["'../planner/objective-canonical-fence.js'", unusedApplicationFence],
+  ["'../planner/objective-canonical-application.js'", applicationUrl],
   ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-canonical-generation-fence.js'", fenceUrl],
-  ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl], ["'./objective-canonical-producer.js'", producerUrl],
+  ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl],
   ["'./objective-canonical-request-ledger.js'", requestLedgerUrl], ["'./objective-canonical-request.js'", factoryUrl],
   ["'./objective-canonical-saved-generation.js'", savedUrl],
 ], [['@Injectable()\n', ''], [producerConstructor, '  constructor(prisma, authority) { this.prisma = prisma; this.authority = authority; }']]);
@@ -262,9 +283,7 @@ class PublisherFixture {
         this.event('verify', { subject: copy(subject) });
         if (this.verifyDenied) throw new app.CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
         return { tenantId: id(2), actorUserId: id(9), clerkUserId: 'user_fixture', consentId: this.consentId, controlVersion: this.controlVersion,
-          requestSha256: subject.requestSha256, checkedAtMs: this.now, expiresAtMs: this.now + 1800000,
-          delegationExpiresAtMs: this.now + 1800000, claimExpiresAtMs: this.now + 1800000,
-          delegation: { ref: id(40), revision: 'synthetic-delegation:7', issuedAtMs: NOW - 120000, absoluteExpiresAtMs: NOW + 1800000 } };
+          requestSha256: subject.requestSha256, checkedAtMs: this.now, expiresAtMs: this.admission.effectExpiresAtMs };
       },
       assertGenerationCurrent: async (_tx, _grant, subject) => {
         assert.equal(this.depth, 1); this.event('currentProof', { phase: subject.phase });
@@ -296,12 +315,11 @@ class PublisherFixture {
   acceptanceId() { return generation.generationLedgerId(generation.GENERATION_ACCEPTANCE, id(2), 'user_fixture', id(10)); }
   prepareAcceptance() {
     const publication = this.stored().publication;
-    const binding = { tenantId: id(2), actorId: 'user_fixture', conversationId: id(60), runId: id(61),
+    const binding = { tenantId: id(2), actorId: this.admission.actorUserId, conversationId: id(60), runId: id(61),
       attemptId: id(62), workerId: id(63), writerFence: 7 };
     this.acceptanceProof = { sourceAdmission: copy(this.admission), sourceAdmissionSha256: app.applicationHash(this.admission),
       sourceBinding: binding, sourceRequestSha256: hash('2'),
-      issuance: { issuanceKey: generation.generationBindingKey(binding), binding: copy(binding), requestSha256: hash('2'),
-        expiresAtMs: publication.request.originalExpiresAtMs, grantId: id(64), capabilitySha256: hash('3'), factsSha256: hash('4') },
+      effectExpiresAtMs: publication.request.originalExpiresAtMs,
       typedRequestSha256: publication.requestSha256, executionContextSha256: factory.candidateJcsSha256(publication.executionContext),
       acceptedRequestId: this.admission.generationRequestId, acceptedPromptSha256: publication.executionContext.promptSha256 };
     this.authority.verifyGenerationAcceptance = async (request, subject) => {
@@ -562,7 +580,7 @@ test('exact saved Objective revision refuses self-consistent publication/compile
     historyDigest: saved.compiled.historyDigest, promptDigest: app.applicationHash(x.prompt) });
   const original = saved.publication;
   saved.publication = factory.createCanonicalRequestPublication({ admission: x.admission, dto: x.data.job.input.dto,
-    context: typed, prompt: x.prompt, owners: original.executionContext.ownerRefs, delegation: original.request.delegation,
+    context: typed, prompt: x.prompt, owners: original.executionContext.ownerRefs,
     requestedAtMs: original.request.requestedAtMs, effectExpiresAtMs: original.request.originalExpiresAtMs });
   saved.publicationSha256 = factory.candidateJcsSha256(saved.publication);
   x.data.job.input.objectiveGeneration.receipt.context = copy(saved.compiled.context);
@@ -579,7 +597,7 @@ test('actual accept refuses missing owner publication before recording acceptanc
   assert.equal(x.data.job.status, 'queued'); assert.equal(x.compileCount, 1);
 });
 
-test('actual accept refuses each missing or mismatched protected request/context/prompt identity and expanded issuance deadline', async () => {
+test('actual accept refuses each missing or mismatched protected request/context/prompt identity and expanded native effect deadline', async () => {
   for (const [field, wrong] of [['typedRequestSha256', hash('0')], ['executionContextSha256', hash('0')],
     ['acceptedRequestId', id(99)], ['acceptedPromptSha256', hash('0')]]) {
     for (const value of [wrong, undefined]) {
@@ -591,32 +609,31 @@ test('actual accept refuses each missing or mismatched protected request/context
     }
   }
   const x = new PublisherFixture(); await x.publish(); x.prepareAcceptance();
-  x.acceptanceProof.issuance.expiresAtMs = x.stored().publication.request.originalExpiresAtMs + 1;
+  x.acceptanceProof.effectExpiresAtMs = x.stored().publication.request.originalExpiresAtMs + 1;
   const before = copy(x.data);
   await assert.rejects(() => x.accept(), httpError('REQUEST_CONFLICT', 409));
   assert.deepEqual(x.data, before);
 });
 
-test('coherent original protected proof records actual acceptance and advances only the queued claim', async () => {
+test('coherent original native run-start proof records actual acceptance and advances only the queued claim', async () => {
   const x = new PublisherFixture(), publication = await x.publish(); x.prepareAcceptance();
   const beforeInput = copy(x.data.job.input), result = await x.accept();
   assert.equal(result.sourceAdmissionSha256, app.applicationHash(x.admission));
-  assert.deepEqual(result.sourceBinding, x.acceptanceProof.sourceBinding); assert.deepEqual(result.issuance, x.acceptanceProof.issuance);
-  assert.notEqual(result.sourceRequestSha256, publication.requestSha256); // Distinct issuer/request domains.
+  assert.deepEqual(result.sourceBinding, x.acceptanceProof.sourceBinding); assert.equal(result.effectExpiresAtMs, x.acceptanceProof.effectExpiresAtMs);
+  assert.notEqual(result.sourceRequestSha256, publication.requestSha256); // Distinct runtime request and typed request domains.
   assert.equal(x.data.job.status, 'running'); assert.equal(x.data.job.stage, 'drafting'); assert.equal(x.data.job.attempt, 2);
-  assert.equal(x.data.job.claimedBy, `canonical:${x.acceptanceProof.issuance.issuanceKey}`);
+  assert.equal(x.data.job.claimedBy, `canonical:${generation.generationBindingKey(x.acceptanceProof.sourceBinding)}`);
   assert.equal(x.data.job.claimedAt.getTime(), NOW); assert.deepEqual(x.data.job.input, beforeInput);
   const acceptance = x.data.rows.get(x.acceptanceId()).data;
-  assert.equal(acceptance.acceptedAtMs, NOW); assert.equal(acceptance.issuance.expiresAtMs, publication.request.originalExpiresAtMs);
+  assert.equal(acceptance.acceptedAtMs, NOW); assert.equal(acceptance.effectExpiresAtMs, publication.request.originalExpiresAtMs);
   assert.equal(x.events.filter(e => e.method === 'insertLedger' && e.kind === generation.GENERATION_ACCEPTANCE).length, 1);
   assert.equal(x.compileCount, 1); assert.equal(x.recheckCount, 1);
 });
 
-test('accept at the original publication expiry refuses its nonpositive remaining issuance interval without claiming', async () => {
+test('accept at the original publication expiry refuses its nonpositive remaining effect interval without claiming', async () => {
   const x = new PublisherFixture(); await x.publish(); x.prepareAcceptance();
   x.now = x.stored().publication.request.originalExpiresAtMs; const before = copy(x.data);
-  // The actual acceptance parser rejects issuance<=acceptedAt before the later
-  // explicit original-expiry branch. No synthetic parser bypass is supplied.
+  // The parser rejects a nonpositive original effect interval before a claim.
   await assert.rejects(() => x.accept(), httpError('INPUT_INVALID', 400));
   assert.deepEqual(x.data, before); assert.equal(x.data.job.status, 'queued'); assert.equal(x.data.rows.has(x.acceptanceId()), false);
 });
@@ -629,12 +646,10 @@ test('acceptance insertion plus claim CAS failure rolls back the staged acceptan
   assert.equal(x.events.some(e => e.method === 'insertLedger' && e.kind === generation.GENERATION_ACCEPTANCE), true);
 });
 
-test('missing delegation, current memory-wall grant or private ledger access metadata never becomes issuance', async () => {
-  for (const mode of ['delegation','wall','share']) {
+test('missing current membership, memory-wall grant or private ledger access metadata never publishes', async () => {
+  for (const mode of ['membership','wall','share']) {
     const x = new PublisherFixture(), before = copy(x.data);
-    if (mode === 'delegation') { const verify = x.authority.verifyGeneration; x.authority.verifyGeneration = async (...args) => {
-      const grant = await verify(...args); delete grant.delegation; return grant;
-    }; }
+    if (mode === 'membership') x.member = false;
     if (mode === 'wall') { x.wall = true; x.wallGrant = false; }
     if (mode === 'share') x.data.rows.values().next().value.shareTokenHash = hash('a');
     await assert.rejects(() => x.publish(), httpError(mode === 'share' ? 'OUTCOME_UNCONFIRMED' : 'AUTHORITY_UNAVAILABLE'));

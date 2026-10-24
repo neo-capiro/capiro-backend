@@ -29,7 +29,7 @@ function fixture() {
     user: { clerkUserId: 'clerk-target' },
     tenant: { clerkOrgId: 'org-a' },
   };
-  const row = { id: ctx.tenantId, name: 'Before', clerkOrgId: 'org-a' };
+  const row = { id: ctx.tenantId, name: 'Before', clerkOrgId: 'org-a', status: 'active' };
   let inTransaction = false;
   const tx = {
     $queryRaw: jest.fn(async () => []),
@@ -44,7 +44,10 @@ function fixture() {
       ),
       update: jest.fn(async ({ data }: any) => Object.assign(target, data)),
     },
-    tenant: { update: jest.fn(async ({ data }: any) => Object.assign(row, data)) },
+    tenant: {
+      update: jest.fn(async ({ data }: any) => Object.assign(row, data)),
+      findUnique: jest.fn(async () => ({ ...row })),
+    },
   };
   const outbox = {
     enqueueClerkMembershipDelete: jest.fn(async () => {
@@ -68,7 +71,7 @@ function fixture() {
   };
   const service = new TenantAdminService(
     prisma as never,
-    { backend: { organizations: { updateOrganization: jest.fn(async () => ({})) } } } as never,
+    { backend: { organizations: { updateOrganization: jest.fn(async (id: string, data: { name: string }) => ({ id, ...data })) } } } as never,
     {} as never,
     {} as never,
     outbox as never,

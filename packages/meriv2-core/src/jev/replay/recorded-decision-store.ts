@@ -38,8 +38,8 @@ const recordingSchema = z
     model: z.string().min(1),
     provider: z.string().min(1),
     recordedAt: z.string().min(1),
-    request: z.object({ state: z.unknown(), questions: z.record(z.unknown()) }).strict(),
-    response: z.unknown(),
+    request: z.object({ state: z.unknown().optional(), questions: z.record(z.string(), z.unknown()) }).strict(),
+    response: z.unknown().optional(),
     latencyMs: z.number().nonnegative(),
     usage: z
       .object({ inputTokens: z.number().nonnegative(), outputTokens: z.number().nonnegative() })

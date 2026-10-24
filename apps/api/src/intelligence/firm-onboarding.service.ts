@@ -1,17 +1,17 @@
 import {
   BadRequestException,
   HttpException,
-  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CLIENT_SLOT_LIMIT_CODE, effectiveClientSlots, type TenantContext } from '@capiro/shared';
+import { CLIENT_SLOT_LIMIT_CODE, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from './sam-entity.service.js';
+import { requireClientCapacity } from '../clients/client-capacity.js';
 
 /**
  * Firm-registrant onboarding + "import your clients" (Phase 2 of the client→data
@@ -190,32 +190,9 @@ export class FirmOnboardingService {
     // Client-slot cap (mirrors ClientsService.create): already at/over the
     // limit → 402 up front. Mid-batch cap hits are reported per-row instead
     // (see the in-transaction check below) so partial imports stay usable.
-    const slotGate = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const tenant = await tx.tenant.findUnique({
-        where: { id: ctx.tenantId },
-        select: { billingStatus: true, clientSlots: true },
-      });
-      const current = await tx.client.count({ where: { status: { not: 'archived' } } });
-      return { tenant, current };
-    });
-    const slotsEnforced =
-      this.billingEnforced && slotGate.tenant && slotGate.tenant.billingStatus !== 'comped';
-    // Trials get at least the 10-profile allowance regardless of the stamped
-    // clientSlots — shared with ClientsService + the setup dashboard cap.
-    const slotLimit = slotGate.tenant
-      ? effectiveClientSlots(slotGate.tenant.billingStatus, slotGate.tenant.clientSlots)
-      : 0;
-    if (slotsEnforced && slotGate.current >= slotLimit) {
-      throw new HttpException(
-        {
-          code: CLIENT_SLOT_LIMIT_CODE,
-          message: `You've used all ${slotLimit} client slots.`,
-          limit: slotLimit,
-          current: slotGate.current,
-        },
-        HttpStatus.PAYMENT_REQUIRED,
-      );
-    }
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      requireClientCapacity(tx, ctx.tenantId, this.billingEnforced),
+    );
 
     // Only allow importing the firm's OWN clients (not arbitrary global ids).
     const ownRows = await this.prisma.ldaFiling.findMany({
@@ -257,13 +234,16 @@ export class FirmOnboardingService {
             select: { name: true },
           });
           if (dup) return { dup: dup.name };
-          if (slotsEnforced) {
-            // Re-count inside the row transaction so a batch stops exactly at
-            // the cap instead of overshooting.
-            const count = await tx.client.count({ where: { status: { not: 'archived' } } });
-            if (count >= slotLimit) {
-              return { capped: slotLimit };
-            }
+          try {
+            await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced);
+          } catch (error) {
+            const result = error instanceof HttpException ? error.getResponse() : null;
+            if (
+              result && typeof result === 'object' && 'code' in result &&
+              result.code === CLIENT_SLOT_LIMIT_CODE && 'limit' in result
+            )
+              return { capped: result.limit };
+            throw error;
           }
           const client = await tx.client.create({
             data: {

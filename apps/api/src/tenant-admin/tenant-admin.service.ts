@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +15,7 @@ import { IdentityOutboxService } from '../auth/identity-outbox.service.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Prisma } from '@prisma/client';
+import { invitationMetadata, pendingInvitations } from './pending-invitations.js';
 
 interface InviteTeamMemberInput {
   email: string;
@@ -26,6 +28,8 @@ interface InviteTeamMemberInput {
 interface UpdateBrandingInput {
   name?: string;
 }
+
+type BrandingSyncStatus = 'confirmed' | 'failed' | 'unknown' | 'not_linked' | 'superseded' | 'not_requested';
 
 export interface ContactInfoInput {
   name?: string;
@@ -196,11 +200,8 @@ export class TenantAdminService {
       tx.tenant.findUnique({ where: { id: ctx.tenantId } }),
     );
     if (!tenant?.clerkOrgId) return [];
-    const pending = await this.clerk.backend.organizations.getOrganizationInvitationList({
-      organizationId: tenant.clerkOrgId,
-      status: ['pending'],
-    });
-    return pending.data.map((inv) => ({
+    const pending = await pendingInvitations(this.clerk.backend.organizations, tenant.clerkOrgId);
+    return pending.map((inv) => ({
       id: inv.id,
       email: inv.emailAddress,
       role: inv.role.toLowerCase().includes('admin') ? 'user_admin' : 'standard_user',
@@ -235,24 +236,30 @@ export class TenantAdminService {
     }
 
     await this.revokePendingInvitationForEmail(tenant.clerkOrgId, email, ctx.clerkUserId);
-    const invitation = await this.clerk.backend.organizations.createOrganizationInvitation({
-      organizationId: tenant.clerkOrgId,
-      emailAddress: email,
-      role: toClerkOrganizationRole(input.role),
-      // Carry the invitee's name through to sign-up; Clerk pre-fills the form
-      // and the webhook persists firstName/lastName on user.created. We do NOT
-      // pre-create a local users row here: the canonical user row is created
-      // with the invitee's REAL clerkUserId on accept (webhook) or on first
-      // authenticated request (tenant-context middleware self-heal). Pre-creating
-      // a placeholder row keyed on a fake `pending:<id>` clerkUserId caused a
-      // unique-email collision that 500'd every request after the user signed in.
-      publicMetadata: {
-        capiro_tenant_id: tenant.id,
-        ...(firstName ? { first_name: firstName } : {}),
-        ...(lastName ? { last_name: lastName } : {}),
-      },
-      redirectUrl: input.redirectUrl ?? this.defaultInvitationRedirectUrl(),
-    });
+    const invitation = await this.clerk.backend.organizations
+      .createOrganizationInvitation({
+        organizationId: tenant.clerkOrgId,
+        emailAddress: email,
+        role: toClerkOrganizationRole(input.role),
+        // Carry the invitee's name through to sign-up; Clerk pre-fills the form
+        // and the webhook persists firstName/lastName on user.created. We do NOT
+        // pre-create a local users row here: the canonical user row is created
+        // with the invitee's REAL clerkUserId on accept (webhook) or on first
+        // authenticated request (tenant-context middleware self-heal). Pre-creating
+        // a placeholder row keyed on a fake `pending:<id>` clerkUserId caused a
+        // unique-email collision that 500'd every request after the user signed in.
+        publicMetadata: {
+          capiro_tenant_id: tenant.id,
+          ...(firstName ? { first_name: firstName } : {}),
+          ...(lastName ? { last_name: lastName } : {}),
+        },
+        redirectUrl: input.redirectUrl ?? this.defaultInvitationRedirectUrl(),
+      })
+      .catch(() => {
+        throw new ServiceUnavailableException(
+          'The invitation result is unconfirmed. Existing pending invitations may have been revoked. Reload invitations before taking further action.',
+        );
+      });
 
     return {
       status: 'invited',
@@ -273,24 +280,47 @@ export class TenantAdminService {
       tx.tenant.findUnique({ where: { id: ctx.tenantId } }),
     );
     if (!tenant?.clerkOrgId) throw new BadRequestException('Tenant has no Clerk organization');
-    const list = await this.clerk.backend.organizations.getOrganizationInvitationList({
-      organizationId: tenant.clerkOrgId,
-      status: ['pending'],
-    });
-    const found = list.data.find((inv) => inv.id === invitationId);
+    const list = await pendingInvitations(this.clerk.backend.organizations, tenant.clerkOrgId);
+    const found = list.find((inv) => inv.id === invitationId);
     if (!found) throw new NotFoundException('Invitation not found in this tenant');
-    await this.clerk.backend.organizations.revokeOrganizationInvitation({
-      organizationId: tenant.clerkOrgId,
-      invitationId: found.id,
-      requestingUserId: ctx.clerkUserId,
-    });
-    const fresh = await this.clerk.backend.organizations.createOrganizationInvitation({
-      organizationId: tenant.clerkOrgId,
-      emailAddress: found.emailAddress,
-      role: found.role,
-      redirectUrl: this.defaultInvitationRedirectUrl(),
-    });
-    return { invitationId: fresh.id };
+    if (found.expiresAt && found.expiresAt <= Date.now()) {
+      throw new NotFoundException('Invitation has expired. Reload the pending list.');
+    }
+    await this.clerk.backend.organizations
+      .revokeOrganizationInvitation({
+        organizationId: tenant.clerkOrgId,
+        invitationId: found.id,
+        requestingUserId: ctx.clerkUserId,
+      })
+      .catch(() => {
+        throw new ServiceUnavailableException(
+          'The previous invitation revocation is unconfirmed. No replacement was requested. Reload invitations before taking further action.',
+        );
+      });
+    const fresh = await this.clerk.backend.organizations
+      .createOrganizationInvitation({
+        organizationId: tenant.clerkOrgId,
+        emailAddress: found.emailAddress,
+        role: found.role,
+        publicMetadata: invitationMetadata(found.publicMetadata, tenant.id),
+        redirectUrl: this.defaultInvitationRedirectUrl(),
+      })
+      .catch(() => {
+        throw new ServiceUnavailableException(
+          'The previous invitation was revoked, but the replacement result is unconfirmed. Reload invitations before taking further action.',
+        );
+      });
+    return {
+      invitationId: fresh.id,
+      replacedInvitationId: found.id,
+      invitation: {
+        id: fresh.id,
+        email: fresh.emailAddress,
+        role: fresh.role.toLowerCase().includes('admin') ? 'user_admin' : 'standard_user',
+        createdAt: new Date(fresh.createdAt).toISOString(),
+        expiresAt: fresh.expiresAt ? new Date(fresh.expiresAt).toISOString() : null,
+      },
+    };
   }
 
   async removeMember(ctx: TenantContext, userId: string) {
@@ -407,21 +437,81 @@ export class TenantAdminService {
     if (Object.keys(input).some((key) => key !== 'name')) {
       throw new BadRequestException('Only the branding name may be updated here');
     }
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const data: Record<string, unknown> = {};
       if (input.name !== undefined) data.name = input.name;
-      const updated = await tx.tenant.update({
+      return tx.tenant.update({
         where: { id: ctx.tenantId },
         data,
       });
-      // Mirror display name to Clerk (best-effort).
-      if (input.name && updated.clerkOrgId) {
-        await this.clerk.backend.organizations
-          .updateOrganization(updated.clerkOrgId, { name: input.name })
-          .catch(() => undefined);
-      }
-      return updated;
     });
+    // Local commit is authoritative. Provider failure cannot roll it back.
+    let clerkSync: BrandingSyncStatus = 'not_requested';
+    if (input.name !== undefined) {
+      try {
+        const current = await this.brandingSyncTarget(ctx);
+        clerkSync = current.name !== updated.name || current.clerkOrgId !== updated.clerkOrgId
+          ? 'superseded'
+          : await this.mirrorBrandingName(current);
+      } catch {
+        clerkSync = 'unknown';
+        this.logger.warn('branding_clerk_sync_current_read_failed');
+      }
+    }
+    return { ...updated, clerkSync };
+  }
+
+  /** Explicit retry mirrors only the current server-owned name, never a browser draft. */
+  async retryBrandingSync(ctx: TenantContext, body?: unknown) {
+    if (body !== undefined && (
+      !body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 0
+    )) {
+      throw new BadRequestException('Branding sync accepts no fields');
+    }
+    const current = await this.brandingSyncTarget(ctx);
+    return { id: current.id, name: current.name, clerkSync: await this.mirrorBrandingName(current) };
+  }
+
+  private async brandingSyncTarget(ctx: TenantContext) {
+    if (ctx.role !== 'user_admin' && ctx.role !== 'capiro_admin') {
+      throw new ForbiddenException('Branding requires an administrator');
+    }
+    const current = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { id: true, name: true, clerkOrgId: true, status: true },
+      }),
+    );
+    if (!current || current.status !== 'active') throw new ForbiddenException('Branding unavailable');
+    return current;
+  }
+
+  private async mirrorBrandingName(
+    current: { name: string; clerkOrgId: string | null },
+  ): Promise<BrandingSyncStatus> {
+    const organizationId = current.clerkOrgId;
+    if (!organizationId) return 'not_linked';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The existing SDK has no per-call cancellation. A deadline reports uncertainty;
+    // it neither cancels a remote write nor promises convergence with concurrent saves.
+    const attempt = Promise.resolve()
+      .then(() => this.clerk.backend.organizations.updateOrganization(organizationId, { name: current.name }))
+      .then(
+        (organization): BrandingSyncStatus => organization?.id === organizationId && organization?.name === current.name
+          ? 'confirmed' : 'unknown',
+        (): BrandingSyncStatus => 'failed',
+      );
+    try {
+      const outcome = await Promise.race([
+        attempt,
+        new Promise<BrandingSyncStatus>((resolve) => { timer = setTimeout(() => resolve('unknown'), 5_000); }),
+      ]);
+      // Fixed values only: never log provider errors, names, identities or credentials.
+      if (outcome !== 'confirmed') this.logger.warn(`branding_clerk_sync_${outcome}`);
+      return outcome;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async getContactInfo(ctx: TenantContext) {
@@ -473,20 +563,23 @@ export class TenantAdminService {
     email: string,
     requestingUserId: string,
   ) {
-    const pending = await this.clerk.backend.organizations.getOrganizationInvitationList({
-      organizationId,
-      status: ['pending'],
-      limit: 100,
-    });
-    const existing = pending.data.find(
+    const pending = await pendingInvitations(this.clerk.backend.organizations, organizationId);
+    const existing = pending.filter(
       (invitation) => invitation.emailAddress.toLowerCase() === email,
     );
-    if (!existing) return;
-    await this.clerk.backend.organizations.revokeOrganizationInvitation({
-      organizationId,
-      invitationId: existing.id,
-      requestingUserId,
-    });
+    for (const invitation of existing) {
+      await this.clerk.backend.organizations
+        .revokeOrganizationInvitation({
+          organizationId,
+          invitationId: invitation.id,
+          requestingUserId,
+        })
+        .catch(() => {
+          throw new ServiceUnavailableException(
+            'Pending invitation revocation is unconfirmed. No replacement was requested. Reload invitations before taking further action.',
+          );
+        });
+    }
   }
 
   private defaultInvitationRedirectUrl() {

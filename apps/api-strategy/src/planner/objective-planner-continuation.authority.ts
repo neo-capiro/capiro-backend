@@ -11,7 +11,7 @@ type Saved = Awaited<ReturnType<typeof readCanonicalSavedGeneration>>;
 export const PLANNER_CONTINUATION_WORKER = 'capiro-objective-planner-continuation-worker:v1';
 const unavailable = (): never => { throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE'); };
 function generationDeadline(saved: Saved): number {
-  const caps = [saved.admission.effectExpiresAtMs, saved.acceptance.issuance.expiresAtMs];
+  const caps = [saved.admission.effectExpiresAtMs, saved.acceptance.effectExpiresAtMs];
   if (caps.some(value => !Number.isSafeInteger(value) || value < 0)) return unavailable();
   return Math.min(...caps);
 }

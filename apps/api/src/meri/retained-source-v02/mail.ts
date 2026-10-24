@@ -7,6 +7,7 @@
  * source selectors; their use requires a fresh authorized owner read.
  */
 import { createHash } from 'node:crypto';
+import { createMailBodySection, isWellFormedMailText as wellFormedUtf16, mailSurrogatePair as surrogatePair } from '../../engagement/mail-body-section.js';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
@@ -176,33 +177,12 @@ export function mailRetainedReadHandleV02(
   return `mail:v02:${mailbox}:${thread}:${message}:${version}`;
 }
 
-const highSurrogate = (unit: number) => unit >= 0xd800 && unit <= 0xdbff;
-const lowSurrogate = (unit: number) => unit >= 0xdc00 && unit <= 0xdfff;
-const surrogatePair = (value: string, at: number) => at >= 0 && at + 1 < value.length &&
-  highSurrogate(value.charCodeAt(at)) && lowSurrogate(value.charCodeAt(at + 1));
-function wellFormedUtf16(value: string): boolean {
-  for (let index = 0; index < value.length; index++) {
-    const unit = value.charCodeAt(index);
-    if (highSurrogate(unit)) {
-      if (!surrogatePair(value, index)) return false;
-      index++;
-    } else if (lowSurrogate(unit)) return false;
-  }
-  return true;
-}
-
 /** Mirrors Meri's scalar-safe UTF-16 section algorithm for the canonical owner mapper. */
 export function createMailBodySectionV02(text: unknown, bodyOffset: unknown, maxCharacters: unknown) {
   if (typeof text !== 'string' || !wellFormedUtf16(text)) refuse('thread.body_text');
   const offset = integer(bodyOffset, 0, 10000000, 'thread.body_offset');
   const max = integer(maxCharacters, 1, 6000, 'thread.max_characters');
-  let start = Math.min(offset, text.length), end = Math.min(text.length, offset + max);
-  if (start > 0 && surrogatePair(text, start - 1)) start--;
-  if (end > start && end < text.length && surrogatePair(text, end - 1)) end--;
-  if (end === start && start < text.length) end = start + (surrogatePair(text, start) ? 2 : 1);
-  return {bodyText: text.slice(start, end), bodyOffset: start, bodyLength: text.length,
-    bodyTruncated: start > 0 || end < text.length,
-    nextBodyOffset: end < text.length ? end : null};
+  return createMailBodySection(text, offset, max);
 }
 
 function assertMailBodySectionV02(text: string, start: number, end: number, total: number,

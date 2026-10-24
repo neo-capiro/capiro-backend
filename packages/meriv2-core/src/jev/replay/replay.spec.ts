@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from '@jest/globals';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildClaimSupportQuestion } from '../claim-support-question';
@@ -31,6 +31,16 @@ function tempStore(): RecordedDecisionStore {
 }
 
 describe('Jev replay', () => {
+  it('retains historical missing opaque values while rejecting missing structured questions', () => {
+    const store = tempStore();
+    const record = { envelopeHash: 'hash', questionVersion: 'q1', model: 'model', provider: 'jev',
+      recordedAt: '2026-01-01T00:00:00Z', request: { questions: {} }, latencyMs: 1 };
+    writeFileSync(store.path, JSON.stringify(record) + '\n');
+    expect(() => new RecordedDecisionStore(store.path)).not.toThrow();
+    writeFileSync(store.path, JSON.stringify({ ...record, request: {} }) + '\n');
+    expect(() => new RecordedDecisionStore(store.path)).toThrow();
+  });
+
   it('produces deterministic hashes for replay misses', async () => {
     const provider = createReplayDecisionProvider({ store: tempStore(), model: 'jev-1.13.0' });
     const legacy: DecisionProvider = {

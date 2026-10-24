@@ -46,7 +46,6 @@ function base(operation: MeetingV02ProjectionRequest['operation']): MeetingV02Pr
         tenantId: id('3'),
         actorId: id('4'),
         entityType: 'client',
-        authorizationDecisionId: id('c'),
         policyRevision: 'policy-1',
         scopes: [
           { tenantId: id('3'), kind: 'client', resourceId: clientId, policyRevision: 'policy-1' },
@@ -332,7 +331,7 @@ describe('Core meeting 0.2 owner projection', () => {
   it('pins the complete Meri PR158 meeting output schema dependency closure', () => {
     const files = {
       'mail-base.schema.json': 'e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b',
-      'mail-common.schema.json': '7d7ac22eff809cc31e84d1fc9b2fada1b56c316f73e50115207b579de0d92c4b',
+      'mail-common.schema.json': '943f59f53f33e09405d8f3350798d33d624c97d37e00c029ea4c14c8ba6e185b',
       'mail-retrieval.schema.json': '6058aa0d735b595a093907eec8bf7e4e8f4eb96952f497caa3c1eb00f3ad1a8c',
       'meetings.schema.json': 'b7ec6ecbdaab3fcccac3b83b9530828c90bda96685385b6f49f929fbd2776664',
     };

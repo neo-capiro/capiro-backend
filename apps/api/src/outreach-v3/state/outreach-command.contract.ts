@@ -115,7 +115,7 @@ const sponsorPayloadSchema = z
     ]),
     label: nullableBoundedText(OUTREACH_V3_LIMITS.sponsorLabel),
     clientRefs: z
-      .array(z.object({ clientId: z.string().uuid() }).strict())
+      .array(z.object({ clientId: z.string().guid() }).strict())
       .max(OUTREACH_V3_LIMITS.sponsorClientRefs),
   })
   .strict()
@@ -343,7 +343,7 @@ const envelopeShellSchema = z
   .object({
     type: z.enum(OUTREACH_COMMAND_TYPES),
     schemaVersion: z.literal(1),
-    payload: z.unknown(),
+    payload: z.unknown().optional(),
   })
   .strict();
 
@@ -374,7 +374,7 @@ export interface ApplyOutreachCommandBatchInput {
 
 const batchShellSchema = z
   .object({
-    batchId: z.string().uuid(),
+    batchId: z.string().guid(),
     expectedStateVersion: z.number().int().positive(),
     commands: z.array(z.unknown()).min(1).max(OUTREACH_V3_LIMITS.commandsPerBatch),
   })

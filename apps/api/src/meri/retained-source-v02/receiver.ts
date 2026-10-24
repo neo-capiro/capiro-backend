@@ -32,6 +32,7 @@ export async function readRetainedSourceV02(
 ): Promise<unknown> {
   if (admission.operation.id === 'get_client_context') {
     try {
+      if (admission.clientId === null) throw new Error('Client profile requires a client');
       const normalization = admission.normalizationContext;
       const resolution = normalization?.clientResolution;
       if (!normalization || Object.keys(normalization).length !== 2 ||
@@ -118,9 +119,8 @@ export async function readRetainedSourceV02(
   }
   if (admission.operation.id === 'read_client_documents') {
     try {
-      // The owner requires the original allocation's exact text-only tariff
-      // and fresh independent runtime qualification before and after reading.
-      // No runtime identity reader is installed by default. No legacy fallback.
+      // Current document ACL/readiness is checked before and after the read;
+      // the canonical owner explicitly forbids paid/provider extraction.
       return boundedPage(await tools.readRetainedDocumentSourceV02(ctx, admission));
     } catch {
       throw new ServiceUnavailableException({

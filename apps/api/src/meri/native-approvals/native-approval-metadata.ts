@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { sameJson, type NativeApprovalProposal } from './native-approval.contract.js';
+import { nativeCanonicalSha256, sameJson, type NativeApprovalProposal } from './native-approval.contract.js';
 
 interface PreparedApproval {
   proposal_id: string;
@@ -27,19 +28,22 @@ const exactKeys = (value: Record<string, unknown>, keys: readonly string[]): boo
   Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 
 /**
- * Cross-checks a forwarded proposal against Meri's bounded, proposal-keyed
- * prepared-approval projection on `meri_read_delegation_facts.run_facts_v1`.
- * Meri's migrator owns the base metadata and the security-barrier facts view;
- * Core needs only the existing facts-view SELECT grant. Missing, malformed or
- * overflowing projection data is unavailable, never authority from the body.
+ * Checks document proposals against the actual control metadata and native run.
+ * Existing task proposals retain their applied facts-view reader. Neither path
+ * treats a forwarded proposal as authority or publishes its requested effect.
  */
 @Injectable()
 export class NativeApprovalMetadataVerifier {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, @Optional() private readonly config?: ConfigService) {}
 
   /** Passing the caller's tenant transaction keeps issuance verification under
    * its proposal lock. Approval recording uses its own tenant transaction. */
   async verify(proposal: NativeApprovalProposal, transaction?: Prisma.TransactionClient): Promise<void> {
+    if (proposal.command.action === 'document.draft') {
+      // A private network read never holds a caller's database transaction.
+      if (transaction) throw unavailable();
+      return this.document(proposal);
+    }
     const { tenantId, actorId, conversationId, runId } = proposal.command.binding;
     const read = (tx: Prisma.TransactionClient) => tx.$queryRaw<RunFactsRow[]>(Prisma.sql`
       SELECT tenant_id::text AS tenant_id, conversation_id::text AS conversation_id,
@@ -95,6 +99,56 @@ export class NativeApprovalMetadataVerifier {
       !sameJson(stored.scopes, command.scopes)
     ) {
       throw new ConflictException('Approval proposal does not match its prepared record');
+    }
+  }
+
+  /** Actual immutable control metadata, under the existing service identity.
+   * The fixed endpoint validates canonical native run/scope/retention custody;
+   * Core compares the complete payload and retains the user decision itself. */
+  private async document(proposal: NativeApprovalProposal): Promise<void> {
+    const origin = this.config?.get<string>('MERI_CONTROL_ORIGIN');
+    const secret = this.config?.get<string>('INTERNAL_SERVICE_SECRET');
+    let base: URL;
+    try { base = new URL(origin ?? ''); } catch { throw unavailable(); }
+    if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash ||
+        base.pathname !== '/' || !secret || /[\r\n]/.test(secret)) throw unavailable();
+    const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 3000);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    try {
+      const response = await fetch(new URL('/v1/internal/approval-metadata/read', base), {
+        method: 'POST', redirect: 'error', signal: abort.signal,
+        headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
+        body: JSON.stringify({ schemaVersion: 1, proposalId: proposal.proposalId, binding: proposal.command.binding }),
+      });
+      if (response.status !== 200 || !response.body) throw unavailable();
+      reader = response.body.getReader();
+      const chunks: Uint8Array[] = []; let size = 0;
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        size += next.value.byteLength;
+        if (size > 256 * 1024) throw unavailable();
+        chunks.push(next.value);
+      }
+      const actual = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
+      const c = proposal.command;
+      const metadata = { record: { operation: { id: 'create_word', version: '0.2.0' }, action: c.action,
+        binding: c.binding, request: c.arguments, inputSha256: nativeCanonicalSha256({ arguments: c.arguments, attachments: [] }),
+        commandId: c.commandId, idempotencyKey: c.idempotencyKey, proposalId: proposal.proposalId,
+        scopes: c.scopes, createdAt: proposal.createdAt, expiresAt: proposal.expiresAt, requiredApprover: proposal.requiredApprover },
+        commandContext: { binding: c.binding, scopes: c.scopes }, commandSha256: proposal.commandSha256 };
+      if (abort.signal.aborted) throw unavailable();
+      if (!object(actual) || !exactKeys(actual, ['schemaVersion', 'commandSha256', 'metadata', 'run']) ||
+          actual.schemaVersion !== 1 || actual.commandSha256 !== proposal.commandSha256 || !sameJson(actual.metadata, metadata) ||
+          !object(actual.run) || !sameJson(actual.run.binding, c.binding) || !sameJson(actual.run.scopes, c.scopes) ||
+          !['queued', 'starting', 'running', 'paused', 'waiting-for-approval', 'completed'].includes(actual.run.state as string))
+        throw new ConflictException('Approval proposal does not match its prepared record');
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      throw unavailable();
+    } finally {
+      clearTimeout(timer); abort.abort();
+      if (reader) await reader.cancel().catch(() => undefined);
     }
   }
 }

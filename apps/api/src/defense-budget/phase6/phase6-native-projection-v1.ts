@@ -78,7 +78,7 @@ export const phase6NativeProjectionV1Schema = z
     projectionStatus: phase6ProjectionStatusV1Schema,
     enactmentProofId: nonBlank.optional(),
     supersedesProjectionId: nonBlank.optional(),
-    payload: z.record(z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
+    payload: z.record(z.string(), z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
     canonicalWriteAllowed: z.literal(false),
   })
   .strict()

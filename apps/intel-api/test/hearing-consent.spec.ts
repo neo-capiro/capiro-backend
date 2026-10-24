@@ -13,15 +13,16 @@ import {
 describe('HearingSessionService — consent conditional on source type', () => {
   function svc() {
     let created: any = null;
-    const prisma = {
+    const tx = {
       liveHearingSession: {
         create: async ({ data }: { data: any }) => {
           created = data;
           return { id: 'sess-1', ...data };
         },
       },
-    } as any;
-    return { service: new HearingSessionService(prisma), getCreated: () => created };
+    };
+    const prisma = { withTenant: jest.fn(async (_tenantId: string, fn: (db: typeof tx) => Promise<unknown>) => fn(tx)) };
+    return { service: new HearingSessionService(prisma as never), prisma, getCreated: () => created };
   }
 
   const base = {
@@ -58,17 +59,19 @@ describe('HearingSessionService — consent conditional on source type', () => {
   });
 
   it('private meeting WITHOUT attestation is rejected (400)', async () => {
-    const { service } = svc();
+    const { service, prisma, getCreated } = svc();
     await expect(
       service.create('t1', 'u1', {
         ...base,
         sourceType: LiveHearingSourceTypeDto.meeting,
       } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.withTenant).not.toHaveBeenCalled();
+    expect(getCreated()).toBeNull();
   });
 
   it('private meeting with a blank attestation is rejected (400)', async () => {
-    const { service } = svc();
+    const { service, prisma, getCreated } = svc();
     await expect(
       service.create('t1', 'u1', {
         ...base,
@@ -76,6 +79,8 @@ describe('HearingSessionService — consent conditional on source type', () => {
         consentAttestation: '   ',
       } as any),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.withTenant).not.toHaveBeenCalled();
+    expect(getCreated()).toBeNull();
   });
 
   it('private session WITH attestation → confirmed', async () => {
@@ -90,7 +95,7 @@ describe('HearingSessionService — consent conditional on source type', () => {
   });
 
   it('private session PERSISTS the full attestation + attestedBy/attestedAt', async () => {
-    const { service, getCreated } = svc();
+    const { service, prisma, getCreated } = svc();
     // Longer than the 80-char truncated log to prove the FULL text is stored.
     const full =
       'I attest, on behalf of the firm, that all parties to this private agency ' +
@@ -102,6 +107,9 @@ describe('HearingSessionService — consent conditional on source type', () => {
       consentAttestation: `   ${full}   `, // leading/trailing space is trimmed
     } as any);
     const created = getCreated();
+    expect(prisma.withTenant).toHaveBeenCalledTimes(1);
+    expect(prisma.withTenant).toHaveBeenCalledWith('tenant-A', expect.any(Function));
+    expect(created.tenantId).toBe('tenant-A');
     expect(created.consentAttestation).toBe(full);
     expect(created.consentAttestation.length).toBeGreaterThan(80);
     expect(created.attestedBy).toBe('user-42');
@@ -120,5 +128,15 @@ describe('HearingSessionService — consent conditional on source type', () => {
     expect(created.consentAttestation).toBeNull();
     expect(created.attestedBy).toBeNull();
     expect(created.attestedAt).toBeNull();
+  });
+
+  it('does not persist consent or report a session when the tenant transaction fails', async () => {
+    const { service, prisma, getCreated } = svc();
+    const failure = new Error('tenant transaction unavailable');
+    prisma.withTenant.mockRejectedValueOnce(failure);
+    await expect(service.create('t1', 'u1', {
+      ...base, sourceType: LiveHearingSourceTypeDto.meeting, consentAttestation: 'Authorized synthetic session',
+    } as any)).rejects.toBe(failure);
+    expect(getCreated()).toBeNull();
   });
 });

@@ -32,7 +32,7 @@ export const jevClaimEvidenceFixtureSchema = z.object({
             sourceDate: z.string().optional(),
           }),
         ),
-        tenantId: z.string().uuid(),
+        tenantId: z.string().guid(),
         clientId: z.string().min(1),
         expectedOutcome: z.enum(EVIDENCE_OUTCOMES),
         expectedOperationalState: z.string().optional(),

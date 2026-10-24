@@ -4,9 +4,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { spawnSync } = require('node:child_process');
 const { selectedPlatform } = require('./qualification-platform.cjs');
-const { reconciledPlatform, ownerPlatformAdmission, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, GENERATED_PRISMA_SCHEMA_SHA256 } = require('./runtime-closure-contract.cjs');
+const { reconciledPlatform, ownerPlatformAdmission, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 } = require('./runtime-closure-contract.cjs');
 const { verify } = require('./verify-alpine-amd64-scan.cjs');
 const priorArch = process.env.CAPIRO_QUALIFICATION_ARCH;
 process.env.CAPIRO_QUALIFICATION_ARCH = 'x64';
@@ -28,13 +27,29 @@ test('AMD64 selector binds the native loader, Prisma target, and optional packag
 
 test('candidate Dockerfile copies the shared platform gate into build and runtime', () => {
   const source = fs.readFileSync(path.join(root, 'apps/api/Dockerfile.alpine-amd64-qualification'), 'utf8');
-  const pin = 'node:22.23.3-alpine3.24@sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8';
+  const pin = 'node:22.23.4-alpine3.24@sha256:025b8e975a61d94e33abeafaad1255ef44e4898cf1a1b6446860009c72e6d284';
   assert.equal(source.split(pin).length - 1, 2, 'same exact AMD64 base for build and runtime');
   assert.equal(source.split(`FROM public.ecr.aws/docker/library/${pin}`).length - 1, 2, 'base pulled from the ECR Public mirror, not rate-limited Docker Hub');
   assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
   assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3\.0\.x/);
   assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2, 'build/prod-deps and runtime both require patched zlib');
-  assert.doesNotMatch(source, /linux-musl-arm64|sha256:85cdd100/);
+  assert.doesNotMatch(source, /linux-musl-arm64|sha256:fd4a97c1/);
+});
+
+test('ARM candidate copies the complete existing gate closure and runs it before publishing', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/api/Dockerfile.alpine-qualification'), 'utf8');
+  const pin = 'public.ecr.aws/docker/library/node:22.23.4-alpine3.24@sha256:fd4a97c1630a4a0a70117dd7b393e322db316d0489bdf36a0e776e7b235341b0';
+  assert.equal(source.split(`FROM ${pin}`).length - 1, 2);
+  assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
+  assert.equal(source.split('ENV CAPIRO_QUALIFICATION_ARCH=arm64').length - 1, 2);
+  assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2);
+  assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-arm64-openssl-3\.0\.x/);
+  const repair = source.indexOf('RUN --network=none node /qualification/derived-owner-repair.cjs');
+  const user = source.indexOf('USER capiro');
+  const gate = source.indexOf('RUN --network=none node /qualification/alpine-runtime-probe.cjs --static');
+  assert(repair > 0 && user > repair && gate > user);
+  assert.match(source, /FROM runtime-base AS runtime/);
+  assert.doesNotMatch(source, /CAPIRO_QUALIFICATION_ARCH=x64|sha256:025b8e97/);
 });
 
 test('PR48 canonical source schema binds both raw image-local Prisma targets', () => {
@@ -47,30 +62,9 @@ test('PR48 canonical source schema binds both raw image-local Prisma targets', (
   }
 });
 
-test('Prisma 5.22 formats both pinned image-local schemas into exact generated companions', t => {
-  const cli = path.resolve(process.env.CAPIRO_QUALIFICATION_PRISMA_CLI ||
-    path.join(root, 'apps/api/node_modules/prisma/build/index.js'));
-  assert.equal(JSON.parse(fs.readFileSync(path.join(path.dirname(cli), '../package.json'), 'utf8')).version, '5.22.0');
-  const schema = fs.readFileSync(path.join(root, 'apps/api/prisma/schema.prisma'), 'utf8').replace(/\r\n/g, '\n');
-  const from = '"linux-arm64-openssl-3.0.x"';
-  assert.equal(schema.split(from).length - 1, 1);
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'pr48-prisma-schema-'));
-  t.after(() => {
-    assert.equal(path.resolve(path.dirname(fixture)), path.resolve(os.tmpdir()));
-    fs.rmSync(fixture, { recursive: true, force: true });
-  });
-  for (const [arch, expected] of Object.entries(GENERATED_PRISMA_SCHEMA_SHA256)) {
-    const raw = schema.replace(from, `"${selectedPlatform({ CAPIRO_QUALIFICATION_ARCH: arch }).prisma}"`);
-    assert.equal(createHash('sha256').update(raw).digest('hex'), IMAGE_LOCAL_PRISMA_SCHEMA_SHA256[arch]);
-    const file = path.join(fixture, 'schema.prisma');
-    fs.writeFileSync(file, raw);
-    const run = spawnSync(process.execPath, [cli, 'format', '--schema', file], {
-      encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
-    });
-    assert.equal(run.status, 0, `${arch} Prisma 5.22 formatter: ${run.error?.message || run.stderr}`);
-    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), expected, `${arch} generated schema pin`);
-  }
-});
+// Generated companion custody is tested by the native runtime probe against
+// the actual installed Prisma client. Host `prisma format` is not a generator
+// and does not reproduce ARM output bytes; see PRISMA-NATIVE-EVIDENCE-20261024.md.
 
 test('exact locked x64 Canvas archive evidence rejects GNU and admits musl', () => {
   const target = { os: 'linux', cpu: 'x64', libc: 'musl' };

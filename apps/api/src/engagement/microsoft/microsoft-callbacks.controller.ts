@@ -42,15 +42,18 @@ export class MicrosoftCallbacksController {
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
-    @Query('error_description') errorDescription: string | undefined,
+    @Query('error_description') _errorDescription: string | undefined,
     @Query('admin_consent') adminConsent: string | undefined,
     @Query('tenant') msTenant: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     if (error) {
+      const reason = error === 'access_denied' ? 'access_denied'
+        : error === 'cancelled' || error === 'user_cancelled' ? 'cancelled'
+        : 'connection_failed';
       res.redirect(
         302,
-        `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=${encodeURIComponent(errorDescription || error)}`,
+        `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=${reason}`,
       );
       return;
     }
@@ -63,7 +66,15 @@ export class MicrosoftCallbacksController {
       return;
     }
     if (!code || !state) throw new BadRequestException('Missing code or state');
-    const result = await this.oauth.handleCallback({ code, state });
+    let result: { tenantId: string; connectionId: string };
+    try {
+      result = await this.oauth.handleCallback({ code, state });
+    } catch {
+      // State, ownership and token admission still belong to the service. A
+      // refusal is a failure hint only; provider details never enter the URL.
+      res.redirect(302, `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=connection_failed`);
+      return;
+    }
     res.redirect(
       302,
       `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&connectionId=${encodeURIComponent(result.connectionId)}&connected=1`,

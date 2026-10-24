@@ -12,10 +12,10 @@ import { readAppropriationAccountMetadataV1 } from '../appropriation-account-met
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
 export const reextractionRequestSchemaV1 = z
   .object({
-    operationId: z.string().uuid(),
-    outboxRowId: z.string().uuid(),
-    oldCandidateId: z.string().uuid(),
-    expectedOldVerificationRunId: z.string().uuid(),
+    operationId: z.string().guid(),
+    outboxRowId: z.string().guid(),
+    oldCandidateId: z.string().guid(),
+    expectedOldVerificationRunId: z.string().guid(),
     expectedSourceSha256: sha256,
     expectedOldExtractionArtifactSha256: sha256,
     actor: z.string().trim().min(1).max(256),

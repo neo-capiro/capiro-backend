@@ -114,8 +114,10 @@ describe('ordered client ownership', () => {
   test('read is allowed for an active standard_user, write is not', async () => {
     const { service, state } = setup([ids[0]]);
     state.role = 'standard_user';
-    expect((await service.get(ctx, client)).owners).toHaveLength(1);
-    await status(service.replaceLegacy(ctx, client, null), 403);
+    const current = { ...ctx, role: 'standard_user' as const };
+    expect((await service.get(current, client)).owners).toHaveLength(1);
+    await status(service.replaceLegacy(current, client, null), 403);
+    await status(service.get(ctx, client), 403); // A stale administrator context cannot survive downgrade.
   });
   test('two same-version replacements yield one receipt and one stale conflict', async () => {
     const { service, state, queries } = setup();

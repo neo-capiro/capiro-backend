@@ -14,10 +14,10 @@ export const canaryTurnEventSchema = z.object({
   conversationId: z.string().nullable(),
   tenantId: z.string(),
   surface: z.string(),
-  modes: z.record(z.string()),
+  modes: z.record(z.string(), z.string()),
   registryVersion: z.string().optional(),
   jevTasks: z
-    .record(z.object({ questionVersion: z.string(), modelVersion: z.string() }))
+    .record(z.string(), z.object({ questionVersion: z.string(), modelVersion: z.string() }))
     .optional(),
   outcome: z.enum(['released', 'held', 'error', 'aborted', 'incomplete']),
   clarificationRequested: z.boolean(),

@@ -134,7 +134,7 @@ function validateResponse(
   model: string,
 ): JevSystemOneResponse {
   const root = z
-    .object({ model: z.literal(model), answers: z.record(z.unknown()), usage: usageSchema })
+    .object({ model: z.literal(model), answers: z.record(z.string(), z.unknown()), usage: usageSchema })
     .safeParse(value);
   if (!root.success) throw new JevMalformedResponseError();
   const questionIds = Object.keys(questions).sort();
@@ -162,7 +162,7 @@ function validateResponse(
         .object({
           type: z.literal('score'),
           level: z.string(),
-          probabilities: z.record(z.number().finite().min(0).max(1)),
+          probabilities: z.record(z.string(), z.number().finite().min(0).max(1)),
           confidence: z.number().finite().min(0).max(1),
         })
         .safeParse(root.data.answers[id]);
@@ -185,7 +185,7 @@ function validateResponse(
       .object({
         type: z.literal('choice'),
         choice: z.string(),
-        probabilities: z.record(z.number().finite().min(0).max(1)),
+        probabilities: z.record(z.string(), z.number().finite().min(0).max(1)),
         confidence: z.number().finite().min(0).max(1),
       })
       .safeParse(root.data.answers[id]);

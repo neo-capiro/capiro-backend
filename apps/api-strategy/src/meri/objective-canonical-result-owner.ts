@@ -38,8 +38,8 @@ export class ObjectiveCanonicalResultOwner {
       if (this.bridge.available() !== true) return unavailable();
       const result = await this.bridge.read(pinned, options);
       if (options.signal.aborted || !result || typeof result !== 'object' || Array.isArray(result)) return unavailable();
-      const observed = result as Record<string, unknown>;
-      if (observed.generationJobId !== pinned.generationJobId ||
+      const observed = (result as any).record;
+      if (!observed || observed.generationJobId !== pinned.generationJobId ||
           observed.sourceAdmissionSha256 !== pinned.sourceAdmissionSha256 ||
           applicationHash(observed.binding) !== bindingSha256) return unavailable();
       return result;

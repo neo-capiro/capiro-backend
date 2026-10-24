@@ -199,6 +199,14 @@ export function admitMeriReadObservation(
   }
   if (!isObservedRead(name) || !record(rawBody) || typeof carrier !== 'string') invalid();
   if (isSecondPackageRead(name)) assertSecondPackageTarget(name, request, ctx, grant);
+  return parseMeriReadObservation(name, rawBody, carrier);
+}
+
+/** Calculation inputs only. The calling HTTP owner must establish its own
+ * canonical subject and service identity before dispatching any data reader. */
+export function parseMeriReadObservation(name: string, rawBody: unknown, carrier: unknown): MeriReadObservation | undefined {
+  if (carrier === undefined) return undefined;
+  if (!isObservedRead(name) || !record(rawBody) || typeof carrier !== 'string') invalid();
   if (name === KB_READ) assertKnowledgeBody(rawBody);
   if (
     carrier.length === 0 ||

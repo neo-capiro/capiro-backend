@@ -1,10 +1,11 @@
+import { nativeObjectiveEnvelope } from './objective-native-envelope.fixture.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '../generated/prisma-client/index.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { applicationHash } from '../src/planner/objective-canonical-application.js';
 import { canonicalGenerationAdmissionSha256, generationBindingKey,
   GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_REQUEST } from '../src/meri/objective-canonical-generation.js';
-import { createCanonicalRequestPublication, candidateJcsSha256 } from '../src/meri/objective-canonical-request.js';
+import { createCanonicalRequestPublication, candidateJcsSha256, privateRequestJcsSha256 } from '../src/meri/objective-canonical-request.js';
 import { verifyRetainedCanonicalCompletion } from '../src/meri/objective-canonical-completion-receipt.js';
 import { normalizeCanonicalDraft } from '../src/meri/objective-canonical-draft.js';
 import { buildSnapshot } from '../src/strategy/versioning.js';
@@ -56,17 +57,13 @@ export function buildObjectivePlannerNativeFixture(nowMs: number, options: {
       snapshotSha256: canonical.snapshotHash, sourceDigest, packetId: id('packet'),
       compiledAt: new Date(nowMs - 9_500).toISOString(), coverageDigest, promptSha256: sha(prompt), evidence: [] },
     prompt, owners: [{ ownerRef: 'owner:qa', clerkUserId }],
-    delegation: { ref: id('synthetic-delegation'), revision: 'synthetic-native-fixture:1',
-      issuedAtMs: nowMs - 11_000, absoluteExpiresAtMs: nowMs + 700_000 },
     requestedAtMs: nowMs - 9_000, effectExpiresAtMs: nowMs + 500_000 });
-  const binding = { tenantId, actorId: clerkUserId, conversationId: id('conversation'), runId: id('generation-run'),
+  const binding = { tenantId, actorId: admission.actorUserId, conversationId: id('conversation'), runId: id('generation-run'),
     attemptId: id('generation-attempt'), workerId: id('generation-worker'), writerFence: 1 };
-  const sourceRequestSha256 = applicationHash(['synthetic-original-request', seed]);
+  const sourceRequestSha256 = privateRequestJcsSha256({ requestId: admission.generationRequestId, prompt: publication.executionContext.prompt, skill: null, window: null, windowRequest: null });
   const acceptance = { schemaVersion: 1 as const, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(admission),
     sourceBinding: binding, sourceRequestSha256, acceptedAtMs: nowMs - 8_000,
-    issuance: { issuanceKey: generationBindingKey(binding), binding, requestSha256: sourceRequestSha256,
-      expiresAtMs: nowMs + 400_000, grantId: id('synthetic-grant'), capabilitySha256: sha('synthetic capability'),
-      factsSha256: sha('synthetic protected facts') } };
+    effectExpiresAtMs: Math.min(admission.effectExpiresAtMs, publication.request.originalExpiresAtMs) };
   const payload = { type: 'authorization', rationale: 'Keep the synthetic authority current', summary: 'Prepare a synthetic request',
     nodes: [{ sourceNodeKey: 'prepare', kind: 'action', subject: 'deliverable', title: 'Prepare the synthetic authorization request',
       note: null, status: 'suggested', ownerRef: null, startsOn: '2027-02-01', endsOn: null, openEnded: false,
@@ -82,15 +79,7 @@ export function buildObjectivePlannerNativeFixture(nowMs: number, options: {
     inputSha256: publication.request.inputSha256, sourceSha256: candidateJcsSha256(publication.request.source),
     contextSha256: publication.request.context.contextSha256, basisSha256: null, binding, execution, resultRef: completionId,
     completedAtMs: nowMs - 7_000, state: 'succeeded', payload, payloadSha256: candidateJcsSha256(payload), issues: [] };
-  const result = { ...resultBody, resultSha256: candidateJcsSha256(resultBody) };
-  const bytes = Buffer.from(JSON.stringify(result), 'utf8'), rawFileSha256 = sha(bytes);
-  const retained = { schemaVersion: 1, generationJobId: admission.generationJobId, binding,
-    sourceAdmissionSha256: canonicalGenerationAdmissionSha256(admission), sourceRequestSha256,
-    typedRequestSha256: publication.requestSha256, completionId, checkpointId: id('checkpoint'),
-    checkpointSha256: sha('synthetic checkpoint'), resultRef: completionId, resultSha256: result.resultSha256,
-    file: { path: 'meri-objective-strategy-draft.result.json', object: { objectId: 'synthetic-object',
-      versionId: 'synthetic-immutable-version', sha256: rawFileSha256, bytes: bytes.length, scopes: ['synthetic-native-fixture'] } },
-    rawFileSha256, execution, result, checkedAtMs: nowMs - 6_500, expiresAtMs: nowMs + 1_000 };
+  const retained = nativeObjectiveEnvelope(admission, publication, binding, resultBody);
   const witness = verifyRetainedCanonicalCompletion(retained, { admission, acceptance, publication, nowMs: nowMs - 6_000 }).witness;
   const localDigest = sha('synthetic local context'), externalDigest = sha('synthetic external observation'), historyDigest = sha('synthetic history');
   const inputDigest = applicationHash({ sourceDigest, coverageDigest, packetId: id('packet'), requestId: admission.generationRequestId,
@@ -228,7 +217,7 @@ export async function seedObjectivePlannerNativeFixture(prisma: PrismaService, f
       snapshot: json(f.snapshot), authorKind: 'meri', authorUserId: f.clerkUserId, note: 'Synthetic original generation', coalescible: false } });
     await tx.spDraftJob.create({ data: { id: f.admission.generationJobId, tenantId: f.tenantId, clientId: f.source.clientId,
       ownerUserId: f.clerkUserId, requestKey: requestKey(f.tenantId, f.clerkUserId, f.admission.generationRequestId),
-      input: json(f.pendingInput), status: 'running', attempt: 2, claimedBy: `canonical:${f.acceptance.issuance.issuanceKey}`,
+      input: json(f.pendingInput), status: 'running', attempt: 2, claimedBy: `canonical:${generationBindingKey(f.acceptance.sourceBinding)}`,
       claimedAt: new Date(f.acceptance.acceptedAtMs), deadlineAt: new Date(f.admission.effectExpiresAtMs) } });
     await insertGenerationLedger(tx, GENERATION_ADMISSION, f.tenantId, f.clerkUserId, f.admission.generationJobId, f.admission);
     await insertGenerationLedger(tx, GENERATION_ACCEPTANCE, f.tenantId, f.clerkUserId, f.admission.generationJobId, f.acceptance);

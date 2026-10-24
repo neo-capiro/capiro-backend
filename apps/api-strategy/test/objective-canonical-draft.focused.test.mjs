@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 // Backend adapter cases, not Meri contract validation or authority proof.
 // One native Node process, source stripping, no hooks/children/DB/model/provider.
 import test from 'node:test';
@@ -13,14 +14,14 @@ async function sourceModule(relative, replacements = []) {
   const url = new URL(relative, import.meta.url), original = await readFile(url, 'utf8');
   let source = original;
   for (const [from, to] of replacements) {
-    const parts = source.split(from); assert.equal(parts.length, 2, `exact source dependency ${from}`); source = parts.join(to);
+    const parts = source.split(from); assert.equal(parts.length, from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2, `exact source dependency ${from}`); source = parts.join(to);
   }
   const stripped = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: url.href });
   custody.push({ path: relative, sha256: digest(original), replacementSpecifiers: replacements.map(([from]) => from),
     transformedSha256: digest(stripped) });
   return dataModule(stripped);
 }
-const applicationUrl = await sourceModule('../src/planner/objective-canonical-application.ts');
+const applicationUrl = await sourceModule('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", JSON.stringify(objectivePlannerOwnerCodecUrl)]]);
 const generationUrl = await sourceModule('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", JSON.stringify(applicationUrl)],
 ]);
@@ -64,7 +65,7 @@ function regenerated() {
 }
 
 test('source custody includes three actual TS inputs and only exact declared import rewrites', t => {
-  assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [0, 1, 2]);
+  assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [1, 1, 2]);
   t.diagnostic(JSON.stringify({ sourceCustody: custody }));
 });
 

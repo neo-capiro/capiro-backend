@@ -18,15 +18,34 @@ update.
 | Registry | Existing immutable-tag `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core`, tag equal to `APPROVED_SOURCE_SHA`. |
 
 The buildspec fails before Docker unless the project pins have valid shapes,
-the account and region are `967807252336/us-east-1`, the worker is x86_64,
+the account and region are `967807252336/us-east-1`, the worker is aarch64,
 `CODEBUILD_SOURCE_VERSION` equals the reviewed VersionId, and the repository
 has immutable tags with no image already at the source tag. It downloads the
 explicit S3 object *by VersionId*, compares the returned VersionId and the
 full ZIP SHA-256, then checks the bootstrap receipt migration, integrated
-read-delegation migration and execution receiver. It builds linux/amd64,
-smokes Node/Prisma/Core imports with no container network, pushes once, and
+read-delegation migration and execution receiver. It builds linux/arm64 using
+`apps/api/Dockerfile.alpine-qualification` and its mandatory final `runtime`
+target, executes the existing native runtime probe without container network,
+pushes once, and
 compares the local and ECR image digests. The buildspec performs no ECS or SQL
 operation.
+
+The tracked-only source preparer includes this ARM recipe, every local COPY
+input and the frozen runtime closure document. The runtime stage copies the
+shared platform selector and uses the existing direct-owner repair with exact
+ARM esbuild/Prisma payload pins before the unchanged static closure/native gate.
+The repair preserves x64 pins for the separately retained historical recipe;
+it does not admit unknown artifacts or weaken the runtime probe. ARM esbuild
+0.28.2 is bound to the lockfile SHA512 archive; Prisma5.22 engine commit
+`605197351a3c8bdd595af2d2a9bc3025bca48ea2` is bound to its published raw and
+gzip checksums. Source verification does not prove native execution.
+
+Use the existing native ARM CodeBuild environment after root reads back its
+configuration and permissions. No project, role or sourceVersion is supplied
+by this document. `first-chat-core.ts` emits ARM64, retaining 1vCPU/2GiB,
+the existing roles, TLS, `/health` and listener rules. The image source/digest
+pins remain null until a qualified build exists. No migration is changed or
+activated by this packaging alignment.
 
 ## Qualification and pin handoff
 

@@ -7,6 +7,22 @@ const { execFileSync } = require('node:child_process');
 const roots = ['apps/api', 'packages/shared', 'packages/meriv2-core', 'packages/defense-contracts', 'packages/defense-domain'];
 const targets = ['promptfoo', '@huggingface/transformers', 'onnxruntime-node', 'onnxruntime-web', '@openai/codex-security', 'sharp', 'libsql', '@libsql/client', '@swc/core'];
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+function verifyImporterManifest(lock, rootManifest, importer, manifest) {
+  const overrides = rootManifest.pnpm?.overrides || {};
+  assert.deepEqual(lock.overrides || {}, overrides, 'Root manifest/lock override drift');
+  for (const section of ['dependencies', 'optionalDependencies']) {
+    const declared = manifest[section] || {}, locked = lock.importers[importer][section] || {};
+    assert.deepEqual(Object.keys(declared).sort(), Object.keys(locked).sort());
+    for (const [name, specifier] of Object.entries(declared)) {
+      // pnpm 9 writes an exact importer override into the lock specifier.
+      // Other parents, ranges and unrelated overrides cannot admit a mismatch.
+      const selector = `${manifest.name}@${manifest.version}>${name}`;
+      const expected = Object.hasOwn(overrides, selector) ? overrides[selector] : specifier;
+      assert(typeof expected === 'string' && expected.length > 0, 'Malformed dependency specifier');
+      assert.equal(locked[name].specifier, expected, `${importer} ${name} manifest/lock drift`);
+    }
+  }
+}
 function resolveEdge(lock, parent, name, value) {
   const version = typeof value === 'string' ? value : value.version;
   assert.equal(typeof version, 'string');
@@ -18,6 +34,27 @@ function resolveEdge(lock, parent, name, value) {
   // pnpm aliases name an actual snapshot directly; peer suffixes stay intact.
   return Object.hasOwn(lock.snapshots, `${name}@${version}`) ? `${name}@${version}` :
     Object.hasOwn(lock.snapshots, version) ? version : null;
+}
+function removedDependencies(lock, rootManifest, snapshots) {
+  const overrides = rootManifest.pnpm?.overrides || {};
+  assert.deepEqual(lock.overrides || {}, overrides, 'Root manifest/lock override drift');
+  const rows = [];
+  for (const [selector, value] of Object.entries(overrides)) {
+    if (value !== '-') continue;
+    // Only an exact package/version removal can explain an omitted installed
+    // declaration. This does not implement pnpm's general selector language.
+    const match = /^((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+@[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.-]+)?)>((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)$/i.exec(selector);
+    assert(match, 'Removal requires exact parent@version>dependency selector');
+    for (const from of snapshots) {
+      if (from.split('(')[0] !== match[1]) continue;
+      const snapshot = lock.snapshots[from];
+      assert(snapshot, 'Missing removal parent snapshot');
+      assert(!Object.hasOwn(snapshot.dependencies || {}, match[2]) &&
+        !Object.hasOwn(snapshot.optionalDependencies || {}, match[2]), 'Removed dependency remains in frozen snapshot');
+      rows.push({ from, dependencyName: match[2], selector });
+    }
+  }
+  return rows.sort((a, b) => a.from.localeCompare(b.from) || a.dependencyName.localeCompare(b.dependencyName));
 }
 function closure(lock, importerRoots, importerSections) {
   const nodes = new Map(), edges = [], unresolved = [];
@@ -86,11 +123,7 @@ function audit(root, yaml) {
   const rootManifest = JSON.parse(read('package.json'));
   for (const importer of roots) {
     const manifest = JSON.parse(read(`${importer}/package.json`));
-    for (const section of ['dependencies', 'optionalDependencies']) {
-      assert.deepEqual(Object.keys(manifest[section] || {}).sort(), Object.keys(lock.importers[importer][section] || {}).sort());
-      for (const [name, specifier] of Object.entries(manifest[section] || {}))
-        assert.equal(lock.importers[importer][section][name].specifier, specifier, `${importer} ${name} manifest/lock drift`);
-    }
+    verifyImporterManifest(lock, rootManifest, importer, manifest);
   }
   assert.equal(rootManifest.devDependencies.promptfoo, '0.123.1');
   const production = closure(lock, roots, ['dependencies', 'optionalDependencies']);
@@ -144,6 +177,7 @@ function audit(root, yaml) {
         peerDependenciesMeta: metadata.peerDependenciesMeta || {} };
     }),
     edges: production.edges.map(({ from, dependencyName, kind, to }) => ({ from, dependencyName, kind, to })),
+    removedDependencies: removedDependencies(lock, rootManifest, snapshots.map(([key]) => key)),
     unresolvedEdges: [],
   };
   function rootPath(importer) { return path.join(root, importer); }
@@ -163,7 +197,7 @@ function canonicalInputBytes(checkout, canonical) {
 function serializeAudit(result, contractOnly = false) {
   return JSON.stringify(contractOnly ? result.runtimeClosureContract : result, null, 2) + '\n';
 }
-module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit };
+module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit, verifyImporterManifest, removedDependencies };
 if (require.main === module) {
   const args = process.argv.slice(2);
   const outIndex = args.indexOf('--out');

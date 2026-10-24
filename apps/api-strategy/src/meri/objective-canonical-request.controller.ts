@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Header, Param, Post, Req } from '@nestjs/common';
+import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { UseGuards, Body, Controller, Get, Header, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ObjectiveCanonicalRequestService } from './objective-canonical-request.service.js';
 
+@UseGuards(InternalServiceGuard)
 @Controller('internal/objective-canonical/generation-requests')
 export class ObjectiveCanonicalRequestController {
   constructor(private readonly requests: ObjectiveCanonicalRequestService) {}

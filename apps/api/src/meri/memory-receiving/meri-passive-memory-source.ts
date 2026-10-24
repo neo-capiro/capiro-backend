@@ -97,10 +97,8 @@ export async function readPassiveMemorySource(
   tools: MemoryReader,
 ): Promise<unknown> {
   const { input } = parsePassiveMemoryWire(raw);
-  // The delegated read grant currently selects one client. The canonical
-  // search without clientId can include other authorized clients, so do not
-  // serve a personal passive page until it has its own scoped authority.
-  if (input.clientId === null) throw denied();
+  // Client and General requests use the same canonical governed-memory owner.
+  // A null selection does not create a client scope or bypass any client wall.
   return tools.executeFromAuthenticatedUser(ctx, 'search_memory', input as unknown as Record<string, unknown>);
 }
 
@@ -115,7 +113,7 @@ export interface PassiveMemoryEligibilityRequest extends PassiveMemoryWire {
   };
   subject: {
     kind: 'client' | 'personal'; entityType: 'client' | 'user'; entityIds: string[];
-    tenantId: string; actorId: string; authorizationDecisionId: string;
+    tenantId: string; actorId: string;
     policyRevision: string; scopes: Array<{
       tenantId: string; kind: string; resourceId: string; policyRevision: string;
     }>; rosterVersionId: null;
@@ -134,7 +132,7 @@ export function parsePassiveMemoryEligibilityRequest(
   ctx: Pick<TenantContext, 'tenantId' | 'userId'>,
   nowMs: number,
 ): PassiveMemoryEligibilityRequest {
-  const request = closed(json(raw, 32_768), [
+  const request = closed(json(raw, 16_384), [
     'operation', 'input', 'metadata', 'normalizationContext', 'argumentsSha256',
     'requestSha256', 'binding', 'subject', 'policyRevision', 'sourceIds',
     'resultSha256', 'records', 'deadlineMs',
@@ -146,7 +144,7 @@ export function parsePassiveMemoryEligibilityRequest(
     'tenantId', 'actorId', 'conversationId', 'runId', 'attemptId', 'workerId', 'writerFence',
   ]);
   const subject = closed(request.subject, [
-    'kind', 'entityType', 'entityIds', 'tenantId', 'actorId', 'authorizationDecisionId',
+    'kind', 'entityType', 'entityIds', 'tenantId', 'actorId',
     'policyRevision', 'scopes', 'rosterVersionId',
   ]);
   if (operation.id !== 'search_memory' || operation.version !== '0.2.0' ||
@@ -155,7 +153,7 @@ export function parsePassiveMemoryEligibilityRequest(
       ![binding.conversationId, binding.runId, binding.attemptId, binding.workerId].every(isUuid) ||
       !Number.isSafeInteger(binding.writerFence) || (binding.writerFence as number) < 1 ||
       subject.tenantId !== ctx.tenantId || subject.actorId !== ctx.userId ||
-      !isUuid(subject.authorizationDecisionId) || subject.rosterVersionId !== null ||
+      subject.rosterVersionId !== null ||
       !Array.isArray(subject.entityIds) || subject.entityIds.length !== 1 ||
       !Array.isArray(subject.scopes) || subject.scopes.length < 1 || subject.scopes.length > 4096 ||
       typeof request.policyRevision !== 'string' || request.policyRevision.length < 1 || request.policyRevision.length > 128 ||
@@ -190,7 +188,7 @@ export function parsePassiveMemoryEligibilityRequest(
     if (!isUuid(record.memoryItemId) || !isSha(record.recordSha256) || seen.has(record.memoryItemId)) throw denied();
     seen.add(record.memoryItemId);
   }
-  return json(request, 32_768) as unknown as PassiveMemoryEligibilityRequest;
+  return json(request, 16_384) as unknown as PassiveMemoryEligibilityRequest;
 }
 
 export async function checkPassiveMemoryEligibility(
@@ -201,7 +199,6 @@ export async function checkPassiveMemoryEligibility(
 ) {
   const request = parsePassiveMemoryEligibilityRequest(raw, ctx, now());
   const { clientId } = request.input;
-  if (clientId === null) throw denied();
   await prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
     // Recheck the selected client even for an empty result. The user bearer
     // establishes the actor, while this transaction observes the current wall.

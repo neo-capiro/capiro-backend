@@ -16,9 +16,9 @@ export type PlannerResult =
     };
 const receipt = z
   .object({
-    requestId: z.string().uuid(),
+    requestId: z.string().guid(),
     status: z.literal('completed'),
-    taskId: z.string().uuid(),
+    taskId: z.string().guid(),
   })
   .strict();
 

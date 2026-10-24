@@ -81,6 +81,24 @@ const criteria: {
 };
 
 describe('SearchTargetsCapability', () => {
+  it('parses the missing criteria object through all retained field defaults', () => {
+    const schema = harness().capability.definition().inputSchema;
+    const parsed = schema.parse({});
+    expect(parsed).toEqual({
+      query: null, clientId: null, sources: [], limit: 20,
+      excludeTargetKeys: [], rejectedRecommendationRefs: [],
+      criteria: {
+        governmentLevels: [], chambers: [], committees: [], agencies: [], states: [],
+        relationshipPreference: 'any', includeStaff: true, includePrincipals: true,
+      },
+    });
+    expect(schema.parse({ criteria: { includeStaff: false } }).criteria).toEqual({
+      ...parsed.criteria, includeStaff: false,
+    });
+    expect(() => schema.parse({ criteria: null })).toThrow();
+    expect(() => schema.parse({ criteria: { foreign: true } })).toThrow();
+  });
+
   it('returns explainable public Directory targets for a no-client campaign', async () => {
     const h = harness();
     const result = await h.capability.execute(ctx, {

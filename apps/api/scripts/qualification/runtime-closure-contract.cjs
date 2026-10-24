@@ -5,19 +5,19 @@ const path = require('node:path');
 const { createRequire, isBuiltin } = require('node:module');
 const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
-const CONTRACT_SHA256 = 'a7c1a4243eefc3750d08a18bd7d6437b98c907f77f240e66921f383836ff3505';
+const CONTRACT_SHA256 = '0bec7b2b97a421e898e60c39094253c3f64df00392072b47e482aa0141f6d9f0';
 // SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: 'e485e0de275b18e1741280c811c26ab6ad69f7effa994038de2498adf113caed',
-  x64: 'bf3ffb8f41bafd4ed8bc38126ee75eb9f95f586208aa73c7017816068818d4cb',
+  arm64: '5fcdd0e2be857713d39f874b1a13b029532b5d4a3b5bc94645b5bc665cf4c21e',
+  x64: '61c025bf396824034270f467caaa4832a4a143700f15f9f92442321cf9e4a061',
 });
 // Prisma 5.22's generator merges/formats the image-local schema before writing
 // its generated companion. Pin those exact bytes separately from the raw image
 // schema above; a raw byte-equality check rejects valid generated clients.
 const GENERATED_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: 'bffa9bc41894936ee50a211fc88f12b6efa567c5b77665f114c95e922a81f08e',
-  x64: 'b63eda811e992a2d875450e3ae33d464d821ff17974fd634edb75a157c04f13e',
+  arm64: 'e2bf86eaaf9924f31d815a8fb6ab022c6683b3630132284fa65ac75fab05e520',
+  x64: '4109e9fba63f56b26f5caaf2afcf94cce363efe75bb0e755a8253f49fcc46df1',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
@@ -194,7 +194,19 @@ function readContract({ contractFile = '/qualification/RUNTIME-CLOSURE-CONTRACT.
     const rows = edges.get(edge.from) || []; assert(!rows.some(r => r.dependencyName === edge.dependencyName), 'duplicate graph edge');
     rows.push(edge); edges.set(edge.from, rows);
   }
-  return { contract, nodes, edges, contractSHA256: expectedSHA256 };
+  const overrides = JSON.parse(readBounded(path.join(qualificationRoot, 'root-package.json'), qualificationRoot, 8 * 1024 * 1024)).pnpm?.overrides || {};
+  const removed = new Map(), removals = contract.removedDependencies || [];
+  assert(Array.isArray(removals) && removals.length <= 30000, 'bounded removed dependencies');
+  for (const row of removals) {
+    const node = nodes.get(row.from);
+    assert(node && !row.from.startsWith('importer:') && /^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(row.dependencyName), 'unknown removed dependency');
+    assert(row.selector === `${node.name}@${node.version}>${row.dependencyName}` && overrides[row.selector] === '-', 'frozen exact removal selector required');
+    assert(!(edges.get(row.from) || []).some(edge => edge.dependencyName === row.dependencyName), 'removed dependency also has graph edge');
+    const rows = removed.get(row.from) || [];
+    assert(!rows.some(existing => existing.dependencyName === row.dependencyName), 'duplicate removed dependency');
+    rows.push(row); removed.set(row.from, rows);
+  }
+  return { contract, nodes, edges, removed, contractSHA256: expectedSHA256 };
 }
 function walkRuntime(imageRoot = '/app') {
   const root = fs.realpathSync(imageRoot), files = [], directories = new Set(), seenFiles = new Set(); let links = 0;
@@ -330,12 +342,16 @@ function generatedPrismaOwners(owners, imageRoot, diagnostic) {
 // pnpm snapshot placement and physical installation obligations are separate.
 // An optional peer may be placed in optionalDependencies even when the package
 // also declares it as a direct dependency. That direct dependency stays required.
-function classifyDependencyRelations(metadata, node, expectedEdges) {
+function classifyDependencyRelations(metadata, node, expectedEdges, removed = []) {
   const declarations = new Map(Object.keys(metadata.dependencies || {}).map(name => [name, 'dependencies']));
   for (const name of Object.keys(metadata.optionalDependencies || {})) declarations.set(name, 'optionalDependencies');
   const relations = new Map();
   for (const [name, declaredKind] of declarations) {
     const edge = expectedEdges.find(e => e.dependencyName === name);
+    if (!edge && removed.some(row => row.dependencyName === name)) {
+      relations.set(name, { declaredKind, snapshotKind: null, physicalRequired: false, basis: 'EXACT_FROZEN_REMOVAL_OVERRIDE' });
+      continue;
+    }
     assert(edge, `unlocked installed dependency: ${node.key} ${name}`);
     let basis = 'EXACT_DIRECT_DECLARATION_KIND';
     if (edge.kind !== declaredKind) {
@@ -366,7 +382,7 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
   diagnostic.payload.stage = 'BOUNDED_PHYSICAL_OWNER_READ'; const owners = physicalStoreOwners(store, diagnostic);
   diagnostic.payload.physicalInventoryComplete = true;
   delete diagnostic.payload.readingPhysicalOwner;
-  const physical = new Map(owners.map(o => [o.root, o])), assigned = new Map(), queue = [], missingOptional = [], links = [];
+  const physical = new Map(owners.map(o => [o.root, o])), assigned = new Map(), queue = [], missingOptional = [], links = [], removedDependencies = [];
   for (const root of graph.contract.roots) {
     diagnostic.payload.stage = 'WORKSPACE_OWNER_READ';
     diagnostic.payload.observedOwner = null; diagnostic.payload.readingPhysicalOwner = diagnosticPath(imageRoot, path.join(imageRoot, root.path));
@@ -394,7 +410,16 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
 
     }
     const expectedEdges = graph.edges.get(key) || [];
-    const relations = classifyDependencyRelations(owner.metadata, node, expectedEdges);
+    const removed = graph.removed.get(key) || [];
+    const relations = classifyDependencyRelations(owner.metadata, node, expectedEdges, removed);
+    for (const row of removed) {
+      diagnostic.payload.stage = 'REMOVED_DEPENDENCY_ABSENCE';
+      diagnostic.payload.parentSnapshot = diagnosticText(key, 768);
+      diagnostic.payload.dependencyName = diagnosticText(row.dependencyName);
+      assert(relations.get(row.dependencyName)?.basis === 'EXACT_FROZEN_REMOVAL_OVERRIDE', 'removed dependency declaration missing');
+      assert(!resolve(owner, row.dependencyName, imageRoot, diagnostic), `removed dependency physically resolves: ${key} ${row.dependencyName}`);
+      removedDependencies.push({ ...row, reason: 'EXACT_FROZEN_REMOVAL_AND_PHYSICAL_ABSENCE' });
+    }
     for (const edge of expectedEdges) {
       diagnostic.payload.stage = 'REQUIRED_OR_OPTIONAL_EDGE'; diagnostic.payload.physicalSearchCount = 0; diagnostic.payload.physicalSearch = [];
       diagnostic.payload.observedOwner = null; diagnostic.payload.dependencyMissing = null; delete diagnostic.payload.readingPhysicalOwner;
@@ -433,7 +458,7 @@ function verifyInstalledClosureWithDiagnostics({ imageRoot = '/app', target = { 
       assert(knownManifests.has(file), `unexplained installed/nested package owner: ${relative}`);
   }
   return { status: 'PASS_EXACT_INSTALLED_PRODUCTION_CLOSURE', contractSHA256: graph.contractSHA256, target,
-    owners, generated, workspaceRoots: graph.contract.roots, visitedNodes: assigned.size, edges: links, missingOptional,
+    owners, generated, workspaceRoots: graph.contract.roots, visitedNodes: assigned.size, edges: links, missingOptional, removedDependencies,
     traversal,
     integrityScope: 'LOCK_INTEGRITY_AND_FROZEN_INPUT_BINDING; installed vendor byte integrity still requires sealed build/install evidence' };
 }

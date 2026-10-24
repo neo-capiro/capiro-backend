@@ -44,8 +44,7 @@ function fixture(operationId: 'resolve_entity' | 'find_contacts', input: Record<
   result: Record<string, unknown>, readScope: Record<string, unknown>) {
   const binding = { tenantId: T, actorId: A, conversationId: C, runId: C,
     attemptId: C, workerId: C, writerFence: 1 };
-  const subject = { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A,
-    authorizationDecisionId: C, policyRevision: 'a'.repeat(64), scopes: [], rosterVersionId: null };
+  const subject = { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A, policyRevision: 'a'.repeat(64), scopes: [], rosterVersionId: null };
   const admission = { operation: { id: operationId, version: '0.2.0' as const }, binding, subject,
     input, metadata, normalizationContext, argumentsSha256: sha(input), requestSha256: sha({ input, metadata }),
     clientId: C, hardExpiryMs: Date.parse(AS_OF) + 5000 } as RetainedSourceV02Admission;

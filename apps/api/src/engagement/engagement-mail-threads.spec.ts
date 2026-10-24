@@ -1,72 +1,48 @@
-// Phase d4 (remaining-items plan §3.d4) — listMailThreads must exclude
-// removed messages from both the thread-ownership predicate (inherited from
-// ownMailThreadWhere after Phase a's activeMailThreadWhere() spread) and the
-// nested messages slice.
-
 import { describe, expect, jest, test } from '@jest/globals';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from './engagement.service.js';
 
-const TENANT = '11111111-1111-1111-1111-111111111111';
-const USER = '22222222-2222-2222-2222-222222222222';
-
-const ctx: TenantContext = {
-  tenantId: TENANT,
-  tenantSlug: 'acme',
-  userId: USER,
-  clerkUserId: 'clerk-1',
-  role: 'user' as TenantContext['role'],
-};
-
+// Bounded read-only fixture; sanitization is never part of these service calls.
+jest.mock('sanitize-html', () => {
+  const fail = () => { throw new Error('Unexpected sanitizer in a mail read'); };
+  return Object.assign(fail, { simpleTransform: () => fail });
+});
+const tenant = '11111111-1111-1111-1111-111111111111';
+const user = '22222222-2222-2222-2222-222222222222';
+const ctx = { tenantId: tenant, userId: user } as TenantContext;
 function makeService() {
   const service = Object.create(EngagementService.prototype) as EngagementService;
-  const patch = service as unknown as Record<string, unknown>;
-  const findMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>().mockResolvedValue([]);
-  patch.prisma = {
-    withTenant: (_tenantId: string, fn: (tx: unknown) => unknown) =>
-      fn({ mailThread: { findMany } }),
-  };
-  return { service, findMany };
+  const query = jest.fn(async (_sql: Prisma.Sql) => []);
+  Object.assign(service, { prisma: { withTenant: (_id: string, read: (tx: unknown) => unknown) => read({
+    $executeRaw: jest.fn(async () => 1), $queryRaw: query,
+    tenantMembership: { findFirst: jest.fn(async () => ({ id: 'member' })) },
+    integrationConnection: { findMany: jest.fn(async () => []) },
+  }) } });
+  return { service, query };
 }
 
-describe('EngagementService.listMailThreads', () => {
-  test('the thread query is connection-owner scoped and active-only', async () => {
-    const { service, findMany } = makeService();
-
-    await service.listMailThreads(ctx, {});
-
-    const call = findMany.mock.calls[0]?.[0] as { where: Record<string, unknown> };
-    expect(call.where).toEqual({
-      tenantId: TENANT,
-      connection: { createdByUserId: USER },
-      messages: { some: { removedAt: null } },
-    });
+describe('EngagementService.listMailThreads compatibility', () => {
+  test('the existing array consumer delegates to the same bounded owner page', async () => {
+    const { service, query } = makeService();
+    expect(await service.listMailThreads(ctx, {})).toEqual([]);
+    const sql = query.mock.calls[0]![0];
+    expect(sql.sql).toContain('t.tenant_id=?::uuid AND c.created_by_user_id=?::uuid');
+    expect(sql.sql).toContain('m.removed_at IS NULL');
+    expect(sql.values).toContain(tenant); expect(sql.values).toContain(user);
+    expect(sql.values).toContain(51);
   });
-
-  test('nested messages are filtered active-only, ordered receivedAt/sentAt/createdAt desc, capped at 3', async () => {
-    const { service, findMany } = makeService();
-
-    await service.listMailThreads(ctx, {});
-
-    const call = findMany.mock.calls[0]?.[0] as {
-      include: { messages: { where: unknown; orderBy: unknown; take: number } };
-    };
-    expect(call.include.messages.where).toEqual({ removedAt: null });
-    expect(call.include.messages.orderBy).toEqual([
-      { receivedAt: 'desc' },
-      { sentAt: 'desc' },
-      { createdAt: 'desc' },
-    ]);
-    expect(call.include.messages.take).toBe(3);
+  test('nested previews retain active-only received/sent/created order and add the deterministic ID tie-break', async () => {
+    const { service, query } = makeService(); await service.listMailThreads(ctx, {});
+    const sql = query.mock.calls[0]![0];
+    expect(sql.sql).toContain('m.removed_at IS NULL');
+    expect(sql.sql).toContain('m.received_at DESC,m.sent_at DESC,m.created_at DESC,m.id DESC LIMIT 3');
+    expect(sql.sql).toContain('left(p.body_text,400)');
   });
-
-  test('a different user does not inherit ownership (connection-owner scoping is per-user)', async () => {
-    const { service, findMany } = makeService();
-    const otherUser = '33333333-3333-3333-3333-333333333333';
-
-    await service.listMailThreads({ ...ctx, userId: otherUser }, {});
-
-    const call = findMany.mock.calls[0]?.[0] as { where: { connection: { createdByUserId: string } } };
-    expect(call.where.connection.createdByUserId).toBe(otherUser);
+  test('a different actor gets their own mailbox predicate and no inherited connection IDs', async () => {
+    const { service, query } = makeService(); const other = '33333333-3333-3333-3333-333333333333';
+    await service.listMailThreads({ ...ctx, userId: other }, {});
+    expect(query.mock.calls[0]![0].values).toContain(other);
+    expect(query.mock.calls[0]![0].values).not.toContain(user);
   });
 });

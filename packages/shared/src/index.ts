@@ -5798,3 +5798,4 @@ export {
   type TrackerMaterialAction,
   type TrackerMaterialEvent,
 } from './tracker-action-change.js';
+export { internalServiceSecretMatches } from './internal-service-secret';

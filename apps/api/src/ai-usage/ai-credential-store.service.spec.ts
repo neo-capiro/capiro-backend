@@ -24,7 +24,7 @@ function makeStore(
           const next = existing ? { ...existing, ...args.update } : { ...args.create };
           if (!existing) next.updatedAt = new Date();
           rows.set(key, next);
-          return { ...next, updatedAt: next.updatedAt ?? new Date(), lastValidatedAt: new Date() };
+          return { ...next, updatedAt: next.updatedAt ?? new Date() };
         },
       ),
       findMany: jest.fn(async (args: { where: { tenantId: string } }) =>
@@ -78,6 +78,40 @@ function makeStore(
 }
 
 describe('AiCredentialStoreService.upsert', () => {
+  it.each([
+    [undefined, null],
+    ['   ', null],
+    ['  custom-deployment  ', 'custom-deployment'],
+    ['gpt-4.1', 'gpt-6-astra'],
+    [' gpt-5-mini ', 'gpt-6-astra'],
+    ['claude-sonnet-4-20250514', 'claude-sonnet-5'],
+    ['claude-opus-4-1', 'claude-opus-4-1'],
+    ['text-embedding-3-small', 'text-embedding-3-small'],
+  ])(
+    'returns the canonical applied model for %s, without disclosing the key',
+    async (requested, applied) => {
+      const { svc, rows, resolver } = makeStore();
+      const apiKey = 'synthetic-test-key-9876';
+      const result = await svc.upsert(TENANT, {
+        provider: 'openai',
+        apiKey,
+        ...(requested === undefined ? {} : { modelOverride: requested }),
+      });
+      expect(resolver.validateKey).toHaveBeenCalledWith('openai', apiKey, applied);
+      expect(rows.get(`${TENANT}:openai`)?.modelOverride).toBe(applied);
+      expect(result).toMatchObject({
+        provider: 'openai',
+        last4: '9876',
+        status: 'active',
+        modelOverride: applied,
+      });
+      expect(await svc.list(TENANT)).toEqual([result]);
+      expect(JSON.stringify(result)).not.toMatch(
+        /synthetic-test-key|keyCiphertext|keyIv|keyAuthTag/,
+      );
+    },
+  );
+
   it('validates, encrypts, stores last4, and never returns key material', async () => {
     const { svc, rows, resolver } = makeStore();
 

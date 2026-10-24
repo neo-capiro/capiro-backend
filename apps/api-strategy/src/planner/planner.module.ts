@@ -11,7 +11,6 @@ import { PlannerFormFilesService } from './planner-form-files.service.js';
 import { PlannerPublicFormGuard } from './planner-public-form.guard.js';
 import { PlannerCapacityController } from './planner-capacity.controller.js';
 import { PlannerCapacityService } from './planner-capacity.service.js';
-import { ObjectiveCanonicalApplicationController } from './objective-canonical-application.controller.js';
 import { ObjectiveCanonicalApplicationService } from './objective-canonical-application.service.js';
 import { ObjectiveCanonicalWorkloadAuthority } from './objective-canonical-authority.js';
 import { ObjectiveCanonicalProducerController } from '../meri/objective-canonical-producer.controller.js';
@@ -28,23 +27,20 @@ import { ObjectiveCanonicalTerminalController } from '../meri/objective-canonica
 import { ObjectiveCanonicalTerminalService } from '../meri/objective-canonical-terminal.service.js';
 import { ObjectivePlannerContinuationRuntime } from './objective-planner-continuation.runtime.js';
 import { ObjectivePlannerContinuationWorker } from './objective-planner-continuation.worker.js';
-import { OBJECTIVE_CANONICAL_READER_V2_RUNTIME, createCanonicalReaderV2Runtime,
-  type CanonicalReaderV2Runtime } from '../meri/objective-canonical-reader-v2-runtime.js';
+import { ObjectiveNativeReader } from '../meri/objective-native-reader.js';
+import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 
 @Module({
   imports: [MeriModule],
-  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalApplicationController, ObjectiveCanonicalProducerController, ObjectiveCanonicalRequestController, ObjectiveCanonicalCompletionController, ObjectiveCanonicalTerminalController],
+  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController, ObjectiveCanonicalProducerController, ObjectiveCanonicalRequestController, ObjectiveCanonicalCompletionController, ObjectiveCanonicalTerminalController],
   providers: [
     ObjectiveCanonicalCompletionService,
     ObjectiveCanonicalTerminalService,
-    // One explicit Core composition root for acceptance and retained receiving.
-    // Its production factory stays zero-argument/default-off: allocated Meri
-    // source is not evidence of a ready custody runtime or genuine authority.
-    { provide: OBJECTIVE_CANONICAL_READER_V2_RUNTIME, useFactory: () => createCanonicalReaderV2Runtime() },
-    { provide: ObjectiveCanonicalResultOwner, inject: [OBJECTIVE_CANONICAL_READER_V2_RUNTIME],
-      useFactory: (runtime: CanonicalReaderV2Runtime) => runtime.resultOwner },
-    { provide: ObjectiveCanonicalWorkloadAuthority, inject: [OBJECTIVE_CANONICAL_READER_V2_RUNTIME],
-      useFactory: (runtime: CanonicalReaderV2Runtime) => runtime.authority },
+    InternalServiceGuard,
+    ObjectiveNativeReader,
+    { provide: ObjectiveCanonicalResultOwner, inject: [ObjectiveNativeReader],
+      useFactory: (reader: ObjectiveNativeReader) => new ObjectiveCanonicalResultOwner(reader) },
+    ObjectiveCanonicalWorkloadAuthority,
     ObjectiveCanonicalApplicationService,
     ObjectivePlannerContinuationRuntime,
     ObjectivePlannerContinuationWorker,

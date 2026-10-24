@@ -53,11 +53,11 @@ export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
     z.boolean(),
     z.null(),
     z.array(jsonValueSchema),
-    z.record(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
   ]),
 );
 
-export const jsonMetadataSchema = z.record(jsonValueSchema);
+export const jsonMetadataSchema = z.record(z.string(), jsonValueSchema);
 
 /* ------------------------------------------------------------------ */
 /* A3. Document classification vocabulary (contract-owned)             */
@@ -772,8 +772,8 @@ export const extractionArtifactSummaryV1Schema = z
     assertionCount: z.number().int().nonnegative(),
     warningCount: z.number().int().nonnegative(),
     omissionCount: z.number().int().nonnegative(),
-    countsByAssertionKind: z.record(z.number().int().nonnegative()),
-    countsByOmissionReason: z.record(z.number().int().nonnegative()),
+    countsByAssertionKind: z.record(z.string(), z.number().int().nonnegative()),
+    countsByOmissionReason: z.record(z.string(), z.number().int().nonnegative()),
     completenessStatus: completenessStatusV1Schema,
   })
   .strict();

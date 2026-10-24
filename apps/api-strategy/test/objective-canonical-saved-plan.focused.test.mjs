@@ -124,7 +124,6 @@ const savedUrl = await sourceModule('../src/meri/objective-canonical-saved-gener
 ]);
 const serviceUrl = await sourceModule('../src/planner/objective-canonical-application.service.ts', [
   ["'@nestjs/common'", nestUrl],
-  ["'../prisma/prisma.service.js'", portsUrl],
   ["'./planner.service.js'", portsUrl],
   ["'./strategy-materialization.js'", portsUrl],
   ["'./objective-canonical-authority.js'", portsUrl],
@@ -135,28 +134,6 @@ const serviceUrl = await sourceModule('../src/planner/objective-canonical-applic
 const saved = await import(savedUrl);
 const { ObjectiveCanonicalApplicationService } = await import(serviceUrl);
 const { canonicalMaterializationReceiptId } = await import(portsUrl);
-const producerCodecUrl = await sourceModule('../src/meri/objective-canonical-producer.ts', [
-  ["'../planner/objective-canonical-application.js'", appUrl],
-  ["'./objective-canonical-generation.js'", portsUrl],
-  ["'./objective-generation.types.js'", portsUrl],
-]);
-const producerServiceUrl = await sourceModule('../src/meri/objective-canonical-producer.service.ts', [
-  ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
-  ["'@nestjs/common'", nestUrl],
-  ["'../prisma/prisma.service.js'", portsUrl],
-  ["'../planner/objective-canonical-authority.js'", portsUrl],
-  ["'../planner/objective-canonical-application.js'", appUrl],
-  ["'../planner/objective-canonical-fence.js'", portsUrl],
-  ["'./objective-canonical-generation.js'", portsUrl],
-  ["'./objective-canonical-generation-fence.js'", portsUrl],
-  ["'./objective-canonical-producer-ledger.js'", portsUrl],
-  ["'./objective-canonical-producer.js'", producerCodecUrl],
-  ["'./objective-canonical-request-ledger.js'", portsUrl],
-  ["'./objective-canonical-request.js'", portsUrl],
-  ["'./objective-canonical-saved-generation.js'", savedUrl],
-], true, 'transform');
-const { ObjectiveCanonicalProducerService } = await import(producerServiceUrl);
-
 // Actual mounted-runtime composition. Framework, completed-source ledger,
 // database serialization/rollback and existing native/fence/materializer owner
 // ports remain synthetic; the runtime, operation store, local authority adapter,
@@ -219,9 +196,9 @@ function fixture() {
     requestedIntentId: id(7), requestedObjectiveRevisionId: id(8), requestedObjectiveVersion: 4, snapshotHash: 'a'.repeat(64) };
   s.a = { schemaVersion: 1, canonical, actorUserId: id(9), clerkUserId: 'user_original', consentId: id(13),
     controlVersion: 2, generationJobId: id(10), generationRequestId: id(11), expectedStrategyVersionId: null, effectExpiresAtMs: 50_000 };
-  s.association = { admission: s.a, acceptance: { sourceBinding: { tenantId: id(2), actorId: 'user_original',
+  s.association = { admission: s.a, acceptance: { sourceBinding: { tenantId: id(2), actorId: id(9),
     conversationId: id(50), runId: id(51), attemptId: id(52), workerId: id(53), writerFence: 7 },
-    sourceRequestSha256: 'b'.repeat(64), issuance: { issuanceKey: 'original-generation', expiresAtMs: 45_000 } } };
+    sourceRequestSha256: 'b'.repeat(64), effectExpiresAtMs: 45_000 } };
   s.publication = { publication: { request: { basis: null, principal: { ownerActorId: 'user_original' } } } };
   const receipt = { schemaVersion: 1, requestId: id(11), source: { clientId: id(3), objectiveId: id(4),
     objectiveVersion: 4, objectiveRevisionId: id(8) }, context: { state: 'complete', packetId: id(54),
@@ -354,8 +331,7 @@ function fixture() {
       return copy(s.current ?? s.durable.owner.result);
     },
   };
-  s.service = new ObjectiveCanonicalApplicationService(s.db, s.planner, s.authority);
-  s.producerService = new ObjectiveCanonicalProducerService(s.db, s.authority);
+  s.service = new ObjectiveCanonicalApplicationService(s.planner);
   s.http = { syntheticOriginalActor: true };
   s.originalJob = copy(s.job);
   return s;
@@ -369,9 +345,7 @@ function runtimeFixture(enabled = true, sourceCaps = {}) {
   s.association = { admission: s.a, acceptance: { schemaVersion: 1,
     sourceAdmissionSha256: runtimeGeneration.canonicalGenerationAdmissionSha256(s.a), sourceBinding: binding,
     sourceRequestSha256: 'b'.repeat(64), acceptedAtMs: ms - 1_000,
-    issuance: { issuanceKey: runtimeGeneration.generationBindingKey(binding), binding,
-      requestSha256: 'b'.repeat(64), expiresAtMs: ms + (sourceCaps.issuanceMs ?? 45_000), grantId: id(55),
-      capabilitySha256: 'c'.repeat(64), factsSha256: 'd'.repeat(64) } } };
+    effectExpiresAtMs: ms + (sourceCaps.acceptanceMs ?? 45_000) } };
   s.producer = runtimeProducer.canonicalGenerationProducer({ admission: s.a, acceptance: s.association.acceptance,
     jobId: id(10), requestId: id(11), attempt: 2, coreFingerprint: 'b'.repeat(64),
     receipt: s.producer.objectiveReceipt, strategyId: id(5), strategyVersionId: id(12), snapshotDigest: s.producer.snapshotDigest });
@@ -542,12 +516,13 @@ async function readSaved(s) {
   return s.db.withTenant(id(2), tx => saved.readCanonicalSavedGeneration(tx,
     { tenantId: id(2), clerkUserId: 'user_original', generationJobId: id(10) }), { timeoutMs: 15_000 });
 }
-const prepare = s => s.service.prepare(s.http, s.allowedRequest);
-const lookup = s => s.service.lookup(s.http, s.request.applicationRequestId);
+const prepare = s => ownerTransaction(s, tx => s.service.prepareWithinOwnerTransaction(tx,
+  s.allowedRequest, s.grant, subject => s.authority.assertCurrent(tx, s.grant, subject)));
+const lookup = s => ownerTransaction(s, tx => s.service.lookupWithinOwnerTransaction(tx,
+  s.request, s.grant, subject => s.authority.assertCurrent(tx, s.grant, subject)));
 function failure(status, code) {
   return error => {
-    assert.equal(error.getStatus(), status);assert.equal(error.getResponse().code, code);
-    assert.equal(error.getResponse().outcome, 'unconfirmed');return true;
+    assert.equal(error.code, code);return true;
   };
 }
 function noPlannerEffects(s) {
@@ -558,38 +533,15 @@ function noPlannerEffects(s) {
 }
 function nativeService(s) {
   const forbidden = () => { throw Error('Internal composition must not verify/fabricate HTTP or open a nested transaction'); };
-  return new ObjectiveCanonicalApplicationService({ withTenant: forbidden }, s.planner,
-    { verify: forbidden, assertCurrent: forbidden });
+  return new ObjectiveCanonicalApplicationService(s.planner);
 }
 const ownerTransaction = (s, run) => s.db.withTenant(id(2), run, { timeoutMs: 15_000 });
 
-test('public prepare and lookup retain exact HTTP verifier before entering the shared owner transaction', async () => {
-  for (const action of ['prepare', 'lookup']) {
-    const s = fixture();if (action === 'lookup') await prepare(s);
-    const trace = [], verify = s.authority.verify, withTenant = s.db.withTenant;
-    s.authority.verify = async (http, subject) => {
-      assert.equal(http, s.http);assert.equal(s.depth, 0);trace.push('verify');
-      assert.equal(subject.purpose, action === 'prepare' ? 'effect' : 'retained-result-read');
-      assert.equal(subject.applicationRequestId, s.request.applicationRequestId);
-      assert.equal(subject.requestSha256, action === 'prepare' ? app.applicationHash(s.request) : null);
-      return verify(http, subject);
-    };
-    s.db.withTenant = async (...args) => { trace.push('transaction');return withTenant(...args); };
-    await (action === 'prepare' ? prepare(s) : lookup(s));
-    assert.deepEqual(trace, ['verify', 'transaction']);
-  }
-});
-
-test('public verifier refusal prevents a transaction for either HTTP endpoint', async () => {
-  for (const action of ['prepare', 'lookup']) {
-    const s = fixture();let transactions = 0;
-    s.authority.verify = async http => {
-      assert.equal(http, s.http);assert.equal(s.depth, 0);throw new app.CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
-    };
-    s.db.withTenant = async () => { transactions++;throw Error('Denied verifier must not enter transaction'); };
-    await assert.rejects(() => action === 'prepare' ? prepare(s) : lookup(s), failure(503, 'AUTHORITY_UNAVAILABLE'));
-    assert.equal(transactions, 0);noPlannerEffects(s);
-  }
+test('only existing owner-transaction methods remain; retired HTTP prepare/lookup are absent', () => {
+  const s = fixture();
+  assert.equal(s.service.prepare, undefined);assert.equal(s.service.lookup, undefined);
+  assert.equal(typeof s.service.prepareWithinOwnerTransaction, 'function');
+  assert.equal(typeof s.service.lookupWithinOwnerTransaction, 'function');
 });
 
 test('internal prepare reuses actual saved source/kernel/owner in caller transaction with all four native release gates', async () => {
@@ -811,7 +763,7 @@ test('expired local lease recovery keeps original operation attempt/run/fingerpr
   const result = await s.newRuntime().consumeJob(s.scope), [applied] = s.operations();
   assert.equal(result.outcome, 'applied');assert.deepEqual(applied.data.original, original);
   assert.equal(applied.data.original.originalDeadlineAt,
-    new Date(Math.min(s.consentDeadlineMs, s.a.effectExpiresAtMs, s.association.acceptance.issuance.expiresAtMs)).toISOString());
+    new Date(Math.min(s.consentDeadlineMs, s.a.effectExpiresAtMs, s.association.acceptance.effectExpiresAtMs)).toISOString());
   assert.equal(applied.data.state, 'applied');assert.equal(applied.version, 4);assert.equal(applied.data.lease, null);
   assert.equal(s.runtimeMetrics.operationInserts, 1);assert.equal(s.runtimeMetrics.claims, 2);
   assert.equal(s.calls.ownerPrepare, 2, 'first writer attempt rolled back completely');
@@ -820,21 +772,21 @@ test('expired local lease recovery keeps original operation attempt/run/fingerpr
 });
 
 test('actual runtime fixes the original deadline to the minimum of Planner consent and both immutable saved caps', async () => {
-  for (const caps of [{ consentMs: 20_000, admissionMs: 50_000, issuanceMs: 45_000 },
-    { consentMs: 90_000, admissionMs: 45_000, issuanceMs: 45_000 },
-    { consentMs: 90_000, admissionMs: 50_000, issuanceMs: 40_000 }]) {
+  for (const caps of [{ consentMs: 20_000, admissionMs: 50_000, acceptanceMs: 45_000 },
+    { consentMs: 90_000, admissionMs: 45_000, acceptanceMs: 45_000 },
+    { consentMs: 90_000, admissionMs: 50_000, acceptanceMs: 40_000 }]) {
     const s = runtimeFixture(true, caps), evidence = sourceEvidence(s);
     assert.equal((await s.runtime.consumeJob(s.scope)).outcome, 'applied');
     assert.equal(s.operations()[0].data.original.originalDeadlineAt,
-      new Date(Date.parse(at) + Math.min(caps.consentMs, caps.admissionMs, caps.issuanceMs)).toISOString());
+      new Date(Date.parse(at) + Math.min(caps.consentMs, caps.admissionMs, caps.acceptanceMs)).toISOString());
     assert.deepEqual(sourceEvidence(s), evidence, 'captured admission/acceptance and saved result were never rewritten');
   }
 });
 
-test('fresh Planner consent cannot renew an expired immutable saved issuance cap', async () => {
+test('fresh Planner consent cannot renew an expired immutable native saved expiry', async () => {
   const s = runtimeFixture(true, { consentMs: 90_000 }), evidence = sourceEvidence(s);
   s.grant.consentId = id(58);s.grant.controlVersion++;
-  s.databaseNowMs = s.association.acceptance.issuance.expiresAtMs;
+  s.databaseNowMs = s.association.acceptance.effectExpiresAtMs;
   await assert.rejects(() => s.runtime.consumeJob(s.scope), error => error instanceof app.CanonicalApplicationError);
   assert.equal(s.calls.ownerPrepare, 0);assert.equal(s.operations().length, 0);
   assert.deepEqual(s.durable.projects, []);assert.deepEqual(sourceEvidence(s), evidence);
@@ -1021,7 +973,7 @@ test('original generation and Planner consents remain distinct; application ACK 
   assert.deepEqual(s.job, s.originalJob);
 });
 
-test('same-request POST replay and GET bypass helper/current-source effects and preserve human edits after Objective advance', async () => {
+test('same-request owner replay and lookup bypass helper/current-source effects and preserve human edits after Objective advance', async () => {
   const s = fixture(), original = await prepare(s);
   const reads = s.calls.job, before = copy(s.durable);
   s.forbidSavedReads = true;s.staleObjective = true;s.effectUnavailable = true;
@@ -1037,9 +989,9 @@ test('same-request POST replay and GET bypass helper/current-source effects and 
   assert.equal(s.calls.strategyCas, 0);
 });
 
-test('lost committed Planner reply recovers same immutable receipt via GET without owner write or generation read', async () => {
+test('lost committed Planner reply recovers same immutable receipt via owner lookup without owner write or generation read', async () => {
   const s = fixture();s.loseCommittedReplyOnce = true;
-  await assert.rejects(() => prepare(s), failure(503, 'OUTCOME_UNCONFIRMED'));
+  await assert.rejects(() => prepare(s), /Synthetic committed reply was lost/);
   assert.equal(s.calls.ownerPrepare, 1);assert.equal(s.durable.receiptWrites, 1);
   const durable = copy(s.durable), reads = s.calls.job;s.forbidSavedReads = true;
   const recovered = await lookup(s);
@@ -1125,7 +1077,7 @@ test('private regeneration request remains outside the initial saved-generation 
 
 test('existing Planner owner error escapes and rolls back outputs/receipts/head without changing Strategy completion', async () => {
   const s = fixture();s.ownerError = new Error('Synthetic Planner owner failed after outputs');
-  await assert.rejects(() => prepare(s), failure(503, 'OUTCOME_UNCONFIRMED'));
+  await assert.rejects(() => prepare(s), error => error === s.ownerError);
   assert.equal(s.calls.ownerPrepare, 1);noPlannerEffects(s);
 });
 
@@ -1154,56 +1106,8 @@ test('partially unavailable current outputs redact immutable creation ACK withou
   assert.deepEqual(s.durable, before);assert.equal(s.calls.ownerPrepare, 1);assert.equal(s.calls.strategyCas, 0);
 });
 
-function producerRequest(s, phase) {
-  const { schemaVersion: _schema, ...command } = s.request;
-  s.producerBody = { schemaVersion: 1, phase, work: { ...command,
-    actorUserId: s.grant.actorUserId, consentId: s.grant.consentId, controlVersion: s.grant.controlVersion } };
-  return s.producerBody;
-}
-
-test('actual Producer start/prepare requires retained completion witness before new Planner dispatch admission', async () => {
-  for (const phase of ['start', 'prepare']) {
-    const s = fixture();delete s.job.input.canonicalCompletion;s.originalJob = copy(s.job);
-    await assert.rejects(() => s.producerService.admit(s.http, producerRequest(s, phase)), failure(503, 'OUTCOME_UNCONFIRMED'));
-    assert.ok(s.calls.publication > 0);assert.equal(s.calls.effectFence, 0);noPlannerEffects(s);
-  }
-});
-
-test('actual Producer start/prepare with saved witness returns source proof clipped to the original Planner consent', async () => {
-  for (const phase of ['start', 'prepare']) {
-    const s = fixture(), result = await s.producerService.admit(s.http, producerRequest(s, phase));
-    assert.equal(s.subject.purpose, 'effect');assert.equal(result.expiresAtMs, 40_000);
-    assert.deepEqual(result.sourceBinding, s.association.acceptance.sourceBinding);
-    assert.deepEqual(result.objectiveReceipt, s.producer.objectiveReceipt);
-    assert.ok(s.calls.publication > 0);assert.equal(s.calls.effectFence, 2);
-    assert.equal(s.calls.readFence, 0);noPlannerEffects(s);
-  }
-});
-
-test('actual Producer read/stop bypasses new witness helper and never authorizes a fresh effect', async () => {
-  for (const phase of ['read', 'stop']) {
-    const s = fixture();delete s.job.input.canonicalCompletion;s.originalJob = copy(s.job);
-    s.producer.sourceAdmission.effectExpiresAtMs = 1;s.producer.acceptance.issuance.expiresAtMs = 1;
-    s.a.effectExpiresAtMs = 1;
-    const result = await s.producerService.admit(s.http, producerRequest(s, phase));
-    assert.equal(s.subject.purpose, 'retained-result-read');assert.equal(result.workSha256, app.applicationHash(s.producerBody.work));
-    assert.deepEqual(result.objectiveReceipt, s.producer.objectiveReceipt);
-    assert.equal(s.calls.association, 0);assert.equal(s.calls.publication, 0);assert.equal(s.calls.normalization, 0);
-    assert.equal(s.calls.effectFence, 0);assert.equal(s.calls.readFence, 2);assert.equal(s.calls.generationRead, 2);
-    noPlannerEffects(s);
-  }
-});
-
-test('actual Producer historical read/stop still refuses fresh read-authority revocation', async () => {
-  for (const phase of ['read', 'stop']) {
-    const s = fixture();s.revoked = true;
-    await assert.rejects(() => s.producerService.admit(s.http, producerRequest(s, phase)), failure(503, 'AUTHORITY_UNAVAILABLE'));
-    assert.equal(s.calls.publication, 0);assert.equal(s.calls.effectFence, 0);noPlannerEffects(s);
-  }
-});
-
 test('prints actual helper/service/kernel custody and explicit synthetic owner/database limits', () => {
-  assert.equal(custody.length, 13);
+  assert.equal(custody.length, 11);
   console.log(JSON.stringify({ qualification: 'saved-Strategy-to-existing-Planner-source-orchestration-only', sourceCustody: custody,
     actual: ['readCanonicalSavedGeneration', 'requireSavedGenerationApplication', 'ObjectiveCanonicalApplicationService',
       'prepareWithinOwnerTransaction', 'lookupWithinOwnerTransaction', 'executeCanonicalApplicationTransaction',

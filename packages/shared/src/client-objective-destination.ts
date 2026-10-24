@@ -54,16 +54,17 @@ export function normalizeClientObjectiveDestination(
   };
 }
 
-export async function requireClientObjectiveDestinationRevision(
+export async function requireClientObjectiveAccess(
   tx: ClientObjectiveDestinationTx,
   actor: ClientObjectiveDestinationActor,
-  input: ClientObjectiveDestinationInput,
-): Promise<ClientObjectiveRevisionBinding> {
-  const binding = normalizeClientObjectiveDestination(input);
+  input: Pick<ClientObjectiveDestinationInput, 'clientId' | 'objectiveId'>,
+): Promise<{ userId: string; membershipId: string; tenantSlug: string; role: string; objectiveVersion: number }> {
+  const binding = normalizeClientObjectiveDestination({ ...input, objectiveVersion: 1 });
   // This is the existing Objective owner's authority policy. Resolve the Clerk
   // actor to the current member's Core UUID inside the same locked tenant query.
-  const scope = await tx.$queryRaw<Array<{ userId: string; memoryWall: boolean }>>`
-    SELECT m.user_id::text AS "userId", c.memory_wall AS "memoryWall"
+  const scope = await tx.$queryRaw<Array<{ userId: string; membershipId: string; tenantSlug: string; role: string; memoryWall: boolean }>>`
+    SELECT m.user_id::text AS "userId", m.id::text AS "membershipId", t.slug AS "tenantSlug",
+      m.role::text AS role, c.memory_wall AS "memoryWall"
     FROM tenants t
     JOIN tenant_memberships m ON m.tenant_id=t.id
     JOIN users u ON u.id=m.user_id
@@ -76,22 +77,33 @@ export async function requireClientObjectiveDestinationRevision(
     FOR SHARE OF t,m,u,c
   `;
   const member = scope[0];
-  if (!member) throw new ClientObjectiveDestinationError('OBJECTIVE_DESTINATION_NOT_FOUND');
+  if (scope.length !== 1 || !member) throw new ClientObjectiveDestinationError('OBJECTIVE_DESTINATION_NOT_FOUND');
   if (member.memoryWall) {
     const grants = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM client_memory_access
       WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${binding.clientId}::uuid
         AND user_id=${actor.userId ?? member.userId}::uuid FOR SHARE
     `;
-    if (!grants[0]) throw new ClientObjectiveDestinationError('OBJECTIVE_DESTINATION_NOT_FOUND');
+    if (grants.length !== 1) throw new ClientObjectiveDestinationError('OBJECTIVE_DESTINATION_NOT_FOUND');
   }
   const objectives = await tx.$queryRaw<Array<{ version: number }>>`
     SELECT version FROM client_objectives
     WHERE tenant_id=${actor.tenantId}::uuid AND client_id=${binding.clientId}::uuid
       AND id=${binding.objectiveId}::uuid AND deleted_at IS NULL FOR SHARE
   `;
-  if (!objectives[0]) throw new ClientObjectiveDestinationError('OBJECTIVE_DESTINATION_NOT_FOUND');
-  if (objectives[0].version !== binding.objectiveVersion)
+  if (objectives.length !== 1 || !objectives[0]) throw new ClientObjectiveDestinationError('OBJECTIVE_DESTINATION_NOT_FOUND');
+  return { userId: member.userId, membershipId: member.membershipId, tenantSlug: member.tenantSlug,
+    role: member.role, objectiveVersion: objectives[0].version };
+}
+
+export async function requireClientObjectiveDestinationRevision(
+  tx: ClientObjectiveDestinationTx,
+  actor: ClientObjectiveDestinationActor,
+  input: ClientObjectiveDestinationInput,
+): Promise<ClientObjectiveRevisionBinding> {
+  const binding = normalizeClientObjectiveDestination(input);
+  const current = await requireClientObjectiveAccess(tx, actor, binding);
+  if (current.objectiveVersion !== binding.objectiveVersion)
     throw new ClientObjectiveDestinationError('OBJECTIVE_VERSION_CONFLICT');
   const revisions = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM client_objective_revisions

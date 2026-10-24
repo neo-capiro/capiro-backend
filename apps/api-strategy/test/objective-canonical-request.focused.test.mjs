@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 
 const custody = [];
 const sha = text => createHash('sha256').update(text, 'utf8').digest('hex');
@@ -14,13 +15,15 @@ async function sourceModule(path, replacements = []) {
   const url = new URL(path, import.meta.url), original = await readFile(url, 'utf8');
   let source = original;
   for (const [from, to] of replacements) {
-    const parts = source.split(from); assert.equal(parts.length, 2, `one declared dependency ${from}`); source = parts.join(to);
+    const parts = source.split(from); assert.equal(parts.length, from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2, `declared dependency ${from}`); source = parts.join(to);
   }
   const stripped = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: url.href });
   custody.push({ path, sha256: sha(original), replacementSpecifiers: replacements.map(([from]) => from), transformedSha256: sha(stripped) });
   return asModule(stripped);
 }
-const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts');
+const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts', [
+  ["'@capiro/shared/objective-planner-owner-codec'", JSON.stringify(objectivePlannerOwnerCodecUrl)],
+]);
 const genUrl = await sourceModule('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", JSON.stringify(appUrl)],
 ]);
@@ -62,15 +65,14 @@ function fixture() {
           scope: 'client', clientId: id(3), reviewState: 'pending' },
       ] },
     prompt, owners: [{ ownerRef: 'owner:fixture', clerkUserId: 'user_fixture' }],
-    delegation: { ref: id(40), revision: 'actual-delegation-revision:7', issuedAtMs: start - 120_000,
-      absoluteExpiresAtMs: start + 3_600_000 },
+
     requestedAtMs: start + 1_000, effectExpiresAtMs: start + 1_200_000,
   };
 }
 const verify = (p, f) => check(p, { admission: f.admission, dto: f.dto });
 
 test('custody names the three actual modules and declared source-only dependency rewrites', t => {
-  assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [0, 1, 2]);
+  assert.equal(custody.length, 3); assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [1, 1, 2]);
   t.diagnostic(JSON.stringify({ sourceCustody: custody }));
 });
 test('restricted JCS uses independent fixed canonical vectors and UTF-16 key order', () => {
@@ -102,7 +104,7 @@ test('initial publication has exactly five fields and a complete closed 4d8 init
   assert.deepEqual(Object.keys(p).sort(), ['executionContext', 'request', 'requestSha256', 'schemaVersion', 'sourceAdmissionSha256']);
   assert.equal(r.candidateVersion, CANONICAL_STRATEGY_CANDIDATE_VERSION); assert.equal(r.operation, 'strategy.draft');
   assert.equal(r.requestId, id(11)); assert.equal(r.jobId, id(10)); assert.equal(r.basis, null);
-  assert.deepEqual(r.principal, { tenantId: id(2), actorId: 'user_fixture', clientId: id(3), ownerActorId: 'user_fixture' });
+  assert.deepEqual(r.principal, { tenantId: id(2), actorId: id(9), clientId: id(3), ownerActorId: 'user_fixture' });
   assert.deepEqual(r.source, { kind: 'objective', objectiveId: id(4), objectiveVersion: 2,
     objectiveRevisionId: id(8), snapshotSha256: hash('a'), intent: f.context.intent });
   assert.equal(p.sourceAdmissionSha256, canonicalGenerationAdmissionSha256(f.admission));
@@ -140,10 +142,11 @@ test('selected owner is trimmed only for selection and must have an actual owner
   assert.equal(p.request.context.draft.selectedOwnerActorId, 'user_selected');
   f.owners.push({ ownerRef: 'owner:selected', clerkUserId: 'user_other' }); refused(() => create(f));
 });
-test('Clerk actor is an opaque subject, never converted to native UUID or restricted to an invented regex', () => {
+test('native execution actor uses the saved UUID while Clerk owner labels remain opaque', () => {
   const f = fixture(), actor = 'issuer|actor:opaque'; f.admission.clerkUserId = actor; f.context.clerkUserId = actor;
   f.owners[0].clerkUserId = actor;
-  assert.equal(create(f).request.principal.actorId, actor);
+  assert.equal(create(f).request.principal.actorId, id(9));
+  assert.equal(create(f).request.principal.ownerActorId, actor);
 });
 test('no requested attachments uses the truthful not-requested legacy observation only', () => {
   const p = create(fixture()); assert.deepEqual(p.request.context.draft.attachments, {
@@ -172,12 +175,12 @@ test('prompt hash uses literal UTF-8 content and rejects mismatching Core observ
   assert.notEqual(sha(f.prompt), jcs(f.prompt));
   f.prompt += 'changed'; refused(() => create(f), 'REQUEST_CONFLICT');
 });
-test('all closed DTO/context/owner/delegation shapes reject unknown or missing fields', () => {
+test('all closed DTO/context/owner/admission shapes reject unknown or missing fields', () => {
   for (const change of [f => { f.extra = true; }, f => { f.dto.provider = 'posted'; },
     f => { f.context.rawSource = {}; }, f => { f.context.source.extra = true; },
     f => { f.context.intent.extra = true; }, f => { f.context.evidence[0].fact = 'promoted'; },
-    f => { f.owners[0].actorUserId = id(9); }, f => { f.delegation.consentId = id(12); },
-    f => { delete f.delegation.revision; }, f => { delete f.context.evidence; }, f => { delete f.dto.type; }]) {
+    f => { f.owners[0].actorUserId = id(9); }, f => { f.delegation = { consentId: id(12) }; },
+    f => { delete f.admission.actorUserId; }, f => { delete f.context.evidence; }, f => { delete f.dto.type; }]) {
     const f = fixture(); change(f); refused(() => create(f));
   }
 });
@@ -204,32 +207,33 @@ test('frozen publication and nested payload prevent caller mutation after hashin
 test('candidate original deadline clips to each actual ceiling and the fixed 15-minute attempt bound', () => {
   const f = fixture(); assert.equal(create(f).request.originalExpiresAtMs, f.requestedAtMs + 900_000);
   for (const change of [x => { x.effectExpiresAtMs = x.requestedAtMs + 10; },
-    x => { x.admission.effectExpiresAtMs = x.requestedAtMs + 10; },
-    x => { x.delegation.absoluteExpiresAtMs = x.requestedAtMs + 10; }]) {
+    x => { x.admission.effectExpiresAtMs = x.requestedAtMs + 10; }]) {
     const x = fixture(); change(x); assert.equal(create(x).request.originalExpiresAtMs, x.requestedAtMs + 10);
   }
 });
-test('deadline equality, future issuance, delegation over 24 hours and invalid clock domains refuse', () => {
+test('deadline equality, future admission and invalid clock domains refuse', () => {
   for (const change of [f => { f.effectExpiresAtMs = f.requestedAtMs; },
-    f => { f.delegation.issuedAtMs = f.requestedAtMs + 1; },
-    f => { f.delegation.absoluteExpiresAtMs = f.delegation.issuedAtMs + 86_400_001; },
-    f => { f.delegation.absoluteExpiresAtMs = f.requestedAtMs; },
+    f => { f.admission.admittedAtMs = f.requestedAtMs + 1; },
+    f => { f.admission.effectExpiresAtMs = f.requestedAtMs; },
     f => { f.requestedAtMs = start - 1; }, f => { f.context.compiledAt = '2026-02-30T00:00:00Z'; },
     f => { f.context.compiledAt += '\n'; }, f => { f.requestedAtMs = NaN; },
     f => { f.effectExpiresAtMs = Number.MAX_SAFE_INTEGER + 1; }]) {
     const f = fixture(); change(f); refused(() => create(f));
   }
 });
-test('delegation is preserved as supplied genuine metadata, never synthesized from consent/control', () => {
-  const f = fixture(), p = create(f); assert.deepEqual(p.request.delegation, f.delegation);
-  assert.notEqual(p.request.delegation.ref, f.admission.consentId);
-  assert.notEqual(p.request.delegation.revision, String(f.admission.controlVersion));
-  delete f.delegation; refused(() => create(f));
+test('native request binds original actor and expiry and refuses retired delegation input', () => {
+  const f = fixture(), p = create(f);
+  assert.equal(p.request.principal.actorId, f.admission.actorUserId);
+  assert.equal(Object.hasOwn(p.request, 'delegation'), false);
+  assert.ok(p.request.originalExpiresAtMs <= f.admission.effectExpiresAtMs);
+  f.delegation = { ref: id(40), revision: 'retired', issuedAtMs: start, absoluteExpiresAtMs: start + 900_000 };
+  refused(() => create(f));
 });
+
 test('invalid enums, dates, over-limit raw fields and malformed exact hashes refuse', () => {
   for (const change of [f => { f.dto.type = 'meri_propose'; }, f => { f.dto.targetDate = '2027-02-29'; },
     f => { f.dto.goal = 'a'.repeat(4001); }, f => { f.context.intent.minimumWin = ' '; },
-    f => { f.context.sourceDigest += '\n'; }, f => { f.delegation.ref += '\n'; },
+    f => { f.context.sourceDigest += '\n'; }, f => { f.admission.actorUserId += '\n'; },
     f => { f.owners = Array.from({ length: 101 }, (_, i) => ({ ownerRef: `owner:${i}`, clerkUserId: 'user_fixture' })); }]) {
     const f = fixture(); change(f); refused(() => create(f));
   }

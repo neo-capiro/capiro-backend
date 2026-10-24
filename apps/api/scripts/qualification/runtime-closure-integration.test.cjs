@@ -4,20 +4,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, 'alpine-runtime-probe.cjs'), 'utf8');
-async function runCollector(verifyInstalledClosure) {
+async function runCollector(verifyInstalledClosure, unexpectedRuntimeTool = null) {
   const output = [], counts = { child: 0, packageExecution: 0 };
   const module = { exports: {} };
   const missing = () => { throw Object.assign(new Error('synthetic unreadable artifact'), { code: 'ENOENT' }); };
   const fakeRequire = name => {
     if (name === './qualification-platform.cjs') return require('./qualification-platform.cjs');
     if (name === './runtime-closure-contract.cjs') return { verifyInstalledClosure, artifactOwner: () => { throw new Error('unexplained artifact'); } };
-    if (name === 'node:fs') return { existsSync: file => file === '/lib/ld-musl-aarch64.so.1', realpathSync: file => file, statSync: missing };
+    if (name === 'node:fs') return { existsSync: file => file === '/lib/ld-musl-aarch64.so.1' || file === unexpectedRuntimeTool, realpathSync: file => file, statSync: missing };
     if (name === 'node:module') return { createRequire: () => () => { counts.packageExecution++; throw new Error('package execution forbidden'); } };
     if (name === 'node:child_process') return Object.fromEntries(['execFileSync', 'spawnSync', 'spawn'].map(key => [key, () => { counts.child++; throw new Error('child execution forbidden'); }]));
     assert(name.startsWith('node:')); return require(name);
   };
   fakeRequire.main = module;
-  const fakeProcess = { platform: 'linux', arch: 'arm64', version: 'v22.23.3', getuid: () => 1001, getgid: () => 1001,
+  const fakeProcess = { platform: 'linux', arch: 'arm64', version: 'v22.23.4', getuid: () => 1001, getgid: () => 1001,
     report: { getReport: () => ({ header: {} }) }, argv: ['node', 'probe', '--static'], env: {}, exitCode: 0 };
   await vm.runInNewContext(source, { require: fakeRequire, module, Buffer, process: fakeProcess, console: { log: value => output.push(value), error: value => output.push(value) } }, { timeout: 2000 });
   assert(output[0].startsWith('CORE_NATIVE_GATE_SUMMARY '), 'bounded gate summary must precede verbose receipts');
@@ -33,6 +33,14 @@ test('actual collector stops before every package/child/native fixture when inst
   assert.deepEqual(value.summary.failures.map(row => row.name), ['production-dependency-closure']);
   assert.equal(value.report.gates[0].name, 'production-dependency-closure'); assert.equal(value.report.gates.length, 1);
   assert.deepEqual(value.counts, { child: 0, packageExecution: 0 });
+});
+test('actual collector refuses bundled npm tooling before running any installed package', async () => {
+  for (const file of ['/usr/local/lib/node_modules/npm', '/usr/local/bin/npm', '/usr/local/bin/npx']) {
+    const value = await runCollector(() => { throw new Error('must not reach package traversal'); }, file);
+    assert.equal(value.exitCode, 1);
+    assert.match(value.report.error, /build-only npm tooling/);
+    assert.deepEqual(value.counts, { child: 0, packageExecution: 0 });
+  }
 });
 test('actual collector retains artifact HOLD and stops before fixtures after graph success', async () => {
   const value = await runCollector(() => ({ status: 'PASS_EXACT_INSTALLED_PRODUCTION_CLOSURE', contractSHA256: 'fixture', target: {},

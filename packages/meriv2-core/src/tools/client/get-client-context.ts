@@ -42,7 +42,7 @@ export interface GetClientContextInput {
 }
 
 export const getClientContextInputSchema = z.object({
-  clientId: z.string().uuid('clientId must be a client UUID'),
+  clientId: z.string().guid('clientId must be a client UUID'),
   section: z
     .enum([
       'capabilities',

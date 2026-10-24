@@ -10,6 +10,7 @@ import { NativeApprovalService } from './native-approval.service.js';
 import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 import { NativeExecutionService } from './native-execution.service.js';
 import { meriExecutionKeyConfigProvider, meriExecutionSignerProvider } from '../execution-capability/meri-execution-authority.js';
+import { ApplicationAuthorityModule } from '../../auth/application-authority.module.js';
 
 /** Bodies and receipts are the native provider operations `approval/record`
  * and `approval/decision` byte-for-byte; revoke also carries Meri's approver.
@@ -53,7 +54,7 @@ export class NativeApprovalController {
 }
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, ApplicationAuthorityModule],
   controllers: [NativeApprovalController],
   providers: [
     NativeApprovalService, NativeApprovalMetadataVerifier, ToolServiceSecretGuard, NativeExecutionService,

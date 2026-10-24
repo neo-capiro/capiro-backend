@@ -37,6 +37,7 @@ const generationUrl = await sourceModule('../src/meri/objective-canonical-genera
   ["'../planner/objective-canonical-application.js'", appUrl],
 ]);
 const nestUrl = data(`export const Injectable=()=>value=>value;
+  export const UseGuards=Injectable;export class InternalServiceGuard{};
   export const Body=Injectable,Controller=Injectable,Get=Injectable,Header=Injectable,HttpCode=Injectable,Param=Injectable,Post=Injectable,Req=Injectable;
   export class BadRequestException extends Error{};export class ConflictException extends Error{};
   export class HttpException extends Error {
@@ -61,6 +62,7 @@ const portsUrl = data(`
   const fail=(code='OUTCOME_UNCONFIRMED')=>{throw new app.CanonicalApplicationError(code);};
   export class PrismaService{};export class ObjectiveCanonicalWorkloadAuthority{};
   export class ObjectiveCanonicalResultOwner{};
+  export const generationBindingKey=generation.generationBindingKey;
   export const GENERATION_NORMALIZATION=generation.GENERATION_NORMALIZATION,GENERATION_PRODUCER=generation.GENERATION_PRODUCER;
   export async function generationAssociation(tx,tenant,clerk,job){
     const s=tx.fixture;s.calls.association++;
@@ -117,13 +119,15 @@ const serviceUrl = await sourceModule('../src/meri/objective-canonical-terminal.
   ["'./objective-generation.types.js'", typesUrl],
 ], [['@Injectable()', 1]], 'transform');
 const controllerUrl = await sourceModule('../src/meri/objective-canonical-terminal.controller.ts', [
+  ["'../auth/internal-service.guard.js'", nestUrl],
   ["'@nestjs/common'", nestUrl], ["'./objective-canonical-terminal.service.js'", serviceUrl],
-], [["@Controller('internal/objective-canonical/generation-terminals')", 1], ['@Post()', 1],
+], [["@UseGuards(InternalServiceGuard)", 1], ["@Controller('internal/objective-canonical/generation-terminals')", 1], ['@Post()', 1],
   ['@HttpCode(201)', 1], ['@HttpCode(200)', 1], ["@Header('Cache-Control', 'private, no-store')", 2],
   ["@Get(':generationJobId')", 1], ['@Req()', 2], ['@Body()', 1], ["@Param('generationJobId')", 1]], 'transform');
 const { ObjectiveCanonicalTerminalService } = await import(serviceUrl);
 const { ObjectiveCanonicalTerminalController } = await import(controllerUrl);
 
+const fixtureBindingKey = app.applicationHash;
 function fixture(outcome = 'needs-information') {
   const s = { now: 5000, depth: 0, reads: 0, cas: [], casWrites: 0, casCount: 1,
     calls: Object.fromEntries(['verify', 'current', 'association', 'publication', 'readFence', 'normalization',
@@ -134,17 +138,16 @@ function fixture(outcome = 'needs-information') {
   s.a = { schemaVersion: 1, namespace: generation.GENERATION_ADMISSION_NAMESPACE, canonical, actorUserId: id(9),
     clerkUserId: 'user_original', consentId: id(12), controlVersion: 3, generationJobId: id(10), generationRequestId: id(11),
     admittedAtMs: 1000, effectExpiresAtMs: 2000, expectedStrategyVersionId: null };
-  const binding = { tenantId: id(2), actorId: 'user_original', conversationId: id(40), runId: id(41),
+  const binding = { tenantId: id(2), actorId: s.a.actorUserId, conversationId: id(40), runId: id(41),
     attemptId: id(42), workerId: id(43), writerFence: 1 };
   const acceptance = { schemaVersion: 1, sourceAdmissionSha256: generation.canonicalGenerationAdmissionSha256(s.a),
     sourceBinding: binding, sourceRequestSha256: 'b'.repeat(64), acceptedAtMs: 1100,
-    issuance: { issuanceKey: app.applicationHash(binding), binding: copy(binding), requestSha256: 'b'.repeat(64),
-      expiresAtMs: 1900, grantId: id(44), capabilitySha256: 'c'.repeat(64), factsSha256: 'd'.repeat(64) } };
+    effectExpiresAtMs: 1900 };
   s.association = { admission: s.a, acceptance };
   const request = { requestId: id(11), clientId: id(3), objective: { objectiveId: id(4), objectiveVersion: 1 }, type: 'authorization' };
   const source = { clientId: id(3), objectiveId: id(4), objectiveVersion: 1, objectiveRevisionId: id(8) };
   s.job = { id: id(10), tenantId: id(2), clientId: id(3), ownerUserId: 'user_original', status: 'running', stage: 'drafting',
-    strategyId: null, errorMessage: null, attempt: 2, claimedBy: `canonical:${acceptance.issuance.issuanceKey}`,
+    strategyId: null, errorMessage: null, attempt: 2, claimedBy: `canonical:${fixtureBindingKey(acceptance.sourceBinding)}`,
     deadlineAt: new Date(0), input: { dto: { clientId: id(3), type: 'authorization', goal: 'Original unchanged goal' }, bearer: null,
       canonicalGeneration: { admissionId: generation.generationLedgerId(generation.GENERATION_ADMISSION, id(2), 'user_original', id(10)) },
       objectiveGeneration: { request, fingerprint: app.applicationHash(request), receipt: { schemaVersion: 1, requestId: id(11), source,
@@ -181,7 +184,7 @@ function fixture(outcome = 'needs-information') {
       assert.equal(s.depth, 1);const sql = strings.join('?').replace(/\s+/g, ' ').trim();
       if (!sql.startsWith("UPDATE sp_draft_job SET status='failed'")) return forbidden('Strategy/Planner/legacy write');
       assert.equal(values.length, 7);assert.equal(values[0], types.SAFE_FAILURES.OBJECTIVE_GENERATION_FAILED);
-      assert.deepEqual(values.slice(2, 6), [id(2), id(10), 'user_original', `canonical:${acceptance.issuance.issuanceKey}`]);
+      assert.deepEqual(values.slice(2, 6), [id(2), id(10), 'user_original', `canonical:${fixtureBindingKey(acceptance.sourceBinding)}`]);
       assert.deepEqual(JSON.parse(values[6]), s.job.input);
       assert.ok(sql.includes('attempt=2 AND strategy_id IS NULL'));
       assert.ok(sql.includes("NOT(input ? 'canonicalCompletion') AND NOT(input ? 'canonicalTerminal')"));
@@ -359,18 +362,18 @@ test('generic failed/cancelled/success run labels cannot fabricate a typed termi
 test('current Objective advance and original expired deadline do not trigger an old ready/effect check', async () => {
   const s = fixture();s.currentObjectiveAdvanced = true;s.job.deadlineAt = new Date(0);
   const result = await account(s);
-  assert.equal(result.status, 'not-applied');assert.ok(s.association.acceptance.issuance.expiresAtMs < s.now);
+  assert.equal(result.status, 'not-applied');assert.ok(s.association.acceptance.effectExpiresAtMs < s.now);
   assert.equal(s.casWrites, 1);assert.equal(s.calls.forbidden, 0);
 });
 
-test('fresh account grant or observed reader expiry prevents terminal CAS', async () => {
-  for (const mutate of [s => { s.grant.expiresAtMs = s.now; },
-    s => { s.grant.terminalAccounting.expiresAtMs = s.now; },
-    s => { s.grant.terminalAccounting.absoluteExpiresAtMs = s.now; },
-    s => { s.grant.terminalAccounting = null; },
-    s => { s.rawOutcome.expiresAtMs = s.now; }]) {
+test('current membership and native custody failures prevent terminal CAS', async () => {
+  for (const mutate of [s => { s.revoked = true; },
+    s => { s.afterRead = current => { current.revoked = true; }; },
+    s => { s.grant.checkedAtMs = s.now + 1; },
+    s => { s.grant.checkedAtMs = NaN; },
+    s => { s.readerError = true; }]) {
     const s = fixture();mutate(s);
-    await assert.rejects(() => account(s), failure(503, 'AUTHORITY_UNAVAILABLE'));
+    await assert.rejects(() => account(s), failure(503, s.readerError ? 'OUTCOME_UNCONFIRMED' : 'AUTHORITY_UNAVAILABLE'));
     assert.equal(s.cas.length, 0);noAccounting(s);
   }
 });

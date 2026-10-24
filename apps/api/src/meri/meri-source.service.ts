@@ -77,7 +77,7 @@ export class MeriSourceService {
       : 'current_version_only' };
   }
 
-  private cursor(ctx: TenantContext, input: MeriSourceRequest, currentVersion: string) {
+  private cursor(ctx: TenantContext, input: MeriSourceRequest, currentVersion: string, readAsOf?: string) {
     const scope = hash([ctx.tenantId, ctx.userId, input.kind, input.recordId, input.clientId ?? null, input.threadId ?? null, input.section ?? null]);
     let position = { message: 0, offset: 0, section: 1 };
     let textHash: string | undefined;
@@ -86,13 +86,14 @@ export class MeriSourceService {
       try { decoded = record(JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'))); }
       catch { throw new BadRequestException('Invalid source continuation.'); }
       if (decoded.scope !== scope || decoded.version !== currentVersion ||
+        (readAsOf !== undefined && decoded.asOf !== readAsOf) ||
         !['message', 'offset', 'section'].every((key) => Number.isSafeInteger(decoded[key]) && decoded[key] >= 0)) {
         throw new BadRequestException('Source content or access scope changed. Restart the source read.');
       }
       position = { message: decoded.message, offset: decoded.offset, section: decoded.section };
       textHash = typeof decoded.textHash === 'string' ? decoded.textHash : undefined;
     }
-    return { position, textHash, at: (next: typeof position, nextTextHash?: string) => Buffer.from(JSON.stringify({ scope, version: currentVersion, ...next, ...(nextTextHash ? { textHash: nextTextHash } : {}) })).toString('base64url') };
+    return { position, textHash, at: (next: typeof position, nextTextHash?: string) => Buffer.from(JSON.stringify({ scope, version: currentVersion, ...next, ...(readAsOf ? { asOf: readAsOf } : {}), ...(nextTextHash ? { textHash: nextTextHash } : {}) })).toString('base64url') };
   }
 
   private async email(ctx: TenantContext, input: MeriSourceRequest) {
@@ -105,34 +106,47 @@ export class MeriSourceService {
       }));
       threadId = message?.threadId ?? input.recordId;
     }
-    const thread = await this.engagement.getMailThread(ctx, threadId);
-    if (thread.clientId) await this.assertClientAccess(ctx, thread.clientId);
-    if (input.recordId !== thread.id && !thread.messages.some((message) => message.id === input.recordId)) {
-      throw new NotFoundException('Cited message is no longer active in this thread.');
+    // Decode only a bounded read position. The canonical owner reauthorizes;
+    // the existing cursor helper below validates scope/version against that read.
+    let requested: Record<string, any> = { message: 0, offset: 0 };
+    if (input.cursor) {
+      try { requested = record(JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'))); }
+      catch { throw new BadRequestException('Invalid source continuation.'); }
+      if (!Number.isSafeInteger(requested.message) || requested.message < 0 || requested.message > 10000 ||
+          !Number.isSafeInteger(requested.offset) || requested.offset < 0 || requested.offset > 10000000 ||
+          typeof requested.asOf !== 'string') throw new BadRequestException('Invalid source position. Restart the source read.');
     }
-    const currentVersion = hash(thread.messages.map((message) => [message.id, message.bodyText, message.subject, message.fromEmail,
-      message.toRecipients, message.ccRecipients, message.sentAt, message.receivedAt, message.metadata]));
-    const continuation = this.cursor(ctx, input, currentVersion);
+    const thread = await this.engagement.getMailThread(ctx, threadId, input.clientId, undefined, {
+      limit: 1, messageOffset: requested.message, asOf: requested.asOf,
+      requiredMessageId: input.recordId !== threadId ? input.recordId : undefined,
+    });
+    if (thread.clientId) await this.assertClientAccess(ctx, thread.clientId);
+    // Existing timestamp change detection, not an immutable thread snapshot.
+    const currentVersion = hash([thread.id, thread.updatedAt]);
+    const continuation = this.cursor(ctx, input, currentVersion, thread.asOf);
     const { message: messageIndex, offset } = continuation.position;
-    const message = thread.messages[messageIndex];
+    const message = thread.messages[0];
     if (!message && messageIndex !== 0) throw new BadRequestException('Invalid source position.');
     const body = message?.bodyText ?? '';
+    if (offset > 0 && continuation.textHash !== hash([message?.id, body]))
+      throw new BadRequestException('Source body changed. Restart the source read.');
     if (offset > body.length) throw new BadRequestException('Invalid source position.');
     let end = Math.min(body.length, offset + 6000);
     if (end < body.length && /[\uD800-\uDBFF]/.test(body.charAt(end - 1))) end -= 1;
     const next = end < body.length ? { message: messageIndex, offset: end, section: 1 }
-      : messageIndex + 1 < thread.messages.length ? { message: messageIndex + 1, offset: 0, section: 1 } : null;
+      : thread.nextMessageOffset !== null ? { message: thread.nextMessageOffset, offset: 0, section: 1 } : null;
     return {
       kind: 'email', status: 'available', recordId: input.recordId, title: thread.subject,
-      threadId: thread.id, totalMessages: thread.messages.length, mailbox: thread.connectionEmail,
-      ...this.version(input, currentVersion), nextCursor: next ? continuation.at(next) : null,
+      threadId: thread.id, totalMessages: thread.totalMessages, mailbox: thread.connectionEmail,
+      asOf: thread.asOf, coverage: thread.coverage, hasMore: thread.hasMore,
+      ...this.version(input, currentVersion), nextCursor: next ? continuation.at(next, next.offset > 0 ? hash([message?.id, body]) : undefined) : null,
       message: message ? { id: message.id, threadId: thread.id, subject: message.subject,
         from: { email: message.fromEmail, name: message.fromName }, to: message.toRecipients, cc: message.ccRecipients,
         sentAt: message.sentAt, receivedAt: message.receivedAt,
         bodyText: body.slice(offset, end), offset, endOffset: end, bodyLength: body.length,
         bodyCompleteness: typeof record(message.metadata).bodyCompleteness === 'string' ? record(message.metadata).bodyCompleteness : 'unknown',
         messageNumber: messageIndex + 1 } : null,
-      notice: 'This is the current stored thread. All message pages can be read below. Provider-side missing or partial bodies remain incomplete.',
+      notice: 'This is a bounded current stored-thread read, not a frozen snapshot. Continue while a next cursor is available; refresh if the thread changes. Provider-side missing or partial bodies remain incomplete.',
     };
   }
 

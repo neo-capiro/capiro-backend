@@ -24,40 +24,31 @@ function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
 }
 
-function union(files) {
-  const routes = files.flatMap((file) => routeInventory(read(file)));
+function union(files, readSource) {
+  const routes = files.flatMap((file) => routeInventory(readSource(file)));
   const duplicates = routes.filter((route, index) => routes.indexOf(route) !== index);
   if (duplicates.length) throw new Error(`duplicate registered routes: ${[...new Set(duplicates)].join(', ')}`);
   return routes.sort();
 }
 
-export function parityProblems() {
+/** Retained public method/path contract; deleted implementation copies are not a test oracle. */
+export function parityProblems(readSource = read) {
   const problems = [];
-  const pairs = [
-    {
-      name: 'microsoft',
-      old: ['apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts'],
-      split: [
-        'apps/api/src/engagement/microsoft/microsoft-integration-actions.controller.ts',
-        'apps/api/src/engagement/microsoft/microsoft-callbacks.controller.ts',
-      ],
-    },
-    {
-      name: 'google',
-      old: ['apps/api/src/engagement/google/google-oauth.controller.ts'],
-      split: [
-        'apps/api/src/engagement/google/google-integration-actions.controller.ts',
-        'apps/api/src/engagement/google/google-callbacks.controller.ts',
-      ],
-    },
-  ];
-  for (const pair of pairs) {
-    const before = union(pair.old);
-    const after = union(pair.split);
-    if (JSON.stringify(before) !== JSON.stringify(after)) {
-      problems.push(
-        `${pair.name} route inventory changed\nbefore=${JSON.stringify(before)}\nafter=${JSON.stringify(after)}`,
-      );
+  const common = ['GET capabilities', 'DELETE :connectionId', 'POST start', 'POST :connectionId/sync', 'GET callback'];
+  for (const provider of ['microsoft', 'google']) {
+    const suffixes = provider === 'microsoft'
+      ? [...common, 'POST :connectionId/calendar-window', 'POST :connectionId/subscriptions', 'GET notifications', 'POST notifications']
+      : common;
+    const expected = suffixes.map((entry) => {
+      const [method, suffix] = entry.split(' ');
+      return `${method} /engagement/integrations/${provider}/${suffix}`;
+    }).sort();
+    const actual = union([
+      `apps/api/src/engagement/${provider}/${provider}-integration-actions.controller.ts`,
+      `apps/api/src/engagement/${provider}/${provider}-callbacks.controller.ts`,
+    ], readSource);
+    if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+      problems.push(`${provider} route inventory changed\nexpected=${JSON.stringify(expected)}\nactual=${JSON.stringify(actual)}`);
     }
   }
   return problems;

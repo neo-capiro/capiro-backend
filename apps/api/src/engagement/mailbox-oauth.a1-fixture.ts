@@ -82,6 +82,21 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
         Object.assign(row, data);
         return row;
       }),
+      updateMany: jest.fn(
+        async ({ where, data }: {
+          where: { id: string; status?: { in: string[] } };
+          data: Record<string, unknown>;
+        }) => {
+          const row = rows.get(where.id);
+          // This harness has one tenant; model the scoped Prisma predicate as
+          // well as the explicit row/status filters used by sync-error cleanup.
+          if (!row || row.tenantId !== tenant || (where.status && !where.status.in.includes(row.status))) {
+            return { count: 0 };
+          }
+          Object.assign(row, data);
+          return { count: 1 };
+        },
+      ),
     },
     integrationConnectionToken: {
       upsert: jest.fn(async ({ where, update, create }: any) => {
@@ -96,7 +111,12 @@ export function harness(provider: 'microsoft_365' | 'google_workspace' = 'micros
       }),
     },
   };
-  const prisma = { withTenant: async (_: string, run: any) => run(tx) };
+  const prisma = {
+    withTenant: async (tenantId: string, run: any) => {
+      if (tenantId !== tenant) throw new Error('Unexpected fixture tenant');
+      return run(tx);
+    },
+  };
   const crypto = {
     isConfigured: () => true,
     encrypt,

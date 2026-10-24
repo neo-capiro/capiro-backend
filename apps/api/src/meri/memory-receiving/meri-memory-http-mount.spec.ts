@@ -6,9 +6,9 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
-import * as gate from '../../auth/read-delegation/signed-memory-http-gate.js';
 import { configureApiHttpApp } from '../../bootstrap/configure-api-http-app.js';
-import { TenantContextMiddleware } from '../../tenant/tenant-context.middleware.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientKbService } from '../../embeddings/client-kb.service.js';
 import { MeriController } from '../meri.controller.js';
@@ -23,21 +23,18 @@ import { MeriProcedureRuntimeValidationService } from '../meri-procedure-runtime
 import { MeriApprovalService } from '../meri-approval.service.js';
 import { MeriComplianceAuditService } from '../meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from '../meri-claim-writer.js';
-import * as helperReceiver from './meri-memory-helper-receiver.js';
+import * as source from './meri-passive-memory-source.js';
 import { MeriMemoryHelperController } from './meri-memory-helper.controller.js';
 
-/** Actual Nest routing plus the production bootstrap parser and tenant-middleware
- * methods, with all database and signed-receiver work replaced by inert probes.
- * The enabled case uses only a Jest spy; the source gate remains hard off. */
-describe('signed memory helper HTTP mount', () => {
+/** Actual Nest route order and service guard. User authentication is a synthetic
+ * fixture; canonical eligibility is tested separately against its real owner. */
+describe('ordinary memory helper HTTP mount', () => {
   const secret = 'synthetic-http-mount-secret';
   const helperPath = '/api/clio/tools/search_memory_eligibility';
-  const pagePath = '/api/clio/tools/search_memory';
-  const proposalPath = '/api/clio/tools/memory.list_own_proposals';
   const raw = Buffer.from('{ "schemaVersion": 1, "input": {"b":2,"a":1}, "metadata": null }', 'utf8');
   let app: INestApplication;
-  const withSystem = jest.fn();
-  const admitOrdinaryToken = jest.fn();
+  const withTenantUser = jest.fn();
+  const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', userId: '22222222-2222-4222-8222-222222222222', role: 'standard_user' } as TenantContext;
 
   beforeAll(async () => {
     const controllers = (Reflect.getMetadata('controllers', MeriModule) as Function[])
@@ -53,7 +50,7 @@ describe('signed memory helper HTTP mount', () => {
           NODE_ENV: 'staging', MERI_TOOLS_REQUIRE_SERVICE_SECRET: true,
           INTERNAL_SERVICE_SECRET: secret,
         } as Record<string, unknown>)[key] } },
-        { provide: PrismaService, useValue: { withSystem } },
+        { provide: PrismaService, useValue: { withTenantUser } },
         { provide: MeriService, useValue: {} },
         { provide: MeriToolsService, useValue: {} },
         { provide: MeriResearchService, useValue: {} },
@@ -70,55 +67,45 @@ describe('signed memory helper HTTP mount', () => {
     app = moduleRef.createNestApplication();
     configureApiHttpApp(app, {
       includeClerkRawBody: false, includeRecallRawBody: false, includeTangoRawBody: false,
-      includeMeriReadDelegationRawBody: true, includeEmailSignatureLargeBody: false,
+      includeMeriReadDelegationRawBody: false, includeEmailSignatureLargeBody: false,
       defaultJsonLimit: '1mb',
     });
-    const middleware = Object.create(TenantContextMiddleware.prototype) as TenantContextMiddleware;
-    Object.assign(middleware, { useMeriReadDelegation: admitOrdinaryToken });
-    app.use((req: Parameters<TenantContextMiddleware['use']>[0],
-      res: Parameters<TenantContextMiddleware['use']>[1], next: Parameters<TenantContextMiddleware['use']>[2]) => {
-      void middleware.use(req, res, next).catch(next);
+    app.use((req: Request & { tenantContext?: TenantContext }, res: Response, next: NextFunction) => {
+      if (req.headers.authorization !== 'Bearer synthetic-user-session') {
+        res.status(401).json({ error: 'Synthetic fixture requires its authenticated user' });
+        return;
+      }
+      req.tenantContext = ctx;
+      next();
     });
     await app.init();
   });
 
   afterAll(async () => { await app?.close(); });
-  afterEach(() => { jest.restoreAllMocks(); withSystem.mockClear(); admitOrdinaryToken.mockClear(); });
+  afterEach(() => { jest.restoreAllMocks(); withTenantUser.mockClear(); });
 
-  const post = (path: string, body = raw.toString('utf8')) => request(app.getHttpServer()).post(path)
-    .set('Authorization', 'CapiroMeriRead synthetic.signed.token')
-    .set('x-internal-service-secret', secret)
-    .set('Content-Type', 'application/json; charset=utf-8')
-    .send(body);
+  const post = (authorization = 'Bearer synthetic-user-session', service = secret) => request(app.getHttpServer()).post(helperPath)
+    .set('Authorization', authorization).set('x-internal-service-secret', service)
+    .set('Content-Type', 'application/json; charset=utf-8').send(raw.toString('utf8'));
 
-  it('returns 503 on all three signed targets before consuming an ordinary JTI', async () => {
-    const consume = jest.spyOn(helperReceiver, 'consumeTaskBoundMemoryHelper');
-    for (const path of [helperPath, pagePath, proposalPath]) {
-      const response = await post(path);
-      expect(response.status).toBe(503);
-      expect(response.headers['cache-control']).toBe('no-store');
-    }
-    expect(consume).not.toHaveBeenCalled();
-    expect(admitOrdinaryToken).not.toHaveBeenCalled();
-    expect(withSystem).not.toHaveBeenCalled();
-    expect(gate.signedMemoryPageEnabled()).toBe(false);
-    expect(gate.signedMemoryProposalEnabled()).toBe(false);
-  });
-
-  it('routes the fixed helper before tools/:name and delivers unchanged UTF-8 bytes', async () => {
-    // Test-only simulated activation; no request or environment variable can
-    // change the source gate. The actual receiver is replaced before any SQL.
-    jest.spyOn(gate, 'signedMemoryPageEnabled').mockReturnValue(true);
-    const consume = jest.spyOn(helperReceiver, 'consumeTaskBoundMemoryHelper')
-      .mockResolvedValue({ syntheticMountOnly: true } as never);
-    const response = await post(helperPath);
+  it('routes the fixed helper before tools/:name and sends parsed input to the canonical eligibility owner', async () => {
+    const check = jest.spyOn(source, 'checkPassiveMemoryEligibility').mockResolvedValue({ syntheticMountOnly: true } as never);
+    const response = await post();
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ syntheticMountOnly: true });
     expect(response.headers['cache-control']).toBe('no-store');
-    expect(consume).toHaveBeenCalledTimes(1);
-    expect(consume.mock.calls[0]![2]).toEqual(raw);
-    expect(consume.mock.calls[0]![1].originalUrl).toBe(helperPath);
-    expect(admitOrdinaryToken).not.toHaveBeenCalled();
-    expect(withSystem).not.toHaveBeenCalled();
+    expect(response.headers['x-meri-memory-proof']).toBeUndefined();
+    expect(check).toHaveBeenCalledWith(expect.anything(), ctx, JSON.parse(raw.toString('utf8')));
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(withTenantUser).not.toHaveBeenCalled();
+  });
+
+  it('requires both ordinary user authentication and the real service guard', async () => {
+    const check = jest.spyOn(source, 'checkPassiveMemoryEligibility');
+    expect((await post('Bearer foreign-user-session')).status).toBe(401);
+    expect((await post('CapiroMeriRead retired.token')).status).toBe(401);
+    expect((await post('Bearer synthetic-user-session', 'wrong-service')).status).toBe(403);
+    expect(check).not.toHaveBeenCalled();
+    expect(withTenantUser).not.toHaveBeenCalled();
   });
 });

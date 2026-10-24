@@ -131,12 +131,22 @@ function controllerFixture(previewMode: boolean) {
       operation: (clientIds: readonly string[]) => Promise<unknown>) => operation([visibleId])),
   };
   const controller = new ClientsController(service as never, preview as never);
-  const req = { headers: { host: 'first-chat-preview.app-dev.capiro.ai' } } as Request;
+  const req = { headers: { host: 'core-roster-preview.capiro.ai' } } as Request;
   const res = { setHeader: jest.fn() } as unknown as Response;
   return { controller, service, preview, req, res };
 }
 
 describe('ClientsController preview native roster routing', () => {
+  it('uses the canonical wall-filtered records owner for first-chat archived management and detail', async () => {
+    const { controller, service, preview, req, res } = controllerFixture(true);
+    req.headers.host = 'first-chat-preview.app-dev.capiro.ai';
+    await expect(controller.list(ctx, { includeArchived: 'true' }, req, res)).resolves.toEqual(['ordinary-list']);
+    expect(service.list).toHaveBeenCalledWith(ctx, { includeArchived: true, profileStatus: undefined, sectorTag: undefined });
+    await expect(controller.get(ctx, visibleId, req, res)).resolves.toBe('ordinary-detail');
+    expect(service.get).toHaveBeenCalledWith(ctx, visibleId);
+    expect(preview.run).toHaveBeenCalledTimes(2);
+    expect(service.listPreviewVisible).not.toHaveBeenCalled();
+  });
   it('refuses archived-inclusive preview list requests before reading membership or clients', () => {
     const { controller, service, preview, req, res } = controllerFixture(true);
     expect(() => controller.list(ctx, { includeArchived: 'true' }, req, res))

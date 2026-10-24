@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROLE_RANK } from '@capiro/shared';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { newsletterPublicFixture, type NewsletterPublicFixture } from './engagement-phase1-newsletter-fixture.js';
 import {
   registryEntries,
   runtimePolicyForHandler,
@@ -44,6 +45,8 @@ interface Fixtures {
   audienceIds: Record<string, string>;
   campaignId: string;
   taskId: string;
+  newsletterPublic: NewsletterPublicFixture;
+  recordReads: { mailRequestKey: string; meetingPrepJobId: string; planId: string };
 }
 
 interface ProbeResult {
@@ -113,6 +116,18 @@ function routePath(route: RouteEntry, fixtures: Fixtures): string {
     recipientId: MISSING_ID,
     id: idForRoute(route, fixtures),
   };
+  if (route.controller === 'NewsletterPublicController') {
+    values.token = newsletterPublicFixture(fixtures.newsletterPublic).token;
+  }
+  const kind = seededRecordKind(route);
+  if (kind) {
+    const key = kind === 'mail' ? 'mailRequestKey' : kind === 'prep' ? 'meetingPrepJobId' : 'planId';
+    const value = fixtures.recordReads?.[key];
+    if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      throw new Error(`Phase 1 requires the seeded ${key} fixture`);
+    }
+    values[kind === 'mail' ? 'requestKey' : kind === 'prep' ? 'jobId' : 'planId'] = value;
+  }
   return route.path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) => {
     const value = values[name];
     if (!value) {
@@ -122,6 +137,36 @@ function routePath(route: RouteEntry, fixtures: Fixtures): string {
     }
     return encodeURIComponent(value);
   });
+}
+
+function seededRecordKind(route: RouteEntry): 'mail' | 'prep' | 'plan' | 'history' | undefined {
+  if (route.controller === 'EngagementController' && route.handler === 'singleMailIntent') return 'mail';
+  if (route.controller === 'EngagementController' && route.handler === 'prepJob') return 'prep';
+  if (route.controller === 'EngagementPlansController') {
+    if (route.handler === 'get') return 'plan';
+    if (route.handler === 'history') return 'history';
+  }
+}
+
+function requireSeededRecordRead(route: RouteEntry, fixtures: Fixtures, result: ProbeResult): void {
+  const kind = seededRecordKind(route);
+  if (!kind) return;
+  const body = result.body as Record<string, unknown> | null;
+  let matches = result.status === 200 && body !== null && typeof body === 'object';
+  if (matches && body) {
+    if (kind === 'mail') matches = body.requestKey === fixtures.recordReads.mailRequestKey && body.state === 'failed' && body.retryable === false;
+    else if (kind === 'prep') matches = body.jobId === fixtures.recordReads.meetingPrepJobId && body.meetingId === fixtures.meetingIds.current && body.status === 'cancelled';
+    else if (kind === 'plan') matches = body.id === fixtures.recordReads.planId && body.clientId === fixtures.clientIds[0] && body.version === 1 && body.title === 'Phase 1 read parity plan';
+    else {
+      const items = body.items as Array<Record<string, unknown>> | undefined;
+      const first = Array.isArray(items) ? items[0] : undefined;
+      const snapshot = first?.snapshot as Record<string, unknown> | undefined;
+      matches = body.planId === fixtures.recordReads.planId && body.clientId === fixtures.clientIds[0] && body.planVersion === 1 &&
+        items?.length === 1 && first?.version === 1 && first.operation === 'create_plan' && first.actorUserId === fixtures.userId &&
+        snapshot?.id === fixtures.recordReads.planId && snapshot.clientId === fixtures.clientIds[0] && snapshot.title === 'Phase 1 read parity plan';
+    }
+  }
+  if (!matches) throw new Error(`Seeded ${kind} read must return its expected record: ${route.method} ${route.path} (status=${result.status})${kind === 'prep' ? '; comprehensive prep must be configured on both services' : ''}`);
 }
 
 function idForRoute(route: RouteEntry, fixtures: Fixtures): string {
@@ -137,6 +182,11 @@ function idForRoute(route: RouteEntry, fixtures: Fixtures): string {
 
 function queryForRoute(route: RouteEntry, fixtures: Fixtures): string {
   const params = new URLSearchParams();
+  if (route.controller === 'NewsletterPublicController' && route.handler === 'survey') {
+    const { survey } = newsletterPublicFixture(fixtures.newsletterPublic);
+    params.set('block', survey.block);
+    params.set('answer', survey.answer);
+  }
   if (route.handler === 'sharedMeetings' || route.handler === 'clientDebriefs') {
     params.set('clientId', fixtures.clientIds[0] ?? MISSING_ID);
   }
@@ -298,6 +348,7 @@ async function protectedTableDigests(
         OR table_name LIKE 'outreach_%'
         OR table_name LIKE 'meeting_%'
         OR table_name LIKE 'mail_%'
+        OR table_name = 'single_mail_intents'
         OR table_name = 'meetings'
       )
     ORDER BY table_name
@@ -356,16 +407,26 @@ async function main(): Promise<void> {
 
     for (const route of reads) {
       const pathname = `${routePath(route, fixtures)}${queryForRoute(route, fixtures)}`;
-      const mainResult = await probe(MAIN_URL, pathname, { headers: authHeaders() });
+      const publicCapability = route.controller === 'NewsletterPublicController';
+      const headers = publicCapability ? {} : authHeaders();
+      // Do not write bearer capabilities into the evidence path or failure log.
+      const evidencePath = publicCapability ? route.path : pathname;
+      const mainResult = await probe(MAIN_URL, pathname, { headers });
       const engagementResult = await probe(ENGAGEMENT_URL, pathname, {
-        headers: authHeaders(),
+        headers,
       });
+      requireSeededRecordRead(route, fixtures, mainResult);
+      requireSeededRecordRead(route, fixtures, engagementResult);
+      if (publicCapability && (mainResult.status !== 200 || engagementResult.status !== 200)) {
+        throw new Error(`Seeded public read must succeed without a bearer: ${evidencePath} ` +
+          `(main=${mainResult.status}, engagement=${engagementResult.status})`);
+      }
       // An authenticated read must never be 401. A 401 means the bearer token itself was
       // rejected, and because both services reject identically, every read would then "match"
       // and the whole stage would pass while proving nothing. Fail loudly instead.
       if (mainResult.status === 401 || engagementResult.status === 401) {
         throw new Error(
-          `Authenticated read returned 401 for ${route.method} ${pathname} ` +
+          `Authenticated read returned 401 for ${route.method} ${evidencePath} ` +
             `(main=${mainResult.status}, engagement=${engagementResult.status}). The bearer ` +
             'token was rejected, so read parity here would be vacuous: two matching 401s ' +
             'satisfy the comparator. Clerk session tokens live ~60s, so mint one immediately ' +
@@ -374,7 +435,7 @@ async function main(): Promise<void> {
       }
       const matched = parity(mainResult, engagementResult);
       readResults.push({
-        route: `${route.method} ${pathname}`,
+        route: `${route.method} ${evidencePath}`,
         controller: route.controller,
         handler: route.handler,
         mainResult,
@@ -388,7 +449,7 @@ async function main(): Promise<void> {
           path.join(EVIDENCE_DIR, 'read-parity-mismatch.json'),
           JSON.stringify(
             {
-              route: `${route.method} ${pathname}`,
+              route: `${route.method} ${evidencePath}`,
               controller: route.controller,
               handler: route.handler,
               mainResult,
@@ -399,12 +460,28 @@ async function main(): Promise<void> {
           ),
         );
         throw new Error(
-          `Read parity mismatch: ${route.method} ${pathname}\n${describeMismatch(
+          `Read parity mismatch: ${route.method} ${evidencePath}\n${describeMismatch(
             mainResult,
             engagementResult,
           )}`,
         );
       }
+    }
+
+    const publicFixture = newsletterPublicFixture(fixtures.newsletterPublic);
+    for (const denial of [
+      { label: 'newsletter_malformed_capability', path: 'invalid-token/archive', allowed: [404] },
+      { label: 'newsletter_unknown_capability', path: `${'0'.repeat(64)}/archive`, allowed: [404] },
+      { label: 'newsletter_unpublished_capability', path: `${publicFixture.unpublishedToken}/archive`, allowed: [404] },
+      { label: 'newsletter_missing_survey', path: `${publicFixture.token}/survey`, allowed: [400] },
+      { label: 'newsletter_unknown_survey', path: `${publicFixture.token}/survey?block=phase1-missing&answer=missing`, allowed: [404] },
+    ]) {
+      const pathname = `/api/engagement/newsletter-public/${denial.path}`;
+      const mainResult = await probe(MAIN_URL, pathname);
+      const engagementResult = await probe(ENGAGEMENT_URL, pathname);
+      requireDeniedPair(denial.label, mainResult, engagementResult, denial.allowed);
+      authResults.push({ label: denial.label, expectedStatuses: denial.allowed,
+        mainResult, engagementResult, matched: true });
     }
 
     for (const authCase of [

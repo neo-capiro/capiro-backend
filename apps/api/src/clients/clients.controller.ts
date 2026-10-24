@@ -25,6 +25,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PreviewNativeReadService } from '../auth/preview-native-read.service.js';
+import { CORE_ROSTER_PREVIEW_HOST } from '../auth/preview-native-read-mode.js';
 import { DURABLE_SET_ASIDE_CERTIFICATIONS } from '../funding-opportunities/set-aside.js';
 import { ClientsService } from './clients.service.js';
 import { CLIENT_ORGANIZATION_TYPES } from './client-funding-profile.validation.js';
@@ -339,6 +340,12 @@ export class ClientsController {
     @Res({ passthrough: true }) res: Response,
   ) {
     if (this.preview.mode(req, res)) {
+      if (req.headers.host !== CORE_ROSTER_PREVIEW_HOST) {
+        return this.preview.run(req, res, ctx, () => this.service.list(ctx, {
+          profileStatus: query.profileStatus, sectorTag: query.sectorTag,
+          includeArchived: query.includeArchived === 'true',
+        }));
+      }
       if (query.includeArchived !== undefined && query.includeArchived !== 'false') {
         throw new BadRequestException('Archived clients are unavailable in preview');
       }
@@ -364,6 +371,9 @@ export class ClientsController {
     @Res({ passthrough: true }) res: Response,
   ) {
     if (this.preview.mode(req, res)) {
+      if (req.headers.host !== CORE_ROSTER_PREVIEW_HOST) {
+        return this.preview.run(req, res, ctx, () => this.service.get(ctx, id));
+      }
       return this.preview.run(req, res, ctx, (visibleClientIds) =>
         this.service.getPreviewVisible(ctx, id, visibleClientIds),
       );

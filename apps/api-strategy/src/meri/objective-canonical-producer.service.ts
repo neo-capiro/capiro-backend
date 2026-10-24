@@ -5,14 +5,12 @@ import type { Request } from 'express';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ObjectiveCanonicalWorkloadAuthority, type CanonicalGenerationGrant,
-  type CanonicalGenerationSubject, type CanonicalAuthoritySubject } from '../planner/objective-canonical-authority.js';
+  type CanonicalGenerationSubject } from '../planner/objective-canonical-authority.js';
 import { applicationHash, applicationUuid, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
-import { requireCanonicalApplicationFence, requireCanonicalApplicationRead } from '../planner/objective-canonical-fence.js';
-import { GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_PRODUCER, canonicalGenerationAdmissionSha256,
+import { generationBindingKey, GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_PRODUCER, canonicalGenerationAdmissionSha256,
   parseCanonicalGenerationAdmission, requireGenerationAcceptanceForAdmission, type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
 import { admitCanonicalGenerationWithinTx, requireCanonicalGenerationEffectWithinTx, requireCanonicalGenerationReadWithinTx } from './objective-canonical-generation-fence.js';
-import { generationMarker, insertGenerationLedger, readGenerationLedger, readCanonicalGenerationProducer } from './objective-canonical-producer-ledger.js';
-import { parseCanonicalProducerRequest, producerApplication, requireCanonicalProducerWork } from './objective-canonical-producer.js';
+import { generationMarker, insertGenerationLedger, readGenerationLedger } from './objective-canonical-producer-ledger.js';
 import type { DraftJobInput } from './draft-job.types.js';
 import { readCanonicalRequestPublication } from './objective-canonical-request-ledger.js';
 import { candidateJcsSha256 } from './objective-canonical-request.js';
@@ -37,7 +35,7 @@ export class ObjectiveCanonicalProducerService {
     await this.authority.assertGenerationCurrent(tx, grant, subject);
     const n = await this.now(tx);
     if (grant.requestSha256 !== subject.requestSha256 || !Number.isSafeInteger(grant.checkedAtMs) || grant.checkedAtMs > n ||
-        [grant.expiresAtMs,grant.delegationExpiresAtMs,grant.claimExpiresAtMs].some(x => !Number.isSafeInteger(x) || x <= n) ||
+        (!Number.isSafeInteger(grant.expiresAtMs) || ['admit','accept'].includes(subject.phase) && grant.expiresAtMs <= n) ||
         a && (a.actorUserId !== grant.actorUserId || a.clerkUserId !== grant.clerkUserId ||
           a.canonical.tenantId !== grant.tenantId || a.consentId !== grant.consentId || a.controlVersion !== grant.controlVersion)) return fail();
   }
@@ -140,7 +138,7 @@ export class ObjectiveCanonicalProducerService {
         }
         const previous = await readGenerationLedger(tx, GENERATION_ADMISSION, grant.tenantId, grant.clerkUserId, job.id);
         const admission = previous ? parseCanonicalGenerationAdmission(previous) : parseCanonicalGenerationAdmission({ ...fresh,
-          effectExpiresAtMs: Math.min(fresh.effectExpiresAtMs, grant.expiresAtMs, grant.delegationExpiresAtMs, grant.claimExpiresAtMs) });
+          effectExpiresAtMs: Math.min(fresh.effectExpiresAtMs, grant.expiresAtMs) });
         if (previous && (applicationHash(admission.canonical) !== applicationHash(fresh.canonical) ||
             admission.expectedStrategyVersionId !== fresh.expectedStrategyVersionId || admission.effectExpiresAtMs > fresh.effectExpiresAtMs))
           return fail('REQUEST_CONFLICT');
@@ -182,12 +180,12 @@ export class ObjectiveCanonicalProducerService {
             proof.executionContextSha256 !== candidateJcsSha256(published.publication.executionContext) ||
             proof.acceptedRequestId !== admission.generationRequestId ||
             proof.acceptedPromptSha256 !== published.publication.executionContext.promptSha256 ||
-            proof.issuance.expiresAtMs > published.publication.request.originalExpiresAtMs)
+            proof.effectExpiresAtMs > published.publication.request.originalExpiresAtMs)
           return fail('REQUEST_CONFLICT');
         const old = await readGenerationLedger(tx, GENERATION_ACCEPTANCE, grant.tenantId, grant.clerkUserId, job.id);
         const observed = { schemaVersion: 1, sourceAdmissionSha256: proof.sourceAdmissionSha256,
           sourceBinding: proof.sourceBinding, sourceRequestSha256: proof.sourceRequestSha256,
-          issuance: proof.issuance, acceptedAtMs: old ? (old as any).acceptedAtMs : await this.now(tx) };
+          effectExpiresAtMs: proof.effectExpiresAtMs, acceptedAtMs: old ? (old as any).acceptedAtMs : await this.now(tx) };
         const accepted = requireGenerationAcceptanceForAdmission(observed, admission);
         if (accepted.acceptedAtMs >= published.publication.request.originalExpiresAtMs) return fail('SOURCE_STALE');
         if (old && applicationHash(old) !== applicationHash(accepted)) return fail('REQUEST_CONFLICT');
@@ -204,16 +202,16 @@ export class ObjectiveCanonicalProducerService {
           await insertGenerationLedger(tx, GENERATION_ACCEPTANCE, grant.tenantId, grant.clerkUserId, job.id, accepted);
           const changed = await tx.spDraftJob.updateMany({ where: { id: job.id, tenantId: grant.tenantId, status: 'queued',
             attempt: 1, claimedBy: null }, data: { status: 'running', stage: 'drafting',
-            claimedBy: `canonical:${accepted.issuance.issuanceKey}`, claimedAt: new Date(accepted.acceptedAtMs), attempt: 2 } });
+            claimedBy: `canonical:${generationBindingKey(accepted.sourceBinding)}`, claimedAt: new Date(accepted.acceptedAtMs), attempt: 2 } });
           if (changed.count !== 1) return fail('OUTCOME_UNCONFIRMED');
         }
         if (job.status !== 'completed') await requireCanonicalGenerationEffectWithinTx(tx, admission, {
           generationJobId: job.id, generationRequestId: admission.generationRequestId });
         await this.generationProof(tx, grant, subject, admission);
-        if (await this.now(tx) >= Math.min(admission.effectExpiresAtMs, accepted.issuance.expiresAtMs)) return fail();
+        if (await this.now(tx) >= Math.min(admission.effectExpiresAtMs, accepted.effectExpiresAtMs)) return fail();
         return { schemaVersion: 1, sourceAdmissionSha256: proof.sourceAdmissionSha256,
           sourceBinding: accepted.sourceBinding, sourceRequestSha256: accepted.sourceRequestSha256,
-          issuance: accepted.issuance };
+          effectExpiresAtMs: accepted.effectExpiresAtMs, acceptedAtMs: accepted.acceptedAtMs };
       }, { timeoutMs: 15_000 });
     });
   }
@@ -239,53 +237,6 @@ export class ObjectiveCanonicalProducerService {
         return { schemaVersion: 1, sourceAdmission: admission, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(admission),
           acceptance: acceptance ? { availability: 'available' as const, value: acceptance } :
             { availability: 'unavailable' as const, value: null } };
-      }, { timeoutMs: 15_000 });
-    });
-  }
-  async admit(http: Request, raw: unknown) {
-    return this.safe(async () => {
-      const request = parseCanonicalProducerRequest(raw), work = request.work;
-      const effect = request.phase === 'start' || request.phase === 'prepare';
-      const subject: CanonicalAuthoritySubject = { purpose: effect ? 'effect' : 'retained-result-read',
-        producerPhase: request.phase, applicationRequestId: work.applicationRequestId, requestSha256: applicationHash(request) };
-      const grant = await this.authority.verify(http, subject);
-      if (grant.requestSha256 !== subject.requestSha256 || grant.actorUserId !== work.actorUserId ||
-          grant.tenantId !== work.canonical.tenantId || grant.canonicalSha256 !== applicationHash(work.canonical) ||
-          grant.consentId !== work.consentId || grant.controlVersion !== work.controlVersion) return fail('REQUEST_CONFLICT');
-      return this.prisma.withTenant(grant.tenantId, async tx => {
-        await this.job(tx, grant, work.generationJobId);
-        await tx.$queryRaw`SELECT id FROM sp_strategy WHERE tenant_id=${grant.tenantId}::uuid AND id=${work.strategyId}::uuid FOR SHARE`;
-        await tx.$queryRaw`SELECT id FROM sp_version WHERE tenant_id=${grant.tenantId}::uuid AND id=${work.strategyVersionId}::uuid FOR SHARE`;
-        // A new dispatch needs the actual retained-result completion witness.
-        // Historical read/stop keeps its existing separate read admission:
-        // old effect evidence is not reminted and no new write is authorized.
-        const stored = effect
-          ? (await readCanonicalSavedGeneration(tx, { tenantId: grant.tenantId,
-            clerkUserId: grant.clerkUserId, generationJobId: work.generationJobId })).producer
-          : await readCanonicalGenerationProducer(tx, grant.tenantId, grant.clerkUserId, work.generationJobId);
-        requireCanonicalProducerWork(stored, work);
-        const current = async () => {
-          await this.authority.assertCurrent(tx, grant, subject);
-          await requireCanonicalGenerationReadWithinTx(tx, stored.sourceAdmission, grant.clerkUserId);
-          if (effect) await requireCanonicalApplicationFence(tx, grant, producerApplication(work), subject.requestSha256!);
-          else await requireCanonicalApplicationRead(tx, grant, work.canonical);
-        };
-        await current();
-        let expiresAtMs = Math.min(grant.tokenExpiresAtMs, grant.delegationExpiresAtMs, grant.claimExpiresAtMs);
-        if (effect) {
-          const cs = await tx.$queryRaw<Array<{ expires: string }>>`SELECT floor(extract(epoch FROM expires_at)*1000)::text AS expires
-            FROM client_objective_work_consents WHERE tenant_id=${grant.tenantId}::uuid AND id=${grant.consentId}::uuid
-              AND work_action='objective.plan.prepare'`;
-          if (cs.length !== 1) return fail();
-          expiresAtMs = Math.min(expiresAtMs, Number(cs[0]!.expires), stored.sourceAdmission.effectExpiresAtMs,
-            stored.acceptance.issuance.expiresAtMs);
-        }
-        await current();
-        const checkedAtMs = await this.now(tx);
-        if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= checkedAtMs) return fail();
-        return { workSha256: applicationHash(work), sourceBinding: stored.acceptance.sourceBinding,
-          sourceRequestSha256: stored.acceptance.sourceRequestSha256, generationStatus: 'completed' as const,
-          objectiveReceipt: stored.objectiveReceipt, checkedAtMs, expiresAtMs };
       }, { timeoutMs: 15_000 });
     });
   }

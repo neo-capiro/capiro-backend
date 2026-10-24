@@ -10,7 +10,8 @@ import { inflateRawSync } from 'node:zlib';
 
 const inputPaths = [
   '.dockerignore',
-  'apps/api/Dockerfile',
+  'apps/api/Dockerfile.alpine-qualification',
+  'docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json',
   'apps/api/package.json',
   'apps/api/nest-cli.json',
   'apps/api/tsconfig.json',
@@ -38,9 +39,9 @@ const inputPaths = [
 ];
 const reviewedStage1Migration =
   'apps/api/prisma/migrations/20281018090000_clio_meri_memory_submissions_content_free/migration.sql';
-// Git archive preserves LF blob bytes. The Windows CRLF checkout hashes to
-// 0e358884..., which is not the migration shipped in this tracked-only ZIP.
-const reviewedStage1Sha256 = 'f9d2f4a13474a1af97afdd9b5b8587a6e27e90a36d07fdd1e6f30344bb595c51';
+// Exact raw Git bytes in the accepted 601-migration source union. Never
+// normalize or replace SQL bytes to satisfy this source guard.
+const reviewedStage1Sha256 = 'c1b28e22e1bd87bdc385c0a6462b97039e6fc6b79440e766330699d347d85df5';
 const heldHelperMigration = 'apps/api/prisma/migrations/20281018100000_meri_memory_eligibility_helper';
 const migrationFiles = [
   'apps/api/prisma/migrations/20281018020000_clio_meri_memory_submissions/migration.sql',
@@ -213,7 +214,7 @@ for (const path of inputPaths) {
 
 // Fail if the Dockerfile adds a new local COPY source without expanding the
 // reviewed inventory. Staged COPY --from references are generated internally.
-const dockerfile = git(['show', `${ref}:apps/api/Dockerfile`]);
+const dockerfile = git(['show', `${ref}:apps/api/Dockerfile.alpine-qualification`]);
 const localCopySources = new Set();
 for (const line of dockerfile.replace(/\\\r?\n\s*/g, ' ').split(/\r?\n/)) {
   const match = /^\s*COPY\s+(.+)$/i.exec(line);
@@ -250,7 +251,7 @@ const result = {
   fileCount: files.length,
   uncompressedBlobBytes: files.reduce((sum, file) => sum + file.size, 0),
   inventorySha256: sha256(inventoryText),
-  dockerfileSha256: sha256(git(['show', `${ref}:apps/api/Dockerfile`], null)),
+  dockerfileSha256: sha256(git(['show', `${ref}:apps/api/Dockerfile.alpine-qualification`], null)),
   reviewedBuildspecSha256: sha256(git(['show', `${ref}:infra/deploy/first-chat-core-preview.buildspec.yml`], null)),
   criticalMigrationSha256: Object.fromEntries(migrationFiles.map(path =>
     [path, sha256(git(['show', `${ref}:${path}`], null))])),

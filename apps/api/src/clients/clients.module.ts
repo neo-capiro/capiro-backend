@@ -18,6 +18,8 @@ import { ClientTargetRecommendationsService } from './client-target-recommendati
 import { ClientCapabilityFitController } from './client-capability-fit.controller.js';
 import { ClientCapabilityFitService } from './client-capability-fit.service.js';
 import { ClientFilesController, ClientFilesService } from './client-files.controller.js';
+import { ClientFileBatchController } from './client-file-batch.controller.js';
+import { ClientFileBatchService } from './client-file-batch.service.js';
 import { ClientActivityController } from './client-activity.controller.js';
 import { ClientActivityService } from './client-activity.service.js';
 import { ClientProfileFillController } from './client-profile-fill.controller.js';
@@ -96,6 +98,7 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
     ClientActivityController,
     ActivityCommandController,
     ClientFilesController,
+    ClientFileBatchController,
     ClientAccountOwnerController,
     ClientOrderedOwnerController,
     ClientTeamController,
@@ -160,6 +163,7 @@ import { ApplicationAuthorityModule } from '../auth/application-authority.module
     ActivityCommandService,
     ActivityCommandPlanner,
     ClientFilesService,
+    ClientFileBatchService,
     ClientAccountOwnerService,
     ClientOrderedOwnerService,
     ClientTeamService,

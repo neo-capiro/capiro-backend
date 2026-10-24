@@ -1,14 +1,14 @@
-import { Controller, Header, HttpCode, Post, Req, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Header, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
-import { ToolServiceSecretGuard } from '../../auth/tool-service-secret.guard.js';
-import { meriReadDelegationRawBodyOf } from '../../auth/read-delegation/read-delegation-request.js';
-import { signedMemoryPageEnabled } from '../../auth/read-delegation/signed-memory-http-gate.js';
+import type { TenantContext } from '@capiro/shared';
+import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
+import { ToolServiceSecretGuard, hasVerifiedToolServiceIdentity } from '../../auth/tool-service-secret.guard.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { consumeTaskBoundMemoryHelper } from './meri-memory-helper-receiver.js';
+import { checkPassiveMemoryEligibility } from './meri-passive-memory-source.js';
+import { withMeriToolRequestControl, assertMeriToolRequestActive } from '../meri-tool-request-control.js';
 
-/** Fixed child-token callback, registered before MeriController's dynamic
- * `tools/:name` in the same module. Its distinct JWT never passes through the
- * ordinary read-token parser or Clerk. This source route remains hard off. */
+/** Current eligibility for the exact page, authenticated by ordinary user and
+ * verified service identity. Correlation hashes are data, not credentials. */
 @Controller('clio/tools')
 @UseGuards(ToolServiceSecretGuard)
 export class MeriMemoryHelperController {
@@ -18,9 +18,13 @@ export class MeriMemoryHelperController {
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   @Header('Content-Type', 'application/json; charset=utf-8')
-  eligibility(@Req() req: Request) {
-    if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory helper unavailable');
-    const rawBody = meriReadDelegationRawBodyOf(req);
-    return consumeTaskBoundMemoryHelper(this.prisma, req, rawBody ?? Buffer.alloc(0), process.env, { enabled: true });
+  eligibility(@CurrentTenant() ctx: TenantContext, @Body() body: unknown, @Req() req: Request) {
+    if (!hasVerifiedToolServiceIdentity(req) || typeof req.headers.authorization !== 'string' ||
+        !/^Bearer \S+$/i.test(req.headers.authorization)) throw new ForbiddenException('Passive memory helper refused');
+    return withMeriToolRequestControl(req, async () => {
+      const result = await checkPassiveMemoryEligibility(this.prisma, ctx, body);
+      assertMeriToolRequestActive();
+      return result;
+    });
   }
 }

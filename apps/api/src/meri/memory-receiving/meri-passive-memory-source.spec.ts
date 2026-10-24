@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { canonicalSha256, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
@@ -45,7 +45,7 @@ function callback(selected: string | null = clientId, records: Array<{ memoryIte
       workerId: '88888888-8888-4888-8888-888888888888', writerFence: 2 },
     subject: { kind: selected === null ? 'personal' : 'client', entityType: selected === null ? 'user' : 'client',
       entityIds: [selected ?? actorId], tenantId, actorId,
-      authorizationDecisionId: '99999999-9999-4999-8999-999999999999', policyRevision: 'rev-1',
+      policyRevision: 'rev-1',
       scopes: [{ tenantId, kind: selected === null ? 'private-user' : 'client',
         resourceId: selected ?? actorId, policyRevision: 'rev-1' }], rosterVersionId: null },
     policyRevision: 'rev-1', sourceIds: ['client_knowledge_memory'],
@@ -61,6 +61,7 @@ function db(rows: unknown[] = []) {
 }
 
 describe('passive memory source contract', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
   it('keeps the emitted body hash separate from the canonical request hash', () => {
     const body = wire();
     const emitted = Buffer.from(JSON.stringify({ metadata: body.metadata, input: body.input }), 'utf8');
@@ -81,15 +82,22 @@ describe('passive memory source contract', () => {
       .toThrow(BadRequestException);
   });
 
-  it('holds personal passive recall before the canonical reader or eligibility transaction', async () => {
+  it('uses the canonical personal owner without inventing authorized client IDs', async () => {
     const read = jest.fn(async () => ({ records: [] }));
-    await expect(readPassiveMemorySource(ctx, wire(null), { executeFromAuthenticatedUser: read } as never))
+    await readPassiveMemorySource(ctx, wire(null), { executeFromAuthenticatedUser: read } as never);
+    expect(read).toHaveBeenCalledWith(ctx, 'search_memory', wire(null).input);
+    const { prisma } = db([{ id: itemId, clientId: null }]);
+    await checkPassiveMemoryEligibility(prisma as never, ctx,
+      callback(null, [{ memoryItemId: itemId, recordSha256: hash }]), () => nowMs);
+    expect(prisma.withTenantUser).toHaveBeenCalledWith(tenantId, actorId, expect.any(Function));
+    expect(clientMemoryAllowed).not.toHaveBeenCalled();
+    expect(canonicalMemoryEligibilitySql).toHaveBeenCalledWith({
+      tenantId, userId: actorId, allowedClientIds: [], memoryItemId: itemId,
+    });
+    const otherClient = db([{ id: itemId, clientId }]);
+    await expect(checkPassiveMemoryEligibility(otherClient.prisma as never, ctx,
+      callback(null, [{ memoryItemId: itemId, recordSha256: hash }]), () => nowMs))
       .rejects.toThrow(ForbiddenException);
-    expect(read).not.toHaveBeenCalled();
-    const { prisma } = db();
-    await expect(checkPassiveMemoryEligibility(prisma as never, ctx, callback(null), () => nowMs))
-      .rejects.toThrow(ForbiddenException);
-    expect(prisma.withTenantUser).not.toHaveBeenCalled();
   });
 
   it('binds page, actor, selection and hashes before any eligibility read', () => {

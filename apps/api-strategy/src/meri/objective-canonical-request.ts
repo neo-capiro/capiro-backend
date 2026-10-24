@@ -14,9 +14,6 @@ import { canonicalGenerationAdmissionSha256, parseCanonicalGenerationAdmission, 
  */
 export const CANONICAL_STRATEGY_CANDIDATE_VERSION = 'strategy-candidate/20261015.2' as const;
 export interface CanonicalRequestOwner { ownerRef: string; clerkUserId: string }
-export interface CanonicalRequestDelegation {
-  ref: string; revision: string; issuedAtMs: number; absoluteExpiresAtMs: number;
-}
 export interface CanonicalRequestSource {
   clientId: string; objectiveId: string; objectiveVersion: number; objectiveRevisionId: string;
 }
@@ -53,7 +50,7 @@ export interface CanonicalStrategyRequest {
       input: CanonicalRequestInput; selectedOwnerActorId: string;
       attachments: { correlation: 'unattributed-legacy-bundle'; coverage: 'not-proven-by-legacy-resolver';
         state: 'not-requested'; documentsSha256: string; documents: [] } } };
-  basis: null; delegation: CanonicalRequestDelegation;
+  basis: null;
   requestedAtMs: number; originalExpiresAtMs: number; inputSha256: string;
   input: CanonicalRequestInput;
 }
@@ -64,7 +61,7 @@ export interface CanonicalRequestPublication {
 }
 export interface CanonicalRequestPublicationInput {
   admission: unknown; dto: unknown; context: unknown; prompt: unknown;
-  owners: unknown; delegation: unknown; requestedAtMs: unknown; effectExpiresAtMs: unknown;
+  owners: unknown; requestedAtMs: unknown; effectExpiresAtMs: unknown;
 }
 const invalid = (): never => { throw new CanonicalApplicationError('INPUT_INVALID'); };
 const conflict = (): never => { throw new CanonicalApplicationError('REQUEST_CONFLICT'); };
@@ -191,10 +188,10 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
   mode: 'initial' | 'regenerate'): {
     admission: CanonicalGenerationAdmission;
     identity: Pick<CanonicalStrategyRequest, 'requestId' | 'jobId' | 'principal' | 'source' | 'context'>;
-    tail: Pick<CanonicalStrategyRequest, 'delegation' | 'requestedAtMs' | 'originalExpiresAtMs' | 'input'>;
+    tail: Pick<CanonicalStrategyRequest, 'requestedAtMs' | 'originalExpiresAtMs' | 'input'>;
     executionContext: CanonicalRequestPublication['executionContext'];
   } {
-  const v = object(raw, ['admission', 'dto', 'context', 'prompt', 'owners', 'delegation', 'requestedAtMs', 'effectExpiresAtMs']);
+  const v = object(raw, ['admission', 'dto', 'context', 'prompt', 'owners', 'requestedAtMs', 'effectExpiresAtMs']);
   const a = parseCanonicalGenerationAdmission(clone(v.admission));
   if (mode !== 'initial' && mode !== 'regenerate') return invalid();
   if (mode === 'initial' ? a.expectedStrategyVersionId !== null : a.expectedStrategyVersionId === null) return unavailable();
@@ -236,15 +233,9 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
     if (ownerRefs.has(ownerRef)) return conflict(); ownerRefs.add(ownerRef);
     return { ownerRef, clerkUserId };
   });
-  const actorId = text(a.clerkUserId, 128), ownerActorId = input.ownerUserId?.trim() || actorId;
+  const actorId = uuid(a.actorUserId), ownerActorId = input.ownerUserId?.trim() || a.clerkUserId;
   if (!owners.some(o => o.clerkUserId === ownerActorId)) return unavailable();
-  const d = object(clone(v.delegation), ['ref', 'revision', 'issuedAtMs', 'absoluteExpiresAtMs']);
-  const delegation: CanonicalRequestDelegation = { ref: uuid(d.ref), revision: text(d.revision, 128),
-    issuedAtMs: time(d.issuedAtMs), absoluteExpiresAtMs: time(d.absoluteExpiresAtMs) };
-  if (delegation.issuedAtMs > requestedAtMs || delegation.absoluteExpiresAtMs <= delegation.issuedAtMs ||
-      delegation.absoluteExpiresAtMs - delegation.issuedAtMs > 86_400_000) return unavailable();
-  const originalExpiresAtMs = Math.min(time(v.effectExpiresAtMs), a.effectExpiresAtMs,
-    delegation.absoluteExpiresAtMs, requestedAtMs + 900_000);
+  const originalExpiresAtMs = Math.min(time(v.effectExpiresAtMs), a.effectExpiresAtMs, requestedAtMs + 900_000);
   if (!Number.isSafeInteger(originalExpiresAtMs) || originalExpiresAtMs <= requestedAtMs) return unavailable();
   const contextWithoutHash = { packetId, coverageSha256: sha(c.coverageDigest), asOfMs: compiledAtMs, evidence,
     ownerRefs: owners.map(o => o.ownerRef), draft: { mappingVersion: 'legacy-draft-observation/1' as const,
@@ -257,7 +248,7 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
     source: { kind: 'objective' as const, objectiveId: source.objectiveId, objectiveRevisionId: source.objectiveRevisionId,
       objectiveVersion: source.objectiveVersion, snapshotSha256: c.snapshotSha256 as string, intent },
     context: { ...contextWithoutHash, contextSha256: candidateJcsSha256(contextWithoutHash) } },
-    tail: { delegation, requestedAtMs, originalExpiresAtMs, input },
+    tail: { requestedAtMs, originalExpiresAtMs, input },
     executionContext: { schemaVersion: 1, prompt, promptSha256, ownerRefs: owners, contextPacketId: packetId } };
 }
 
@@ -279,8 +270,7 @@ export function createCanonicalRequestPublication(raw: CanonicalRequestPublicati
  * job-input/full-publication hashes and compiled Objective admission. 4d8 does
  * not include the prompt hash or owner-map values in Request: self-consistent
  * changes to those sidecar values need that separate owner custody check.
- * Retained delegation metadata
- * is historical evidence only, never fresh delegation validation.
+ * Original consent and current read authority remain owned by the caller.
  */
 export function checkCanonicalRequestPublication(raw: unknown,
   expected: { admission: unknown; dto: unknown }): CanonicalRequestPublication {
@@ -288,7 +278,7 @@ export function checkCanonicalRequestPublication(raw: unknown,
     const owned = object(expected, ['admission', 'dto']);
     const p = object(clone(raw), ['schemaVersion', 'sourceAdmissionSha256', 'request', 'requestSha256', 'executionContext']);
     const r = object(p.request, ['candidateVersion', 'operation', 'requestId', 'jobId', 'principal', 'source', 'context',
-      'basis', 'delegation', 'requestedAtMs', 'originalExpiresAtMs', 'inputSha256', 'input']);
+      'basis', 'requestedAtMs', 'originalExpiresAtMs', 'inputSha256', 'input']);
     const principal = object(r.principal, ['tenantId', 'actorId', 'clientId', 'ownerActorId']);
     const source = object(r.source, ['kind', 'objectiveId', 'objectiveRevisionId', 'objectiveVersion', 'snapshotSha256', 'intent']);
     const context = object(r.context, ['packetId', 'contextSha256', 'coverageSha256', 'asOfMs', 'evidence', 'ownerRefs', 'draft']);
@@ -296,12 +286,12 @@ export function checkCanonicalRequestPublication(raw: unknown,
     const coreSource = { clientId: principal.clientId, objectiveId: source.objectiveId,
       objectiveVersion: source.objectiveVersion, objectiveRevisionId: source.objectiveRevisionId };
     const rebuilt = createCanonicalRequestPublication({ admission: owned.admission, dto: owned.dto,
-      context: { schemaVersion: 1, tenantId: principal.tenantId, clerkUserId: principal.actorId, requestId: r.requestId,
+      context: { schemaVersion: 1, tenantId: principal.tenantId, clerkUserId: parseCanonicalGenerationAdmission(owned.admission).clerkUserId, requestId: r.requestId,
         source: coreSource, intent: source.intent, snapshotSha256: source.snapshotSha256,
         sourceDigest: applicationHash({ source: coreSource, intent: source.intent }), packetId: context.packetId,
         compiledAt: new Date(time(context.asOfMs)).toISOString(), coverageDigest: context.coverageSha256,
         promptSha256: execution.promptSha256, evidence: context.evidence },
-      prompt: execution.prompt, owners: execution.ownerRefs, delegation: r.delegation,
+      prompt: execution.prompt, owners: execution.ownerRefs,
       requestedAtMs: r.requestedAtMs, effectExpiresAtMs: r.originalExpiresAtMs });
     if (candidateJson(p) !== candidateJson(rebuilt)) throw new Error();
     return rebuilt;

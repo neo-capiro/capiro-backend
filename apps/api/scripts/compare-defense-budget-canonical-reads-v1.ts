@@ -125,19 +125,19 @@ async function runProbe(peCode: string, fy: number | undefined): Promise<void> {
 
 function probe(peCode: string, fy: number | undefined, mode: string): ProbeResponseV1 {
   const args = [
-    'tsx',
+    require.resolve('tsx/cli'),
     SCRIPT_PATH,
     '--__probe',
     '--pe-code',
     peCode,
     ...(fy !== undefined ? ['--fy', String(fy)] : []),
   ];
-  const result = spawnSync('npx', args, {
+  const result = spawnSync(process.execPath, args, {
     cwd: path.resolve(path.dirname(SCRIPT_PATH), '..'),
     encoding: 'utf8',
     // Set before the child boots, which is the only point the gate reads it.
     env: { ...process.env, PE_SNAPSHOT_READ_MODE: mode },
-    shell: process.platform === 'win32',
+    shell: false,
     maxBuffer: 64 * 1024 * 1024,
   });
   const stdout = (result.stdout ?? '').trim();

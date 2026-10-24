@@ -16,6 +16,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { BIZDEV_JEV_REVIEW_HOOK, type BizDevJevReviewHook } from './bizdev-jev.service.js';
 import { Inject, Optional } from '@nestjs/common';
 import type { BizDevStage } from './business-development.dto.js';
+import {
+  commitProspectConversion,
+  readProspectConversion,
+} from './prospect-conversion-receipts.js';
+import { parseProspectConversion } from './prospect-conversion.types.js';
 import { isPortfolioProspectStage, LEGACY_PROSPECT_STAGES } from './prospect-stages.js';
 
 /**
@@ -938,204 +943,9 @@ export class BusinessDevelopmentService {
     id: string,
     input: { existingClientId?: string; clientWebsite?: string; clientDescription?: string } = {},
   ): Promise<{ prospect: ProspectRow; client: { id: string; name: string }; created: boolean }> {
-    const outcome = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      // 1. ROW LOCK FIRST, before resolving/creating any client: SELECT … FOR
-      //    UPDATE on the tenant-owned prospect serializes concurrent
-      //    conversions of the same prospect. Both id and tenantId are in the
-      //    predicate — a guessed/cross-tenant id locks/returns nothing.
-      await tx.$queryRaw`SELECT "id" FROM "business_development_prospects"
-        WHERE "id" = ${id}::uuid AND "tenant_id" = ${ctx.tenantId}::uuid
-        FOR UPDATE`;
-
-      // 2. Re-read under the lock. If another caller already linked it, return
-      //    the ACTUAL same-tenant linked client — create nothing, orphan
-      //    nothing. (Guessed ids hit the identical safe 404 here.)
-      const current = await this.findOwnedTx(tx, ctx.tenantId, id);
-      if (current.linkedClientId && current.convertedAt) {
-        const linked = await tx.client.findFirst({
-          where: { id: current.linkedClientId, tenantId: ctx.tenantId },
-          select: { id: true, name: true },
-        });
-        if (linked) {
-          return {
-            clientId: linked.id,
-            clientName: linked.name,
-            created: false,
-            ldaRegistrantId: null,
-            alreadyLinked: true as const,
-          };
-        }
-      }
-
-      // 3. Resolve the link target (existing/confirmed/create), all inside
-      //    this same transaction so any failure (bad client id, cross-tenant
-      //    client, slot limit, unique violation) rolls back EVERYTHING — no
-      //    orphan client can commit.
-      let clientId: string;
-      let clientName: string;
-      let selectedClientCanonicalEntityId: string | null = null;
-      let created = false;
-      let ldaRegistrantId: number | null = null;
-
-      if (input.existingClientId) {
-        const existing = await tx.client.findFirst({
-          where: {
-            id: input.existingClientId,
-            tenantId: ctx.tenantId,
-            status: { not: 'archived' },
-          },
-          select: { id: true, name: true, canonicalEntityId: true },
-        });
-        if (!existing) throw new NotFoundException('Client not found');
-        clientId = existing.id;
-        clientName = existing.name;
-        selectedClientCanonicalEntityId = existing.canonicalEntityId;
-      } else if (current.canonicalEntityId) {
-        // Exact confirmed canonical client for this tenant → link it.
-        const confirmed = await tx.client.findFirst({
-          where: { tenantId: ctx.tenantId, canonicalEntityId: current.canonicalEntityId },
-          select: { id: true, name: true },
-        });
-        if (confirmed) {
-          clientId = confirmed.id;
-          clientName = confirmed.name;
-        } else {
-          // Create exactly one client inside this transaction; roll back
-          // client + link together on any failure. The partial unique on
-          // (tenant, canonical) makes the insert duplicate-safe.
-          const { client, ldaRegistrantId: registrant } = await this.clients.createInTransaction(
-            ctx,
-            tx,
-            {
-              name: current.displayName,
-              website: input.clientWebsite ?? current.website ?? undefined,
-              description: input.clientDescription ?? current.description ?? undefined,
-              canonicalEntityId: current.canonicalEntityId,
-            },
-          );
-          clientId = client.id;
-          clientName = client.name;
-          created = true;
-          ldaRegistrantId = registrant;
-        }
-      } else {
-        // Unresolved manual prospect: creating a client is fine (the firm
-        // explicitly asked to convert), but NO canonical link is stamped —
-        // a manual prospect never creates canonical identity.
-        const { client, ldaRegistrantId: registrant } = await this.clients.createInTransaction(
-          ctx,
-          tx,
-          {
-            name: current.displayName,
-            website: input.clientWebsite ?? current.website ?? undefined,
-            description: input.clientDescription ?? current.description ?? undefined,
-          },
-        );
-        clientId = client.id;
-        clientName = client.name;
-        created = true;
-        ldaRegistrantId = registrant;
-      }
-
-      // 4. Serialize claims on the selected client as well as claims on this
-      //    prospect. Two different prospects can be converted concurrently;
-      //    without this tenant-qualified row lock they could both observe no
-      //    existing link and the loser would receive a raw partial-unique
-      //    error. After the lock, the explicit duplicate lookup below always
-      //    yields the actionable same-tenant review conflict instead.
-      await tx.$queryRaw`SELECT "id" FROM "clients"
-        WHERE "id" = ${clientId}::uuid AND "tenant_id" = ${ctx.tenantId}::uuid
-        FOR UPDATE`;
-
-      // An explicit existing-client selection is also an explicit identity
-      // decision when the prospect is confirmed. Never link it to a client
-      // already confirmed as some other organization; and when the selected
-      // client is still unconfirmed, stamp the reviewed canonical identity so
-      // future exact conversions find it instead of creating a duplicate.
-      if (input.existingClientId && current.canonicalEntityId) {
-        if (
-          selectedClientCanonicalEntityId &&
-          selectedClientCanonicalEntityId !== current.canonicalEntityId
-        ) {
-          throw new ConflictException({
-            code: 'BIZDEV_CLIENT_IDENTITY_CONFLICT',
-            message:
-              'The selected client is confirmed as a different organization. Choose the matching client or review its identity first.',
-          });
-        }
-
-        const exactClient = await tx.client.findFirst({
-          where: {
-            tenantId: ctx.tenantId,
-            canonicalEntityId: current.canonicalEntityId,
-          },
-          select: { id: true, name: true },
-        });
-        if (exactClient && exactClient.id !== clientId) {
-          throw new ConflictException({
-            code: 'BIZDEV_CANONICAL_CLIENT_EXISTS',
-            message:
-              'A different client in your firm already has this confirmed organization identity. Link that client instead.',
-            clientId: exactClient.id,
-          });
-        }
-        if (!selectedClientCanonicalEntityId) {
-          await tx.client.update({
-            where: { id: clientId },
-            data: { canonicalEntityId: current.canonicalEntityId },
-          });
-        }
-      }
-
-      // 5. Same-tenant duplicate-prospect guard: if the client we are about
-      //    to link is ALREADY linked to a DIFFERENT prospect of this tenant,
-      //    return a specific same-tenant review conflict instead of letting
-      //    the DB partial unique surface a raw error. (Guessed ids 404'd
-      //    above; this is an explicit, user-actionable conflict.)
-      const otherProspect = await tx.businessDevelopmentProspect.findFirst({
-        where: { tenantId: ctx.tenantId, linkedClientId: clientId, id: { not: id } },
-        select: { id: true, status: true },
-      });
-      if (otherProspect) {
-        throw new ConflictException({
-          code: 'BIZDEV_CLIENT_ALREADY_LINKED',
-          message:
-            'This client is already linked to another prospect of your firm. Open that prospect instead, or choose a different client.',
-          prospectId: otherProspect.id,
-          prospectStatus: otherProspect.status,
-        });
-      }
-
-      // 6. Claim the locked row: the FOR UPDATE lock means at most ONE caller
-      //    can be here per prospect at a time, so this plain update is safe.
-      await tx.businessDevelopmentProspect.update({
-        where: { id },
-        data: {
-          linkedClientId: clientId,
-          convertedAt: new Date(),
-          status: 'active',
-          dismissedAt: null,
-        },
-        select: prospectSelect,
-      });
-
-      await this.activity(tx, ctx, id, 'convert', `Converted/linked to client ${clientName}`, {
-        after: { linkedClientId: clientId, created },
-      });
-      await this.audit(
-        tx,
-        ctx,
-        'bizdev.prospect.convert',
-        'business_development_prospect',
-        id,
-        {
-          linkedClientId: null,
-        },
-        { linkedClientId: clientId, created },
-      );
-
-      return { clientId, clientName, created, ldaRegistrantId, alreadyLinked: false as const };
-    });
+    const outcome = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      this.convertInTransaction(ctx, tx, id, input),
+    );
 
     if (outcome.alreadyLinked) {
       const prospect2 = await this.findOwned(ctx, id);
@@ -1177,6 +987,227 @@ export class BusinessDevelopmentService {
       client: { id: outcome.clientId, name: outcome.clientName },
       created: outcome.created,
     };
+  }
+
+  /** Existing-client v1 only; new-client commands await canonical capacity serialization. */
+  async convertExistingCommand(ctx: TenantContext, prospectId: string, input: unknown) {
+    const command = parseProspectConversion(prospectId, input);
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      commitProspectConversion(tx, ctx, command, () =>
+        this.convertInTransaction(ctx, tx, prospectId, { existingClientId: command.clientId }),
+      ),
+    );
+  }
+
+  async conversionReceipt(ctx: TenantContext, prospectId: string, requestId: string) {
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      readProspectConversion(tx, ctx, prospectId, requestId),
+    );
+  }
+
+  /** The legacy and receipt routes share the original conversion/audit transaction. */
+  private async convertInTransaction(
+    ctx: TenantContext,
+    tx: Prisma.TransactionClient,
+    id: string,
+    input: { existingClientId?: string; clientWebsite?: string; clientDescription?: string },
+  ) {
+    // 1. ROW LOCK FIRST, before resolving/creating any client: SELECT … FOR
+    //    UPDATE on the tenant-owned prospect serializes concurrent
+    //    conversions of the same prospect. Both id and tenantId are in the
+    //    predicate — a guessed/cross-tenant id locks/returns nothing.
+    await tx.$queryRaw`SELECT "id" FROM "business_development_prospects"
+      WHERE "id" = ${id}::uuid AND "tenant_id" = ${ctx.tenantId}::uuid
+      FOR UPDATE`;
+
+    // 2. Re-read under the lock. If another caller already linked it, return
+    //    the ACTUAL same-tenant linked client — create nothing, orphan
+    //    nothing. (Guessed ids hit the identical safe 404 here.)
+    const current = await this.findOwnedTx(tx, ctx.tenantId, id);
+    if (current.linkedClientId && current.convertedAt) {
+      const linked = await tx.client.findFirst({
+        where: { id: current.linkedClientId, tenantId: ctx.tenantId },
+        select: { id: true, name: true },
+      });
+      if (linked) {
+        return {
+          clientId: linked.id,
+          clientName: linked.name,
+          created: false,
+          ldaRegistrantId: null,
+          alreadyLinked: true as const,
+        };
+      }
+    }
+
+    // 3. Resolve the link target (existing/confirmed/create), all inside
+    //    this same transaction so any failure (bad client id, cross-tenant
+    //    client, slot limit, unique violation) rolls back EVERYTHING — no
+    //    orphan client can commit.
+    let clientId: string;
+    let clientName: string;
+    let selectedClientCanonicalEntityId: string | null = null;
+    let created = false;
+    let ldaRegistrantId: number | null = null;
+
+    if (input.existingClientId) {
+      const existing = await tx.client.findFirst({
+        where: {
+          id: input.existingClientId,
+          tenantId: ctx.tenantId,
+          status: { not: 'archived' },
+        },
+        select: { id: true, name: true, canonicalEntityId: true },
+      });
+      if (!existing) throw new NotFoundException('Client not found');
+      clientId = existing.id;
+      clientName = existing.name;
+      selectedClientCanonicalEntityId = existing.canonicalEntityId;
+    } else if (current.canonicalEntityId) {
+      // Exact confirmed canonical client for this tenant → link it.
+      const confirmed = await tx.client.findFirst({
+        where: { tenantId: ctx.tenantId, canonicalEntityId: current.canonicalEntityId },
+        select: { id: true, name: true },
+      });
+      if (confirmed) {
+        clientId = confirmed.id;
+        clientName = confirmed.name;
+      } else {
+        // Create exactly one client inside this transaction; roll back
+        // client + link together on any failure. The partial unique on
+        // (tenant, canonical) makes the insert duplicate-safe.
+        const { client, ldaRegistrantId: registrant } = await this.clients.createInTransaction(
+          ctx,
+          tx,
+          {
+            name: current.displayName,
+            website: input.clientWebsite ?? current.website ?? undefined,
+            description: input.clientDescription ?? current.description ?? undefined,
+            canonicalEntityId: current.canonicalEntityId,
+          },
+        );
+        clientId = client.id;
+        clientName = client.name;
+        created = true;
+        ldaRegistrantId = registrant;
+      }
+    } else {
+      // Unresolved manual prospect: creating a client is fine (the firm
+      // explicitly asked to convert), but NO canonical link is stamped —
+      // a manual prospect never creates canonical identity.
+      const { client, ldaRegistrantId: registrant } = await this.clients.createInTransaction(
+        ctx,
+        tx,
+        {
+          name: current.displayName,
+          website: input.clientWebsite ?? current.website ?? undefined,
+          description: input.clientDescription ?? current.description ?? undefined,
+        },
+      );
+      clientId = client.id;
+      clientName = client.name;
+      created = true;
+      ldaRegistrantId = registrant;
+    }
+
+    // 4. Serialize claims on the selected client as well as claims on this
+    //    prospect. Two different prospects can be converted concurrently;
+    //    without this tenant-qualified row lock they could both observe no
+    //    existing link and the loser would receive a raw partial-unique
+    //    error. After the lock, the explicit duplicate lookup below always
+    //    yields the actionable same-tenant review conflict instead.
+    await tx.$queryRaw`SELECT "id" FROM "clients"
+      WHERE "id" = ${clientId}::uuid AND "tenant_id" = ${ctx.tenantId}::uuid
+      FOR UPDATE`;
+
+    // An explicit existing-client selection is also an explicit identity
+    // decision when the prospect is confirmed. Never link it to a client
+    // already confirmed as some other organization; and when the selected
+    // client is still unconfirmed, stamp the reviewed canonical identity so
+    // future exact conversions find it instead of creating a duplicate.
+    if (input.existingClientId && current.canonicalEntityId) {
+      if (
+        selectedClientCanonicalEntityId &&
+        selectedClientCanonicalEntityId !== current.canonicalEntityId
+      ) {
+        throw new ConflictException({
+          code: 'BIZDEV_CLIENT_IDENTITY_CONFLICT',
+          message:
+            'The selected client is confirmed as a different organization. Choose the matching client or review its identity first.',
+        });
+      }
+
+      const exactClient = await tx.client.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          canonicalEntityId: current.canonicalEntityId,
+        },
+        select: { id: true, name: true },
+      });
+      if (exactClient && exactClient.id !== clientId) {
+        throw new ConflictException({
+          code: 'BIZDEV_CANONICAL_CLIENT_EXISTS',
+          message:
+            'A different client in your firm already has this confirmed organization identity. Link that client instead.',
+          clientId: exactClient.id,
+        });
+      }
+      if (!selectedClientCanonicalEntityId) {
+        await tx.client.update({
+          where: { id: clientId },
+          data: { canonicalEntityId: current.canonicalEntityId },
+        });
+      }
+    }
+
+    // 5. Same-tenant duplicate-prospect guard: if the client we are about
+    //    to link is ALREADY linked to a DIFFERENT prospect of this tenant,
+    //    return a specific same-tenant review conflict instead of letting
+    //    the DB partial unique surface a raw error. (Guessed ids 404'd
+    //    above; this is an explicit, user-actionable conflict.)
+    const otherProspect = await tx.businessDevelopmentProspect.findFirst({
+      where: { tenantId: ctx.tenantId, linkedClientId: clientId, id: { not: id } },
+      select: { id: true, status: true },
+    });
+    if (otherProspect) {
+      throw new ConflictException({
+        code: 'BIZDEV_CLIENT_ALREADY_LINKED',
+        message:
+          'This client is already linked to another prospect of your firm. Open that prospect instead, or choose a different client.',
+        prospectId: otherProspect.id,
+        prospectStatus: otherProspect.status,
+      });
+    }
+
+    // 6. Claim the locked row: the FOR UPDATE lock means at most ONE caller
+    //    can be here per prospect at a time, so this plain update is safe.
+    await tx.businessDevelopmentProspect.update({
+      where: { id },
+      data: {
+        linkedClientId: clientId,
+        convertedAt: new Date(),
+        status: 'active',
+        dismissedAt: null,
+      },
+      select: prospectSelect,
+    });
+
+    await this.activity(tx, ctx, id, 'convert', `Converted/linked to client ${clientName}`, {
+      after: { linkedClientId: clientId, created },
+    });
+    await this.audit(
+      tx,
+      ctx,
+      'bizdev.prospect.convert',
+      'business_development_prospect',
+      id,
+      {
+        linkedClientId: null,
+      },
+      { linkedClientId: clientId, created },
+    );
+
+    return { clientId, clientName, created, ldaRegistrantId, alreadyLinked: false as const };
   }
 
   // ── identity resolution for an unresolved prospect ──────────────────────

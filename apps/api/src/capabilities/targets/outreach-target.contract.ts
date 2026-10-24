@@ -41,8 +41,8 @@ const bounded = (max: number, min = 0) =>
     });
 const nullable = (max: number) => bounded(max).nullable();
 const sourceId = bounded(OUTREACH_TARGET_LIMITS.sourceId, 1);
-const clientId = z.string().uuid();
-const manualId = z.string().uuid();
+const clientId = z.string().guid();
+const manualId = z.string().guid();
 
 const directoryMemberLocatorSchema = z
   .object({ source: z.literal('directory_member'), id: sourceId })
@@ -64,12 +64,12 @@ const committeeStaffLocatorSchema = z
   .object({ source: z.literal('committee_staff'), id: sourceId })
   .strict();
 const clientPersonLocatorSchema = z
-  .object({ source: z.literal('client_person'), id: z.string().uuid(), clientId })
+  .object({ source: z.literal('client_person'), id: z.string().guid(), clientId })
   .strict();
 const engagementContactLocatorSchema = z
   .object({
     source: z.literal('engagement_contact'),
-    id: z.string().uuid(),
+    id: z.string().guid(),
     clientId: clientId.nullable(),
   })
   .strict();

@@ -221,6 +221,53 @@ describe('Engagement runtime route coverage', () => {
     expect(validateRegistry(ENGAGEMENT_RUNTIME_ROUTE_POLICY)).toEqual([]);
   });
 
+  it('classifies the local single-mail intent GET as a read without a send policy', () => {
+    const route = ROUTE_MANIFEST.routes.find(
+      (entry) => entry.controller === 'EngagementController' && entry.handler === 'singleMailIntent',
+    );
+    expect(route).toMatchObject({
+      method: 'GET', path: '/api/engagement/mail/send-intents/:requestKey', classification: 'read',
+    });
+    expect(externallySensitive(route!)).toBe(false);
+    expect(runtimePolicyForHandler('EngagementController', 'singleMailIntent')).toBeUndefined();
+  });
+
+  it.each<[handler: 'send' | 'test', action: 'outreach_send' | 'outreach_test_send', testMode: boolean]>([
+    ['send', 'outreach_send', false],
+    ['test', 'outreach_test_send', true],
+  ])('requires the real Newsletter %s dispatch policy', (handler, action, testMode) => {
+    const route = ROUTE_MANIFEST.routes.find(
+      (entry) => entry.controller === 'NewsletterOutreachController' && entry.handler === handler,
+    );
+    expect(route).toMatchObject({
+      method: 'POST', path: `/api/engagement/newsletters/:id/${handler}`, classification: 'external_send',
+    });
+    expect(externallySensitive(route!)).toBe(true);
+    expect(runtimePolicyForHandler('NewsletterOutreachController', handler)).toMatchObject({ action });
+    expect(runtimePolicyForHandler('NewsletterOutreachController', handler)?.testMode ?? false).toBe(testMode);
+    const missing = {
+      ...ENGAGEMENT_RUNTIME_ROUTE_POLICY,
+      NewsletterOutreachController: { ...ENGAGEMENT_RUNTIME_ROUTE_POLICY.NewsletterOutreachController },
+    };
+    delete (missing.NewsletterOutreachController as Record<string, unknown>)[handler];
+    expect(validateRegistry(missing)).toContain(
+      `missing runtime policy: POST /api/engagement/newsletters/:id/${handler} (NewsletterOutreachController.${handler})`,
+    );
+  });
+
+  it('rejects a Newsletter policy that names no real manifest handler', () => {
+    const orphan = {
+      ...ENGAGEMENT_RUNTIME_ROUTE_POLICY,
+      NewsletterOutreachController: {
+        ...ENGAGEMENT_RUNTIME_ROUTE_POLICY.NewsletterOutreachController,
+        nonexistentDispatch: { action: 'outreach_send' as const },
+      },
+    };
+    expect(validateRegistry(orphan)).toContain(
+      'registry entry has no manifest route: NewsletterOutreachController.nonexistentDispatch',
+    );
+  });
+
   it('registers every callback with requiresCallbacks', () => {
     const callbacks = ROUTE_MANIFEST.routes
       .map((route) => ({

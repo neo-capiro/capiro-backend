@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { verifyInstalledClosure, readPackage, readContract, walkRuntime, artifactOwner, lockedWasmEvidence } = require('./runtime-closure-contract.cjs');
+const { verifyInstalledClosure, readPackage, readContract, walkRuntime, artifactOwner, lockedWasmEvidence, resolveDependency } = require('./runtime-closure-contract.cjs');
 const { inspectArtifact } = require('./alpine-runtime-probe.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function write(file, value) {
@@ -89,6 +89,59 @@ test('contract hash and new undeclared installed dependency are not accepted', t
   const f = fixture(t); fs.appendFileSync(f.options.contractFile, '\n'); assert.throws(() => readContract(f.options), /frozen contract hash/);
   const next = fixture(t); write(path.join(next.root, 'package.json'), { ...next.pkg, dependencies: { missing: '1' } });
   assert.throws(() => verifyInstalledClosure(next.options), /unlocked installed dependency/);
+});
+
+function removalFixture(t) {
+  const f = fixture(t), key = 'pptxgenjs@3.12.0', selector = `${key}>image-size`;
+  const owner = path.join(f.imageRoot, 'node_modules/.pnpm', key, 'node_modules/pptxgenjs');
+  write(path.join(owner, 'package.json'), { name: 'pptxgenjs', version: '3.12.0', dependencies: { 'image-size': '^1.0.0' } });
+  write(path.join(f.root, 'package.json'), { ...f.pkg, dependencies: { pptxgenjs: '3.12.0' } });
+  f.contract.nodes.push({ key, name: 'pptxgenjs', version: '3.12.0', os: null, cpu: null, libc: null, resolution: { integrity: 'sha512-fixture' } });
+  f.contract.edges.push({ from: f.contract.nodes[0].key, to: key, dependencyName: 'pptxgenjs', kind: 'dependencies' });
+  f.contract.removedDependencies = [{ from: key, dependencyName: 'image-size', selector }];
+  const rootManifest = path.join(f.options.qualificationRoot, 'root-package.json');
+  const setOverrides = overrides => {
+    write(rootManifest, { private: true, pnpm: { overrides } });
+    f.contract.inputSHA256['package.json'] = hash(fs.readFileSync(rootManifest));
+  };
+  setOverrides({ [selector]: '-' });
+  const originalResolve = f.options.resolve;
+  f.options.resolve = (parent, name, imageRoot, diagnostic) => name === 'pptxgenjs' ? readPackage(owner) :
+    name === 'image-size' ? resolveDependency(parent, name, imageRoot, diagnostic) : originalResolve(parent, name);
+  f.seal(); return { ...f, owner, key, selector, setOverrides };
+}
+
+test('exact frozen PptxGenJS removal accepts its upstream declaration only when physically absent', t => {
+  const f = removalFixture(t), result = verifyInstalledClosure(f.options);
+  assert.deepEqual(result.removedDependencies, [{ from: f.key, dependencyName: 'image-size', selector: f.selector, reason: 'EXACT_FROZEN_REMOVAL_AND_PHYSICAL_ABSENCE' }]);
+  assert.equal(result.owners.length, 2);
+  assert.equal(result.edges.length, 2);
+});
+
+test('removed dependency must not resolve locally or through an ancestor lookup', t => {
+  for (const location of ['local', 'ancestor']) {
+    const f = removalFixture(t);
+    const directory = location === 'local' ? path.join(f.owner, 'node_modules/image-size') : path.join(f.imageRoot, 'node_modules/image-size');
+    write(path.join(directory, 'package.json'), { name: 'image-size', version: '1.0.0' });
+    assert.throws(() => verifyInstalledClosure(f.options), /removed dependency physically resolves/);
+  }
+});
+
+test('missing, wrong, duplicate or graph-conflicting removal proof refuses', t => {
+  for (const overrides of [{}, { 'pptxgenjs@3.12.1>image-size': '-' }, { 'pptxgenjs@*>image-size': '-' }, { 'pptxgenjs@3.12.0>image-size': '1.0.0' }]) {
+    const f = removalFixture(t); f.setOverrides(overrides); f.seal();
+    assert.throws(() => verifyInstalledClosure(f.options), /frozen exact removal/);
+  }
+  const missing = removalFixture(t); delete missing.contract.removedDependencies; missing.seal();
+  assert.throws(() => verifyInstalledClosure(missing.options), /unlocked installed dependency/);
+  const duplicate = removalFixture(t); duplicate.contract.removedDependencies.push(duplicate.contract.removedDependencies[0]); duplicate.seal();
+  assert.throws(() => verifyInstalledClosure(duplicate.options), /duplicate removed dependency/);
+  const edge = removalFixture(t); edge.contract.edges.push({ from: edge.key, dependencyName: 'image-size', kind: 'dependencies', to: edge.contract.nodes[0].key }); edge.seal();
+  assert.throws(() => verifyInstalledClosure(edge.options), /also has graph edge/);
+  const extra = removalFixture(t); write(path.join(extra.owner, 'package.json'), { name: 'pptxgenjs', version: '3.12.0', dependencies: { 'image-size': '^1.0.0', unapproved: '1.0.0' } });
+  assert.throws(() => verifyInstalledClosure(extra.options), /unlocked installed dependency/);
+  const stale = removalFixture(t); write(path.join(stale.owner, 'package.json'), { name: 'pptxgenjs', version: '3.12.0' });
+  assert.throws(() => verifyInstalledClosure(stale.options), /removed dependency declaration missing/);
 });
 test('mocked contained symlinks deduplicate and external symlinks hold without creating junctions', t => {
   const f = fixture(t), alias = path.join(f.imageRoot, 'alias'); fs.mkdirSync(alias);

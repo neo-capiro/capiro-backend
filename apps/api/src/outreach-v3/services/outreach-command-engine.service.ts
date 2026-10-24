@@ -69,13 +69,13 @@ export class OutreachCommandEngineService {
    * session creation, artifact creation, model call, upload or send occurs. */
   async stageSavedNewsletter(ctx: TenantContext, sessionId: string, input: unknown) {
     const selected = z.object({
-      requestId: z.string().uuid().transform((s) => s.toLowerCase()),
-      draftId: z.string().uuid().transform((s) => s.toLowerCase()),
-      versionId: z.string().uuid().transform((s) => s.toLowerCase()),
+      requestId: z.string().guid().transform((s) => s.toLowerCase()),
+      draftId: z.string().guid().transform((s) => s.toLowerCase()),
+      versionId: z.string().guid().transform((s) => s.toLowerCase()),
       snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
       expectedStateVersion: z.number().int().positive(),
     }).strict().parse(input);
-    sessionId = z.string().uuid().parse(sessionId).toLowerCase();
+    sessionId = z.string().guid().parse(sessionId).toLowerCase();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
       let revision;

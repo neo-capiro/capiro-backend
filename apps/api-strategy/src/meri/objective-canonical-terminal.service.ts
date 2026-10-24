@@ -8,7 +8,7 @@ import { ObjectiveCanonicalWorkloadAuthority, type CanonicalGenerationGrant,
 import { ObjectiveCanonicalResultOwner } from './objective-canonical-result-owner.js';
 import { checkStoredCanonicalNonSuccess, verifyRetainedCanonicalNonSuccess } from './objective-canonical-completion-receipt.js';
 import { generationAssociation, readGenerationLedger } from './objective-canonical-producer-ledger.js';
-import { GENERATION_NORMALIZATION, GENERATION_PRODUCER } from './objective-canonical-generation.js';
+import { GENERATION_NORMALIZATION, GENERATION_PRODUCER, generationBindingKey } from './objective-canonical-generation.js';
 import { readCanonicalRequestPublication } from './objective-canonical-request-ledger.js';
 import { requireCanonicalGenerationReadWithinTx } from './objective-canonical-generation-fence.js';
 import { readCanonicalSavedGeneration } from './objective-canonical-saved-generation.js';
@@ -37,13 +37,9 @@ export class ObjectiveCanonicalTerminalService {
     await this.authority.assertGenerationCurrent(tx, grant, subject);
     const rows = await tx.$queryRaw<Array<{ ms: string }>>`SELECT ceil(extract(epoch FROM clock_timestamp())*1000)::text AS ms`;
     const now = Number(rows[0]?.ms);
-    const accounting = grant.terminalAccounting;
     if (rows.length !== 1 || !Number.isSafeInteger(now) || now < 0 || grant.requestSha256 !== subject.requestSha256 ||
         !Number.isSafeInteger(grant.checkedAtMs) || grant.checkedAtMs > now ||
-        !accounting || accounting.phase !== subject.phase ||
-        !Number.isSafeInteger(accounting.checkedAtMs) || accounting.checkedAtMs > now ||
-        [grant.expiresAtMs, accounting.expiresAtMs, accounting.absoluteExpiresAtMs,
-          ...(observedExpiry === undefined ? [] : [observedExpiry])].some(n => !Number.isSafeInteger(n) || n <= now))
+        observedExpiry !== undefined && (!Number.isSafeInteger(observedExpiry) || observedExpiry <= now))
       return fail('AUTHORITY_UNAVAILABLE');
     return now;
   }
@@ -112,8 +108,7 @@ export class ObjectiveCanonicalTerminalService {
     if (record.outcome !== 'needs-information' && record.outcome !== 'refused') return fail('AUTHORITY_UNAVAILABLE');
     const evidence = await this.stored(() => checkStoredCanonicalNonSuccess(record.evidence, this.expected(state)));
     if (evidence.outcome !== record.outcome || record.recordedAtMs > state.now ||
-        record.recordedAtMs < (evidence.retained.checkedAtMs as number) ||
-        record.recordedAtMs >= (evidence.retained.expiresAtMs as number)) return fail();
+        record.recordedAtMs < evidence.witness.completedAtMs) return fail();
     await requireCanonicalGenerationReadWithinTx(tx, state.admission, grant.clerkUserId);
     await this.proof(tx, grant, subject);
     return this.observation(state, record);
@@ -136,7 +131,7 @@ export class ObjectiveCanonicalTerminalService {
         const state = await this.source(tx, grant, subject, true), previous = await this.prior(tx, grant, subject, state);
         if (!previous) {
           if (state.job.status !== 'running' || state.job.attempt !== 2 ||
-              state.job.claimedBy !== `canonical:${state.association.acceptance.issuance.issuanceKey}`) return fail();
+              state.job.claimedBy !== `canonical:${generationBindingKey(state.association.acceptance.sourceBinding)}`) return fail();
           await this.noWrites(tx, state);
         }
         return { state, previous };
@@ -156,7 +151,7 @@ export class ObjectiveCanonicalTerminalService {
         const prepared = await this.stored(() => prepareCanonicalTerminal(state.job, { ...this.kernelSource(state),
           outcome: verified.outcome, evidence: verified.evidence, recordedAtMs: state.now }));
         await requireCanonicalGenerationReadWithinTx(tx, state.admission, grant.clerkUserId);
-        await this.proof(tx, grant, subject, verified.expiresAtMs);
+        await this.proof(tx, grant, subject);
         const changed = await tx.$executeRaw`UPDATE sp_draft_job SET status='failed', stage='failed',
           error_message=${prepared.errorMessage}, progress_text=NULL, stream_preview=NULL,
           input=${JSON.stringify(prepared.input)}::jsonb, updated_at=clock_timestamp()
@@ -167,7 +162,7 @@ export class ObjectiveCanonicalTerminalService {
         // These release checks must escape this SAME tx on failure. There is
         // no original-deadline/consent renewal and no follow-on product write.
         await requireCanonicalGenerationReadWithinTx(tx, state.admission, grant.clerkUserId);
-        await this.proof(tx, grant, subject, verified.expiresAtMs);
+        await this.proof(tx, grant, subject);
         return this.observation(state, prepared.record, prepared.input);
       }, { timeoutMs: 15_000 });
     });

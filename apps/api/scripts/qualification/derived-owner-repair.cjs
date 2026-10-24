@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
+const { selectedPlatform } = require('./qualification-platform.cjs');
 
 const PINS = Object.freeze({
   prismaWasm: Object.freeze({ bytes: 2893316, sha256: 'adf02f9b486d507024be2bf59b271a88e39f48c3ca2266c6c46d7e9109296c05' }),
@@ -14,6 +15,16 @@ const PINS = Object.freeze({
   // Raw artifact from Prisma's pinned engine commit
   // 605197351a3c8bdd595af2d2a9bc3025bca48ea2 on binaries.prisma.sh.
   prismaEngine: Object.freeze({ bytes: 16128320, sha256: 'b8497554202349836f1f0a418b94fdbddfb5a36911d0cef8cf20b5ce88f0d74f' }),
+});
+const PINS_BY_CPU = Object.freeze({
+  x64: PINS,
+  arm64: Object.freeze({
+    prismaWasm: PINS.prismaWasm,
+    // Exact @esbuild/linux-arm64@0.28.2 archive, verified against lock SHA512.
+    esbuildBinary: Object.freeze({ bytes: 10289264, sha256: '90bd269553d258e80b19e3ccab4f98f0831f87442a2f056510ce24fd1b425fc2' }),
+    // Same Prisma engine commit as x64; both published raw/gzip hashes checked.
+    prismaEngine: Object.freeze({ bytes: 14239560, sha256: '8d79d655cc9bb821bb6a889152fca44ac1fb347c0eb4cfc1e7065a2c0a2cd0db' }),
+  }),
 });
 const ENGINE = 'libquery_engine-linux-musl-openssl-3.0.x.so.node';
 const WASM = 'build/prisma_schema_build_bg.wasm';
@@ -77,7 +88,10 @@ function sameBytes(derived, source, label) {
 function runtimeName(root, file) {
   return '/app/' + path.relative(root, file).split(path.sep).join('/');
 }
-function planRepair(workspace = '/app', pins = PINS) {
+function planRepair(workspace = '/app', pins, target = selectedPlatform()) {
+  pins ??= PINS_BY_CPU[target.cpu];
+  assert(pins, 'verified architecture pins required');
+  const engineName = `libquery_engine-${target.prisma}.so.node`;
   workspace = fs.realpathSync(workspace);
   const store = fs.realpathSync(path.join(workspace, 'node_modules', '.pnpm'));
   assert(inside(workspace, store), 'pnpm store escapes workspace');
@@ -85,16 +99,16 @@ function planRepair(workspace = '/app', pins = PINS) {
   const prisma = physicalOwner(store, 'prisma', '5.22.0');
   const engines = directDependency(prisma, store, '@prisma/engines', '5.22.0', 'dependencies');
   const esbuild = physicalOwner(store, 'esbuild', '0.28.2');
-  const platform = directDependency(esbuild, store, '@esbuild/linux-x64', '0.28.2', 'optionalDependencies');
+  const platform = directDependency(esbuild, store, target.esbuild, '0.28.2', 'optionalDependencies');
   assert.deepEqual(platform.manifest.value.os, ['linux']);
-  assert.deepEqual(platform.manifest.value.cpu, ['x64']);
+  assert.deepEqual(platform.manifest.value.cpu, [target.cpu]);
 
   const wasm = boundedFile(path.join(prisma.root, WASM), prisma.root, 4 * 1024 * 1024);
   exactPin(wasm, pins.prismaWasm, 'Prisma CLI WASM');
   assert.equal(wasm.header, '0061736d01000000', 'Prisma CLI WASM v1 header required');
 
-  const prismaDerivedPath = path.join(prisma.root, ENGINE);
-  const prismaSourcePath = path.join(engines.root, ENGINE);
+  const prismaDerivedPath = path.join(prisma.root, engineName);
+  const prismaSourcePath = path.join(engines.root, engineName);
   const esbuildDerivedPath = path.join(esbuild.root, 'bin', 'esbuild');
   const esbuildSourcePath = path.join(platform.root, 'bin', 'esbuild');
   for (const file of [prismaDerivedPath, esbuildDerivedPath])
@@ -107,7 +121,7 @@ function planRepair(workspace = '/app', pins = PINS) {
   const esbuildDerived = boundedFile(esbuildDerivedPath, esbuild.root, MAX_BINARY);
   const esbuildSource = boundedFile(esbuildSourcePath, platform.root, MAX_BINARY);
   sameBytes(esbuildDerived, esbuildSource, 'esbuild wrapper binary');
-  exactPin(esbuildSource, pins.esbuildBinary, 'esbuild linux-x64 binary');
+  exactPin(esbuildSource, pins.esbuildBinary, `esbuild linux-${target.cpu} binary`);
   assert(esbuildDerived.header.startsWith('7f454c46'), 'esbuild binary must be ELF');
   // Windows test fixtures cannot preserve POSIX executable mode; the Docker
   // qualification runs on Linux and always enforces it there.
@@ -150,7 +164,8 @@ function boundedError(error) {
 }
 // Capture the four former HOLD gates even if a pin or ownership assertion
 // fails. This is diagnostic only: it cannot authorize a link or native load.
-function diagnosticSnapshot(workspace = '/app') {
+function diagnosticSnapshot(workspace = '/app', target = selectedPlatform()) {
+  const engineName = `libquery_engine-${target.prisma}.so.node`;
   const root = path.resolve(workspace), store = path.join(root, 'node_modules', '.pnpm');
   function captureOwner(name, version) {
     try { return physicalOwner(store, name, version); } catch (error) { return { error: boundedError(error) }; }
@@ -177,7 +192,7 @@ function diagnosticSnapshot(workspace = '/app') {
       `/app/node_modules/.pnpm/${name.replace('/', '+')}@${version}/node_modules/${name}/${relative}`;
   }
   const prisma = captureOwner('prisma', '5.22.0'), esbuild = captureOwner('esbuild', '0.28.2');
-  const wasm = captureArtifact(prisma, WASM), engine = captureArtifact(prisma, ENGINE), esbuildBinary = captureArtifact(esbuild, 'bin/esbuild');
+  const wasm = captureArtifact(prisma, WASM), engine = captureArtifact(prisma, engineName), esbuildBinary = captureArtifact(esbuild, 'bin/esbuild');
   const prismaOwner = prisma.manifest ? { name: prisma.manifest.value.name, version: prisma.manifest.value.version,
     ownerManifestSha256: prisma.manifest.sha256 } : { error: prisma.error };
   const esbuildOwner = esbuild.manifest ? { name: esbuild.manifest.value.name, version: esbuild.manifest.value.version,
@@ -186,24 +201,24 @@ function diagnosticSnapshot(workspace = '/app') {
   return [
     { gate: 'artifact-production-owner:' + wasmGate, observed: wasm, owner: prismaOwner },
     { gate: 'wasm-format:' + wasmGate, observed: wasm, owner: prismaOwner },
-    { gate: 'artifact-production-owner:' + runtimeArtifact(prisma, 'prisma', '5.22.0', ENGINE),
-      observed: engine, owner: prismaOwner, source: captureSource(prisma, '@prisma/engines', ENGINE) },
+    { gate: 'artifact-production-owner:' + runtimeArtifact(prisma, 'prisma', '5.22.0', engineName),
+      observed: engine, owner: prismaOwner, source: captureSource(prisma, '@prisma/engines', engineName) },
     { gate: 'artifact-production-owner:' + runtimeArtifact(esbuild, 'esbuild', '0.28.2', 'bin/esbuild'),
-      observed: esbuildBinary, owner: esbuildOwner, source: captureSource(esbuild, '@esbuild/linux-x64', 'bin/esbuild') },
+      observed: esbuildBinary, owner: esbuildOwner, source: captureSource(esbuild, target.esbuild, 'bin/esbuild') },
   ];
 }
-function main(workspace = '/app', pins = PINS, write = line => console.log(line)) {
+function main(workspace = '/app', pins, write = line => console.log(line), target = selectedPlatform()) {
   let emitted = false;
   try {
-    const plan = planRepair(workspace, pins);
+    const plan = planRepair(workspace, pins, target);
     write('CORE_DERIVED_OWNER_REPAIR_SUMMARY ' + JSON.stringify({ schemaVersion: 1, status: 'VALIDATED_BEFORE_LINKING', records: plan.records }));
     emitted = true;
     applyRepair(plan);
   } catch (error) {
     if (!emitted) write('CORE_DERIVED_OWNER_REPAIR_SUMMARY ' + JSON.stringify({ schemaVersion: 1, status: 'HOLD_BEFORE_LINKING',
-      records: diagnosticSnapshot(workspace), validationError: boundedError(error) }));
+      records: diagnosticSnapshot(workspace, target), validationError: boundedError(error) }));
     throw error;
   }
 }
 if (require.main === module) main();
-module.exports = { PINS, ENGINE, WASM, planRepair, applyRepair, diagnosticSnapshot, main };
+module.exports = { PINS, PINS_BY_CPU, ENGINE, WASM, planRepair, applyRepair, diagnosticSnapshot, main };

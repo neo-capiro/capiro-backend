@@ -52,6 +52,7 @@ const clientGrantId = '10000000-0000-4000-8000-000000000006';
 const portfolioId = '10000000-0000-4000-8000-000000000007';
 const portfolioGrantId = '10000000-0000-4000-8000-000000000008';
 const portfolioConversationId = '10000000-0000-4000-8000-000000000009';
+const generalConversationId = '10000000-0000-4000-8000-000000000010';
 const clerkUserId = 'user_p6_local_postgres';
 const context: TenantContext = { tenantId, tenantSlug: 'p6-local', userId: actorId, clerkUserId, role: 'standard_user' };
 const currentInput = { conversationId, clientId };
@@ -65,7 +66,7 @@ function fixtureStatements(): string[] {
     'migrate', 'diff', '--from-empty', '--to-schema-datamodel', 'prisma/schema.prisma', '--script',
   ], { cwd: apiRoot, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   const tables = new Set(['tenants', 'users', 'tenant_memberships', 'clients', 'client_memory_access',
-    'clio_conversations', 'research_portfolios', 'research_portfolio_grants', 'research_portfolio_client_links']);
+    'clio_conversations', 'clio_conversation_bootstrap_receipts', 'research_portfolios', 'research_portfolio_grants', 'research_portfolio_client_links']);
   const enumNames = new Set(Prisma.dmmf.datamodel.models
     .filter((model) => tables.has(model.dbName ?? model.name))
     .flatMap((model) => model.fields.filter((field) => field.kind === 'enum').map((field) => field.type)));
@@ -126,6 +127,10 @@ describePostgres('current authority on real local PostgreSQL (requires /tmp/capi
     await prisma.clientMemoryAccess.create({ data: { id: clientGrantId, tenantId, clientId, userId: actorId } });
     await prisma.clioConversation.create({ data: { id: conversationId, tenantId, userId: actorId, clientId,
       title: 'Local client authority' } });
+    await prisma.clioConversation.create({ data: { id: generalConversationId, tenantId, userId: actorId,
+      clientId: null, title: 'Local General authority' } });
+    await prisma.clioConversationBootstrapReceipt.create({ data: { tenantId, actorUserId: actorId,
+      requestId: generalConversationId, conversationId: generalConversationId, scopeKind: 'general', clientId: null } });
     await prisma.researchPortfolio.create({ data: { id: portfolioId, tenantId, ownerUserId: actorId,
       name: scopeFacts.researchPortfolioName } });
     await prisma.researchPortfolioGrant.create({ data: { id: portfolioGrantId, tenantId, portfolioId,
@@ -280,11 +285,41 @@ describePostgres('current authority on real local PostgreSQL (requires /tmp/capi
     expect(queries.some((sql) => /\bFOR SHARE\b/i.test(sql))).toBe(false);
   });
 
-  it('refuses null client selectors as400 on current and context even for an authorized RP', async () => {
-    await post('current', { conversationId: portfolioConversationId, clientId: null }).expect(400);
-    await post('current', { conversationId, clientId: null }).expect(400);
+  it('keeps context client-only and refuses a null selector for an actual client conversation', async () => {
     await post('context', { conversationId: portfolioConversationId, clientId: null, identitySha256: 'a'.repeat(64) }).expect(400);
     expect(online).not.toHaveBeenCalled();
     expect(queries.some((sql) => /^SET TRANSACTION READ ONLY$/i.test(sql.trim()))).toBe(false);
+    await post('current', { conversationId, clientId: null }).expect(403);
+    assertReadOnlySnapshot('ROLLBACK');
+  });
+
+  it('serves General with actual null ownership and still denies either mismatched selector', async () => {
+    const response = await post('current', { conversationId: generalConversationId, clientId: null }).expect(200);
+    expect(response.body).toMatchObject({ principal: { tenantId, actorId }, conversationId: generalConversationId, selectedClientId: null });
+    expect(online).toHaveBeenCalledTimes(1);
+    assertReadOnlySnapshot();
+    await post('current', { conversationId: generalConversationId, clientId }).expect(403);
+    await post('current', { conversationId, clientId: null }).expect(403);
+  });
+
+  it('requires the real immutable General receipt, not a legacy owned null-client row', async () => {
+    const legacyId = '10000000-0000-4000-8000-000000000011';
+    await prisma.clioConversation.create({ data: { id: legacyId, tenantId, userId: actorId, clientId: null, title: 'Legacy null scope' } });
+    await post('current', { conversationId: legacyId, clientId: null }).expect(403);
+    await prisma.clioConversation.delete({ where: { id: legacyId } });
+    await post('current', { conversationId: generalConversationId, clientId: null }).expect(200);
+  });
+
+  it('rechecks actual General membership and retains portfolio grant checks for null selectors', async () => {
+    await post('current', { conversationId: generalConversationId, clientId: null }).expect(200);
+    online.mockImplementationOnce(async () => {
+      await prisma.tenantMembership.update({ where: { id: membershipId }, data: { status: 'removed' } });
+      return session;
+    });
+    await post('current', { conversationId: generalConversationId, clientId: null }).expect(403);
+    await prisma.tenantMembership.update({ where: { id: membershipId }, data: { status: 'active' } });
+    await post('current', { conversationId: portfolioConversationId, clientId: null }).expect(403);
+    await prisma.researchPortfolioGrant.delete({ where: { id: portfolioGrantId } });
+    await post('current', { conversationId: portfolioConversationId, clientId: null }).expect(403);
   });
 });

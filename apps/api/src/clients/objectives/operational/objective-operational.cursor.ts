@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { canonicalJson, operationalFailure } from './objective-operational.rules.js';
 import type { OperationalScope, OperationalSectionName } from './objective-operational.types.js';
+type CursorSection = OperationalSectionName | 'associations';
 
 interface Cursor {
   v: 1;
@@ -10,7 +11,7 @@ interface Cursor {
   objective: string;
   revision: string;
   set: number;
-  section: OperationalSectionName;
+  section: CursorSection;
   snapshot: string;
   asOf: string;
   limit: number;
@@ -57,7 +58,7 @@ export class ObjectiveOperationalCursors {
     actor: string,
     scope: OperationalScope,
     set: number,
-    section: OperationalSectionName,
+    section: CursorSection,
     snapshot: string,
     asOf: string,
     limit: number,
@@ -84,7 +85,7 @@ export class ObjectiveOperationalCursors {
     actor: string,
     scope: OperationalScope,
     set: number,
-    section: OperationalSectionName,
+    section: CursorSection,
     snapshot: string,
     asOf: string,
     limit: number,

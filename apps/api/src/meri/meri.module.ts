@@ -39,6 +39,16 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
+import { ObjectiveJobController } from './objective-job.controller.js';
+import { ObjectiveJobService } from './objective-job.service.js';
+import { ObjectiveJobReadSources } from './objective-job-read-sources.js';
+import { EngagementService } from '../engagement/engagement.service.js';
+import { ResearchPortfoliosService } from '../research-portfolios/research-portfolios.service.js';
+import { ResearchPortfolioChangesService } from '../research-portfolios/research-portfolio-changes.service.js';
+import { ResearchPortfolioReviewService } from '../research-portfolios/research-portfolio-review.service.js';
+import { ResearchPortfolioAnalyticsService } from '../research-portfolios/research-portfolio-analytics.service.js';
+import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { GovernedMemoryCandidateService } from '../memory/governed-memory-candidate.service.js';
 import { MeriMemoryHelperController } from './memory-receiving/meri-memory-helper.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
 import { MeriSourceService } from './meri-source.service.js';
@@ -119,6 +129,7 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     DistrictNexusModule,
   ],
   controllers: [
+    ObjectiveJobController,
     // Register the fixed signed callback before tools/:name in this module.
     MeriMemoryHelperController,
     MeriController,
@@ -134,6 +145,16 @@ import { MeriExecutionReceiverService } from './execution-capability/meri-execut
     MeriJobDeliverablesController,
   ],
   providers: [
+    InternalServiceGuard,
+    { provide: ObjectiveJobReadSources, useFactory: (integrations: EngagementService, tools: MeriToolsService,
+      portfolios: ResearchPortfoliosService, changes: ResearchPortfolioChangesService,
+      reviews: ResearchPortfolioReviewService, analytics: ResearchPortfolioAnalyticsService) =>
+      new ObjectiveJobReadSources(integrations, tools, portfolios, changes, reviews, analytics),
+      inject: [EngagementService, MeriToolsService, ResearchPortfoliosService, ResearchPortfolioChangesService,
+        ResearchPortfolioReviewService, ResearchPortfolioAnalyticsService] },
+    { provide: ObjectiveJobService, useFactory: (prisma: PrismaService, tools: MeriToolsService,
+      memory: GovernedMemoryCandidateService, sources: ObjectiveJobReadSources) => new ObjectiveJobService(prisma, tools, memory, sources),
+      inject: [PrismaService, MeriToolsService, GovernedMemoryCandidateService, ObjectiveJobReadSources] },
     // D016 #9: Meri approved-execution receiver on create_task (503 until the
     // MERI_EXECUTION_SIGNER_* key configuration is present).
     meriExecutionKeyConfigProvider,

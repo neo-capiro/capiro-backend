@@ -56,6 +56,7 @@ async function fixture() {
   let prospectError: unknown;
   let identityError: { owner: 'user' | 'membership'; error: unknown } | undefined;
   let portfolioGranted = true;
+  let generalReceipt: Record<string, unknown> | null = null;
   let nextTx = 0;
   let authorityTenantId = tenantId;
   const session = { id: 'sess_current_test', userId: user.clerkUserId, status: 'active', createdAt: 1,
@@ -130,6 +131,10 @@ async function fixture() {
           clioConversation: { findFirst: async (args: any) => {
             observe('clioConversation.findFirst', args);
             return Object.entries(args.where).every(([key, value]) => row[key] === value) ? row : null;
+          } },
+          clioConversationBootstrapReceipt: { findFirst: async (args: any) => {
+            observe('clioConversationBootstrapReceipt.findFirst', args);
+            return generalReceipt && Object.entries(args.where).every(([key, value]) => generalReceipt![key] === value) ? { requestId: generalReceipt.requestId } : null;
           } },
           client: {
             findMany: async (args: any) => { observe('client.findMany', args); return wallAllowed ? [{ id: clientId }] : []; },
@@ -225,6 +230,7 @@ async function fixture() {
     setProspectError(error: unknown) { prospectError = error; },
     setIdentityError(owner: 'user' | 'membership', error: unknown) { identityError = { owner, error }; },
     revokePortfolioGrant() { portfolioGranted = false; },
+    explicitGeneral(change: Record<string, unknown> = {}) { generalReceipt = { tenantId, actorUserId: actorId, conversationId, scopeKind: 'general', clientId: null, requestId: otherClientId, ...change }; },
     hideClient() { visible = false; }, revokeWall() { wallAllowed = false; },
     setClients(rows: typeof allowedClients) { allowedClients = rows; },
     impersonate() {
@@ -392,13 +398,81 @@ describe('combined current authority registered HTTP boundary', () => {
     },
   );
 
-  it('keeps current and context UUID-only even for valid Research Portfolio metadata', async () => {
+  it('keeps context client-only and never treats a clientless portfolio as General', async () => {
     f.researchPortfolioScope();
     expect((await f.request('context', { conversationId, clientId: null, identitySha256: 'a'.repeat(64) })).statusCode).toBe(400);
-    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(400);
     expect(f.nativeSession).not.toHaveBeenCalled();
     expect(f.transactions).toEqual([]);
+    const current = await f.request('current', { conversationId, clientId: null });
+    expect(current.statusCode).toBe(403);
+    expect(f.observations.some(({ operation }) => operation === 'researchPortfolio.findFirst')).toBe(true);
+    expect(f.observations.some(({ operation }) => operation === 'client.findFirst' || operation === 'client.findMany')).toBe(false);
     expect((await f.request('current', { conversationId })).statusCode).toBe(400);
+  });
+
+  it('serves General only from the exact owned active clientless conversation in the existing snapshot', async () => {
+    f.row.clientId = null;
+    f.explicitGeneral();
+    f.setClients([]);
+    const response = await f.request('current', { conversationId, clientId: null });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ principal: { tenantId, actorId }, conversationId, selectedClientId: null,
+      role: 'standard_user', clientIds: [] });
+    expect(response.body.contextRevision).toMatch(/^[a-f0-9]{64}$/);
+    expect(f.nativeSession).toHaveBeenCalledTimes(1);
+    expect(f.sequence).toEqual(['session', 'transaction']);
+    expect(f.transactions).toHaveLength(1);
+    expect(f.transactions[0]).toMatchObject({ scope: { bypass: true }, options: { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead } });
+    expect(f.observations[0]).toMatchObject({ operation: '$executeRaw', sql: 'SET TRANSACTION READ ONLY' });
+    expect(f.observations.find(({ operation }) => operation === 'clioConversation.findFirst')!.args.where)
+      .toEqual({ id: conversationId, tenantId, userId: actorId, archivedAt: null });
+    expect(f.observations.some(({ operation }) => operation === 'accessibleClientRevisions')).toBe(true);
+    expect(f.observations.some(({ operation }) => operation === 'client.findFirst' || operation === 'client.findMany')).toBe(false);
+    expect(f.observations.some(({ operation }) => /\.(?:update|create|delete|upsert)/.test(operation))).toBe(false);
+    const same = await f.request('current', { conversationId, clientId: null, expect: { contextRevision: response.body.contextRevision } });
+    expect(same.statusCode).toBe(200);
+    expect((await f.request('current', { conversationId, clientId: null, expect: { contextRevision: 'f'.repeat(64) } })).statusCode).toBe(409);
+  });
+
+  it.each(['foreign owner', 'foreign tenant', 'archived', 'inactive', 'client changed', 'membership', 'tenant', 'role'])(
+    'refuses General %s rather than falling back to membership or a client selector', async (kind) => {
+      f.row.clientId = null;
+      f.explicitGeneral();
+      const response = await f.request('current', { conversationId, clientId: null }, { afterAuthentication() {
+        if (kind === 'foreign owner') f.row.userId = otherClientId;
+        if (kind === 'foreign tenant') f.row.tenantId = targetTenantId;
+        if (kind === 'archived') f.row.archivedAt = new Date(1);
+        if (kind === 'inactive') f.row.status = 'closed';
+        if (kind === 'client changed') f.row.clientId = clientId;
+        if (kind === 'membership') f.membership.status = 'inactive';
+        if (kind === 'tenant') f.tenant.status = 'inactive';
+        if (kind === 'role') f.membership.role = 'unknown';
+      } });
+      expect(response.statusCode).toBe(403);
+      expect(f.observations.some(({ operation }) => operation === 'client.findFirst' || operation === 'client.findMany')).toBe(false);
+    },
+  );
+
+  it.each(['missing', 'foreign actor', 'foreign tenant', 'foreign conversation', 'client receipt', 'client value'])(
+    'refuses General with %s bootstrap evidence', async (kind) => {
+      f.row.clientId = null;
+      if (kind !== 'missing') f.explicitGeneral({
+        ...(kind === 'foreign actor' ? { actorUserId: otherClientId } : {}),
+        ...(kind === 'foreign tenant' ? { tenantId: targetTenantId } : {}),
+        ...(kind === 'foreign conversation' ? { conversationId: otherClientId } : {}),
+        ...(kind === 'client receipt' ? { scopeKind: 'client' } : {}),
+        ...(kind === 'client value' ? { clientId } : {}),
+      });
+      expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(403);
+      expect(f.observations.find(({ operation }) => operation === 'clioConversationBootstrapReceipt.findFirst')!.args.where)
+        .toEqual({ tenantId, actorUserId: actorId, conversationId, scopeKind: 'general', clientId: null });
+    },
+  );
+
+  it('does not erase existing special-scope authorization when the selector is null', async () => {
+    f.researchPortfolioScope(); f.revokePortfolioGrant();
+    expect((await f.request('current', { conversationId, clientId: null })).statusCode).toBe(403);
+    expect(f.observations.some(({ operation }) => operation === 'researchPortfolio.findFirst')).toBe(true);
   });
 
   it('preserves answered authentication refusal as401 and missing bearer as401 with no-store', async () => {
@@ -473,7 +547,7 @@ describe('combined current authority registered HTTP boundary', () => {
 
   it.each([
     ['unknown key', { ...input, unknown: true }], ['bad UUID', { ...input, conversationId: 'not-a-uuid' }],
-    ['null client', { ...input, clientId: null }], ['missing client', { conversationId }],
+    ['non-string client', { ...input, clientId: false }], ['missing client', { conversationId }],
     ['bad hash', { ...input, expect: { identityRevision: 'A'.repeat(64) } }],
     ['unknown expectation', { ...input, expect: { unknown: 'a'.repeat(64) } }],
     ['null expectation', { ...input, expect: null }], ['array expectation', { ...input, expect: [] }],

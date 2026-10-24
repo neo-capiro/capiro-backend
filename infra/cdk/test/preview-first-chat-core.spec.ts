@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { Template } from 'aws-cdk-lib/assertions';
 import {
   FIRST_CHAT_CORE_GET_PATHS,
+  FIRST_CHAT_CORE_CLIENT_RECORD_PATHS,
   FIRST_CHAT_CORE_GUARD_RULE_EXPORT,
   FIRST_CHAT_CORE_HOST,
   FIRST_CHAT_CORE_IMAGE_PINS,
@@ -48,6 +49,9 @@ const binding = {
 // available pair; corePreviewMemoryRules refuses it until a readback qualifies.
 const memoryBinding = { ...binding, schemaVersion: 6, listener: { memoryPostPriority: 4, guardPriority: 5 } };
 const memoryOffBinding = { ...binding, schemaVersion: 6, listener: { memoryPostPriority: null, guardPriority: 4 } };
+const clientBinding = { ...binding, schemaVersion: 7, listener: {
+  memoryPostPriority: 4, clientRecords: { GET: 5, POST: 6, PUT: 7, DELETE: 8 }, guardPriority: 9,
+} };
 const trust = {
   issuer: 'capiro-core-retained',
   intelOrigin: 'https://intel.example.invalid',
@@ -75,6 +79,66 @@ const serveContainer = (service: any) => {
   const task = (Object.values(stack.Resources) as any[]).find((r) => r.Type === 'AWS::ECS::TaskDefinition');
   return task.Properties.ContainerDefinitions[0];
 };
+
+test('client records require four explicit distinct slots and preserve the existing packet', () => {
+  assert.deepEqual(firstChatCoreImageBinding(clientBinding, pins).listener, clientBinding.listener);
+  for (const patch of [
+    undefined, null, { GET: 5, POST: 6, PUT: 7 },
+    { GET: 5, POST: 6, PUT: 7, DELETE: 7 },
+    { GET: 3, POST: 6, PUT: 7, DELETE: 8 },
+    { GET: 4, POST: 6, PUT: 7, DELETE: 8 },
+    { GET: 5, POST: 6, PUT: 7, DELETE: 9 },
+    { GET: 5, POST: 6, PUT: 7, DELETE: '8' },
+    { GET: 5, POST: 6, PUT: 7, DELETE: 8.5 },
+    { GET: 5, POST: 6, PUT: 7, DELETE: 8, PATCH: 10 },
+  ]) assert.throws(() => firstChatCoreImageBinding({ ...clientBinding, listener: {
+    ...clientBinding.listener, clientRecords: patch,
+  } }, pins));
+  assert.throws(() => firstChatCoreImageBinding({ ...clientBinding, schemaVersion: 6 }, pins));
+  render(clientBinding, ({ service }) => {
+    const stack = Template.fromStack(service).toJSON();
+    const task = (Object.values(stack.Resources) as any[]).find(r => r.Type === 'AWS::ECS::TaskDefinition');
+    assert.ok(task);
+    for (const method of ['GET', 'POST', 'PUT', 'DELETE'] as const) {
+      const rule = stack.Resources[`FirstChatClientRecords${method}`];
+      assert.equal(rule.Properties.Priority, clientBinding.listener.clientRecords[method]);
+      assert.deepEqual(rule.Properties.Conditions, [
+        { Field: 'host-header', HostHeaderConfig: { Values: [FIRST_CHAT_CORE_HOST] } },
+        { Field: 'path-pattern', PathPatternConfig: { RegexValues: FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method] } },
+        { Field: 'http-request-method', HttpRequestMethodConfig: { Values: [method] } },
+      ]);
+      assert.ok(FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method].length <= 3);
+      assert.ok(FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method].every(p => p.length <= 128));
+    }
+    render({ ...memoryBinding, listener: { memoryPostPriority: 4, guardPriority: 9 } }, ({ service: previous }) => {
+      const before = Template.fromStack(previous).toJSON();
+      for (const [id, resource] of Object.entries(before.Resources)) {
+        if ((resource as any).Type === 'AWS::ECS::Service') {
+          assert.deepEqual(stack.Resources[id].Properties, (resource as any).Properties);
+        } else assert.deepEqual(stack.Resources[id], resource, id);
+      }
+      assert.deepEqual(stack.Outputs, before.Outputs);
+      assert.equal(Object.keys(stack.Resources).length, Object.keys(before.Resources).length + 4);
+    });
+  });
+});
+
+test('client packet declares only UI-required methods and paths', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const matches = (method: keyof typeof FIRST_CHAT_CORE_CLIENT_RECORD_PATHS, path: string) =>
+    FIRST_CHAT_CORE_CLIENT_RECORD_PATHS[method].some(p => new RegExp(p).test(path));
+  for (const p of ['/api/clients', `/api/clients/${id}`, `/api/clients/${id}/account-owners`,
+    '/api/client-account-owners', '/api/client-account-owners/options', '/api/billing/state']) assert.ok(matches('GET', p), p);
+  assert.ok(matches('POST', '/api/clients'));
+  assert.ok(matches('PUT', `/api/clients/${id}`)); assert.ok(matches('PUT', `/api/clients/${id}/account-owners`));
+  assert.ok(matches('DELETE', `/api/clients/${id}`));
+  for (const p of ['/api/clients/bulk-import', `/api/clients/${id}/profile-notes`, `/api/clients/${id}/logo/confirm`,
+    `/api/client-account-owners/${id}`, '/api/billing/summary', '/api/billing/state/extra', '/api/clients/']) {
+    for (const method of ['GET', 'POST', 'PUT', 'DELETE'] as const) assert.equal(matches(method, p), false, `${method} ${p}`);
+  }
+  assert.equal(matches('POST', `/api/clients/${id}`), false);
+  assert.equal(matches('DELETE', '/api/clients'), false);
+});
 const envOf = (container: any) => Object.fromEntries(container.Environment.map((entry: any) => [entry.Name, entry.Value]));
 
 test('renders the approved 1 vCPU and 2 GiB Core preview task size', () => {
@@ -170,7 +234,7 @@ test("uses dot's compact preview layout and records the bounded tool perimeter",
   assert.deepEqual(routes.priorities, { post: 1, get: 2, guard: 3 });
   // dot #121 6246253130: one exact Core POST rule at P3; only the guard moves,
   // to a slot read back from the listener (never fixed in source).
-  assert.deepEqual(routes.packet, { nativeOps: 3, memoryPost: 'readback', guard: 'readback' });
+  assert.deepEqual(routes.packet, { nativeOps: 3, memoryPost: 'readback', guard: 'readback', clientRecords: 'readback' });
   assert.equal(FIRST_CHAT_CORE_NATIVE_OPS_PRIORITY, 3);
   assert.deepEqual([...FIRST_CHAT_CORE_NATIVE_OPS_PATHS], [
     '^/api/clio/(approvals/native/(record|decision|execution|revoke)|memory/(review/(submit|status)|read_target|find_by_key))$',
@@ -306,6 +370,9 @@ test('renders stable P1/P2/P3, exact optional memory POST and the later retained
   );
   const tasks = resources.filter((r) => r.Type === 'AWS::ECS::TaskDefinition');
   assert.equal(tasks.length, 1);
+  assert.deepEqual(tasks[0].Properties.RuntimePlatform, { CpuArchitecture: 'ARM64', OperatingSystemFamily: 'LINUX' });
+  assert.equal(tasks[0].Properties.Cpu, '1024');
+  assert.equal(tasks[0].Properties.Memory, '2048');
   const containers = tasks.map((task) => task.Properties.ContainerDefinitions[0]);
   assert.deepEqual(containers.map((container) => container.Command), [['serve']]);
   for (const container of containers) {

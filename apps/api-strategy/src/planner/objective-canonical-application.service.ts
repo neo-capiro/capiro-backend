@@ -1,12 +1,10 @@
-import { HttpException, Injectable } from '@nestjs/common';
-import type { Request } from 'express';
+import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
-import { PrismaService } from '../prisma/prisma.service.js';
 import { PlannerService } from './planner.service.js';
 import { canonicalMaterializationReceiptId, type CanonicalMaterializationBinding,
   type CanonicalMaterializationPredecessor } from './strategy-materialization.js';
-import { ObjectiveCanonicalWorkloadAuthority, type CanonicalAuthoritySubject } from './objective-canonical-authority.js';
+import type { CanonicalAuthoritySubject } from './objective-canonical-authority.js';
 import { requireCanonicalApplicationFence, requireCanonicalApplicationRead } from './objective-canonical-fence.js';
 import { readCanonicalSavedGeneration, requireSavedGenerationApplication } from '../meri/objective-canonical-saved-generation.js';
 import { applicationHash, applicationHeadId, applicationObservation, applicationReceiptId, applicationUuid,
@@ -15,13 +13,10 @@ import { applicationHash, applicationHeadId, applicationObservation, application
   type CanonicalApplicationGrant, type CanonicalApplicationRequest, type StoredCanonicalApplication } from './objective-canonical-application.js';
 
 type Tx = Prisma.TransactionClient;
-const STATUS = { INPUT_INVALID: 400, NOT_AVAILABLE: 404, REQUEST_CONFLICT: 409,
-  SOURCE_STALE: 409, AUTHORITY_UNAVAILABLE: 503, OUTCOME_UNCONFIRMED: 503 } as const;
 
 @Injectable()
 export class ObjectiveCanonicalApplicationService {
-  constructor(private readonly prisma: PrismaService, private readonly planner: PlannerService,
-    private readonly authority: ObjectiveCanonicalWorkloadAuthority) {}
+  constructor(private readonly planner: PlannerService) {}
   private ctx(grant: CanonicalApplicationGrant): AuthTenantContext {
     // Role is independently re-resolved by the shared Core owner/fence. This
     // adapter never accepts a caller-supplied role or uses an admin bypass.
@@ -45,8 +40,8 @@ export class ObjectiveCanonicalApplicationService {
     } });
   }
   private async read(tx: Tx, grant: CanonicalApplicationGrant, subject: CanonicalAuthoritySubject,
-    row: { data: unknown }, expectedRequest?: CanonicalApplicationRequest,
-    assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void> = subject => this.authority.assertCurrent(tx, grant, subject)) {
+    row: { data: unknown }, expectedRequest: CanonicalApplicationRequest | undefined,
+    assertCurrent: (subject: CanonicalAuthoritySubject) => Promise<void>) {
     // Decode the closed source before deriving any DB IDs. Stored data cannot
     // broaden the verified original request or current read authority.
     const request = parseCanonicalApplication((row.data as StoredCanonicalApplication | null)?.request);
@@ -70,20 +65,6 @@ export class ObjectiveCanonicalApplicationService {
     await assertCurrent({ ...subject, purpose: 'retained-result-read' });
     await requireCanonicalApplicationRead(tx, grant, request.canonical);
     return applicationObservation(stored, current);
-  }
-  async prepare(http: Request, raw: unknown) {
-    return this.safe(async () => {
-      const request = parseCanonicalApplication(raw);
-      const subject: CanonicalAuthoritySubject = { purpose: 'effect',
-        applicationRequestId: request.applicationRequestId, requestSha256: applicationHash(request) };
-      const grant = await this.authority.verify(http, subject);
-      if (grant.tenantId !== request.canonical.tenantId || grant.requestSha256 !== subject.requestSha256 ||
-          grant.canonicalSha256 !== applicationHash(request.canonical) ||
-          canonicalApplicationRequestId(request.canonical, grant.actorUserId) !== request.applicationRequestId)
-        throw new CanonicalApplicationError('REQUEST_CONFLICT');
-      return this.prisma.withTenant(grant.tenantId, tx => this.prepareWithinOwnerTransaction(tx, request, grant,
-        subject => this.authority.assertCurrent(tx, grant, subject)), { timeoutMs: 15_000 });
-    });
   }
   /** Internal composition only: the durable runtime owner supplies its SAME
    * tenant transaction and current native consent/claim/lease check. This method
@@ -212,16 +193,6 @@ export class ObjectiveCanonicalApplicationService {
       ownerId: grant.clerkUserId, kind: CANONICAL_APPLICATION_HEAD,
       name: 'Objective canonical application head', data: head as unknown as Prisma.InputJsonValue } });
   }
-  async lookup(http: Request, rawId: string) {
-    return this.safe(async () => {
-      const requestId = applicationUuid(rawId);
-      const subject: CanonicalAuthoritySubject = { purpose: 'retained-result-read',
-        applicationRequestId: requestId, requestSha256: null };
-      const grant = await this.authority.verify(http, subject);
-      return this.prisma.withTenant(grant.tenantId, tx => this.lookupApplicationWithinOwnerTransaction(tx, grant, subject,
-        subject => this.authority.assertCurrent(tx, grant, subject)), { timeoutMs: 15_000 });
-    });
-  }
   /** Full original command is mandatory for internal recovery. Fresh native
    * retained-read authority is supplied by the runtime owner, independently of
    * historical effect expiry. Missing rows never authorize another prepare. */
@@ -244,27 +215,5 @@ export class ObjectiveCanonicalApplicationService {
     // is uncertainty; it is never permission to dispatch a new model/effect.
     if (!previous) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
     return this.read(tx, grant, subject, previous, expectedRequest, assertCurrent);
-  }
-  private async safe<T>(run: () => Promise<T>): Promise<T> {
-    try { return await run(); } catch (error) {
-      if (error instanceof CanonicalApplicationError)
-        throw new HttpException({ schemaVersion: 1, code: error.code,
-          message: 'Objective plan application is unavailable.', outcome: 'unconfirmed' }, STATUS[error.code]);
-      // Existing owner validation remains truthful and bounded. No raw DB,
-      // identity, provider or saved content is exposed by an unexpected failure.
-      if (error instanceof HttpException) {
-        const code = (error.getResponse() as { code?: string })?.code;
-        if (code === 'MATERIALIZATION_SOURCE_INVALID') throw new HttpException({ schemaVersion: 1,
-          code: 'SOURCE_INVALID', message: 'The saved plan needs review before preparation.', outcome: 'unconfirmed' }, 422);
-        const mapped = code === 'MATERIALIZATION_SOURCE_STALE' ? 'SOURCE_STALE'
-          : code === 'MATERIALIZATION_REQUEST_CONFLICT' ? 'REQUEST_CONFLICT'
-          : code === 'MATERIALIZATION_NOT_AVAILABLE' ? 'NOT_AVAILABLE'
-          : code === 'MATERIALIZATION_INPUT_INVALID' ? 'INPUT_INVALID' : null;
-        if (mapped) throw new HttpException({ schemaVersion: 1, code: mapped,
-          message: 'Objective plan application is unavailable.', outcome: 'unconfirmed' }, STATUS[mapped]);
-      }
-      throw new HttpException({ schemaVersion: 1, code: 'OUTCOME_UNCONFIRMED',
-        message: 'Objective plan application is unavailable.', outcome: 'unconfirmed' }, 503);
-    }
   }
 }

@@ -17,7 +17,7 @@ const binding = {tenantId: id('1'), actorId: id('2'), conversationId: id('3'), r
   attemptId: id('5'), workerId: id('6'), writerFence: 1};
 const mailboxScope = {tenantId: binding.tenantId, kind: 'mailbox', resourceId: mailboxId, policyRevision: 'p1'};
 const subject = {kind: 'personal', entityType: 'user', entityIds: [binding.actorId],
-  tenantId: binding.tenantId, actorId: binding.actorId, authorizationDecisionId: id('7'),
+  tenantId: binding.tenantId, actorId: binding.actorId,
   policyRevision: 'p1', scopes: [mailboxScope], rosterVersionId: null};
 const inventory = [{sourceProof: {version: 1, mailboxId,
   ownerTenantId: binding.tenantId, ownerActorId: binding.actorId}, status: 'active'}];
@@ -71,10 +71,10 @@ function thread(): MailRetainedProjectionInput {
 const unavailable = (reason: string) => new MailRetainedSourceUnavailable(reason);
 
 describe('mail retained 0.2 source projection', () => {
-  it('keeps the exact PR158 schema dependency closure pinned', () => {
+  it('keeps the current retained-read schema dependency closure pinned', () => {
     const files = {
       'mail-base.schema.json': 'e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b',
-      'mail-common.schema.json': '7d7ac22eff809cc31e84d1fc9b2fada1b56c316f73e50115207b579de0d92c4b',
+      'mail-common.schema.json': '943f59f53f33e09405d8f3350798d33d624c97d37e00c029ea4c14c8ba6e185b',
       'mail-retrieval.schema.json': '6058aa0d735b595a093907eec8bf7e4e8f4eb96952f497caa3c1eb00f3ad1a8c',
       'mail.schema.json': 'd45681f76ba5f5d7f65b7385ab1e1c3deb9626d4166e55fc6039e88bc3d804e6',
     };

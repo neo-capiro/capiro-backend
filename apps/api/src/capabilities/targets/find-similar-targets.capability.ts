@@ -17,7 +17,7 @@ import {
 const inputSchemaZod = z
   .object({
     targetRef: outreachTargetLocatorV1Schema,
-    clientId: z.string().uuid().nullable().default(null),
+    clientId: z.string().guid().nullable().default(null),
     limit: z.number().int().min(1).max(25).default(10),
   })
   .strict();

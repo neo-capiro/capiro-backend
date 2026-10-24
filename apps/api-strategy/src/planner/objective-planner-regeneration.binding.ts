@@ -86,7 +86,7 @@ async function originalSaved(tx: Tx, basis: CanonicalStrategyBasis, operation: S
       generationJobId: w.generationJobId });
   requireSavedGenerationApplication(saved, w.actorUserId, producerApplication(w));
   if (w.generationJobId !== current.admission.generationJobId) priorSource(basis, saved);
-  const cap = Math.min(saved.admission.effectExpiresAtMs, saved.acceptance.issuance.expiresAtMs);
+  const cap = Math.min(saved.admission.effectExpiresAtMs, saved.acceptance.effectExpiresAtMs);
   if (Date.parse(d.original.originalDeadlineAt) > cap) return fail();
   return saved;
 }

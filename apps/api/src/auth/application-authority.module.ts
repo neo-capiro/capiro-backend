@@ -1,3 +1,4 @@
+import { ApplicationCurrentService } from './application-current.service.js';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { TenantModule } from '../tenant/tenant.module.js';
@@ -13,8 +14,8 @@ import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 @Module({
   imports: [AuthModule, TenantModule, PrismaModule, ContextSecurityScopeModule, BizDevMeriScopeModule],
   controllers: [ApplicationAuthorityController, ApplicationMembershipController],
-  providers: [ApplicationMembershipService, PreviewNativeReadService, ToolServiceSecretGuard],
+  providers: [ApplicationCurrentService, ApplicationMembershipService, PreviewNativeReadService, ToolServiceSecretGuard],
   // ApplicationMembershipService is reused by the sibling read-mode observation module.
-  exports: [PreviewNativeReadService, ApplicationMembershipService],
+  exports: [ApplicationCurrentService, PreviewNativeReadService, ApplicationMembershipService],
 })
 export class ApplicationAuthorityModule {}

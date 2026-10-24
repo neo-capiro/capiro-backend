@@ -1,0 +1,120 @@
+# Alpine qualification candidate; the Debian Dockerfile remains unchanged.
+# Build context: repository root. Default pin is the Core-qualified amd64 image.
+# arm64 requires the explicit NODE_IMAGE override documented in the gate guide.
+# Fresh production install preserves pnpm links and musl Prisma without dev tools.
+ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22.23.3-alpine3.24@sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8
+FROM ${NODE_IMAGE} AS base
+ARG TARGETARCH
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN apk add --no-cache "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3"
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /workspace
+
+FROM base AS build
+RUN apk add --no-cache openssl ca-certificates python3 make g++
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
+COPY apps/intel-api/package.json apps/intel-api/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/intel-api... --filter=@capiro/shared...
+
+COPY packages/shared/src packages/shared/src
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/meriv2-core/src packages/meriv2-core/src
+COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
+COPY apps/intel-api/src apps/intel-api/src
+COPY apps/intel-api/prisma apps/intel-api/prisma
+COPY apps/intel-api/tsconfig.json apps/intel-api/tsconfig.build.json apps/intel-api/nest-cli.json apps/intel-api/
+
+RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/meriv2-core build
+# Generate the Prisma client (outputs to apps/intel-api/generated/prisma-client)
+# BEFORE the Nest build, since src imports the generated client.
+COPY apps/api/scripts/qualification/prisma-musl-target.cjs apps/api/scripts/qualification/qualification-platform.cjs /qualification/
+RUN CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/intel-api/prisma/schema.prisma
+RUN cd apps/intel-api && pnpm exec prisma generate
+RUN pnpm --filter @capiro/intel-api build
+
+FROM build AS qualification
+RUN apk add --no-cache ffmpeg=8.1.2-r0
+COPY apps/intel-api/jest* apps/intel-api/
+COPY apps/intel-api/test apps/intel-api/test
+COPY apps/intel-api/scripts apps/intel-api/scripts
+# Cross-service fixtures import Core/Workspace source and their actual Prisma
+# clients. These inputs and tools exist only in the qualification stage.
+COPY apps/api/package.json apps/api/tsconfig.json apps/api/
+COPY apps/api/src apps/api/src
+COPY apps/api/prisma apps/api/prisma
+COPY apps/workspace/package.json apps/workspace/tsconfig.json apps/workspace/
+COPY apps/workspace/src apps/workspace/src
+COPY apps/workspace/prisma apps/workspace/prisma
+COPY packages/auth packages/auth
+COPY packages/defense-domain packages/defense-domain
+COPY packages/defense-contracts packages/defense-contracts
+COPY docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@capiro/intel-api... --filter=@capiro/api... --filter=@capiro/workspace...
+RUN pnpm --filter @capiro/auth build && pnpm --filter @capiro/defense-domain build && pnpm --filter @capiro/defense-contracts build
+RUN CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/api/prisma/schema.prisma \
+ && CAPIRO_QUALIFICATION_ARCH="$(node -p process.arch)" node /qualification/prisma-musl-target.cjs apps/workspace/prisma/schema.prisma \
+ && pnpm --filter @capiro/api exec prisma generate \
+ && pnpm --filter @capiro/workspace exec prisma generate
+WORKDIR /workspace/apps/intel-api
+CMD ["pnpm", "exec", "jest", "--runInBand"]
+
+FROM base AS production-dependencies
+RUN apk add --no-cache openssl ca-certificates python3 make g++
+COPY --from=build /workspace/pnpm-workspace.yaml /workspace/package.json /workspace/pnpm-lock.yaml ./
+COPY --from=build /workspace/apps/intel-api/package.json apps/intel-api/package.json
+COPY --from=build /workspace/packages/shared/package.json packages/shared/package.json
+COPY --from=build /workspace/packages/meriv2-core/package.json packages/meriv2-core/package.json
+COPY --from=build /workspace/apps/intel-api/prisma apps/intel-api/prisma
+RUN --mount=type=cache,id=pnpm-wave2-alpine-${TARGETARCH},target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter=@capiro/intel-api... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
+RUN pnpm --filter @capiro/intel-api exec prisma generate
+
+FROM ${NODE_IMAGE} AS runtime
+ENV NODE_ENV=production
+ENV NODE_OPTIONS=--enable-source-maps
+# Every entrypoint verb invokes node directly; local Prisma remains installed.
+# Package managers are build/test tooling, not part of this runtime contract.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+RUN addgroup -S -g 1001 capiro \
+ && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
+ && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1" "musl>=1.2.6-r3" "musl-utils>=1.2.6-r3" ffmpeg=8.1.2-r0
+RUN mkdir -p /app/tmp /tmp \
+ && chmod 1777 /tmp \
+ && chown capiro:capiro /app/tmp
+ENV TMPDIR=/app/tmp
+WORKDIR /app
+
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/node_modules /app/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/dist /app/apps/intel-api/dist
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/intel-api/node_modules /app/apps/intel-api/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/package.json /app/apps/intel-api/package.json
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/intel-api/generated /app/apps/intel-api/generated
+COPY --chown=capiro:capiro --from=production-dependencies /workspace/apps/intel-api/prisma /app/apps/intel-api/prisma
+COPY --chown=capiro:capiro apps/intel-api/scripts/legiwatch-import.mjs apps/intel-api/scripts/legiwatch-import-apply.mjs apps/intel-api/scripts/legiwatch-evidence.mjs /app/apps/intel-api/scripts/
+COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
+COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/tsconfig.json /app/apps/intel-api/tsconfig.json
+COPY --chown=capiro:capiro apps/intel-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+COPY scripts/qualification/alpine-service-probe.cjs scripts/qualification/alpine-dependency-compatibility.cjs /qualification/
+USER capiro
+WORKDIR /app/apps/intel-api
+EXPOSE 4300
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["serve"]
+
+# Preserve service health semantics; liveness is exercised by the local gate.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:4300/health || exit 1
+RUN --network=none node /qualification/alpine-service-probe.cjs intel-api

@@ -7,6 +7,14 @@ import {
 const id = '20000000-0000-4000-8000-000000000001';
 const input = { requestId: id, activity: { kind: 'note', title: 'A note' } };
 describe('bounded activity command input and date semantics', () => {
+  it('preserves the established hexadecimal GUID grammar and normalization', () => {
+    const historical = 'ABCDEF01-2345-0123-0123-456789ABCDEF';
+    expect(activityCommandInput({ ...input, requestId: historical }).requestId).toBe(historical.toLowerCase());
+    for (const requestId of ['not-a-guid', historical + 'x', historical.replace('-', '')]) {
+      expect(() => activityCommandInput({ ...input, requestId })).toThrow();
+    }
+  });
+
   it.each([{ tenantId: id }, { sourceId: id }, { metadata: {} }, { objectiveId: id }])(
     'rejects caller-owned lineage %j',
     (extra) => {

@@ -12,7 +12,7 @@ const ctx = { tenantId: T, userId: A } as TenantContext;
 const current: TrustedClientReadContext = {
   selectedClientId: C,
   binding: { tenantId: T, actorId: A, conversationId: id('3'), runId: id('4'), attemptId: id('5'), workerId: id('6'), writerFence: 1 },
-  subject: { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A, authorizationDecisionId: id('7'), policyRevision: 'policy-1', rosterVersionId: null,
+  subject: { kind: 'client', entityType: 'client', entityIds: [C], tenantId: T, actorId: A, policyRevision: 'policy-1', rosterVersionId: null,
     scopes: [{ tenantId: T, kind: 'client', resourceId: C, policyRevision: 'policy-1' }] },
 };
 const pin = 'a'.repeat(64);

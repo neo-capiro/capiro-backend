@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "host": "first-chat-preview.app-dev.capiro.ai",
-  "note": "Shared by infra/cdk/lib/preview/first-chat-core.ts and the offline first-match model. Compact Core POST 1, GET 2 and host-only guard 3 precede the native-operations POST 3 packet. Native memory owner POST routes require a separate readback-verified listener priority ahead of the same retained guard; no shared listener priority or unused slot is assumed.",
+  "note": "Shared by infra/cdk/lib/preview/first-chat-core.ts and the offline first-match model. Compact Core POST 1, GET 2 and host-only guard 3 precede the native-operations POST 3 packet. Native memory owner POST and client record method rules require separate readback-verified listener priorities ahead of the same retained guard; no shared listener priority or unused slot is assumed.",
   "priorities": {
     "post": 1,
     "get": 2,
@@ -10,7 +10,8 @@
   "packet": {
     "nativeOps": 3,
     "memoryPost": "readback",
-    "guard": "readback"
+    "guard": "readback",
+    "clientRecords": "readback"
   },
   "post": [
     "^/api/clio/application-authority/(identity|context|membership|read-mode-observation|retained-florida-(budget|principal))$",
@@ -32,6 +33,16 @@
     "^/api/clio/(application-authority/artifact|routines/(policy/check|cancellation-proof|unattended-grant))$",
     "^/api/clio/application-authority/read-delegation(s|-consents)(/[0-9a-f-]{36}/(tokens|current|revocations|state))?$"
   ],
+  "clientRecords": {
+    "GET": [
+      "^/api/clients(/[0-9a-f-]{36}(/account-owners)?)?$",
+      "^/api/client-account-owners(/options)?$",
+      "^/api/billing/state$"
+    ],
+    "POST": ["^/api/clients$"],
+    "PUT": ["^/api/clients/[0-9a-f-]{36}(/account-owners)?$"],
+    "DELETE": ["^/api/clients/[0-9a-f-]{36}$"]
+  },
   "memoryPost": [
     "^/api/memory/candidates/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/owner-decision$",
     "^/api/memory/version-candidates/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(approve|reject)$",
