@@ -283,6 +283,9 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         DB_NAME: 'capiro',
         CLERK_JWT_ISSUER: live.clerkIssuer,
         WEB_ORIGIN: 'https://portfolio-preview.app.capiro.ai',
+        // Hearing-file authorization must consult the preview Intel owner on
+        // the same clone, including its current access-lock metadata.
+        TRACKER_APP_BASE_URL: `https://${FIRST_CHAT_CORE_HOST}`,
         RELEASE_SHA: binding.sourceHead,
         // Standard Core authorization; the additional service identity is mandatory.
         CORE_DEPLOYMENT_PROFILE: 'standard',

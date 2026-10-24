@@ -121,6 +121,7 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
     assert.deepEqual(c.Command, ['serve']);
     assert.equal(e.RELEASE_SHA, pins.sourceHead);
     assert.equal(e.DB_HOST, binding.deployment.databaseHost);
+    assert.equal(e.TRACKER_APP_BASE_URL, `https://${FIRST_CHAT_CORE_HOST}`);
     assert.equal(
       se.INTERNAL_SERVICE_SECRET,
       `${binding.internalServiceSecretArn}:::${binding.internalServiceSecretVersionId}`,
