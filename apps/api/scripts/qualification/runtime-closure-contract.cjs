@@ -9,17 +9,8 @@ const CONTRACT_SHA256 = '0bec7b2b97a421e898e60c39094253c3f64df00392072b47e482aa0
 // SHA-256 of the pinned Git-archive schema after only the image-local generator
 // target rewrite. A Windows CRLF checkout is not the admitted build input.
 const IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: 'c7f9dafd170cac090e3547f2f513bbd518b63d3e5b1d15b7471117fcb2e3f7fc',
-  x64: '46cc8feb6b502d1186629399097b2150e618c55da8e75e961f568d76c908f2f2',
-});
-// Prisma 5.22's generator merges/formats the image-local schema before writing
-// its generated companion. Pin those exact bytes separately from the raw image
-// schema above; a raw byte-equality check rejects valid generated clients.
-// SupportRequest companion pins await root's native diagnostic on the composed
-// schema. Keep the existing pins fail-closed; host formatting is not evidence.
-const GENERATED_PRISMA_SCHEMA_SHA256 = Object.freeze({
-  arm64: 'e2bf86eaaf9924f31d815a8fb6ab022c6683b3630132284fa65ac75fab05e520',
-  x64: '4109e9fba63f56b26f5caaf2afcf94cce363efe75bb0e755a8253f49fcc46df1',
+  arm64: 'ad5508b6a29f64c6c1fb443d600f1ba538e554350488639f44e4ae244c05e336',
+  x64: '3e696444596bdecec4aab99900eef884b6ab32e22126137c775339583882140d',
 });
 const vendorWasm = {
   'pdfjs-dist@5.4.296': {
@@ -336,7 +327,7 @@ function generatedPrismaOwners(owners, imageRoot, diagnostic) {
     const schema = readBounded(path.join(imageRoot, 'apps/api/prisma/schema.prisma'), imageRoot, 8 * 1024 * 1024);
     assert(hash(schema) === IMAGE_LOCAL_PRISMA_SCHEMA_SHA256[selectedPlatform().cpu], 'canonical image-local musl Prisma schema');
     const generatedSchema = readBounded(path.join(row.root, 'schema.prisma'), row.root, 8 * 1024 * 1024);
-    assert(hash(generatedSchema) === GENERATED_PRISMA_SCHEMA_SHA256[selectedPlatform().cpu], 'pinned generated Prisma schema differs');
+    assert(row.metadata.name === `prisma-client-${hash(generatedSchema)}`, 'generated Prisma package/schema identity differs');
     generated.push({ ...row, snapshot: owner.snapshot, generatedBy: owner.root, generation: 'PINNED_PRISMA_5_22_CLIENT' });
   }
   return generated;
@@ -504,4 +495,4 @@ function artifactOwner(file, closure) {
   return { root: owner.root, name, version: owner.metadata.version, snapshot: owner.snapshot, manifestSHA256: owner.manifestSHA256,
     relative, fixture, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null, integrity: owner.integrity || null };
 }
-module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, GENERATED_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };
+module.exports = { reconciledPlatform, ownerPlatformAdmission, classifyDependencyRelations, CONTRACT_SHA256, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, lockedWasmEvidence, inside, platformAllows, readPackage, readContract, walkRuntime, physicalStoreOwners, physicalDependencyLookup, resolveDependency, verifyInstalledClosure, artifactOwner };

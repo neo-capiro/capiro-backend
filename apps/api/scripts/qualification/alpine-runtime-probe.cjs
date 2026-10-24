@@ -11,6 +11,27 @@ const { createHash } = require('node:crypto');
 const { selectedPlatform } = require('./qualification-platform.cjs');
 const platform = selectedPlatform();
 const run = (file, args) => execFileSync(file, args, { encoding: 'utf8', timeout: 30000 });
+function assertGeneratedPrismaClient({ schema, generatedSchema, client, cli }) {
+  for (const source of [schema, generatedSchema]) assert(typeof source === 'string' && Buffer.byteLength(source) <= 8 * 1024 * 1024, 'bounded Prisma schema required');
+  assert.equal(client._engineConfig.clientVersion, '5.22.0', 'generated Prisma client version');
+  assert.equal(client._engineConfig.activeProvider, 'postgresql', 'generated Prisma provider');
+  assert(client._engineConfig.inlineSchema === generatedSchema, 'loaded Prisma client differs from generated companion');
+  const scratch = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'core-prisma-schema-'));
+  try {
+    const file = path.join(scratch, 'schema.prisma');
+    fs.writeFileSync(file, schema);
+    run(process.execPath, [cli, 'format', '--schema', file]);
+    // Use Prisma's own formatter only on the pinned source. Never format the
+    // companion: format can add a missing opposite relation to a stale client.
+    // Whole-line comments (including generator-altered Unicode dividers) and
+    // blank lines are not model data. Preserve every other line and string.
+    const modelLines = text => text.split(/\r?\n/).filter(line => line.trim() && !/^\s*\/\//.test(line)).join('\n');
+    const digest = text => createHash('sha256').update(modelLines(text)).digest('hex');
+    assert.equal(digest(fs.readFileSync(file, 'utf8')), digest(generatedSchema), 'generated Prisma models differ from pinned source');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
 function assertDumbInitVersion(file = 'dumb-init', args = ['--version'], { timeout = 30000 } = {}) {
   const result = spawnSync(file, args, {
     encoding: 'utf8', timeout, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
@@ -780,7 +801,7 @@ async function sharpDispatcherProbe(manifest, { root = '/app/node_modules/.pnpm'
   assert.equal(binding.owner.version, metadata.version);
   return { relation: 'RETAINED_STORE_SHARP_OWNER', manifest, entry, version: metadata.version, bindingManifest, pixel: [...pixels.data], binding };
 }
-module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, compactGateSummary, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence, elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, sourceIdentity, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence };
+module.exports = { assertGeneratedPrismaClient, assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, compactGateSummary, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence, elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, sourceIdentity, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence };
 const report = { status: 'STARTED', packages: [], native: [], activeBindings: [] };
 const maxBufferedReceiptBytes = 16 * 1024 * 1024;
 let pendingReceipts = [], pendingReceiptBytes = 0;
@@ -988,6 +1009,13 @@ async function main() {
   for (const file of engines.filter(file => path.basename(file).startsWith('schema-engine'))) assert.match(run(file, ['--version']), /schema-engine/);
   const cli = fs.realpathSync('/app/apps/api/node_modules/prisma/build/index.js');
   assert.match(run(process.execPath, [cli, '--version']), /5\.22\.0/);
+  const clientOwner = fs.realpathSync(path.dirname(appRequire.resolve('@prisma/client/package.json')));
+  const generated = closure.generated.filter(owner => owner.generatedBy === clientOwner);
+  assert.equal(generated.length, 1, 'one actual generated Prisma client owner required');
+  const { PrismaClient } = appRequire('@prisma/client');
+  assertGeneratedPrismaClient({ cli, client: new PrismaClient(),
+    schema: fs.readFileSync('/app/apps/api/prisma/schema.prisma', 'utf8'),
+    generatedSchema: fs.readFileSync(path.join(generated[0].root, 'schema.prisma'), 'utf8') });
   for (const verb of ['status', 'deploy']) assert.match(run(process.execPath, [cli, 'migrate', verb, '--help']), /migrate/);
   });
   for (const row of report.native) {
