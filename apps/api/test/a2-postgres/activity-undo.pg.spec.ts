@@ -1,4 +1,6 @@
 import { beforeAll, afterAll, beforeEach, it, expect } from '@jest/globals';
+import { ConflictException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { activityUndoFixture, undoMigration } from './activity-undo-fixture.js';
 import { actor, client, ctx, tenant, foreign, id, release, settled } from './fixture.js';
 
@@ -37,6 +39,40 @@ const stored = async () =>
     .rows[0];
 const activityCount = async () =>
   (await h.sql('SELECT count(*)::int AS count FROM client_activity')).rows[0].count;
+function expectUndoRefusal(error: unknown, commandId: string) {
+  expect(error).toBeInstanceOf(ConflictException);
+  const failure = error as ConflictException;
+  expect(failure.getStatus()).toBe(409);
+  expect(failure.getResponse()).toEqual({
+    schemaVersion: 1,
+    commandId,
+    creationRequestId: creation.requestId,
+    tenantId: tenant,
+    clientId: client,
+    actorUserId: actor,
+    activityId: input.activityId,
+    code: 'ACTIVITY_UNDO_REFUSED',
+    requestId: input.requestId,
+    payloadDigest: createHash('sha256')
+      .update(
+        JSON.stringify([
+          'activity-command-undo',
+          1,
+          tenant,
+          actor,
+          client,
+          commandId,
+          creation.requestId,
+          input.requestId,
+          input.activityId,
+          input.expectedRevision,
+        ]),
+      )
+      .digest('hex'),
+    status: 409,
+    message: 'The activity changed or is unavailable. This Undo removed no activity.',
+  });
+}
 
 it('returns all six revision digits, commits one attributed inverse and recovers discarded response', async () => {
   const before = await stored();
@@ -76,9 +112,10 @@ it.each(['key', 'revision', 'activity'] as const)(
   },
 );
 it('does not attribute another deletion and rejects foreign tenant reads', async () => {
+  const commandId = (await stored()).id;
   await h.sql('DELETE FROM client_activity WHERE id=$1', [input.activityId]);
   expect(await read()).toMatchObject({ status: 'unavailable' });
-  await expect(undo()).rejects.toMatchObject({ status: 409 });
+  expectUndoRefusal((await settled(undo())).error, commandId);
   expect((await stored()).undo_request_id).toBeNull();
   await expect(
     h.service.getUndo({ ...ctx, tenantId: foreign }, client, creation.requestId, bearer),
@@ -129,6 +166,7 @@ it('rechecks membership after waiting for the real client lock', async () => {
   }
 });
 it('preserves an edit committed while conditional DELETE waits for the activity row', async () => {
+  const commandId = (await stored()).id;
   const held = await h.lock(
     "UPDATE client_activity SET title='Concurrent edit',updated_at='2026-10-24T10:00:00.123457Z' WHERE id=$1",
     [input.activityId],
@@ -139,21 +177,7 @@ it('preserves an edit committed while conditional DELETE waits for the activity 
     await h.waitForLock('DELETE FROM client_activity');
     await release(held);
     released = true;
-    expect((await pending).error).toMatchObject({
-      status: 409,
-      response: {
-        schemaVersion: 1,
-        code: 'ACTIVITY_UNDO_REFUSED',
-        status: 409,
-        requestId: input.requestId,
-        activityId: input.activityId,
-        creationRequestId: creation.requestId,
-        clientId: client,
-        tenantId: tenant,
-        actorUserId: actor,
-        payloadDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
-      },
-    });
+    expectUndoRefusal((await pending).error, commandId);
     expect(
       (await h.sql('SELECT title FROM client_activity WHERE id=$1', [input.activityId])).rows[0]
         .title,
