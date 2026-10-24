@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
 import { MicrosoftOAuthService } from './microsoft-oauth.service.js';
@@ -65,7 +65,10 @@ export class MicrosoftCallbacksController {
       );
       return;
     }
-    if (!code || !state) throw new BadRequestException('Missing code or state');
+    if (!code || !state) {
+      res.redirect(302, `${this.oauth.getSuccessRedirect()}?provider=microsoft_365&error=connection_failed`);
+      return;
+    }
     let result: { tenantId: string; connectionId: string };
     try {
       result = await this.oauth.handleCallback({ code, state });

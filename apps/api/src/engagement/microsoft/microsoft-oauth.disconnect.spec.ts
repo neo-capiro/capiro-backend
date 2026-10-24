@@ -6,7 +6,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -64,18 +64,38 @@ function makeService(opts: {
   const patch = service as unknown as Record<string, unknown>;
   patch.logger = { warn: () => {}, error: () => {} };
   const deleteMock = opts.deleteImpl ?? (async () => undefined);
+  let row: any;
+  const read = async (args: unknown) => {
+    if (row === undefined) {
+      const found = await opts.findUnique(args);
+      row = found ? { tenantId: ctx.tenantId, syncState: {}, ...found } : null;
+    }
+    return row;
+  };
   patch.prisma = {
     withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
       fn({
+        $queryRaw: jest.fn(async () => []),
         integrationConnection: {
-          findUnique: opts.findUnique,
-          delete: deleteMock,
+          findUnique: read,
+          findFirst: async ({ where }: any) => {
+            const current = await read({ where });
+            return current?.id === where.id && current?.tenantId === where.tenantId
+              ? current
+              : null;
+          },
+          update: async ({ data }: any) => Object.assign(row, data),
+          deleteMany: async (args: unknown) => {
+            await deleteMock(args);
+            const count = row ? 1 : 0;
+            row = null;
+            return { count };
+          },
         },
       }),
   };
   patch.graphSync = {
-    deleteSubscriptionsByTenant:
-      opts.deleteSubscriptionsByTenant ?? (async () => 0),
+    deleteSubscriptionsByTenant: opts.deleteSubscriptionsByTenant ?? (async () => 0),
   };
   return service;
 }
@@ -108,10 +128,14 @@ describe('MicrosoftOAuthService.disconnect', () => {
     await expect(service.disconnect(ctx, 'conn-1')).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  test('a missing connection is rejected with NotFoundException', async () => {
+  test('an already-removed connection returns an idempotent disconnect receipt', async () => {
     const service = makeService({ findUnique: async () => null });
 
-    await expect(service.disconnect(ctx, 'conn-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.disconnect(ctx, 'conn-1')).resolves.toEqual({
+      disconnected: true,
+      connectionId: 'conn-1',
+      subscriptionsDeleted: 0,
+    });
   });
 
   test('happy path: deleteSubscriptionsByTenant then delete, returns subscriptionsDeleted', async () => {

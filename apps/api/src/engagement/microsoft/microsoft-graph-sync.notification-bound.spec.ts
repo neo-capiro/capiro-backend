@@ -200,7 +200,18 @@ describe("'missed' lifecycle resync is bounded too", () => {
     patch.prisma = {
       withTenant: async (_t: string, fn: (tx: unknown) => unknown) =>
         fn({
-          integrationConnection: { update: async () => undefined, findFirst: async () => ({}) },
+          $queryRaw: async () => [],
+          integrationConnection: {
+            update: async () => undefined,
+            findFirst: async () => ({
+              status: 'connected',
+              syncState: {
+                webhooks: {
+                  subscriptions: [{ id: 'sub', clientState: 'signed', resource: 'me/messages' }],
+                },
+              },
+            }),
+          },
         }),
       // recordLifecycleEvent reads the connection with findUnique, then updates it.
       withSystem: async (fn: (tx: unknown) => unknown) =>
@@ -247,9 +258,15 @@ describe("'missed' lifecycle resync is bounded too", () => {
   async function recordMissed(service: MicrosoftGraphSyncService, connectionId: string) {
     await (
       service as unknown as {
-        recordLifecycleEvent: (t: string, c: string, e: string) => Promise<void>;
+        recordLifecycleEvent: (
+          t: string,
+          c: string,
+          e: string,
+          id: string,
+          secret: string,
+        ) => Promise<void>;
       }
-    ).recordLifecycleEvent('t1', connectionId, 'missed');
+    ).recordLifecycleEvent('t1', connectionId, 'missed', 'sub', 'signed');
   }
 
   it('never exceeds the bound when several mailboxes report missed at once', async () => {
@@ -273,7 +290,18 @@ describe("'missed' lifecycle resync is bounded too", () => {
     patch.prisma = {
       withTenant: async (_t: string, fn: (tx: unknown) => unknown) =>
         fn({
-          integrationConnection: { update: async () => undefined, findFirst: async () => ({}) },
+          $queryRaw: async () => [],
+          integrationConnection: {
+            update: async () => undefined,
+            findFirst: async () => ({
+              status: 'connected',
+              syncState: {
+                webhooks: {
+                  subscriptions: [{ id: 'sub', clientState: 'signed', resource: 'me/messages' }],
+                },
+              },
+            }),
+          },
         }),
       // recordLifecycleEvent reads the connection with findUnique, then updates it.
       withSystem: async (fn: (tx: unknown) => unknown) =>

@@ -10,6 +10,7 @@
 
 import { describe, expect, jest, test } from '@jest/globals';
 import { GoogleSyncService } from './google-sync.service.js';
+import { harness, tenant } from '../mailbox-oauth.a1-fixture.js';
 
 const connection = { id: 'conn-1', accountEmail: 'user@example.com' };
 
@@ -394,14 +395,16 @@ describe('Google Calendar reset state', () => {
 
 describe('combined Google reset orchestration', () => {
   function orchestrationHarness() {
+    const h = harness('google_workspace');
+    const row = h.rows.get('connection-A');
     const service = Object.create(GoogleSyncService.prototype) as GoogleSyncService;
     const patch = service as unknown as Record<string, unknown>;
-    const persistConnection = jest.fn(async () => undefined);
+    const persistConnection = h.tx.integrationConnection.update;
     const markSyncError = jest.fn(async () => undefined);
     patch.logger = { warn: jest.fn(), error: jest.fn() };
     patch.googleToken = {
       loadConnection: jest.fn(async () => ({
-        connection: { id: 'conn-1', syncState: {} },
+        connection: structuredClone(row),
         token: {},
       })),
       getValidAccessToken: jest.fn(async () => 'token'),
@@ -411,6 +414,7 @@ describe('combined Google reset orchestration', () => {
       matched: 0,
       skipped: 0,
       removed: 0,
+      held: 0,
       failed: 0,
       pages: 1,
       hasMore: false,
@@ -418,47 +422,45 @@ describe('combined Google reset orchestration', () => {
     patch.syncMail = jest.fn(async () => {
       throw new Error('transient mail failure');
     });
-    patch.prisma = {
-      withTenant: jest.fn(async (_tenantId: string, fn: (tx: unknown) => unknown) =>
-        fn({ integrationConnection: { update: persistConnection } }),
-      ),
-    };
+    patch.prisma = h.prisma;
     patch.markSyncError = markSyncError;
-    return { service, patch, persistConnection, markSyncError };
+    return { service, patch, persistConnection, markSyncError, row };
   }
 
   test('a reset surfaces a transient mail failure even after Calendar succeeded', async () => {
-    const { service, persistConnection, markSyncError } = orchestrationHarness();
+    const { service, markSyncError, row } = orchestrationHarness();
 
     await expect(
-      service.syncConnectionByTenant('tenant-1', 'conn-1', { reset: true }),
+      service.syncConnectionByTenant(tenant, 'connection-A', { reset: true }),
     ).rejects.toThrow('transient mail failure');
 
     expect(markSyncError).toHaveBeenCalledWith(
-      'tenant-1',
-      'conn-1',
+      tenant,
+      'connection-A',
       expect.objectContaining({ message: 'transient mail failure' }),
     );
-    expect(persistConnection).not.toHaveBeenCalled();
+    expect(row.syncState.health).toMatchObject({
+      calendar: { outcome: 'complete' }, mail: { outcome: 'failed' },
+    });
   });
 
   test('an ordinary sync still preserves a successful Calendar leg across a transient mail failure', async () => {
-    const { service, patch, persistConnection, markSyncError } = orchestrationHarness();
+    const { service, persistConnection, markSyncError, row } = orchestrationHarness();
 
-    await expect(service.syncConnectionByTenant('tenant-1', 'conn-1')).resolves.toMatchObject({
-      connectionId: 'conn-1',
+    await expect(service.syncConnectionByTenant(tenant, 'connection-A')).resolves.toMatchObject({
+      connectionId: 'connection-A',
       calendar: { hasMore: false, pages: 1 },
     });
 
     expect(markSyncError).not.toHaveBeenCalled();
     expect(persistConnection).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'conn-1' },
-        data: expect.objectContaining({ status: 'connected', lastError: null }),
+        where: { id: 'connection-A' },
+        data: expect.objectContaining({ status: 'connected', lastError: expect.any(String) }),
       }),
     );
-    expect((patch.logger as { warn: jest.Mock }).warn).toHaveBeenCalledWith(
-      expect.stringContaining('calendar synced OK'),
-    );
+    expect(row.syncState.health).toMatchObject({
+      calendar: { outcome: 'complete' }, mail: { outcome: 'failed' },
+    });
   });
 });
