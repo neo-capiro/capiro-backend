@@ -9021,13 +9021,13 @@ export class EngagementService {
       // any message (case-insensitive). The recipient lists are JSONB arrays of
       // {email,name}, which Prisma can't filter with `in`, so resolve matching
       // thread ids via a raw query.
-      const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT DISTINCT mt.id
-        FROM mail_threads mt
-        JOIN mail_messages mm ON mm.thread_id = mt.id
-        WHERE mt.tenant_id = ${tenantId}::uuid
-          AND mm.tenant_id = ${tenantId}::uuid
-          ${since ? Prisma.sql`AND mt.last_message_at >= ${since}` : Prisma.empty}
+      // Find the small matching message set before resolving its tenant-owned
+      // threads. Joining first can scan every thread under its RLS predicate,
+      // exhausting the transaction before the actual profile read begins.
+      const matches = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT DISTINCT mm.thread_id AS id
+        FROM mail_messages mm
+        WHERE mm.tenant_id = ${tenantId}::uuid
           AND (
             lower(mm.from_email) = ANY(${emails})
             OR EXISTS (
@@ -9040,6 +9040,14 @@ export class EngagementService {
             )
           )
       `);
+      const rows = matches.length ? await tx.mailThread.findMany({
+        where: {
+          tenantId,
+          id: { in: matches.map((row) => row.id) },
+          ...(since ? { lastMessageAt: { gte: since } } : {}),
+        },
+        select: { id: true },
+      }) : [];
       if (rows.length) {
         or.push({ id: { in: rows.map((r) => r.id) } });
       } else {

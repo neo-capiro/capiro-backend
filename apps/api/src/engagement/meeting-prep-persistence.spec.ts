@@ -83,14 +83,39 @@ describe('meeting prep persistence', () => {
   test('keeps explicit client and contact-matched threads while applying the date bound inside discovery', async () => {
     const service = Object.create(EngagementService.prototype) as any;
     service.clientProfileEmails = jest.fn(async () => ['person@client.example']);
-    const tx = { $queryRaw: jest.fn(async () => [{ id: 'matched-thread' }]) };
+    const tx = {
+      $queryRaw: jest.fn(async () => [{ id: 'matched-thread' }, { id: 'other-tenant-or-stale-thread' }]),
+      mailThread: { findMany: jest.fn(async () => [{ id: 'matched-thread' }]) },
+    };
     const since = new Date('2026-09-09T00:00:00Z');
     const where = await service.clientMailThreadAssociationWhere(tx, ctx.tenantId, 'c1', [], since);
     expect(where).toEqual({ OR: [{ clientId: 'c1' }, { id: { in: ['matched-thread'] } }] });
     const sql = (tx.$queryRaw.mock.calls as any)[0][0];
-    expect(sql.text).toContain('mt.last_message_at >=');
     expect(sql.text).toContain('mm.tenant_id =');
-    expect(sql.values).toEqual(expect.arrayContaining([since, ctx.tenantId, ['person@client.example']]));
+    expect(sql.values).toEqual(expect.arrayContaining([ctx.tenantId, ['person@client.example']]));
+    expect(tx.mailThread.findMany).toHaveBeenCalledWith({
+      where: { tenantId: ctx.tenantId, id: { in: ['matched-thread', 'other-tenant-or-stale-thread'] }, lastMessageAt: { gte: since } },
+      select: { id: true },
+    });
+  });
+
+  test('does not expand direct client association when there are no contact emails', async () => {
+    const service = Object.create(EngagementService.prototype) as any;
+    service.clientProfileEmails = async () => [];
+    const tx = { $queryRaw: jest.fn(), mailThread: { findMany: jest.fn() } };
+    await expect(service.clientMailThreadAssociationWhere(tx, ctx.tenantId, 'c1')).resolves.toEqual({ OR: [{ clientId: 'c1' }] });
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.mailThread.findMany).not.toHaveBeenCalled();
+  });
+
+  test.each([{ matches: [] }, { matches: [{ id: 'foreign-or-stale-thread' }] }])('preserves the existing sender fallback when no matching thread is visible', async ({ matches }) => {
+    const service = Object.create(EngagementService.prototype) as any;
+    service.clientProfileEmails = async () => ['person@client.example'];
+    const tx = { $queryRaw: jest.fn(async () => matches), mailThread: { findMany: jest.fn(async () => []) } };
+    await expect(service.clientMailThreadAssociationWhere(tx, ctx.tenantId, 'c1', [' PERSON@CLIENT.EXAMPLE '])).resolves.toEqual({
+      OR: [{ clientId: 'c1' }, { messages: { some: { fromEmail: { in: ['person@client.example'] } } } }],
+    });
+    expect(tx.mailThread.findMany).toHaveBeenCalledTimes(matches.length ? 1 : 0);
   });
 
   test('does not return a V2 briefing with missing source provenance through edit', async () => {
