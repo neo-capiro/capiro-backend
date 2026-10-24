@@ -899,6 +899,29 @@ export class HearingRecordWorkflowService {
     });
     return this.brief(ctx, eventId, newId);
   }
+  async documentAccessLocks(
+    ctx: WorkspaceTenantContext,
+    brief: Awaited<ReturnType<HearingRecordWorkflowService['brief']>>,
+  ) {
+    const observation = brief.payload.observation;
+    const retained = observation
+      ? await this.publications.retainedVersion(
+          ctx,
+          observation.sessionId,
+          observation.publicationId,
+        )
+      : null;
+    const accessLocks = {
+      folders: brief.payload.folders,
+      observation: observation
+        ? {
+            sessionId: observation.sessionId,
+            segmentIds: retained!.payload.evidence.map((e) => e.segmentId),
+          }
+        : null,
+    };
+    return accessLocks;
+  }
   async approvedDocument(
     ctx: WorkspaceTenantContext,
     eventId: string,
@@ -954,23 +977,7 @@ export class HearingRecordWorkflowService {
       }
       lines.push('');
     }
-    const observation = brief.payload.observation;
-    const retained = observation
-      ? await this.publications.retainedVersion(
-          ctx,
-          observation.sessionId,
-          observation.publicationId,
-        )
-      : null;
-    const accessLocks = {
-      folders: brief.payload.folders,
-      observation: observation
-        ? {
-            sessionId: observation.sessionId,
-            segmentIds: retained!.payload.evidence.map((e) => e.segmentId),
-          }
-        : null,
-    };
+    const accessLocks = await this.documentAccessLocks(ctx, brief);
     return {
       schema: 'legiwatch.approved-record-brief-document.v1',
       tenantId: ctx.tenantId,

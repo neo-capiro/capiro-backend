@@ -45,7 +45,9 @@ function guardedUrl() {
 }
 
 /** Actual PrismaService, current owner helpers and service methods; no service/model mocks. */
-export async function fixture(kind: 'broadcasts' | 'files' | 'admissions' | 'associations' | 'mail') {
+export async function fixture(
+  kind: 'broadcasts' | 'files' | 'admissions' | 'associations' | 'mail' | 'hearing',
+) {
   const url = guardedUrl(),
     schema = `a2_${kind}`;
   const admin = new Pool({
@@ -71,7 +73,7 @@ export async function fixture(kind: 'broadcasts' | 'files' | 'admissions' | 'ass
       throw new Error('Fixture requires PostgreSQL16 and isolated bootstrap superuser.');
     }
     const unrelated = await admin.query(
-      `SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','a2_broadcasts','a2_files','a2_admissions','a2_associations','a2_mail') LIMIT 1`,
+      `SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','a2_broadcasts','a2_files','a2_admissions','a2_associations','a2_mail','a2_hearing') LIMIT 1`,
     );
     if (unrelated.rowCount) {
       await admin.end();
@@ -111,13 +113,18 @@ export async function fixture(kind: 'broadcasts' | 'files' | 'admissions' | 'ass
       await owner.query(migration('20260914120000_admin_broadcasts'));
       await owner.query(batchMigration());
       await owner.query(batchMigration()); // This new migration is explicitly repeatable.
+      if (kind === 'hearing') {
+        const { installHearingSchema } = await import('./hearing-owner.js');
+        await installHearingSchema(owner);
+      }
       if (kind === 'admissions') {
         await owner.query(readFileSync(resolve(__dirname, 'capacity-prerequisites.sql'), 'utf8'));
         await owner.query(migration('20281023050000_prospect_conversion_receipts'));
         await owner.query(migration('20281023050000_prospect_conversion_receipts'));
       }
       if (kind === 'associations') await installObjectiveSchema(owner, schema);
-      if (kind === 'mail') await owner.query(readFileSync(resolve(__dirname, 'mail-prerequisites.sql'), 'utf8'));
+      if (kind === 'mail')
+        await owner.query(readFileSync(resolve(__dirname, 'mail-prerequisites.sql'), 'utf8'));
     } finally {
       owner.release();
     }
@@ -198,6 +205,7 @@ export async function fixture(kind: 'broadcasts' | 'files' | 'admissions' | 'ass
     };
     return {
       prisma,
+      appUrl: appUrl.href,
       sql,
       lock,
       reset,

@@ -7,6 +7,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  lockHearingRecordSources,
+  lockHearingRecordAccess,
+} from '../../engagement/hearing-record-document-locks.js';
 import type { TenantContext } from '@capiro/shared';
 import { ClientDocumentWriterService } from '../../client-documents/client-document-writer.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -275,30 +279,8 @@ export class HearingRecapService {
     return this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.folder_actor',${ctx.clerkUserId},true)`;
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended('legiwatch-published-record-commit-v1',0))`;
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':' + ctx.clerkUserId + ':record-event:' + input.eventId},0))`;
-        // Keep the authoritative permissions checked by Intel stable through the
-        // attachment write. A second service read validates the locked rows; none
-        // of these lock identifiers come from the caller's request body.
-        await tx.$queryRaw`SELECT m.id FROM tenant_memberships m JOIN users u ON u.id=m.user_id
-        WHERE m.tenant_id=${ctx.tenantId}::uuid AND u.clerk_user_id=${ctx.clerkUserId} FOR SHARE OF m,u`;
-        await tx.$queryRaw`SELECT id FROM clients WHERE tenant_id=${ctx.tenantId}::uuid AND id=${clientId}::uuid FOR SHARE`;
-        await tx.$queryRaw`SELECT id FROM client_memory_access WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${clientId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
-        await tx.$queryRaw`SELECT id FROM intel_feature_flag WHERE tenant_id=${ctx.tenantId} AND feature IN ('legiwatch_published_records_v1','legiwatch_record_briefs_v1') FOR SHARE`;
-        for (const folder of approved.accessLocks.folders)
-          await tx.$queryRaw`SELECT id FROM intel_legiwatch_folder WHERE tenant_id=${ctx.tenantId} AND id=${folder.id} FOR SHARE`;
-        const observation = approved.accessLocks.observation;
-        if (observation) {
-          await tx.$queryRaw`SELECT id FROM intel_live_hearing_session WHERE tenant_id=${ctx.tenantId} AND id=${observation.sessionId} FOR SHARE`;
-          await tx.$queryRaw`SELECT p.id FROM intel_hearing_media_permission p JOIN intel_live_hearing_session s ON s.tenant_id=p.tenant_id
-          AND p.hearing_id IS NOT DISTINCT FROM s.hearing_id AND p.source_url=coalesce(s.source_url,'')
-          WHERE s.tenant_id=${ctx.tenantId} AND s.id=${observation.sessionId} FOR SHARE OF p`;
-          await tx.$queryRaw`SELECT c.id FROM public_hearing_capture c JOIN intel_live_hearing_session s ON s.public_capture_id=c.id
-          JOIN committee_hearing h ON h.id=c.hearing_id WHERE s.tenant_id=${ctx.tenantId} AND s.id=${observation.sessionId} FOR SHARE OF c,h`;
-          await tx.$queryRaw`SELECT id FROM intel_transcript_segment WHERE tenant_id=${ctx.tenantId} AND session_id=${observation.sessionId} AND id=ANY(${observation.segmentIds}::text[]) FOR SHARE`;
-          await tx.$queryRaw`SELECT id FROM public_hearing_transcript_segment WHERE id::text=ANY(${observation.segmentIds}::text[]) FOR SHARE`;
-        }
+        await lockHearingRecordSources(tx, ctx, [input.eventId]);
+        await lockHearingRecordAccess(tx, ctx, clientId, approved.accessLocks);
         const current = await this.approvedRecordBrief(
           ctx,
           clientId,

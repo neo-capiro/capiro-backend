@@ -1,41 +1,81 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
+
+interface HearingRecordAttachment {
+  id: string;
+  sourceEntityType: string | null;
+  sourceEntityId: string | null;
+  clientId: string | null;
+}
 
 /** Saved bytes retain the brief's owner, folder and observation access boundary.
  * Ordinary attachments continue through their existing parent and viewer ACLs. */
 export async function assertHearingRecordDocumentAccess(
   prisma: PrismaService,
   ctx: TenantContext,
-  attachment: {
-    id: string;
-    sourceEntityType: string | null;
-    sourceEntityId: string | null;
-    clientId: string | null;
-  },
+  attachment: HearingRecordAttachment,
   purpose: 'read' | 'distribute' = 'read',
 ) {
   if (attachment.sourceEntityType !== 'hearing_record_brief') return;
-  const deny = () => new ForbiddenException('RECORD_BRIEF_DOCUMENT_ACCESS_OR_VERSION_CHANGED');
-  const secret = process.env.INTERNAL_SERVICE_SECRET;
-  if (!ctx.clerkUserId || !secret) throw deny();
-  const row = await prisma.withTenant(ctx.tenantId, async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.folder_actor',${ctx.clerkUserId},true)`;
-    const rows = await tx.$queryRaw<
-      Array<{
-        eventId: string;
-        briefId: string;
-        clientId: string;
-        contentHash: string;
-        sourceHash: string;
-      }>
-    >`
+  const row = await prisma.withTenant(ctx.tenantId, (tx) =>
+    documentProvenance(tx, ctx, attachment),
+  );
+  await currentDocumentAccess(ctx, attachment, row, purpose);
+}
+
+/** Same owner read on a caller's existing transaction; no new permission policy. */
+export async function readHearingRecordDocumentAccess(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  attachment: HearingRecordAttachment,
+  purpose: 'read' | 'distribute' = 'read',
+  signal?: AbortSignal,
+) {
+  return currentDocumentAccess(
+    ctx,
+    attachment,
+    await documentProvenance(tx, ctx, attachment),
+    purpose,
+    signal,
+  );
+}
+
+async function documentProvenance(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  attachment: HearingRecordAttachment,
+) {
+  if (!ctx.clerkUserId || !process.env.INTERNAL_SERVICE_SECRET)
+    throw new ForbiddenException('RECORD_BRIEF_DOCUMENT_ACCESS_OR_VERSION_CHANGED');
+  await tx.$executeRaw`SELECT set_config('app.folder_actor',${ctx.clerkUserId},true)`;
+  const rows = await tx.$queryRaw<
+    Array<{
+      eventId: string;
+      briefId: string;
+      clientId: string;
+      contentHash: string;
+      sourceHash: string;
+    }>
+  >`
       SELECT d.event_id AS "eventId",d.brief_id AS "briefId",d.client_id::text AS "clientId",d.content_hash AS "contentHash",d.source_hash AS "sourceHash"
       FROM legiwatch_record_document d JOIN users u ON u.id=${ctx.userId}::uuid AND u.clerk_user_id=d.owner_clerk_id
       JOIN tenant_memberships m ON m.user_id=u.id AND m.tenant_id=d.tenant_id AND m.status::text='active'
       WHERE d.attachment_id=${attachment.id}::uuid AND d.tenant_id=${ctx.tenantId}::uuid AND d.owner_clerk_id=${ctx.clerkUserId}`;
-    return rows[0];
-  });
+  return rows[0];
+}
+
+async function currentDocumentAccess(
+  ctx: TenantContext,
+  attachment: HearingRecordAttachment,
+  row: Awaited<ReturnType<typeof documentProvenance>>,
+  purpose: 'read' | 'distribute',
+  signal?: AbortSignal,
+) {
+  const deny = () => new ForbiddenException('RECORD_BRIEF_DOCUMENT_ACCESS_OR_VERSION_CHANGED');
+  const secret = process.env.INTERNAL_SERVICE_SECRET;
+  if (!ctx.clerkUserId || !secret) throw deny();
   if (!row || row.clientId !== attachment.clientId || row.briefId !== attachment.sourceEntityId)
     throw deny();
   let result: Record<string, unknown>;
@@ -46,7 +86,7 @@ export async function assertHearingRecordDocumentAccess(
       {
         method: 'POST',
         redirect: 'error',
-        signal: AbortSignal.timeout(15000),
+        signal: signal ?? AbortSignal.timeout(15000),
         headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
         body: JSON.stringify({
           tenantId: ctx.tenantId,
@@ -75,4 +115,12 @@ export async function assertHearingRecordDocumentAccess(
     result.sourceHash !== row.sourceHash
   )
     throw deny();
+  return {
+    eventId: row.eventId,
+    id: row.briefId,
+    clientId: row.clientId,
+    contentHash: row.contentHash,
+    sourceHash: row.sourceHash,
+    accessLocks: result.accessLocks,
+  };
 }

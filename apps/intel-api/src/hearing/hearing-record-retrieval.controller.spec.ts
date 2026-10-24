@@ -1,3 +1,4 @@
+import { HearingRecordWorkflowService } from './hearing-record-workflow.service.js';
 import { HearingRecordRetrievalController } from './hearing-record-retrieval.controller.js';
 const body = {
   tenantId: 'tenant-a',
@@ -41,6 +42,10 @@ describe('governed owner published-record reads', () => {
     const workflow = {
       authorize: jest.fn(async () => {}),
       brief: jest.fn(async () => structuredClone(brief)),
+      documentAccessLocks: jest.fn(async () => ({
+        folders: [{ id: 'folder-a', version: 2, clientId: 'client-a' }],
+        observation: null,
+      })),
       approvedDocument: jest.fn(async () => ({})),
       run: jest.fn(async () => structuredClone(run)),
       actor: jest.fn(async (_ctx: unknown, fn: (tx: unknown) => unknown) =>
@@ -102,6 +107,11 @@ describe('governed owner published-record reads', () => {
       sourceHash: 'source',
     });
     expect(result).not.toHaveProperty('payload');
+    expect(result).toHaveProperty('accessLocks', {
+      folders: [{ id: 'folder-a', version: 2, clientId: 'client-a' }],
+      observation: null,
+    });
+    expect(f.workflow.approvedDocument).not.toHaveBeenCalled();
     await f.controller.retrieve('synthetic-internal-secret', { ...input, purpose: 'distribute' });
     expect(f.workflow.approvedDocument).toHaveBeenCalledTimes(1);
     f.workflow.approvedDocument.mockRejectedValueOnce(
@@ -114,5 +124,25 @@ describe('governed owner published-record reads', () => {
     await expect(f.controller.retrieve('synthetic-internal-secret', input)).rejects.toThrow(
       'CURRENT_REVIEWED',
     );
+  });
+  it('projects observation lock IDs from the existing retained publication owner, without distribution checks', async () => {
+    const ctx = { tenantId: 'tenant-a', clerkUserId: 'owner-a', role: null };
+    const retainedVersion = jest.fn(async () => ({
+      payload: { evidence: [{ segmentId: 'segment-a' }, { segmentId: 'segment-b' }] },
+    }));
+    const self = { publications: { retainedVersion } } as unknown as HearingRecordWorkflowService;
+    const brief = {
+      payload: {
+        folders: [{ id: 'folder-a', version: 0, clientId: 'client-a' }],
+        observation: { sessionId: 'session-a', publicationId: 'publication-a' },
+      },
+    } as never;
+    expect(
+      await HearingRecordWorkflowService.prototype.documentAccessLocks.call(self, ctx, brief),
+    ).toEqual({
+      folders: [{ id: 'folder-a', version: 0, clientId: 'client-a' }],
+      observation: { sessionId: 'session-a', segmentIds: ['segment-a', 'segment-b'] },
+    });
+    expect(retainedVersion).toHaveBeenCalledWith(ctx, 'session-a', 'publication-a');
   });
 });
