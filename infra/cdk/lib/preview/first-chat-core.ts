@@ -17,8 +17,8 @@ export interface FirstChatCoreImagePins {
 }
 /** Exact qualified API image. Operator changes do not rebuild or relabel it. */
 export const FIRST_CHAT_CORE_IMAGE_PINS: FirstChatCoreImagePins = {
-  sourceHead: '16c3122a379481eb19cdee156ceb5d5c8b615bea',
-  imageDigest: 'sha256:b982544da46f68148f15e38bbfa70c497975e82480a1750fba7ae740ae714d2f',
+  sourceHead: 'd03a118192acd2b1ed2ef5698afb0ab8f2b36ae8',
+  imageDigest: 'sha256:a1e35b1aeae40889b46c75df472ced83aebe54b8f78234bffef4192c9767e375',
 };
 export const FIRST_CHAT_CORE_HOST = 'first-chat-preview.app-dev.capiro.ai';
 // Existing independent host guard. No priority relocation is part of this update.
