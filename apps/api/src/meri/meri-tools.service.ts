@@ -3094,6 +3094,13 @@ export class MeriToolsService {
     };
   }
 
+  /** Internal projection reuses the canonical profile owner; no fabricated tool admission. */
+  readAutomaticClientProfile(ctx: TenantContext, clientId: string) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientId))
+      throw new BadRequestException('Explicit client ID required');
+    return this.getClientContext(ctx, { clientId, limit: 3, representation: 'full' });
+  }
+
   private async getClientContext(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = requiredString(input, 'clientId', 80);
     clientId = await this.ensureClientVisible(ctx, clientId);
