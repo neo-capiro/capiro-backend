@@ -46,7 +46,7 @@ export const jevTaskEvaluationFixtureSchema = z
           id: z.string().min(1),
           task: z.enum(JEV_TASKS),
           category: z.string().min(1),
-          input: z.record(z.unknown()),
+          input: z.record(z.string(), z.unknown()),
           expected: z.discriminatedUnion('kind', [
             z.object({ kind: z.literal('outcome'), outcome: z.string().min(1) }),
             z.object({

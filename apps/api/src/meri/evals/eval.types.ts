@@ -40,7 +40,7 @@ export const meriEvalFixtureSchema = z.object({
   question: z.string().min(1),
   /** Inline sources the answer should ground against (empty for open Q&A / refusals). */
   sources: z.array(meriEvalSourceSchema).default([]),
-  expect: meriEvalExpectSchema.default({}),
+  expect: meriEvalExpectSchema.prefault({}),
 });
 
 export const meriEvalFixturesSchema = z.array(meriEvalFixtureSchema);

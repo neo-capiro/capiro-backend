@@ -95,7 +95,7 @@ export function normalizeStyleSampleInputV1(input: unknown): OutreachStyleSample
       {
         code: z.ZodIssueCode.too_small,
         minimum: 1,
-        type: 'string',
+        origin: 'string',
         inclusive: true,
         path: ['body'],
         message: 'An example email needs a body.',

@@ -19,7 +19,7 @@ import {
 const inputSchemaZod = z
   .object({
     query: z.string().min(2).max(500),
-    clientId: z.string().uuid().nullable().default(null),
+    clientId: z.string().guid().nullable().default(null),
     intendedClass: z.enum([
       'required_policy',
       'writing_guidance',

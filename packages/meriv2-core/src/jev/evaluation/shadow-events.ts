@@ -20,7 +20,7 @@ export const shadowLoggedDecisionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('outcome'),
     outcome: z.enum(EVIDENCE_OUTCOMES),
     confidence: z.number().min(0).max(1),
-    probabilities: z.record(z.enum(EVIDENCE_OUTCOMES), z.number()),
+    probabilities: z.partialRecord(z.enum(EVIDENCE_OUTCOMES), z.number()),
     reasonCodes: z.array(z.string()),
     model: z.string().min(1),
     questionVersion: z.string().min(1),

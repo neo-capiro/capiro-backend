@@ -7,6 +7,13 @@ import { meriEvalFixturesSchema } from './eval.types.js';
 const fixtures = meriEvalFixturesSchema.parse(CLIO_EVAL_FIXTURES);
 
 describe('CLIO_EVAL_FIXTURES', () => {
+  test('missing expectation objects still parse their nested defaults', () => {
+    const base = { id: 'default-case', skill: 'general', question: 'A bounded question' };
+    expect(meriEvalFixturesSchema.parse([base])).toEqual([{ ...base, sources: [],
+      expect: { mustInclude: [], mustNotInclude: [], mustCite: false } }]);
+    expect(() => meriEvalFixturesSchema.parse([{ ...base, expect: null }])).toThrow();
+  });
+
   test('meets the >=50 fixture bar (P1-1)', () => {
     expect(fixtures.length).toBeGreaterThanOrEqual(50);
   });

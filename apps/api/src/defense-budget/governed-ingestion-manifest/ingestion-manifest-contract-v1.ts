@@ -49,7 +49,7 @@ const PRESIGNED_QUERY_KEYS = new Set([
 ]);
 
 const nonBlank = (maximum = 4_096) => z.string().trim().min(1, 'must be nonblank').max(maximum);
-const uuidSchema = z.string().uuid();
+const uuidSchema = z.string().guid();
 const sha256Schema = z.string().regex(SHA256_RE, 'must be a lowercase SHA-256');
 const imageDigestSchema = z
   .string()

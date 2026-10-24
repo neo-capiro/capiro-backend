@@ -27,18 +27,18 @@ test('AMD64 selector binds the native loader, Prisma target, and optional packag
 
 test('candidate Dockerfile copies the shared platform gate into build and runtime', () => {
   const source = fs.readFileSync(path.join(root, 'apps/api/Dockerfile.alpine-amd64-qualification'), 'utf8');
-  const pin = 'node:22.23.3-alpine3.24@sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8';
+  const pin = 'node:22.23.4-alpine3.24@sha256:025b8e975a61d94e33abeafaad1255ef44e4898cf1a1b6446860009c72e6d284';
   assert.equal(source.split(pin).length - 1, 2, 'same exact AMD64 base for build and runtime');
   assert.equal(source.split(`FROM public.ecr.aws/docker/library/${pin}`).length - 1, 2, 'base pulled from the ECR Public mirror, not rate-limited Docker Hub');
   assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
   assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3\.0\.x/);
   assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2, 'build/prod-deps and runtime both require patched zlib');
-  assert.doesNotMatch(source, /linux-musl-arm64|sha256:85cdd100/);
+  assert.doesNotMatch(source, /linux-musl-arm64|sha256:fd4a97c1/);
 });
 
 test('ARM candidate copies the complete existing gate closure and runs it before publishing', () => {
   const source = fs.readFileSync(path.join(root, 'apps/api/Dockerfile.alpine-qualification'), 'utf8');
-  const pin = 'public.ecr.aws/docker/library/node:22.23.3-alpine3.24@sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22';
+  const pin = 'public.ecr.aws/docker/library/node:22.23.4-alpine3.24@sha256:fd4a97c1630a4a0a70117dd7b393e322db316d0489bdf36a0e776e7b235341b0';
   assert.equal(source.split(`FROM ${pin}`).length - 1, 2);
   assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
   assert.equal(source.split('ENV CAPIRO_QUALIFICATION_ARCH=arm64').length - 1, 2);
@@ -49,7 +49,7 @@ test('ARM candidate copies the complete existing gate closure and runs it before
   const gate = source.indexOf('RUN --network=none node /qualification/alpine-runtime-probe.cjs --static');
   assert(repair > 0 && user > repair && gate > user);
   assert.match(source, /FROM runtime-base AS runtime/);
-  assert.doesNotMatch(source, /CAPIRO_QUALIFICATION_ARCH=x64|sha256:2c752226/);
+  assert.doesNotMatch(source, /CAPIRO_QUALIFICATION_ARCH=x64|sha256:025b8e97/);
 });
 
 test('PR48 canonical source schema binds both raw image-local Prisma targets', () => {

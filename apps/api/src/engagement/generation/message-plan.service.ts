@@ -328,7 +328,7 @@ export class MessagePlanService {
     // means dropping whole entries (claims, asks, reasons), which the repair
     // prompt forbids — so an all-array or size+array violation stays an error.
     const size = parsed.error.issues.filter(
-      (i) => i.code === 'too_big' && i.type === 'string' && i.path.length > 0,
+      (i) => i.code === 'too_big' && i.origin === 'string' && i.path.length > 0,
     );
     if (size.length !== parsed.error.issues.length) return null;
     // Grounding must already hold on the raw object (cast schema-blind — the

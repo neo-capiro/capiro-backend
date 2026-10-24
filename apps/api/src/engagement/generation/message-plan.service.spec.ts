@@ -630,8 +630,8 @@ describe('string-overlength-only repair', () => {
 
   test('eligibility uses the FULL issue list, not parsePlan’s 12-issue slice', async () => {
     // 15 string-overlength issues (>12, past parsePlan's slice) plus one
-    // invalid type. The sliced exception would show only size issues; the
-    // fresh full safeParse must see the invalid type and refuse repair.
+    // invalid enum value. The sliced exception would show only size issues;
+    // the fresh full safeParse must see the invalid tone and refuse repair.
     const pad = (s: string, c: string) => s.padEnd(401, c);
     const over = {
       ...plan(),
@@ -640,16 +640,16 @@ describe('string-overlength-only repair', () => {
       clientAsk: Array.from({ length: 5 }, () => pad('A 20-minute meeting.', 'y')),
       whyRecipient: Array.from({ length: 5 }, () => pad('Sits on Armed Services.', 'z')),
     };
-    // Prove the fixture really carries 15 string issues and an invalid_type
+    // Prove the fixture really carries 15 string issues and an invalid_value
     // issue beyond slice index 12 — the concrete >12 behavior under test.
     const raw = JSON.stringify(over);
     const probe = messagePlanSchema.safeParse(JSON.parse(raw));
     expect(probe.success).toBe(false);
     if (probe.success) return;
     const sizeIssues = probe.error.issues.filter(
-      (i) => i.code === 'too_big' && i.type === 'string' && i.path.length > 0,
+      (i) => i.code === 'too_big' && i.origin === 'string' && i.path.length > 0,
     );
-    const typeIdx = probe.error.issues.findIndex((i) => i.code === 'invalid_type');
+    const typeIdx = probe.error.issues.findIndex((i) => i.code === 'invalid_value' && i.path[0] === 'tone');
     expect(sizeIssues.length).toBe(15);
     expect(typeIdx).toBeGreaterThan(12);
 
@@ -680,7 +680,7 @@ describe('string-overlength-only repair', () => {
     if (probe.success) return;
     expect(
       probe.error.issues.filter(
-        (i) => i.code === 'too_big' && i.type === 'string' && i.path.length > 0,
+        (i) => i.code === 'too_big' && i.origin === 'string' && i.path.length > 0,
       ).length,
     ).toBe(15);
 

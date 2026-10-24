@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { joinWithLabels, readShadowEvents, type EvidenceShadowEvent } from './shadow-events';
+import { joinWithLabels, readShadowEvents, shadowLoggedDecisionSchema, type EvidenceShadowEvent } from './shadow-events';
 
 const directories: string[] = [];
 afterEach(() => {
@@ -45,6 +45,16 @@ function event(): EvidenceShadowEvent {
 }
 
 describe('shadow event ingestion', () => {
+  it('retains partial outcome probabilities and rejects unknown outcome keys', () => {
+    const source = event().jev;
+    expect(shadowLoggedDecisionSchema.parse({ ...source, probabilities: { supported: 0.9 } })).toMatchObject({
+      probabilities: { supported: 0.9 },
+    });
+    expect(shadowLoggedDecisionSchema.safeParse({ ...source, probabilities: {} }).success).toBe(true);
+    expect(shadowLoggedDecisionSchema.safeParse({ ...source, probabilities: { foreign: 1 } }).success).toBe(false);
+    expect(shadowLoggedDecisionSchema.safeParse({ ...source, probabilities: { supported: '0.9' } }).success).toBe(false);
+  });
+
   it('parses structured logger shapes while counting junk and unrelated lines', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'jev-events-'));
     directories.push(directory);

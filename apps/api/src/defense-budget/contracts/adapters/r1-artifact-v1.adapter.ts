@@ -31,7 +31,7 @@ export const r1RowV1Schema = z
     budgetActivity: z.string().nullable(),
     lineNumber: z.string().nullable(),
     page: z.number().int().positive(),
-    fyColumns: z.record(z.number().nullable()).nullable().optional(),
+    fyColumns: z.record(z.string(), z.number().nullable()).nullable().optional(),
   })
   .strict();
 

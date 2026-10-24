@@ -6,7 +6,7 @@ import { activityDetailFields, activityDetailsInput } from '../client-activity-d
 
 const uuid = z
   .string()
-  .uuid()
+  .guid()
   .transform((value) => value.toLowerCase());
 const instant = z
   .string()
@@ -90,7 +90,7 @@ const followUp = z
 const command = z.object({ requestId: uuid, activity, followUp: followUp.optional() }).strict();
 export type ActivityCommandInput = z.infer<typeof command>;
 
-function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, raw: unknown): T {
+function parse<T>(schema: z.ZodType<T, unknown>, raw: unknown): T {
   const result = schema.safeParse(raw);
   if (!result.success) throw new BadRequestException('Invalid activity command');
   return result.data;

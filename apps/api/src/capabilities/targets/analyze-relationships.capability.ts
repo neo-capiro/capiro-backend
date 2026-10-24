@@ -16,7 +16,7 @@ import { OutreachTargetReferenceService } from './outreach-target-reference.serv
 const inputSchemaZod = z
   .object({
     targetRef: outreachTargetLocatorV1Schema,
-    clientId: z.string().uuid(),
+    clientId: z.string().guid(),
   })
   .strict();
 

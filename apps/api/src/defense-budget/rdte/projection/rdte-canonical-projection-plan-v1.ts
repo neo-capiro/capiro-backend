@@ -73,7 +73,7 @@ const candidateBaseShape = {
   sourcePdfSha256: sha256Schema,
   assertionIds: z.array(nonBlank),
   evidenceIds: z.array(nonBlank),
-  values: z.record(z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
+  values: z.record(z.string(), z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
   exclusionReason: rdteProjectionExclusionReasonV1Schema.optional(),
 };
 

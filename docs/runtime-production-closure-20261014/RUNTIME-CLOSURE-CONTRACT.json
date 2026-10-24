@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "inputSHA256": {
-    "package.json": "7e0bdf43fc28fdf4638f673344c79dc73cefcc33eb073f1bd388fd50918f1e40",
-    "pnpm-lock.yaml": "a7a3905448add1741fd19767e34425fbd65e80afb9696d070bc1b607b5df2d8b",
-    "apps/api/package.json": "558ba9a1ea7206bedc2128bcaa6b69bc1f4b472ec390513cfde8d3c843a7eea8",
+    "package.json": "e4996714d6c89ce4b13e1d2429d8883f00881fe3c9ff3e9ae09cc46ac1e23a5d",
+    "pnpm-lock.yaml": "6ac4469ae4360befeca9dd2b63f510ec668275bf05a6a40654ee519d32eb9134",
+    "apps/api/package.json": "abb022dc64f9d8135954439abe6186e2851c1f5902d1f7b3ce727d6dd70feb9e",
     "packages/shared/package.json": "18ed3388e7fa6a7d8d8e864b763879a2a612fae69b8e6866f7546dd86370a235",
-    "packages/meriv2-core/package.json": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
+    "packages/meriv2-core/package.json": "d124c8cac43b05a1f43ba3f0f7223d328188881463c5378c60724a26f43f515a",
     "packages/defense-contracts/package.json": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
     "packages/defense-domain/package.json": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
   },
@@ -1430,10 +1430,10 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "key": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "name": "@modelcontextprotocol/sdk",
       "version": "1.32.0",
-      "peerContext": "(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "peerContext": "(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "resolution": {
         "integrity": "sha512-8BviX/hK4Gd2eL1KdTwm0gfl4d3wdoErW0Jd00h6nomUAtk6IJk5vwQJc6kfWtJTzN5OEV/lgIiJKI8fiDGAlA=="
       },
@@ -3150,12 +3150,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "body-parser@1.20.6",
+      "key": "body-parser@1.20.9",
       "name": "body-parser",
-      "version": "1.20.6",
+      "version": "1.20.9",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-p5tAzS57i5MV9fZFDj9LeIiTZEufbSe2eDozP+ElheSUq1m74CRq1jI4mYNDdVs9vQztXFLuk/Gd6BWTdwRJ5g=="
+        "integrity": "sha512-FISIQxV5u91Y9gvuFq3q/tA/qTqLJn3AhRcEvyozyhJTh5OBFFtv827AdHU7Rbyct4r+Ba1/99oFa1Y3yuFsdw=="
       },
       "os": null,
       "cpu": null,
@@ -3170,12 +3170,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "body-parser@2.3.0",
+      "key": "body-parser@2.4.0",
       "name": "body-parser",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw=="
+        "integrity": "sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ=="
       },
       "os": null,
       "cpu": null,
@@ -6767,12 +6767,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "multer@2.4.0",
+      "key": "multer@2.5.0",
       "name": "multer",
-      "version": "2.4.0",
+      "version": "2.5.0",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-7dqa0ZcFfzbefdTuIkzOSMvZWC0J7FLqBOjJUZvDCXShIURWKxAyTT1wHhnE5q19c7jOJf43IYYKjBmZVZmvhg=="
+        "integrity": "sha512-BsqOzYGVq49JcW2IzoSAxeKYRevb+dGGPPWleOR8Lrlk4igwxu1/9pwSXlByhCb7MVZDrNJFC0IBP5/O5nLYRw=="
       },
       "os": null,
       "cpu": null,
@@ -7733,6 +7733,25 @@
       "peerContext": "",
       "resolution": {
         "integrity": "sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA=="
+      },
+      "os": null,
+      "cpu": null,
+      "libc": null,
+      "hasBin": false,
+      "requiresBuild": false,
+      "engines": {
+        "node": ">=0.6"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {}
+    },
+    {
+      "key": "qs@6.16.1",
+      "name": "qs",
+      "version": "6.16.1",
+      "peerContext": "",
+      "resolution": {
+        "integrity": "sha512-5Px6J7rfHBAGUhNQ3es4YzcOdBBw0SDcVtThJml4RdnKw4tKs2epA0kPZ+K8X+WiHktT93RHVcQ/3ym5aTCgtg=="
       },
       "os": null,
       "cpu": null,
@@ -9037,12 +9056,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "undici@6.28.1",
+      "key": "undici@6.29.1",
       "name": "undici",
-      "version": "6.28.1",
+      "version": "6.29.1",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-zWpdTVD54H48CIybL0rWQ3ukpb9d23wM7eH5RtfdmeP70cWHNjtfo7P4vZX+5CoDcO53J4Pu5uXp7lNfjc6DRA=="
+        "integrity": "sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA=="
       },
       "os": null,
       "cpu": null,
@@ -9056,12 +9075,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "undici@7.29.1",
+      "key": "undici@7.30.1",
       "name": "undici",
-      "version": "7.29.1",
+      "version": "7.30.1",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q=="
+        "integrity": "sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg=="
       },
       "os": null,
       "cpu": null,
@@ -9532,10 +9551,10 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "zod-to-json-schema@3.25.2(zod@3.25.76)",
+      "key": "zod-to-json-schema@3.25.2(zod@4.6.7)",
       "name": "zod-to-json-schema",
       "version": "3.25.2",
-      "peerContext": "(zod@3.25.76)",
+      "peerContext": "(zod@4.6.7)",
       "resolution": {
         "integrity": "sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA=="
       },
@@ -9551,12 +9570,12 @@
       "peerDependenciesMeta": {}
     },
     {
-      "key": "zod@3.25.76",
+      "key": "zod@4.6.7",
       "name": "zod",
-      "version": "3.25.76",
+      "version": "4.6.7",
       "peerContext": "",
       "resolution": {
-        "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
+        "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
       },
       "os": null,
       "cpu": null,
@@ -9663,7 +9682,7 @@
       "from": "importer:apps/api",
       "dependencyName": "@modelcontextprotocol/sdk",
       "kind": "dependencies",
-      "to": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)"
+      "to": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)"
     },
     {
       "from": "importer:apps/api",
@@ -9867,7 +9886,7 @@
       "from": "importer:apps/api",
       "dependencyName": "undici",
       "kind": "dependencies",
-      "to": "undici@6.28.1"
+      "to": "undici@6.29.1"
     },
     {
       "from": "importer:apps/api",
@@ -9885,7 +9904,7 @@
       "from": "importer:apps/api",
       "dependencyName": "zod",
       "kind": "dependencies",
-      "to": "zod@3.25.76"
+      "to": "zod@4.6.7"
     },
     {
       "from": "importer:packages/meriv2-core",
@@ -9921,7 +9940,7 @@
       "from": "importer:packages/meriv2-core",
       "dependencyName": "zod",
       "kind": "dependencies",
-      "to": "zod@3.25.76"
+      "to": "zod@4.6.7"
     },
     {
       "from": "importer:packages/defense-domain",
@@ -10410,109 +10429,109 @@
       "to": "commander@12.1.0"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "@hono/node-server",
       "kind": "dependencies",
       "to": "@hono/node-server@2.1.3(hono@4.13.12)"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "ajv",
       "kind": "dependencies",
       "to": "ajv@8.20.0"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "ajv-formats",
       "kind": "dependencies",
       "to": "ajv-formats@3.0.1(ajv@8.20.0)"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "content-type",
       "kind": "dependencies",
       "to": "content-type@1.0.5"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "cors",
       "kind": "dependencies",
       "to": "cors@2.8.6"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "cross-spawn",
       "kind": "dependencies",
       "to": "cross-spawn@7.0.6"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "eventsource",
       "kind": "dependencies",
       "to": "eventsource@3.0.7"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "eventsource-parser",
       "kind": "dependencies",
       "to": "eventsource-parser@3.1.1"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "express",
       "kind": "dependencies",
       "to": "express@5.2.1"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "express-rate-limit",
       "kind": "dependencies",
       "to": "express-rate-limit@8.7.0(express@5.2.1)"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "hono",
       "kind": "dependencies",
       "to": "hono@4.13.12"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "jose",
       "kind": "dependencies",
       "to": "jose@6.2.12"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "json-schema-typed",
       "kind": "dependencies",
       "to": "json-schema-typed@8.0.2"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "pkce-challenge",
       "kind": "dependencies",
       "to": "pkce-challenge@5.0.1"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "raw-body",
       "kind": "dependencies",
       "to": "raw-body@3.0.2"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "zod",
       "kind": "dependencies",
-      "to": "zod@3.25.76"
+      "to": "zod@4.6.7"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "zod-to-json-schema",
       "kind": "dependencies",
-      "to": "zod-to-json-schema@3.25.2(zod@3.25.76)"
+      "to": "zod-to-json-schema@3.25.2(zod@4.6.7)"
     },
     {
-      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)",
+      "from": "@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.7)",
       "dependencyName": "@cfworker/json-schema",
       "kind": "optionalDependencies",
       "to": "@cfworker/json-schema@4.1.1"
@@ -10677,7 +10696,7 @@
       "from": "@nestjs/platform-express@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)",
       "dependencyName": "body-parser",
       "kind": "dependencies",
-      "to": "body-parser@1.20.6"
+      "to": "body-parser@1.20.9"
     },
     {
       "from": "@nestjs/platform-express@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)",
@@ -10695,7 +10714,7 @@
       "from": "@nestjs/platform-express@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)",
       "dependencyName": "multer",
       "kind": "dependencies",
-      "to": "multer@2.4.0"
+      "to": "multer@2.5.0"
     },
     {
       "from": "@nestjs/platform-express@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)",
@@ -10815,7 +10834,7 @@
       "from": "cheerio@1.2.0",
       "dependencyName": "undici",
       "kind": "dependencies",
-      "to": "undici@7.29.1"
+      "to": "undici@7.30.1"
     },
     {
       "from": "cheerio@1.2.0",
@@ -10947,7 +10966,7 @@
       "from": "express@4.22.1",
       "dependencyName": "body-parser",
       "kind": "dependencies",
-      "to": "body-parser@1.20.6"
+      "to": "body-parser@1.20.9"
     },
     {
       "from": "express@4.22.1",
@@ -12099,7 +12118,7 @@
       "from": "express@5.2.1",
       "dependencyName": "body-parser",
       "kind": "dependencies",
-      "to": "body-parser@2.3.0"
+      "to": "body-parser@2.4.0"
     },
     {
       "from": "express@5.2.1",
@@ -12300,10 +12319,10 @@
       "to": "unpipe@1.0.0"
     },
     {
-      "from": "zod-to-json-schema@3.25.2(zod@3.25.76)",
+      "from": "zod-to-json-schema@3.25.2(zod@4.6.7)",
       "dependencyName": "zod",
       "kind": "dependencies",
-      "to": "zod@3.25.76"
+      "to": "zod@4.6.7"
     },
     {
       "from": "file-type@20.4.1",
@@ -12396,73 +12415,73 @@
       "to": "tslib@2.8.1"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "bytes",
       "kind": "dependencies",
       "to": "bytes@3.1.2"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "content-type",
       "kind": "dependencies",
       "to": "content-type@1.0.5"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "debug",
       "kind": "dependencies",
       "to": "debug@2.6.9"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "depd",
       "kind": "dependencies",
       "to": "depd@2.0.0"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "destroy",
       "kind": "dependencies",
       "to": "destroy@1.2.0"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "http-errors",
       "kind": "dependencies",
       "to": "http-errors@2.0.1"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "iconv-lite",
       "kind": "dependencies",
       "to": "iconv-lite@0.4.24"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "on-finished",
       "kind": "dependencies",
       "to": "on-finished@2.4.1"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "qs",
       "kind": "dependencies",
       "to": "qs@6.16.0"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "raw-body",
       "kind": "dependencies",
       "to": "raw-body@2.5.3"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "type-is",
       "kind": "dependencies",
       "to": "type-is@1.6.18"
     },
     {
-      "from": "body-parser@1.20.6",
+      "from": "body-parser@1.20.9",
       "dependencyName": "unpipe",
       "kind": "dependencies",
       "to": "unpipe@1.0.0"
@@ -12480,19 +12499,19 @@
       "to": "vary@1.1.2"
     },
     {
-      "from": "multer@2.4.0",
+      "from": "multer@2.5.0",
       "dependencyName": "append-field",
       "kind": "dependencies",
       "to": "append-field@1.0.0"
     },
     {
-      "from": "multer@2.4.0",
+      "from": "multer@2.5.0",
       "dependencyName": "busboy",
       "kind": "dependencies",
       "to": "busboy@1.6.0"
     },
     {
-      "from": "multer@2.4.0",
+      "from": "multer@2.5.0",
       "dependencyName": "type-is",
       "kind": "dependencies",
       "to": "type-is@1.6.18"
@@ -14082,55 +14101,55 @@
       "to": "negotiator@1.1.0"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "bytes",
       "kind": "dependencies",
       "to": "bytes@3.1.2"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "content-type",
       "kind": "dependencies",
       "to": "content-type@2.1.0"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "debug",
       "kind": "dependencies",
       "to": "debug@4.4.3"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "http-errors",
       "kind": "dependencies",
       "to": "http-errors@2.0.1"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "iconv-lite",
       "kind": "dependencies",
       "to": "iconv-lite@0.7.3"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "on-finished",
       "kind": "dependencies",
       "to": "on-finished@2.4.1"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "qs",
       "kind": "dependencies",
-      "to": "qs@6.16.0"
+      "to": "qs@6.16.1"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "raw-body",
       "kind": "dependencies",
       "to": "raw-body@3.0.2"
     },
     {
-      "from": "body-parser@2.3.0",
+      "from": "body-parser@2.4.0",
       "dependencyName": "type-is",
       "kind": "dependencies",
       "to": "type-is@2.1.0"
@@ -14998,6 +15017,18 @@
       "dependencyName": "content-type",
       "kind": "dependencies",
       "to": "content-type@2.1.0"
+    },
+    {
+      "from": "qs@6.16.1",
+      "dependencyName": "es-define-property",
+      "kind": "dependencies",
+      "to": "es-define-property@1.0.1"
+    },
+    {
+      "from": "qs@6.16.1",
+      "dependencyName": "side-channel",
+      "kind": "dependencies",
+      "to": "side-channel@1.1.1"
     },
     {
       "from": "ansi-styles@4.3.0",

@@ -120,7 +120,7 @@ export const nonRdteProjectionCandidateV1Schema = z
     /* Exact future values (canonical decimal strings where monetary).
      * Required: every candidate carries its exact values; excluded records
      * are represented in the exclusions ledger, never as silent drops. */
-    values: z.record(z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
+    values: z.record(z.string(), z.union([z.string(), z.number().int(), z.boolean(), z.null()])),
     /* Context-only exclusion reason when excluded. */
     exclusionReason: nonRdteProjectionExclusionReasonV1Schema.optional(),
   })

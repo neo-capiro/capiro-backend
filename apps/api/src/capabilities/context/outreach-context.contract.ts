@@ -48,7 +48,7 @@ const bounded = (max: number, min = 0) =>
       message: 'Text contains disallowed control characters.',
     });
 const nullable = (max: number) => bounded(max).nullable();
-const clientId = z.string().uuid();
+const clientId = z.string().guid();
 
 export const outreachContextScopeV1Schema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('campaign') }).strict(),
@@ -70,7 +70,7 @@ export type OutreachContextScopeV1 = z.infer<typeof outreachContextScopeV1Schema
 const memoryItemLocatorSchema = z
   .object({
     source: z.literal('memory_item'),
-    id: z.string().uuid(),
+    id: z.string().guid(),
     clientId: clientId.nullable(),
   })
   .strict();
@@ -85,7 +85,7 @@ const capiroRecordLocatorSchema = z
       'client_capability',
       'client_facility',
     ]),
-    id: z.string().uuid(),
+    id: z.string().guid(),
     clientId: clientId.nullable(),
   })
   .strict();
@@ -93,7 +93,7 @@ const capiroRecordLocatorSchema = z
 const documentLocatorSchema = z
   .object({
     source: z.literal('document'),
-    id: z.string().uuid(),
+    id: z.string().guid(),
     clientId: clientId.nullable(),
   })
   .strict();
@@ -133,7 +133,7 @@ const targetProfileFactLocatorSchema = z
 const manualContextLocatorSchema = z
   .object({
     source: z.literal('manual'),
-    id: z.string().uuid(),
+    id: z.string().guid(),
     title: bounded(OUTREACH_CONTEXT_LIMITS.title, 1),
     text: bounded(OUTREACH_CONTEXT_LIMITS.text, 1),
     sourceLabel: nullable(OUTREACH_CONTEXT_LIMITS.sourceLabel),

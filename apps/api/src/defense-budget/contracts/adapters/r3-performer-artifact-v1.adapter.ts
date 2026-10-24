@@ -54,7 +54,7 @@ export const r3PerformerArtifactV1InputSchema = z
     publisher: z.string(),
     pageCount: z.number().int().positive(),
     performers: z.array(r3PerformerRowV1Schema),
-    stats: z.record(z.number()),
+    stats: z.record(z.string(), z.number()),
     error: z.string().optional(),
   })
   .strict();

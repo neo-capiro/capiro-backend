@@ -10,7 +10,7 @@ import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 const uuid = z
   .string()
-  .uuid()
+  .guid()
   .transform((value) => value.toLowerCase());
 export const activityDetailFields = {
   direction: z.enum(['we_owe', 'they_owe']).nullable().optional(),

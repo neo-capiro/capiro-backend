@@ -64,9 +64,9 @@ const criteriaSchema = z
 const searchInputSchema = z
   .object({
     query: z.string().max(500).nullable().default(null),
-    clientId: z.string().uuid().nullable().default(null),
+    clientId: z.string().guid().nullable().default(null),
     sources: z.array(z.enum(TARGET_SEARCH_SOURCES)).max(TARGET_SEARCH_SOURCES.length).default([]),
-    criteria: criteriaSchema.default({}),
+    criteria: criteriaSchema.prefault({}),
     limit: z.number().int().min(1).max(50).default(20),
     excludeTargetKeys: z.array(z.string().min(1).max(384)).max(500).default([]),
     rejectedRecommendationRefs: z

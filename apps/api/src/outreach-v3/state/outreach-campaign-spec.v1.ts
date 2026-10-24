@@ -69,7 +69,7 @@ function boundedNullableText(max: number) {
   return boundedText(max).nullable();
 }
 
-const clientRefSchema = z.object({ clientId: z.string().uuid() }).strict();
+const clientRefSchema = z.object({ clientId: z.string().guid() }).strict();
 const targetCriteriaText = boundedText(OUTREACH_V3_LIMITS.targetCriteriaStrings, 1);
 
 export const targetCriteriaV1Schema = z
