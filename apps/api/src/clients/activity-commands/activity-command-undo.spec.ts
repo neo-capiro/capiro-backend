@@ -7,6 +7,7 @@ import {
   IDs,
 } from '../../../test/support/activity-command.fixture.js';
 import { ActivityCommandController } from './activity-command.controller.js';
+import { createHash } from 'node:crypto';
 
 const undoId = '90000000-0000-4000-8000-000000000001';
 const revision = '2026-10-24T10:00:00.123456Z';
@@ -152,8 +153,39 @@ it.each(['edit', 'pin', 'missing'] as const)(
       else if (change === 'pin') f.activities[0].pinned = true;
       else f.activities[0].revision = '2026-10-24T10:00:00.123457Z';
     });
-    await expect(f.service.undo(ctx, IDs.client, IDs.request, input, bearer)).rejects.toThrow(
-      'not confirmed',
+    const digest = createHash('sha256')
+      .update(
+        JSON.stringify([
+          'activity-command-undo',
+          1,
+          ctx.tenantId,
+          ctx.userId,
+          IDs.client,
+          f.original.commandId,
+          IDs.request,
+          undoId,
+          IDs.activity,
+          revision,
+        ]),
+      )
+      .digest('hex');
+    await expect(f.service.undo(ctx, IDs.client, IDs.request, input, bearer)).rejects.toMatchObject(
+      {
+        status: 409,
+        response: {
+          schemaVersion: 1,
+          code: 'ACTIVITY_UNDO_REFUSED',
+          status: 409,
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          clientId: IDs.client,
+          commandId: f.original.commandId,
+          creationRequestId: IDs.request,
+          activityId: IDs.activity,
+          requestId: undoId,
+          payloadDigest: digest,
+        },
+      },
     );
     expect(f.rows[0].undoRequestId).toBeUndefined();
   },
@@ -165,7 +197,7 @@ it('does not infer completed Undo from another deletion', async () => {
     status: 'unavailable',
   });
   await expect(f.service.undo(ctx, IDs.client, IDs.request, input, bearer)).rejects.toThrow(
-    'not confirmed',
+    'removed no activity',
   );
 });
 it.each([

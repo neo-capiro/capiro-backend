@@ -144,7 +144,16 @@ export async function commitCommandUndo(
       AND to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')=${input.expectedRevision}
     RETURNING id::text`;
   if (deleted.length !== 1)
-    throw new ConflictException('The activity changed or is unavailable. Undo is not confirmed.');
+    // The owner returns this proof only after withTenant rolls back. Bind it to
+    // this exact intent; an unrelated 409 or missing row is not this proof.
+    throw new ConflictException({
+      ...identity(row),
+      code: 'ACTIVITY_UNDO_REFUSED',
+      requestId: input.requestId,
+      payloadDigest,
+      status: 409,
+      message: 'The activity changed or is unavailable. This Undo removed no activity.',
+    });
   const saved = await tx.$queryRaw<Undo[]>`UPDATE client_activity_commands
     SET undo_request_id=${input.requestId}::uuid, undo_request_hash=${payloadDigest}, undone_at=clock_timestamp()
     WHERE tenant_id=${row.tenantId}::uuid AND id=${row.id}::uuid AND undo_request_id IS NULL

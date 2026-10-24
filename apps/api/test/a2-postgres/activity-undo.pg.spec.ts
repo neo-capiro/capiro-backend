@@ -139,7 +139,21 @@ it('preserves an edit committed while conditional DELETE waits for the activity 
     await h.waitForLock('DELETE FROM client_activity');
     await release(held);
     released = true;
-    expect((await pending).error).toMatchObject({ status: 409 });
+    expect((await pending).error).toMatchObject({
+      status: 409,
+      response: {
+        schemaVersion: 1,
+        code: 'ACTIVITY_UNDO_REFUSED',
+        status: 409,
+        requestId: input.requestId,
+        activityId: input.activityId,
+        creationRequestId: creation.requestId,
+        clientId: client,
+        tenantId: tenant,
+        actorUserId: actor,
+        payloadDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    });
     expect(
       (await h.sql('SELECT title FROM client_activity WHERE id=$1', [input.activityId])).rows[0]
         .title,
