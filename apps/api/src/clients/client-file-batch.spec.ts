@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('./client-ordered-owner.access.js', () => ({
+  requireOwnerActor: jest.fn(async () => undefined),
   requireOwnerClient: jest.fn(async () => undefined),
 }));
-import { requireOwnerClient } from './client-ordered-owner.access.js';
+import { requireOwnerActor, requireOwnerClient } from './client-ordered-owner.access.js';
 import { ClientFileBatchService } from './client-file-batch.service.js';
 import { fileBatchDigest, parseFileBatchMove } from './client-file-batch.types.js';
 const tenant = '11111111-1111-4111-8111-111111111111',
@@ -37,15 +38,21 @@ function fixture() {
     viewerUserIds: [] as string[],
     uploadedByUserId: null as string | null,
     sourceEntityType: null as string | null,
+    sourceEntityId: null as string | null,
   }));
   let receipts: Array<Record<string, unknown>> = [];
   const statements: Array<{ sql: string; values: unknown[] }> = [];
   let failUpdate: string | undefined;
   const tx = {
     $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
-      const sql = parts.join('?');
+      const sql = parts.reduce(
+        (text, part, i) =>
+          text + part + (i < values.length ? ((values[i] as { sql?: string })?.sql ?? '?') : ''),
+        '',
+      );
       statements.push({ sql, values });
       if (sql.includes('pg_advisory')) throw new Error('Prisma cannot deserialize void');
+      if (sql.includes('FROM legiwatch_record_document')) return [];
       if (sql.includes('FROM client_file_batch_move_receipts')) return receipts;
       if (sql.includes('FROM engagement_attachments')) return structuredClone(rows);
       if (sql.includes('UPDATE engagement_attachments')) {
@@ -62,7 +69,7 @@ function fixture() {
     $executeRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.join('?');
       statements.push({ sql, values });
-      if (sql.includes('pg_advisory')) return 1;
+      if (sql.includes('pg_advisory') || sql.includes('set_config')) return 1;
       if (!sql.includes('INSERT INTO client_file_batch_move_receipts'))
         throw new Error('Unexpected write');
       receipts.push({
@@ -102,12 +109,14 @@ function fixture() {
     },
   };
 }
-beforeEach(() =>
+beforeEach(() => {
+  jest.mocked(requireOwnerActor).mockReset().mockResolvedValue(undefined);
   jest
     .mocked(requireOwnerClient)
     .mockReset()
-    .mockResolvedValue(undefined as never),
-);
+    .mockResolvedValue(undefined as never);
+});
+
 describe('batch file move owner (synthetic transaction, no database)', () => {
   it('normalizes the label, orders selection and rejects missing revisions/duplicates/authority injection', () => {
     expect(
@@ -134,12 +143,14 @@ describe('batch file move owner (synthetic transaction, no database)', () => {
   it('locks current client and every selected row before writes, then returns a bound complete receipt', async () => {
     const h = fixture(),
       result = await h.service.move(ctx, client, command());
-    expect(requireOwnerClient).toHaveBeenCalledWith(h.tx, ctx, client);
+    expect(requireOwnerClient).toHaveBeenCalledWith(h.tx, ctx, client, false, false, 'share');
     expect(
-      h.statements.find((row) => row.sql.includes('FROM engagement_attachments')),
+      h.statements.find(
+        (row) => row.sql.includes('FROM engagement_attachments') && row.sql.includes('FOR UPDATE'),
+      ),
     ).toMatchObject({
       sql: expect.stringContaining('ORDER BY id FOR UPDATE'),
-      values: [tenant, client, `${first},${second}`],
+      values: [tenant, client, `${first},${second}`, expect.anything()],
     });
     expect(result).toMatchObject({
       requestId: command().requestId,
@@ -164,7 +175,11 @@ describe('batch file move owner (synthetic transaction, no database)', () => {
         h.rows[1]!.viewerUserIds = [actor];
       }
       await expect(h.service.move(ctx, client, command())).rejects.toThrow(
-        failure === 'stale' ? 'changed' : 'unavailable',
+        failure === 'stale'
+          ? 'changed'
+          : failure === 'hearing'
+            ? 'ACCESS_OR_VERSION_CHANGED'
+            : 'unavailable',
       );
       expect(h.statements.some((row) => row.sql.startsWith('\n          UPDATE'))).toBe(false);
       expect(h.statements.some((row) => row.sql.includes('INSERT INTO'))).toBe(false);
@@ -173,7 +188,7 @@ describe('batch file move owner (synthetic transaction, no database)', () => {
   });
   it('does not enter the file owner after current membership or client wall denial', async () => {
     const h = fixture();
-    jest.mocked(requireOwnerClient).mockRejectedValueOnce(new Error('synthetic access denied'));
+    jest.mocked(requireOwnerActor).mockRejectedValueOnce(new Error('synthetic access denied'));
     await expect(h.service.move(ctx, client, command())).rejects.toThrow('access denied');
     expect(h.tx.$queryRaw).not.toHaveBeenCalled();
   });

@@ -5,7 +5,8 @@ CREATE TYPE membership_status AS ENUM ('invited','active','removed');
 CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql STABLE AS
   $$ SELECT NULLIF(current_setting('app.current_tenant',true),'')::uuid $$;
 CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
-CREATE TABLE tenants (id uuid PRIMARY KEY);
+CREATE TYPE tenant_status AS ENUM ('active','suspended');
+CREATE TABLE tenants (id uuid PRIMARY KEY,status tenant_status NOT NULL DEFAULT 'active');
 CREATE TABLE users (id uuid PRIMARY KEY,clerk_user_id text NOT NULL UNIQUE);
 CREATE TABLE tenant_memberships (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid NOT NULL REFERENCES tenants(id),
@@ -26,7 +27,7 @@ CREATE TABLE engagement_attachments (
   id uuid PRIMARY KEY,tenant_id uuid NOT NULL REFERENCES tenants(id),client_id uuid REFERENCES clients(id),
   prospect_id uuid,folder varchar(120),uploaded_by_user_id uuid REFERENCES users(id),
   viewer_mode varchar(16) NOT NULL DEFAULT 'all' CHECK(viewer_mode IN ('all','restricted')),
-  viewer_user_ids text[] NOT NULL DEFAULT ARRAY[]::text[],source_entity_type varchar(64),
+  viewer_user_ids text[] NOT NULL DEFAULT ARRAY[]::text[],source_entity_type varchar(64),source_entity_id varchar(200),
   file_name text NOT NULL DEFAULT 'Synthetic.pdf',created_at timestamptz NOT NULL DEFAULT now()
 );
 DO $$ DECLARE t text; BEGIN

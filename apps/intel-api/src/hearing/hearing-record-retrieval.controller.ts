@@ -55,6 +55,9 @@ export class HearingRecordRetrievalController {
           clientId: brief.payload.clientId,
           contentHash: brief.contentHash,
           sourceHash: brief.payload.sourceHash,
+          ...(body.purpose === 'read'
+            ? { accessLocks: await this.records.documentAccessLocks(ctx, brief) }
+            : {}),
         };
       }
       if (body.asOf) {
