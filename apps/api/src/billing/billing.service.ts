@@ -122,7 +122,7 @@ export class BillingService {
       llmWarn,
       llmHardCapUsd: tenant?.llmHardCapUsd != null ? Number(tenant.llmHardCapUsd) : null,
       currentPeriodEnd: tenant?.currentPeriodEnd ? tenant.currentPeriodEnd.toISOString() : null,
-      hasSubscription: Boolean(tenant?.stripeCustomerId),
+      hasSubscription: Boolean(tenant?.stripeSubscriptionId),
     };
   }
 
