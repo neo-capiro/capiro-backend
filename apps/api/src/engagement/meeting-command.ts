@@ -183,6 +183,7 @@ export async function commitMeetingCommand(
     current: TenantContext,
     command: MeetingCommand,
   ) => Promise<MeetingCommandResult>,
+  options?: { timeoutMs: number },
 ) {
   const command = parseMeetingCommand(raw);
   const digest = meetingCommandDigest(ctx, command);
@@ -233,7 +234,7 @@ export async function commitMeetingCommand(
         ),
         fresh: true,
       };
-    });
+    }, options);
   } catch (error) {
     // Only our original transaction's known rollback can become a durable refusal.
     // Authentication, unavailable reads, commit failures and conflicting replays stay errors.

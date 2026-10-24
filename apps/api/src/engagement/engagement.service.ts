@@ -187,7 +187,7 @@ import { currentMeetingActor, visibleMeetingClientWhere, assertMeetingClient } f
 import {
   commitMeetingCommand, readMeetingCommand, meetingCommandResult, type MeetingExecution,
 } from './meeting-command.js';
-import type { MeetingCommand } from './meeting-command.input.js';
+import { parseMeetingCommand, type MeetingCommand } from './meeting-command.input.js';
 import { projectMeetingArtifactMetadata, type MeetingArtifactMetadata } from './meeting-artifact-metadata.js';
 
 export interface CreateIntegrationInput {
@@ -1506,8 +1506,10 @@ export class EngagementService {
 
   async executeMeetingCommand(ctx: TenantContext, raw: unknown) {
     const afterCommit: Array<() => void> = [];
-    const outcome = await commitMeetingCommand(this.prisma, ctx, raw, (tx, current, command) =>
-      this.runMeetingCommand(current, command, { tx, afterCommit }),
+    const command = parseMeetingCommand(raw);
+    const outcome = await commitMeetingCommand(this.prisma, ctx, command,
+      (tx, current, admitted) => this.runMeetingCommand(current, admitted, { tx, afterCommit }),
+      command.operation === 'note-create' ? { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS } : undefined,
     );
     if (outcome.fresh) for (const effect of afterCommit) effect();
     return outcome.receipt;
