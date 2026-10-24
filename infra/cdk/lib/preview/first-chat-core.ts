@@ -399,7 +399,7 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       executionRole: serveExecutionRole,
       taskRole: serveTaskRole,
       runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });

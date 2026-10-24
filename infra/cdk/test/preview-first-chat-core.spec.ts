@@ -370,6 +370,9 @@ test('renders stable P1/P2/P3, exact optional memory POST and the later retained
   );
   const tasks = resources.filter((r) => r.Type === 'AWS::ECS::TaskDefinition');
   assert.equal(tasks.length, 1);
+  assert.deepEqual(tasks[0].Properties.RuntimePlatform, { CpuArchitecture: 'ARM64', OperatingSystemFamily: 'LINUX' });
+  assert.equal(tasks[0].Properties.Cpu, '1024');
+  assert.equal(tasks[0].Properties.Memory, '2048');
   const containers = tasks.map((task) => task.Properties.ContainerDefinitions[0]);
   assert.deepEqual(containers.map((container) => container.Command), [['serve']]);
   for (const container of containers) {

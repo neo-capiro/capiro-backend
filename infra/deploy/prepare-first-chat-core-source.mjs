@@ -10,7 +10,8 @@ import { inflateRawSync } from 'node:zlib';
 
 const inputPaths = [
   '.dockerignore',
-  'apps/api/Dockerfile',
+  'apps/api/Dockerfile.alpine-qualification',
+  'docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json',
   'apps/api/package.json',
   'apps/api/nest-cli.json',
   'apps/api/tsconfig.json',
@@ -213,7 +214,7 @@ for (const path of inputPaths) {
 
 // Fail if the Dockerfile adds a new local COPY source without expanding the
 // reviewed inventory. Staged COPY --from references are generated internally.
-const dockerfile = git(['show', `${ref}:apps/api/Dockerfile`]);
+const dockerfile = git(['show', `${ref}:apps/api/Dockerfile.alpine-qualification`]);
 const localCopySources = new Set();
 for (const line of dockerfile.replace(/\\\r?\n\s*/g, ' ').split(/\r?\n/)) {
   const match = /^\s*COPY\s+(.+)$/i.exec(line);
@@ -250,7 +251,7 @@ const result = {
   fileCount: files.length,
   uncompressedBlobBytes: files.reduce((sum, file) => sum + file.size, 0),
   inventorySha256: sha256(inventoryText),
-  dockerfileSha256: sha256(git(['show', `${ref}:apps/api/Dockerfile`], null)),
+  dockerfileSha256: sha256(git(['show', `${ref}:apps/api/Dockerfile.alpine-qualification`], null)),
   reviewedBuildspecSha256: sha256(git(['show', `${ref}:infra/deploy/first-chat-core-preview.buildspec.yml`], null)),
   criticalMigrationSha256: Object.fromEntries(migrationFiles.map(path =>
     [path, sha256(git(['show', `${ref}:${path}`], null))])),

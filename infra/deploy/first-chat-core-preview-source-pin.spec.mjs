@@ -42,6 +42,20 @@ test('the complete embedded build script parses without running it', () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
+test('native ARM recipe, runtime probes and archive inputs agree before any push', () => {
+  assert.match(buildspec, /test "\$\(uname -m\)" = aarch64/);
+  assert.match(buildspec, /docker build --pull --platform linux\/arm64 --target runtime/);
+  assert.match(buildspec, /-f apps\/api\/Dockerfile\.alpine-qualification/);
+  assert.match(buildspec, /\}\}'\)" = arm64/);
+  const probe = buildspec.indexOf('sh apps/api/scripts/qualification/run-alpine-runtime-probes.sh "$IMAGE"');
+  assert(probe > 0 && probe < buildspec.indexOf('docker push "$IMAGE"'));
+  assert.doesNotMatch(buildspec, /linux\/amd64|x86_64|process\.arch,'x64'/);
+  const preparer = readFileSync(new URL('./prepare-first-chat-core-source.mjs', import.meta.url), 'utf8');
+  assert.match(preparer, /'apps\/api\/Dockerfile\.alpine-qualification'/);
+  assert.match(preparer, /'docs\/runtime-production-closure-20261014\/RUNTIME-CLOSURE-CONTRACT\.json'/);
+  assert.doesNotMatch(preparer, /'apps\/api\/Dockerfile'|\$\{ref\}:apps\/api\/Dockerfile`/);
+});
+
 test('reviewed project pins select one derived archive key and immutable image tag', () => {
   assert.match(buildspec, /SOURCE_KEY="inputs\/core-\$SOURCE_SHA\.zip"/);
   assert.match(buildspec, /aws s3api get-object --bucket "\$APPROVED_SOURCE_BUCKET" --key "\$SOURCE_KEY" --version-id "\$APPROVED_SOURCE_VERSION_ID"/);

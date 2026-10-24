@@ -37,6 +37,22 @@ test('candidate Dockerfile copies the shared platform gate into build and runtim
   assert.doesNotMatch(source, /linux-musl-arm64|sha256:85cdd100/);
 });
 
+test('ARM candidate copies the complete existing gate closure and runs it before publishing', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/api/Dockerfile.alpine-qualification'), 'utf8');
+  const pin = 'public.ecr.aws/docker/library/node:22.23.3-alpine3.24@sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22';
+  assert.equal(source.split(`FROM ${pin}`).length - 1, 2);
+  assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
+  assert.equal(source.split('ENV CAPIRO_QUALIFICATION_ARCH=arm64').length - 1, 2);
+  assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2);
+  assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-arm64-openssl-3\.0\.x/);
+  const repair = source.indexOf('RUN --network=none node /qualification/derived-owner-repair.cjs');
+  const user = source.indexOf('USER capiro');
+  const gate = source.indexOf('RUN --network=none node /qualification/alpine-runtime-probe.cjs --static');
+  assert(repair > 0 && user > repair && gate > user);
+  assert.match(source, /FROM runtime-base AS runtime/);
+  assert.doesNotMatch(source, /CAPIRO_QUALIFICATION_ARCH=x64|sha256:2c752226/);
+});
+
 test('PR48 canonical source schema binds both raw image-local Prisma targets', () => {
   const schema = fs.readFileSync(path.join(root, 'apps/api/prisma/schema.prisma'), 'utf8').replace(/\r\n/g, '\n');
   const from = '"linux-arm64-openssl-3.0.x"';

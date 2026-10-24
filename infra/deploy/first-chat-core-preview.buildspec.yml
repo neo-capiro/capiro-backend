@@ -18,7 +18,7 @@ phases:
         REPOSITORY=capiro/preview-core
         REGISTRY=967807252336.dkr.ecr.us-east-1.amazonaws.com
         stage=architecture
-        test "$(uname -m)" = x86_64
+        test "$(uname -m)" = aarch64
         stage=region
         test "${AWS_REGION:-${AWS_DEFAULT_REGION:-}}" = us-east-1
         stage=account
@@ -70,15 +70,14 @@ phases:
         stage=ecr-login
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
         stage=docker-build
-        docker build --pull --platform linux/amd64 \
+        docker build --pull --platform linux/arm64 --target runtime \
           --label "org.opencontainers.image.revision=$SOURCE_SHA" \
           --label org.opencontainers.image.source=https://github.com/neo-capiro/capiro-backend \
-          -f apps/api/Dockerfile -t "$IMAGE" .
+          -f apps/api/Dockerfile.alpine-qualification -t "$IMAGE" .
         stage=image-architecture
-        test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = amd64
+        test "$(docker image inspect "$IMAGE" --format '{{.Architecture}}')" = arm64
         stage=runtime-smoke
-        docker run --rm --network none --entrypoint node "$IMAGE" -e \
-          "const a=require('node:assert/strict'); a.equal(process.arch,'x64'); a.equal(process.version,'v22.23.3'); require('@prisma/client'); require('./dist/meri/meri.service.js');"
+        sh apps/api/scripts/qualification/run-alpine-runtime-probes.sh "$IMAGE"
         stage=docker-push
         docker push "$IMAGE"
         stage=registry-digest

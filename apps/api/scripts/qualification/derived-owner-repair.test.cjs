@@ -5,14 +5,19 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { ENGINE, WASM, planRepair, applyRepair, diagnosticSnapshot, main } = require('./derived-owner-repair.cjs');
+const { ENGINE, WASM, PINS_BY_CPU, planRepair, applyRepair, diagnosticSnapshot, main } = require('./derived-owner-repair.cjs');
+const { selectedPlatform } = require('./qualification-platform.cjs');
+// The existing cases remain the x64 regression controls; ARM is selected below.
+process.env.CAPIRO_QUALIFICATION_ARCH = 'x64';
 
 const digest = data => createHash('sha256').update(data).digest('hex');
 function write(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, data);
 }
-function fixture(t) {
+function fixture(t, cpu = 'x64') {
+  const target = selectedPlatform({ CAPIRO_QUALIFICATION_ARCH: cpu });
+  const engineName = `libquery_engine-${target.prisma}.so.node`;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'core-derived-owner-'));
   t.after(() => {
     const intended = fs.realpathSync(os.tmpdir());
@@ -27,28 +32,63 @@ function fixture(t) {
   };
   const prisma = owner('prisma@5.22.0', 'prisma', '5.22.0', { dependencies: { '@prisma/engines': '5.22.0' } });
   const engines = owner('@prisma+engines@5.22.0', '@prisma/engines', '5.22.0');
-  const esbuild = owner('esbuild@0.28.2', 'esbuild', '0.28.2', { optionalDependencies: { '@esbuild/linux-x64': '0.28.2' } });
-  const platform = owner('@esbuild+linux-x64@0.28.2', '@esbuild/linux-x64', '0.28.2', { os: ['linux'], cpu: ['x64'] });
+  const esbuild = owner('esbuild@0.28.2', 'esbuild', '0.28.2', { optionalDependencies: { [target.esbuild]: '0.28.2' } });
+  const platform = owner(`${target.esbuild.replace('/', '+')}@0.28.2`, target.esbuild, '0.28.2', { os: ['linux'], cpu: [cpu] });
   const directLink = (parent, name, source) => {
     const link = path.join(path.dirname(parent), ...name.split('/'));
     fs.mkdirSync(path.dirname(link), { recursive: true });
     fs.symlinkSync(path.relative(path.dirname(link), source), link, process.platform === 'win32' ? 'junction' : 'dir');
   };
   directLink(prisma, '@prisma/engines', engines);
-  directLink(esbuild, '@esbuild/linux-x64', platform);
+  directLink(esbuild, target.esbuild, platform);
   const wasm = Buffer.from('0061736d0100000001000000', 'hex');
   const engine = Buffer.from('7f454c4602010100454e47494e45', 'hex');
   const binary = Buffer.from('7f454c460201010045534255494c44', 'hex');
   write(path.join(prisma, WASM), wasm);
-  write(path.join(prisma, ENGINE), engine);
-  write(path.join(engines, ENGINE), engine);
+  write(path.join(prisma, engineName), engine);
+  write(path.join(engines, engineName), engine);
   write(path.join(esbuild, 'bin', 'esbuild'), binary);
   write(path.join(platform, 'bin', 'esbuild'), binary);
   if (process.platform !== 'win32') fs.chmodSync(path.join(platform, 'bin', 'esbuild'), 0o755);
   const pins = { prismaWasm: { bytes: wasm.length, sha256: digest(wasm) },
     prismaEngine: { bytes: engine.length, sha256: digest(engine) }, esbuildBinary: { bytes: binary.length, sha256: digest(binary) } };
-  return { root, prisma, engines, esbuild, platform, pins };
+  return { root, prisma, engines, esbuild, platform, pins, target, engineName };
 }
+
+test('ARM selection uses its exact direct owner and engine, retaining original x64 pins', t => {
+  const f = fixture(t, 'arm64');
+  const previous = process.env.CAPIRO_QUALIFICATION_ARCH;
+  try {
+    process.env.CAPIRO_QUALIFICATION_ARCH = 'arm64';
+    const plan = planRepair(f.root, f.pins);
+    assert.equal(plan.records.length, 4);
+    assert.equal(plan.links[0].derived, path.join(f.prisma, f.engineName));
+    assert(plan.links[1].source.includes('@esbuild' + path.sep + 'linux-arm64'));
+    assert.equal(diagnosticSnapshot(f.root)[3].source.name, '@esbuild/linux-arm64');
+    assert.throws(() => planRepair(f.root), /Prisma CLI WASM byte count/, 'synthetic bytes cannot pass real vendor pins');
+    assert.throws(() => planRepair(f.root, f.pins, selectedPlatform({ CAPIRO_QUALIFICATION_ARCH: 'x64' })), /exact direct dependency declaration/);
+    const platformFile = path.join(f.platform, 'package.json');
+    const metadata = JSON.parse(fs.readFileSync(platformFile, 'utf8'));
+    fs.writeFileSync(platformFile, JSON.stringify({ ...metadata, cpu: ['x64'] }));
+    assert.throws(() => planRepair(f.root, f.pins), /deep-equal/);
+    assert(!fs.lstatSync(path.join(f.prisma, f.engineName)).isSymbolicLink());
+    assert.equal(PINS_BY_CPU.x64.prismaEngine.sha256, 'b8497554202349836f1f0a418b94fdbddfb5a36911d0cef8cf20b5ce88f0d74f');
+    assert.equal(PINS_BY_CPU.arm64.prismaEngine.sha256, '8d79d655cc9bb821bb6a889152fca44ac1fb347c0eb4cfc1e7065a2c0a2cd0db');
+    assert.equal(PINS_BY_CPU.arm64.esbuildBinary.sha256, '90bd269553d258e80b19e3ccab4f98f0831f87442a2f056510ce24fd1b425fc2');
+  } finally { process.env.CAPIRO_QUALIFICATION_ARCH = previous; }
+});
+
+test('ARM changed derived bytes or published pin refuse before any link', t => {
+  const f = fixture(t, 'arm64');
+  const file = path.join(f.prisma, f.engineName);
+  fs.appendFileSync(file, 'changed');
+  assert.throws(() => planRepair(f.root, f.pins, f.target), /derived\/source size mismatch/);
+  assert(!fs.lstatSync(file).isSymbolicLink());
+  const g = fixture(t, 'arm64');
+  const changed = { ...g.pins, esbuildBinary: { ...g.pins.esbuildBinary, sha256: '0'.repeat(64) } };
+  assert.throws(() => planRepair(g.root, changed, g.target), /SHA-256 differs/);
+  assert(!fs.lstatSync(path.join(g.esbuild, 'bin', 'esbuild')).isSymbolicLink());
+});
 
 test('exact direct owners, three hashes and four former HOLD gates produce a contained repair plan', t => {
   const f = fixture(t), plan = planRepair(f.root, f.pins);
