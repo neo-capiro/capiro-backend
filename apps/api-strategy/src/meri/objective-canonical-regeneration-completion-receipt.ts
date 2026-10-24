@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { readNativeObjectiveCompletion } from './objective-native-completion.js';
 import { types as nodeTypes } from 'node:util';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import {
@@ -25,9 +25,6 @@ const WITNESS_KEYS = ['schemaVersion', 'namespace', 'generationJobId', 'generati
   'sourceAdmissionSha256', 'sourceRequestSha256', 'sourceBindingSha256', 'typedRequestSha256',
   'executionContextSha256', 'completionId', 'checkpointId', 'checkpointSha256', 'resultRef',
   'resultSha256', 'rawFileSha256', 'executionSha256', 'completedAtMs', 'payloadSha256', 'corePayloadSha256'];
-const READ_KEYS = ['schemaVersion', 'generationJobId', 'binding', 'sourceAdmissionSha256', 'sourceRequestSha256',
-  'typedRequestSha256', 'completionId', 'checkpointId', 'checkpointSha256', 'resultRef', 'resultSha256',
-  'file', 'rawFileSha256', 'execution', 'result', 'checkedAtMs', 'expiresAtMs'];
 const RESULT_KEYS = ['resultVersion', 'operation', 'requestId', 'jobId', 'requestSha256', 'inputSha256',
   'sourceSha256', 'contextSha256', 'basisSha256', 'binding', 'execution', 'resultRef', 'completedAtMs',
   'state', 'payload', 'payloadSha256', 'issues', 'resultSha256'];
@@ -125,14 +122,13 @@ function expected(raw: CanonicalCompletionExpected) {
       publication.request.principal.tenantId !== acceptance.sourceBinding.tenantId ||
       publication.requestSha256 !== privateRequestJcsSha256(publication.request) ||
       publication.request.basisSha256 !== applicationHash(publication.request.basis) ||
-      acceptance.issuance.expiresAtMs > publication.request.originalExpiresAtMs) return fail('REQUEST_CONFLICT');
+      acceptance.effectExpiresAtMs > publication.request.originalExpiresAtMs) return fail('REQUEST_CONFLICT');
   const bindingSha256 = privateRequestJcsSha256(acceptance.sourceBinding);
-  const h = privateRequestJcsSha256({ binding: acceptance.sourceBinding, kind: 'completion' });
-  const completionId = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  const completionId = acceptance.sourceBinding.runId;
   return { admission, acceptance, publication, bindingSha256, completionId,
     executionContextSha256: privateRequestJcsSha256(publication.executionContext),
     minimumCompletedAtMs: Math.max(admission.admittedAtMs, acceptance.acceptedAtMs, publication.request.requestedAtMs),
-    maximumCompletedAtMs: Math.min(admission.effectExpiresAtMs, acceptance.issuance.expiresAtMs, publication.request.originalExpiresAtMs) };
+    maximumCompletedAtMs: Math.min(admission.effectExpiresAtMs, acceptance.effectExpiresAtMs, publication.request.originalExpiresAtMs) };
 }
 function completionTime(value: unknown, e: ReturnType<typeof expected>): number {
   const n = time(value);
@@ -146,17 +142,15 @@ function completionTime(value: unknown, e: ReturnType<typeof expected>): number 
  * consistency check is not SDK execution or an application receipt. */
 export function verifyRetainedCanonicalRegenerationCompletion(raw: unknown,
   options: CanonicalCompletionExpected & { nowMs: number }): {
-    payload: unknown; witness: CanonicalCompletionWitness; checkedAtMs: number; expiresAtMs: number;
+    payload: unknown; witness: CanonicalCompletionWitness;
   } {
   const o = object(options, ['admission', 'acceptance', 'publication', 'nowMs']);
   const e = expected({ admission: o.admission, acceptance: o.acceptance, publication: o.publication });
-  const nowMs = time(o.nowMs), retained = bounded(raw), v = object(retained, READ_KEYS), r = object(v.result, RESULT_KEYS);
+  const nowMs = time(o.nowMs), v = readNativeObjectiveCompletion(raw, e, PATH), r = object(v.result, RESULT_KEYS);
   const execution = object(v.execution, EXECUTION_KEYS), resultExecution = object(r.execution, EXECUTION_KEYS);
   const binding = parseAcceptedRunBinding(v.binding), resultBinding = parseAcceptedRunBinding(r.binding);
-  const checkedAtMs = time(v.checkedAtMs), expiresAtMs = time(v.expiresAtMs);
-  if (checkedAtMs >= expiresAtMs || checkedAtMs > nowMs || nowMs >= expiresAtMs) return fail('AUTHORITY_UNAVAILABLE');
   const completedAtMs = completionTime(r.completedAtMs, e);
-  if (completedAtMs > checkedAtMs) return fail('OUTCOME_UNCONFIRMED');
+  if (completedAtMs > nowMs) return fail('OUTCOME_UNCONFIRMED');
   if (v.schemaVersion !== 1 || v.generationJobId !== e.admission.generationJobId ||
       v.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(e.admission) ||
       v.sourceRequestSha256 !== e.acceptance.sourceRequestSha256 ||
@@ -187,9 +181,6 @@ export function verifyRetainedCanonicalRegenerationCompletion(raw: unknown,
   if (file.path !== PATH || ref.versionId === 'null' ||
       !Number.isSafeInteger(ref.bytes) || ref.bytes < 1 || ref.bytes > MAX_BYTES ||
       sha(ref.sha256) !== sha(v.rawFileSha256)) return fail('REQUEST_CONFLICT');
-  const rawBytes = Buffer.from(JSON.stringify(v.result), 'utf8');
-  if (rawBytes.length !== ref.bytes || rawBytes.length > MAX_BYTES ||
-      createHash('sha256').update(rawBytes).digest('hex') !== v.rawFileSha256) return fail('REQUEST_CONFLICT');
   const witness: CanonicalCompletionWitness = {
     schemaVersion: 1, namespace: NS, generationJobId: e.admission.generationJobId,
     generationRequestId: e.admission.generationRequestId,
@@ -201,7 +192,7 @@ export function verifyRetainedCanonicalRegenerationCompletion(raw: unknown,
     executionSha256: privateRequestJcsSha256(execution), completedAtMs, payloadSha256: r.payloadSha256,
     corePayloadSha256: applicationHash(r.payload),
   };
-  return freeze({ payload: r.payload, witness, checkedAtMs, expiresAtMs });
+  return freeze({ payload: r.payload, witness });
 }
 
 /** Historical consistency has no renewed read/issuance expiry. Full typed

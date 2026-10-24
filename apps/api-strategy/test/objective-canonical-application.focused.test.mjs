@@ -1,8 +1,9 @@
+import { application } from './objective-native-codec-loader.mjs';
 // Pure receiving-kernel cases only. Native Node type stripping erases the
 // kernel's owner type import; this suite imports no Nest/Prisma/app runtime.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
+const {
   CanonicalApplicationError,
   applicationHash,
   applicationJson,
@@ -15,7 +16,7 @@ import {
   checkStoredApplication,
   applicationObservation,
   executeCanonicalApplicationTransaction,
-} from '../src/planner/objective-canonical-application.ts';
+} = application;
 
 const uuid = (n) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const sha = (char) => char.repeat(64);

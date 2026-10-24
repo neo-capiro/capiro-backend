@@ -43,6 +43,7 @@ const app = await import(applicationUrl), generation = await import(generationUr
 const ledger = await import(ledgerUrl), draft = await import(draftUrl);
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12,'0')}`;
 const copy = structuredClone;
+const fixtureBindingKey = app.applicationHash;
 function fixture() {
   const a = { schemaVersion: 1, namespace: generation.GENERATION_ADMISSION_NAMESPACE,
     canonical: { canonicalPlanId: id(1),tenantId: id(2),clientId: id(3),objectiveId: id(4),canonicalStrategyId:id(5),
@@ -50,10 +51,9 @@ function fixture() {
       requestedObjectiveVersion:1,snapshotHash:'a'.repeat(64) },actorUserId:id(9),clerkUserId:'user_fixture',
     consentId:id(10),controlVersion:1,generationJobId:id(11),generationRequestId:id(12),admittedAtMs:1000,
     effectExpiresAtMs:20000,expectedStrategyVersionId:null };
-  const binding={tenantId:id(2),actorId:a.clerkUserId,conversationId:id(13),runId:id(14),attemptId:id(15),workerId:id(16),writerFence:7};
+  const binding={tenantId:id(2),actorId: a.actorUserId,conversationId:id(13),runId:id(14),attemptId:id(15),workerId:id(16),writerFence:7};
   const accepted={schemaVersion:1,sourceAdmissionSha256:app.applicationHash(a),sourceBinding:binding,
-    sourceRequestSha256:'b'.repeat(64),acceptedAtMs:1100,issuance:{issuanceKey:app.applicationHash(binding),binding,
-      requestSha256:'b'.repeat(64),expiresAtMs:19000,grantId:id(17),capabilitySha256:'c'.repeat(64),factsSha256:'d'.repeat(64)}};
+    sourceRequestSha256:'b'.repeat(64),acceptedAtMs:1100,effectExpiresAtMs: 19000};
   const context={state:'complete',packetId:id(18),compiledAt:new Date(1050).toISOString(),sourceDigest:'e'.repeat(64),
     coverageDigest:'f'.repeat(64),inputDigest:'1'.repeat(64),issues:[],reobservedAt:new Date(1150).toISOString()};
   const receipt={schemaVersion:1,requestId:a.generationRequestId,source:{clientId:id(3),objectiveId:id(4),objectiveVersion:1,objectiveRevisionId:id(8)},
@@ -94,7 +94,7 @@ function normalizationFixture() {
     coverage:{complete:false,omitted:[],assumptions:['Synthetic pending source'],sources:[],
       pendingSources:[{section:'steward',ref:'synthetic-pending'}]}};
   x.normalized=draft.normalizeCanonicalDraft(candidate,{admission:x.a,queuedType:'authorization'});
-  x.job.status='running';x.job.strategyId=null;x.job.claimedBy=`canonical:${x.accepted.issuance.issuanceKey}`;
+  x.job.status='running';x.job.strategyId=null;x.job.claimedBy=`canonical:${fixtureBindingKey(x.accepted.sourceBinding)}`;
   x.job.claimedAt=new Date(x.accepted.acceptedAtMs);x.job.input.dto={clientId:x.a.canonical.clientId,type:'authorization'};
   x.job.input.objectiveGeneration.receipt.result=null;
   x.version.snapshot.meta={...x.version.snapshot.meta,type:'authorization',meriSummary:x.normalized.response.summary,
@@ -132,7 +132,7 @@ test('two action consents differ and genuine saved output still correlates',()=>
 test('original accepted request hash is not Core fingerprint or semantic admission hash',()=>{
   const x=fixture(), saved=producer.canonicalGenerationProducer(x.source);
   assert.notEqual(saved.acceptance.sourceRequestSha256,saved.generation.coreFingerprint);
-  assert.notEqual(saved.acceptance.issuance.factsSha256,saved.acceptance.sourceAdmissionSha256);
+  assert.notEqual(saved.acceptance.sourceRequestSha256,saved.acceptance.sourceAdmissionSha256);
 });
 test('rejects late or pre-acceptance save, wrong output/version and forged complete source',()=>{
   for(const change of [x=>{x.source.receipt.result.savedAt=new Date(19000).toISOString();},
@@ -152,9 +152,9 @@ test('same owner insert-only receipt replays exact source; conflict does not upd
 });
 test('retained producer reconstruction has no host-clock or current-source dependency',async()=>{
   const x=fixture();await ledger.recordCanonicalGenerationProducer(x.tx,id(2),x.a.clerkUserId,x.a.generationJobId);
-  assert.ok(Date.now()>x.accepted.issuance.expiresAtMs);
+  assert.ok(Date.now()>x.accepted.effectExpiresAtMs);
   const value=await ledger.readCanonicalGenerationProducer(x.tx,id(2),x.a.clerkUserId,x.a.generationJobId);
-  assert.equal(value.acceptance.issuance.expiresAtMs,19000);
+  assert.equal(value.acceptance.effectExpiresAtMs,19000);
   // This is custody reconstruction only. Real service separately checks fresh authority.
 });
 test('lost/corrupt association, mutable private rows and wrong snapshot client refuse',async()=>{

@@ -7,7 +7,6 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { PlannerService } from '../src/planner/planner.service.js';
 import type { PlannerLinksService } from '../src/planner/planner-links.service.js';
 import { ObjectiveCanonicalApplicationService } from '../src/planner/objective-canonical-application.service.js';
-import { ObjectiveCanonicalWorkloadAuthority } from '../src/planner/objective-canonical-authority.js';
 import { ObjectivePlannerContinuationRuntime } from '../src/planner/objective-planner-continuation.runtime.js';
 import { ObjectivePlannerContinuationWorker } from '../src/planner/objective-planner-continuation.worker.js';
 import { PLANNER_CONTINUATION_OPERATION, plannerContinuationOperationId,
@@ -45,11 +44,7 @@ native('Objective Planner concrete runtime on task-owned native PostgreSQL', () 
   const extraClients: PrismaService[] = [];
   const workspaceRoot = resolve(__dirname, '../../..');
   function application(db = prisma) {
-    return new ObjectiveCanonicalApplicationService(db,
-      new PlannerService(db, { validate: async () => undefined } as unknown as PlannerLinksService),
-      // The local runtime must never invoke this external rejecting authority.
-      // Concrete native consent/fences remain in the runtime owner transaction.
-      new ObjectiveCanonicalWorkloadAuthority());
+    return new ObjectiveCanonicalApplicationService(new PlannerService(db, { validate: async () => undefined } as unknown as PlannerLinksService));
   }
   const runtime = (db = prisma, app = application(db)) => new ObjectivePlannerContinuationRuntime(db, app, config(true));
   async function verifyCatalog() {
@@ -116,7 +111,7 @@ native('Objective Planner concrete runtime on task-owned native PostgreSQL', () 
     expect(operation?.data.state).toBe('applied');
     expect(operation?.data.terminal?.receiptId).toBe(applicationReceiptId(f.tenantId, f.clerkUserId, work.applicationRequestId));
     expect(operation?.data.original.originalDeadlineAt).toBe(new Date(Math.min(f.plannerExpiresAtMs,
-      f.admission.effectExpiresAtMs, f.acceptance.issuance.expiresAtMs)).toISOString());
+      f.admission.effectExpiresAtMs, f.acceptance.effectExpiresAtMs)).toISOString());
     expect(s.head).not.toBeNull();
   }, 30_000);
   test('two independent native clients contend for one operation and create one output set', async () => {

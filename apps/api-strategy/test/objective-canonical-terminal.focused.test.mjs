@@ -47,6 +47,7 @@ const copy = value => structuredClone(value);
 const json = value => JSON.parse(JSON.stringify(value));
 const refuses = run => assert.throws(run, e => e instanceof CanonicalApplicationError);
 
+const fixtureBindingKey = generation.generationBindingKey;
 function fixture(outcome = 'needs-information') {
   const canonical = { canonicalPlanId: id(1), tenantId: id(2), clientId: id(3), objectiveId: id(4),
     canonicalStrategyId: id(5), canonicalProjectId: id(6), bindingVersion: 2, epoch: 1,
@@ -55,17 +56,16 @@ function fixture(outcome = 'needs-information') {
     actorUserId: id(9), clerkUserId: 'original_clerk_fixture', consentId: id(12), controlVersion: 3,
     generationJobId: id(10), generationRequestId: id(11), admittedAtMs: 1000, effectExpiresAtMs: 2000,
     expectedStrategyVersionId: null };
-  const binding = { tenantId: id(2), actorId: admission.clerkUserId, conversationId: id(20), runId: id(21),
+  const binding = { tenantId: id(2), actorId: admission.actorUserId, conversationId: id(20), runId: id(21),
     attemptId: id(22), workerId: id(23), writerFence: 2 };
   const acceptance = { schemaVersion: 1, sourceAdmissionSha256: generation.canonicalGenerationAdmissionSha256(admission),
     sourceBinding: binding, sourceRequestSha256: hex('b'), acceptedAtMs: 1100,
-    issuance: { issuanceKey: applicationHash(binding), binding, requestSha256: hex('b'), expiresAtMs: 1900,
-      grantId: id(24), capabilitySha256: hex('c'), factsSha256: hex('d') } };
+    effectExpiresAtMs: 1900 };
   const request = { requestId: admission.generationRequestId, clientId: canonical.clientId,
     objective: { objectiveId: canonical.objectiveId, objectiveVersion: canonical.requestedObjectiveVersion }, type: 'authorization' };
   const job = { id: admission.generationJobId, tenantId: canonical.tenantId, clientId: canonical.clientId,
     ownerUserId: admission.clerkUserId, status: 'running', stage: 'drafting', errorMessage: null, strategyId: null,
-    claimedBy: `canonical:${acceptance.issuance.issuanceKey}`, attempt: 2,
+    claimedBy: `canonical:${fixtureBindingKey(acceptance.sourceBinding)}`, attempt: 2,
     // Expired ORM metadata must not be serialized/renewed by terminal accounting.
     deadlineAt: new Date(2000), createdAt: new Date(900),
     input: { dto: { clientId: canonical.clientId, type: request.type, goal: ' Original goal\n',
@@ -119,7 +119,7 @@ test('only the private record and failure projection change; every original sour
 test('late recorded time after original issuance/effect/job deadlines is retained, never renewed', () => {
   const f = fixture(), p = prepare(f.job, f.options);
   assert.ok(p.record.recordedAtMs > f.options.admission.effectExpiresAtMs);
-  assert.ok(p.record.recordedAtMs > f.options.acceptance.issuance.expiresAtMs);
+  assert.ok(p.record.recordedAtMs > f.options.acceptance.effectExpiresAtMs);
   assert.equal(f.job.deadlineAt.getTime(), 2000); assert.equal(p.record.recordedAtMs, 5000);
   assert.equal(check(replay(f, p), historical(f)).recordedAtMs, 5000);
 });

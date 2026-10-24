@@ -4,7 +4,7 @@ import { buildSnapshot, type StrategySnapshot } from '../strategy/versioning.js'
 import type { CanonicalStrategyBasis } from './objective-canonical-basis.js';
 import type { NormalizedCanonicalDraft, CanonicalDraftNormalizationWitness } from './objective-canonical-draft.js';
 import { GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_NORMALIZATION,
-  canonicalGenerationAdmissionSha256, generationLedgerId, generationUuid,
+  canonicalGenerationAdmissionSha256, generationLedgerId, generationUuid, generationBindingKey,
   parseCanonicalGenerationAdmission, requireGenerationAcceptanceForAdmission,
   type CanonicalGenerationAdmission, type CanonicalGenerationAcceptance } from './objective-canonical-generation.js';
 import { generationAssociation, insertGenerationLedger, readGenerationLedger } from './objective-canonical-producer-ledger.js';
@@ -115,7 +115,7 @@ export async function recordCanonicalRegenerationNormalization(tx: Prisma.Transa
   const job = await tx.spDraftJob.findFirst({ where: { id: generationJobId, tenantId, ownerUserId: clerkUserId } });
   if (!job) return unavailable();
   const envelope = (job.input as { objectiveGeneration?: unknown }).objectiveGeneration;
-  const actual = deriveCanonicalJobInput(job, a, envelope, `canonical:${acceptance.issuance.issuanceKey}`);
+  const actual = deriveCanonicalJobInput(job, a, envelope, `canonical:${generationBindingKey(acceptance.sourceBinding)}`);
   if (input.normalized.normalizationWitness.strategyType !== actual.dto.type) return unavailable();
   const version = await tx.spVersion.findFirst({ where: { id: saved.strategyVersionId, tenantId, strategyId: saved.strategyId } });
   if (!version || version.coalescible !== false || version.authorKind !== 'meri' || version.authorUserId !== clerkUserId) return unavailable();

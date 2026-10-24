@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Header, HttpCode, Param, Post, Req } from '@nestjs/common';
+import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { UseGuards, Body, Controller, Get, Header, HttpCode, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ObjectiveCanonicalCompletionService } from './objective-canonical-completion.service.js';
 
 /** Fixed private URLs include main.ts's /strategy-api prefix. Caller input
  * selects only its original job. Neither a model payload nor a result locator
  * is accepted. The workload verifier remains default-unavailable. */
+@UseGuards(InternalServiceGuard)
 @Controller('internal/objective-canonical/generation-completions')
 export class ObjectiveCanonicalCompletionController {
   constructor(private readonly completion: ObjectiveCanonicalCompletionService) {}

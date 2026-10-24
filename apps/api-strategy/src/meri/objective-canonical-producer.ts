@@ -66,7 +66,7 @@ export function canonicalGenerationProducer(source: {
       r.result!.strategyId !== a.canonical.canonicalStrategyId || r.result!.strategyId !== source.strategyId ||
       r.result!.strategyVersionId !== source.strategyVersionId ||
       Date.parse(r.result!.savedAt) < accepted.acceptedAtMs ||
-      Date.parse(r.result!.savedAt) >= Math.min(a.effectExpiresAtMs, accepted.issuance.expiresAtMs))
+      Date.parse(r.result!.savedAt) >= Math.min(a.effectExpiresAtMs, accepted.effectExpiresAtMs))
     throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
   return { schemaVersion: 1, sourceAdmission: a, acceptance: accepted,
     generation: { jobId: source.jobId, requestId: source.requestId,

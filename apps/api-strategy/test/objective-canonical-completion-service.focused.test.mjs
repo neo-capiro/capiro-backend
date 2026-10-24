@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 // SOURCE-ORCHESTRATION FIXTURE ONLY. The actual completion service executes;
 // custody, SQL/transactions, authority, codecs, normalization, context and the
 // existing Strategy writer are explicitly synthetic ports. This does not
@@ -23,8 +24,8 @@ async function sourceModule(relative, replacements = [], injectable = false, mod
     source = source.replace('@Injectable()', '');
   }
   for (const [from, to] of replacements) {
-    assert.equal(source.split(from).length, 2, `one exact import rewrite: ${from}`);
-    source = source.replace(from, JSON.stringify(to));
+    assert.equal(source.split(from).length, (from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2), `one exact import rewrite: ${from}`);
+    source = source.replaceAll(from, JSON.stringify(to));
   }
   const transformed = stripTypeScriptTypes(source, { mode, sourceUrl: path.href });
   custody.push({ path: relative, sha256: sha(raw), transformedSha256: sha(transformed), mode,
@@ -33,7 +34,7 @@ async function sourceModule(relative, replacements = [], injectable = false, mod
   return data(transformed);
 }
 
-const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts');
+const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const app = await import(appUrl);
 const nestUrl = data(`export const Injectable=()=>value=>value;
   export class HttpException extends Error {
@@ -69,6 +70,8 @@ const portsUrl = data(`
   export const verifyRetainedCanonicalRegenerationCompletion=()=>{throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');};
   export const normalizeCanonicalRegenerationDraft=()=>{throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');};
   export const canonicalGenerationAdmissionSha256=applicationHash;
+  export const generationBindingKey=applicationHash;
+  const fixtureBindingKey=applicationHash;
   export async function generationAssociation(tx,tenant,clerk,job){
     assert.equal(tx.fixture,state());assert.equal(tenant,state().a.canonical.tenantId);
     assert.equal(clerk,state().a.clerkUserId);assert.equal(job,state().job.id);
@@ -105,7 +108,7 @@ const portsUrl = data(`
     const s=state();s.calls.derive++;
     assert.equal(job.id,s.a.generationJobId);assert.deepEqual(job.input.dto,s.originalDto);
     assert.deepEqual(a,s.a);assert.deepEqual(envelope,job.input.objectiveGeneration);
-    assert.equal(job.attempt,2);assert.equal(claim,'canonical:'+s.association.acceptance.issuance.issuanceKey);
+    assert.equal(job.attempt,2);assert.equal(claim,'canonical:'+fixtureBindingKey(s.association.acceptance.sourceBinding));
     assert.equal(job.claimedBy,claim);return {dto:clone(job.input.dto),envelope:clone(envelope)};
   }
   export function verifyRetainedCanonicalCompletion(raw,expected){
@@ -132,7 +135,7 @@ const portsUrl = data(`
     const s=state();s.calls.persistence++;
     assert.equal(claim.id,s.job.id);assert.equal(claim.tenantId,s.a.canonical.tenantId);
     assert.equal(claim.ownerUserId,s.a.clerkUserId);assert.equal(claim.attempt,2);
-    assert.equal(claim.claimToken,'canonical:'+s.association.acceptance.issuance.issuanceKey);
+    assert.equal(claim.claimToken,'canonical:'+fixtureBindingKey(s.association.acceptance.sourceBinding));
     assert.deepEqual(claim.input.dto,s.originalDto);assert.deepEqual(claim.completion,s.witness);
     assert.deepEqual(compiled(),s.stored.compiled);s.claim=claim;
     return {
@@ -197,6 +200,7 @@ const serviceUrl = await sourceModule('../src/meri/objective-canonical-completio
 ], true, 'transform');
 const { ObjectiveCanonicalCompletionService } = await import(serviceUrl);
 
+const fixtureBindingKey = app.applicationHash;
 function fixture() {
   const s = { now: 10_000, depth: 0, trace: [], writes: 0, reads: 0, writerCalls: 0,
     calls: Object.fromEntries(['verifyAuthority', 'current', 'association', 'publication', 'producer', 'ledger',
@@ -206,17 +210,17 @@ function fixture() {
     canonicalStrategyId: id(4), requestedObjectiveRevisionId: id(5) }, actorUserId: id(6), clerkUserId: 'user_original',
     consentId: id(7), controlVersion: 2, generationJobId: id(8), generationRequestId: id(9),
     admittedAtMs: 1000, effectExpiresAtMs: 50_000, expectedStrategyVersionId: null };
-  const binding = { tenantId: id(1), actorId: 'user_original', conversationId: id(10), runId: id(11),
+  const binding = { tenantId: id(1), actorId: s.a.actorUserId, conversationId: id(10), runId: id(11),
     attemptId: id(12), workerId: id(13), writerFence: 7 };
   s.association = { admission: s.a, acceptance: { sourceBinding: binding, sourceRequestSha256: 'b'.repeat(64),
-    issuance: { issuanceKey: 'original-issuance', expiresAtMs: 45_000 } } };
+    effectExpiresAtMs: 45_000 } };
   const context = { state: 'complete', packetId: id(14), sourceDigest: 'c'.repeat(64), coverageDigest: 'd'.repeat(64),
     inputDigest: 'e'.repeat(64), compiledAt: '2026-10-16T00:00:00.000Z', reobservedAt: null, issues: [] };
   const source = { clientId: id(2), objectiveId: id(3), objectiveVersion: 1, objectiveRevisionId: id(5) };
   s.originalDto = { clientId: id(2), type: 'authorization', goal: 'Original raw goal', meriContext: null,
     ownerUserId: 'user_owner', targetDate: '2026-10-30', attachmentIds: [] };
   s.job = { id: id(8), tenantId: id(1), clientId: id(2), ownerUserId: 'user_original', status: 'running',
-    attempt: 2, claimedBy: 'canonical:original-issuance', strategyId: null,
+    attempt: 2, claimedBy: 'canonical:'+fixtureBindingKey(binding), strategyId: null,
     input: { dto: copy(s.originalDto), bearer: null, canonicalGeneration: { source: 'synthetic-original-marker' },
       objectiveGeneration: { request: { requestId: id(9), clientId: id(2), type: 'authorization',
         objective: { objectiveId: id(3), objectiveVersion: 1 } }, fingerprint: 'f'.repeat(64),
@@ -377,8 +381,8 @@ test('closed POST body refuses posted payload, locator, binding, or replacement 
 test('fresh verifier, current authority, request binding and database-clock grant expiry fence application', async () => {
   for (const mutate of [s => { s.verifyAuthorityError = true; }, s => { s.currentError = true; },
     s => { s.wrongRequestHash = true; }, s => { s.grant.checkedAtMs = s.now + 1; },
-    s => { s.grant.expiresAtMs = s.now; }, s => { s.grant.delegationExpiresAtMs = s.now; },
-    s => { s.grant.claimExpiresAtMs = s.now; }]) {
+    s => { s.grant.expiresAtMs = s.now; }, s => { s.association.acceptance.effectExpiresAtMs = s.now; },
+    s => { s.a.effectExpiresAtMs = s.now; }]) {
     const s = fixture();mutate(s);
     await assert.rejects(() => complete(s), httpFailure(503, 'AUTHORITY_UNAVAILABLE'));
     assert.equal(s.reads, 0);assert.equal(s.writerCalls, 0);noEffects(s);
@@ -508,12 +512,12 @@ test('published principal owner handles padded DTO owner and whitespace-only fal
   }
 });
 
-test('retained reader expiry or original issuance/effect expiry refuses application', async () => {
-  for (const mutate of [s => { s.rawResult.expiresAtMs = s.now; },
-    s => { s.association.acceptance.issuance.expiresAtMs = s.now; },
+test('native custody loss or original accepted/effect expiry refuses application', async () => {
+  for (const mutate of [s => { s.readerError = true; },
+    s => { s.association.acceptance.effectExpiresAtMs = s.now; },
     s => { s.a.effectExpiresAtMs = s.now; }]) {
     const s = fixture();mutate(s);
-    await assert.rejects(() => complete(s), httpFailure(503, 'AUTHORITY_UNAVAILABLE'));
+    await assert.rejects(() => complete(s), httpFailure(503, s.readerError ? 'OUTCOME_UNCONFIRMED' : 'AUTHORITY_UNAVAILABLE'));
     assert.equal(s.writerCalls, 0);noEffects(s);
   }
 });

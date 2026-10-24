@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Header, HttpCode, Param, Post, Req } from '@nestjs/common';
+import { InternalServiceGuard } from '../auth/internal-service.guard.js';
+import { UseGuards, Body, Controller, Get, Header, HttpCode, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ObjectiveCanonicalTerminalService } from './objective-canonical-terminal.service.js';
 
+@UseGuards(InternalServiceGuard)
 @Controller('internal/objective-canonical/generation-terminals')
 export class ObjectiveCanonicalTerminalController {
   constructor(private readonly terminal: ObjectiveCanonicalTerminalService) {}

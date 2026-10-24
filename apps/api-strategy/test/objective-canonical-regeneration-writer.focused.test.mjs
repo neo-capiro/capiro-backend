@@ -90,7 +90,7 @@ const errorStart = 'function draftErrorBody(', errorEnd = '\n}\n\n/** Draft node
 assert.equal(meri.split(errorStart).length, 2); assert.equal(meri.split(errorEnd).length, 2);
 const errorHelper = meri.slice(meri.indexOf(errorStart), meri.indexOf(errorEnd, meri.indexOf(errorStart)) + 2);
 const wrapper = `import {applicationHash,CanonicalApplicationError} from ${JSON.stringify(appUrl)};
-import {parseCanonicalGenerationAdmission,canonicalGenerationAdmissionSha256,generationLedgerId,GENERATION_NORMALIZATION} from ${JSON.stringify(generationUrl)};
+import {generationBindingKey,parseCanonicalGenerationAdmission,canonicalGenerationAdmissionSha256,generationLedgerId,GENERATION_NORMALIZATION} from ${JSON.stringify(generationUrl)};
 import {generationAssociation} from ${JSON.stringify(ledgerUrl)};
 import {deriveCanonicalJobInput} from ${JSON.stringify(jobInputUrl)};
 import {readCanonicalRequestPublication} from ${JSON.stringify(requestLedgerUrl)};
@@ -120,11 +120,10 @@ const NOW = Date.parse('2026-10-16T12:00:00.000Z');
 const row = (kind, admission, data) => ({ id: g.generationLedgerId(kind, id(2), admission.clerkUserId, admission.generationJobId),
   tenantId: id(2), ownerId: admission.clerkUserId, kind, projectId: null, archived: false, version: 1, shareTokenHash: null, data: copy(data) });
 function accepted(a, start) {
-  const binding = { tenantId: id(2), actorId: a.clerkUserId, conversationId: id(a.expectedStrategyVersionId ? 80 : 13),
+  const binding = { tenantId: id(2), actorId: a.actorUserId, conversationId: id(a.expectedStrategyVersionId ? 80 : 13),
     runId: id(a.expectedStrategyVersionId ? 81 : 14), attemptId: id(a.expectedStrategyVersionId ? 82 : 15), workerId: id(16), writerFence: 7 };
   return { schemaVersion: 1, sourceAdmissionSha256: app.applicationHash(a), sourceBinding: binding, sourceRequestSha256: hex('b'), acceptedAtMs: start,
-    issuance: { issuanceKey: g.generationBindingKey(binding), binding, requestSha256: hex('b'), expiresAtMs: start + 500000,
-      grantId: id(17), capabilitySha256: hex('c'), factsSha256: hex('d') } };
+    effectExpiresAtMs: start + 500000 };
 }
 function envelope(a, compiledAt, reobservedAt = null) {
   const request = { requestId: a.generationRequestId, clientId: id(3), objective: { objectiveId: id(4), objectiveVersion: a.canonical.requestedObjectiveVersion }, type: 'authorization' };
@@ -235,7 +234,7 @@ class Fixture {
       coalescible: false, snapshot: snapshots.buildSnapshot(this.data.strategy, this.data.nodes) };
     this.data.versions.set(initialVersion.id, initialVersion);
     const oldJob = { id: old.generationJobId, tenantId: id(2), clientId: id(3), ownerUserId: old.clerkUserId, status: 'running', attempt: 2,
-      claimedBy: `canonical:${oldAccepted.issuance.issuanceKey}`, strategyId: null,
+      claimedBy: `canonical:${fixtureBindingKey(oldAccepted.sourceBinding)}`, strategyId: null,
       input: { dto: { clientId: id(3), type: 'authorization' }, canonicalGeneration: ledger.generationMarker(old), objectiveGeneration: oldEnvelope } };
     this.data.jobs.set(oldJob.id, oldJob);
     for (const [kind, value] of [[g.GENERATION_ADMISSION, old], [g.GENERATION_ACCEPTANCE, oldAccepted]]) {
@@ -284,7 +283,7 @@ class Fixture {
       historyDigest: compiled.historyDigest, historyObservedAt: compiled.historyObservedAt, coverage: [], contactIds: [] });
     const dto = { clientId: id(3), type: 'authorization', goal: 'Actual queued regeneration goal', attachmentIds: [] };
     const job = { id: a.generationJobId, tenantId: id(2), clientId: id(3), ownerUserId: a.clerkUserId, status: 'running', attempt: 2,
-      claimedBy: `canonical:${this.acceptance.issuance.issuanceKey}`, claimedAt: new Date(NOW - 500), strategyId: null,
+      claimedBy: `canonical:${fixtureBindingKey(this.acceptance.sourceBinding)}`, claimedAt: new Date(NOW - 500), strategyId: null,
       requestKey: `objective-v1:${app.applicationHash([id(2), a.clerkUserId, a.generationRequestId])}`,
       input: { bearer: null, dto, canonicalGeneration: ledger.generationMarker(a), objectiveGeneration: currentEnvelope } };
     this.data.jobs.set(job.id, job);
@@ -295,8 +294,8 @@ class Fixture {
       context: { schemaVersion: 1, tenantId: id(2), clerkUserId: a.clerkUserId, requestId: a.generationRequestId, source, intent,
         snapshotSha256: a.canonical.snapshotHash, sourceDigest, packetId: compiled.context.packetId, compiledAt: compiled.context.compiledAt,
         coverageDigest: compiled.context.coverageDigest, promptSha256: sha(prompt), evidence: [] },
-      prompt, owners: [{ ownerRef: a.clerkUserId, clerkUserId: a.clerkUserId }], delegation: { ref: id(90), revision: 'synthetic-original-delegation',
-        issuedAtMs: NOW - 2000, absoluteExpiresAtMs: NOW + 600000 }, requestedAtMs: NOW - 500, effectExpiresAtMs: a.effectExpiresAtMs, basis: this.basis });
+      prompt, owners: [{ ownerRef: a.clerkUserId, clerkUserId: a.clerkUserId }],
+      requestedAtMs: NOW - 500, effectExpiresAtMs: a.effectExpiresAtMs, basis: this.basis });
     const stored = { schemaVersion: 1, sourceAdmissionSha256: app.applicationHash(a), inputSha256: requestLedger.canonicalPublicationInputHash(job.input),
       publicationSha256: request.candidateJcsSha256(publication), compiled, publication };
     const publicationRow = row(g.GENERATION_REQUEST, a, stored); this.data.rows.set(publicationRow.id, publicationRow);
@@ -308,12 +307,12 @@ class Fixture {
         beforeWrite: async tx => { assert.equal(this.active, true); this.events.push({ method: 'beforeWrite' });
           if (this.denied) throw new app.CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
           const actual = tx._data.jobs.get(a.generationJobId);
-          assert.equal(actual.claimedBy, `canonical:${this.acceptance.issuance.issuanceKey}`);
-          if (this.now >= Math.min(a.effectExpiresAtMs, this.acceptance.issuance.expiresAtMs)) throw new app.CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+          assert.equal(actual.claimedBy, `canonical:${fixtureBindingKey(this.acceptance.sourceBinding)}`);
+          if (this.now >= Math.min(a.effectExpiresAtMs, this.acceptance.effectExpiresAtMs)) throw new app.CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
         },
         afterWrite: async (tx, saved) => {
           assert.equal(this.active, true); this.events.push({ method: 'afterWrite', saved: copy(saved) });
-          if (this.now >= Math.min(a.effectExpiresAtMs, this.acceptance.issuance.expiresAtMs, this.publication.request.originalExpiresAtMs))
+          if (this.now >= Math.min(a.effectExpiresAtMs, this.acceptance.effectExpiresAtMs, this.publication.request.originalExpiresAtMs))
             throw new app.CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
           const actual = tx._data.jobs.get(a.generationJobId), c = actual.input.objectiveGeneration.receipt.context;
           c.reobservedAt = new Date(this.now).toISOString(); actual.status = 'completed'; actual.strategyId = saved.strategyId;
@@ -456,7 +455,7 @@ test('late Objective completion failure rolls back normalization, receipt, activ
 
 test('DB clock reaching the original accepted issuance deadline before afterWrite rolls back all prepared writes', async () => {
   const x = await fixture(), before = copy(x.data);
-  x.afterCut = owner => { owner.now = owner.acceptance.issuance.expiresAtMs; };
+  x.afterCut = owner => { owner.now = owner.acceptance.effectExpiresAtMs; };
   await refuses(() => x.run(), 'AUTHORITY_UNAVAILABLE');
   assert.deepEqual(x.data, before); assert.equal(x.events.some(e => e.method === 'ledgerInsert' && e.schemaVersion === 2), true);
   assert.equal(x.events.some(e => e.method === 'afterWrite'), true);
@@ -469,3 +468,5 @@ test('grounding and source observation occur outside transactions; Objective bef
   const beforeWrite = x.events.findIndex(e => e.method === 'beforeWrite'), firstWrite = x.events.findIndex(e => e.method === 'strategyUpdate');
   assert.ok(ground >= 0 && ground < outside && outside < beforeWrite && beforeWrite < firstWrite);
 });
+
+const fixtureBindingKey = app.applicationHash;

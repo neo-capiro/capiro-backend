@@ -20,13 +20,9 @@ export interface AcceptedRunBinding {
   readonly tenantId: string; readonly actorId: string; readonly conversationId: string;
   readonly runId: string; readonly attemptId: string; readonly workerId: string; readonly writerFence: number;
 }
-export interface SanitizedGenerationIssuance {
-  issuanceKey: string; binding: AcceptedRunBinding; requestSha256: string; expiresAtMs: number;
-  grantId: string; capabilitySha256: string; factsSha256: string;
-}
 export interface CanonicalGenerationAcceptance {
   schemaVersion: 1; sourceAdmissionSha256: string; sourceBinding: AcceptedRunBinding;
-  sourceRequestSha256: string; issuance: SanitizedGenerationIssuance; acceptedAtMs: number;
+  sourceRequestSha256: string; effectExpiresAtMs: number; acceptedAtMs: number;
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA = /^[0-9a-f]{64}$/;
@@ -94,32 +90,27 @@ export function parseAcceptedRunBinding(raw: unknown): AcceptedRunBinding {
 export function generationBindingKey(raw: unknown): string { return applicationHash(parseAcceptedRunBinding(raw)); }
 export function parseCanonicalGenerationAcceptance(raw: unknown): CanonicalGenerationAcceptance {
   const r = closed(raw, ['schemaVersion', 'sourceAdmissionSha256', 'sourceBinding',
-    'sourceRequestSha256', 'issuance', 'acceptedAtMs']);
+    'sourceRequestSha256', 'effectExpiresAtMs', 'acceptedAtMs']);
   if (r.schemaVersion !== 1) return invalid();
   generationSha256(r.sourceAdmissionSha256); generationSha256(r.sourceRequestSha256);
   const binding = parseAcceptedRunBinding(r.sourceBinding);
-  const i = closed(r.issuance, ['issuanceKey', 'binding', 'requestSha256', 'expiresAtMs',
-    'grantId', 'capabilitySha256', 'factsSha256']);
-  const issuedBinding = parseAcceptedRunBinding(i.binding);
-  for (const key of ['issuanceKey', 'requestSha256', 'capabilitySha256', 'factsSha256']) generationSha256(i[key]);
-  generationUuid(i.grantId); integer(i.expiresAtMs, 0, TIME_MAX); integer(r.acceptedAtMs, 0, TIME_MAX);
-  if (applicationJson(binding) !== applicationJson(issuedBinding) || r.sourceRequestSha256 !== i.requestSha256 ||
-      i.issuanceKey !== generationBindingKey(binding) || (i.expiresAtMs as number) <= (r.acceptedAtMs as number)) return invalid();
-  return Object.freeze({ ...r, sourceBinding: binding,
-    issuance: Object.freeze({ ...i, binding: issuedBinding }) }) as unknown as CanonicalGenerationAcceptance;
+  generationUuid(binding.actorId);
+  integer(r.effectExpiresAtMs, 0, TIME_MAX); integer(r.acceptedAtMs, 0, TIME_MAX);
+  if ((r.effectExpiresAtMs as number) <= (r.acceptedAtMs as number)) return invalid();
+  return Object.freeze({ ...r, sourceBinding: binding }) as unknown as CanonicalGenerationAcceptance;
 }
+
 export function canonicalGenerationAdmissionSha256(raw: unknown): string {
   return applicationHash(parseCanonicalGenerationAdmission(raw));
 }
-/** Metadata coherence only. The real issuer reader must independently verify
- * protected facts.objectiveGeneration.sourceAdmission + its SHA against this
- * Core admission. Neither this parser nor a matching digest establishes that. */
+/** The private native reader independently observes the actual immutable run_start.
+ * These consistency checks do not manufacture that observation. */
 export function requireGenerationAcceptanceForAdmission(raw: unknown, source: unknown): CanonicalGenerationAcceptance {
   const a = parseCanonicalGenerationAdmission(source), accepted = parseCanonicalGenerationAcceptance(raw);
   if (accepted.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(a) ||
-      accepted.sourceBinding.tenantId !== a.canonical.tenantId || accepted.sourceBinding.actorId !== a.clerkUserId ||
+      accepted.sourceBinding.tenantId !== a.canonical.tenantId || accepted.sourceBinding.actorId !== a.actorUserId ||
       accepted.acceptedAtMs < a.admittedAtMs || accepted.acceptedAtMs >= a.effectExpiresAtMs ||
-      accepted.issuance.expiresAtMs > a.effectExpiresAtMs)
+      accepted.effectExpiresAtMs > a.effectExpiresAtMs)
     throw new CanonicalApplicationError('REQUEST_CONFLICT');
   return accepted;
 }

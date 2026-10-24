@@ -2,6 +2,10 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import type { AppConfig } from '../config/config.schema.js';
+import { internalServiceSecretMatches } from '@capiro/shared';
+
+const verified = new WeakSet<object>();
+export const hasInternalServiceIdentity = (request: object): boolean => verified.has(request);
 
 /**
  * Gates a route to trusted BACKEND-SERVICE callers only (currently: intel-api
@@ -30,9 +34,10 @@ export class InternalServiceGuard implements CanActivate {
     }
     const req = context.switchToHttp().getRequest<Request>();
     const provided = req.headers['x-internal-service-secret'];
-    if (typeof provided !== 'string' || provided !== expected) {
+    if (!internalServiceSecretMatches(provided, expected)) {
       throw new ForbiddenException('Invalid or missing internal service secret');
     }
+    verified.add(req);
     return true;
   }
 }

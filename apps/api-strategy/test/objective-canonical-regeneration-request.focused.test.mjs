@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 
 const custody = [];
 const sha = value => createHash('sha256').update(value, 'utf8').digest('hex');
@@ -14,13 +15,15 @@ async function sourceModule(path, replacements = []) {
   const url = new URL(path, import.meta.url), original = await readFile(url, 'utf8');
   let source = original;
   for (const [from, to] of replacements) {
-    const parts = source.split(from); assert.equal(parts.length, 2, `one declared dependency ${from}`); source = parts.join(to);
+    const parts = source.split(from); assert.equal(parts.length, from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2, `declared dependency ${from}`); source = parts.join(to);
   }
   const stripped = stripTypeScriptTypes(source, { mode: 'strip', sourceUrl: url.href });
   custody.push({ path, sha256: sha(original), replacementSpecifiers: replacements.map(([from]) => from), transformedSha256: sha(stripped) });
   return asModule(stripped);
 }
-const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts');
+const appUrl = await sourceModule('../src/planner/objective-canonical-application.ts', [
+  ["'@capiro/shared/objective-planner-owner-codec'", JSON.stringify(objectivePlannerOwnerCodecUrl)],
+]);
 const genUrl = await sourceModule('../src/meri/objective-canonical-generation.ts', [
   ["'../planner/objective-canonical-application.js'", JSON.stringify(appUrl)],
 ]);
@@ -114,8 +117,7 @@ function fixture() {
         { ref: `profile-fill:${id(31)}:${hash('d')}`, sourceId: id(31), asOfMs: start - 1_000,
           scope: 'client', clientId: id(3), reviewState: 'pending' },
       ] }, prompt, owners: [{ ownerRef: 'owner:fixture', clerkUserId: 'user_fixture' }],
-    delegation: { ref: id(40), revision: 'genuine-delegation-revision:7', issuedAtMs: start - 120_000,
-      absoluteExpiresAtMs: start + 3_600_000 }, requestedAtMs: start + 1_000, effectExpiresAtMs: start + 1_200_000 };
+requestedAtMs: start + 1_000, effectExpiresAtMs: start + 1_200_000 };
 }
 const verify = (p, f) => check(p, { admission: f.admission, dto: f.dto });
 function initialFixture() {
@@ -123,7 +125,7 @@ function initialFixture() {
 }
 
 test('source custody declares actual pure modules and unused DB owner bindings', t => {
-  assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [0, 1, 2, 5, 4]);
+  assert.deepEqual(custody.map(x => x.replacementSpecifiers.length), [1, 1, 2, 5, 4]);
   t.diagnostic(JSON.stringify({ sourceCustody: custody,
     ownerBindings: 'buildSnapshot/readCanonicalGenerationProducer/canonicalRegenerationSnapshot/checkCanonicalRegenerationNormalization throw if called; no DB/history custody qualification' }));
 });
@@ -185,7 +187,7 @@ test('private finite JSON still rejects nonfinite/Unicode/proxy input and typed 
   refused(() => privateJcs(getter), 'INPUT_INVALID');
   refused(() => privateJcs(new Proxy({}, { ownKeys() { calls++; return []; } })), 'INPUT_INVALID');
   assert.equal(calls, 0);
-  for (const mutate of [f => { f.requestedAtMs += 0.5; }, f => { f.delegation.issuedAtMs += 0.5; },
+  for (const mutate of [f => { f.requestedAtMs += 0.5; }, f => { f.admission.admittedAtMs += 0.5; },
     f => { f.context.evidence[0].asOfMs += 0.5; }, f => { f.admission.canonical.bindingVersion = 2.5; }]) {
     const f = fixture(); mutate(f); refused(() => create(f));
   }
@@ -252,17 +254,19 @@ test('unresolved requested attachments, unmapped owners, source drift and promot
     const f = fixture(); mutate(f); refused(() => create(f));
   }
 });
-test('delegation is genuine required metadata and original expiry clips without renewal', () => {
-  const f = fixture(); f.delegation.absoluteExpiresAtMs = start + 15_000;
+test('native regeneration binds original expiry without delegation or renewal', () => {
+  const f = fixture(); f.effectExpiresAtMs = start + 15_000;
   const p = create(f); assert.equal(p.request.originalExpiresAtMs, start + 15_000);
-  assert.deepEqual(p.request.delegation, f.delegation);
-  for (const mutate of [x => { x.delegation = null; }, x => { x.delegation.ref = 'derived-from-consent'; },
-    x => { x.delegation.issuedAtMs = start + 2_000; }, x => { x.effectExpiresAtMs = start; },
-    x => { x.delegation.absoluteExpiresAtMs = x.delegation.issuedAtMs + 86_400_001; }]) {
+  assert.equal(p.request.principal.actorId, f.admission.actorUserId);
+  assert.equal(Object.hasOwn(p.request, 'delegation'), false);
+  for (const mutate of [x => { x.delegation = null; }, x => { x.admission.actorUserId = 'guessed'; },
+    x => { x.admission.admittedAtMs = start + 2_000; }, x => { x.effectExpiresAtMs = start; },
+    x => { x.admission.effectExpiresAtMs = start; }]) {
     const bad = fixture(); mutate(bad); refused(() => create(bad));
   }
   const capped = create(fixture()); assert.equal(capped.request.originalExpiresAtMs, capped.request.requestedAtMs + 900_000);
 });
+
 test('retained reconstruction uses original times after expiry and never calls current clock', () => {
   const f = fixture(), p = create(f), originalNow = Date.now;
   try { Date.now = () => { throw Error('UNEXPECTED_WALL_CLOCK'); }; assert.deepEqual(verify(p, f), p); }

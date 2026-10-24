@@ -2,6 +2,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
@@ -19,6 +21,8 @@ import {
 } from './native-approval.contract.js';
 import { NativeApprovalMetadataVerifier } from './native-approval-metadata.js';
 import { lockMeriExecutionProposal } from '../execution-capability/meri-execution-authority.js';
+import { ApplicationCurrentService } from '../../auth/application-current.service.js';
+import type { NativeApprovalProposal } from './native-approval.contract.js';
 
 /** Clock allowance for a proposal created by Meri slightly ahead of Core. */
 const CREATED_AT_SKEW_MS = 5_000;
@@ -51,6 +55,7 @@ export class NativeApprovalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly metadata: NativeApprovalMetadataVerifier,
+    @Optional() private readonly current?: ApplicationCurrentService,
   ) {}
 
   async record(req: Request, ctx: TenantContext, raw: unknown): Promise<NativeApprovalReceipt> {
@@ -64,14 +69,19 @@ export class NativeApprovalService {
     if (!sameJson(input.approver, proposal.requiredApprover)) throw forbidden();
     if (binding.tenantId !== ctx.tenantId || binding.actorId !== ctx.userId) throw forbidden();
     if (!sameJson(input.binding, binding)) throw new ConflictException('Approval binding differs from the proposal');
-    if (proposal.command.action !== 'task.create') throw new ConflictException('Approval action is not supported');
+    if (!['task.create', 'document.draft'].includes(proposal.command.action)) throw new ConflictException('Approval action is not supported');
     const now = Date.now();
     const createdAtMs = Date.parse(proposal.createdAt);
     const expiresAtMs = Date.parse(proposal.expiresAt);
     if (expiresAtMs <= now) throw new ConflictException('Approval proposal expired');
     if (createdAtMs > now + CREATED_AT_SKEW_MS) throw new ConflictException('Approval proposal is not yet valid');
     const policyRevision = singlePolicyRevision(proposal.command.scopes, binding.tenantId);
+    if (proposal.command.action === 'document.draft') await this.currentDocument(req, ctx, proposal);
     await this.metadata.verify(proposal);
+    if (proposal.command.action === 'document.draft') {
+      await this.currentDocument(req, ctx, proposal);
+      if (Date.parse(proposal.expiresAt) <= Date.now()) throw new ConflictException('Approval proposal expired');
+    }
 
     const create: DecisionRow = {
       tenantId: ctx.tenantId,
@@ -90,6 +100,22 @@ export class NativeApprovalService {
     const stored = await this.storeOnce(create);
     if (stored.commandSha256 !== proposal.commandSha256) throw new ConflictException('Approval proposal already decided for another command');
     return receipt(stored, await this.revoked(stored.tenantId, stored.proposalId));
+  }
+
+  private async currentDocument(req: Request, ctx: TenantContext, proposal: NativeApprovalProposal) {
+    if (!this.current) throw new ServiceUnavailableException('Current approval authority unavailable');
+    const { binding, scopes } = proposal.command;
+    const clients = scopes.filter(scope => scope.kind === 'client');
+    if (clients.length > 1) throw forbidden();
+    const clientId = clients[0]?.resourceId ?? null;
+    if (clientId === null && (scopes.length !== 1 || scopes[0]!.kind !== 'private-user' ||
+        scopes[0]!.resourceId !== binding.actorId)) throw forbidden();
+    // The selector is checked against the persisted owned conversation by the
+    // canonical current owner; a proposal scope is never an authorization grant.
+    const observed = await this.current.read(ctx, req, { conversationId: binding.conversationId, clientId });
+    if (observed.principal.tenantId !== ctx.tenantId || observed.principal.actorId !== ctx.userId ||
+        observed.conversationId !== binding.conversationId || observed.selectedClientId !== clientId ||
+        observed.expiresAtMs <= Date.now()) throw forbidden();
   }
 
   async decision(req: Request, ctx: TenantContext, raw: unknown): Promise<NativeApprovalReceipt> {

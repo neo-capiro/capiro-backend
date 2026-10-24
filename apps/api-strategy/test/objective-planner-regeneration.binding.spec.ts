@@ -5,7 +5,6 @@ import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '../generated/prisma-client/index.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { ObjectiveCanonicalApplicationService } from '../src/planner/objective-canonical-application.service.js';
-import { ObjectiveCanonicalWorkloadAuthority } from '../src/planner/objective-canonical-authority.js';
 import { PlannerService } from '../src/planner/planner.service.js';
 import type { PlannerLinksService } from '../src/planner/planner-links.service.js';
 import { applicationHash, applicationHeadId, applicationReceiptId, creationAck,
@@ -104,7 +103,7 @@ async function fixture(seed = 'regeneration-binding-source', oldControlVersion =
   }) as any;
   const prisma = { withTenant() { throw Error('A nested transaction must not run'); } } as unknown as PrismaService;
   const planner = new PlannerService(prisma, { validate() { throw Error('No external link transport'); } } as unknown as PlannerLinksService);
-  const app = new ObjectiveCanonicalApplicationService(prisma, planner, new ObjectiveCanonicalWorkloadAuthority());
+  const app = new ObjectiveCanonicalApplicationService(planner);
   const readPredecessor = () => app.readPredecessorWithinOwnerTransaction(tx, producerApplication(next.work), grantFor(next.work), async subject => {
     calls.push(`authority:${subject.purpose}`);
     assert.equal(subject.purpose, 'retained-result-read');

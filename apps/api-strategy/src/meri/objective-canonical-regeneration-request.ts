@@ -1,5 +1,5 @@
 import { applicationHash, CanonicalApplicationError, type CanonicalToken } from '../planner/objective-canonical-application.js';
-import { canonicalGenerationAdmissionSha256 } from './objective-canonical-generation.js';
+import { canonicalGenerationAdmissionSha256, parseCanonicalGenerationAdmission } from './objective-canonical-generation.js';
 import { checkCanonicalStrategyBasis, type CanonicalStrategyBasis } from './objective-canonical-basis.js';
 import { canonicalRequestPublicationParts, privateRequestJcsSha256,
   type CanonicalRequestPublication, type CanonicalRequestPublicationInput,
@@ -63,10 +63,10 @@ function freeze<T>(value: T): T {
 export function createCanonicalRegenerationRequestPublication(
   raw: CanonicalRegenerationRequestPublicationInput,
 ): CanonicalRegenerationRequestPublication {
-  const v = object(jsonClone(raw), ['admission', 'dto', 'context', 'prompt', 'owners', 'delegation',
+  const v = object(jsonClone(raw), ['admission', 'dto', 'context', 'prompt', 'owners',
     'requestedAtMs', 'effectExpiresAtMs', 'basis']);
   const p = canonicalRequestPublicationParts({ admission: v.admission, dto: v.dto, context: v.context,
-    prompt: v.prompt, owners: v.owners, delegation: v.delegation, requestedAtMs: v.requestedAtMs,
+    prompt: v.prompt, owners: v.owners, requestedAtMs: v.requestedAtMs,
     effectExpiresAtMs: v.effectExpiresAtMs }, 'regenerate');
   const a = p.admission;
   const basis = checkCanonicalStrategyBasis(v.basis, a);
@@ -101,7 +101,7 @@ export function checkCanonicalRegenerationRequestPublication(raw: unknown,
     const owned = object(jsonClone(expected), ['admission', 'dto']);
     const p = object(jsonClone(raw), ['schemaVersion', 'sourceAdmissionSha256', 'request', 'requestSha256', 'executionContext']);
     const r = object(p.request, ['requestVersion', 'operation', 'requestId', 'jobId', 'principal', 'source', 'context',
-      'applicationTarget', 'basis', 'basisSha256', 'delegation', 'requestedAtMs', 'originalExpiresAtMs', 'inputSha256', 'input']);
+      'applicationTarget', 'basis', 'basisSha256', 'requestedAtMs', 'originalExpiresAtMs', 'inputSha256', 'input']);
     const principal = object(r.principal, ['tenantId', 'actorId', 'clientId', 'ownerActorId']);
     const source = object(r.source, ['kind', 'objectiveId', 'objectiveRevisionId', 'objectiveVersion', 'snapshotSha256', 'intent']);
     const context = object(r.context, ['packetId', 'contextSha256', 'coverageSha256', 'asOfMs', 'evidence', 'ownerRefs', 'draft']);
@@ -109,12 +109,12 @@ export function checkCanonicalRegenerationRequestPublication(raw: unknown,
     const coreSource = { clientId: principal.clientId, objectiveId: source.objectiveId,
       objectiveVersion: source.objectiveVersion, objectiveRevisionId: source.objectiveRevisionId };
     const rebuilt = createCanonicalRegenerationRequestPublication({ admission: owned.admission, dto: owned.dto,
-      context: { schemaVersion: 1, tenantId: principal.tenantId, clerkUserId: principal.actorId, requestId: r.requestId,
+      context: { schemaVersion: 1, tenantId: principal.tenantId, clerkUserId: parseCanonicalGenerationAdmission(owned.admission).clerkUserId, requestId: r.requestId,
         source: coreSource, intent: source.intent, snapshotSha256: source.snapshotSha256,
         sourceDigest: applicationHash({ source: coreSource, intent: source.intent }), packetId: context.packetId,
         compiledAt: new Date(context.asOfMs).toISOString(), coverageDigest: context.coverageSha256,
         promptSha256: execution.promptSha256, evidence: context.evidence },
-      prompt: execution.prompt, owners: execution.ownerRefs, delegation: r.delegation,
+      prompt: execution.prompt, owners: execution.ownerRefs,
       requestedAtMs: r.requestedAtMs, effectExpiresAtMs: r.originalExpiresAtMs, basis: r.basis });
     if (privateRequestJcsSha256(p) !== privateRequestJcsSha256(rebuilt)) return conflict();
     return rebuilt;

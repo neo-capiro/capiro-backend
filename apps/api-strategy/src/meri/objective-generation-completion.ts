@@ -6,6 +6,7 @@ import { digest, SAFE_FAILURES, type ObjectiveAdmission } from './objective-gene
 import type { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
 import { generationAssociation, generationMarker, recordCanonicalGenerationProducer } from './objective-canonical-producer-ledger.js';
 import { requireCanonicalGenerationEffectWithinTx } from './objective-canonical-generation-fence.js';
+import { generationBindingKey } from './objective-canonical-generation.js';
 
 export interface ObjectiveClaim {
   id: string;
@@ -97,7 +98,7 @@ export function objectivePersistence(
       if (row.input.canonicalGeneration) {
         const associated = await generationAssociation(tx, job.tenantId, job.ownerUserId, job.id);
         if (digest(row.input.canonicalGeneration) !== digest(generationMarker(associated.admission)) ||
-            job.claimToken !== `canonical:${associated.acceptance.issuance.issuanceKey}` || job.attempt !== 2)
+            job.claimToken !== `canonical:${generationBindingKey(associated.acceptance.sourceBinding)}` || job.attempt !== 2)
           throw new ObjectiveLeaseLost();
         await requireCanonicalGenerationEffectWithinTx(tx, associated.admission, {
           generationJobId: job.id, generationRequestId: envelope.request.requestId });
@@ -145,7 +146,7 @@ export function objectivePersistence(
         await requireCanonicalGenerationEffectWithinTx(tx, producer.sourceAdmission, {
           generationJobId: job.id, generationRequestId: envelope.request.requestId }, 'after-write');
         const fresh = await tx.$queryRaw<Array<{ valid: boolean }>>`
-          SELECT ceil(extract(epoch FROM clock_timestamp())*1000) < ${producer.acceptance.issuance.expiresAtMs} AS valid`;
+          SELECT ceil(extract(epoch FROM clock_timestamp())*1000) < ${producer.acceptance.effectExpiresAtMs} AS valid`;
         if (!fresh[0]?.valid) throw new ObjectiveLeaseLost();
       }
     },

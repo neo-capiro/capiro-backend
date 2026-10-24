@@ -1,12 +1,14 @@
+import { ApplicationCurrentService } from './application-current.service.js';
 import { describe, expect, it, jest } from '@jest/globals';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { BadRequestException, ForbiddenException, type ExecutionContext } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, ServiceUnavailableException, type ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import {
   ARTIFACT_AUTHORITY_CONTRACT,
+  ARTIFACT_AUTHORITY_V2_CONTRACT,
   ARTIFACT_INTENT_OPERATIONS,
   ARTIFACT_OPERATIONS,
   parseApplicationAuthorityArtifactBody,
@@ -152,4 +154,83 @@ describe('artifact current authority (capiro.meri-artifact-authority.v1)', () =>
     expect(meriAccepts(receipt, createCase.request)).toBe(true);
     await expect(controller.applicationAuthorityArtifact(ctx, req(SECRET), { ...createCase.request, extra: 1 })).rejects.toBeInstanceOf(BadRequestException);
   });
+});
+
+describe('explicit General artifact authority v2 through the existing current owner', () => {
+  const body = () => ({ ...createCase.request, contract: ARTIFACT_AUTHORITY_V2_CONTRACT,
+    scopeKind: 'general' as const, clientId: null });
+  function general() {
+    const f = ports(), ctx = { tenantId, userId: actorId, role: 'standard_user' } as TenantContext;
+    const row: any = { id: createCase.request.conversationId, tenantId, userId: actorId,
+      clientId: null, status: 'active', archivedAt: null, metadata: {} };
+    let receipt: any = { requestId: createCase.request.observationId };
+    let membershipAllowed = true, role = 'standard_user';
+    const requests: any[] = [];
+    const tx = {
+      clioConversation: { findFirst: jest.fn(async () => row) },
+      clioConversationBootstrapReceipt: { findFirst: jest.fn(async (request: any) => { requests.push(request); return receipt; }) },
+    };
+    const prisma = { withSystem: jest.fn(async (run: (value: unknown) => Promise<unknown>, options: unknown) => {
+      expect(options).toEqual({ isolationLevel: 'RepeatableRead', readOnly: true });return run(tx);
+    }) };
+    const tenant = { readApplicationAuthoritySession: jest.fn(async () => ({ readCurrent: f.ports.identity })) };
+    const membership = { readInTransaction: jest.fn(async () => {
+      if (!membershipAllowed) throw new ForbiddenException();
+      return { role, permissions: [], clientIds: [], membershipRevision: 'd'.repeat(64) };
+    }) };
+    const security = { resolveApplicationAuthorityClient: jest.fn(async () => { throw Error('General has no client wall'); }) };
+    const controller = new ApplicationAuthorityController(prisma as never, tenant as never, security as never, {} as never, new ApplicationCurrentService(prisma as never, tenant as never, security as never, {} as never, membership as never));
+    const req = { headers: { 'x-internal-service-secret': 'synthetic-service-secret' } } as unknown as Request;
+    new ToolServiceSecretGuard({ get: (key: string) => key === 'NODE_ENV' ? 'test'
+      : key === 'INTERNAL_SERVICE_SECRET' ? 'synthetic-service-secret' : false } as never)
+      .canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as unknown as ExecutionContext);
+    return { controller, req, ctx, row, prisma, tenant, membership, security, requests,
+      loseReceipt: () => { receipt = null; }, revoke: () => { membershipAllowed = false; },
+      setRole: (value: string) => { role = value; } };
+  }
+
+  it.each(Object.keys(ARTIFACT_INTENT_OPERATIONS))('uses persisted General and current membership for %s', async intent => {
+    const f = general(), receipt = await f.controller.applicationAuthorityArtifact(f.ctx, f.req, { ...body(), intent });
+    expect(receipt).toMatchObject({ contract: ARTIFACT_AUTHORITY_V2_CONTRACT, scopeKind: 'general',
+      selectedClientId: null, principal: { tenantId, actorId }, operations: [...ARTIFACT_OPERATIONS], limits: null });
+    expect(receipt.expiresAtMs - receipt.checkedAtMs).toBeLessThanOrEqual(60_000);
+    expect(f.requests).toEqual([{ where: { tenantId, actorUserId: actorId, conversationId: body().conversationId,
+      scopeKind: 'general', clientId: null }, select: { requestId: true } }]);
+    expect(f.membership.readInTransaction).toHaveBeenCalledTimes(1);
+    expect(f.security.resolveApplicationAuthorityClient).not.toHaveBeenCalled();
+  });
+
+  it('requires explicit scope/null correspondence while preserving all v1 request bytes', () => {
+    expect(parseApplicationAuthorityArtifactBody(body())).toEqual(body());
+    expect(parseApplicationAuthorityArtifactBody({ ...body(), scopeKind: 'client', clientId: createCase.request.clientId }))
+      .toMatchObject({ scopeKind: 'client', clientId: createCase.request.clientId });
+    for (const bad of [{ ...body(), scopeKind: 'client' }, { ...body(), clientId: createCase.request.clientId },
+      { ...body(), scopeKind: undefined }, { ...body(), clientId: undefined },
+      { ...createCase.request, scopeKind: 'client' }, { ...body(), extra: true }])
+      expect(() => parseApplicationAuthorityArtifactBody(bad)).toThrow(BadRequestException);
+    for (const c of vector.cases) expect(parseApplicationAuthorityArtifactBody(c.request)).toEqual(c.request);
+  });
+
+  it.each(['identity', 'transaction'])('preserves %s unavailability as retryable without a receipt', async kind => {
+    const f = general();
+    if (kind === 'identity') f.tenant.readApplicationAuthoritySession.mockRejectedValueOnce(new ServiceUnavailableException());
+    else f.prisma.withSystem.mockRejectedValueOnce(new Error('synthetic database unavailable'));
+    await expect(f.controller.applicationAuthorityArtifact(f.ctx, f.req, body())).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(f.security.resolveApplicationAuthorityClient).not.toHaveBeenCalled();
+  });
+
+  it.each(['receipt', 'member', 'role', 'actor', 'tenant', 'client', 'inactive', 'research'])(
+    'refuses %s mismatch without a client fallback', async kind => {
+      const f = general();
+      if (kind === 'receipt') f.loseReceipt();
+      if (kind === 'member') f.revoke();
+      if (kind === 'role') f.setRole('client_portal_user');
+      if (kind === 'actor') f.row.userId = '00000000-0000-4000-8000-000000000099';
+      if (kind === 'tenant') f.row.tenantId = '00000000-0000-4000-8000-000000000099';
+      if (kind === 'client') f.row.clientId = createCase.request.clientId;
+      if (kind === 'inactive') f.row.status = 'archived';
+      if (kind === 'research') f.row.metadata.researchPortfolioScope = {};
+      await expect(f.controller.applicationAuthorityArtifact(f.ctx, f.req, body())).rejects.toBeInstanceOf(ForbiddenException);
+      expect(f.security.resolveApplicationAuthorityClient).not.toHaveBeenCalled();
+    });
 });

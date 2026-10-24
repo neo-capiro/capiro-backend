@@ -65,6 +65,7 @@ const clone = structuredClone;
 const refuses = async (run, code = 'OUTCOME_UNCONFIRMED') =>
   assert.rejects(run, e => e.code === code);
 
+const fixtureBindingKey = app.applicationHash;
 async function fixture(options = {}) {
   const old = { schemaVersion: 1, namespace: g.GENERATION_ADMISSION_NAMESPACE,
     canonical: { canonicalPlanId: id(1), tenantId: id(2), clientId: id(3), objectiveId: id(4),
@@ -73,12 +74,10 @@ async function fixture(options = {}) {
     actorUserId: id(9), clerkUserId: 'user_original_writer', consentId: id(10), controlVersion: 1,
     generationJobId: id(11), generationRequestId: id(12), admittedAtMs: 1000, effectExpiresAtMs: 20000,
     expectedStrategyVersionId: null };
-  const binding = { tenantId: id(2), actorId: old.clerkUserId, conversationId: id(13), runId: id(14),
+  const binding = { tenantId: id(2), actorId: old.actorUserId, conversationId: id(13), runId: id(14),
     attemptId: id(15), workerId: id(16), writerFence: 7 };
   const acceptance = { schemaVersion: 1, sourceAdmissionSha256: app.applicationHash(old), sourceBinding: binding,
-    sourceRequestSha256: 'b'.repeat(64), acceptedAtMs: 1100, issuance: { issuanceKey: app.applicationHash(binding),
-      binding, requestSha256: 'b'.repeat(64), expiresAtMs: 19000, grantId: id(17),
-      capabilitySha256: 'c'.repeat(64), factsSha256: 'd'.repeat(64) } };
+    sourceRequestSha256: 'b'.repeat(64), acceptedAtMs: 1100, effectExpiresAtMs: 19000 };
   const context = { state: 'complete', packetId: id(18), compiledAt: new Date(1050).toISOString(),
     sourceDigest: 'e'.repeat(64), coverageDigest: 'f'.repeat(64), inputDigest: '1'.repeat(64), issues: [],
     reobservedAt: new Date(1150).toISOString() };
@@ -111,7 +110,7 @@ async function fixture(options = {}) {
     const r = resource(kind, data); rows.set(r.id, r);
   }
   const job = { id: old.generationJobId, tenantId: id(2), clientId: id(3), ownerUserId: old.clerkUserId,
-    status: 'running', strategyId: null, attempt: 2, claimedBy: `canonical:${acceptance.issuance.issuanceKey}`,
+    status: 'running', strategyId: null, attempt: 2, claimedBy: `canonical:${fixtureBindingKey(acceptance.sourceBinding)}`,
     input: { dto: { clientId: id(3), type: 'authorization' }, canonicalGeneration: ledger.generationMarker(old),
       objectiveGeneration: { request, fingerprint: app.applicationHash(request), receipt } } };
   const jobs = new Map([[job.id, job]]);
@@ -249,12 +248,11 @@ async function prepareRegeneration(x, a = x.admission, round = 1) {
   const captured = await basis.captureCanonicalStrategyBasis(x.tx, a);
   if (!x.versions.has(x.head.id)) x.versions.set(x.head.id, { ...clone(x.head), tenantId: id(2), strategyId: id(5),
     authorKind: 'person', authorUserId: 'user_human' });
-  const run = { tenantId: id(2), actorId: a.clerkUserId, conversationId: id(100 + round), runId: id(110 + round),
+  const run = { tenantId: id(2), actorId: a.actorUserId, conversationId: id(100 + round), runId: id(110 + round),
     attemptId: id(120 + round), workerId: id(130 + round), writerFence: round + 1 };
   const acceptance = { schemaVersion: 1, sourceAdmissionSha256: app.applicationHash(a), sourceBinding: run,
     sourceRequestSha256: 'b'.repeat(64), acceptedAtMs: 5100 + round * 1000,
-    issuance: { issuanceKey: app.applicationHash(run), binding: run, requestSha256: 'b'.repeat(64),
-      expiresAtMs: 19000, grantId: id(140 + round), capabilitySha256: 'c'.repeat(64), factsSha256: 'd'.repeat(64) } };
+    effectExpiresAtMs: 19000 };
   addResource(x, g.GENERATION_ADMISSION, a, a); addResource(x, g.GENERATION_ACCEPTANCE, a, acceptance);
   const request = { requestId: a.generationRequestId, clientId: id(3),
     objective: { objectiveId: id(4), objectiveVersion: a.canonical.requestedObjectiveVersion }, type: 'authorization' };
@@ -264,7 +262,7 @@ async function prepareRegeneration(x, a = x.admission, round = 1) {
     source: { clientId: id(3), objectiveId: id(4), objectiveVersion: a.canonical.requestedObjectiveVersion,
       objectiveRevisionId: a.canonical.requestedObjectiveRevisionId }, context, result: null, failure: null };
   const job = { id: a.generationJobId, tenantId: id(2), clientId: id(3), ownerUserId: a.clerkUserId, status: 'running',
-    attempt: 2, claimedBy: `canonical:${acceptance.issuance.issuanceKey}`, claimedAt: new Date(acceptance.acceptedAtMs), strategyId: null,
+    attempt: 2, claimedBy: `canonical:${fixtureBindingKey(acceptance.sourceBinding)}`, claimedAt: new Date(acceptance.acceptedAtMs), strategyId: null,
     requestKey: `objective-v1:${app.applicationHash([id(2), a.clerkUserId, a.generationRequestId])}`,
     input: { bearer: null, dto: { clientId: id(3), type: 'authorization', goal: 'Actual stored goal' },
       canonicalGeneration: ledger.generationMarker(a), objectiveGeneration: { request, fingerprint: app.applicationHash(request), receipt } } };
@@ -376,7 +374,7 @@ test('actual regeneration ledger refuses changed running claim and mismatched sa
   const count = x.rows.size; p.job.claimedBy = 'other-claim';
   await refuses(() => regenerationLedger.recordCanonicalRegenerationNormalization(x.tx, id(2), p.a.clerkUserId, p.a.generationJobId,
     p.saved, { basis: p.captured, normalized: p.normalized, plan: p.plan }));
-  p.job.claimedBy = `canonical:${p.acceptance.issuance.issuanceKey}`;
+  p.job.claimedBy = `canonical:${fixtureBindingKey(p.acceptance.sourceBinding)}`;
   x.versions.get(p.saved.strategyVersionId).snapshot.nodes[0].title = 'Unplanned saved mutation';
   await refuses(() => regenerationLedger.recordCanonicalRegenerationNormalization(x.tx, id(2), p.a.clerkUserId, p.a.generationJobId,
     p.saved, { basis: p.captured, normalized: p.normalized, plan: p.plan }));

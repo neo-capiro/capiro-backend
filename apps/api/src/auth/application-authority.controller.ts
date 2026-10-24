@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, HttpException, Post, Req, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, Post, Req, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -12,17 +12,16 @@ import { Roles } from './roles.decorator.js';
 import { RolesGuard } from './roles.guard.js';
 import { hasVerifiedToolServiceIdentity, ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { ApplicationAuthorityUnavailableException } from './application-authority-unavailable.js';
-import { ApplicationMembershipService } from './application-membership.service.js';
+import { ApplicationCurrentService } from './application-current.service.js';
 import {
-  ApplicationAuthorityChangedException,
+  ARTIFACT_AUTHORITY_V2_CONTRACT,
+  applicationAuthorityArtifactReceipt,
   assertApplicationAuthorityIdentityBody,
   parseApplicationAuthorityArtifactBody,
   parseApplicationAuthorityContextBody,
-  parseApplicationAuthorityCurrentBody,
   applicationAuthorityIdentityReceipt,
   readApplicationAuthorityArtifact,
   readApplicationAuthorityContext,
-  readApplicationAuthorityCurrent,
 } from './application-authority.js';
 
 /** Native authority adapter for rebuilt Meri; no model/runtime/store owner. */
@@ -35,7 +34,7 @@ export class ApplicationAuthorityController {
     private readonly tenant: TenantContextMiddleware,
     private readonly securityScope: ContextSecurityScopeService,
     private readonly bizdevScope: BizDevMeriScopeService,
-    private readonly membership: ApplicationMembershipService,
+    private readonly current: ApplicationCurrentService,
   ) {}
 
   @Post('identity')
@@ -53,47 +52,13 @@ export class ApplicationAuthorityController {
   @Header('Cache-Control', 'no-store')
   @Header('Content-Type', 'application/json; charset=utf-8')
   async applicationAuthorityCurrent(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
-    const input = parseApplicationAuthorityCurrentBody(body);
     // The parser bounds the semantic JSON body. Also reject a declared wire
     // length above that limit; upstream parsing owns chunked/raw byte limits.
     const contentLength = req.headers['content-length'];
     if (typeof contentLength === 'string' && /^\d+$/.test(contentLength) && Number(contentLength) > 4096) {
       throw new BadRequestException('Invalid application authority request');
     }
-    // The only potential network await happens before acquiring a DB connection.
-    const session = await this.tenant.readApplicationAuthoritySession(req, ctx);
-    try {
-      // Identity retains the original membership during impersonation. Every
-      // resource owner below pins tenant/actor predicates explicitly on this tx.
-      return await this.prisma.withSystem((tx) => readApplicationAuthorityCurrent(input, {
-        identity: () => session.readCurrent(tx),
-        membership: () => this.membership.readInTransaction(ctx, tx),
-        conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id, tx),
-        conversationScope: async (conversation) => {
-          const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata, tx);
-          if (input.clientId === null) {
-            const metadata = (conversation as { metadata?: { researchPortfolioScope?: unknown } }).metadata;
-            if (prospect || metadata?.researchPortfolioScope !== undefined)
-              throw new ForbiddenException('Application authority unavailable');
-            const general = await tx.clioConversationBootstrapReceipt.findFirst({
-              where: { tenantId: ctx.tenantId, actorUserId: ctx.userId, conversationId: conversation.id,
-                scopeKind: 'general', clientId: null },
-              select: { requestId: true },
-            });
-            if (!general) throw new ForbiddenException('Application authority unavailable');
-            return ['general', general.requestId];
-          }
-          if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
-          return prospect ? [prospect.prospectId, prospect.canonicalOrganizationId, prospect.linkedClientId, prospect.scopeVersion] : null;
-        },
-        clientVisible: (id) => assertCurrentClientVisible(this.prisma, ctx, id, tx),
-        clientAuthority: (id) => this.securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, id, tx),
-      }), { isolationLevel: 'RepeatableRead', readOnly: true });
-    } catch (error) {
-      if (error instanceof ServiceUnavailableException || error instanceof ApplicationAuthorityChangedException) throw error;
-      if (!(error instanceof HttpException)) throw new ServiceUnavailableException('Application authority unavailable');
-      throw new ForbiddenException('Application authority unavailable');
-    }
+    return this.current.read(ctx, req, body);
   }
 
   @Post('context')
@@ -128,10 +93,16 @@ export class ApplicationAuthorityController {
     const input = parseApplicationAuthorityArtifactBody(body);
     if (!hasVerifiedToolServiceIdentity(req)) throw new ForbiddenException('Application authority unavailable');
     try {
+      if (input.contract === ARTIFACT_AUTHORITY_V2_CONTRACT) {
+        const current = await this.applicationAuthorityCurrent(ctx, req,
+          { conversationId: input.conversationId, clientId: input.clientId });
+        return applicationAuthorityArtifactReceipt(input, current.role, current);
+      }
+      if (input.clientId === null) throw new ForbiddenException('Application authority unavailable');
       return await readApplicationAuthorityArtifact(input, ctx.role, this.contextPorts(ctx, req, input.clientId));
     } catch (error) {
-      // Clerk not answering is not a refusal: keep its retryable 503.
-      if (error instanceof ApplicationAuthorityUnavailableException) throw error;
+      // Identity or the current-state transaction being unavailable is retryable.
+      if (error instanceof ServiceUnavailableException) throw error;
       throw new ForbiddenException('Application authority unavailable');
     }
   }

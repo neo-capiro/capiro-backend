@@ -1,3 +1,4 @@
+import { nativeObjectiveEnvelope } from './objective-native-envelope.fixture.js';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import type { Prisma } from '../generated/prisma-client/index.js';
@@ -143,7 +144,7 @@ export async function buildObjectivePlannerRegenerationFixture(nowMs: number, op
     authorKind: 'meri', authorUserId: clerkUserId, coalescible: false, createdAt: new Date(nowMs - 66_000) } });
   await synthetic.spDraftJob.create({ data: { id: f.admission.generationJobId, tenantId, clientId: f.source.clientId,
     ownerUserId: clerkUserId, requestKey: requestKey(tenantId, clerkUserId, f.admission.generationRequestId), input: f.pendingInput,
-    status: 'running', attempt: 2, claimedBy: `canonical:${f.acceptance.issuance.issuanceKey}`,
+    status: 'running', attempt: 2, claimedBy: `canonical:${generationBindingKey(f.acceptance.sourceBinding)}`,
     claimedAt: new Date(f.acceptance.acceptedAtMs), deadlineAt: new Date(f.admission.effectExpiresAtMs) } });
   await ledger(GENERATION_ADMISSION, f.admission, f.admission);
   await ledger(GENERATION_ACCEPTANCE, f.admission, f.acceptance);
@@ -158,7 +159,7 @@ export async function buildObjectivePlannerRegenerationFixture(nowMs: number, op
     actorUserId: f.actorUserId, clerkUserId, canonical: f.canonical, consentId: f.plannerConsentId, controlVersion: 1 });
   const initial = { ...f, saved: initialSaved, work: initialWork, controlVersion: 1,
     originalDeadlineAt: new Date(Math.min(f.plannerExpiresAtMs, f.admission.effectExpiresAtMs,
-      f.acceptance.issuance.expiresAtMs, f.publication.request.originalExpiresAtMs)).toISOString() };
+      f.acceptance.effectExpiresAtMs, f.publication.request.originalExpiresAtMs)).toISOString() };
   const baseAdmission = copy(f.admission), baseDto = copy(f.input.dto), baseIntent = copy(f.compiled.intent);
   let latest = { source: copy(f.source), canonical: copy(f.canonical), controlVersion: 1,
     strategyVersionId: id('version'), sourceKeys: [...f.normalized.sourceKeys] };
@@ -219,17 +220,14 @@ export async function buildObjectivePlannerRegenerationFixture(nowMs: number, op
       const publication = createCanonicalRegenerationRequestPublication({ admission, dto, context: { schemaVersion: 1, tenantId,
         clerkUserId, requestId: admission.generationRequestId, source, intent, snapshotSha256: canonical.snapshotHash,
         sourceDigest, packetId, compiledAt: context.compiledAt, coverageDigest, promptSha256: sha(prompt), evidence: [] }, prompt,
-        owners: [{ ownerRef: 'owner:qa', clerkUserId }], delegation: { ref: generationId('synthetic-delegation'),
-          revision: 'synthetic-regeneration-fixture:1', issuedAtMs: nowMs - 11_000, absoluteExpiresAtMs: nowMs + 700_000 },
+        owners: [{ ownerRef: 'owner:qa', clerkUserId }],
         requestedAtMs: nowMs - 9_000, effectExpiresAtMs: nowMs + 500_000, basis });
-      const binding = { tenantId, actorId: clerkUserId, conversationId: generationId('conversation'), runId: generationId('run'),
+      const binding = { tenantId, actorId: admission.actorUserId, conversationId: generationId('conversation'), runId: generationId('run'),
         attemptId: generationId('attempt'), workerId: generationId('worker'), writerFence: 1 };
-      const sourceRequestSha256 = applicationHash(['synthetic-regeneration-original-request', f.seed, suffix]);
+      const sourceRequestSha256 = privateRequestJcsSha256({ requestId: admission.generationRequestId, prompt: publication.executionContext.prompt, skill: null, window: null, windowRequest: null });
       const acceptance = { schemaVersion: 1 as const, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(admission),
         sourceBinding: binding, sourceRequestSha256, acceptedAtMs: nowMs - 8_000,
-        issuance: { issuanceKey: generationBindingKey(binding), binding, requestSha256: sourceRequestSha256,
-          expiresAtMs: nowMs + 400_000, grantId: generationId('synthetic-grant'), capabilitySha256: sha('synthetic regeneration capability'),
-          factsSha256: sha('synthetic regeneration protected facts') } };
+        effectExpiresAtMs: Math.min(admission.effectExpiresAtMs, publication.request.originalExpiresAtMs) };
       const liveKeys = new Set(basis.sourceIndex.filter(entry => !entry.archived).map(entry => entry.sourceNodeKey));
       const sourceKeys = latest.sourceKeys.filter(key => liveKeys.has(key));
       if (newSourceNodeKey !== undefined) {
@@ -254,15 +252,7 @@ export async function buildObjectivePlannerRegenerationFixture(nowMs: number, op
         inputSha256: publication.request.inputSha256, sourceSha256: privateRequestJcsSha256(publication.request.source),
         contextSha256: publication.request.context.contextSha256, basisSha256: applicationHash(basis), binding, execution,
         resultRef: completionId, completedAtMs: nowMs - 7_000, state: 'succeeded', payload, payloadSha256: privateRequestJcsSha256(payload), issues: [] };
-      const result = { ...resultBody, resultSha256: privateRequestJcsSha256(resultBody) }, bytes = Buffer.from(JSON.stringify(result), 'utf8');
-      const rawFileSha256 = sha(bytes);
-      const retained = { schemaVersion: 1, generationJobId: admission.generationJobId, binding,
-        sourceAdmissionSha256: canonicalGenerationAdmissionSha256(admission), sourceRequestSha256, typedRequestSha256: publication.requestSha256,
-        completionId, checkpointId: generationId('checkpoint'), checkpointSha256: sha('synthetic regeneration checkpoint'), resultRef: completionId,
-        resultSha256: result.resultSha256, file: { path: 'meri-objective-strategy-regeneration.result.json', object: {
-          objectId: 'synthetic-regeneration-object', versionId: 'synthetic-regeneration-immutable-version', sha256: rawFileSha256,
-          bytes: bytes.length, scopes: ['synthetic-regeneration-fixture'] } }, rawFileSha256, execution, result,
-        checkedAtMs: nowMs - 6_500, expiresAtMs: nowMs + 1_000 };
+      const retained = nativeObjectiveEnvelope(admission, publication, binding, resultBody);
       const witness = verifyRetainedCanonicalRegenerationCompletion(retained, { admission, acceptance,
         publication, nowMs: nowMs - 6_000 }).witness;
       const request = { requestId: admission.generationRequestId, clientId: source.clientId,
@@ -279,7 +269,7 @@ export async function buildObjectivePlannerRegenerationFixture(nowMs: number, op
         inputSha256: canonicalPublicationInputHash(pendingInput), publicationSha256: canonicalPublicationSha256(publication), compiled, publication };
       await synthetic.spDraftJob.create({ data: { id: admission.generationJobId, tenantId, clientId: source.clientId, ownerUserId: clerkUserId,
         requestKey: requestKey(tenantId, clerkUserId, admission.generationRequestId), status: 'running', attempt: 2, input: pendingInput,
-        claimedBy: `canonical:${acceptance.issuance.issuanceKey}`, claimedAt: new Date(acceptance.acceptedAtMs), deadlineAt: new Date(admission.effectExpiresAtMs) } });
+        claimedBy: `canonical:${generationBindingKey(acceptance.sourceBinding)}`, claimedAt: new Date(acceptance.acceptedAtMs), deadlineAt: new Date(admission.effectExpiresAtMs) } });
       await ledger(GENERATION_ADMISSION, admission, admission);
       await ledger(GENERATION_ACCEPTANCE, admission, acceptance);
       await ledger(GENERATION_REQUEST, admission, storedRequest);
@@ -301,7 +291,7 @@ export async function buildObjectivePlannerRegenerationFixture(nowMs: number, op
       const work = savedGenerationPlannerContinuation(regeneratedSaved, { workAction: 'objective.plan.prepare', tenantId,
         actorUserId: f.actorUserId, clerkUserId, canonical, consentId: plannerConsentId, controlVersion });
       const originalDeadlineAt = new Date(Math.min(plannerExpiresAtMs, admission.effectExpiresAtMs,
-        acceptance.issuance.expiresAtMs, publication.request.originalExpiresAtMs)).toISOString();
+        acceptance.effectExpiresAtMs, publication.request.originalExpiresAtMs)).toISOString();
       const regenerated = { id, nowMs, tenantId, clerkUserId, actorUserId: f.actorUserId, membershipId: f.membershipId,
         canonical, source, objectiveSnapshot, admission, acceptance, publication, retained, normalized, compiled,
         receipt, input, pendingInput, storedRequest, snapshot: plan.snapshot, basis, plan, saved: regeneratedSaved,

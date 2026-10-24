@@ -22,8 +22,8 @@ type Tx = Prisma.TransactionClient;
 const fail = (code: CanonicalApplicationError['code'] = 'AUTHORITY_UNAVAILABLE'): never => { throw new CanonicalApplicationError(code); };
 /** Actual server-owned initial typed-request publisher. It executes no model
  * and opens no transaction around network/context compilation. Genuine named
- * workload/delegation verification is the existing unavailable-by-default owner.
- * The shared-secret Context Plane is a data reader, not that workload verifier.
+ * saved-job/current-member verification is owned by the existing authority.
+ * The shared-secret Context Plane is a data reader, not that authority.
  */
 @Injectable()
 export class ObjectiveCanonicalRequestService {
@@ -48,9 +48,7 @@ export class ObjectiveCanonicalRequestService {
         grant.actorUserId !== a.actorUserId || grant.clerkUserId !== a.clerkUserId ||
         grant.consentId !== a.consentId || grant.controlVersion !== a.controlVersion ||
         !Number.isSafeInteger(grant.checkedAtMs) || grant.checkedAtMs > now ||
-        [grant.expiresAtMs, grant.delegationExpiresAtMs, grant.claimExpiresAtMs].some(t => !Number.isSafeInteger(t) || t <= now)) return fail();
-    if (subject.phase === 'publish' && grant.delegation &&
-        (!Number.isSafeInteger(grant.delegation.issuedAtMs) || grant.delegation.issuedAtMs > grant.checkedAtMs)) return fail();
+        !Number.isSafeInteger(grant.expiresAtMs)) return fail();
   }
   private async admission(tx: Tx, grant: CanonicalGenerationGrant, jobId: string) {
     const value = await readGenerationLedger(tx, GENERATION_ADMISSION, grant.tenantId, grant.clerkUserId, jobId);
@@ -100,7 +98,6 @@ export class ObjectiveCanonicalRequestService {
         await this.effect(tx, grant, subject, a);
         const input = deriveCanonicalPublicationInput(job, a);
         const basis = await captureCanonicalStrategyBasis(tx, a);
-        if (!grant.delegation) return fail();
         return { kind: 'new' as const, a, input, basis };
       }, { timeoutMs: 15_000 });
       if (initial.kind === 'retained') return initial.publication;
@@ -133,8 +130,8 @@ export class ObjectiveCanonicalRequestService {
         if (applicationHash(currentBasis) !== applicationHash(basis)) return fail('SOURCE_STALE');
         const requestedAtMs = await this.now(tx);
         const publicationInput = { admission: a, dto: current.dto, context: typedContext,
-          prompt: governed.prompt, owners, delegation: grant.delegation, requestedAtMs,
-          effectExpiresAtMs: Math.min(a.effectExpiresAtMs, grant.expiresAtMs, grant.delegationExpiresAtMs, grant.claimExpiresAtMs) };
+          prompt: governed.prompt, owners, requestedAtMs,
+          effectExpiresAtMs: Math.min(a.effectExpiresAtMs, grant.expiresAtMs) };
         const publication = basis === null ? createCanonicalRequestPublication(publicationInput)
           : createCanonicalRegenerationRequestPublication({ ...publicationInput, basis });
         const stored: StoredCanonicalRequest = { schemaVersion: 1, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(a),

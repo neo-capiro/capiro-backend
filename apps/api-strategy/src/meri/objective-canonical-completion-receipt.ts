@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { readNativeObjectiveCompletion } from './objective-native-completion.js';
 import { types as nodeTypes } from 'node:util';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
 import {
@@ -58,9 +58,6 @@ const WITNESS_KEYS = ['schemaVersion', 'namespace', 'generationJobId', 'generati
   'sourceAdmissionSha256', 'sourceRequestSha256', 'sourceBindingSha256', 'typedRequestSha256',
   'executionContextSha256', 'completionId', 'checkpointId', 'checkpointSha256', 'resultRef',
   'resultSha256', 'rawFileSha256', 'executionSha256', 'completedAtMs', 'payloadSha256', 'corePayloadSha256'];
-const READ_KEYS = ['schemaVersion', 'generationJobId', 'binding', 'sourceAdmissionSha256', 'sourceRequestSha256',
-  'typedRequestSha256', 'completionId', 'checkpointId', 'checkpointSha256', 'resultRef', 'resultSha256',
-  'file', 'rawFileSha256', 'execution', 'result', 'checkedAtMs', 'expiresAtMs'];
 const RESULT_KEYS = ['candidateVersion', 'operation', 'requestId', 'jobId', 'requestSha256', 'inputSha256',
   'sourceSha256', 'contextSha256', 'basisSha256', 'binding', 'execution', 'resultRef', 'completedAtMs',
   'state', 'payload', 'payloadSha256', 'issues', 'resultSha256'];
@@ -91,10 +88,10 @@ function time(value: unknown): number {
 /** Inspect descriptors before cloning/stringifying. No getter, proxy, toJSON,
  * custom prototype, sparse array, cycle, unsafe numeric value or over-budget
  * tree is evaluated. Candidate JCS subsequently checks Unicode validity. */
-function bounded(value: unknown): any {
+function bounded(value: unknown, maximum = MAX_BYTES): any {
   let bytes = 0;
   const parents = new Set<object>();
-  const add = (s: string) => { bytes += Buffer.byteLength(s, 'utf8'); if (bytes > MAX_BYTES) fail(); };
+  const add = (s: string) => { bytes += Buffer.byteLength(s, 'utf8'); if (bytes > maximum) fail(); };
   const copy = (v: unknown, depth: number): any => {
     if (depth > 64) return fail();
     if (v === null || typeof v === 'boolean' || typeof v === 'string' || typeof v === 'number') {
@@ -156,14 +153,13 @@ function expected(raw: CanonicalCompletionExpected) {
       publication.request.principal.actorId !== acceptance.sourceBinding.actorId ||
       publication.request.principal.tenantId !== acceptance.sourceBinding.tenantId ||
       publication.requestSha256 !== candidateJcsSha256(publication.request) ||
-      acceptance.issuance.expiresAtMs > publication.request.originalExpiresAtMs) return fail('REQUEST_CONFLICT');
+      acceptance.effectExpiresAtMs > publication.request.originalExpiresAtMs) return fail('REQUEST_CONFLICT');
   const bindingSha256 = candidateJcsSha256(acceptance.sourceBinding);
-  const h = candidateJcsSha256({ binding: acceptance.sourceBinding, kind: 'completion' });
-  const completionId = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  const completionId = acceptance.sourceBinding.runId;
   return { admission, acceptance, publication, bindingSha256, completionId,
     executionContextSha256: candidateJcsSha256(publication.executionContext),
     minimumCompletedAtMs: Math.max(admission.admittedAtMs, acceptance.acceptedAtMs, publication.request.requestedAtMs),
-    maximumCompletedAtMs: Math.min(admission.effectExpiresAtMs, acceptance.issuance.expiresAtMs, publication.request.originalExpiresAtMs) };
+    maximumCompletedAtMs: Math.min(admission.effectExpiresAtMs, acceptance.effectExpiresAtMs, publication.request.originalExpiresAtMs) };
 }
 function completionTime(value: unknown, e: ReturnType<typeof expected>): number {
   const n = time(value);
@@ -176,14 +172,11 @@ type RetainedBodyPolicy = { outcome: 'succeeded' | 'non-success'; observation: '
  * This is NOT the candidate semantic validator or genuine custody owner.
  * The authorized Meri reader owns those checks before calling this boundary. */
 function verifiedRetainedBody(raw: unknown, e: ReturnType<typeof expected>, policy: RetainedBodyPolicy) {
-  const retained = bounded(raw), v = object(retained, READ_KEYS), r = object(v.result, RESULT_KEYS);
+  const retained = bounded(raw, 8 * 1024 * 1024), v = readNativeObjectiveCompletion(retained, e, PATH), r = object(v.result, RESULT_KEYS);
   const execution = object(v.execution, EXECUTION_KEYS), resultExecution = object(r.execution, EXECUTION_KEYS);
   const binding = parseAcceptedRunBinding(v.binding), resultBinding = parseAcceptedRunBinding(r.binding);
-  const checkedAtMs = time(v.checkedAtMs), expiresAtMs = time(v.expiresAtMs);
-  if (checkedAtMs >= expiresAtMs || policy.observation === 'fresh' &&
-      (checkedAtMs > policy.nowMs || policy.nowMs >= expiresAtMs)) return fail('AUTHORITY_UNAVAILABLE');
   const completedAtMs = completionTime(r.completedAtMs, e);
-  if (completedAtMs > checkedAtMs) return fail('OUTCOME_UNCONFIRMED');
+  if (policy.observation === 'fresh' && completedAtMs > policy.nowMs) return fail('OUTCOME_UNCONFIRMED');
   if (v.schemaVersion !== 1 || v.generationJobId !== e.admission.generationJobId ||
       v.sourceAdmissionSha256 !== canonicalGenerationAdmissionSha256(e.admission) ||
       v.sourceRequestSha256 !== e.acceptance.sourceRequestSha256 ||
@@ -224,11 +217,6 @@ function verifiedRetainedBody(raw: unknown, e: ReturnType<typeof expected>, poli
   if (file.path !== PATH || ref.versionId === 'null' ||
       !Number.isSafeInteger(ref.bytes) || ref.bytes < 1 || ref.bytes > MAX_BYTES ||
       sha(ref.sha256) !== sha(v.rawFileSha256)) return fail('REQUEST_CONFLICT');
-  // B99 writes these exact raw bytes once. Independently check length/hash of
-  // that representation, without inventing an SDK-session receipt witness.
-  const rawBytes = Buffer.from(JSON.stringify(v.result), 'utf8');
-  if (rawBytes.length !== ref.bytes || rawBytes.length > MAX_BYTES ||
-      createHash('sha256').update(rawBytes).digest('hex') !== v.rawFileSha256) return fail('REQUEST_CONFLICT');
   const witness: CanonicalCompletionWitness = {
     schemaVersion: 1, namespace: NS, generationJobId: e.admission.generationJobId,
     generationRequestId: e.admission.generationRequestId,
@@ -240,7 +228,7 @@ function verifiedRetainedBody(raw: unknown, e: ReturnType<typeof expected>, poli
     executionSha256: candidateJcsSha256(execution), completedAtMs, payloadSha256: r.payloadSha256,
     corePayloadSha256: applicationHash(r.payload),
   };
-  return freeze({ payload: r.payload, witness, checkedAtMs, expiresAtMs,
+  return freeze({ payload: r.payload, witness,
     retained, outcome: r.state as 'succeeded' | CanonicalTypedNonSuccessOutcome });
 }
 
@@ -250,14 +238,13 @@ function verifiedRetainedBody(raw: unknown, e: ReturnType<typeof expected>, poli
  * and current transaction authority remain the actual Core writer's owners. */
 export function verifyRetainedCanonicalCompletion(raw: unknown,
   options: CanonicalCompletionExpected & { nowMs: number }): {
-    payload: unknown; witness: CanonicalCompletionWitness; checkedAtMs: number; expiresAtMs: number;
+    payload: unknown; witness: CanonicalCompletionWitness;
   } {
   const o = object(options, ['admission', 'acceptance', 'publication', 'nowMs']);
   const e = expected({ admission: o.admission, acceptance: o.acceptance, publication: o.publication });
   const value = verifiedRetainedBody(raw, e, { outcome: 'succeeded', observation: 'fresh', nowMs: time(o.nowMs) });
   // Preserve the existing success API, field order and immutable witness.
-  return freeze({ payload: value.payload, witness: value.witness,
-    checkedAtMs: value.checkedAtMs, expiresAtMs: value.expiresAtMs });
+  return freeze({ payload: value.payload, witness: value.witness });
 }
 
 /** Typed non-success accounting only. No Strategy/Planner output or public
@@ -266,7 +253,6 @@ export function verifyRetainedCanonicalCompletion(raw: unknown,
 export function verifyRetainedCanonicalNonSuccess(raw: unknown,
   options: CanonicalCompletionExpected & { nowMs: number }): {
     outcome: CanonicalTypedNonSuccessOutcome; evidence: CanonicalNonSuccessEvidence;
-    checkedAtMs: number; expiresAtMs: number;
   } {
   const o = object(options, ['admission', 'acceptance', 'publication', 'nowMs']);
   const e = expected({ admission: o.admission, acceptance: o.acceptance, publication: o.publication });
@@ -276,8 +262,8 @@ export function verifyRetainedCanonicalNonSuccess(raw: unknown,
     witness: value.witness };
   // The retained read is already a bounded clone. Check the whole stored
   // envelope's byte budget without changing the established witness object.
-  bounded(evidence);
-  return freeze({ outcome, evidence, checkedAtMs: value.checkedAtMs, expiresAtMs: value.expiresAtMs });
+  bounded(evidence, 8 * 1024 * 1024);
+  return freeze({ outcome, evidence });
 }
 
 /** Retained historical consistency only, not a renewed grant or current-read
@@ -285,7 +271,7 @@ export function verifyRetainedCanonicalNonSuccess(raw: unknown,
  * without requiring that old read/issuance expiry remain live today. */
 export function checkStoredCanonicalNonSuccess(raw: unknown,
   options: CanonicalCompletionExpected): CanonicalNonSuccessEvidence {
-  const stored = object(bounded(raw), ['kind', 'outcome', 'retained', 'witness']);
+  const stored = object(bounded(raw, 8 * 1024 * 1024), ['kind', 'outcome', 'retained', 'witness']);
   if (stored.kind !== 'typed-result' || stored.outcome !== 'needs-information' && stored.outcome !== 'refused') return fail();
   const value = verifiedRetainedBody(stored.retained, expected(options), { outcome: 'non-success', observation: 'historical' });
   const witness = checkCanonicalCompletionWitness(stored.witness, options);

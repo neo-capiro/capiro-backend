@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -5,7 +6,7 @@ import { stripTypeScriptTypes } from 'node:module';
 
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const appSource = await readFile(new URL('../src/planner/objective-canonical-application.ts', import.meta.url), 'utf8');
-const appUrl = data(stripTypeScriptTypes(appSource));
+const appUrl = data(stripTypeScriptTypes(appSource.replaceAll("'@capiro/shared/objective-planner-owner-codec'", JSON.stringify(objectivePlannerOwnerCodecUrl))));
 const nestUrl = data('export const Injectable = () => value => value;');
 const ownerSource = await readFile(new URL('../src/meri/objective-canonical-result-owner.ts', import.meta.url), 'utf8');
 const ownerUrl = data(stripTypeScriptTypes(ownerSource.replace('@Injectable()', '')
@@ -15,11 +16,11 @@ const { ObjectiveCanonicalResultOwner } = await import(ownerUrl);
 
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const source = Object.freeze({ generationJobId: id(1), sourceAdmissionSha256: 'a'.repeat(64),
-  binding: Object.freeze({ tenantId: id(2), actorId: 'user_original', conversationId: id(3),
+  binding: Object.freeze({ tenantId: id(2), actorId: id(7), conversationId: id(3),
     runId: id(4), attemptId: id(5), workerId: id(6), writerFence: 1 }) });
-const result = () => ({ schemaVersion: 1, generationJobId: source.generationJobId,
+const result = () => ({ schemaVersion: 1, record: { generationJobId: source.generationJobId,
   sourceAdmissionSha256: source.sourceAdmissionSha256, binding: { ...source.binding },
-  checkedAtMs: 10, expiresAtMs: 20 });
+  checkedAtMs: 10, expiresAtMs: 20 } });
 const unavailable = error => error?.code === 'AUTHORITY_UNAVAILABLE';
 
 test('uncomposed or unavailable retained bridge fails closed', async () => {
@@ -54,7 +55,7 @@ test('rejects a different job, admission or run binding before Core sees a resul
     { binding: { ...source.binding, runId: id(9) } },
   ]) {
     const owner = new ObjectiveCanonicalResultOwner({ available: () => true,
-      read: async () => ({ ...result(), ...changed }) });
+      read: async () => ({ ...result(), record: { ...result().record, ...changed } }) });
     await assert.rejects(owner.read(source, { signal }), unavailable);
   }
 });

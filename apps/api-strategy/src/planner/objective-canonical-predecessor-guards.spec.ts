@@ -1,6 +1,6 @@
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { ObjectiveCanonicalWorkloadAuthority, CanonicalAuthoritySubject } from './objective-canonical-authority.js';
+import type { CanonicalAuthoritySubject } from './objective-canonical-authority.js';
 import { ObjectiveCanonicalApplicationService } from './objective-canonical-application.service.js';
 import { applicationHash, canonicalApplicationRequestId,
   type CanonicalApplicationGrant, type CanonicalApplicationRequest } from './objective-canonical-application.js';
@@ -49,10 +49,8 @@ function fixture() {
   tx = { $executeRaw: execute, $queryRaw: query, spPlannerResource: {
     findFirst: headRead, create: forbidden, update: forbidden, updateMany: forbidden,
   } } as unknown as Prisma.TransactionClient;
-  const service = new ObjectiveCanonicalApplicationService({ withTenant: forbidden } as unknown as PrismaService,
-    { canonicalStrategyPlanCreationInTransaction: forbidden, canonicalStrategyPlanObservationInTransaction: forbidden,
-      prepareCanonicalStrategyPlanInTransaction: forbidden } as unknown as PlannerService,
-    { verify: forbidden, assertCurrent: forbidden } as unknown as ObjectiveCanonicalWorkloadAuthority);
+  const service = new ObjectiveCanonicalApplicationService({ canonicalStrategyPlanCreationInTransaction: forbidden, canonicalStrategyPlanObservationInTransaction: forbidden,
+      prepareCanonicalStrategyPlanInTransaction: forbidden } as unknown as PlannerService);
   const check = jest.fn(async (subject: CanonicalAuthoritySubject) => {
     expect(subject).toEqual({ purpose: 'retained-result-read', applicationRequestId: request.applicationRequestId,
       requestSha256: applicationHash(request) });

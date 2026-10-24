@@ -289,6 +289,7 @@ function assertCurrentConversation(
  * persisted: no ledger, cache or idempotency key.
  */
 export const ARTIFACT_AUTHORITY_CONTRACT = 'capiro.meri-artifact-authority.v1';
+export const ARTIFACT_AUTHORITY_V2_CONTRACT = 'capiro.meri-artifact-authority.v2';
 export const ARTIFACT_AUTHORITY_TTL_MS = 60_000;
 /** Closed and sorted (contract §4.2). */
 export const ARTIFACT_OPERATIONS = Object.freeze([
@@ -309,20 +310,22 @@ const ARTIFACT_ADMITTED_ROLES = Object.freeze(['standard_user', 'user_admin', 'c
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export interface ApplicationAuthorityArtifactRequest {
-  contract: typeof ARTIFACT_AUTHORITY_CONTRACT;
+  contract: typeof ARTIFACT_AUTHORITY_CONTRACT | typeof ARTIFACT_AUTHORITY_V2_CONTRACT;
   observationId: string;
   conversationId: string;
-  clientId: string;
+  clientId: string | null;
+  scopeKind?: 'client' | 'general';
   intent: string;
   requestSha256: string;
 }
 export interface ApplicationAuthorityArtifactReceipt {
-  contract: typeof ARTIFACT_AUTHORITY_CONTRACT;
+  contract: typeof ARTIFACT_AUTHORITY_CONTRACT | typeof ARTIFACT_AUTHORITY_V2_CONTRACT;
   observationId: string;
   principal: ApplicationAuthorityPrincipal;
   identityRevision: string;
   conversationId: string;
-  selectedClientId: string;
+  selectedClientId: string | null;
+  scopeKind?: 'client' | 'general';
   contextRevision: string;
   intent: string;
   requestSha256: string;
@@ -333,17 +336,24 @@ export interface ApplicationAuthorityArtifactReceipt {
   expiresAtMs: number;
 }
 
-/** Closed six-key body (contract §3.1). Anything else is 400. */
+/** V1 retains its exact six keys; V2 requires an explicit matching scope kind. */
 export function parseApplicationAuthorityArtifactBody(body: unknown): ApplicationAuthorityArtifactRequest {
-  const record = closedBody(body, ['contract', 'observationId', 'conversationId', 'clientId', 'intent', 'requestSha256']);
+  const record = closedBody(body, ['contract', 'observationId', 'conversationId', 'clientId', 'intent', 'requestSha256'], ['scopeKind']);
   const { contract, observationId, conversationId, clientId, intent, requestSha256 } = record;
-  if (contract !== ARTIFACT_AUTHORITY_CONTRACT || typeof observationId !== 'string' || !UUID_V4.test(observationId) ||
-      typeof conversationId !== 'string' || !UUID.test(conversationId) || typeof clientId !== 'string' || !UUID.test(clientId) ||
+  const v2 = contract === ARTIFACT_AUTHORITY_V2_CONTRACT;
+  const client = typeof clientId === 'string' && UUID.test(clientId);
+  if ((!v2 && contract !== ARTIFACT_AUTHORITY_CONTRACT) ||
+      (v2 ? !((record.scopeKind === 'general' && clientId === null) || (record.scopeKind === 'client' && client))
+        : Object.hasOwn(record, 'scopeKind') || !client) ||
+      typeof observationId !== 'string' || !UUID_V4.test(observationId) ||
+      typeof conversationId !== 'string' || !UUID.test(conversationId) ||
       typeof intent !== 'string' || !Object.hasOwn(ARTIFACT_INTENT_OPERATIONS, intent) ||
       typeof requestSha256 !== 'string' || !HASH.test(requestSha256)) {
     throw new BadRequestException('Invalid application authority request');
   }
-  return { contract: ARTIFACT_AUTHORITY_CONTRACT, observationId, conversationId, clientId, intent, requestSha256 };
+  return { contract: contract as ApplicationAuthorityArtifactRequest['contract'], observationId, conversationId,
+    clientId: clientId as string | null, intent, requestSha256,
+    ...(v2 ? { scopeKind: record.scopeKind as 'client' | 'general' } : {}) };
 }
 
 /**
@@ -360,10 +370,28 @@ export async function readApplicationAuthorityArtifact(
   ports: Parameters<typeof readApplicationAuthorityContext>[1],
   now: () => number = Date.now,
 ): Promise<ApplicationAuthorityArtifactReceipt> {
+  if (input.contract !== ARTIFACT_AUTHORITY_CONTRACT || input.clientId === null) {
+    throw new BadRequestException('V2 requires current conversation authority');
+  }
   // `/context` echoes `identitySha256` without interpreting it; this route has
   // none, so a constant placeholder is passed and never returned.
   const context = await readApplicationAuthorityContext(
     { identitySha256: '0'.repeat(64), conversationId: input.conversationId, clientId: input.clientId }, ports);
+  return applicationAuthorityArtifactReceipt(input, role, context, now);
+}
+
+/** Project the existing artifact policy from an actual current Core observation.
+ * V2 callers supply /current, whose snapshot checks the persisted General receipt. */
+export function applicationAuthorityArtifactReceipt(
+  input: ApplicationAuthorityArtifactRequest, role: string,
+  context: ApplicationAuthorityContextReceipt | ApplicationAuthorityCurrentReceipt,
+  now: () => number = Date.now,
+): ApplicationAuthorityArtifactReceipt {
+  if (context.conversationId !== input.conversationId || context.selectedClientId !== input.clientId ||
+      (input.contract === ARTIFACT_AUTHORITY_V2_CONTRACT &&
+        input.scopeKind !== (context.selectedClientId === null ? 'general' : 'client'))) {
+    throw new ForbiddenException('Application authority unavailable');
+  }
   const operations: ArtifactOperation[] = ARTIFACT_ADMITTED_ROLES.includes(role) ? [...ARTIFACT_OPERATIONS] : [];
   const needed = ARTIFACT_INTENT_OPERATIONS[input.intent];
   if (!needed || needed.some((operation) => !operations.includes(operation))) {
@@ -379,7 +407,7 @@ export async function readApplicationAuthorityArtifact(
     throw new ForbiddenException('Application authority unavailable');
   }
   return {
-    contract: ARTIFACT_AUTHORITY_CONTRACT,
+    contract: input.contract,
     observationId: input.observationId,
     principal: { tenantId: context.principal.tenantId, actorId: context.principal.actorId },
     identityRevision: context.identityRevision,
@@ -393,5 +421,6 @@ export async function readApplicationAuthorityArtifact(
     authorityRevision,
     checkedAtMs,
     expiresAtMs,
+    ...(input.contract === ARTIFACT_AUTHORITY_V2_CONTRACT ? { scopeKind: input.scopeKind } : {}),
   };
 }

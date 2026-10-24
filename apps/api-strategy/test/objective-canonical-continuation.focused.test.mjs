@@ -86,12 +86,11 @@ function fixture() {
     actorUserId: id(9), clerkUserId: 'user_original', consentId: id(13), controlVersion: 2,
     generationJobId: id(10), generationRequestId: id(11), admittedAtMs: now - 2_000,
     effectExpiresAtMs: now + 60_000, expectedStrategyVersionId: null };
-  const binding = { tenantId: id(2), actorId: 'user_original', conversationId: id(20), runId: id(21),
+  const binding = { tenantId: id(2), actorId: admission.actorUserId, conversationId: id(20), runId: id(21),
     attemptId: id(22), workerId: id(23), writerFence: 1 };
   const acceptance = { schemaVersion: 1, sourceAdmissionSha256: generation.canonicalGenerationAdmissionSha256(admission),
     sourceBinding: binding, sourceRequestSha256: 'e'.repeat(64), acceptedAtMs: now - 1_000,
-    issuance: { issuanceKey: generation.generationBindingKey(binding), binding, requestSha256: 'e'.repeat(64),
-      expiresAtMs: now + 30_000, grantId: id(24), capabilitySha256: 'f'.repeat(64), factsSha256: 'd'.repeat(64) } };
+    effectExpiresAtMs: now + 30_000 };
   const source = { clientId: id(3), objectiveId: id(4), objectiveVersion: 4, objectiveRevisionId: id(8) };
   const receipt = { schemaVersion: 1, requestId: id(11), source,
     context: { reobservedAt: at, state: 'complete', packetId: id(25), compiledAt: at,

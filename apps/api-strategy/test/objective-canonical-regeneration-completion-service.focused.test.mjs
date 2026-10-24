@@ -1,3 +1,4 @@
+import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
 // Actual completion service, saved-generation helper, normalizers and input
 // checker. SQL/current authority/retained codecs/persistence/Strategy writer
 // are named synthetic ports. No SDK, DB CAS, native concurrency, genuine
@@ -17,14 +18,14 @@ async function source(path, imports = [], injectable = false, mode = 'strip') {
   const url = new URL(path, import.meta.url), raw = await readFile(url, 'utf8');
   let text = raw;
   if (injectable) { assert.equal(text.split('@Injectable()').length, 2); text = text.replace('@Injectable()', ''); }
-  for (const [from, to] of imports) { assert.equal(text.split(from).length, 2, from); text = text.replace(from, JSON.stringify(to)); }
+  for (const [from, to] of imports) { assert.equal(text.split(from).length, from === "'@capiro/shared/objective-planner-owner-codec'" ? 4 : 2, from); text = text.replaceAll(from, JSON.stringify(to)); }
   const stripped = stripTypeScriptTypes(text, { mode, sourceUrl: url.href });
   custody.push({ path, rawSha256: createHash('sha256').update(raw).digest('hex'),
     transformedSha256: createHash('sha256').update(stripped).digest('hex'), mode,
     imports: imports.map(([from]) => from), decoratorRemoved: injectable });
   return data(stripped);
 }
-const appUrl = await source('../src/planner/objective-canonical-application.ts');
+const appUrl = await source('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const genUrl = await source('../src/meri/objective-canonical-generation.ts', [["'../planner/objective-canonical-application.js'", appUrl]]);
 const normalizerUrl = await source('../src/meri/objective-canonical-draft.ts', [
   ["'../planner/objective-canonical-application.js'", appUrl], ["'./objective-canonical-generation.js'", genUrl],
@@ -39,9 +40,10 @@ const ports = data(`
   import assert from 'node:assert/strict';
   import {applicationHash,CanonicalApplicationError} from ${JSON.stringify(appUrl)};
   export {GENERATION_ADMISSION,GENERATION_ACCEPTANCE,GENERATION_NORMALIZATION,GENERATION_PRODUCER,
-    generationLedgerId,canonicalGenerationAdmissionSha256} from ${JSON.stringify(genUrl)};
+    generationBindingKey,generationLedgerId,canonicalGenerationAdmissionSha256} from ${JSON.stringify(genUrl)};
   export {deriveCanonicalJobInput} from ${JSON.stringify(inputUrl)};
   import {normalizeCanonicalDraft as initial,normalizeCanonicalRegenerationDraft as regen} from ${JSON.stringify(normalizerUrl)};
+  const fixtureBindingKey=applicationHash;
   const state=()=>globalThis[Symbol.for('capiro.regeneration-completion-service.synthetic')];
   const clone=v=>structuredClone(v),fail=(code='OUTCOME_UNCONFIRMED')=>{throw new CanonicalApplicationError(code);};
   export class PrismaService{};export class ObjectiveCanonicalWorkloadAuthority{};export class MeriService{};
@@ -79,7 +81,7 @@ const ports = data(`
     if(s.effectUnavailable)fail('SOURCE_STALE');}
   export function objectivePersistence(claim,context,compiled){const s=state();s.calls.persistence++;
     assert.equal(claim.id,s.current.job.id);assert.equal(claim.attempt,2);
-    assert.equal(claim.claimToken,'canonical:'+s.current.association.acceptance.issuance.issuanceKey);
+    assert.equal(claim.claimToken,'canonical:'+fixtureBindingKey(s.current.association.acceptance.sourceBinding));
     assert.deepEqual(compiled(),s.current.stored.compiled);
     return {beforeTransaction:async()=>{assert.equal(s.depth,0);await context.recheckObjective(claim,compiled());
       claim.input.objectiveGeneration.historyCheckedAt='2026-10-16T00:00:01.000Z';},
@@ -117,6 +119,7 @@ const serviceUrl = await source('../src/meri/objective-canonical-completion.serv
 const { ObjectiveCanonicalCompletionService } = await import(serviceUrl);
 const { readCanonicalSavedGeneration, requireCanonicalBasisCustody } = await import(savedUrl);
 
+const fixtureBindingKey = app.applicationHash;
 function fixture(mode = 'regenerate') {
   const s = { mode, depth: 0, now: 10_000, records: new Map(), versions: new Map(), writes: 0, reads: 0,
     calls: Object.fromEntries(['initialVerify','regenVerify','initialWitness','regenWitness','initialNormalize','regenNormalize',
@@ -128,14 +131,14 @@ function fixture(mode = 'regenerate') {
     const a = {schemaVersion:1,namespace:gen.GENERATION_ADMISSION_NAMESPACE,canonical:c,actorUserId:id(9),clerkUserId:'user_original',
       consentId:prior?id(72):id(12),controlVersion:prior?1:2,generationJobId:jobId,generationRequestId:requestId,admittedAtMs:1000,effectExpiresAtMs:50_000,
       expectedStrategyVersionId:!prior&&mode==='regenerate'?id(20):null};
-    const binding={tenantId:id(2),actorId:'user_original',conversationId:prior?id(73):id(13),runId:prior?id(74):id(14),attemptId:prior?id(75):id(15),workerId:prior?id(76):id(16),writerFence:1};
+    const binding={tenantId:id(2),actorId:a.actorUserId,conversationId:prior?id(73):id(13),runId:prior?id(74):id(14),attemptId:prior?id(75):id(15),workerId:prior?id(76):id(16),writerFence:1};
     const acceptance={schemaVersion:1,sourceAdmissionSha256:app.applicationHash(a),sourceBinding:binding,sourceRequestSha256:hex('b'),acceptedAtMs:1100,
-      issuance:{issuanceKey:app.applicationHash(binding),binding,requestSha256:hex('b'),expiresAtMs:45_000,grantId:prior?id(77):id(17),capabilitySha256:hex('c'),factsSha256:hex('d')}};
+      effectExpiresAtMs: 45_000};
     const request={requestId,clientId:id(3),objective:{objectiveId:id(4),objectiveVersion:c.requestedObjectiveVersion},type:'authorization'};
     const source={clientId:id(3),objectiveId:id(4),objectiveVersion:c.requestedObjectiveVersion,objectiveRevisionId:c.requestedObjectiveRevisionId};
     const context={state:'complete',packetId:id(18),compiledAt:'2026-10-16T00:00:00.000Z',reobservedAt:null,sourceDigest:hex('1'),coverageDigest:hex('2'),inputDigest:hex('3'),issues:[]};
     const dto={clientId:id(3),type:'authorization',goal:'Original raw goal',meriContext:null,ownerUserId:'user_original',targetDate:null,attachmentIds:[]};
-    const job={id:jobId,tenantId:id(2),clientId:id(3),ownerUserId:'user_original',status:'running',attempt:2,claimedBy:'canonical:'+acceptance.issuance.issuanceKey,
+    const job={id:jobId,tenantId:id(2),clientId:id(3),ownerUserId:'user_original',status:'running',attempt:2,claimedBy:'canonical:'+fixtureBindingKey(acceptance.sourceBinding),
       strategyId:null,requestKey:'objective-v1:'+app.applicationHash([id(2),'user_original',requestId]),input:{dto,bearer:null,
         canonicalGeneration:{admissionId:gen.generationLedgerId(gen.GENERATION_ADMISSION,id(2),'user_original',jobId)},
         objectiveGeneration:{request,fingerprint:app.applicationHash(request),receipt:{schemaVersion:1,requestId,source,context,result:null,failure:null}}}};

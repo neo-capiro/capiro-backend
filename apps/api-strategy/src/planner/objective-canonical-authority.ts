@@ -1,16 +1,22 @@
 import { Injectable } from '@nestjs/common';
+import { objectiveStrategyJobTenantWithinSystemTx, readObjectiveStrategyJobSubjectWithinTx } from '@capiro/shared/objective-strategy-intake';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { hasInternalServiceIdentity } from '../auth/internal-service.guard.js';
+import { ObjectiveNativeReader, readNativeObjectiveAcceptance } from '../meri/objective-native-reader.js';
+import { readGenerationLedger } from '../meri/objective-canonical-producer-ledger.js';
+import { GENERATION_ADMISSION, parseCanonicalGenerationAdmission, canonicalGenerationAdmissionSha256 } from '../meri/objective-canonical-generation.js';
+import { readCanonicalRequestPublication } from '../meri/objective-canonical-request-ledger.js';
 import type { Request } from 'express';
 import type { Prisma } from '../../generated/prisma-client/index.js';
-import { CanonicalApplicationError, type CanonicalApplicationGrant } from './objective-canonical-application.js';
-import type { CanonicalGenerationAdmission, SanitizedGenerationIssuance, AcceptedRunBinding } from '../meri/objective-canonical-generation.js';
+import { CanonicalApplicationError } from './objective-canonical-application.js';
+import type { CanonicalGenerationAdmission, AcceptedRunBinding } from '../meri/objective-canonical-generation.js';
 
 export type CanonicalAuthorityPurpose = 'effect' | 'retained-result-read';
 export interface CanonicalAuthoritySubject {
   purpose: CanonicalAuthorityPurpose;
   applicationRequestId: string;
   requestSha256: string | null;
-  /** Fixed producer endpoint: hash binds its WHOLE phase+work envelope, not
-   * the different nine-field application body. No caller-selected route. */
+  /** Existing durable Planner phase, bound by its owner transaction. */
   producerPhase?: 'start' | 'prepare' | 'read' | 'stop';
 }
 export interface CanonicalGenerationSubject {
@@ -19,14 +25,8 @@ export interface CanonicalGenerationSubject {
 }
 export interface CanonicalGenerationGrant {
   tenantId: string; actorUserId: string; clerkUserId: string; consentId: string; controlVersion: number;
-  requestSha256: string; checkedAtMs: number; expiresAtMs: number; delegationExpiresAtMs: number; claimExpiresAtMs: number;
-  /** Separate fresh bookkeeping decision for terminal phases. The original
-   * effect delegation and claim deadlines remain historical and may be past. */
-  terminalAccounting?: { phase: 'terminal-account' | 'terminal-read'; checkedAtMs: number;
-    expiresAtMs: number; absoluteExpiresAtMs: number };
-  /** Genuine verifier-owned delegation metadata required before first typed
-   * publication. A consent/control/identity revision is not a delegation. */
-  delegation?: { ref: string; revision: string; issuedAtMs: number; absoluteExpiresAtMs: number };
+  requestSha256: string; checkedAtMs: number; expiresAtMs: number;
+
 }
 export interface VerifiedGenerationAcceptance {
   grant: CanonicalGenerationGrant;
@@ -34,53 +34,58 @@ export interface VerifiedGenerationAcceptance {
   sourceAdmissionSha256: string;
   sourceBinding: AcceptedRunBinding;
   sourceRequestSha256: string;
-  issuance: SanitizedGenerationIssuance;
-  /** Actual protected-facts observer values, compared against the immutable
+  effectExpiresAtMs: number;
+  /** Actual native run-start values, compared against the immutable
    * Core publication before claim. Never read from caller POST fields. */
   typedRequestSha256?: string;
   executionContextSha256?: string;
   acceptedRequestId?: string;
   acceptedPromptSha256?: string;
 }
-/** Centrally allocated binding port. An implementation must authenticate a named
- * workload issuer/audience + original delegated native actor, pin the complete
- * immutable original work/request, and check current claim/revocation authority.
- * No generic internal secret, receipt hash, Clerk context digest, task/model
- * token or caller actor is a substitute. No network/model work belongs in tx. */
+/** Service identity selects no principal. The immutable job and original consent
+ * select its actor; canonical Core rows are reread in every owning transaction. */
 @Injectable()
 export class ObjectiveCanonicalWorkloadAuthority {
-  /** Same centrally owned verifier, distinct GENERATION audience/action. The
-   * adapter must authenticate the original native/Clerk delegation and bind
-   * this fixed endpoint, phase, actual job and whole HTTP-body SHA. */
-  async verifyGeneration(_request: Request, _subject: CanonicalGenerationSubject): Promise<CanonicalGenerationGrant> {
-    throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+  constructor(private readonly prisma: PrismaService, private readonly native: ObjectiveNativeReader) {}
+  async verifyGeneration(request: Request, subject: CanonicalGenerationSubject): Promise<CanonicalGenerationGrant> {
+    if (!hasInternalServiceIdentity(request)) throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+    const tenantId = await this.prisma.withSystem(tx =>
+      objectiveStrategyJobTenantWithinSystemTx(tx, subject.generationJobId));
+    return this.prisma.withTenant(tenantId, async tx => {
+      const s = await readObjectiveStrategyJobSubjectWithinTx(tx, { tenantId,
+        generationJobId: subject.generationJobId, effect: false });
+      return { tenantId, actorUserId: s.actorUserId, clerkUserId: s.clerkUserId,
+        consentId: s.consentId, controlVersion: s.controlVersion, requestSha256: subject.requestSha256,
+        checkedAtMs: s.checkedAtMs, expiresAtMs: s.effectExpiresAtMs };
+    });
   }
-  // terminal-account is a distinct bookkeeping authority, NOT a completion-
-  // read or live-effect grant. It binds the original admission/consent/control
-  // identity while independently checking current accounting permission. Old
-  // worker/effect deadlines may be historical; no issuance/claim is renewed.
-  async assertGenerationCurrent(_tx: Prisma.TransactionClient, _grant: CanonicalGenerationGrant,
-    _subject: CanonicalGenerationSubject): Promise<void> {
-    throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+  async assertGenerationCurrent(tx: Prisma.TransactionClient, grant: CanonicalGenerationGrant,
+    subject: CanonicalGenerationSubject): Promise<void> {
+    const current = await readObjectiveStrategyJobSubjectWithinTx(tx, { tenantId: grant.tenantId,
+      generationJobId: subject.generationJobId, effect: false });
+    if (subject.requestSha256 !== grant.requestSha256 || current.actorUserId !== grant.actorUserId ||
+        current.clerkUserId !== grant.clerkUserId || current.consentId !== grant.consentId ||
+        current.controlVersion !== grant.controlVersion || current.effectExpiresAtMs !== grant.expiresAtMs)
+      throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
   }
-  /** This is NOT a signature over caller JSON. The real adapter must read the
-   * original accepted Meri request and genuine ISSUED metadata, verify its
-   * protected facts.objectiveGeneration field/full-facts hash before dispatch,
-   * and the exact protected typed request/execution context; accepted request
-   * ID and prompt must equal the immutable Core publication before dispatch.
-   * Return that actual owner observation. No issue/resolve/material access.
-   * It remains unavailable until that actual owner transport is bound. */
-  async verifyGenerationAcceptance(_request: Request, _subject: CanonicalGenerationSubject): Promise<VerifiedGenerationAcceptance> {
-    throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
-  }
-  async verify(_request: Request, _subject: CanonicalAuthoritySubject): Promise<CanonicalApplicationGrant> {
-    throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
-  }
-  /** The approved issuer adapter must supply a transaction-local current claim
-   * witness/fence bound to this subject. Disabled until that binding is real.
-   * Retained reads do not revive the original effect grant/consent. */
-  async assertCurrent(_tx: Prisma.TransactionClient, _grant: CanonicalApplicationGrant,
-    _subject: CanonicalAuthoritySubject): Promise<void> {
-    throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+  async verifyGenerationAcceptance(request: Request, subject: CanonicalGenerationSubject): Promise<VerifiedGenerationAcceptance> {
+    const grant = await this.verifyGeneration(request, subject);
+    const expected = await this.prisma.withTenant(grant.tenantId, async tx => {
+      await this.assertGenerationCurrent(tx, grant, subject);
+      const raw = await readGenerationLedger(tx, GENERATION_ADMISSION, grant.tenantId, grant.clerkUserId, subject.generationJobId);
+      if (!raw) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+      const admission = parseCanonicalGenerationAdmission(raw), saved = await readCanonicalRequestPublication(tx, admission);
+      if (!saved) throw new CanonicalApplicationError('OUTCOME_UNCONFIRMED');
+      return { admission, publication: saved.publication };
+    });
+    const controller = new AbortController(), abort = () => controller.abort();
+    request.once('aborted', abort);
+    try {
+      if (request.aborted) throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+      const raw = await this.native.acceptance(subject.generationJobId,
+        canonicalGenerationAdmissionSha256(expected.admission), controller.signal);
+      if (request.aborted) throw new CanonicalApplicationError('AUTHORITY_UNAVAILABLE');
+      return { grant, ...readNativeObjectiveAcceptance(raw, expected) };
+    } finally { request.removeListener('aborted', abort); controller.abort(); }
   }
 }
