@@ -32,6 +32,42 @@ function makeService() {
   return { service, create };
 }
 
+describe('EngagementService.capabilities — mailbox readiness boundary', () => {
+  test('does not claim campaign configuration, provider or grants without a selected mailbox', () => {
+    const { service } = makeService();
+    const withTenant = jest.fn(() => {
+      throw new Error('Generic capabilities must not inspect mailbox credentials');
+    });
+    const sendMail = jest.fn(() => {
+      throw new Error('Generic capabilities must not invoke a provider');
+    });
+    Object.assign(service, {
+      ai: { capabilities: () => ({ enabled: false }) },
+      notesCrypto: { capabilities: () => ({ configured: false }) },
+      prisma: { withTenant },
+      mailSender: { sendMail },
+    });
+
+    const capabilities = JSON.parse(JSON.stringify(service.capabilities()));
+    expect(capabilities.outreach).toEqual({ emailDraftHandoff: true });
+    expect(capabilities.outreach).not.toHaveProperty('campaignSendingConfigured');
+    expect(capabilities.outreach).not.toHaveProperty('campaignSendingProvider');
+    expect(capabilities.outreach).not.toHaveProperty('campaignSendingScopes');
+    expect(capabilities).toMatchObject({
+      ai: { enabled: false },
+      notes: { configured: false },
+      attachments: { s3Configured: false },
+      integrations: {
+        microsoft365: { status: 'requires_oauth_configuration' },
+        googleWorkspace: { status: 'requires_oauth_configuration' },
+        imapCaldav: { status: 'unsupported' },
+      },
+    });
+    expect(withTenant).not.toHaveBeenCalled();
+    expect(sendMail).not.toHaveBeenCalled();
+  });
+});
+
 describe('EngagementService.createIntegration — scope single source of truth', () => {
   test('google_workspace scopes exactly equal GOOGLE_WORKSPACE_SCOPES, including identity scopes', async () => {
     const { service, create } = makeService();

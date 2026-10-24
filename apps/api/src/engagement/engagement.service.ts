@@ -1321,9 +1321,8 @@ export class EngagementService {
       attachments: { s3Configured: Boolean(this.bucket), maxBytes: MAX_ATTACHMENT_BYTES },
       outreach: {
         emailDraftHandoff: true,
-        campaignSendingConfigured: true,
-        campaignSendingProvider: 'microsoft_365',
-        campaignSendingScopes: ['Mail.Send'],
+        // Campaign provider, grants and runtime eligibility must be resolved
+        // for the selected owned mailbox, not asserted as global capabilities.
       },
       integrations: {
         microsoft365: {
