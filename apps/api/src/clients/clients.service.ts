@@ -1107,11 +1107,12 @@ export class ClientsService {
     // explicit management views opt in via includeArchived.
     if (!filter.includeArchived) where.status = { not: 'archived' };
 
-    const clients = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const clients = await this.prisma.withTenantRetry(ctx.tenantId, async (tx) => {
       await requireOwnerActor(tx, ctx, false, true);
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
-      if (denied.length) where.id = { notIn: denied };
-      return tx.client.findMany({ where, orderBy: { createdAt: 'desc' } });
+      // Each retry uses its new snapshot's wall decisions, including an empty set.
+      const attemptWhere = { ...where, ...(denied.length ? { id: { notIn: denied } } : {}) };
+      return tx.client.findMany({ where: attemptWhere, orderBy: { createdAt: 'desc' } });
     }, { isolationLevel: 'RepeatableRead' });
     return this.withLogoUrls(clients);
   }

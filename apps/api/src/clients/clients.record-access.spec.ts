@@ -1,4 +1,5 @@
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import { ClientsService } from './clients.service.js';
 
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
@@ -25,8 +26,9 @@ function fixture() {
     uei: null, applicantTypes: [], intakeData: {}, logoS3Key: null });
   const tx = {
     $executeRaw: jest.fn(async () => { calls.push('capacity'); state.onCapacityLock(); return 1; }),
-    $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
-      const sql = parts.join('?');
+    $queryRaw: jest.fn(async (parts: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+      const sql = 'sql' in parts ? parts.sql : parts.join('?');
+      if ('sql' in parts) values = parts.values;
       if (sql.includes('FROM tenants')) { calls.push('capacity-tenant'); return [{ billingStatus: 'comped', clientSlots: 2, ldaRegistrantId: null }]; }
       if (sql.includes('FOR SHARE OF tm, u')) { calls.push('member-lock'); return member() ? [member()] : []; }
       if (sql.includes('FROM clients')) {
@@ -67,7 +69,7 @@ function fixture() {
   } };
   const resolver = { resolveClient: jest.fn(async () => ({})) };
   const kb = { indexClientProfileFireAndForget: jest.fn() };
-  const service = new ClientsService(prisma as never, { get: () => undefined } as never,
+  const service = new ClientsService({ ...prisma, withTenantRetry: prisma.withTenant } as never, { get: () => undefined } as never,
     resolver as never, { prepopulate: async () => ({}) } as never, { enrichGovIds: async () => ({}) } as never, kb as never);
   return { state, calls, tx, service, resolver, kb };
 }
