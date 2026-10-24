@@ -27,10 +27,12 @@ import {
   archivedClient,
 } from './admissions-fixture.js';
 import { ctx, tenant, client, foreign, id, release, settled } from './fixture.js';
+import { installDirectoryNotes, directoryNoteCases } from './directory-notes.pg-cases.js';
 
 let h: Awaited<ReturnType<typeof admissionsFixture>>;
 beforeAll(async () => {
   h = await admissionsFixture();
+  await installDirectoryNotes(h);
 });
 beforeEach(async () => {
   await h.reset();
@@ -64,6 +66,8 @@ const newClientCommand = (request = 105) => ({
   clientDescription: null,
 });
 
+directoryNoteCases(() => h);
+
 it('serializes ordinary create versus conversion and two different-prospect conversions at the last slot', async () => {
   for (const mode of ['create-convert', 'two-conversions']) {
     await h.reset();
@@ -71,11 +75,9 @@ it('serializes ordinary create versus conversion and two different-prospect conv
       `client-capacity:${tenant}`,
     ]);
     const pending = Promise.all([
-      settled(
-        mode === 'create-convert'
-          ? h.clients.create(ctx, { name: 'Synthetic manual' })
-          : h.prospects.convert(ctx, otherProspect),
-      ),
+      mode === 'create-convert'
+        ? settled(h.clients.create(ctx, { name: 'Synthetic manual' }))
+        : settled(h.prospects.convert(ctx, otherProspect)),
       settled(h.prospects.convert(ctx, prospect)),
     ]);
     try {
