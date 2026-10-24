@@ -133,8 +133,10 @@ export class BillingService {
         metadata: { tenantId: actor.tenantId, tenantSlug: actor.tenantSlug },
       },
       metadata: { tenantId: actor.tenantId, tenantSlug: actor.tenantSlug },
-      success_url: `${this.returnBase}/onboarding/subscribe?status=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${this.returnBase}/onboarding/subscribe?status=cancelled`,
+      // The authenticated billing page reloads canonical subscription state;
+      // return query parameters are navigation context, never entitlement.
+      success_url: `${this.returnBase}/settings/billing?status=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${this.returnBase}/settings/billing?status=cancelled`,
     });
 
     if (!session.url) throw new BadRequestException('Stripe did not return a Checkout URL.');
