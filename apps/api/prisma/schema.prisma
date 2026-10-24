@@ -2315,7 +2315,8 @@ model ClioConversationBootstrapReceipt {
   tenantId       String    @map("tenant_id") @db.Uuid
   actorUserId    String    @map("actor_user_id") @db.Uuid
   requestId      String    @map("request_id") @db.Uuid
-  clientId       String    @map("client_id") @db.Uuid
+  scopeKind      String    @default("client") @map("scope_kind")
+  clientId       String?   @map("client_id") @db.Uuid
   conversationId String?   @unique(map: "clio_bootstrap_receipts_conversation_key") @map("conversation_id") @db.Uuid
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 

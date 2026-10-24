@@ -1,10 +1,9 @@
 import {
-  BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, Inject, Logger, Module, Optional, Param, Post, Req, Res, ServiceUnavailableException, UseGuards, type Provider,
+  BadRequestException, Body, Controller, ForbiddenException, Header, HttpCode, Logger, Module, Param, Post, Req, Res, UseGuards, type Provider,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ROLE_RANK, type TenantContext, type TenantRole } from '@capiro/shared';
 import { PrismaModule } from '../../prisma/prisma.module.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
 import { TenantModule } from '../../tenant/tenant.module.js';
 import { ContextSecurityScopeModule } from '../../context/context-security-scope.module.js';
 import { BizDevMeriScopeModule } from '../../business-development/bizdev-meri-scope.module.js';
@@ -15,10 +14,6 @@ import { ToolServiceSecretGuard } from '../tool-service-secret.guard.js';
 import { isUuid } from './read-delegation.contract.js';
 import { meriReadDelegationOf } from './read-delegation-request.js';
 import { MERI_READ_DELEGATION_SIGNER, ReadDelegationService } from './read-delegation.service.js';
-import type { CoreEd25519Signer } from '../core-ed25519-signer.js';
-import { issueMemoryHelperToken } from '../../meri/memory-receiving/meri-memory-helper-source.js';
-import { MEMORY_HELPER_KIND } from '../../meri/memory-receiving/meri-memory-helper-token.js';
-import { signedMemoryPageEnabled } from './signed-memory-http-gate.js';
 
 const id = (value: string) => {
   if (!isUuid(value)) throw new BadRequestException('Invalid read delegation request: id');
@@ -48,8 +43,6 @@ function liveMember(req: Request): TenantContext {
 export class ReadDelegationController {
   constructor(
     private readonly delegations: ReadDelegationService,
-    private readonly prisma: PrismaService,
-    @Optional() @Inject(MERI_READ_DELEGATION_SIGNER) private readonly signer: CoreEd25519Signer | null = null,
   ) {}
 
   @Post('read-delegations')
@@ -65,12 +58,6 @@ export class ReadDelegationController {
   @Header('Cache-Control', 'no-store')
   tokens(@Req() req: Request, @Param('delegationId') delegationId: string, @Body() body: unknown) {
     if (meriReadDelegationOf(req)) throw new ForbiddenException('Read delegation refused');
-    if (body && typeof body === 'object' && !Array.isArray(body) &&
-        (body as Record<string, unknown>).kind === MEMORY_HELPER_KIND) {
-      if (!signedMemoryPageEnabled()) throw new ServiceUnavailableException('Passive memory helper unavailable');
-      if (!this.signer) throw new ServiceUnavailableException('Passive memory helper unavailable');
-      return issueMemoryHelperToken(this.prisma, this.signer, req, id(delegationId), body, { enabled: true });
-    }
     return this.delegations.issueToken(req, id(delegationId), body);
   }
 

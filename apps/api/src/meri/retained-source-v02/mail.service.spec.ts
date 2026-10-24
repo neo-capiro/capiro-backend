@@ -35,12 +35,11 @@ function admitted(id: string): RetainedSourceV02Admission {
     },
     subject: {
       kind: 'client', entityType: 'client', entityIds: [clientId], tenantId, actorId,
-      authorizationDecisionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       policyRevision: 'policy-1', rosterVersionId: null,
       scopes: [{ kind: 'mailbox', resourceId: mailboxId, tenantId, policyRevision: 'policy-1' }],
     },
     input: { subject: { kind: 'client', entityId: clientId }, threadId },
-    metadata: null, normalizationContext: null,
+    metadata: null, normalizationContext: null, policyRevision: 'policy-1',
     argumentsSha256: 'a'.repeat(64), requestSha256: 'b'.repeat(64),
     clientId, hardExpiryMs: Date.now() + 30_000,
   };

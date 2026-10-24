@@ -71,6 +71,18 @@ export class ApplicationAuthorityController {
         conversation: (id) => loadOwnedActiveClioConversation(this.prisma, ctx, id, tx),
         conversationScope: async (conversation) => {
           const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata, tx);
+          if (input.clientId === null) {
+            const metadata = (conversation as { metadata?: { researchPortfolioScope?: unknown } }).metadata;
+            if (prospect || metadata?.researchPortfolioScope !== undefined)
+              throw new ForbiddenException('Application authority unavailable');
+            const general = await tx.clioConversationBootstrapReceipt.findFirst({
+              where: { tenantId: ctx.tenantId, actorUserId: ctx.userId, conversationId: conversation.id,
+                scopeKind: 'general', clientId: null },
+              select: { requestId: true },
+            });
+            if (!general) throw new ForbiddenException('Application authority unavailable');
+            return ['general', general.requestId];
+          }
           if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
           return prospect ? [prospect.prospectId, prospect.canonicalOrganizationId, prospect.linkedClientId, prospect.scopeVersion] : null;
         },

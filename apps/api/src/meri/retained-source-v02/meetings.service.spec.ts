@@ -27,10 +27,9 @@ function admission(
     subject: {
       kind: 'client', entityType: 'client', entityIds: [CLIENT], tenantId: TENANT,
       actorId: ACTOR,
-      authorizationDecisionId: '88888888-8888-4888-8888-888888888888',
       policyRevision: 'policy-1', scopes: [], rosterVersionId: null,
     },
-    input, metadata, normalizationContext: null,
+    input, metadata, normalizationContext: null, policyRevision: 'policy-1',
     argumentsSha256: 'a'.repeat(64), requestSha256: 'b'.repeat(64),
     clientId: CLIENT, hardExpiryMs: Date.now() + 30_000,
   };

@@ -4,9 +4,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { spawnSync } = require('node:child_process');
 const { selectedPlatform } = require('./qualification-platform.cjs');
-const { reconciledPlatform, ownerPlatformAdmission, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256, GENERATED_PRISMA_SCHEMA_SHA256 } = require('./runtime-closure-contract.cjs');
+const { reconciledPlatform, ownerPlatformAdmission, IMAGE_LOCAL_PRISMA_SCHEMA_SHA256 } = require('./runtime-closure-contract.cjs');
 const { verify } = require('./verify-alpine-amd64-scan.cjs');
 const priorArch = process.env.CAPIRO_QUALIFICATION_ARCH;
 process.env.CAPIRO_QUALIFICATION_ARCH = 'x64';
@@ -63,30 +62,9 @@ test('PR48 canonical source schema binds both raw image-local Prisma targets', (
   }
 });
 
-test('Prisma 5.22 formats both pinned image-local schemas into exact generated companions', t => {
-  const cli = path.resolve(process.env.CAPIRO_QUALIFICATION_PRISMA_CLI ||
-    path.join(root, 'apps/api/node_modules/prisma/build/index.js'));
-  assert.equal(JSON.parse(fs.readFileSync(path.join(path.dirname(cli), '../package.json'), 'utf8')).version, '5.22.0');
-  const schema = fs.readFileSync(path.join(root, 'apps/api/prisma/schema.prisma'), 'utf8').replace(/\r\n/g, '\n');
-  const from = '"linux-arm64-openssl-3.0.x"';
-  assert.equal(schema.split(from).length - 1, 1);
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'pr48-prisma-schema-'));
-  t.after(() => {
-    assert.equal(path.resolve(path.dirname(fixture)), path.resolve(os.tmpdir()));
-    fs.rmSync(fixture, { recursive: true, force: true });
-  });
-  for (const [arch, expected] of Object.entries(GENERATED_PRISMA_SCHEMA_SHA256)) {
-    const raw = schema.replace(from, `"${selectedPlatform({ CAPIRO_QUALIFICATION_ARCH: arch }).prisma}"`);
-    assert.equal(createHash('sha256').update(raw).digest('hex'), IMAGE_LOCAL_PRISMA_SCHEMA_SHA256[arch]);
-    const file = path.join(fixture, 'schema.prisma');
-    fs.writeFileSync(file, raw);
-    const run = spawnSync(process.execPath, [cli, 'format', '--schema', file], {
-      encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
-    });
-    assert.equal(run.status, 0, `${arch} Prisma 5.22 formatter: ${run.error?.message || run.stderr}`);
-    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), expected, `${arch} generated schema pin`);
-  }
-});
+// Generated companion custody is tested by the native runtime probe against
+// the actual installed Prisma client. Host `prisma format` is not a generator
+// and does not reproduce ARM output bytes; see PRISMA-NATIVE-EVIDENCE-20261024.md.
 
 test('exact locked x64 Canvas archive evidence rejects GNU and admits musl', () => {
   const target = { os: 'linux', cpu: 'x64', libc: 'musl' };

@@ -32,14 +32,14 @@ export interface ApplicationAuthorityContextReceipt extends ApplicationAuthority
 }
 export interface ApplicationAuthorityCurrentRequest {
   conversationId: string;
-  clientId: string;
+  clientId: string | null;
   expect?: Partial<Record<'identityRevision' | 'membershipRevision' | 'contextRevision', string>>;
 }
 export type ApplicationAuthorityCurrentMembership = Pick<ApplicationMembershipReceipt,
   'role' | 'permissions' | 'clientIds' | 'membershipRevision'>;
 export interface ApplicationAuthorityCurrentReceipt extends ApplicationAuthorityIdentityReceipt, ApplicationAuthorityCurrentMembership {
   conversationId: string;
-  selectedClientId: string;
+  selectedClientId: string | null;
   contextRevision: string;
 }
 /** Only the explicit revision precondition yields the wire-level 409. */
@@ -69,7 +69,7 @@ export function parseApplicationAuthorityCurrentBody(body: unknown): Application
   const record = closedBody(body, ['conversationId', 'clientId'], ['expect']);
   const { conversationId, clientId } = record;
   if (typeof conversationId !== 'string' || !UUID.test(conversationId) ||
-      typeof clientId !== 'string' || !UUID.test(clientId)) {
+      (clientId !== null && (typeof clientId !== 'string' || !UUID.test(clientId)))) {
     throw new BadRequestException('Invalid application authority request');
   }
   const result: ApplicationAuthorityCurrentRequest = { conversationId, clientId };
@@ -185,8 +185,13 @@ export async function readApplicationAuthorityCurrent(
   const conversation = await ports.conversation(input.conversationId);
   assertCurrentConversation(conversation, input, evidence.principal);
   const scope = await ports.conversationScope(conversation);
-  await ports.clientVisible(input.clientId);
-  const client = await ports.clientAuthority(input.clientId);
+  // General still requires this exact owned, active conversation and current membership.
+  // Only an actual null client has no client resource or wall to authorize.
+  let client: unknown = null;
+  if (input.clientId !== null) {
+    await ports.clientVisible(input.clientId);
+    client = await ports.clientAuthority(input.clientId);
+  }
   const checkedAtMs = Date.now();
   const identity = applicationAuthorityIdentityReceipt({
     ...evidence, expiresAtMs: Math.min(evidence.expiresAtMs, checkedAtMs + 120_000),

@@ -1,16 +1,13 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { canonicalSha256, sha256Hex } from '../../auth/read-delegation/read-delegation.contract.js';
-import type { MeriReadDelegationGrant } from '../../auth/read-delegation/read-delegation-request.js';
 
 jest.mock('../../memory/memory-wall.helpers.js', () => ({
   clientMemoryAllowed: jest.fn(async () => true),
 }));
 
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
-import { admitPassiveMemoryPage } from './meri-memory-page-admission.js';
-import { readTaskBoundPassiveMemoryPage } from './meri-memory-signed-page-source.js';
+import { readPassiveMemoryPage } from './meri-memory-page-source.js';
 import { parseTaskBoundMemoryProposalSelection, readTaskBoundMemoryProposalPage } from './meri-memory-proposal-source.js';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
@@ -34,115 +31,71 @@ function memoryWire(selected: string | null = clientId) {
 function correlation() {
   return { binding: { tenantId, actorId, conversationId, runId, attemptId, workerId, writerFence: 2 },
     subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId, actorId,
-      authorizationDecisionId: '88888888-8888-4888-8888-888888888888', policyRevision,
+      policyRevision,
       scopes: [{ tenantId, kind: 'client', resourceId: clientId, policyRevision }], rosterVersionId: null },
     policyRevision, normalizationContext: { tenantId, userId: actorId } };
 }
 
-function grant(operation = 'search_memory', argumentsSha256 = canonicalSha256(memoryWire().input)) {
-  return { delegationId: '99999999-9999-4999-8999-999999999999', mode: 'attended', tenantId, actorId,
-    clientId, conversationId, runId, binding: { tenantId, actorId, conversationId, runId, attemptId, writerFence: 2 },
-    admittedBinding: { tenantId, actorId, conversationId, runId, attemptId, workerId, writerFence: 2 },
-    policyRevision, correlationSha256: canonicalSha256(correlation()), argumentsSha256,
-    bodySha256: sha256Hex(JSON.stringify(memoryWire())),
-    callKey: 'invocation_1', kind: 'tool', operation: { id: operation, version: '0.2.0' },
-    toolRequestSha256: null, referenceSha256: null, jti: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    hardExpiryMs: nowMs + 5_000 } as MeriReadDelegationGrant;
-}
-
-describe('unmounted task-bound passive memory page admission', () => {
-  it('pins the exact original worker binding, selected client, signed correlation and page hashes', () => {
-    const accepted = admitPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(), nowMs);
-    expect(accepted).toMatchObject({ clientId, callKey: 'invocation_1',
-      parentTokenJti: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      parentBodySha256: sha256Hex(JSON.stringify(memoryWire())),
-      requestSha256: canonicalSha256(memoryWire()) });
-    expect(Object.isFrozen(accepted.wire.input)).toBe(true);
-  });
-
-  it('refuses unselected personal recall, stale authority and a different reservation argument', () => {
-    expect(() => admitPassiveMemoryPage(ctx, memoryWire(null), grant(), correlation(), nowMs))
-      .toThrow(ForbiddenException);
-    expect(() => admitPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(), nowMs + 5_000))
-      .toThrow(ForbiddenException);
-    expect(() => admitPassiveMemoryPage(ctx, memoryWire(), grant('search_memory', 'b'.repeat(64)), correlation(), nowMs))
-      .toThrow(ForbiddenException);
-  });
-
-  it('refuses a signed header with a substituted subject or original worker', () => {
-    const substituted = correlation();
-    substituted.subject.entityIds = [actorId];
-    expect(() => admitPassiveMemoryPage(ctx, memoryWire(), grant(), substituted, nowMs))
-      .toThrow(ForbiddenException);
-    const changedGrant = grant();
-    changedGrant.admittedBinding.workerId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-    expect(() => admitPassiveMemoryPage(ctx, memoryWire(), changedGrant, correlation(), nowMs))
-      .toThrow(ForbiddenException);
-    const noEmittedBodyHash = grant();
-    delete noEmittedBodyHash.bodySha256;
-    expect(() => admitPassiveMemoryPage(ctx, memoryWire(), noEmittedBodyHash, correlation(), nowMs))
-      .toThrow(ForbiddenException);
-  });
-});
-
-describe('unmounted signed passive memory page composition', () => {
-  it('reads the exact selected client, preserves the result and computes helper correlation after release recheck', async () => {
-    const record = { recordId: workerId, payload: { title: 'Approved fact' } };
-    const result = { tool: 'search_memory', records: [record], results: [{ id: workerId }] };
-    const read = jest.fn(async () => result);
-    const release = jest.fn(async () => undefined);
-    const page = await readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
-      { executeFromAuthenticatedUser: read } as never, release, () => nowMs);
+describe('ordinary passive memory source', () => {
+  const page = { tool: 'search_memory', records: [{ recordId: workerId, payload: { title: 'Approved fact' } }],
+    results: [{ id: workerId }] };
+  it('reads the selected client through the canonical owner and returns its bounded page', async () => {
+    const read = jest.fn(async () => page);
+    expect(await readPassiveMemoryPage(ctx, memoryWire(), correlation(), true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => nowMs)).toEqual(page);
     expect(read).toHaveBeenCalledWith(ctx, 'search_memory', memoryWire().input);
-    expect(release).toHaveBeenCalledTimes(1);
-    expect(page.result).toEqual(result);
-    expect(page.eligibility).toMatchObject({
-      parentTokenJti: grant().jti, parentBodySha256: sha256Hex(JSON.stringify(memoryWire())),
-      callKey: grant().callKey, clientId,
-      argumentsSha256: canonicalSha256(memoryWire().input),
-      requestSha256: canonicalSha256(memoryWire()), resultSha256: canonicalSha256(result),
-      records: [{ memoryItemId: workerId, recordSha256: canonicalSha256(record) }],
-    });
   });
 
-  it('withholds a page if the owner output or pre-byte delegation check fails', async () => {
-    const read = jest.fn(async () => ({ tool: 'search_memory', records: [], results: [] }));
-    const release = jest.fn(async () => { throw new ForbiddenException('revoked'); });
-    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
-      { executeFromAuthenticatedUser: read } as never, release, () => nowMs))
-      .rejects.toThrow(ForbiddenException);
-    expect(release).toHaveBeenCalledTimes(1);
-
-    const bad = jest.fn(async () => ({ tool: 'search_memory', records: [
-      { recordId: workerId }, { recordId: workerId },
-    ] }));
-    const unreached = jest.fn(async () => undefined);
-    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
-      { executeFromAuthenticatedUser: bad } as never, unreached, () => nowMs))
-      .rejects.toThrow(ForbiddenException);
-    expect(unreached).not.toHaveBeenCalled();
+  it('allows explicit actor General memory and never supplies another client to the owner', async () => {
+    const held = correlation();
+    const general = { ...held, subject: { ...held.subject, kind: 'personal', entityType: 'user', entityIds: [actorId],
+      scopes: [{ tenantId, kind: 'private-user', resourceId: actorId, policyRevision }] } };
+    const read = jest.fn(async () => page);
+    await readPassiveMemoryPage(ctx, memoryWire(null), general, true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => nowMs);
+    expect(read).toHaveBeenCalledWith(ctx, 'search_memory', memoryWire(null).input);
+    read.mockClear();
+    await expect(readPassiveMemoryPage(ctx, memoryWire(actorId), general, true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => nowMs)).rejects.toThrow(ForbiddenException);
+    expect(read).not.toHaveBeenCalled();
   });
 
-  it('refuses a page that expires during retrieval or immediately after release', async () => {
-    const result = { tool: 'search_memory', records: [], results: [] };
-    const read = jest.fn(async () => result);
-    const afterRead = jest.fn().mockReturnValueOnce(nowMs).mockReturnValueOnce(nowMs + 5_000);
-    const release = jest.fn(async () => undefined);
-    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
-      { executeFromAuthenticatedUser: read } as never, release, afterRead as () => number))
-      .rejects.toThrow(ForbiddenException);
-    expect(release).not.toHaveBeenCalled();
+  it('refuses wrong service, actor/tenant context and stale requests before owner access', async () => {
+    for (const [held, service, deadline] of [
+      [correlation(), false, nowMs + 5_000], [correlation(), true, nowMs],
+      [{ ...correlation(), normalizationContext: { tenantId: actorId, userId: actorId } }, true, nowMs + 5_000],
+      [{ ...correlation(), normalizationContext: { tenantId, userId: clientId } }, true, nowMs + 5_000],
+    ] as const) {
+      const read = jest.fn(async () => page);
+      await expect(readPassiveMemoryPage(ctx, memoryWire(), held, service, deadline,
+        { executeFromAuthenticatedUser: read } as never, () => nowMs)).rejects.toThrow(ForbiddenException);
+      expect(read).not.toHaveBeenCalled();
+    }
+  });
 
-    const afterRelease = jest.fn().mockReturnValueOnce(nowMs).mockReturnValueOnce(nowMs)
-      .mockReturnValueOnce(nowMs + 5_000);
-    await expect(readTaskBoundPassiveMemoryPage(ctx, memoryWire(), grant(), correlation(),
-      { executeFromAuthenticatedUser: read } as never, release, afterRelease as () => number))
-      .rejects.toThrow(ForbiddenException);
-    expect(release).toHaveBeenCalledTimes(1);
+  it('withholds duplicated/overfull/malformed owner records and output after expiry', async () => {
+    for (const records of [[{ recordId: workerId }, { recordId: workerId }],
+      [{ recordId: 'not-a-record' }], Array.from({ length: 4 }, () => ({ recordId: workerId }))]) {
+      const read = jest.fn(async () => ({ ...page, records }));
+      await expect(readPassiveMemoryPage(ctx, memoryWire(), correlation(), true, nowMs + 5_000,
+        { executeFromAuthenticatedUser: read } as never, () => nowMs)).rejects.toThrow(ForbiddenException);
+    }
+    let stamp = nowMs;
+    const read = jest.fn(async () => { stamp += 5_000; return page; });
+    await expect(readPassiveMemoryPage(ctx, memoryWire(), correlation(), true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => stamp)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('preserves a canonical empty-query response', async () => {
+    const empty = { error: 'Provide a search query.' };
+    const read = jest.fn(async () => empty);
+    expect(await readPassiveMemoryPage(ctx, memoryWire(), correlation(), true, nowMs + 5_000,
+      { executeFromAuthenticatedUser: read } as never, () => nowMs)).toEqual(empty);
   });
 });
 
-describe('unmounted task-bound memory proposal continuation source', () => {
+describe('ordinary memory proposal continuation source', () => {
+  beforeEach(() => { jest.clearAllMocks(); jest.mocked(clientMemoryAllowed).mockResolvedValue(true); });
   const selection = { clientId, cursor: null, limit: 5 };
   const row = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', scope: 'client', clientId,
     sourceKind: 'user_chat', status: 'pending', createdAt: '2026-10-18T12:00:00.000Z',
@@ -154,7 +107,7 @@ describe('unmounted task-bound memory proposal continuation source', () => {
     listOwnProposals: jest.fn(async () => ({ enabled: true, candidates: rows, nextCursor })),
   });
 
-  it('accepts only the closed normalized selection bound to the delegated client', () => {
+  it('accepts only the closed normalized selection for the selected client', () => {
     expect(parseTaskBoundMemoryProposalSelection(selection)).toEqual(selection);
     expect(() => parseTaskBoundMemoryProposalSelection({ ...selection, actorId })).toThrow(ForbiddenException);
     expect(() => parseTaskBoundMemoryProposalSelection({ ...selection, cursor: '' })).toThrow(ForbiddenException);
@@ -166,7 +119,7 @@ describe('unmounted task-bound memory proposal continuation source', () => {
   it('rechecks the client wall before and after the canonical owner page, including continuation', async () => {
     const p = prisma(), o = owner();
     const result = await readTaskBoundMemoryProposalPage(ctx, selection,
-      grant('memory.list_own_proposals', canonicalSha256(selection)), p as never, o as never, () => nowMs);
+      nowMs + 5_000, p as never, o as never, () => nowMs);
     expect(result.scope).toEqual({ tenantId, userId: actorId, clientId });
     expect(o.listOwnProposals).toHaveBeenCalledWith(ctx, { clientId, limit: 5, status: 'pending' });
     expect(p.withTenantUser).toHaveBeenCalledTimes(2);
@@ -174,25 +127,25 @@ describe('unmounted task-bound memory proposal continuation source', () => {
 
     const next = { ...selection, cursor: 'opaque-next' };
     await readTaskBoundMemoryProposalPage(ctx, next,
-      grant('memory.list_own_proposals', canonicalSha256(next)), prisma() as never, owner([]) as never, () => nowMs);
+      nowMs + 5_000, prisma() as never, owner([]) as never, () => nowMs);
   });
 
-  it('withholds the page on a changed wall, wrong grant or stalled continuation', async () => {
+  it('withholds the page on a changed wall, expired request or stalled continuation', async () => {
     jest.mocked(clientMemoryAllowed).mockResolvedValueOnce(false);
     const o = owner();
     await expect(readTaskBoundMemoryProposalPage(ctx, selection,
-      grant('memory.list_own_proposals', canonicalSha256(selection)), prisma() as never, o as never, () => nowMs))
+      nowMs + 5_000, prisma() as never, o as never, () => nowMs))
       .rejects.toThrow(ForbiddenException);
     expect(o.listOwnProposals).not.toHaveBeenCalled();
     jest.mocked(clientMemoryAllowed).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     await expect(readTaskBoundMemoryProposalPage(ctx, selection,
-      grant('memory.list_own_proposals', canonicalSha256(selection)), prisma() as never,
+      nowMs + 5_000, prisma() as never,
       owner() as never, () => nowMs)).rejects.toThrow(ForbiddenException);
-    await expect(readTaskBoundMemoryProposalPage(ctx, selection, grant(), prisma() as never,
+    await expect(readTaskBoundMemoryProposalPage(ctx, selection, nowMs, prisma() as never,
       owner() as never, () => nowMs)).rejects.toThrow(ForbiddenException);
     const next = { ...selection, cursor: 'opaque-next' };
     await expect(readTaskBoundMemoryProposalPage(ctx, next,
-      grant('memory.list_own_proposals', canonicalSha256(next)), prisma() as never,
+      nowMs + 5_000, prisma() as never,
       owner([row], 'opaque-next') as never, () => nowMs)).rejects.toThrow(ForbiddenException);
   });
 });

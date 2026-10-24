@@ -20,7 +20,7 @@ const clientId = id('a');
 const current: TrustedClientReadContext = {
   selectedClientId: clientId,
   binding: { tenantId: id('1'), actorId: id('2'), conversationId: id('3'), runId: id('4'), attemptId: id('5'), workerId: id('6'), writerFence: 1 },
-  subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId: id('1'), actorId: id('2'), authorizationDecisionId: id('7'), policyRevision: 'policy-1', rosterVersionId: null,
+  subject: { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId: id('1'), actorId: id('2'), policyRevision: 'policy-1', rosterVersionId: null,
     scopes: [{ tenantId: id('1'), kind: 'client', resourceId: clientId, policyRevision: 'policy-1' }] },
 };
 const mapping: CurrentManagedBoardMapping = {

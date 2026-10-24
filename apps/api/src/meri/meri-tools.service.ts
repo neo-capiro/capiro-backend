@@ -137,7 +137,6 @@ import { canonicalizeCoreRetainedJson } from '@capiro/shared/core-retained-jcs';
 import { readWithCurrentDocumentFacts } from './retained-source-v02/document-current-source.js';
 import { NO_DOCUMENT_PROVIDER_CALLS } from './retained-source-v02/documents-monday.js';
 import { canonicalSha256 } from '../auth/read-delegation/read-delegation.contract.js';
-import { qualifyDocumentTextOnlyRuntime, RetainedDocumentRuntimeIdentityReader } from './retained-source-v02/document-runtime-qualification.js';
 import type { RetainedSourceV02Admission } from './retained-source-v02/admission.js';
 import { createMailBodySectionV02 } from './retained-source-v02/mail.js';
 import { readWithCurrentMondayMapping } from './retained-source-v02/monday-current-source.js';
@@ -425,7 +424,6 @@ export class MeriToolsService {
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly federalMarket?: FederalMarketService,
     @Optional() private readonly governedMemoryCandidates?: GovernedMemoryCandidateService,
-    @Optional() private readonly retainedDocumentRuntimeIdentity?: RetainedDocumentRuntimeIdentityReader,
   ) {}
 
   manifest() {
@@ -495,9 +493,7 @@ export class MeriToolsService {
     };
   }
 
-  /** The exact 0.2 source always forbids provider extraction. Expected tariff
-   * pins come from the locked original allocation; an independent runtime
-   * reader is absent by default, so deployment qualification stays closed. */
+  /** The canonical document owner permits bounded stored text only; no provider extraction. */
   async readRetainedDocumentSourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
     const active = () => {
       assertMeriToolRequestActive();
@@ -506,28 +502,19 @@ export class MeriToolsService {
     };
     active();
     if (admission.operation.id !== 'read_client_documents' || admission.operation.version !== '0.2.0' ||
-        admission.metadata !== null ||
+        admission.metadata !== null || admission.clientId === null ||
         ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId ||
         !admission.normalizationContext || Object.keys(admission.normalizationContext).length !== 2 ||
         canonicalSha256(admission.normalizationContext) !==
           canonicalSha256({ binding: admission.binding, subject: admission.subject }))
       throw new ServiceUnavailableException('Retained document source unavailable');
-    const runtimeReader = this.retainedDocumentRuntimeIdentity;
-    if (!admission.documentTextOnlyAllocation || !runtimeReader)
-      throw new ServiceUnavailableException('Current retained document runtime qualification unavailable');
-    const qualify = async () => {
-      active();
-      const runtime = await runtimeReader.readCurrent();
-      active();
-      return qualifyDocumentTextOnlyRuntime(admission.documentTextOnlyAllocation, runtime);
-    };
-    const initialQualification = await qualify();
+    const clientId = admission.clientId;
     const assertWall = async () => {
       active();
-      await this.ensureClientVisible(ctx, admission.clientId);
+      await this.ensureClientVisible(ctx, clientId);
       const denied = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,
         (tx) => fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
-      if (denied.includes(admission.clientId)) throw new NotFoundException('Client not found');
+      if (denied.includes(clientId)) throw new NotFoundException('Client not found');
       active();
     };
     await assertWall();
@@ -537,8 +524,6 @@ export class MeriToolsService {
     (legacyInput) => this.readClientDocuments(ctx, legacyInput, { allowPaidExtraction: false }),
     Date.now, active);
     await assertWall();
-    if (await qualify() !== initialQualification)
-      throw new ServiceUnavailableException('Current retained document runtime qualification changed');
     active();
     return result;
   }
@@ -547,7 +532,7 @@ export class MeriToolsService {
    * one retained invocation. The family validator checks the exact 0.2 DTO. */
   async readRetainedMondaySourceV02(ctx: TenantContext, admission: RetainedSourceV02Admission) {
     assertMeriToolRequestActive();
-    if (admission.operation.id !== 'read_monday_client_boards' ||
+    if (admission.operation.id !== 'read_monday_client_boards' || admission.clientId === null ||
         ctx.tenantId !== admission.binding.tenantId || ctx.userId !== admission.binding.actorId ||
         admission.subject.kind !== 'client' || admission.subject.entityType !== 'client' ||
         admission.subject.entityIds.length !== 1 || admission.subject.entityIds[0] !== admission.clientId ||
@@ -589,7 +574,7 @@ export class MeriToolsService {
         selection.limit < 1 || selection.limit > 50 ||
         selection.representation !== 'summary' && selection.representation !== 'full')
       throw new ServiceUnavailableException('Retained client context source unavailable');
-    if (admission.operation.id !== 'get_client_context' ||
+    if (admission.operation.id !== 'get_client_context' || admission.clientId === null ||
         admission.operation.version !== '0.3.0' ||
         ctx.tenantId !== admission.binding.tenantId ||
         ctx.userId !== admission.binding.actorId ||
@@ -7079,7 +7064,7 @@ export class MeriToolsService {
     if (
       ctx.tenantId !== admission.binding.tenantId ||
       ctx.userId !== admission.binding.actorId ||
-      admission.subject.kind !== 'client' ||
+      admission.subject.kind !== 'client' || admission.clientId === null ||
       admission.subject.entityType !== 'client' ||
       admission.subject.tenantId !== ctx.tenantId ||
       admission.subject.actorId !== ctx.userId ||
@@ -9494,7 +9479,7 @@ export class MeriToolsService {
         result = await this.findContacts(ctx, {});
         readScope = { kind: 'no-contact-query' };
       } else {
-        if (admission.subject.kind !== 'client' || input.clientId !== admission.clientId)
+        if (admission.subject.kind !== 'client' || admission.clientId === null || input.clientId !== admission.clientId)
           throw new ServiceUnavailableException('Retained contacts source unavailable');
         result = await this.findContactsForRetainedClient(ctx, input, admission.clientId);
         readScope = { kind: 'selected-client-exact', clientId: admission.clientId };

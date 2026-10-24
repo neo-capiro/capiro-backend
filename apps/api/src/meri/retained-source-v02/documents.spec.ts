@@ -11,7 +11,7 @@ const clientId = id('a');
 const binding = { tenantId: id('1'), actorId: 'reader', conversationId: id('2'), runId: id('3'),
   attemptId: id('4'), workerId: id('5'), writerFence: 1 };
 const subject = { kind: 'client', entityType: 'client', entityIds: [clientId], tenantId: binding.tenantId,
-  actorId: binding.actorId, authorizationDecisionId: id('6'), policyRevision: 'policy-1', rosterVersionId: null,
+  actorId: binding.actorId, policyRevision: 'policy-1', rosterVersionId: null,
   scopes: [{ tenantId: binding.tenantId, kind: 'client', resourceId: clientId, policyRevision: 'policy-1' }] };
 const current: TrustedClientReadContext = { binding, subject, selectedClientId: clientId };
 const digest = (data: unknown) => createHash('sha256').update(canonicalizeCoreRetainedJson(data)).digest('hex');
