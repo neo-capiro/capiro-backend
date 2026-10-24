@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { GoogleOAuthService } from './google-oauth.service.js';
 import { EngagementRuntimeAction } from '../runtime/engagement-runtime-action.decorator.js';
@@ -25,7 +25,10 @@ export class GoogleCallbacksController {
       );
       return;
     }
-    if (!code || !state) throw new BadRequestException('Missing code or state');
+    if (!code || !state) {
+      res.redirect(302, `${this.oauth.getSuccessRedirect()}?provider=google_workspace&error=connection_failed`);
+      return;
+    }
     let result: { tenantId: string; connectionId: string };
     try {
       result = await this.oauth.handleCallback({ code, state });

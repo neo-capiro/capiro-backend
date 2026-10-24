@@ -17,6 +17,8 @@ import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
 import { MicrosoftOAuthService } from './microsoft-oauth.service.js';
 import { EngagementRuntimeAction } from '../runtime/engagement-runtime-action.decorator.js';
+import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
+import { integrationActions } from '../integration-health.js';
 
 class StartMicrosoftOAuthDto {
   @IsOptional()
@@ -36,13 +38,16 @@ export class MicrosoftIntegrationActionsController {
   constructor(
     private readonly oauth: MicrosoftOAuthService,
     private readonly graphSync: MicrosoftGraphSyncService,
+    private readonly runtime: EngagementRuntimePolicyService,
   ) {}
 
   @Get('capabilities')
   @UseGuards(RolesGuard)
   @Roles('standard_user')
   capabilities() {
-    return this.oauth.capabilities();
+    const capabilities = this.oauth.capabilities();
+    const subscriptionsConfigured = this.graphSync.subscriptionsConfigurable;
+    return { ...capabilities, subscriptionsConfigured, actions: integrationActions(capabilities.configured, subscriptionsConfigured, this.runtime) };
   }
 
   @Delete(':connectionId')

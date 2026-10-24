@@ -16,6 +16,7 @@
 // fetch against Google's documented endpoints (no new SDK dependency — the
 // Graph sync already uses raw fetch, so this matches house style).
 // ============================================================================
+import { verifiedScopeState } from '../integration-health.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -24,6 +25,8 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { mailboxProviderRequest } from '../mailbox-provider-transport.js';
+import { mailboxState } from '../mailbox-sync-claim.js';
 import { ConfigService } from '@nestjs/config';
 import {
   admitMailboxOAuthAttempt,
@@ -197,7 +200,7 @@ export class GoogleOAuthService {
         n: randomBytes(16).toString('base64url'),
         e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
       };
-      await saveMailboxOAuthAttempt(tx, payload, connection.syncState);
+      await saveMailboxOAuthAttempt(tx, payload);
       return { connection, payload };
     });
     const state = this.signState(payload);
@@ -287,19 +290,34 @@ export class GoogleOAuthService {
   async disconnect(
     ctx: TenantContext,
     connectionId: string,
-  ): Promise<{ disconnected: true; connectionId: string }> {
-    const { id, revokeToken } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const existing = await tx.integrationConnection.findUnique({
-        where: { id: connectionId },
-        include: { token: true },
-      });
-      if (!existing) throw new NotFoundException('Integration connection not found');
+  ): Promise<{
+    disconnected: true;
+    connectionId: string;
+    providerRevocation: 'confirmed' | 'unconfirmed' | 'not_attempted';
+  }> {
+    const { id, revokeToken, hadToken } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const found = await tx.integrationConnection.findUnique({ where: { id: connectionId } });
+      if (!found) return { id: connectionId, revokeToken: undefined, hadToken: false };
+      const existing = await lockMailboxConnection(tx, ctx.tenantId, connectionId);
       if (existing.provider !== EngagementProvider.google_workspace) {
         throw new BadRequestException('Connection is not a Google Workspace integration');
       }
       if (existing.createdByUserId !== ctx.userId) {
         throw new ForbiddenException('You can only disconnect your own Google account');
       }
+      const {
+        syncClaim: _claim,
+        oauthAttempt: _attempt,
+        ...state
+      } = mailboxState(existing.syncState);
+      await tx.integrationConnection.update({
+        where: { id: connectionId },
+        data: {
+          status: EngagementConnectionStatus.disabled,
+          nextSyncAt: null,
+          syncState: state as Prisma.InputJsonValue,
+        },
+      });
 
       // Decrypt while we hold the row under tenant scope; the network revoke call
       // itself runs outside the transaction. Prefer the refresh token — revoking
@@ -307,52 +325,66 @@ export class GoogleOAuthService {
       // token if no refresh token was ever stored.
       const token = existing.token;
       let revoke: string | undefined;
-      if (token?.refreshTokenCiphertext && token.refreshTokenIv && token.refreshTokenAuthTag) {
-        revoke = this.tokenCrypto.decrypt({
-          ciphertext: token.refreshTokenCiphertext,
-          iv: token.refreshTokenIv,
-          authTag: token.refreshTokenAuthTag,
-        });
-      } else if (token) {
-        revoke = this.tokenCrypto.decrypt({
-          ciphertext: token.accessTokenCiphertext,
-          iv: token.accessTokenIv,
-          authTag: token.accessTokenAuthTag,
-        });
+      try {
+        if (token?.refreshTokenCiphertext && token.refreshTokenIv && token.refreshTokenAuthTag) {
+          revoke = this.tokenCrypto.decrypt({
+            ciphertext: token.refreshTokenCiphertext,
+            iv: token.refreshTokenIv,
+            authTag: token.refreshTokenAuthTag,
+          });
+        } else if (token) {
+          revoke = this.tokenCrypto.decrypt({
+            ciphertext: token.accessTokenCiphertext,
+            iv: token.accessTokenIv,
+            authTag: token.accessTokenAuthTag,
+          });
+        }
+      } catch {
+        this.logger.warn(
+          'Google grant revocation could not be attempted; local disconnect continues.',
+        );
       }
-      return { id: existing.id, revokeToken: revoke };
+      return { id: existing.id, revokeToken: revoke, hadToken: Boolean(token) };
     });
 
     // Best-effort: if the grant was already revoked (invalid_grant) or Google is
     // unreachable, we still delete the local record — the user's intent is to
     // remove the connection, and a failed revoke must not strand it.
-    await this.revokeGoogleGrant(revokeToken);
+    const providerRevocation =
+      !revokeToken && hadToken ? 'unconfirmed' : await this.revokeGoogleGrant(revokeToken);
 
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       // FK cascade removes the IntegrationConnectionToken row; meetings/mail rows
       // reference the connection with onDelete: SetNull, so ingested history stays.
-      await tx.integrationConnection.delete({ where: { id } });
+      await tx.integrationConnection.deleteMany({ where: { id } });
     });
 
-    return { disconnected: true, connectionId: id };
+    return { disconnected: true, connectionId: id, providerRevocation };
   }
 
-  private async revokeGoogleGrant(token: string | undefined): Promise<void> {
-    if (!token) return;
+  private async revokeGoogleGrant(
+    token: string | undefined,
+  ): Promise<'confirmed' | 'unconfirmed' | 'not_attempted'> {
+    if (!token) return 'not_attempted';
     try {
-      const response = await fetch(GOOGLE_REVOKE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ token }).toString(),
+      return await mailboxProviderRequest(async (signal) => {
+        const response = await fetch(GOOGLE_REVOKE_URL, {
+          signal,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ token }).toString(),
+        });
+        if (!response.ok) {
+          this.logger.warn(
+            'Google grant revocation was not confirmed; local disconnect continues.',
+          );
+          return 'unconfirmed' as const;
+        }
+        return 'confirmed' as const;
       });
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        this.logger.warn(
-          `Google token revocation returned ${response.status}: ${text.slice(0, 200)}`,
-        );
-      }
-    } catch (err) {
-      this.logger.warn(`Google token revocation failed: ${(err as Error).message}`);
+    } catch {
+      this.logger.warn('Google grant revocation was not confirmed; local disconnect continues.');
+      return 'unconfirmed';
     }
   }
 
@@ -382,25 +414,28 @@ export class GoogleOAuthService {
   }
 
   private async exchangeCode(code: string): Promise<GoogleTokenResponse> {
-    const body = new URLSearchParams({
-      code,
-      client_id: this.clientId!,
-      client_secret: this.clientSecret!,
-      redirect_uri: this.redirectUri,
-      grant_type: 'authorization_code',
+    return mailboxProviderRequest(async (signal) => {
+      const body = new URLSearchParams({
+        code,
+        client_id: this.clientId!,
+        client_secret: this.clientSecret!,
+        redirect_uri: this.redirectUri,
+        grant_type: 'authorization_code',
+      });
+      const response = await fetch(GOOGLE_TOKEN_URL, {
+        signal,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new BadRequestException(
+          `Google token exchange failed (${response.status}): ${text.slice(0, 500)}`,
+        );
+      }
+      return (await response.json()) as GoogleTokenResponse;
     });
-    const response = await fetch(GOOGLE_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new BadRequestException(
-        `Google token exchange failed (${response.status}): ${text.slice(0, 500)}`,
-      );
-    }
-    return (await response.json()) as GoogleTokenResponse;
   }
 
   // The id_token is a JWT minted by Google and returned directly to our backend
@@ -467,7 +502,7 @@ export class GoogleOAuthService {
               }
             : {}),
           keyVersion: this.tokenCrypto.getKeyVersion(),
-          scopes: GOOGLE_SCOPES,
+          scopes: (token.scope ?? '').split(/\s+/).filter(Boolean),
           homeAccountId: claims.sub ?? null,
           expiresAt,
         },
@@ -481,7 +516,7 @@ export class GoogleOAuthService {
           refreshTokenIv: refreshEnvelope?.iv ?? null,
           refreshTokenAuthTag: refreshEnvelope?.authTag ?? null,
           keyVersion: this.tokenCrypto.getKeyVersion(),
-          scopes: GOOGLE_SCOPES,
+          scopes: (token.scope ?? '').split(/\s+/).filter(Boolean),
           homeAccountId: claims.sub ?? null,
           expiresAt,
         },
@@ -493,9 +528,12 @@ export class GoogleOAuthService {
           status: EngagementConnectionStatus.connected,
           accountEmail: accountEmail ?? undefined,
           displayName: displayName ?? undefined,
-          scopes: GOOGLE_SCOPES,
+          scopes: (token.scope ?? '').split(/\s+/).filter(Boolean),
           lastError: null,
-          syncState: completedMailboxOAuthState(current.syncState),
+          syncState: verifiedScopeState(
+            completedMailboxOAuthState(current.syncState),
+            (token.scope ?? '').split(/\s+/).filter(Boolean),
+          ),
         },
       });
     });

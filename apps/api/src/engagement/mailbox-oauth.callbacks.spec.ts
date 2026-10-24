@@ -87,10 +87,10 @@ describe.each(['microsoft_365', 'google_workspace'] as const)('ML11 active %s ca
     h.expectFailure();
   });
 
-  test.each([{ code: null }, { state: null }, { code: null, state: null }])('keeps missing code/state a definite 400 without dispatch', async (input) => {
+  test.each([{ code: null }, { state: null }, { code: null, state: null }])('returns missing code/state as a fixed failure without dispatch', async (input) => {
     const h = fixture();
-    await expect(h.callback(input)).rejects.toMatchObject({ status: 400, message: 'Missing code or state' });
-    expect(h.res.redirect).not.toHaveBeenCalled();
+    await h.callback(input);
+    h.expectFailure();
     expect(h.oauth.handleCallback).not.toHaveBeenCalled();
   });
 

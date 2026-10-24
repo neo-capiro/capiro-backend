@@ -6,6 +6,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
+import {
+  MailboxBusyError,
+  MailboxClaimLostError,
+  withMailboxSyncClaim,
+} from './mailbox-sync-claim.js';
 
 /**
  * Auto-sync scheduler: periodic reconciliation syncs for connected M365/Google
@@ -18,25 +23,22 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
  * and degraded every manual sync into a full re-backfill.
  *
  * Design:
- *  - Claim-based and multi-instance safe: each tick atomically claims up to
- *    CLAIM_BATCH due connections (`FOR UPDATE SKIP LOCKED`) by pushing their
- *    next_sync_at one interval forward (the claim IS the lease), then syncs
- *    them sequentially. Two api tasks can tick concurrently without
- *    double-syncing; the per-tenant advisory lock (#139) additionally
- *    serializes writes if a webhook sync races a scheduled one.
+ *  - Reads a bounded candidate list. The provider owner acquires its durable
+ *    connection claim immediately before execution, shared with manual/webhook
+ *    entry points. Queued candidates consume no lease time. next_sync_at only
+ *    schedules work; claim tokens fence every provider persistence transaction.
  *  - status filter: 'connected' plus 'error' (markSyncError sets error with a
  *    15-minute nextSyncAt retry hint — the scheduler honors it). Connections
  *    needing re-consent (needs_configuration) and disabled ones are excluded;
  *    they need a human, not a retry loop.
- *  - M365 subscription renewal piggybacks on every scheduled sync (reuses
- *    subscriptions with >24h left, recreates the rest) — best-effort, never
- *    fails the sync.
+ *  - M365 subscription renewal piggybacks on every scheduled sync under the
+ *    same mailbox claim and total budget. Subscription errors are logged;
+ *    pending recovery keeps its retry schedule.
  *  - Staleness watchdog: hourly WARN for syncable connections whose
  *    last_sync_at is >24h old — "connected" must mean "actually syncing".
  */
 const TICK_MS = 60_000;
 const CLAIM_BATCH = 5;
-const CLAIM_JITTER_MINUTES = 5;
 const STALE_WARN_HOURS = 24;
 const STALE_CHECK_EVERY_TICKS = 60;
 
@@ -116,30 +118,31 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
     }
   }
 
-  /**
-   * Atomically claim up to CLAIM_BATCH due connections by advancing their
-   * next_sync_at one interval (+ jitter to spread mailboxes apart). SKIP
-   * LOCKED makes concurrent instances take disjoint sets; the advanced
-   * next_sync_at is the lease that keeps the next tick off them.
-   */
+  /** Candidate selection reserves nothing: the common provider claim owns execution. */
   private async claimDueConnections(): Promise<ClaimedConnection[]> {
     return this.prisma.withSystem((tx) =>
       tx.$queryRaw<ClaimedConnection[]>(Prisma.sql`
-        UPDATE engagement_connections c
-        SET next_sync_at = now()
-          + make_interval(mins => ${this.intervalMinutes}::int)
-          + (random() * make_interval(mins => ${CLAIM_JITTER_MINUTES}::int))
-        WHERE c.id IN (
-          SELECT id FROM engagement_connections
-          WHERE provider IN ('microsoft_365', 'google_workspace')
-            AND status IN ('connected', 'error')
-            AND (next_sync_at IS NULL OR next_sync_at <= now())
-          ORDER BY next_sync_at ASC NULLS FIRST
+          SELECT connection.id::text AS id, connection.tenant_id::text AS tenant_id,
+                 connection.provider::text AS provider, connection.account_email::text AS account_email
+          FROM engagement_connections AS connection
+          WHERE connection.provider IN ('microsoft_365', 'google_workspace')
+            AND connection.status IN ('connected', 'error')
+            AND (connection.next_sync_at IS NULL OR connection.next_sync_at <= clock_timestamp())
+            AND EXISTS (
+              SELECT 1 FROM tenant_memberships AS membership
+              WHERE membership.tenant_id = connection.tenant_id
+                AND membership.user_id = connection.created_by_user_id
+                AND membership.status = 'active'
+            )
+            AND NOT CASE
+              WHEN connection.sync_state_jsonb->'oauthAttempt'->>'expiresAt'
+                ~ '^[0-9]+([.][0-9]+)?$'
+              THEN (connection.sync_state_jsonb->'oauthAttempt'->>'expiresAt')::numeric
+                > EXTRACT(EPOCH FROM clock_timestamp())
+              ELSE false
+            END
+          ORDER BY connection.next_sync_at ASC NULLS FIRST, connection.id
           LIMIT ${CLAIM_BATCH}
-          FOR UPDATE SKIP LOCKED
-        )
-        RETURNING c.id::text AS id, c.tenant_id::text AS tenant_id,
-                  c.provider::text AS provider, c.account_email::text AS account_email
       `),
     );
   }
@@ -147,28 +150,37 @@ export class EngagementSyncSchedulerService implements OnModuleInit, OnModuleDes
   private async syncClaimed(connection: ClaimedConnection): Promise<void> {
     const label = `${connection.provider} ${connection.account_email ?? connection.id}`;
     try {
-      if (connection.provider === 'microsoft_365') {
-        await this.microsoft.syncConnectionByTenant(connection.tenant_id, connection.id);
-        // Renewal MUST ride on scheduled syncs: it used to happen only at
-        // connect time, so 6-day subscriptions expired and webhook delivery
-        // died. Best-effort — a subscription failure never fails the sync.
-        if (this.microsoft.subscriptionsConfigurable) {
-          try {
-            await this.microsoft.configureSubscriptionsByTenant(
-              connection.tenant_id,
-              connection.id,
-            );
-          } catch (err) {
-            this.logger.warn(`subscription renewal failed for ${label}: ${(err as Error).message}`);
+      if (!['microsoft_365', 'google_workspace'].includes(connection.provider)) return;
+      await withMailboxSyncClaim(
+        this.prisma,
+        connection.tenant_id,
+        connection.id,
+        async () => {
+          if (connection.provider === 'microsoft_365') {
+            await this.microsoft.syncConnectionByTenant(connection.tenant_id, connection.id);
+            // The common claim remains held through resource sync and subscription
+            // reconciliation; another scheduler cannot use this candidate in between.
+            if (this.microsoft.subscriptionsConfigurable) {
+              try {
+                await this.microsoft.configureSubscriptionsByTenant(
+                  connection.tenant_id,
+                  connection.id,
+                );
+              } catch (err) {
+                this.logger.warn(
+                  `subscription renewal failed for ${label}: ${(err as Error).message}`,
+                );
+              }
+            }
+          } else {
+            await this.google.syncConnectionByTenant(connection.tenant_id, connection.id);
           }
-        }
-      } else if (connection.provider === 'google_workspace') {
-        await this.google.syncConnectionByTenant(connection.tenant_id, connection.id);
-      } else {
-        return;
-      }
+        },
+        { requireDue: true, successIntervalMinutes: this.intervalMinutes },
+      );
       this.logger.log(`auto-synced ${label}`);
     } catch (err) {
+      if (err instanceof MailboxBusyError || err instanceof MailboxClaimLostError) return;
       // The sync services already recorded the failure (markSyncError → status
       // 'error' + a 15-minute nextSyncAt retry hint, or needs_configuration
       // for consent/invalid_grant deaths, which drops the connection out of

@@ -1,4 +1,5 @@
 import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { integrationStatusProjection } from './integration-health.js';
 import { SingleMailLedger, singleMailHash } from './single-mail-ledger.js';
 import {
   assertProspectParent,
@@ -1334,15 +1335,15 @@ export class EngagementService {
           normalizedModels: ['meetings', 'mail_threads', 'mail_messages'],
         },
         imapCaldav: {
-          status: 'requires_server_credentials',
-          normalizedModels: ['meetings', 'mail_threads', 'mail_messages'],
+          status: 'unsupported',
+          normalizedModels: [],
         },
       },
     };
   }
 
-  listIntegrations(ctx: TenantContext) {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+  async listIntegrations(ctx: TenantContext) {
+    const connections = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.integrationConnection.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -1350,6 +1351,9 @@ export class EngagementService {
         },
         orderBy: [{ provider: 'asc' }, { createdAt: 'desc' }],
       }),
+    );
+    return connections.map((connection) =>
+      integrationStatusProjection(connection, defaultScopes(connection.provider)),
     );
   }
 
@@ -1367,6 +1371,8 @@ export class EngagementService {
   }
 
   createIntegration(ctx: TenantContext, input: CreateIntegrationInput) {
+    if (input.provider === EngagementProvider.imap_caldav)
+      throw new BadRequestException('IMAP / CalDAV ingestion is not supported.');
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.integrationConnection.create({
         data: {

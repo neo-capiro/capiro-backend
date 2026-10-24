@@ -13,6 +13,22 @@
 // ============================================================================
 import { MailboxReconnectRequiredError, mailSyncFailureData } from '../mail-sync-failure.js';
 import {
+  runSyncResources,
+  resourceSyncHealth,
+  type IntegrationSyncHealth,
+} from '../integration-health.js';
+import {
+  assertMailboxSyncCurrent,
+  mergeMailboxSyncState,
+  withMailboxSyncClaim,
+} from '../mailbox-sync-claim.js';
+import {
+  assertMailboxBudget,
+  mailboxProviderRequest,
+  mailboxRetryDelay,
+  mailboxYieldRequested,
+} from '../mailbox-provider-transport.js';
+import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -45,7 +61,7 @@ const MAIL_BACKFILL_DAYS = 365;
 const MAX_CALENDAR_PAGES_PER_RUN = 12;
 const MAX_MAIL_PAGES_PER_LABEL_PER_RUN = 12;
 const GMAIL_PAGE_SIZE = 100;
-const CALENDAR_PAGE_SIZE = 250;
+const CALENDAR_PAGE_SIZE = 50;
 // Matches microsoft-graph-sync: each persist txn waits on the per-tenant sync
 // advisory lock, then upserts. 20s gives headroom over the 5s interactive-tx
 // default. The lock auto-releases on commit/rollback.
@@ -165,12 +181,14 @@ export function foldGmailHistory(
 }
 
 interface GoogleSyncState {
+  health?: IntegrationSyncHealth;
   calendar?: {
     syncToken?: string | null;
     pageToken?: string | null;
     updatedAt?: string | null;
     window?: { from: string; to: string };
     lastStats?: SyncStats;
+    pendingPage?: CalendarListResponse;
   };
   mail?: {
     captureVersion?: number;
@@ -180,6 +198,11 @@ interface GoogleSyncState {
     historyId?: string | null;
     incrementalPageToken?: string | null;
     incrementalLatestHistoryId?: string | null;
+    incrementalPendingOps?: Array<{
+      id: string;
+      action: 'upsert' | 'remove';
+      reason?: 'deleted' | 'trashed' | 'spam';
+    }>;
     labels?: Record<string, MailLabelSyncState>;
     updatedAt?: string | null;
     lastStats?: SyncStats;
@@ -226,6 +249,7 @@ export interface SyncStats {
 
 export interface SyncResult {
   connectionId: string;
+  health?: IntegrationSyncHealth;
   calendar?: SyncStats;
   mail?: Record<string, SyncStats>;
 }
@@ -366,60 +390,66 @@ export class GoogleSyncService {
     connectionId: string,
     input: { calendar?: boolean; mail?: boolean; reset?: boolean } = {},
   ): Promise<SyncResult> {
-    try {
-      const { connection, token } = await this.googleToken.loadConnection(tenantId, connectionId);
-      const accessToken = await this.googleToken.getValidAccessToken(tenantId, connectionId, token);
-      const state = readSyncState(connection.syncState);
-      const result: SyncResult = { connectionId };
+    return withMailboxSyncClaim(this.prisma, tenantId, connectionId, async () => {
+      try {
+        const { connection, token } = await this.googleToken.loadConnection(tenantId, connectionId);
+        const accessToken = await this.googleToken.getValidAccessToken(
+          tenantId,
+          connectionId,
+          token,
+        );
+        const state = readSyncState(connection.syncState);
+        const {
+          result: batches,
+          health,
+          errors,
+        } = await runSyncResources(
+          state.health,
+          input,
+          () =>
+            this.syncCalendar(tenantId, connection, state, accessToken, input, () =>
+              this.checkpointSyncProgress(tenantId, connectionId, state),
+            ),
+          () => this.syncMail(tenantId, connection, state, accessToken, input),
+        );
+        state.health = health;
+        const result: SyncResult = { connectionId, ...batches, health };
+        assertMailboxBudget();
+        await this.prisma.withTenant(tenantId, (tx) =>
+          mergeMailboxSyncState(
+            tx,
+            tenantId,
+            connectionId,
+            {
+              ...(input.calendar !== false
+                ? { calendar: state.calendar, health: state.health }
+                : {}),
+              ...(input.mail !== false ? { mail: state.mail, health: state.health } : {}),
+            },
+            {
+              status: EngagementConnectionStatus.connected,
+              lastSyncAt: new Date(),
+              lastError: errors.length
+                ? 'Some resources could not sync. Review mail and calendar health, then retry.'
+                : null,
+            },
+          ),
+        );
+        // Persist each attempted resource before surfacing a terminal or all-resource failure.
+        if (
+          errors.length &&
+          (input.reset ||
+            errors.some(isPermanentMailFailure) ||
+            (!batches.calendar && !batches.mail))
+        )
+          throw errors[0];
 
-      let calendarSynced = false;
-      if (input.calendar !== false) {
-        result.calendar = await this.syncCalendar(tenantId, connection, state, accessToken, input);
-        calendarSynced = true;
+        return result;
+      } catch (err) {
+        await this.markSyncError(tenantId, connectionId, err);
+        throw err;
       }
-      if (input.mail !== false) {
-        try {
-          result.mail = await this.syncMail(tenantId, connection, state, accessToken, input);
-        } catch (err) {
-          // If the calendar leg already succeeded, don't flag the whole
-          // connection failed for a TRANSIENT mail-leg error (429/5xx/DB blip):
-          // the calendar meetings are already committed, the mail cursor was NOT
-          // advanced (syncMail throws before it persists state), and the
-          // scheduler retries next cycle — this kills the misleading "failed to
-          // sync" banner (and the hidden Sync-now button) that is the reported
-          // bug. A PERMANENT failure (revoked scope / forbidden) or a mail-only
-          // run still surfaces via markSyncError so the user can act.
-          // A reset/reclaim is an explicit state-replacement operation. Never
-          // report it successful when the mail leg failed after Calendar happened
-          // to commit: the caller must see the failure and retry the reset rather
-          // than keep an old mail baseline indefinitely. Ordinary scheduled syncs
-          // retain the prior partial-success behavior.
-          if (!calendarSynced || input.reset || isPermanentMailFailure(err)) throw err;
-          this.logger.warn(
-            `Google mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
-              err instanceof Error ? err.message : err
-            }`,
-          );
-        }
-      }
-
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.integrationConnection.update({
-          where: { id: connectionId },
-          data: {
-            syncState: state as Prisma.InputJsonValue,
-            status: EngagementConnectionStatus.connected,
-            lastSyncAt: new Date(),
-            lastError: null,
-          },
-        }),
-      );
-
-      return result;
-    } catch (err) {
-      await this.markSyncError(tenantId, connectionId, err);
-      throw err;
-    }
+    });
   }
 
   // ---- Calendar ------------------------------------------------------------
@@ -430,8 +460,10 @@ export class GoogleSyncService {
     state: GoogleSyncState,
     accessToken: string,
     input: { reset?: boolean },
+    checkpoint?: () => Promise<void>,
   ): Promise<SyncStats> {
     const stats = emptyStats();
+    if (mailboxYieldRequested()) return { ...stats, hasMore: true };
     const current = state.calendar ?? {};
     // Older builds persisted `window` even for sync-token pagination and could
     // also leave the pre-reset syncToken beside a full-window pageToken. That
@@ -452,6 +484,8 @@ export class GoogleSyncService {
     let pageToken: string | null =
       input.reset || hasAmbiguousLegacyContinuation ? null : (current.pageToken ?? null);
     let syncToken: string | null = null;
+    let pendingPage =
+      input.reset || hasAmbiguousLegacyContinuation ? undefined : current.pendingPage;
 
     let window: { from: string; to: string } | undefined;
     if (useSyncToken) {
@@ -460,7 +494,7 @@ export class GoogleSyncService {
       // do not persist an unrelated window, because doing so makes the state
       // indistinguishable from the legacy reset bug above.
       window = undefined;
-    } else if (!input.reset && pageToken && current.window) {
+    } else if (!input.reset && (pageToken || pendingPage) && current.window) {
       // Resuming a paginated full-window sync: reuse the EXACT window that
       // produced this pageToken. calendarWindow() computes from "now", so
       // recalculating it on every scheduler tick would silently drift
@@ -486,11 +520,13 @@ export class GoogleSyncService {
       stats.pages += 1;
       let response: CalendarListResponse;
       try {
-        response = await this.calendarList(accessToken, {
-          syncToken: useSyncToken ? (current.syncToken ?? undefined) : undefined,
-          window: useSyncToken ? undefined : window,
-          pageToken: pageToken ?? undefined,
-        });
+        response =
+          pendingPage ??
+          (await this.calendarList(accessToken, {
+            syncToken: useSyncToken ? (current.syncToken ?? undefined) : undefined,
+            window: useSyncToken ? undefined : window,
+            pageToken: pageToken ?? undefined,
+          }));
       } catch (err) {
         // 410 GONE => the syncToken expired; drop it and force a full-window
         // resync on the next run (direct analog of Graph's resync-required).
@@ -508,7 +544,14 @@ export class GoogleSyncService {
         throw err;
       }
 
-      for (const event of response.items ?? []) {
+      pendingPage = undefined;
+      const events = response.items ?? [];
+      for (let index = 0; index < events.length; index += 1) {
+        if (mailboxYieldRequested()) {
+          pendingPage = { ...response, items: events.slice(index) };
+          break;
+        }
+        const event = events[index]!;
         stats.scanned += 1;
         const outcome = await this.persistCalendarEvent(
           tenantId,
@@ -519,14 +562,26 @@ export class GoogleSyncService {
         stats.matched += outcome === 'matched' ? 1 : 0;
         stats.skipped += outcome === 'skipped' ? 1 : 0;
         stats.removed += outcome === 'removed' ? 1 : 0;
+        // Commit the completed prefix before starting another potentially slow item.
+        // An empty suffix retains the final-page token until it is promoted below.
+        state.calendar = {
+          syncToken: useSyncToken ? (current.syncToken ?? null) : null,
+          pageToken,
+          pendingPage: { ...response, items: events.slice(index + 1) },
+          ...(window ? { window } : {}),
+          updatedAt: new Date().toISOString(),
+          lastStats: { ...stats, hasMore: true },
+        };
+        await checkpoint?.();
       }
 
+      if (pendingPage) break;
       pageToken = response.nextPageToken ?? null;
       syncToken = response.nextSyncToken ?? syncToken;
-      if (!pageToken) break;
+      if (!pageToken || mailboxYieldRequested()) break;
     }
 
-    stats.hasMore = Boolean(pageToken);
+    stats.hasMore = Boolean(pageToken || pendingPage);
     // Incremental pagination must retain its established syncToken until the
     // provider returns a replacement at the end of the page chain. A full-window
     // reset/backfill must do the opposite: keep syncToken null while pageToken is
@@ -535,7 +590,7 @@ export class GoogleSyncService {
     // invalid incremental continuation requests.
     const persistedSyncToken = useSyncToken
       ? (syncToken ?? current.syncToken ?? null)
-      : pageToken
+      : pageToken || pendingPage
         ? null
         : syncToken;
     state.calendar = {
@@ -543,9 +598,31 @@ export class GoogleSyncService {
       pageToken,
       updatedAt: new Date().toISOString(),
       ...(window ? { window } : {}),
+      ...(pendingPage ? { pendingPage } : {}),
       lastStats: stats,
     };
     return stats;
+  }
+
+  private async checkpointSyncProgress(
+    tenantId: string,
+    connectionId: string,
+    state: GoogleSyncState,
+  ): Promise<void> {
+    state.health = {
+      ...state.health,
+      calendar: resourceSyncHealth(
+        state.health?.calendar,
+        [{ hasMore: true }],
+        new Date().toISOString(),
+      ),
+    };
+    await this.prisma.withTenant(tenantId, (tx) =>
+      mergeMailboxSyncState(tx, tenantId, connectionId, {
+        calendar: state.calendar,
+        health: state.health,
+      }),
+    );
   }
 
   private async persistCalendarEvent(
@@ -556,15 +633,16 @@ export class GoogleSyncService {
   ): Promise<'matched' | 'skipped' | 'removed'> {
     if (!event.id) return 'skipped';
     if (event.status === 'cancelled') {
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.meeting.updateMany({
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+        return tx.meeting.updateMany({
           where: { tenantId, source: EngagementSource.google, externalId: event.id },
           data: {
             status: 'deleted',
             metadata: { googleStatus: 'cancelled' } as Prisma.InputJsonValue,
           },
-        }),
-      );
+        });
+      });
       return 'removed';
     }
 
@@ -576,6 +654,7 @@ export class GoogleSyncService {
       tenantId,
       async (tx) => {
         await lockTenantForEngagementSync(tx, tenantId);
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
         // Dedupe by normalized email — meeting_attendees has a UNIQUE
         // (meeting_id, email), and a duplicated invitee P2002s the whole sync
         // tx (same bug hit live on the Microsoft path when auto-sync retried
@@ -731,6 +810,7 @@ export class GoogleSyncService {
     accessToken: string,
     input: { reset?: boolean },
   ): Promise<Record<string, SyncStats>> {
+    if (mailboxYieldRequested()) return { ALL: { ...emptyStats(), hasMore: true } };
     // A live backfill continuation (an unfinished messages.list page chain) is
     // authoritative over the capture-version migration: neither the drain-via-
     // history early return below nor the reset path may discard or bypass it.
@@ -815,6 +895,7 @@ export class GoogleSyncService {
       mailState.historyId = null;
       mailState.incrementalPageToken = null;
       mailState.incrementalLatestHistoryId = null;
+      mailState.incrementalPendingOps = [];
     }
 
     // Incremental path: a stored historyId means we've established a baseline,
@@ -842,6 +923,7 @@ export class GoogleSyncService {
         mailState.historyId = null;
         mailState.incrementalPageToken = null;
         mailState.incrementalLatestHistoryId = null;
+        mailState.incrementalPendingOps = [];
         mailState.labels = {};
         mailState.captureReplayHistoryId = (await this.gmailProfile(accessToken)).historyId ?? null;
         if (!mailState.captureReplayHistoryId)
@@ -913,7 +995,7 @@ export class GoogleSyncService {
         //    (Runs even when chainEnded — the final page's refs still need
         //    draining before the backfill can complete.)
         while (queue.length > 0) {
-          if (quotaBudget < GMAIL_QUOTA_UNITS_PER_REQUEST) {
+          if (quotaBudget < GMAIL_QUOTA_UNITS_PER_REQUEST || mailboxYieldRequested()) {
             yielded = true;
             break;
           }
@@ -978,7 +1060,7 @@ export class GoogleSyncService {
         //    the chain is over, and everything it returned is persisted.
         if (chainEnded) break;
         // 3. Afford one more messages.list before spending its quota units.
-        if (quotaBudget < GMAIL_QUOTA_UNITS_PER_REQUEST) {
+        if (quotaBudget < GMAIL_QUOTA_UNITS_PER_REQUEST || mailboxYieldRequested()) {
           yielded = true;
           break;
         }
@@ -1059,7 +1141,7 @@ export class GoogleSyncService {
     const ops = new Map<
       string,
       { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }
-    >();
+    >((mailState.incrementalPendingOps ?? []).map(({ id, ...op }) => [id, op]));
     // Resume exactly where a prior capped run left off, rather than always
     // starting a fresh page chain from startHistoryId — a mailbox with more
     // than MAX_MAIL_PAGES_PER_LABEL_PER_RUN pages of change would otherwise
@@ -1068,7 +1150,11 @@ export class GoogleSyncService {
     let pageToken: string | null = mailState.incrementalPageToken ?? null;
     let latestHistoryId: string | null = mailState.incrementalLatestHistoryId ?? startHistoryId;
 
-    for (let page = 0; page < MAX_MAIL_PAGES_PER_LABEL_PER_RUN; page += 1) {
+    for (
+      let page = 0;
+      !mailState.incrementalPendingOps?.length && page < MAX_MAIL_PAGES_PER_LABEL_PER_RUN;
+      page += 1
+    ) {
       stats.pages += 1;
       const response = await this.gmailHistory(accessToken, {
         startHistoryId,
@@ -1079,15 +1165,19 @@ export class GoogleSyncService {
         ops.set(id, op);
       }
       pageToken = response.nextPageToken ?? null;
-      if (!pageToken) break;
+      if (!pageToken || mailboxYieldRequested()) break;
     }
 
-    for (const [id, op] of ops) {
+    const pending = [...ops];
+    while (pending.length) {
+      if (mailboxYieldRequested()) break;
+      const [id, op] = pending[0]!;
       stats.scanned += 1;
       try {
         if (op.action === 'remove') {
           await this.markGmailMessageRemoved(tenantId, id, op.reason ?? 'deleted', connection.id);
           stats.removed += 1;
+          pending.shift();
           continue;
         }
         const message = await this.gmailGet(accessToken, id);
@@ -1096,6 +1186,7 @@ export class GoogleSyncService {
         if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
           await this.markGmailMessageRemoved(tenantId, id, 'trashed', connection.id);
           stats.removed += 1;
+          pending.shift();
           continue;
         }
         const outcome = await this.persistGmailMessage(
@@ -1110,6 +1201,7 @@ export class GoogleSyncService {
         if (err instanceof MailboxIdentityMismatchError) {
           stats.held += 1;
           this.logger.warn('Gmail mail message held: mailbox identity mismatch');
+          pending.shift();
           continue;
         }
         // Otherwise skip only a GONE message; let transient/infra errors
@@ -1123,10 +1215,11 @@ export class GoogleSyncService {
           }`,
         );
       }
+      pending.shift();
     }
-
-    stats.hasMore = Boolean(pageToken);
-    if (pageToken) {
+    mailState.incrementalPendingOps = pending.map(([id, op]) => ({ id, ...op }));
+    stats.hasMore = Boolean(pageToken) || pending.length > 0;
+    if (stats.hasMore) {
       // Provider pages remain beyond this run's cap. Freeze progress exactly
       // where Gmail left off — historyId must NOT advance yet, or the next
       // run would start its history window past pages we never fetched.
@@ -1157,6 +1250,7 @@ export class GoogleSyncService {
   ): Promise<'removed'> {
     await this.prisma.withTenantRetry(tenantId, async (tx) => {
       await lockTenantForEngagementSync(tx, tenantId);
+      await assertMailboxSyncCurrent(tx, tenantId, connectionId);
       const removedAt = new Date();
       await markMailMessageRemovedInTx(tx, {
         tenantId,
@@ -1235,6 +1329,7 @@ export class GoogleSyncService {
       tenantId,
       async (tx) => {
         await lockTenantForEngagementSync(tx, tenantId);
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
         const existingMessage = await tx.mailMessage.findUnique({
           where: {
             tenantId_source_externalId: {
@@ -1245,7 +1340,13 @@ export class GoogleSyncService {
           },
           include: {
             thread: {
-              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: {
+                id: true,
+                connectionId: true,
+                clientId: true,
+                lastMessageAt: true,
+                associationSignals: true,
+              },
             },
           },
         });
@@ -1259,12 +1360,20 @@ export class GoogleSyncService {
                   externalId: threadExternalId,
                 },
               },
-              select: { id: true, connectionId: true, clientId: true, lastMessageAt: true, associationSignals: true },
+              select: {
+                id: true,
+                connectionId: true,
+                clientId: true,
+                lastMessageAt: true,
+                associationSignals: true,
+              },
             });
         // Provider IDs are mailbox-local evidence, never permission to transfer rows.
         // Keep legacy ambiguous identities held until the mailbox-key migration.
-        if ((existingMessage && existingMessage.connectionId !== connectionId) ||
-            (existingThread && existingThread.connectionId !== connectionId)) {
+        if (
+          (existingMessage && existingMessage.connectionId !== connectionId) ||
+          (existingThread && existingThread.connectionId !== connectionId)
+        ) {
           throw new MailboxIdentityMismatchError();
         }
         const association = await this.association.associate(tx, tenantId, {
@@ -1549,36 +1658,39 @@ export class GoogleSyncService {
   }
 
   private async googleGet<T>(url: string, accessToken: string, attempt = 1): Promise<T> {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
-    });
+    return mailboxProviderRequest(async (signal) => {
+      const response = await fetch(url, {
+        signal,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+      });
 
-    if (response.status === 429 || response.status >= 500) {
-      const retryAfter = Number(response.headers.get('retry-after') ?? '0');
-      if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
-        await sleep(retryAfter * 1000);
-        return this.googleGet<T>(url, accessToken, attempt + 1);
+      if (response.status === 429 || response.status >= 500) {
+        const retryAfter = Number(response.headers.get('retry-after') ?? '0');
+        if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
+          await mailboxRetryDelay(retryAfter * 1000);
+          return this.googleGet<T>(url, accessToken, attempt + 1);
+        }
       }
-    }
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      // Error reason FIRST, parsed out of the body: Gmail's quota-exceeded
-      // body is ~505+ chars, so a plain slice(0, 500) cut it mid-word inside
-      // "rateLimitExceeded" — and every downstream classifier (including
-      // isPermanentMailFailure) regex-matches that reason to distinguish
-      // transient quota walls from permanent permission failures. A truncated
-      // reason silently reclassified quota 403s as permanent and flipped every
-      // connection to error state (the 2026-09-08 storm's red-banner half).
-      const reason = extractGoogleErrorReason(text);
-      const suffix = reason ? ` [reason: ${reason}]` : '';
-      const message = `Google API GET ${url} failed (${response.status}):${suffix} ${text.slice(0, 500)}`;
-      if (response.status === 404) throw new GoogleApiError(message, 404);
-      if (response.status === 410) throw new GoogleApiError(message, 410);
-      throw new ServiceUnavailableException(message);
-    }
-    return (await response.json()) as T;
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        // Error reason FIRST, parsed out of the body: Gmail's quota-exceeded
+        // body is ~505+ chars, so a plain slice(0, 500) cut it mid-word inside
+        // "rateLimitExceeded" — and every downstream classifier (including
+        // isPermanentMailFailure) regex-matches that reason to distinguish
+        // transient quota walls from permanent permission failures. A truncated
+        // reason silently reclassified quota 403s as permanent and flipped every
+        // connection to error state (the 2026-09-08 storm's red-banner half).
+        const reason = extractGoogleErrorReason(text);
+        const suffix = reason ? ` [reason: ${reason}]` : '';
+        const message = `Google API GET ${url} failed (${response.status}):${suffix} ${text.slice(0, 500)}`;
+        if (response.status === 404) throw new GoogleApiError(message, 404);
+        if (response.status === 410) throw new GoogleApiError(message, 410);
+        throw new ServiceUnavailableException(message);
+      }
+      return (await response.json()) as T;
+    });
   }
 
   // ---- Connection access ----------------------------------------------------
@@ -1601,16 +1713,20 @@ export class GoogleSyncService {
 
   private async markSyncError(tenantId: string, connectionId: string, err: unknown) {
     if (err instanceof MailboxReconnectRequiredError) return;
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.integrationConnection
-        .updateMany({
-          where: { id: connectionId, status: { in: ['connected', 'error'] } },
-          data: mailSyncFailureData(
-            isPermanentMailFailure(err) ? 'permission_denied' : 'transient', 'Google Workspace',
-          ),
-        })
-        .catch(() => undefined),
-    );
+    await this.prisma
+      .withTenant(tenantId, async (tx) => {
+        await assertMailboxSyncCurrent(tx, tenantId, connectionId);
+        return tx.integrationConnection
+          .updateMany({
+            where: { id: connectionId, status: { in: ['connected', 'error'] } },
+            data: mailSyncFailureData(
+              isPermanentMailFailure(err) ? 'permission_denied' : 'transient',
+              'Google Workspace',
+            ),
+          })
+          .catch(() => undefined);
+      })
+      .catch(() => undefined);
   }
 }
 
@@ -1773,7 +1889,16 @@ function readSyncState(value: Prisma.JsonValue): GoogleSyncState {
 }
 
 function emptyStats(): SyncStats {
-  return { scanned: 0, matched: 0, skipped: 0, removed: 0, held: 0, failed: 0, pages: 0, hasMore: false };
+  return {
+    scanned: 0,
+    matched: 0,
+    skipped: 0,
+    removed: 0,
+    held: 0,
+    failed: 0,
+    pages: 0,
+    hasMore: false,
+  };
 }
 
 function combineStats(stats: SyncStats[]): SyncStats {
@@ -2050,8 +2175,4 @@ function addDays(date: Date, days: number): Date {
 
 function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values.filter(Boolean)));
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
