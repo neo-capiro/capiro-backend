@@ -239,6 +239,24 @@ export class DirectoryController {
     return this.service.createContactNote(ctx, contactId, body);
   }
 
+  @Post('members/:memberId/note-commands')
+  createMemberNoteCommand(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('memberId') memberId: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.createMemberNoteCommand(ctx, memberId, body);
+  }
+
+  @Get('members/:memberId/note-commands/:requestId')
+  memberNoteReceipt(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('memberId') memberId: string,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.service.memberNoteReceipt(ctx, memberId, requestId);
+  }
+
   // Per-user favorites/stars for directory members (quick access in outreach).
   @Get('favorites')
   favorites(@CurrentTenant() ctx: TenantContext) {
