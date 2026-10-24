@@ -15504,5 +15504,12 @@
       "to": "gopd@1.2.0"
     }
   ],
+  "removedDependencies": [
+    {
+      "from": "pptxgenjs@3.12.0",
+      "dependencyName": "image-size",
+      "selector": "pptxgenjs@3.12.0>image-size"
+    }
+  ],
   "unresolvedEdges": []
 }

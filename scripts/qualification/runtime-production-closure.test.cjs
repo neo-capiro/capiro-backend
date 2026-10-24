@@ -1,6 +1,32 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { closure, resolveEdge, canonicalInputBytes, serializeAudit, verifyImporterManifest } = require('./runtime-production-closure.cjs');
+const { closure, resolveEdge, canonicalInputBytes, serializeAudit, verifyImporterManifest, removedDependencies } = require('./runtime-production-closure.cjs');
+
+test('only exact matching frozen removal selectors enter the installed contract', () => {
+  const selector = 'pptxgenjs@3.12.0>image-size';
+  const root = { pnpm: { overrides: { [selector]: '-' } } };
+  const lock = { overrides: { ...root.pnpm.overrides }, snapshots: { 'pptxgenjs@3.12.0': {}, 'other@1.0.0': {} } };
+  assert.deepEqual(removedDependencies(lock, root, Object.keys(lock.snapshots)), [
+    { from: 'pptxgenjs@3.12.0', dependencyName: 'image-size', selector },
+  ]);
+  assert.deepEqual(removedDependencies(lock, root, ['other@1.0.0']), []);
+  assert.throws(() => removedDependencies(lock, {}, Object.keys(lock.snapshots)), /override drift/);
+  for (const invalid of ['pptxgenjs@*>image-size', 'pptxgenjs@^3.12.0>image-size', 'pptxgenjs@3.12.0>>image-size', 'image-size']) {
+    const overrides = { [invalid]: '-' };
+    assert.throws(() => removedDependencies({ ...lock, overrides }, { pnpm: { overrides } }, Object.keys(lock.snapshots)), /exact parent/);
+  }
+  for (const kind of ['dependencies', 'optionalDependencies']) {
+    lock.snapshots['pptxgenjs@3.12.0'] = { [kind]: { 'image-size': '1.0.0' } };
+    assert.throws(() => removedDependencies(lock, root, Object.keys(lock.snapshots)), /remains in frozen snapshot/);
+  }
+});
+
+test('exact removal follows the frozen parent peer contexts without matching another version', () => {
+  const selector = '@fixture/parent@1.2.3>image-size', overrides = { [selector]: '-' };
+  const keys = ['@fixture/parent@1.2.3(peer@1)', '@fixture/parent@1.2.3(peer@2)', '@fixture/parent@1.2.4'];
+  const lock = { overrides, snapshots: Object.fromEntries(keys.map(key => [key, {}])) };
+  assert.deepEqual(removedDependencies(lock, { pnpm: { overrides } }, keys).map(row => row.from), keys.slice(0, 2));
+});
 
 test('exact importer overrides require matching root and lock declarations', () => {
   const manifest = { name: '@fixture/api', version: '1.0.0', dependencies: { sdk: '^1.0.0' } };

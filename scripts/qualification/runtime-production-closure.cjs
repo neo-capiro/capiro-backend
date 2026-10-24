@@ -35,6 +35,27 @@ function resolveEdge(lock, parent, name, value) {
   return Object.hasOwn(lock.snapshots, `${name}@${version}`) ? `${name}@${version}` :
     Object.hasOwn(lock.snapshots, version) ? version : null;
 }
+function removedDependencies(lock, rootManifest, snapshots) {
+  const overrides = rootManifest.pnpm?.overrides || {};
+  assert.deepEqual(lock.overrides || {}, overrides, 'Root manifest/lock override drift');
+  const rows = [];
+  for (const [selector, value] of Object.entries(overrides)) {
+    if (value !== '-') continue;
+    // Only an exact package/version removal can explain an omitted installed
+    // declaration. This does not implement pnpm's general selector language.
+    const match = /^((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+@[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.-]+)?)>((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)$/i.exec(selector);
+    assert(match, 'Removal requires exact parent@version>dependency selector');
+    for (const from of snapshots) {
+      if (from.split('(')[0] !== match[1]) continue;
+      const snapshot = lock.snapshots[from];
+      assert(snapshot, 'Missing removal parent snapshot');
+      assert(!Object.hasOwn(snapshot.dependencies || {}, match[2]) &&
+        !Object.hasOwn(snapshot.optionalDependencies || {}, match[2]), 'Removed dependency remains in frozen snapshot');
+      rows.push({ from, dependencyName: match[2], selector });
+    }
+  }
+  return rows.sort((a, b) => a.from.localeCompare(b.from) || a.dependencyName.localeCompare(b.dependencyName));
+}
 function closure(lock, importerRoots, importerSections) {
   const nodes = new Map(), edges = [], unresolved = [];
   const queue = importerRoots.map(root => ({ key: `importer:${root}`, proof: [] }));
@@ -156,6 +177,7 @@ function audit(root, yaml) {
         peerDependenciesMeta: metadata.peerDependenciesMeta || {} };
     }),
     edges: production.edges.map(({ from, dependencyName, kind, to }) => ({ from, dependencyName, kind, to })),
+    removedDependencies: removedDependencies(lock, rootManifest, snapshots.map(([key]) => key)),
     unresolvedEdges: [],
   };
   function rootPath(importer) { return path.join(root, importer); }
@@ -175,7 +197,7 @@ function canonicalInputBytes(checkout, canonical) {
 function serializeAudit(result, contractOnly = false) {
   return JSON.stringify(contractOnly ? result.runtimeClosureContract : result, null, 2) + '\n';
 }
-module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit, verifyImporterManifest };
+module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit, verifyImporterManifest, removedDependencies };
 if (require.main === module) {
   const args = process.argv.slice(2);
   const outIndex = args.indexOf('--out');
