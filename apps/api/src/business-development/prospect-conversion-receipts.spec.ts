@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, jest } from '@jest/globals';
+import { HttpException } from '@nestjs/common';
 jest.mock('@capiro/shared', () => ({ prospectResourceScope: jest.fn() }));
 jest.mock('../clients/client-ordered-owner.access.js', () => ({ requireOwnerClient: jest.fn() }));
 import { prospectResourceScope } from '@capiro/shared';
@@ -6,6 +7,7 @@ import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 import {
   commitProspectConversion,
   readProspectConversion,
+  withNewClientRefusal,
 } from './prospect-conversion-receipts.js';
 import { parseProspectConversion, prospectConversionDigest } from './prospect-conversion.types.js';
 
@@ -39,11 +41,12 @@ beforeEach(() => {
     linkedClientId: null,
   });
 });
-function fixture() {
+function fixture(capacityLock?: () => Promise<void>) {
   const current = {
     updatedAt: new Date(at),
     linkedClientId: null as string | null,
     convertedAt: null as Date | null,
+    displayName: 'Synthetic new client',
   };
   let stored: { command: unknown; payloadDigest: string; receipt: unknown } | undefined;
   const statements: Array<{ sql: string; values: unknown[] }> = [];
@@ -60,7 +63,10 @@ function fixture() {
     $executeRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.join('?');
       statements.push({ sql, values });
-      if (sql.includes('pg_advisory')) return 1;
+      if (sql.includes('pg_advisory')) {
+        if (values[0] === `client-capacity:${ctx.tenantId}`) await capacityLock?.();
+        return 1;
+      }
       if (!sql.includes('INSERT INTO prospect_conversion_receipts'))
         throw new Error('Unexpected fixture write');
       stored = {
@@ -81,6 +87,7 @@ function fixture() {
 }
 it('strictly binds the canonical command and rejects new-client, transfer and malformed scope input', () => {
   const value = command();
+  if (value.mode !== 'existing_client') throw new Error('Expected existing-client fixture');
   expect(prospectConversionDigest(value)).toMatch(/^[a-f0-9]{64}$/);
   for (const change of [
     { mode: 'new_client' },
@@ -215,4 +222,199 @@ it('refuses missing, changed-target and corrupt receipts', async () => {
   await expect(readProspectConversion(h.tx, ctx, prospectId, requestId)).rejects.toThrow(
     'cannot be verified',
   );
+});
+
+const newCommand = () =>
+  parseProspectConversion(prospectId, {
+    schemaVersion: 1,
+    requestId,
+    prospectId,
+    expectedUpdatedAt: at,
+    mode: 'new_client',
+    clientName: 'Synthetic new client',
+    clientWebsite: 'https://example.test',
+    clientDescription: null,
+  });
+it('new-client command returns and recovers the exact created client without creating twice', async () => {
+  const h = fixture(),
+    c = newCommand();
+  h.convert.mockImplementation(async () => {
+    h.current.linkedClientId = clientId;
+    h.current.convertedAt = new Date('2026-10-23T00:00:00.500Z');
+    h.current.updatedAt = h.current.convertedAt;
+    return { clientId, created: true };
+  });
+  const receipt = await commitProspectConversion(h.tx, ctx, c, h.convert);
+  expect(receipt).toMatchObject({
+    outcome: 'created',
+    clientId,
+    requestId,
+    payloadDigest: prospectConversionDigest(c),
+  });
+  expect(await commitProspectConversion(h.tx, ctx, c, h.convert)).toEqual(receipt);
+  expect(await readProspectConversion(h.tx, ctx, prospectId, requestId)).toEqual(receipt);
+  expect(h.convert).toHaveBeenCalledTimes(1);
+  expect(requireOwnerClient).toHaveBeenCalledWith(h.tx, ctx, clientId);
+  expect(
+    h.statements.filter((statement) => statement.values[0] === `client-capacity:${ctx.tenantId}`),
+  ).toHaveLength(1);
+});
+it('does not acquire authorization row locks while a new-client admission is waiting for capacity', async () => {
+  let entered!: () => void;
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const h = fixture(async () => {
+    entered();
+    await gate;
+  });
+  const result = commitProspectConversion(h.tx, ctx, newCommand(), h.convert).catch(
+    (error: unknown) => error,
+  );
+  await waiting;
+  try {
+    expect(prospectResourceScope).not.toHaveBeenCalled();
+    expect(requireOwnerClient).not.toHaveBeenCalled();
+    expect(h.convert).not.toHaveBeenCalled();
+  } finally {
+    release();
+  }
+  expect(await result).toBeInstanceOf(Error);
+  expect(prospectResourceScope).toHaveBeenCalled();
+  expect(h.convert).toHaveBeenCalledTimes(1);
+});
+it('a reviewed new client cannot silently become an existing-client link', async () => {
+  const h = fixture();
+  await expect(commitProspectConversion(h.tx, ctx, newCommand(), h.convert)).rejects.toThrow(
+    'matching client already exists',
+  );
+  expect(h.stored()).toBeUndefined();
+});
+it('capacity refusal leaves no conversion receipt and propagates the canonical refusal', async () => {
+  const h = fixture();
+  h.convert.mockRejectedValueOnce(new Error('Canonical capacity exhausted'));
+  await expect(commitProspectConversion(h.tx, ctx, newCommand(), h.convert)).rejects.toThrow(
+    'capacity exhausted',
+  );
+  expect(h.stored()).toBeUndefined();
+  expect(h.current.linkedClientId).toBeNull();
+});
+it('new-client name and original prospect version must still match', async () => {
+  const h = fixture();
+  h.current.displayName = 'Changed name';
+  await expect(commitProspectConversion(h.tx, ctx, newCommand(), h.convert)).rejects.toThrow(
+    'name changed',
+  );
+  expect(h.convert).not.toHaveBeenCalled();
+});
+it('new-client intake rejects transfer payloads, unsafe websites and unreviewed names', () => {
+  const c = newCommand();
+  for (const change of [
+    { clientWebsite: 'javascript:alert(1)' },
+    { clientWebsite: 'https://name:secret@example.test' },
+    { clientName: ' ' },
+    { clientDescription: 'x'.repeat(601) },
+    { transferFiles: true },
+    { clientId },
+  ])
+    expect(() => parseProspectConversion(prospectId, { ...c, ...change })).toThrow();
+});
+
+it('emits the exact refusal only after the transaction boundary confirms rollback', async () => {
+  const c = newCommand();
+  let rejectTransaction!: (error: unknown) => void;
+  let settled = false;
+  const outcome = withNewClientRefusal(c, async (absent) => {
+    absent();
+    return new Promise<never>((_, reject) => {
+      rejectTransaction = reject;
+    });
+  }).catch((error: unknown) => {
+    settled = true;
+    return error;
+  });
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  rejectTransaction(new HttpException('Review capacity', 402));
+  const failure = (await outcome) as HttpException;
+  expect(failure.getStatus()).toBe(402);
+  expect(failure.getResponse()).toEqual({
+    schemaVersion: 1,
+    code: 'PROSPECT_NEW_CLIENT_REFUSED',
+    requestId,
+    prospectId,
+    payloadDigest: prospectConversionDigest(c),
+    status: 402,
+    message: 'Review capacity',
+  });
+});
+it.each([400, 404, 409])('binds a proven fresh-command rollback status%s', async (status) => {
+  const h = fixture();
+  h.convert.mockRejectedValueOnce(new HttpException('Synthetic owner refusal', status));
+  const failure = (await withNewClientRefusal(newCommand(), (absent) =>
+    commitProspectConversion(h.tx, ctx, newCommand(), h.convert, absent),
+  ).catch((error: unknown) => error)) as HttpException;
+  expect(failure.getResponse()).toMatchObject({ code: 'PROSPECT_NEW_CLIENT_REFUSED', status });
+  expect(h.statements[0]?.sql).toContain('pg_advisory');
+  expect(h.statements[1]?.sql).toContain('FROM prospect_conversion_receipts');
+});
+it.each([401, 403, 500, 503])(
+  'never upgrades status%s or an unknown error into a no-write proof',
+  async (status) => {
+    const error = new HttpException('Uncertain', status);
+    await expect(
+      withNewClientRefusal(newCommand(), async (absent) => {
+        absent();
+        throw error;
+      }),
+    ).rejects.toBe(error);
+  },
+);
+it('does not release on an unknown transaction error, unobserved receipt lookup, or existing-client failure', async () => {
+  const unknown = new Error('Commit/rollback unknown');
+  await expect(
+    withNewClientRefusal(newCommand(), async (absent) => {
+      absent();
+      throw unknown;
+    }),
+  ).rejects.toBe(unknown);
+  const refusal = new HttpException('Not available', 404);
+  await expect(
+    withNewClientRefusal(newCommand(), async () => {
+      throw refusal;
+    }),
+  ).rejects.toBe(refusal);
+  await expect(
+    withNewClientRefusal(command(), async (absent) => {
+      absent();
+      throw refusal;
+    }),
+  ).rejects.toBe(refusal);
+});
+it('a saved original receipt prevents no-write proof when replay authority fails or the request conflicts', async () => {
+  const h = fixture();
+  h.convert.mockImplementation(async () => {
+    h.current.linkedClientId = clientId;
+    h.current.convertedAt = new Date(at);
+    return { clientId, created: true };
+  });
+  await commitProspectConversion(h.tx, ctx, newCommand(), h.convert);
+  const revoked = new HttpException('Current target revoked', 404);
+  jest.mocked(requireOwnerClient).mockRejectedValueOnce(revoked);
+  await expect(
+    withNewClientRefusal(newCommand(), (absent) =>
+      commitProspectConversion(h.tx, ctx, newCommand(), h.convert, absent),
+    ),
+  ).rejects.toBe(revoked);
+  const changed = { ...newCommand(), expectedUpdatedAt: '2026-10-24T00:00:00.000Z' };
+  const failure = (await withNewClientRefusal(changed, (absent) =>
+    commitProspectConversion(h.tx, ctx, changed, h.convert, absent),
+  ).catch((error: unknown) => error)) as HttpException;
+  expect(failure.getStatus()).toBe(409);
+  expect(failure.getResponse()).not.toHaveProperty('code', 'PROSPECT_NEW_CLIENT_REFUSED');
+  expect(h.convert).toHaveBeenCalledTimes(1);
 });

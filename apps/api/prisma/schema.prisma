@@ -17215,6 +17215,9 @@ model ClientActivityCommand {
   attemptToken          String?   @map("attempt_token") @db.Uuid
   leaseUntil            DateTime? @map("lease_until") @db.Timestamptz(6)
   errorCode             String?   @map("error_code") @db.VarChar(64)
+  undoRequestId         String?   @map("undo_request_id") @db.Uuid
+  undoRequestHash       String?   @map("undo_request_hash") @db.VarChar(64)
+  undoneAt              DateTime? @map("undone_at") @db.Timestamptz(6)
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

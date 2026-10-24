@@ -8,6 +8,12 @@ type CapacityTenant = {
   ldaRegistrantId: number | null;
 };
 
+/** Acquire before tenant/member locks when an admission needs prior authorization.
+ * This lock reserves no slot; requireClientCapacity still evaluates current policy. */
+export async function lockClientCapacity(tx: Prisma.TransactionClient, tenantId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`client-capacity:${tenantId}`},0))`;
+}
+
 /** PostgreSQL serializes the existing count-and-insert rule across all admissions.
  * Caller keeps this transaction open through its insert or status update.
  */
@@ -17,7 +23,7 @@ export async function requireClientCapacity(
   billingEnforced: boolean,
   transition?: { clientId: string; status: string },
 ): Promise<CapacityTenant> {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`client-capacity:${tenantId}`},0))`;
+  await lockClientCapacity(tx, tenantId);
   const [tenant] = await tx.$queryRaw<CapacityTenant[]>`
     SELECT billing_status::text AS "billingStatus",client_slots AS "clientSlots",lda_registrant_id AS "ldaRegistrantId"
     FROM tenants WHERE id=${tenantId}::uuid FOR SHARE`;
