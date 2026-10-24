@@ -139,6 +139,14 @@ test('qualified ARM task uses persistent clone, version-pinned canonical secret 
       'arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM',
     );
     const v = s.Resources.HeldCoreServiceA6CD0E1D.Properties;
+    assert.deepEqual(v.LoadBalancers, [
+      { ContainerName: 'core', ContainerPort: 4000, TargetGroupArn: { Ref: 'CoreTarget234133C4' } },
+      {
+        ContainerName: 'core',
+        ContainerPort: 4000,
+        TargetGroupArn: { 'Fn::ImportValue': 'Capiro-Preview-Services-Edge-CoreTargetArn' },
+      },
+    ]);
     assert.equal(v.DesiredCount, 1);
     assert.equal(v.NetworkConfiguration.AwsvpcConfiguration.AssignPublicIp, 'DISABLED');
     assert.deepEqual(v.NetworkConfiguration.AwsvpcConfiguration.SecurityGroups, [

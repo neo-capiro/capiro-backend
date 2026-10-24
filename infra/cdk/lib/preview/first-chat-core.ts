@@ -8,6 +8,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import routes from './first-chat-core-routes.json';
+import { PREVIEW_EDGE_CORE_TARGET_EXPORT } from './first-chat-preview-edge';
 
 // This is the separate preview service. The drifted live ComputeStack and its
 // production API service are not owned or updated by this composition.
@@ -340,6 +341,13 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
       circuitBreaker: { rollback: true },
     });
     service.attachToApplicationTargetGroup(target);
+    // Keep the shared-listener target while adding the dedicated preview edge.
+    // Its independent stack must exist before this service update; DNS is last.
+    service.attachToApplicationTargetGroup(
+      elb.ApplicationTargetGroup.fromTargetGroupAttributes(this, 'PreviewEdgeCoreTarget', {
+        targetGroupArn: cdk.Fn.importValue(PREVIEW_EDGE_CORE_TARGET_EXPORT),
+      }),
+    );
 
     // Preserve the two live rule identities. Host + POST + two path expressions
     // consumes four match evaluations; Strategy/Workspace/Intel and guard stay untouched.
