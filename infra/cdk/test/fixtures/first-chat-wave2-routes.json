@@ -730,5 +730,17 @@
     "method": "PUT",
     "path": "/api/clients/:clientId/account-owners",
     "owner": "Portfolio previously accepted route map"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/strategy/context/compile",
+    "owner": "ObjectiveCanonicalRequestService.publish -> StrategyContextPlaneClient.compile -> InternalStrategyContextController + InternalServiceGuard"
+  },
+  {
+    "service": "core",
+    "method": "POST",
+    "path": "/api/internal/strategy/context/objective-check",
+    "owner": "ObjectiveCanonicalRequestService.publish and objectivePersistence.beforeTransaction -> StrategyContextPlaneClient.recheckObjective -> InternalStrategyContextController + InternalServiceGuard"
   }
 ]

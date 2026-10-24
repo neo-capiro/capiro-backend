@@ -373,6 +373,14 @@
       "service": "onboard",
       "method": "POST",
       "pathRegexes": ["^/onboard-api/webhooks/stripe$"]
+    },
+    {
+      "service": "core",
+      "method": "POST",
+      "pathRegexes": [
+        "^/api/internal/strategy/context/compile$",
+        "^/api/internal/strategy/context/objective-check$"
+      ]
     }
   ]
 }
