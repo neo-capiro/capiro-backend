@@ -60,6 +60,7 @@ export class EngagementRuntimePolicyService {
   }
 
   backgroundWorkersEnabled(): boolean {
+    if (this.externalActionsMode === 'integrations_only') return false;
     if (this.backgroundOwner === 'disabled') return false;
     return this.backgroundOwner === this.serviceName;
   }
@@ -70,6 +71,7 @@ export class EngagementRuntimePolicyService {
    */
   outreachV3FullGenerationWorkerEnabled(): boolean {
     return (
+      this.externalActionsMode !== 'integrations_only' &&
       this.serviceName === 'engagement-api' &&
       process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
       process.env.OUTREACH_V3_GENERATION_ENABLED === 'true' &&
@@ -91,6 +93,7 @@ export class EngagementRuntimePolicyService {
   /** Dedicated exception for the send-intent worker, scoped to V3 sessions. */
   outreachV3SendIntentWorkerEnabled(): boolean {
     return (
+      this.externalActionsMode !== 'integrations_only' &&
       this.serviceName === 'engagement-api' &&
       process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
       process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
@@ -132,11 +135,24 @@ export class EngagementRuntimePolicyService {
    * A globally-active main API must never gain reasoning authority.
    *
    * Other rules:
+   *   integrations_only → explicit Mail integration actions, before V3 exceptions
    *   enabled    → all other registered actions
    *   disabled   → no other action
    *   test_only  → only outreach_test_send with testMode=true
    */
   externalActionAllowed(action: EngagementExternalAction, opts?: { testMode?: boolean }): boolean {
+    // Test grants are provisioned separately with a preview-owned encryption key.
+    // This mode limits operations; it does not make copied live grants safe to use.
+    // Evaluate it first so V3 flags cannot restore send or generation authority.
+    if (this.externalActionsMode === 'integrations_only') {
+      return (
+        action === 'integration_oauth_start' ||
+        action === 'integration_oauth_callback' ||
+        action === 'integration_sync' ||
+        action === 'integration_subscription' ||
+        action === 'integration_notification'
+      );
+    }
     if (action === 'outreach_reasoning') {
       return (
         this.serviceName === 'engagement-api' &&

@@ -57,6 +57,72 @@ describe('engagement runtime environment preflight', () => {
     });
   });
 
+  describe('integrations-only posture', () => {
+    const env = {
+      ENGAGEMENT_PROCESS_MODE: 'shadow',
+      ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
+      ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_only',
+      ENGAGEMENT_CALLBACKS_ENABLED: 'false',
+      ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+    };
+
+    it.each(['api', 'engagement-api'])('accepts bounded operations in %s', (serviceName) => {
+      for (const callbacks of ['false', 'true']) {
+        expect(
+          resolveEngagementRuntimeEnvironment({
+            ...env,
+            CAPIRO_SERVICE_NAME: serviceName,
+            ENGAGEMENT_CALLBACKS_ENABLED: callbacks,
+          }),
+        ).toMatchObject({
+          serviceName,
+          processMode: 'shadow',
+          backgroundOwner: 'disabled',
+          externalActions: 'integrations_only',
+          callbacksEnabled: callbacks === 'true',
+          recallWebhookEnabled: false,
+        });
+      }
+    });
+
+    it.each([
+      ['ENGAGEMENT_PROCESS_MODE', 'active'],
+      ['ENGAGEMENT_BACKGROUND_OWNER', 'api'],
+      ['ENGAGEMENT_BACKGROUND_OWNER', 'engagement-api'],
+      ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
+    ])('rejects an armed %s=%s in either bootstrap', (field, value) => {
+      for (const serviceName of ['api', 'engagement-api']) {
+        expect(() =>
+          resolveEngagementRuntimeEnvironment({
+            ...env,
+            CAPIRO_SERVICE_NAME: serviceName,
+            [field]: value,
+          }),
+        ).toThrow(/integrations_only requires/);
+      }
+    });
+
+    it('does not accept a bare mode flip with active defaults', () => {
+      expect(() =>
+        resolveEngagementRuntimeEnvironment({
+          ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_only',
+        }),
+      ).toThrow(/integrations_only requires/);
+    });
+
+    it.each([undefined, '', '  '])('rejects an omitted or blank callback choice (%s)', (value) => {
+      for (const serviceName of ['api', 'engagement-api']) {
+        expect(() =>
+          resolveEngagementRuntimeEnvironment({
+            ...env,
+            CAPIRO_SERVICE_NAME: serviceName,
+            ENGAGEMENT_CALLBACKS_ENABLED: value,
+          }),
+        ).toThrow(/requires an explicit ENGAGEMENT_CALLBACKS_ENABLED/);
+      }
+    });
+  });
+
   it.each([
     ['ENGAGEMENT_PROCESS_MODE', 'active'],
     ['ENGAGEMENT_BACKGROUND_OWNER', 'engagement-api'],

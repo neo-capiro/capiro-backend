@@ -1,7 +1,37 @@
 import { integrationActions, integrationStatusProjection, resourceSyncHealth, runSyncResources, verifiedScopeState } from './integration-health.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 const at = '2026-10-24T12:00:00.000Z';
 const stats = { failed: 0, hasMore: false };
+
+test.each(['api', 'engagement-api'] as const)(
+  'projects integrations-only capability holds in %s',
+  (serviceName) => {
+    for (const callbacksEnabled of [false, true]) {
+      const policy = new EngagementRuntimePolicyService({
+        serviceName,
+        processMode: 'shadow',
+        backgroundOwner: 'disabled',
+        externalActions: 'integrations_only',
+        callbacksEnabled,
+        recallWebhookEnabled: false,
+      });
+      const actions = integrationActions(true, true, policy);
+      expect(actions.sync.allowed).toBe(true);
+      expect(actions.connect.allowed).toBe(callbacksEnabled);
+      expect(actions.subscriptions.allowed).toBe(callbacksEnabled);
+      expect(actions.disconnect).toMatchObject({ allowed: false, reason: 'runtime_held' });
+      expect(integrationActions(false, false, policy).sync).toMatchObject({
+        allowed: false,
+        reason: 'oauth_not_configured',
+      });
+      expect(integrationActions(true, false, policy).subscriptions).toMatchObject({
+        allowed: false,
+        reason: 'notifications_not_configured',
+      });
+    }
+  },
+);
 
 test('configured OAuth does not bypass shadow runtime or missing notification configuration', () => {
   const policy = { snapshot: () => ({ callbacksEnabled: true }), externalActionAllowed: () => false };

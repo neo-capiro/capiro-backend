@@ -1,5 +1,5 @@
 import { ServiceUnavailableException } from '@nestjs/common';
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { GmailSendService } from '../google/gmail-send.service.js';
 import type { GoogleOAuthService } from '../google/google-oauth.service.js';
 import type { GoogleSyncService } from '../google/google-sync.service.js';
@@ -70,6 +70,160 @@ function expectBlocked(
 }
 
 describe('Engagement integration runtime boundaries', () => {
+  describe.each(['api', 'engagement-api'] as const)('integrations_only in %s', (serviceName) => {
+    const policy = (callbacksEnabled = true) =>
+      new EngagementRuntimePolicyService({
+        serviceName,
+        processMode: 'shadow',
+        backgroundOwner: 'disabled',
+        externalActions: 'integrations_only',
+        callbacksEnabled,
+        recallWebhookEnabled: false,
+      });
+
+    beforeEach(() => {
+      jest.replaceProperty(process, 'env', {
+        ...process.env,
+        OUTREACH_V3_STATE_ENABLED: 'true',
+        OUTREACH_V3_DRAFTS_ENABLED: 'true',
+        OUTREACH_V3_SEND_ENABLED: 'true',
+      });
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('allows both provider syncs, token access, OAuth and subscriptions through their existing boundaries', async () => {
+      const sync = jest.fn(async () => ({ completed: true }));
+      const start = jest.fn(async () => ({ url: 'https://provider.example.test/authorize' }));
+      const callback = jest.fn(async () => ({ connected: true }));
+      const subscriptions = jest.fn(async () => ({ configured: true }));
+      const notifications = jest.fn(async () => ({ accepted: true }));
+      const token = jest.fn(async () => 'synthetic-token');
+      const google = guardGoogleSyncService(
+        { syncConnection: sync } as unknown as GoogleSyncService,
+        policy(),
+      );
+      const graph = guardMicrosoftGraphSyncService(
+        {
+          syncConnection: sync,
+          configureSubscriptions: subscriptions,
+          handleNotifications: notifications,
+        } as unknown as MicrosoftGraphSyncService,
+        policy(),
+      );
+      const googleOAuth = guardGoogleOAuthService(
+        { start, handleCallback: callback } as unknown as GoogleOAuthService,
+        policy(),
+      );
+      const microsoftOAuth = guardMicrosoftOAuthService(
+        { start, handleCallback: callback } as unknown as MicrosoftOAuthService,
+        policy(),
+      );
+      const tokens = guardGoogleTokenService(
+        { getValidAccessToken: token } as unknown as GoogleTokenService,
+        policy(),
+      );
+      await expect(google.syncConnection({} as never, 'test-connection')).resolves.toEqual({
+        completed: true,
+      });
+      await expect(graph.syncConnection({} as never, 'test-connection')).resolves.toEqual({
+        completed: true,
+      });
+      for (const oauth of [googleOAuth, microsoftOAuth]) {
+        await expect(oauth.start({} as never, {})).resolves.toEqual({
+          url: 'https://provider.example.test/authorize',
+        });
+        await expect(
+          oauth.handleCallback({ code: 'synthetic-code', state: 'synthetic-state' }),
+        ).resolves.toEqual({ connected: true });
+      }
+      await expect(graph.configureSubscriptions({} as never, 'test-connection')).resolves.toEqual({
+        configured: true,
+      });
+      await expect(graph.handleNotifications({ value: [] } as never)).resolves.toEqual({
+        accepted: true,
+      });
+      await expect(
+        tokens.getValidAccessToken('test-tenant', 'test-connection', {} as never),
+      ).resolves.toBe('synthetic-token');
+      expect(sync).toHaveBeenCalledTimes(2);
+      expect(start).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps callbacks off unless explicitly enabled', () => {
+      const handleCallback = jest.fn();
+      const handleNotifications = jest.fn();
+      const google = guardGoogleOAuthService(
+        { handleCallback } as unknown as GoogleOAuthService,
+        policy(false),
+      );
+      const microsoft = guardMicrosoftOAuthService(
+        { handleCallback } as unknown as MicrosoftOAuthService,
+        policy(false),
+      );
+      const graph = guardMicrosoftGraphSyncService(
+        { handleNotifications } as unknown as MicrosoftGraphSyncService,
+        policy(false),
+      );
+      for (const oauth of [google, microsoft]) {
+        expect(() =>
+          oauth.handleCallback({ code: 'synthetic-code', state: 'synthetic-state' }),
+        ).toThrow(ServiceUnavailableException);
+      }
+      expect(() => graph.handleNotifications({ value: [] } as never)).toThrow(
+        ServiceUnavailableException,
+      );
+      expect(handleCallback).not.toHaveBeenCalled();
+      expect(handleNotifications).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      'outreach_send',
+      'outreach_test_send',
+      'outreach_v3_send',
+      'outreach_v3_test_send',
+    ] as const)(
+      'denies %s before either provider sees a send, with every V3 send flag enabled',
+      (runtimeAction) => {
+        const sendMail = jest.fn();
+        const google = guardGmailSendService({ sendMail } as unknown as GmailSendService, policy());
+        const microsoft = guardMicrosoftGraphSyncService(
+          { sendMail } as unknown as MicrosoftGraphSyncService,
+          policy(),
+        );
+        for (const sender of [google, microsoft]) {
+          expect(() =>
+            sender.sendMail({} as never, 'test-connection', {
+              runtimeAction,
+              testMode: true,
+            } as never),
+          ).toThrow(ServiceUnavailableException);
+        }
+        expect(sendMail).not.toHaveBeenCalled();
+      },
+    );
+
+    it('denies disconnect before either provider can revoke a grant or delete subscriptions', () => {
+      const disconnect = jest.fn();
+      const google = guardGoogleOAuthService(
+        { disconnect } as unknown as GoogleOAuthService,
+        policy(),
+      );
+      const microsoft = guardMicrosoftOAuthService(
+        { disconnect } as unknown as MicrosoftOAuthService,
+        policy(),
+      );
+      for (const oauth of [google, microsoft]) {
+        expect(() => oauth.disconnect({} as never, 'test-connection')).toThrow(
+          ServiceUnavailableException,
+        );
+      }
+      expect(disconnect).not.toHaveBeenCalled();
+    });
+  });
+
   it('blocks every Microsoft Graph sync, subscription, notification, and send entry point', () => {
     expectBlocked(MICROSOFT_GRAPH_RUNTIME_METHODS, (raw) =>
       guardMicrosoftGraphSyncService(

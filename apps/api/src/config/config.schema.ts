@@ -1,7 +1,10 @@
 import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { AI_PRICING } from '@capiro/shared';
 import { z } from 'zod';
-import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/engagement-runtime-env.js';
+import {
+  ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT,
+  resolveEngagementRuntimeEnvironment,
+} from '../engagement/runtime/engagement-runtime-env.js';
 
 /**
  * Meri rollout mode switches (docs/meri/grounding/stage-0/FEATURE-FLAG.md): a
@@ -1228,8 +1231,11 @@ export const configSchema = z.object({
 
   // External action mode. 'enabled' = all actions (main API default).
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
-  // testMode=true.
-  ENGAGEMENT_EXTERNAL_ACTIONS: z.enum(['disabled', 'test_only', 'enabled']).default('enabled'),
+  // testMode=true. 'integrations_only' permits the bounded Mail integration
+  // actions but denies Mail/Engagement sends, including V3, and its workers.
+  ENGAGEMENT_EXTERNAL_ACTIONS: z
+    .enum(['disabled', 'test_only', 'enabled', 'integrations_only'])
+    .default('enabled'),
 
   // OAuth callbacks and Microsoft notifications. Uses the string-allowlist
   // transform (NOT z.coerce.boolean()) so 'false'/'0'/'no'/'off' correctly
@@ -1317,7 +1323,11 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
   // codebase's own precedent (four other cross-field checks in this function)
   // is to keep the schema authoritative on its own, never relying solely on a
   // sibling module to catch a bad combination.
-  if (parsed.CAPIRO_SERVICE_NAME === 'engagement-api') {
+  if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'integrations_only') {
+    // Share the bounded posture check with both bootstrap preflights. Use raw
+    // inputs so malformed booleans cannot be hidden by schema transforms.
+    resolveEngagementRuntimeEnvironment(raw);
+  } else if (parsed.CAPIRO_SERVICE_NAME === 'engagement-api') {
     const isShadow =
       parsed.ENGAGEMENT_PROCESS_MODE === 'shadow' &&
       parsed.ENGAGEMENT_BACKGROUND_OWNER === 'disabled' &&

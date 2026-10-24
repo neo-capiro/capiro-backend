@@ -69,7 +69,9 @@ export const ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT =
  * as `flase` into false. Both bootstraps call this before Nest constructs any
  * provider, opens a database connection, or starts a worker.
  *
- * Two valid postures for `engagement-api`, never a partial mix of the two:
+ * Existing shadow/active postures remain unchanged. The integrations_only
+ * action mode adds a bounded Mail posture with no background or Recall ownership;
+ * callbacks can be enabled explicitly for isolated test OAuth/subscriptions.
  *
  *   SHADOW (default): every one of processMode/backgroundOwner/
  *   externalActions/callbacksEnabled/recallWebhookEnabled is at its inert
@@ -109,7 +111,7 @@ export function resolveEngagementRuntimeEnvironment(
   const externalActions = exactEnum(
     'ENGAGEMENT_EXTERNAL_ACTIONS',
     raw.ENGAGEMENT_EXTERNAL_ACTIONS,
-    ['disabled', 'test_only', 'enabled'] as const,
+    ['disabled', 'test_only', 'enabled', 'integrations_only'] as const,
     'enabled',
   );
   const callbacksEnabled = parseExactBooleanEnvironment(
@@ -131,6 +133,26 @@ export function resolveEngagementRuntimeEnvironment(
     callbacksEnabled,
     recallWebhookEnabled,
   };
+
+  if (externalActions === 'integrations_only') {
+    if (
+      raw.ENGAGEMENT_CALLBACKS_ENABLED == null ||
+      String(raw.ENGAGEMENT_CALLBACKS_ENABLED).trim() === ''
+    ) {
+      throw new Error(
+        'ENGAGEMENT_EXTERNAL_ACTIONS=integrations_only requires an explicit ' +
+          'ENGAGEMENT_CALLBACKS_ENABLED=true or false; the live callback default must not arm it.',
+      );
+    }
+    if (processMode !== 'shadow' || backgroundOwner !== 'disabled' || recallWebhookEnabled) {
+      throw new Error(
+        'ENGAGEMENT_EXTERNAL_ACTIONS=integrations_only requires ' +
+          'ENGAGEMENT_PROCESS_MODE=shadow, ENGAGEMENT_BACKGROUND_OWNER=disabled and ' +
+          'ENGAGEMENT_RECALL_WEBHOOK_ENABLED=false. Callbacks remain explicitly configured.',
+      );
+    }
+    return resolved;
+  }
 
   if (serviceName === 'engagement-api') {
     const isShadow =

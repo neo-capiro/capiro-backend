@@ -73,6 +73,39 @@ describe('EngagementRuntimeAction', () => {
 describe('EngagementRuntimeGuard', () => {
   const reflector = new Reflector();
 
+  it('admits integration routes and stored reads but rejects send routes in integrations_only', () => {
+    const guard = new EngagementRuntimeGuard(
+      reflector,
+      makePolicy({
+        externalActions: 'integrations_only',
+        callbacksEnabled: true,
+      }),
+    );
+    for (const [controller, handler] of [
+      ['EngagementController', 'listIntegrations'],
+      ['GoogleIntegrationActionsController', 'syncConnection'],
+      ['MicrosoftIntegrationActionsController', 'sync'],
+      ['MicrosoftIntegrationActionsController', 'subscriptions'],
+      ['GoogleIntegrationActionsController', 'start'],
+      ['MicrosoftCallbacksController', 'callback'],
+      ['GoogleCallbacksController', 'callback'],
+      ['MicrosoftCallbacksController', 'notifications'],
+    ] as const) {
+      expect(guard.canActivate(contextFor(controller, handler))).toBe(true);
+    }
+    for (const [controller, handler] of [
+      ['EngagementController', 'sendSingleMail'],
+      ['EngagementController', 'sendCampaignTest'],
+      ['NewsletterOutreachController', 'send'],
+      ['NewsletterOutreachController', 'test'],
+      ['OutreachV3SendController', 'testSend'],
+      ['OutreachV3SendController', 'createIntent'],
+      ['GoogleIntegrationActionsController', 'disconnect'],
+    ] as const) {
+      expect(() => guard.canActivate(contextFor(controller, handler))).toThrow();
+    }
+  });
+
   it('allows an ordinary DB-local route with no registry or decorator metadata', () => {
     const guard = new EngagementRuntimeGuard(reflector, makePolicy());
     expect(guard.canActivate(contextFor('OutcomeController', 'list'))).toBe(true);

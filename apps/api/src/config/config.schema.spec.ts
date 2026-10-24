@@ -1,6 +1,63 @@
 import { describe, expect, test } from '@jest/globals';
 import { configSchema, validateConfig } from './config.schema.js';
 
+describe('integrations-only runtime configuration', () => {
+  const raw = {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+    CLERK_SECRET_KEY: 'test-secret',
+    CLERK_WEBHOOK_SIGNING_SECRET: 'test-webhook-secret',
+    ENGAGEMENT_PROCESS_MODE: 'shadow',
+    ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
+    ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_only',
+    ENGAGEMENT_CALLBACKS_ENABLED: 'false',
+    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+  };
+
+  test.each(['api', 'engagement-api'])('accepts the bounded posture for %s', (serviceName) => {
+    for (const callbacks of ['false', 'true']) {
+      expect(
+        validateConfig({
+          ...raw,
+          CAPIRO_SERVICE_NAME: serviceName,
+          ENGAGEMENT_CALLBACKS_ENABLED: callbacks,
+        }),
+      ).toMatchObject({
+        ENGAGEMENT_EXTERNAL_ACTIONS: 'integrations_only',
+        ENGAGEMENT_CALLBACKS_ENABLED: callbacks === 'true',
+      });
+    }
+    expect(configSchema.shape.ENGAGEMENT_EXTERNAL_ACTIONS.parse(undefined)).toBe('enabled');
+  });
+
+  test.each([
+    ['ENGAGEMENT_PROCESS_MODE', 'active'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'api'],
+    ['ENGAGEMENT_BACKGROUND_OWNER', 'engagement-api'],
+    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'true'],
+    ['ENGAGEMENT_CALLBACKS_ENABLED', 'flase'],
+    ['ENGAGEMENT_RECALL_WEBHOOK_ENABLED', 'flase'],
+  ])('rejects unsafe or malformed %s=%s independently of preflight', (field, value) => {
+    for (const serviceName of ['api', 'engagement-api']) {
+      expect(() =>
+        validateConfig({ ...raw, CAPIRO_SERVICE_NAME: serviceName, [field]: value }),
+      ).toThrow();
+    }
+  });
+
+  test.each([undefined, '', '  '])('rejects an omitted or blank callback choice (%s)', (value) => {
+    for (const serviceName of ['api', 'engagement-api']) {
+      expect(() =>
+        validateConfig({
+          ...raw,
+          CAPIRO_SERVICE_NAME: serviceName,
+          ENGAGEMENT_CALLBACKS_ENABLED: value,
+        }),
+      ).toThrow(/requires an explicit ENGAGEMENT_CALLBACKS_ENABLED/);
+    }
+  });
+});
+
 describe('Core roster preview task settings', () => {
   const raw = {
     NODE_ENV: 'test',
