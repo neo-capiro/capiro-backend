@@ -289,6 +289,8 @@ export class FirstChatCoreServiceStack extends cdk.Stack {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });
+    (serveTask.node.defaultChild as ecs.CfnTaskDefinition).cfnOptions.updateReplacePolicy =
+      cdk.CfnDeletionPolicy.RETAIN;
     // Ordinary Files uses presigned POST, Head/GetObject and reviewed deletion.
     // Core retains actor/client/wall enforcement; IAM confines its storage owner.
     const attachmentPrefixes = binding.assets.tenantIds.map(
