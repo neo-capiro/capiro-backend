@@ -407,6 +407,13 @@
       "pathRegexes": [
         "^/api/business-development/prospects/[A-Za-z0-9_-]+/contacts/transfers$"
       ]
+    },
+    {
+      "service": "workspace",
+      "method": "POST",
+      "pathRegexes": [
+        "^/workspace-api/prospects/[A-Za-z0-9_-]+/clients/[A-Za-z0-9_-]+/brief-copies$"
+      ]
     }
   ]
 }

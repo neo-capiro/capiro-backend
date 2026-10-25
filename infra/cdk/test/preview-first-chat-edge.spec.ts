@@ -135,7 +135,7 @@ test('finite method/path routes admit their owners and reject unintended cross-p
     const rules = ofType(edge, 'AWS::ElasticLoadBalancingV2::ListenerRule').map(
       (r) => r.Properties,
     );
-    assert.equal(rules.length, 53);
+    assert.equal(rules.length, 54);
     for (const rule of rules) {
       assert.deepEqual(rule.ListenerArn, { Ref: 'PreviewHttps' });
       const conditions = rule.Conditions;
@@ -228,6 +228,13 @@ test('finite method/path routes admit their owners and reject unintended cross-p
       target('core'),
     );
     assert.equal(destination('POST', '/api/clio/application-authority/history-release'), null);
+    assert.deepEqual(
+      destination(
+        'GET',
+        '/workspace-api/prospects/11111111-1111-4111-8111-111111111111/clients/22222222-2222-4222-8222-222222222222/brief-copies/33333333-3333-4333-8333-333333333333',
+      ),
+      target('workspace'),
+    );
   }));
 
 test('DNS is a separately rendered exact preview alias, with the wildcard left outside ownership', () =>
