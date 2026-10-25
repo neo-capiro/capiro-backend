@@ -22,6 +22,8 @@ import { detectNames } from '../generation/anonymize.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit } from '../collaborators/role-policy.js';
 import type { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
+import type { SaveDraftDto } from './dto/save-draft.dto.js';
+import { ordinaryDraftState, saveOrdinaryDraft } from './ordinary-draft-save.js';
 
 /**
  * Drafts service (Phase 3, AC-3.3). Every method is tenant-scoped: tenantId is
@@ -40,6 +42,15 @@ export class DraftsService {
     private readonly prisma: PrismaService,
     private readonly collaborators: CollaboratorsService,
   ) {}
+
+  currentState(tenantId: string, draftId: string, actorId: string) {
+    return ordinaryDraftState(this.prisma, this.collaborators, tenantId, draftId, actorId);
+  }
+
+  save(tenantId: string, draftId: string, actorId: string, input: SaveDraftDto) {
+    return saveOrdinaryDraft(this.prisma, this.collaborators, tenantId, draftId, actorId, input,
+      tx => this.update(tenantId, draftId, actorId, input.draft ?? {}, tx));
+  }
 
   async create(
     tenantId: string,
@@ -362,7 +373,7 @@ export class DraftsService {
    * hot fields, re-derives isPacket/docCount, and enforces the funding-only ask
    * rule. tenantId is checked first (no cross-tenant writes).
    */
-  async update(tenantId: string, id: string, actorId: string, dto: UpdateDraftDto) {
+  async update(tenantId: string, id: string, actorId: string, dto: UpdateDraftDto, transaction?: Prisma.TransactionClient) {
     assertImmutableProspectInput(dto);
     const existing = await this.prisma.wsDraft.findFirst({
       where: { id, tenantId },
@@ -381,7 +392,9 @@ export class DraftsService {
       'Only owners and editors can edit this document',
     );
 
-    const run = <T>(operation: (db: Prisma.TransactionClient) => Promise<T>) => existing.prospectId
+    const run = <T>(operation: (db: Prisma.TransactionClient) => Promise<T>) => transaction
+      ? operation(transaction)
+      : existing.prospectId
       ? withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', operation)
       : this.prisma.$transaction(async tx => {
           await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;

@@ -8,6 +8,7 @@ import {
   type ClientObjectiveDestinationInput,
 } from '@capiro/shared';
 import { createHash } from 'node:crypto';
+import { withDraftWrite } from '../drafts/draft-write.js';
 import {
   withProspectDraft,
   assertProspectDraft,
@@ -168,9 +169,8 @@ export class VersionsService {
     // Snapshotting is a "Save draft" editor action — owner/editor only. authorId
     // is the acting user (the controller passes ctx.clerkUserId).
     let draft = await this.loadDraft(tenantId, draftId, authorId, canEdit);
-    return withProspectDraft(this.prisma, draft, authorId, canEdit, 'write', async (db) => {
-      if (draft.prospectId)
-        draft = await db.wsDraft.findFirstOrThrow({
+    return withDraftWrite(this.prisma, draft, authorId, async (db) => {
+      draft = await db.wsDraft.findFirstOrThrow({
           where: { tenantId, id: draftId },
           include: { documents: { orderBy: { ordinal: 'asc' } } },
         });
@@ -225,8 +225,7 @@ export class VersionsService {
     const snapshotClient = (snap.config as Record<string, unknown> | undefined)?.clientId ?? null;
     if (snapshotClient !== (draft.clientId ?? null))
       throw new ConflictException('Saved revision belongs to a different client association');
-    await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+    await withDraftWrite(this.prisma, draft, actorId, async (tx) => {
       if (!actorId) throw new NotFoundException('Draft not found');
       await requireProspectDraftInTx(tx, draft, actorId, canEdit, 'write');
       // The prospect scope above rechecks current membership, linked-client

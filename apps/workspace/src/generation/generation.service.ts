@@ -1131,7 +1131,7 @@ export class GenerationService {
     // be written we must not return a status the draft does not actually carry.
     const latestConfig = (refreshed.config as Record<string, unknown>) ?? {};
     const saved = await this.prisma.wsDraft.updateMany({
-      where: { id: draftId, tenantId },
+      where: { id: draftId, tenantId, config: { equals: latestConfig as never } },
       data: { config: { ...latestConfig, generationRun: run } as never },
     });
     if (saved.count !== 1) {
@@ -1181,7 +1181,7 @@ export class GenerationService {
     // row was actually matched, so a cross-tenant or vanished draft surfaces as a
     // failure instead of a silent no-op the caller would report as saved.
     const written = await this.prisma.wsDraft.updateMany({
-      where: { id: draftId, tenantId },
+      where: { id: draftId, tenantId, config: { equals: cfg as never } },
       data: {
         config: {
           ...cfg,

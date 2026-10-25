@@ -15,6 +15,7 @@ import {
 import { renderNewsletterDesign, newsletterSafeUrl } from '@capiro/shared/newsletter-render';
 import { sanitizeNewsletterHtml, validateNewsletterDesign } from './newsletter-validation.js';
 import { NewsletterService } from './newsletter.service.js';
+import { createHash } from 'node:crypto';
 const ctx = { tenantId: '11111111-1111-4111-8111-111111111111', clerkUserId: 'user_owner' };
 const id = '22222222-2222-4222-8222-222222222222';
 const makeRow = () => ({
@@ -35,7 +36,7 @@ function fixture() {
     updateMany: jest.fn(),
     create: jest.fn(),
   };
-  const stage = { upsert: jest.fn() };
+  const stage = { upsert: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) };
   const library = { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn() };
   const reviewers = {
     findFirst: jest.fn(),
@@ -374,7 +375,7 @@ describe('newsletter authoring boundary', () => {
       id,
       updatedAt: new Date(),
     }));
-    f.stage.upsert.mockResolvedValue({ id, name: row.name, createdAt: new Date() });
+    f.stage.upsert.mockResolvedValue({ id, documentId: id, revision: row.revision, name: row.name, createdAt: new Date() });
     expect((await f.service.get(ctx, id)).ownerId).toBe('document_owner');
     await f.service.save(ctx, id, {
       revision: 3,
@@ -570,7 +571,7 @@ describe('newsletter authoring boundary', () => {
     const row = makeRow();
     f.document.findFirst.mockResolvedValue(row);
     f.document.updateMany.mockResolvedValue({ count: 1 });
-    f.stage.upsert.mockResolvedValue({ id, name: row.name, createdAt: new Date() });
+    f.stage.upsert.mockResolvedValue({ id, documentId: id, revision: 3, name: row.name, createdAt: new Date() });
     await expect(f.service.stage(ctx, id, 2)).rejects.toBeInstanceOf(ConflictException);
     expect(f.stage.upsert).not.toHaveBeenCalled();
     const result = await f.service.stage(ctx, id, 3);
@@ -580,6 +581,70 @@ describe('newsletter authoring boundary', () => {
     expect(write.create.design).toEqual(row.design);
     expect(write.create.html).toContain('The week in policy.');
     expect(write.create.html).toContain('https://app.capiro.ai/newsletter/capitol.png');
+  });
+  it('binds the saved preview to the document, revision and exact rendered strings', async () => {
+    const f = fixture();
+    f.document.findFirst.mockResolvedValue(makeRow());
+    const result = await f.service.preview(ctx, id);
+    expect(result).toMatchObject({ documentId: id, revision: 3, hashFormat: 'newsletter-render-json-v1' });
+    expect(result.renderHash).toBe(createHash('sha256')
+      .update(JSON.stringify({ html: result.html, plainText: result.plainText })).digest('hex'));
+    expect(result.html).toContain('The week in policy.');
+  });
+  it('recovers an earlier committed stage after a later edit without another write', async () => {
+    const f = fixture();
+    const row = makeRow();
+    f.document.findFirst.mockResolvedValue({ ...row, revision: 4 });
+    const saved = { ...row, documentId: id, createdAt: new Date('2026-10-25T00:00:00Z') };
+    f.stage.findFirst.mockResolvedValue(saved);
+    const recovered = await f.service.stagedRevision(ctx, id, 3);
+    expect(recovered).toMatchObject({ documentId: id, revision: 3, createdAt: saved.createdAt.toISOString() });
+    expect(await f.service.stage(ctx, id, 3)).toEqual(recovered);
+    expect(f.stage.findFirst).toHaveBeenCalledWith({ where: {
+      tenantId: ctx.tenantId, ownerId: ctx.clerkUserId, documentId: id, revision: 3,
+    } });
+    expect(f.stage.upsert).not.toHaveBeenCalled();
+    expect(f.document.updateMany).not.toHaveBeenCalled();
+  });
+  it('returns absence on a missing exact stage without creating one', async () => {
+    const f = fixture();
+    f.document.findFirst.mockResolvedValue(makeRow());
+    await expect(f.service.stagedRevision(ctx, id, 3)).resolves.toBeNull();
+    expect(f.stage.upsert).not.toHaveBeenCalled();
+    expect(f.document.updateMany).not.toHaveBeenCalled();
+  });
+  it('refuses recovery when the saved stage retains a revoked source client', async () => {
+    const f = fixture();
+    const row = makeRow();
+    f.document.findFirst.mockResolvedValue(row);
+    f.stage.findFirst.mockResolvedValue({ ...row, documentId: id, config: { ...row.config, clientId: id } });
+    f.source.getClient.mockResolvedValue({ wallAllowed: false });
+    await expect(f.service.stagedRevision(ctx, id, 3)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(f.service.stage(ctx, id, 3)).rejects.toBeInstanceOf(NotFoundException);
+    expect(f.stage.upsert).not.toHaveBeenCalled();
+  });
+  it('refuses a removed member and never activates an invitation while recovering', async () => {
+    const f = fixture();
+    f.document.findFirst.mockResolvedValue(makeRow());
+    f.source.newsletterMember.mockResolvedValue(null);
+    await expect(f.service.stagedRevision(ctx, id, 3)).rejects.toBeInstanceOf(NotFoundException);
+    const member = { clerkUserId: 'user_other', role: 'standard_user', email: 'other@example.test' };
+    f.source.newsletterMember.mockImplementation(async (_tenant, actor) => ({ ...member, clerkUserId: actor }));
+    f.source.newsletterMemberByEmail.mockResolvedValue(member);
+    const invitation = { id, authorId: ctx.clerkUserId, email: member.email,
+      sourceClientIds: [], accountRole: 'standard_user', role: 'editor' };
+    f.invitations.findMany.mockResolvedValue([invitation]);
+    f.invitations.findFirst.mockResolvedValue(invitation);
+    const createGrant = jest.fn(async () => {
+      f.reviewers.findFirst.mockResolvedValue({ role: 'editor' }); return { count: 1 };
+    });
+    Object.assign(f.reviewers, { createMany: createGrant });
+    await expect(f.service.stagedRevision({ ...ctx, clerkUserId: 'user_other' }, id, 3))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(f.reviewers.upsert).not.toHaveBeenCalled();
+    expect(createGrant).not.toHaveBeenCalled();
+    expect(f.invitations.update).not.toHaveBeenCalled();
+    expect(f.stage.findFirst).not.toHaveBeenCalled();
   });
   it('fails staging if the revision changed while the snapshot was rendering', async () => {
     const f = fixture();

@@ -693,6 +693,16 @@ export interface NewsletterStage {
   createdAt: string;
   route: string;
 }
+/** A preview is tied to saved content; rendering does not establish a send. */
+export interface NewsletterPreview {
+  documentId: string;
+  revision: number;
+  renderHash: string;
+  hashFormat: 'newsletter-render-json-v1';
+  html: string;
+  plainText: string;
+  checks: NewsletterCheck[];
+}
 export interface NewsletterCheck {
   id: string;
   severity: 'error' | 'warning' | 'pass';
