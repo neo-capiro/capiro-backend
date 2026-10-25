@@ -1,4 +1,5 @@
 import { assertSingleMailAuthority } from './single-mail-authority.js';
+import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 import { assertFileKeyNotDeleted, deleteClientFile, readClientFileDelete, type ClientFileDeleteOwner } from './attachments/client-file-delete.js';
 import { copyProspectFile, readProspectFileCopy } from './attachments/prospect-file-copy.js';
 import { prospectCopyPrefix } from './attachments/prospect-file-copy.input.js';
@@ -7653,6 +7654,8 @@ export class EngagementService {
     // ownership isolation is unchanged.
     await this.validateAttachmentParents(ctx, input);
 
+    await this.assertAttachmentUploadClientAccess(ctx, input);
+
     const safeName = safeFileName(input.fileName);
     const intent = input.prospectId
       ? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
@@ -7699,6 +7702,7 @@ export class EngagementService {
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
         requireProspectScope(tx, ctx, input.prospectId!, 'write'),
       );
+    else await this.assertAttachmentUploadClientAccess(ctx, input);
     return {
       ...presigned,
       s3Key,
@@ -7730,11 +7734,12 @@ export class EngagementService {
           )
         : null;
     if (prospective?.replay) return prospective.replay;
+    await this.validateAttachmentParents(ctx, input);
+    await this.assertAttachmentUploadClientAccess(ctx, input);
     const head = await this.s3
       .send(new HeadObjectCommand({ Bucket: this.bucket, Key: input.s3Key }))
       .catch(() => null);
     if (!head) throw new BadRequestException('Uploaded attachment not found in S3');
-    await this.validateAttachmentParents(ctx, input);
 
     // ── Phase 1 §3.h1 — verify the bytes, don't trust the claims ────────────
     //
@@ -7789,6 +7794,8 @@ export class EngagementService {
       await assertFileKeyNotDeleted(tx, ctx, this.bucket!, input.s3Key);
       if (bound?.replay) return bound.replay;
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+      if (clientId && !input.prospectId)
+        await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
       const replay = await tx.engagementAttachment.findFirst({
         where: { tenantId: ctx.tenantId, s3Key: input.s3Key },
       });
@@ -9391,6 +9398,19 @@ export class EngagementService {
         throw new BadRequestException('Meeting belongs to a different client');
       }
     }
+  }
+
+  private async assertAttachmentUploadClientAccess(
+    ctx: TenantContext,
+    input: { prospectId?: string | null; clientId?: string | null; meetingId?: string | null },
+  ) {
+    if (input.prospectId || (!input.clientId && !input.meetingId)) return;
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const clientId = input.meetingId
+        ? (await this.ensureOwnMeeting(tx, ctx, input.meetingId)).clientId
+        : input.clientId;
+      if (clientId) await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+    });
   }
 
   private async validateAttachmentParents(
