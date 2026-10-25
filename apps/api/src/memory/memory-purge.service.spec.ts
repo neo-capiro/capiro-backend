@@ -109,7 +109,7 @@ describe('MemoryPurgeService.purgeClient', () => {
     const result = await svc.purgeClient(T, C, actor, { dryRun: false, reason: 'offboarding' });
     // The admission lock precedes the existing six cross-store deletes.
     expect(rec.executed.filter(sql => /DELETE FROM/.test(sql))).toHaveLength(6);
-    expect(rec.executed[0]).toBe('LOCK TABLE memory_items IN SHARE ROW EXCLUSIVE MODE');
+    expect(rec.executed[0]).toBe('LOCK TABLE memory_items IN EXCLUSIVE MODE');
     const admission = rec.statements.indexOf(rec.executed[0]!);
     expect(admission).toBeLessThan(rec.statements.findIndex(sql => /ORDER BY id FOR UPDATE/.test(sql)));
     expect(admission).toBeLessThan(rec.statements.findIndex(sql => /legal_hold = true/.test(sql)));

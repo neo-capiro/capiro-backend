@@ -104,7 +104,8 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
         slug text NOT NULL, sections_jsonb jsonb NOT NULL, visibility text NOT NULL DEFAULT 'tenant',
         status text NOT NULL DEFAULT 'active', governed_status text DEFAULT 'active',
         conflict_status text DEFAULT 'none', controlling_item_id uuid, legal_hold boolean DEFAULT false,
-        expires_at timestamptz, valid_until timestamptz, updated_at timestamptz DEFAULT now());
+        effective_from timestamptz, expires_at timestamptz, valid_until timestamptz,
+        updated_at timestamptz DEFAULT now());
       CREATE TABLE context_embeddings(tenant_id uuid,client_id uuid,owner_user_id uuid,
         source_type text,source_id text,model text,content_text text,content_hash text,embedding vector,
         updated_at timestamptz DEFAULT now(), UNIQUE(tenant_id,source_type,source_id,model));
@@ -525,6 +526,51 @@ suite('memory backfill lifecycle at the actual PostgreSQL source/write boundary'
     expect(result.deleted.memoryItems).toBe(1);
     expect(result.deleted.embeddings).toBe(1);
     expect(result.deleted.clioMemory).toBe(0);
+  });
+  test('client purge waits for a row-lock writer to finish its hold update', async () => {
+    await mutation.query('BEGIN');
+    await mutation.query('SELECT id FROM memory_items WHERE id=$1 FOR UPDATE', [item]);
+    const owner = {
+      withSystem: async (fn: (tx: unknown) => Promise<unknown>) => {
+        await writer.query('BEGIN');
+        try {
+          const result = await fn(port(writer));
+          await writer.query('COMMIT');
+          return result;
+        } catch (error) {
+          await writer.query('ROLLBACK');
+          throw error;
+        }
+      },
+    };
+    const purge = new MemoryPurgeService(owner as never).purgeClient(
+      tenant, clientId, { userId: actor, role: 'user_admin' },
+      { dryRun: false, reason: 'isolated row-lock upgrade regression' },
+    ).then(result => ({ result, error: null }), error => ({ result: null, error }));
+    try {
+      let waiting = false;
+      for (let i = 0; i < 100 && !waiting; i++) {
+        const state = (await db.query(
+          'SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',
+          [(writer as any).processID],
+        )).rows[0];
+        waiting = state?.wait_event_type === 'Lock';
+        if (!waiting) await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect(waiting).toBe(true);
+      // This UPDATE used to deadlock against the purge's granted table lock.
+      await mutation.query('UPDATE memory_items SET legal_hold=true WHERE id=$1', [item]);
+      await mutation.query('COMMIT');
+      const completed = await purge;
+      expect(completed.error).toBeNull();
+      expect(completed.result?.heldBack).toBe(1);
+      expect((await db.query(
+        'SELECT legal_hold FROM memory_items WHERE id=$1', [item],
+      )).rows).toEqual([{ legal_hold: true }]);
+    } finally {
+      await mutation.query('ROLLBACK');
+      await purge;
+    }
   });
   test.each(['compatibility', 'strict', 'client purge', 'scheduled expiry'])(
     '%s deletion locks the source before its embedding and cannot deadlock the writer',
